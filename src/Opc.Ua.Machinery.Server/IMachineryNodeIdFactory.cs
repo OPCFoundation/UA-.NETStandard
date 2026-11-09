@@ -38,7 +38,7 @@ namespace Opc.Ua.Machinery.Server
     /// allocate Machinery application instances in the configured instance
     /// namespace.
     /// </remarks>
-    public interface IMachineryNodeIdFactory : INodeIdFactory
+    public interface IMachineryNodeIdFactory : Di.Server.ICompanionNodeIdFactory
     {
     }
 }

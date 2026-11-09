@@ -33,9 +33,11 @@ is the two sample applications that compose them.
 
 **No cloud-vendor SDK is referenced anywhere.** The default backend goes
 through `Microsoft.Extensions.AI`, which a hosted service and an on-device
-runtime both implement, and workload identity is read from the token the
-platform projects — the mechanism every platform implements underneath its own
-SDK. A sample that only ran against one vendor would not be demonstrating a
+runtime both implement. The built-in workload-identity resolver reads a projected
+token file when the deployment provides one. Hosts that need token exchange,
+metadata-service acquisition or another identity mechanism supply an acquisition
+delegate. The endpoint must accept the token the resolver returns.
+A sample that only ran against one vendor would not be demonstrating a
 platform-independent Server. `RestChatCompletionsBackend` remains available
 when the endpoint only exposes the OpenAI-compatible REST contract and the host
 cannot supply an `IChatClient`; set `InferenceBackend:Kind` (or
@@ -101,8 +103,9 @@ one.
 **`ModelUsed`** names the model that actually produced a result. It exists for
 the fallback case: a caller that cannot see which model answered cannot tell a
 degraded answer from a good one, and a fallback that answers silently looks
-exactly like a healthy primary. This is the single thing in the sample most
-worth getting right, and the one the tests press hardest on.
+exactly like a healthy primary. `FallbackTests` checks that `ModelUsed` identifies
+the model that answered; `ProvenanceTests` follows the result's model reference
+to its metadata.
 
 **`EgressPermitted`, `DataJurisdiction`, `RetainsInput`** say where the data
 goes. Egress is not made false by encryption — that answers who can read data in
@@ -136,8 +139,8 @@ the HTTP client that reaches an OpenAI-compatible endpoint. The learning job
 node is also real: the Server publishes a `LearningJobType` instance, and
 `SamplesCollected` is incremented only when host-level code records a distinct
 ground-truth sample. Empty or retracted observations count the same way as
-samples carrying geometry. All of the inference pieces have been run end to end
-against a live endpoint, in a container, and in a Kubernetes cluster.
+samples carrying geometry. The sample includes endpoint verification tooling
+and a Kubernetes smoke-test script; see the verification instructions below.
 
 **Not implemented.** There is no retraining loop. A sample cannot retrain a
 model, and `PromoteModel` is not wired to a simulated MLOps integration — faking

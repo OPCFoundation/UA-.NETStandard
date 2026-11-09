@@ -316,11 +316,14 @@ namespace Opc.Ua.Server
 
                 Add(key, locale, text);
 
-                m_statusCodeMapping ??= [];
-
                 if (string.IsNullOrEmpty(locale) || locale == "en-US")
                 {
-                    m_statusCodeMapping[statusCode] = new TranslationInfo(key, locale, text);
+                    // copy on write: lookups read the map without the lock.
+                    Dictionary<StatusCode, TranslationInfo> mapping = m_statusCodeMapping != null
+                        ? new Dictionary<StatusCode, TranslationInfo>(m_statusCodeMapping)
+                        : [];
+                    mapping[statusCode] = new TranslationInfo(key, locale, text);
+                    Volatile.Write(ref m_statusCodeMapping, mapping);
                 }
             }
         }
@@ -338,11 +341,14 @@ namespace Opc.Ua.Server
 
                     Add(key, locale, text);
 
-                    m_symbolicIdMapping ??= [];
-
                     if (string.IsNullOrEmpty(locale) || locale == "en-US")
                     {
-                        m_symbolicIdMapping[symbolicId] = new TranslationInfo(key, locale, text);
+                        // copy on write: lookups read the map without the lock.
+                        Dictionary<XmlQualifiedName, TranslationInfo> mapping = m_symbolicIdMapping != null
+                            ? new Dictionary<XmlQualifiedName, TranslationInfo>(m_symbolicIdMapping)
+                            : [];
+                        mapping[symbolicId] = new TranslationInfo(key, locale, text);
+                        Volatile.Write(ref m_symbolicIdMapping, mapping);
                     }
                 }
             }
@@ -511,9 +517,11 @@ namespace Opc.Ua.Server
             public string Language { get; }
 
             /// <summary>
-            /// The translations by key.
+            /// The translations by key. Keys are identifiers, compared ordinally: the
+            /// default string comparer is culture-sensitive and made every lookup of a
+            /// Browse display name cost up to a microsecond.
             /// </summary>
-            public SortedDictionary<string, string> Translations { get; init; } = [];
+            public Dictionary<string, string> Translations { get; init; } = new(StringComparer.Ordinal);
         }
 
         /// <summary>
@@ -541,7 +549,9 @@ namespace Opc.Ua.Server
                         TranslationTable table = m_translationTables[ii];
                         snapshot[ii] = new TranslationTable(table.Locale)
                         {
-                            Translations = new SortedDictionary<string, string>(table.Translations)
+                            Translations = new Dictionary<string, string>(
+                                table.Translations,
+                                StringComparer.Ordinal)
                         };
                     }
                     Volatile.Write(ref m_translationSnapshot, snapshot);
@@ -959,19 +969,18 @@ namespace Opc.Ua.Server
             object[] args,
             string? symbolicId = null)
         {
-            lock (m_lock)
+            // the map is replaced, never changed, so it is read without the lock: a session
+            // that requests diagnostics translates the status of every notification.
+            Dictionary<StatusCode, TranslationInfo>? mapping = Volatile.Read(ref m_statusCodeMapping);
+            if (mapping != null && mapping.TryGetValue(statusCode.Code, out TranslationInfo info))
             {
-                if (m_statusCodeMapping != null &&
-                    m_statusCodeMapping.TryGetValue(statusCode.Code, out TranslationInfo info))
+                // merge the argument list with the translation info cached for the status code.
+                if (args != null)
                 {
-                    // merge the argument list with the translation info cached for the status code.
-                    if (args != null)
-                    {
-                        info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
-                    }
-
-                    return Translate(preferredLocales, default, info);
+                    info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
                 }
+
+                return Translate(preferredLocales, default, info);
             }
 
             return LocalizedText.From(symbolicId ?? Utils.Format("{0:X8}", statusCode.Code));
@@ -987,21 +996,17 @@ namespace Opc.Ua.Server
             StatusCode statusCode,
             object[] args)
         {
-            lock (m_lock)
+            Dictionary<XmlQualifiedName, TranslationInfo>? mapping = Volatile.Read(ref m_symbolicIdMapping);
+            if (mapping != null &&
+                mapping.TryGetValue(new XmlQualifiedName(symbolicId, namespaceUri), out TranslationInfo info))
             {
-                if (m_symbolicIdMapping != null &&
-                    m_symbolicIdMapping.TryGetValue(
-                        new XmlQualifiedName(symbolicId, namespaceUri),
-                        out TranslationInfo info))
+                // merge the argument list with the translation info cached for the symbolic id.
+                if (args != null)
                 {
-                    // merge the argument list with the translation info cached for the symbolic id.
-                    if (args != null)
-                    {
-                        info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
-                    }
-
-                    return Translate(preferredLocales, default, info);
+                    info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
                 }
+
+                return Translate(preferredLocales, default, info);
             }
 
             if ((string.IsNullOrEmpty(namespaceUri) || namespaceUri == Ua.Namespaces.OpcUa) &&

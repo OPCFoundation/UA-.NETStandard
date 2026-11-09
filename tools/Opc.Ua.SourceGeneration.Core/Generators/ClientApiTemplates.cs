@@ -123,6 +123,17 @@ namespace Opc.Ua.SourceGeneration
             /// <summary>
             /// Invokes the {{Tokens.Name}} service.
             /// </summary>
+            /// <remarks>
+            /// The state machine is pooled, so the returned task must be awaited once,
+            /// like any value task. A completed call keeps no reference to its response:
+            /// a call that waited long enough to be promoted (a Publish waits for the
+            /// publishing interval) would otherwise keep every later response alive
+            /// until the next full collection.
+            /// </remarks>
+            #if NET6_0_OR_GREATER
+            [global::System.Runtime.CompilerServices.AsyncMethodBuilder(
+                typeof(global::System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder<>))]
+            #endif
             {{Tokens.ClientMethodAsync}}
             {
                 {{Tokens.Name}}Request request = new {{Tokens.Name}}Request();

@@ -16,9 +16,10 @@ space, or to import it into another system.
   - [Namespace Handling](#namespace-handling)
   - [References](#references)
 - [Limitations](#limitations)
+  - [MCP server export paths](#mcp-server-export-paths)
 - [API Reference](#api-reference)
-  - [`CoreClientUtils.ExportNodesToNodeSet2`](#coreclientutilsexportnodestonodeset2)
-  - [`ClientSamples.ExportNodesToNodeSet2`](#clientsamplesexportnodestonodeset2)
+  - [CoreClientUtils.ExportNodesToNodeSet2](#coreclientutilsexportnodestonodeset2)
+  - [ClientSamples.ExportNodesToNodeSet2](#clientsamplesexportnodestonodeset2)
 - [Related Topics](#related-topics)
 - [Examples](#examples)
 - [See Also](#see-also)
@@ -36,50 +37,72 @@ The client-based NodeSet export feature enables:
 
 ### Basic Example
 
+The following helper exports the direct children of the Server node from an
+existing session. The caller owns the session and output stream. For connection
+and trust setup, see [Getting started](GettingStarted.md); for recursive export,
+see [Using the Console Reference Client](#using-the-console-reference-client).
+
 ```csharp
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
 
-// Connect to server and create session
-var session = await Session.CreateAsync(/*...*/);
-
-// Browse to collect nodes
-var browser = new Browser(session)
+/// <summary>
+/// Exports nodes browsed through an existing client session.
+/// </summary>
+public static class NodeSetExportExample
 {
-    BrowseDirection = BrowseDirection.Forward,
-    ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-    IncludeSubtypes = true,
-    NodeClassMask = 0
-};
-
-var nodesToBrowse = new NodeIdCollection { ObjectIds.Server };
-var allNodes = new List<INode>();
-
-// Browse and collect nodes
-ReferenceDescriptionCollection references = await browser.BrowseAsync(nodesToBrowse[0]);
-
-foreach (ReferenceDescription reference in references)
-{
-    INode node = await session.NodeCache.FindAsync(reference.NodeId);
-    if (node != null)
+    /// <summary>
+    /// Exports the Server node's direct hierarchical children to NodeSet2 XML.
+    /// </summary>
+    public static async Task ExportServerChildrenAsync(
+        ISession session,
+        ITelemetryContext telemetry,
+        Stream output,
+        CancellationToken ct = default)
     {
-        allNodes.Add(node);
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(telemetry);
+        ArgumentNullException.ThrowIfNull(output);
+
+        var browser = new Browser(session)
+        {
+            BrowseDirection = BrowseDirection.Forward,
+            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+            IncludeSubtypes = true,
+            NodeClassMask = 0
+        };
+
+        ArrayOf<ReferenceDescription> references =
+            await browser.BrowseAsync(ObjectIds.Server, ct).ConfigureAwait(false);
+        var nodes = new List<INode>();
+        for (int i = 0; i < references.Count; i++)
+        {
+            INode? node = await session.NodeCache.FindAsync(references[i].NodeId, ct)
+                .ConfigureAwait(false);
+            if (node is not null)
+            {
+                nodes.Add(node);
+            }
+        }
+
+        ct.ThrowIfCancellationRequested();
+        var systemContext = new SystemContext(telemetry)
+        {
+            NamespaceUris = session.NamespaceUris,
+            ServerUris = session.ServerUris
+        };
+        CoreClientUtils.ExportNodesToNodeSet2(systemContext, nodes, output);
     }
 }
-
-// Export to NodeSet2 file
-using (var stream = new FileStream("exported-nodeset.xml", FileMode.Create))
-{
-    var systemContext = new SystemContext(telemetry)
-    {
-        NamespaceUris = session.NamespaceUris,
-        ServerUris = session.ServerUris
-    };
-
-    CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream);
-}
 ```
+
+Browsing and node reads are asynchronous; the existing export helper writes
+the collected nodes to XML synchronously.
 
 ### Using the Console Reference Client
 
@@ -129,11 +152,11 @@ For each node, the following attributes are exported (where applicable):
 
 ### Namespace Handling
 
-The export functionality properly handles:
+The export functionality handles:
 
 - Multiple namespaces
 - Namespace URIs are included in the exported NodeSet
-- NodeIds are correctly mapped to namespace indices
+- NodeIds are mapped to namespace indices
 
 ### References
 
@@ -150,6 +173,22 @@ All references between nodes are preserved in the export, including:
 - Dynamic values are captured as they exist at export time
 - Not all server-specific internal state may be preserved
 - Complex type definitions require the complex types system to be loaded
+
+### MCP server export paths
+
+The MCP server's `ExportNodeSet` tools use a separate, per-user export root.
+`OpcUaMcpOptions.NodeSetExportRoot` takes precedence over the
+`OPCUA_MCP_EXPORT_ROOT` environment variable, followed by the per-user default.
+Both relative and absolute output paths must remain inside that root. The MCP
+writer rejects existing files, filesystem reparse points and unsafe Unix
+directory permissions, and creates new output files exclusively rather than
+truncating an existing destination.
+
+Configure the root so no untrusted local account can replace its path
+components. The managed path checks do not pin directory handles across the
+entire operation, so a concurrently writable shared directory is not a
+supported export root. Existing destinations must be moved or removed
+explicitly before exporting again.
 
 ## API Reference
 

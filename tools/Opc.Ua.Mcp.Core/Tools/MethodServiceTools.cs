@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Server;
@@ -46,6 +47,20 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Call one or more methods on the OPC UA server.
         /// </summary>
+        public static Task<string> CallAsync(
+            OpcUaSessionManager sessionManager,
+            string objectId,
+            string methodId,
+            string[]? inputArguments,
+            string? sessionName,
+            CancellationToken ct)
+        {
+            return CallAsync(sessionManager, objectId, methodId, inputArguments, sessionName, null, ct);
+        }
+
+        /// <summary>
+        /// Calls a method with legacy strings or explicitly typed UA JSON arguments.
+        /// </summary>
         [McpServerTool(Name = "Call")]
         [Description("Call one or more methods on the OPC UA server. Each method call specifies the object and " +
             "method NodeIds plus input arguments. Returns JSON with responseHeader, statusCode, outputArguments, " +
@@ -56,15 +71,22 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Method node ID to call")] string methodId,
             [Description("Input argument values as strings (optional)")] string[]? inputArguments = null,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
+            [Description("Optional UA JSON Variant array, e.g. [{\"UaType\":6,\"Value\":0}]. " +
+                "Use instead of inputArguments for numbers or structures; load custom types first.")]
+            string? inputArgumentsJson = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
 
             try
             {
-                ArrayOf<Variant> inputArgs = inputArguments != null
-                    ? inputArguments.Select(arg => new Variant(arg)).ToArray()
-                    : [];
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                Client.ISession session = sessionInfo.Session;
+                ArrayOf<Variant> inputArgs = OpcUaJsonHelper.ParseCallArguments(
+                    inputArguments, inputArgumentsJson, session.MessageContext);
 
                 ArrayOf<CallMethodRequest> methodsToCall =
                 [
@@ -76,6 +98,9 @@ namespace Opc.Ua.Mcp.Tools
                     }
                 ];
 
+                await sessionManager.UaOperationGuard.AuthorizeCallsAsync(sessionInfo, methodsToCall, ct)
+                    .ConfigureAwait(false);
+                operation.VerifyBeforeDispatch(ct);
                 CallResponse response = await session.CallAsync(
                     null,
                     methodsToCall,
@@ -84,7 +109,8 @@ namespace Opc.Ua.Mcp.Tools
                 CallMethodResult result = response.Results[0];
                 List<object?> outputArgs = result.OutputArguments.IsNull
                     ? []
-                    : [.. result.OutputArguments.ToArray()!.Select(v => OpcUaJsonHelper.VariantToObject(v))];
+                    : [.. result.OutputArguments.ToArray()!.Select(
+                        v => OpcUaJsonHelper.VariantToObject(v, session.MessageContext))];
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {

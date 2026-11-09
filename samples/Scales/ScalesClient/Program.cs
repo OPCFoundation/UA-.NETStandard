@@ -96,6 +96,53 @@ foreach (ScaleEntry entry in all)
     firstScale ??= entry;
     ScaleSnapshot snapshot = await scales.ReadSnapshotAsync(entry, ct).ConfigureAwait(false);
     PrintScale(snapshot);
+    for (int index = 0; index < snapshot.Products.Count; index++)
+    {
+        NodeId product = snapshot.Products[index].NodeId;
+        if (entry.Kind is ScaleKind.Catchweigher or ScaleKind.AutomaticWeightPriceLabeler)
+        {
+            ScaleLastItemSnapshot item = await scales.ReadLastItemAsync(product, ct).ConfigureAwait(false);
+            Console.WriteLine($"  item {item.ItemId.Value}, weight status {item.MeasuredWeight.StatusCode}, zone {item.ZoneName.Value}");
+            Console.WriteLine($"  length {item.MeasuredLength.Value} ({item.MeasuredLength.StatusCode}, {item.MeasuredLength.Timestamp:O})");
+            if (entry.Kind == ScaleKind.AutomaticWeightPriceLabeler)
+            {
+                string amount = item.ItemPrice.HasValue
+                    ? item.ItemPrice.Value.ToString(CultureInfo.InvariantCulture) : "unavailable";
+                Console.WriteLine($"  price {amount} {item.ItemPriceCurrencyUnit.Value?.AlphabeticCode} ({item.ItemPrice.StatusCode})");
+            }
+        }
+        else if (entry.Kind == ScaleKind.TotalizingHopper)
+        {
+            ScaleField<ulong> tips = await scales.ReadTipCounterAsync(product, ct).ConfigureAwait(false);
+            string count = tips.HasValue ? tips.Value.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            Console.WriteLine($"  completed fills {count} ({tips.StatusCode})");
+        }
+        else if (entry.Kind == ScaleKind.PieceCounting)
+        {
+            ScalePieceCountingSnapshot totals = await scales.ReadPieceCountingTotalsAsync(product, ct)
+                .ConfigureAwait(false);
+            string pieces = totals.TotalizedItemCount.HasValue
+                ? totals.TotalizedItemCount.Value.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            string weight = totals.TotalizedWeight.HasValue
+                ? totals.TotalizedWeight.Value.Net.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            Console.WriteLine($"  registered pieces {pieces} ({totals.TotalizedItemCount.StatusCode}), " +
+                $"weight {weight} ({totals.TotalizedWeight.StatusCode})");
+        }
+        else if (entry.Kind == ScaleKind.Recipe)
+        {
+            ScaleRecipeStatus status = await scales.ReadRecipeStatusAsync(product, ct).ConfigureAwait(false);
+            Console.WriteLine($"  recipe {status.RecipeNodeId.Value}, report entries {status.Report.Value.Count}");
+        }
+        else if (entry.Kind == ScaleKind.Vehicle)
+        {
+            ScaleVehicleWeightSnapshot vehicle = await scales.ReadVehicleWeightsAsync(product, ct)
+                .ConfigureAwait(false);
+            string total = vehicle.TotalWeight.HasValue
+                ? vehicle.TotalWeight.Value.Net.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            Console.WriteLine(
+                $"  vehicle total {total} ({vehicle.TotalWeight.StatusCode}, {vehicle.TotalWeight.Timestamp:O})");
+        }
+    }
 }
 
 if (firstScale == null)

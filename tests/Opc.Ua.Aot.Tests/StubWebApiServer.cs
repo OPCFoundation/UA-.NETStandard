@@ -47,16 +47,20 @@ namespace Opc.Ua.Aot.Tests
 
         public IServiceMessageContext MessageContext { get; }
         public bool IsReady => true;
-        public IServiceRequest LastRequest { get; private set; }
-        public WebApiInvocationContext LastInvocation { get; private set; }
+
+        public IServiceRequest LastRequest => m_lastRequest ??
+            throw new InvalidOperationException("The WebApi fixture has not received a request.");
+
+        public WebApiInvocationContext LastInvocation => m_lastInvocation ??
+            throw new InvalidOperationException("The WebApi fixture has not received an invocation.");
 
         public ValueTask<IServiceResponse> InvokeAsync(
             IServiceRequest request,
             WebApiInvocationContext context,
             CancellationToken ct)
         {
-            LastRequest = request;
-            LastInvocation = context;
+            m_lastRequest = request;
+            m_lastInvocation = context;
 
             IServiceResponse response = BuildTypedResponse(request);
             return new ValueTask<IServiceResponse>(response);
@@ -117,5 +121,11 @@ namespace Opc.Ua.Aot.Tests
                 _ => new ServiceFault { ResponseHeader = header }
             };
         }
+
+        /// <summary>The request recorded by the most recent invocation.</summary>
+        private IServiceRequest? m_lastRequest;
+
+        /// <summary>The context recorded by the most recent invocation.</summary>
+        private WebApiInvocationContext? m_lastInvocation;
     }
 }

@@ -398,6 +398,96 @@ namespace Opc.Ua.Client
         private sealed record PendingSubscriptionRecovery(NodeId PreviousSessionId, bool ReusedSession);
 
         /// <summary>
+        /// A session this client replaced on another channel, still allocated on its Server.
+        /// </summary>
+        private sealed record RetiredServerSession(
+            NodeId SessionId,
+            NodeId AuthenticationToken,
+            ITransportChannel Channel);
+
+        /// <summary>
+        /// Closes <paramref name="retired"/> once no subscription recovery is pending, so
+        /// subscriptions can still be transferred from it.
+        /// </summary>
+        private async Task RetireAfterSubscriptionRecoveryAsync(RetiredServerSession retired)
+        {
+            RetiredServerSession? replaced = Interlocked.Exchange(ref m_retiredSession, retired);
+            if (replaced != null)
+            {
+                await RetireServerSessionAsync(replaced, disposeChannel: true).ConfigureAwait(false);
+            }
+            if (m_pendingSubscriptionRecovery == null)
+            {
+                await RetirePendingServerSessionAsync().ConfigureAwait(false);
+            }
+        }
+
+        private async Task RetirePendingServerSessionAsync()
+        {
+            RetiredServerSession? retired = Interlocked.Exchange(ref m_retiredSession, null);
+            if (retired != null)
+            {
+                await RetireServerSessionAsync(retired, disposeChannel: true).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Sends CloseSession for <paramref name="retired"/> on the channel it is bound to
+        /// and deletes its subscriptions there.
+        /// </summary>
+        private async Task RetireServerSessionAsync(RetiredServerSession retired, bool disposeChannel)
+        {
+            try
+            {
+                var request = new CloseSessionRequest
+                {
+                    RequestHeader = new RequestHeader
+                    {
+                        AuthenticationToken = retired.AuthenticationToken,
+                        RequestHandle = NewRequestHandle(),
+                        Timestamp = DateTime.UtcNow,
+                        TimeoutHint = (uint)GetCloseRequestTimeout(m_keepAliveInterval)
+                    },
+                    DeleteSubscriptions = true
+                };
+                using CancellationTokenSource timeout =
+                    CreateCloseRequestCancellationTokenSource(m_keepAliveInterval, CancellationToken.None);
+                await retired.Channel.SendRequestAsync(request, timeout.Token).ConfigureAwait(false);
+                m_logger.SessionRetiredPreviousSession(retired.SessionId);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger.CleanupCloseSessionAsyncCloseChannelAsyncRaisedException(ex);
+            }
+            finally
+            {
+                if (disposeChannel)
+                {
+                    await CloseRetainedChannelAsync(retired.Channel).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async Task CloseRetainedChannelAsync(ITransportChannel channel)
+        {
+            try
+            {
+                if (channel is not IManagedTransportChannel)
+                {
+                    await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger.CleanupCloseSessionAsyncCloseChannelAsyncRaisedException(ex);
+            }
+            finally
+            {
+                channel.Dispose();
+            }
+        }
+
+        /// <summary>
         /// Identity fences completion from an earlier recovery on the same lease.
         /// </summary>
         /// <param name="Channel"></param>
@@ -472,6 +562,7 @@ namespace Opc.Ua.Client
         private IClientChannelManager? m_channelManager;
         private IManagedTransportChannel? m_managedChannel;
         private PendingSubscriptionRecovery? m_pendingSubscriptionRecovery;
+        private RetiredServerSession? m_retiredSession;
 
         /// <summary>
         /// Single-flight gate for <see cref="CompleteSessionRecoveryAsync"/>: the

@@ -108,18 +108,15 @@ namespace Opc.Ua.Bindings
             }
 
             int expectedSize = RoundUpToPoolBucket(checked(size + m_metadataByteCount));
-            bool usesSharedPool = m_maxBufferSize <= kSharedPoolThreshold - m_metadataByteCount;
-#if NET5_0_OR_GREATER
-            if (usesSharedPool)
+            if (m_maxBufferSize <= kSharedPoolThreshold - m_metadataByteCount)
             {
+                // the bounded pool allocates the exact bucket when it is exhausted
                 return expectedSize;
             }
-#endif
-            // Configurable pools, including Shared on .NET Framework, can fall
-            // back to the next bucket when the requested bucket is exhausted.
-            int largestBucket = usesSharedPool
-                ? kSharedPoolThreshold
-                : RoundUpToPoolBucket(checked(m_maxBufferSize + m_metadataByteCount));
+
+            // Configurable pools can fall back to the next bucket when the
+            // requested bucket is exhausted.
+            int largestBucket = RoundUpToPoolBucket(checked(m_maxBufferSize + m_metadataByteCount));
             return expectedSize < largestBucket ? expectedSize * 2 : expectedSize;
         }
 
@@ -220,13 +217,16 @@ namespace Opc.Ua.Bindings
         /// <returns>The selected array pool.</returns>
         internal static ArrayPool<byte> CreateArrayPool(int maxBufferSize, int metadataByteCount)
         {
-            if (maxBufferSize <= kSharedPoolThreshold - metadataByteCount)
-            {
-                return ArrayPool<byte>.Shared;
-            }
-
             int maximumArrayLength = RoundUpToPoolBucket(
                 checked(maxBufferSize + metadataByteCount));
+            if (maxBufferSize <= kSharedPoolThreshold - metadataByteCount)
+            {
+                // Not ArrayPool<byte>.Shared: it keeps a few arrays per processor and
+                // allocates a new chunk for every response once a deep pipeline on a
+                // host with few processors has exhausted it.
+                return BoundedArrayPool.GetShared(maximumArrayLength);
+            }
+
             return ArrayPool<byte>.Create(maximumArrayLength, 4);
         }
 

@@ -103,6 +103,9 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Use a discovery endpoint URL with optional security mode/policy.
+        /// The endpoint's encoding and message limits are taken from the
+        /// <see cref="ApplicationConfiguration.TransportQuotas"/> of the
+        /// configuration this builder was created with.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder UseEndpoint(
@@ -120,7 +123,8 @@ namespace Opc.Ua.Client
                 SecurityMode = securityMode,
                 SecurityPolicyUri = securityPolicyUri
             };
-            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
+            return UseEndpoint(new ConfiguredEndpoint(
+                null, endpointDescription, EndpointConfiguration.Create(m_configuration)));
         }
 
         /// <summary>
@@ -137,7 +141,9 @@ namespace Opc.Ua.Client
         /// Certificate + IssuedToken / JWT) so the client can present
         /// any identity supported by the server; the server-side
         /// <c>DefaultSessionlessIdentityProvider</c> still enforces what
-        /// it accepts.
+        /// it accepts. As with <see cref="UseEndpoint(string, MessageSecurityMode, string)"/>,
+        /// the endpoint's limits come from the builder configuration's
+        /// <see cref="ApplicationConfiguration.TransportQuotas"/>.
         /// </summary>
         /// <param name="url">
         /// The server's base URL, e.g. <c>https://server:4843/</c>.
@@ -189,7 +195,8 @@ namespace Opc.Ua.Client
             };
             m_webApiOptions ??= new WebApiClientOptions();
             m_webApiOptions.Encoding = encoding;
-            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
+            return UseEndpoint(new ConfiguredEndpoint(
+                null, endpointDescription, EndpointConfiguration.Create(m_configuration)));
         }
 
         /// <summary>
@@ -198,7 +205,9 @@ namespace Opc.Ua.Client
         /// surfaced via <see cref="Profiles.WssOpenApiTransport"/>,
         /// OPC Foundation profile/2339). Same envelope as
         /// <see cref="UseWebApiEndpoint(string, WebApiEncoding)"/> but
-        /// multiplexed over a WebSocket text-frame transport.
+        /// multiplexed over a WebSocket text-frame transport, including
+        /// the limits taken from
+        /// <see cref="ApplicationConfiguration.TransportQuotas"/>.
         /// </summary>
         /// <param name="url">
         /// The server's WSS URL, e.g. <c>wss://server:4843/</c>.
@@ -250,7 +259,8 @@ namespace Opc.Ua.Client
             };
             m_webApiOptions ??= new WebApiClientOptions();
             m_webApiOptions.Encoding = encoding;
-            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
+            return UseEndpoint(new ConfiguredEndpoint(
+                null, endpointDescription, EndpointConfiguration.Create(m_configuration)));
         }
 
         /// <summary>
@@ -282,7 +292,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Use reverse connect for the configured endpoint.
+        /// Use reverse connect for the configured endpoint. Replaces a previous
+        /// <see cref="UseReverseConnect(IReverseConnectionSource, Uri)"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="manager"/> or
         /// <paramref name="serverUri"/> is <c>null</c>.</exception>
@@ -301,7 +312,48 @@ namespace Opc.Ua.Client
 
             m_reverseConnectManager = manager;
             m_reverseConnectServerUri = serverUri;
+            m_options = m_options with { ReverseConnectionSource = null };
             ApplyReverseConnectEndpoint();
+            return this;
+        }
+
+        /// <summary>
+        /// Use reverse connect for the configured endpoint with connections
+        /// supplied by <paramref name="source"/>. The session awaits the source
+        /// for the initial connect and once per recovery attempt. Replaces a
+        /// previous <see cref="UseReverseConnect(ReverseConnectManager, Uri)"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="source"/> or
+        /// <paramref name="serverUri"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder UseReverseConnect(
+            IReverseConnectionSource source,
+            Uri serverUri)
+        {
+            if (source is null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+            if (serverUri is null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
+
+            m_reverseConnectManager = null;
+            m_reverseConnectServerUri = serverUri;
+            m_options = m_options with { ReverseConnectionSource = source };
+            ApplyReverseConnectEndpoint();
+            return this;
+        }
+
+        /// <summary>
+        /// Sets <see cref="ManagedSessionOptions.ReverseConnectionSource"/>
+        /// without changing the reverse connect settings of the endpoint.
+        /// Replaces a previous reverse connect manager.
+        /// </summary>
+        internal ManagedSessionBuilder UseReverseConnectionSource(IReverseConnectionSource source)
+        {
+            m_reverseConnectManager = null;
+            m_options = m_options with { ReverseConnectionSource = source };
             return this;
         }
 
@@ -332,6 +384,44 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(provider));
             }
             m_options = m_options with { IdentityProvider = provider };
+            return this;
+        }
+
+        /// <summary>
+        /// Acknowledge notifications only after the application confirmed them through
+        /// <see cref="ISessionAcknowledgements.Confirm"/> (at-least-once delivery).
+        /// </summary>
+        public ManagedSessionBuilder AcknowledgeAfterConfirmation()
+        {
+            m_options = m_options with { AcknowledgementMode = AcknowledgementMode.AfterConfirmation };
+            return this;
+        }
+
+        /// <summary>
+        /// Set the provider that decides which acknowledgements are sent and which are deferred.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithAcknowledgementProvider(ISubscriptionAcknowledgementProvider provider)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            m_options = m_options with { AcknowledgementProvider = provider };
+            return this;
+        }
+
+        /// <summary>
+        /// Set the observer that is told how every acknowledgement ended.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="observer"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithAcknowledgementObserver(ISubscriptionAcknowledgementObserver observer)
+        {
+            if (observer == null)
+            {
+                throw new ArgumentNullException(nameof(observer));
+            }
+            m_options = m_options with { AcknowledgementObserver = observer };
             return this;
         }
 
@@ -436,6 +526,26 @@ namespace Opc.Ua.Client
                 throw new ArgumentOutOfRangeException(nameof(timeout));
             }
             m_options = m_options with { ChannelReconnectTimeout = timeout };
+            return this;
+        }
+
+        /// <summary>
+        /// Validates the endpoint a reconnect rediscovers before the session
+        /// is recreated against it. Only a Good result accepts the
+        /// rediscovered endpoint; any other result, an exception or a
+        /// cancellation keeps the endpoint in use and fails the reconnect
+        /// attempt. See <see cref="ManagedSession.ValidateRediscoveredEndpoint"/>.
+        /// </summary>
+        /// <param name="validator">The validator.</param>
+        /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="validator"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithRediscoveredEndpointValidator(RediscoveredEndpointValidator validator)
+        {
+            if (validator == null)
+            {
+                throw new ArgumentNullException(nameof(validator));
+            }
+            m_options = m_options with { ValidateRediscoveredEndpoint = validator };
             return this;
         }
 
@@ -666,6 +776,24 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Decodes notifications when the Publish response arrives instead of
+        /// right before they are dispatched, which is the default.
+        /// </summary>
+        /// <remarks>
+        /// Has no effect when the classic subscription engine is in
+        /// use; this option only applies to the V2
+        /// <see cref="Subscriptions.ISubscriptionManager"/>.
+        /// </remarks>
+        public ManagedSessionBuilder WithoutDeferredNotificationDecoding()
+        {
+            m_options = m_options with
+            {
+                DeferNotificationDecoding = false
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Enables address-space model change tracking. The session
         /// auto-starts a <see cref="ModelChange.IModelChangeTracker"/>
         /// after connect that invalidates the node cache and exposes
@@ -726,6 +854,31 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Takes over the server session of <paramref name="handoff"/> when the session connects,
+        /// instead of creating a new one: the saved session is activated on a new secure channel
+        /// and its subscriptions continue on the new session. The endpoint of the handoff is used
+        /// unless an endpoint is configured.
+        /// </summary>
+        /// <param name="handoff">The handoff returned by <see cref="ManagedSession.RetireAsync"/>
+        /// of the previous owner.</param>
+        /// <param name="options">How to take over; by default the connect fails when the server
+        /// session cannot be taken over.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="handoff"/> is null.</exception>
+        public ManagedSessionBuilder TakeOver(SessionHandoff handoff, SessionTakeoverOptions? options = null)
+        {
+            if (handoff == null)
+            {
+                throw new ArgumentNullException(nameof(handoff));
+            }
+            m_options = m_options with
+            {
+                TakeoverFrom = handoff,
+                Takeover = options ?? new SessionTakeoverOptions()
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Returns the immutable options snapshot accumulated so far.
         /// </summary>
         public ManagedSessionOptions Build()
@@ -741,10 +894,14 @@ namespace Opc.Ua.Client
         public async Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
         {
             ManagedSessionOptions opts = m_options;
+            if (opts.Endpoint == null && opts.TakeoverFrom?.Session.ConfiguredEndpoint != null)
+            {
+                opts = opts with { Endpoint = CoreUtils.Clone(opts.TakeoverFrom.Session.ConfiguredEndpoint) };
+            }
             if (opts.Endpoint == null)
             {
                 throw new InvalidOperationException(
-                    "ManagedSessionBuilder.UseEndpoint must be called before ConnectAsync.");
+                    "ManagedSessionBuilder.UseEndpoint or TakeOver must be called before ConnectAsync.");
             }
 
             ISubscriptionEngineFactory engineFactory =
@@ -769,7 +926,7 @@ namespace Opc.Ua.Client
             // non-transparent redundant servers are handled without any special connect API.
             IServerRedundancyHandler redundancy = m_redundancyHandler ??
                 new DefaultServerRedundancyHandler(
-                    new DefaultRedundantServerEndpointResolver(m_telemetry),
+                    DefaultServerRedundancyHandler.CreateEndpointResolver(opts.ServerRedundancy, m_telemetry),
                     opts.TimeProvider,
                     opts.ServerRedundancy);
 

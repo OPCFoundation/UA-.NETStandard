@@ -96,31 +96,31 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [Test]
-        public void ResolveChildThrowsTheSuppliedStatusWhenNoResultIsReturned()
+        public async Task ResolveChildThrowsTheSuppliedStatusWhenNoResultIsReturned()
         {
             Mock<ISession> session = CreateSession(_ => null);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ResolveAsync(session).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ResolveAsync(session).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
             Assert.That(ex.Message, Does.Contain("missing"));
         }
 
         [Test]
-        public void ResolveChildThrowsTheSuppliedStatusWhenNoTargetIsReturned()
+        public async Task ResolveChildThrowsTheSuppliedStatusWhenNoTargetIsReturned()
         {
             Mock<ISession> session = CreateSession(
                 _ => new BrowsePathResult { StatusCode = StatusCodes.Good, Targets = [] });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ResolveAsync(session).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ResolveAsync(session).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
         }
 
         [Test]
-        public void ResolveChildThrowsTheSuppliedStatusWhenTheServerReportsABadResult()
+        public async Task ResolveChildThrowsTheSuppliedStatusWhenTheServerReportsABadResult()
         {
             Mock<ISession> session = CreateSession(
                 _ => new BrowsePathResult
@@ -136,8 +136,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                     }.ToArrayOf()
                 });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ResolveAsync(session).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ResolveAsync(session).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
         }

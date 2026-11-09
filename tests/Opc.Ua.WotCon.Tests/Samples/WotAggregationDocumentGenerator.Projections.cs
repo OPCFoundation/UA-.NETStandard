@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Tests.Samples
 {
@@ -227,7 +228,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 ["@type"] = new JsonArray("Thing", "uav:projection"),
                 ["id"] = $"urn:opcfoundation.org:UA:WotAggregation:Asset:{pumpName}" +
                     (group == "Asset" ? string.Empty : ":" + group),
-                ["title"] = group == "Members" || group == "Asset" ? $"{pumpName} {group}" : group,
+                ["title"] = group is "Members" or "Asset" ? $"{pumpName} {group}" : group,
                 ["uav:scenario"] = "urn:opcfoundation.org:UA:WotAggregation:AssetManagement",
                 ["securityDefinitions"] = new JsonObject
                 {

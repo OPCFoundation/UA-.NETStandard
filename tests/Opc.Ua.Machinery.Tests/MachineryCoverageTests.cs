@@ -253,7 +253,7 @@ namespace Opc.Ua.Machinery.Tests
 
             var openOutputs = new List<Variant>();
             ServiceResult openStatus = file.Open!.Call(
-                m_fixture.Manager.SystemContext,
+                m_fixture.SessionContext,
                 file.NodeId,
                 new Variant[] { Variant.From((byte)1) }.ToArrayOf(),
                 new List<ServiceResult>(),
@@ -264,7 +264,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.Open.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From((byte)2) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -273,7 +273,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.Write!.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[]
                     {
@@ -288,7 +288,7 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(
                 ServiceResult.IsGood(
                     file.GetPosition!.Call(
-                        m_fixture.Manager.SystemContext,
+                        m_fixture.SessionContext,
                         file.NodeId,
                         new Variant[] { Variant.From(handle) }.ToArrayOf(),
                         new List<ServiceResult>(),
@@ -297,7 +297,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.SetPosition!.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle), Variant.From(3ul) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -305,7 +305,7 @@ namespace Opc.Ua.Machinery.Tests
                 Is.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(
                 file.SetPosition.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle), Variant.From(9999ul) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -314,7 +314,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.Read!.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle), Variant.From(-1) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -323,7 +323,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 (await file.Close!.CallAsync(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -390,7 +390,7 @@ namespace Opc.Ua.Machinery.Tests
                 .BuildAsync();
 
             Assert.That(publisher, Is.Not.Null);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await publisher!.PublishAsync(new BaseEventState(null)));
 
             var notification = new SystemEventState(null);
@@ -636,7 +636,7 @@ namespace Opc.Ua.Machinery.Tests
                 })
                 .BuildAsync();
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await machine.Results!.PublishAsync(Result("incomplete")));
 
             await machine.Results!.PublishAsync(
@@ -719,12 +719,21 @@ namespace Opc.Ua.Machinery.Tests
                                     Opc.Ua.Machinery.Energy.Namespaces.MachineryEnergy,
                                     m_fixture!.Manager.SystemContext.NamespaceUris))
                             .AddMeasurementValue(
-                                new QualifiedName("AcActivePowerTotal"),
+                                new QualifiedName("CustomPower"),
                                 Variant.From(12.5),
                                 measurementId: 1)
                             .AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(12.5f))
+                            .AddMeasurementValue(
                                 new QualifiedName("CustomInt"),
                                 Variant.From(7));
+                        ushort vendorNamespace = (ushort)m_fixture!.Manager.SystemContext.NamespaceUris
+                            .GetIndexOrAppend("urn:machinery:vendor-measurements");
+                        electricity.Main.AddMeasurementValue(
+                            new QualifiedName("AcActivePowerTotal", vendorNamespace),
+                            Variant.From(12.5),
+                            measurementId: 1);
                         // Second WithInterface call hits the already-present branch.
                         electricity.Main.WithInterface(
                             NodeId.Create(
@@ -735,6 +744,26 @@ namespace Opc.Ua.Machinery.Tests
                             () => electricity.Main.AddMeasurementValue(
                                 default,
                                 Variant.From(1)));
+                        ServiceResultException wrongMeasurementId = Assert.Throws<ServiceResultException>(
+                            () => electricity.Main.AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(1f),
+                                measurementId: 1))!;
+                        Assert.That(wrongMeasurementId.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                        ServiceResultException wrongValueType = Assert.Throws<ServiceResultException>(
+                            () => electricity.Main.AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(1d)))!;
+                        Assert.That(wrongValueType.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                        ServiceResultException wrongEngineeringUnits = Assert.Throws<ServiceResultException>(
+                            () => electricity.Main.AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(1f),
+                                new EUInformation("kW", "kilowatt", "http://www.opcfoundation.org/UA/units/un/cefact")
+                                {
+                                    UnitId = 0x4B5754
+                                }))!;
+                        Assert.That(wrongEngineeringUnits.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                         Assert.Throws<ArgumentNullException>(
                             () => electricity.Main.WithInterface(NodeId.Null));
                     }))
@@ -763,7 +792,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.Read!.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(999u), Variant.From(4) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -771,7 +800,7 @@ namespace Opc.Ua.Machinery.Tests
                 Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
             Assert.That(
                 (await file.Close!.CallAsync(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -923,7 +952,7 @@ namespace Opc.Ua.Machinery.Tests
                     new QualifiedName("x")));
 
             await NewMachine("Dup-Name").BuildAsync();
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await NewMachine("Dup-Name").BuildAsync());
 
             ArrayOf<string> buildingBlockNamespaces =
@@ -1087,7 +1116,7 @@ namespace Opc.Ua.Machinery.Tests
             Variant options)
         {
             return management.ResultTransfer!.GenerateFileForRead!.CallAsync(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[] { options }.ToArrayOf(),
                 new List<ServiceResult>(),
@@ -1100,7 +1129,7 @@ namespace Opc.Ua.Machinery.Tests
         {
             var outputs = new List<Variant>();
             ServiceResult status = await management.ResultTransfer!.GenerateFileForRead!.CallAsync(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[]
                 {

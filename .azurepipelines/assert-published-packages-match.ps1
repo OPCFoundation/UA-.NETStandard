@@ -150,7 +150,7 @@ try {
     foreach ($package in $packages) {
         $id = [string]$package.id
         if ($ExcludeDebugPackages -and
-            $id.EndsWith('.Debug', [System.StringComparison]::OrdinalIgnoreCase)) {
+            (Test-DebugPackageId -PackageId $id)) {
             continue
         }
 

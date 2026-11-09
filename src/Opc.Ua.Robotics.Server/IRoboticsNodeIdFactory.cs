@@ -37,7 +37,7 @@ namespace Opc.Ua.Robotics.Server
     /// that are not reused while created nodes remain unregistered, and allocate
     /// Robotics application instances in the configured instance namespace.
     /// </remarks>
-    public interface IRoboticsNodeIdFactory : INodeIdFactory
+    public interface IRoboticsNodeIdFactory : Di.Server.ICompanionNodeIdFactory
     {
     }
 }

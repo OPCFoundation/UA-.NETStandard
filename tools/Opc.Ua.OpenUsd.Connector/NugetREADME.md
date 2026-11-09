@@ -13,17 +13,17 @@ unchanged against the `MinimalRobotServer` sample or any other conforming server
 
 ## What it does
 
-```
-PumpDeviceIntegrationServer            (OPC UA server: PumpType + OpenUSD bindings)
-        │  Server/OpenUSD/Representations  (discovery)
-        ▼
-Opc.Ua.OpenUsd.Connector  ──►  UsdFileSink ──►  live.usda   (runtime override layer)
-                                          │  subLayers
-                                          ▼
-                                       stage.usda  =  live.usda  +  Plant.usda
-                                          │
-                                          ▼
-                                 usdview / NVIDIA Omniverse   (the rendered live pump)
+```mermaid
+flowchart TD
+    server["PumpDeviceIntegrationServer<br/>OPC UA server: PumpType + OpenUSD bindings"]
+    connector["Opc.Ua.OpenUsd.Connector"]
+    sink["UsdFileSink"]
+    live["live.usda<br/>Runtime override layer"]
+    stage["stage.usda = live.usda + Plant.usda"]
+    viewer["usdview / NVIDIA Omniverse<br/>Rendered live pump"]
+    server -->|Server/OpenUSD/Representations discovery| connector
+    connector --> sink --> live
+    live -->|subLayers| stage --> viewer
 ```
 
 The bridge starts at the well-known `Server/OpenUSD/Representations` registry (Part 1
@@ -61,7 +61,7 @@ into the server's `SpeedSetpoint` Variable. The stage also advertises a `RootLay
 ### 1. Build
 
 ```bash
-dotnet build samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj -c Release -f net10.0
+dotnet build samples/Di/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj -c Release -f net10.0
 dotnet build tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj -c Release -f net10.0
 ```
 
@@ -78,12 +78,12 @@ cp <spec-repo>/core-specs/extras/openusd-binding/examples/pumps/stage.usda ~/pum
 ### 3. Start the server (terminal 1)
 
 ```bash
-dotnet run --project samples/DI/PumpDeviceIntegrationServer -c Release -f net10.0 -- --host localhost --port 62810
+dotnet run --project samples/Di/PumpDeviceIntegrationServer -c Release -f net10.0 -- --host localhost --port 62810
 ```
 
 Wait for `OPC UA server listening at opc.tcp://localhost:62810/PumpDeviceIntegrationServer.`
-The pump simulation drives `MassFlow`, `BearingTemperature`, and `DifferentialPressure`,
-which is what makes the render *live*.
+The pump simulation drives `MassFlow`, `BearingTemperature`, and `DifferentialPressure`.
+Those updates animate the render.
 
 ### 4. Run the connector (terminal 2)
 

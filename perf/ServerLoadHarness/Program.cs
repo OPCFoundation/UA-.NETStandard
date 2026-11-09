@@ -34,8 +34,9 @@
 //           Starts a ReferenceServer and reads commands from stdin: mark | report | quit
 //   run     --scenario read|write|sub|browse [--sessions N] [--nodes K] [--inflight I]
 //           [--duration S] [--warmup S] [--security none|sign|encrypt] [--diag 0|1] [--audit 0|1]
-//           [--subs S] [--pub ms] [--write-interval ms] [--trace file] [--trace-profile p] [--out file]
-//           [--client classic|managed] [--callback fast|item] [--trace-side server|client]
+//           [--subs S] [--pub ms] [--write-interval ms] [--write-nodes K]
+//           [--trace file] [--trace-profile p] [--out file]
+//           [--client managed|classic|shared] [--callback fast|item] [--trace-side server|client]
 //           Spawns the server child, drives the load and prints a report of client latency
 //           and the CPU / GC / allocation deltas of both processes for the measurement window.
 
@@ -44,9 +45,12 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -67,6 +71,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     {
         private static readonly Dictionary<string, string> s_args = new(StringComparer.OrdinalIgnoreCase);
 
+        // client GC events of the window (--gc-events 0 turns the listener off)
+        private static GcListener? s_gcListener;
+
+        // processor masks of a constrained client run (--client-cores), set by RunConstrainedAsync
+        private const string kClientAffinityVariable = "PERF_CLIENT_AFFINITY";
+        private const string kServerAffinityVariable = "PERF_SERVER_AFFINITY";
+        private const string kConstrainedVariable = "PERF_CONSTRAINED";
+
         /// <summary>
         /// Runs the server or the load driver.
         /// </summary>
@@ -77,16 +89,106 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 if (args[i].StartsWith("--", StringComparison.Ordinal))
                 {
                     string key = args[i][2..];
-                    string value = i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal)
+                    // --server-args takes the next argument verbatim, which may start with "--"
+                    string value = i + 1 < args.Length &&
+                        (key == "server-args" || !args[i + 1].StartsWith("--", StringComparison.Ordinal))
                         ? args[++i]
                         : "1";
                     s_args[key] = value;
                 }
             }
             string mode = args.Length > 0 ? args[0] : "run";
-            return mode == "server"
-                ? await RunServerAsync().ConfigureAwait(false)
+            if (mode == "server")
+            {
+                return await RunServerAsync().ConfigureAwait(false);
+            }
+            if ((s_args.ContainsKey("client-cores") || s_args.ContainsKey("client-memory")) &&
+                NativeWorkerBenchmark.IsScenario(Arg("scenario", "read")))
+            {
+                // the native workers are not .NET processes; they use --client-affinity
+                Console.WriteLine(
+                    "--client-cores and --client-memory apply to the .NET client scenarios; " +
+                    "use --client-affinity and --server-affinity with the native workers.");
+                return 2;
+            }
+            if ((s_args.ContainsKey("client-cores") || s_args.ContainsKey("client-memory")) &&
+                Environment.GetEnvironmentVariable(kConstrainedVariable) == null)
+            {
+                return await RunConstrainedAsync(args).ConfigureAwait(false);
+            }
+            return NativeWorkerBenchmark.IsScenario(Arg("scenario", "read"))
+                ? await NativeWorkerBenchmark.RunAsync(args).ConfigureAwait(false)
                 : await RunDriverAsync(args).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs the harness again as a client confined like a container: <c>--client-cores N</c>
+        /// gives it the last N of the processors this process may use (the runtime sizes the
+        /// thread pool and GC for N through <c>DOTNET_PROCESSOR_COUNT</c>) and the server the
+        /// others; <c>--client-memory MB</c> sets the GC heap hard limit to 75 % of MB, the limit
+        /// .NET derives from a container memory limit.
+        /// </summary>
+        /// <remarks>
+        /// Processor confinement uses the process affinity mask, which on Windows applies to all
+        /// threads of a process. On Linux it applies only to the main thread, so there the
+        /// client belongs in a cgroup (for example <c>docker --cpuset-cpus</c>) or under
+        /// <c>taskset</c> instead.
+        /// </remarks>
+        private static async Task<int> RunConstrainedAsync(string[] args)
+        {
+            var startInfo = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false };
+            foreach (string arg in args)
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
+            startInfo.Environment[kConstrainedVariable] = "1";
+            if (TryGetArg("client-cores", out string? coresArg))
+            {
+                if (!OperatingSystem.IsWindows())
+                {
+                    Console.WriteLine(
+                        "--client-cores is supported on Windows only, where the affinity mask applies to all threads; " +
+                        "on Linux run the client in a cgroup (docker --cpuset-cpus) or under taskset.");
+                    return 2;
+                }
+                // the processors this process may use, which can be a subset of the machine,
+                // within the processor group of the process (at most 64)
+                using Process self = Process.GetCurrentProcess();
+                long allowed = self.ProcessorAffinity;
+                var processors = new List<int>();
+                for (int bit = 0; bit < 64; bit++)
+                {
+                    if ((allowed & (1L << bit)) != 0)
+                    {
+                        processors.Add(bit);
+                    }
+                }
+                int cores = Math.Clamp(int.Parse(coresArg!, CultureInfo.InvariantCulture), 1, processors.Count);
+                long clientMask = 0;
+                foreach (int bit in processors.Skip(processors.Count - cores))
+                {
+                    clientMask |= 1L << bit;
+                }
+                startInfo.Environment[kClientAffinityVariable] = clientMask.ToString("X", CultureInfo.InvariantCulture);
+                startInfo.Environment["DOTNET_PROCESSOR_COUNT"] = cores.ToString(CultureInfo.InvariantCulture);
+                if (cores < processors.Count)
+                {
+                    startInfo.Environment[kServerAffinityVariable] =
+                        (allowed & ~clientMask).ToString("X", CultureInfo.InvariantCulture);
+                }
+            }
+            if (TryGetArg("client-memory", out string? memory))
+            {
+                long limit = long.Parse(memory!, CultureInfo.InvariantCulture) * 1048576 * 3 / 4;
+                startInfo.Environment["DOTNET_GCHeapHardLimit"] = "0x" + limit.ToString("X", CultureInfo.InvariantCulture);
+            }
+            using Process child = Process.Start(startInfo)!;
+            await child.WaitForExitAsync().ConfigureAwait(false);
+            return child.ExitCode;
+        }
+        internal static bool TryGetArg(string name, [NotNullWhen(true)] out string? value)
+        {
+            return s_args.TryGetValue(name, out value);
         }
 
         internal static string Arg(string name, string defaultValue)
@@ -150,15 +252,19 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int port = ArgInt("port", 62555);
             bool diagnostics = ArgInt("diag", 0) != 0;
             bool auditing = ArgInt("audit", 0) != 0;
-            string pkiRoot = Path.Combine(Path.GetTempPath(), "uaperf-pki-server");
-            string endpointUrl = FormattableString.Invariant($"opc.tcp://localhost:{port}/PerfReferenceServer");
+            // the contract of the o6-automation opcua-benchmarks servers (see NativeWorkerBenchmark)
+            bool contract = ArgInt("contract", 0) != 0;
+            string pkiRoot = Path.Combine(Path.GetTempPath(), contract ? "uaperf-pki-contractserver" : "uaperf-pki-server");
+            string endpointUrl = contract
+                ? FormattableString.Invariant($"opc.tcp://127.0.0.1:{port}")
+                : FormattableString.Invariant($"opc.tcp://localhost:{port}/PerfReferenceServer");
             ArrayOf<CertificateIdentifier> certificates =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=PerfReferenceServer, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
                     pkiRoot);
             ApplicationConfiguration config = await application
-                .Build("urn:localhost:UA:PerfReferenceServer", "uri:opcfoundation.org:PerfReferenceServer")
+                .Build(contract ? NativeWorkerBenchmark.ContractServerUri : "urn:localhost:UA:PerfReferenceServer", "uri:opcfoundation.org:PerfReferenceServer")
                 .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
                 .SetMaxMessageSize(16 * 1024 * 1024)
@@ -178,8 +284,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             config.ServerConfiguration.MaxSubscriptionCount = 20000;
             config.ServerConfiguration.MaxFailedAuthenticationAttempts = 0;
             config.ServerConfiguration.MaxRequestThreadCount = ArgInt("threads", 200);
-            config.ServerConfiguration.MinRequestThreadCount = 50;
-            // sized for the largest pipeline (sessions x inflight), as the o6 benchmarks do
+            config.ServerConfiguration.MinRequestThreadCount = Math.Min(50, config.ServerConfiguration.MaxRequestThreadCount);
+            // sized for the largest pipeline (sessions x inflight), as the o6-automation benchmarks do
             config.ServerConfiguration.MaxQueuedRequestCount = ArgInt("queue", 2000);
             int counters = ArgInt("counters", 0);
             int sampling = ArgInt("sampling", 10);
@@ -191,7 +297,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 config.ServerConfiguration.MaxPublishingInterval = 86400_000;
                 config.ServerConfiguration.MaxNotificationQueueSize = 1;
                 config.ServerConfiguration.MaxNotificationsPerPublish = int.MaxValue;
-                config.ServerConfiguration.MaxPublishRequestCount = 4;
+                config.ServerConfiguration.MaxPublishRequestCount = ArgInt("publish-requests", 4);
                 config.ServerConfiguration.AvailableSamplingRates = [new SamplingRateGroup(sampling, 1, 0)];
             }
 
@@ -204,30 +310,59 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
 
             using Opc.Ua.Server.StandardServer server = counters > 0
-                ? new CounterServer(telemetry, counters)
+                ? new CounterServer(
+                    telemetry,
+                    counters,
+                    contract ? NativeWorkerBenchmark.ContractServerUri : CounterNodeManager.Namespace,
+                    ArgInt("counter-lock", 0) != 0,
+                    ArgInt("async-node-manager", contract ? 1 : 0) != 0)
+                : contract
+                ? new BenchmarkContractServer(telemetry, ArgInt("async-node-manager", 1) != 0)
                 : new ReferenceServer(telemetry);
+            if (Arg("isolation", "default") == "sharedonly")
+            {
+                server.ResourceIsolationOptions.Mode = Opc.Ua.Server.ServerResourceIsolationMode.SharedOnly;
+            }
             server.TransportBindings = TestTransportBindings.WithAllSchemes();
             await application.StartAsync(server).ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
 
             ProcessStats mark = ProcessStats.Capture();
+            using var events = new EventGenerator(server.CurrentInstance);
             string? line;
             while ((line = await Console.In.ReadLineAsync().ConfigureAwait(false)) != null)
             {
-                switch (line.Trim())
+                line = line.Trim();
+                if (line.StartsWith("events ", StringComparison.Ordinal))
+                {
+                    // events <rate>: start the event generator; events stop: stop it
+                    string rate = line[7..];
+                    if (rate == "stop")
+                    {
+                        events.Stop();
+                    }
+                    else
+                    {
+                        events.Start(int.Parse(rate, CultureInfo.InvariantCulture));
+                    }
+                    continue;
+                }
+                switch (line)
                 {
                     case "mark":
                         GC.Collect();
                         GC.WaitForPendingFinalizers();
                         mark = ProcessStats.Capture();
-                        (server as CounterServer)?.Counters?.Mark();
+                        (server as CounterServer)?.Counters.Mark();
+                        events.Mark();
                         Console.WriteLine("MARKED");
                         break;
                     case "report":
-                        string counterReport = (server as CounterServer)?.Counters?.Report(sampling) ?? string.Empty;
-                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport);
+                        string counterReport = (server as CounterServer)?.Counters.Report(sampling) ?? string.Empty;
+                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport + " " + events.Report());
                         break;
                     case "quit":
+                        events.Stop();
                         await server.StopAsync().ConfigureAwait(false);
                         return 0;
                 }
@@ -238,33 +373,64 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private static async Task<int> RunDriverAsync(string[] args)
         {
             string scenario = Arg("scenario", "read");
-            int sessionCount = ArgInt("sessions", 20);
+            bool counters = scenario == "counters";
+            int sessionCount = ArgInt("sessions", counters ? 1 : 20);
+            // counters: --subs subscriptions per session, each with --nodes counters of its own
+            int counterSubs = counters ? ArgInt("subs", 1) : 0;
+            int counterCount = counters ? sessionCount * counterSubs * ArgInt("nodes", 1) : 0;
+            // outstanding Publish requests per session, for the client and the server limit; counters
+            // defaults to one per subscription plus one, so no subscription waits for a request
+            int publishRequests = counters
+                ? ArgInt("publish-requests", Math.Max(4, counterSubs + 1))
+                : ArgInt("publish-requests", 0);
             int durationSeconds = ArgInt("duration", 20);
             int warmupSeconds = ArgInt("warmup", 10);
             int port = ArgInt("port", 62555 + (Environment.ProcessId % 1000));
             string security = Arg("security", "none");
-
-            var startInfo = new ProcessStartInfo(
-                Environment.ProcessPath!,
-                FormattableString.Invariant(
-                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"))
+            if (ArgInt("gc-events", 1) != 0)
             {
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false
-            };
-            foreach (DictionaryEntry variable in Environment.GetEnvironmentVariables())
-            {
-                string name = (string)variable.Key;
-                if (name.StartsWith("SERVER_", StringComparison.Ordinal))
-                {
-                    startInfo.Environment[name[7..]] = (string?)variable.Value;
-                }
+                s_gcListener = new GcListener();
             }
-
-            using Process server = Process.Start(startInfo)!;
-            using var serverLines = new BlockingCollection<string>();
-            _ = Task.Run(() => PumpServerOutput(server, serverLines));
+            // a constrained client starts the server before it confines itself, so the server
+            // does not inherit the client's processors; the server runtime is sized for the
+            // processors it keeps (SERVER_DOTNET_PROCESSOR_COUNT still overrides)
+            string? clientAffinity = Environment.GetEnvironmentVariable(kClientAffinityVariable);
+            string? serverAffinity = Environment.GetEnvironmentVariable(kServerAffinityVariable);
+            Dictionary<string, string>? serverEnvironment = serverAffinity == null
+                ? null
+                : new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["DOTNET_PROCESSOR_COUNT"] = BitOperations.PopCount(Convert.ToUInt64(serverAffinity, 16))
+                        .ToString(CultureInfo.InvariantCulture)
+                };
+            (Process startedServer, BlockingCollection<string> startedLines) = StartServerChild(
+                FormattableString.Invariant(
+                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} ") +
+                FormattableString.Invariant(
+                    $"--counters {counterCount} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")} ") +
+                FormattableString.Invariant(
+                    $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} --counter-lock {Arg("counter-lock", "0")}"),
+                serverEnvironment);
+            using Process server = startedServer;
+            using BlockingCollection<string> serverLines = startedLines;
+            if (serverAffinity != null && OperatingSystem.IsWindows())
+            {
+                // the server keeps the processors the constrained client does not have
+                server.ProcessorAffinity = (nint)Convert.ToInt64(serverAffinity, 16);
+            }
+            if (clientAffinity != null && OperatingSystem.IsWindows())
+            {
+                // the process mask applies to the threads the runtime has already started, too
+                using Process self = Process.GetCurrentProcess();
+                self.ProcessorAffinity = (nint)Convert.ToInt64(clientAffinity, 16);
+            }
+            if (Environment.GetEnvironmentVariable(kConstrainedVariable) != null)
+            {
+                Console.WriteLine(FormattableString.Invariant(
+                    $"constrained client: processors={Environment.ProcessorCount} mask=0x{clientAffinity ?? "all"} ") +
+                    FormattableString.Invariant(
+                    $"server mask=0x{serverAffinity ?? "all"} heapLimitMB={GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1048576}"));
+            }
             string ready = serverLines.Take();
             if (!ready.StartsWith("READY", StringComparison.Ordinal))
             {
@@ -299,46 +465,90 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
 
+            // managed (default): ManagedSession with the default V2 subscription engine.
             // classic: Session from the default session factory (classic subscription engine).
-            // managed: ManagedSession with the default V2 subscription engine.
-            string clientKind = Arg("client", "classic");
-            ConfiguredEndpoint? managedEndpoint = clientKind == "managed"
+            // shared: classic Sessions whose secure channels come from one ClientChannelManager.
+            string clientKind = Arg("client", "managed");
+            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared"
                 ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
                 : null;
-            var sessions = new ISession[sessionCount];
+            var channelManager = new ClientChannelManager(client.Config, telemetry);
+            await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
+            // sub: --writers adds dedicated writer sessions after the subscriber sessions
+            int writerCount = scenario == "sub" ? ArgInt("writers", 0) : 0;
+            var sessions = new ISession[sessionCount + writerCount];
             var connectTime = Stopwatch.StartNew();
+            // Shared sessions connect one at a time by default: concurrent creation
+            // on one ClientChannelManager fails with BadSecureChannelClosed.
+            int connectParallel = clientKind == "shared" ? ArgInt("connect-parallel", 1) : 32;
             await Parallel.ForAsync(
                 0,
-                sessionCount,
-                new ParallelOptions { MaxDegreeOfParallelism = 32 },
-                async (i, ct) => sessions[i] = managedEndpoint != null
-                    ? await new ManagedSessionBuilder(client.Config, telemetry)
-                        .UseEndpoint(managedEndpoint)
+                sessions.Length,
+                new ParallelOptions { MaxDegreeOfParallelism = connectParallel },
+                async (i, ct) => sessions[i] = clientKind switch
+                {
+                    "managed" => await new ManagedSessionBuilder(client.Config, telemetry)
+                        .UseEndpoint(endpointForBuilder!)
                         .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                        .WithPoolNotifications(ArgInt("pool-notifications", 0) != 0)
                         .ConnectAsync(ct)
-                        .ConfigureAwait(false)
-                    : await client
+                        .ConfigureAwait(false),
+                    "shared" => await Session.CreateAsync(
+                            channelManager,
+                            client.Config,
+                            endpointForBuilder!,
+                            updateBeforeConnect: false,
+                            sessionName: "PerfShared",
+                            ct: ct)
+                        .ConfigureAwait(false),
+                    _ => await client
                         .ConnectAsync(new Uri(url), policy, selected)
-                        .ConfigureAwait(false))
+                        .ConfigureAwait(false)
+                })
                 .ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant(
-                $"connected {sessionCount} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
+                $"connected {sessions.Length} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
+            if (publishRequests > 0)
+            {
+                // outstanding Publish requests per session (the client default adapts to the subscriptions);
+                // the classic engine accepts a minimum of at most 100, so a derived default is capped there
+                // while the server keeps the full limit
+                int minimum = clientKind != "managed" && !TryGetArg("publish-requests", out _)
+                    ? Math.Min(publishRequests, 100)
+                    : publishRequests;
+                foreach (ISession session in sessions)
+                {
+                    session.MaxPublishRequestCount = Math.Max(session.MaxPublishRequestCount, publishRequests);
+                    session.MinPublishRequestCount = minimum;
+                }
+            }
 
-            Workload workload = scenario == "counters"
-                ? new CounterWorkload(sessions[0], ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
+            Workload workload = counters
+                ? new CounterWorkload(sessions, counterSubs, ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
+                : scenario == "events"
+                ? new EventWorkload(sessions, ArgInt("subs", 15), ArgInt("pub", 100), ArgInt("queue-size", 10000), ArgInt("event-rate", 0))
                 : scenario == "sub"
                 ? new SubscribeWorkload(
-                    sessions,
+                    sessions[..sessionCount],
+                    writerCount == 0 ? [sessions[0]] : sessions[sessionCount..],
                     ArgInt("nodes", 100),
                     ArgInt("subs", 5),
                     ArgInt("pub", 100),
                     ArgInt("write-interval", 100),
-                    Arg("callback", "fast") == "item")
+                    Arg("callback", "fast") == "item",
+                    ArgInt("write-nodes", 0),
+                    Arg("node-type", "int") == "all",
+                    ArgInt("write-batch", 0))
                 : new RequestWorkload(scenario, sessions, ArgInt("nodes", 100), ArgInt("inflight", 1));
             await workload.SetupAsync().ConfigureAwait(false);
 
             using var stop = new CancellationTokenSource();
             Task run = workload.RunAsync(stop.Token);
+            if (workload is EventWorkload eventWorkload)
+            {
+                await server.StandardInput.WriteLineAsync(
+                    FormattableString.Invariant($"events {eventWorkload.Rate}")).ConfigureAwait(false);
+            }
             await Task.Delay(TimeSpan.FromSeconds(warmupSeconds)).ConfigureAwait(false);
 
             bool traceClient = Arg("trace-side", "server") == "client";
@@ -355,16 +565,27 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Take(serverLines, "MARKED");
             GC.Collect();
             GC.WaitForPendingFinalizers();
+            s_gcListener?.Mark();
             ProcessStats clientMark = ProcessStats.Capture();
             workload.ResetStats();
             var window = Stopwatch.StartNew();
             TimeSpan clientCpuStart = Process.GetCurrentProcess().TotalProcessorTime;
             await Task.Delay(TimeSpan.FromSeconds(durationSeconds)).ConfigureAwait(false);
             string clientProcess = ProcessStats.Capture().Delta(clientMark);
+            // the window ends here; GC events stamped before this arrive later and still count
+            s_gcListener?.End();
             await server.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
             string report = Take(serverLines, "REPORT")[7..];
+            // freeze the client counts at the end of the server window
+            workload.OnServerReport(report);
+            double operations = workload.Operations;
+            (double Count, string Name)? secondary = workload.Secondary;
             double clientCores = (Process.GetCurrentProcess().TotalProcessorTime - clientCpuStart).TotalSeconds /
                 window.Elapsed.TotalSeconds;
+            if (workload is EventWorkload)
+            {
+                await server.StandardInput.WriteLineAsync("events stop").ConfigureAwait(false);
+            }
             string clientReport = workload.Report(window.Elapsed.TotalSeconds) +
                 FormattableString.Invariant($" clientCpuCores={clientCores:F2}");
             await stop.CancelAsync().ConfigureAwait(false);
@@ -383,6 +604,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 Console.WriteLine("trace: " + trace);
             }
 
+            string? clientGc = s_gcListener == null ? null : await s_gcListener.ReportAsync().ConfigureAwait(false);
             var result = new StringBuilder();
             result.Append(CultureInfo.InvariantCulture, $"RESULT scenario={scenario} security={security} sessions={sessionCount} ")
                 .Append(string.Join(' ', args.Skip(1)))
@@ -390,14 +612,26 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .Append("  client: ").Append(clientReport).Append('\n')
                 .Append("  server: ").Append(report).Append('\n')
                 .Append("  client-process: ").Append(clientProcess).Append('\n');
-            double operations = workload.Operations;
+            if (clientGc != null)
+            {
+                result.Append("  client-gc: ").Append(clientGc).Append('\n');
+            }
+            (double serverMb, double serverCpuMs) = ParseProcessReport(report);
             if (operations > 0)
             {
-                (double allocatedMb, double cpuMs) = ParseProcessReport(report);
                 result.Append(
                     CultureInfo.InvariantCulture,
-                    $"  per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
-                (allocatedMb, cpuMs) = ParseProcessReport(clientProcess);
+                    $"  per-op: allocB={serverMb * 1048576 / operations:F0} cpuUs={serverCpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
+            }
+            if (secondary is (double secondaryCount, string secondaryName) && secondaryCount > 0)
+            {
+                result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"  per-op2: allocB={serverMb * 1048576 / secondaryCount:F0} cpuUs={serverCpuMs * 1000 / secondaryCount:F1}  ({secondaryName})\n");
+            }
+            if (operations > 0)
+            {
+                (double allocatedMb, double cpuMs) = ParseProcessReport(clientProcess);
                 result.Append(
                     CultureInfo.InvariantCulture,
                     $"  client-per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
@@ -428,6 +662,62 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             return 0;
         }
 
+        /// <summary>
+        /// Starts the harness itself as the server child; <c>SERVER_</c> variables are passed without the prefix.
+        /// </summary>
+        internal static (Process Server, BlockingCollection<string> Lines) StartServerChild(
+            string arguments,
+            IReadOnlyDictionary<string, string>? defaultEnvironment = null)
+        {
+            var startInfo = new ProcessStartInfo(Environment.ProcessPath!, arguments)
+            {
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false
+            };
+            // GC and processor settings of the harness configure the measured client; the server
+            // inherits the environment, so they are removed and only SERVER_ variables configure it
+            foreach (string name in startInfo.Environment.Keys.ToList())
+            {
+                if (name.StartsWith("DOTNET_GC", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("COMPlus_GC", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("DOTNET_ThreadPool_", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("DOTNET_PROCESSOR_COUNT", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("PERF_", StringComparison.Ordinal))
+                {
+                    startInfo.Environment.Remove(name);
+                }
+            }
+            if (defaultEnvironment != null)
+            {
+                foreach (KeyValuePair<string, string> variable in defaultEnvironment)
+                {
+                    startInfo.Environment[variable.Key] = variable.Value;
+                }
+            }
+            foreach (DictionaryEntry variable in Environment.GetEnvironmentVariables())
+            {
+                string name = (string)variable.Key;
+                if (name.StartsWith("SERVER_", StringComparison.Ordinal))
+                {
+                    startInfo.Environment[name[7..]] = (string?)variable.Value;
+                }
+            }
+            Process server = Process.Start(startInfo)!;
+            var lines = new BlockingCollection<string>();
+            // LongRunning runs the pump on a dedicated thread: it blocks in ReadLine for the whole
+            // run, and on a pool thread it occupies the only minimum worker of a one-processor
+            // client, so every other work item waits for the pool's starvation injection
+            // (~0.5-1 s stalls). The task keeps a pump exception at shutdown (the collection or
+            // process disposed under it) from terminating the harness.
+            _ = Task.Factory.StartNew(
+                () => PumpServerOutput(server, lines),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+            return (server, lines);
+        }
+
         private static void PumpServerOutput(Process server, BlockingCollection<string> lines)
         {
             string? line;
@@ -448,7 +738,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             lines.CompleteAdding();
         }
 
-        private static Process? StartTracer(int processId, int durationSeconds, out string? trace)
+        internal static Process? StartTracer(int processId, int durationSeconds, out string? trace)
         {
             if (!s_args.TryGetValue("trace", out trace))
             {
@@ -474,7 +764,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             });
         }
 
-        private static string Take(BlockingCollection<string> lines, string prefix)
+        internal static string Take(BlockingCollection<string> lines, string prefix)
         {
             while (true)
             {
@@ -548,39 +838,99 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     }
 
     /// <summary>
-    /// Latency samples (Stopwatch ticks) recorded by many threads. ConcurrentBag keeps a
-    /// list per thread, so recording does not contend between the load threads.
+    /// Latency histogram (Stopwatch ticks) recorded by many threads without allocating:
+    /// log-linear buckets with 64 steps per power of two (at most ~1.6 % error), so the
+    /// recorder does not add allocations, promotions or large arrays to the measured client.
     /// </summary>
     internal sealed class LatencyRecorder
     {
         public void Record(long ticks)
         {
-            m_samples.Add(ticks);
+            if (ticks < 0)
+            {
+                ticks = 0;
+            }
+            Interlocked.Increment(ref m_buckets[Index(ticks)]);
+            long max = Volatile.Read(ref m_max);
+            while (ticks > max)
+            {
+                long seen = Interlocked.CompareExchange(ref m_max, ticks, max);
+                if (seen == max)
+                {
+                    break;
+                }
+                max = seen;
+            }
         }
 
         public void Clear()
         {
-            m_samples.Clear();
+            for (int i = 0; i < m_buckets.Length; i++)
+            {
+                Interlocked.Exchange(ref m_buckets[i], 0);
+            }
+            Interlocked.Exchange(ref m_max, 0);
         }
 
         public string Percentiles()
         {
-            var all = new List<long>(m_samples);
-            if (all.Count == 0)
+            long[] counts = new long[m_buckets.Length];
+            long total = 0;
+            for (int i = 0; i < counts.Length; i++)
+            {
+                counts[i] = Volatile.Read(ref m_buckets[i]);
+                total += counts[i];
+            }
+            if (total == 0)
             {
                 return "n=0";
             }
-            all.Sort();
             double Ms(double quantile)
             {
-                return all[Math.Min(all.Count - 1, (int)(quantile * all.Count))] * 1000.0 / Stopwatch.Frequency;
+                long rank = Math.Min(total - 1, (long)(quantile * total));
+                long seen = 0;
+                for (int i = 0; i < counts.Length; i++)
+                {
+                    seen += counts[i];
+                    if (seen > rank)
+                    {
+                        return Value(i) * 1000.0 / Stopwatch.Frequency;
+                    }
+                }
+                return Volatile.Read(ref m_max) * 1000.0 / Stopwatch.Frequency;
             }
             return FormattableString.Invariant(
-                $"n={all.Count} p50={Ms(0.5):F3}ms p90={Ms(0.9):F3}ms p99={Ms(0.99):F3}ms ") +
-                FormattableString.Invariant($"p999={Ms(0.999):F3}ms max={Ms(1):F3}ms");
+                $"n={total} p50={Ms(0.5):F3}ms p90={Ms(0.9):F3}ms p99={Ms(0.99):F3}ms ") +
+                FormattableString.Invariant(
+                $"p999={Ms(0.999):F3}ms max={Volatile.Read(ref m_max) * 1000.0 / Stopwatch.Frequency:F3}ms");
         }
 
-        private readonly ConcurrentBag<long> m_samples = [];
+        private static int Index(long ticks)
+        {
+            if (ticks < 2 * kSteps)
+            {
+                return (int)ticks;
+            }
+            int shift = 63 - BitOperations.LeadingZeroCount((ulong)ticks) - kBits;
+            return (2 * kSteps) + ((shift - 1) * kSteps) + (int)((ticks >> shift) - kSteps);
+        }
+
+        private static double Value(int index)
+        {
+            if (index < 2 * kSteps)
+            {
+                return index;
+            }
+            int shift = ((index - (2 * kSteps)) / kSteps) + 1;
+            long mantissa = ((index - (2 * kSteps)) % kSteps) + kSteps;
+            // bucket midpoint
+            return (mantissa << shift) + ((1L << shift) / 2.0);
+        }
+
+        private const int kBits = 6;
+        private const int kSteps = 1 << kBits;
+        private readonly long[] m_buckets = new long[(2 * kSteps) + (64 * kSteps)];
+        private long m_max;
     }
 
     /// <summary>
@@ -592,7 +942,22 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         public abstract string OperationName { get; }
 
+        /// <summary>
+        /// A second operation count to report the server cost against, such as the writes
+        /// that caused the notifications.
+        /// </summary>
+        public virtual (double Count, string Name)? Secondary => null;
+
         public abstract Task SetupAsync();
+
+        /// <summary>
+        /// Receives the server report of the window as soon as it arrives, before
+        /// <see cref="Operations"/>, <see cref="Secondary"/> and <see cref="Report"/> are read;
+        /// workloads that keep counting after the window freeze their counts here.
+        /// </summary>
+        public virtual void OnServerReport(string report)
+        {
+        }
 
         public abstract Task RunAsync(CancellationToken ct);
 
@@ -699,6 +1064,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 {
                     return;
                 }
+                catch (ServiceResultException) when (ct.IsCancellationRequested)
+                {
+                    // the channel ends a cancelled request with BadRequestInterrupted;
+                    // these are the requests in flight when the workload stops
+                    return;
+                }
                 catch (ServiceResultException ex)
                 {
                     if (Interlocked.Increment(ref m_errors) < 5)
@@ -736,27 +1107,67 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     {
         public SubscribeWorkload(
             ISession[] sessions,
+            ISession[] writers,
             int nodes,
             int subscriptions,
             int publishingInterval,
             int writeInterval,
-            bool itemCallback)
+            bool itemCallback,
+            int writeNodes,
+            bool allTypes,
+            int writeBatch)
         {
             m_sessions = sessions;
+            m_writers = writers;
             m_nodes = nodes;
             m_subscriptions = subscriptions;
             m_publishingInterval = publishingInterval;
             m_writeInterval = writeInterval;
             m_itemCallback = itemCallback;
+            m_writeNodes = writeNodes;
+            m_allTypes = allTypes;
+            m_writeBatch = writeBatch;
         }
 
-        public override double Operations => Interlocked.Read(ref m_notifications);
+        public override double Operations => m_final.Notifications;
 
         public override string OperationName => "notification";
 
+        public override (double Count, string Name)? Secondary => (m_final.Values, "written value");
+
+        /// <summary>
+        /// Values per Write request: all written nodes, or slices of <c>--write-batch</c>.
+        /// </summary>
+        private int BatchSize => m_writeBatch > 0 ? Math.Min(m_writeBatch, WrittenNodes) : WrittenNodes;
+
+        /// <summary>
+        /// The number of monitored nodes the writer changes: all of them, or the first
+        /// <c>--write-nodes</c> (a large subscription in which few items change).
+        /// </summary>
+        private int WrittenNodes => m_writeNodes > 0 ? Math.Min(m_writeNodes, m_nodeIds.Count) : m_nodeIds.Count;
+
         public override async Task SetupAsync()
         {
-            m_nodeIds = Program.GetNodes(m_sessions[0], m_nodes, typeof(int)).ToArray();
+            if (m_allTypes)
+            {
+                // the mixed Int16..UInt64 node set of the Sessions LoadTest
+                m_nodeTypes = [];
+                foreach ((Type type, ExpandedNodeId[] ids) in CommonTestWorkers.NodeIdTestSetStaticMassNumeric)
+                {
+                    foreach (ExpandedNodeId id in ids)
+                    {
+                        if (m_nodeTypes.Count < m_nodes)
+                        {
+                            m_nodeTypes.Add(type);
+                        }
+                    }
+                }
+                m_nodeIds = Program.GetNodes(m_sessions[0], m_nodes).ToArray();
+            }
+            else
+            {
+                m_nodeIds = Program.GetNodes(m_sessions[0], m_nodes, typeof(int)).ToArray();
+            }
             var setupTime = Stopwatch.StartNew();
             await Parallel.ForEachAsync(
                 m_sessions,
@@ -771,45 +1182,144 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Console.WriteLine(FormattableString.Invariant(
                 $"sub: {m_sessions.Length} sessions x {m_subscriptions} subs x {m_nodeIds.Count} items, ") +
                 FormattableString.Invariant(
-                $"pub {m_publishingInterval} ms, write every {m_writeInterval} ms; setup {setupTime.ElapsedMilliseconds} ms"));
+                $"pub {m_publishingInterval} ms, {m_writers.Length} writer(s) x {BatchSize} of {WrittenNodes} items ") +
+                FormattableString.Invariant(
+                $"{(m_writeInterval > 0 ? $"every {m_writeInterval} ms" : "closed loop")}; setup {setupTime.ElapsedMilliseconds} ms"));
         }
 
         public override async Task RunAsync(CancellationToken ct)
         {
-            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_writeInterval));
-            while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+            var tasks = new List<Task>();
+            for (int i = 0; i < m_writers.Length; i++)
+            {
+                ISession writer = m_writers[i];
+                // writers start on different slices when they write batches
+                int first = i * BatchSize % WrittenNodes;
+                tasks.Add(Task.Run(() => WriteLoopAsync(writer, first, ct), CancellationToken.None));
+            }
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+
+        private async Task WriteLoopAsync(ISession writer, int first, CancellationToken ct)
+        {
+            using PeriodicTimer? timer = m_writeInterval > 0
+                ? new PeriodicTimer(TimeSpan.FromMilliseconds(m_writeInterval))
+                : null;
+            int batch = BatchSize;
+            while (timer == null ? !ct.IsCancellationRequested : await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
                 int counter = Interlocked.Increment(ref m_counter);
-                var values = new WriteValue[m_nodeIds.Count];
+                var values = new WriteValue[batch];
                 for (int i = 0; i < values.Length; i++)
                 {
+                    int index = (first + i) % WrittenNodes;
                     values[i] = new WriteValue
                     {
-                        NodeId = m_nodeIds[i],
+                        NodeId = m_nodeIds[index],
                         AttributeId = Attributes.Value,
-                        Value = new DataValue(new Variant(counter))
+                        Value = new DataValue(ToVariant(index, counter))
                     };
                 }
-                Volatile.Write(ref m_writeTicks[counter & 0xFFFF], Stopwatch.GetTimestamp());
-                await m_sessions[0].WriteAsync(null, values, ct).ConfigureAwait(false);
+                first = (first + batch) % WrittenNodes;
+                long start = Stopwatch.GetTimestamp();
+                Volatile.Write(ref m_writeTicks[counter & 0xFFFF], start);
+                WriteResponse response;
+                try
+                {
+                    response = await writer.WriteAsync(null, values, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (ServiceResultException) when (ct.IsCancellationRequested)
+                {
+                    // a write in flight when the workload stops (BadRequestInterrupted)
+                    return;
+                }
+                catch (ServiceResultException ex)
+                {
+                    if (Interlocked.Increment(ref m_writeErrors) < 5)
+                    {
+                        Console.WriteLine("write error: " + ex.Message);
+                    }
+                    continue;
+                }
+                m_writeLatency.Record(Stopwatch.GetTimestamp() - start);
+                // only values the server accepted change and notify
+                int written = 0;
+                StatusCode rejected = StatusCodes.BadUnexpectedError;
+                for (int i = 0; i < response.Results.Count; i++)
+                {
+                    if (StatusCode.IsGood(response.Results[i]))
+                    {
+                        written++;
+                    }
+                    else
+                    {
+                        rejected = response.Results[i];
+                    }
+                }
+                if (written < batch && Interlocked.Increment(ref m_writeErrors) < 5)
+                {
+                    Console.WriteLine(FormattableString.Invariant(
+                        $"write error: {batch - written} of {batch} values rejected ({rejected})"));
+                }
                 Interlocked.Increment(ref m_writes);
+                Interlocked.Add(ref m_writtenValues, written);
             }
+        }
+
+        /// <summary>
+        /// The counter as the node's type; 16-bit types wrap, Int32 nodes carry the full
+        /// counter for the latency measurement.
+        /// </summary>
+        private Variant ToVariant(int index, int counter)
+        {
+            if (m_nodeTypes == null)
+            {
+                return new Variant(counter);
+            }
+            Type type = m_nodeTypes[index];
+            return type == typeof(short) ? new Variant((short)(counter & 0x7FFF))
+                : type == typeof(ushort) ? new Variant((ushort)(counter & 0x7FFF))
+                : type == typeof(int) ? new Variant(counter)
+                : type == typeof(uint) ? new Variant((uint)counter)
+                : type == typeof(long) ? new Variant((long)counter)
+                : new Variant((ulong)counter);
         }
 
         public override void ResetStats()
         {
             m_latency.Clear();
+            m_writeLatency.Clear();
             Interlocked.Exchange(ref m_notifications, 0);
             Interlocked.Exchange(ref m_writes, 0);
+            Interlocked.Exchange(ref m_writtenValues, 0);
+            Interlocked.Exchange(ref m_writeErrors, 0);
+        }
+
+        public override void OnServerReport(string report)
+        {
+            // closed-loop writers keep going: report the counts at the end of the server window
+            m_final = (
+                Interlocked.Read(ref m_notifications),
+                Interlocked.Read(ref m_writes),
+                Interlocked.Read(ref m_writtenValues),
+                Interlocked.Read(ref m_writeErrors));
         }
 
         public override string Report(double seconds)
         {
-            long notifications = Interlocked.Read(ref m_notifications);
-            long expected = Interlocked.Read(ref m_writes) * m_sessions.Length * m_subscriptions * m_nodeIds.Count;
+            (long notifications, long writes, long written, long writeErrors) = m_final;
+            long expected = written * m_sessions.Length * m_subscriptions;
             double ratio = expected == 0 ? 0 : (double)notifications / expected;
             return FormattableString.Invariant(
                 $"notif/s={notifications / seconds:F0} received/expected={ratio:P1} ") +
+                FormattableString.Invariant(
+                $"writes/s={writes / seconds:F0} values/s={written / seconds:F0} ") +
+                FormattableString.Invariant(
+                $"writeErrors={writeErrors} write latency {m_writeLatency.Percentiles()} ") +
                 FormattableString.Invariant($"write->notify latency {m_latency.Percentiles()}");
         }
 
@@ -821,6 +1331,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return;
             }
 #pragma warning disable CA2000 // ownership transfers to the session in AddSubscription; disposed below on failure before that
+#pragma warning disable CS0618 // the harness intentionally benchmarks the classic engine and its fast callbacks
             var subscription = new Subscription(session.DefaultSubscription)
             {
                 PublishingInterval = m_publishingInterval,
@@ -832,6 +1343,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 subscription.FastDataChangeCallback = OnDataChange;
             }
+#pragma warning restore CS0618
             try
             {
                 foreach (NodeId nodeId in m_nodeIds)
@@ -842,7 +1354,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = 0,
-                        QueueSize = 1
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
                     };
                     if (m_itemCallback)
                     {
@@ -916,7 +1428,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = TimeSpan.Zero,
-                        QueueSize = 1
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
                     },
                     out _))
                 {
@@ -1001,5 +1513,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private long m_writes;
         private int m_counter;
         private ArrayOf<NodeId> m_nodeIds;
+        private List<Type>? m_nodeTypes;
+        private readonly int m_writeNodes;
+        private readonly ISession[] m_writers;
+        private readonly bool m_allTypes;
+        private readonly int m_writeBatch;
+        private readonly LatencyRecorder m_writeLatency = new();
+        private long m_writtenValues;
+        private long m_writeErrors;
+        private (long Notifications, long Writes, long Values, long WriteErrors) m_final;
     }
 }

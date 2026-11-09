@@ -41,7 +41,7 @@ namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
     /// The closed set of members a projection may annotate a declared
-    /// affordance with (WoT Binding Section 12.5).
+    /// affordance with (OPC 10101-2).
     /// </summary>
     /// <remarks>
     /// A projection declares affordances; it does not define them. Restating a
@@ -54,8 +54,11 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotProjectionAnnotationTests
     {
-        // Each of these restates part of the source's schema, which is exactly
-        // what an annotation may not do.
+        /// <summary>
+        /// Each of these restates part of the source's schema, which is exactly
+        /// what an annotation may not do.
+        /// </summary>
+        /// <param name="annotation"></param>
         [TestCase("\"type\":\"string\"")]
         [TestCase("\"unit\":\"rpm\"")]
         [TestCase("\"minimum\":0")]
@@ -68,7 +71,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("\"uav:modellingRule\":\"Mandatory\"")]
         public void AForbiddenAnnotationIsReported(string annotation)
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection(annotation)));
             var diagnostics = new List<WotDiagnostic>();
 
@@ -82,6 +85,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 $"'{annotation}' should not be admitted as a projection annotation.");
         }
 
+        /// <summary>
+        /// Verifies that a permitted annotation is accepted.
+        /// </summary>
         [TestCase("\"title\":\"Speed\"")]
         [TestCase("\"titles\":{\"en\":\"Speed\",\"de\":\"Drehzahl\"}")]
         [TestCase("\"description\":\"A condition signal.\"")]
@@ -93,7 +99,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("\"security\":\"nosec_sc\"")]
         public void APermittedAnnotationIsAccepted(string annotation)
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection(annotation)));
             var diagnostics = new List<WotDiagnostic>();
 
@@ -105,15 +111,18 @@ namespace Opc.Ua.Types.Tests.Wot
                 $"'{annotation}' should be admitted as a projection annotation.");
         }
 
+        /// <summary>
+        /// Verifies that a forbidden annotation never overrides the source schema.
+        /// </summary>
         [Test]
         public async Task AForbiddenAnnotationNeverOverridesTheSourceSchemaAsync()
         {
-            var resolver = new WotProjectionResolver(new MapResolver(
+            WotProjectionResolver resolver = CreateResolver(new MapResolver(
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["./source.jsonld"] = SourceJson
                 }));
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection("\"type\":\"string\",\"unit\":\"rpm\"")));
 
             WotConversionResult<WotDocument> result =
@@ -143,19 +152,24 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that permitted annotations are merged.
+        /// </summary>
         [Test]
         public async Task PermittedAnnotationsAreMergedAsync()
         {
-            var resolver = new WotProjectionResolver(new MapResolver(
+            WotProjectionResolver resolver = CreateResolver(new MapResolver(
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["./source.jsonld"] = SourceJson
                 }));
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection(
                     "\"title\":\"Condition signal\"," +
                     "\"uav:semanticId\":\"http://example.com/ontology/Signal\"," +
-                    "\"@type\":\"http://example.com/ontology/ConditionSignal\"")));
+                    "\"@type\":\"http://example.com/ontology/ConditionSignal\"," +
+                    "\"forms\":[{\"href\":\"https://example.com/signal\"," +
+                    "\"op\":[\"readproperty\"]}]")));
 
             WotConversionResult<WotDocument> result =
                 await resolver.ResolveAsync(document).ConfigureAwait(false);
@@ -183,19 +197,22 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that under source routing an annotated form makes the document invalid.
+        /// </summary>
         [Test]
         public async Task UnderSourceRoutingAnAnnotatedFormMakesTheDocumentInvalidAsync()
         {
-            // Section 12.5: a member routed to its source carries the source's
+            // OPC 10101-2: a member routed to its source carries the source's
             // own form, so a member that restates one makes the document
             // invalid. Dropping it would leave a form the author wrote and the
             // consumer silently did not use.
-            var resolver = new WotProjectionResolver(new MapResolver(
+            WotProjectionResolver resolver = CreateResolver(new MapResolver(
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["./source.jsonld"] = SourceJson
                 }));
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection(
                     "\"forms\":[{\"href\":\"https://example.com/injected\"}]",
                     routing: "source")));
@@ -215,15 +232,18 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that under source routing an annotated security makes the document invalid.
+        /// </summary>
         [Test]
         public async Task UnderSourceRoutingAnAnnotatedSecurityMakesTheDocumentInvalidAsync()
         {
-            var resolver = new WotProjectionResolver(new MapResolver(
+            WotProjectionResolver resolver = CreateResolver(new MapResolver(
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["./source.jsonld"] = SourceJson
                 }));
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection(
                     "\"security\":[\"nosec_sc\"]",
                     routing: "source")));
@@ -241,7 +261,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         /// <summary>
         /// A <c>uav:namePrefix</c> upper-cases the first character of the
-        /// source name (Section 12.3), so <c>serialNumber</c> and
+        /// source name (OPC 10101-2), so <c>serialNumber</c> and
         /// <c>SerialNumber</c> in one source both become
         /// <c>deviceSerialNumber</c> in the view. Two bulk selections of the
         /// same kind from the same source can therefore take the same view name
@@ -253,12 +273,12 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task ATiedViewNameIsBrokenByTheSourceAffordanceNameAsync()
         {
-            var resolver = new WotProjectionResolver(new MapResolver(
+            WotProjectionResolver resolver = CreateResolver(new MapResolver(
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["./collide.jsonld"] = CollidingSourceJson
                 }));
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(PrefixedProjection));
 
             WotConversionResult<WotDocument> result =
@@ -283,6 +303,11 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        private static WotProjectionResolver CreateResolver(IWotThingResolver source)
+        {
+            return new WotProjectionResolver(source);
+        }
+
         private static string Projection(string annotation, string routing = "projection")
         {
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
@@ -296,10 +321,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"security\":\"nosec_sc\"," +
                 "\"uav:projects\":[{\"uav:sourceName\":\"pump\"," +
                 "\"href\":\"./source.jsonld\",\"type\":\"application/td+json\"," +
-                "\"uav:routing\":\"" + routing + "\"}]," +
+                "\"uav:routing\":\"" +
+                routing +
+                "\"}]," +
                 "\"properties\":{\"pumpSpeed\":{" +
                 "\"tm:ref\":\"./source.jsonld#/properties/pumpSpeed\"," +
-                annotation + "}}}";
+                annotation +
+                "}}}";
         }
 
         /// <summary>
@@ -375,6 +403,63 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             private readonly Dictionary<string, string> m_map;
+        }
+
+        [TestCase("\"title\":\"Speed\"", false)]
+        [TestCase("\"unit\":\"rpm\"", true)]
+        public void CurrentAnnotationFixturesParseWithStrictDefaults(
+            string annotation,
+            bool expectedAnnotationError)
+        {
+            using var document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(Projection(annotation)));
+            var diagnostics = new List<WotDiagnostic>();
+
+            WotProjection? projection = WotProjection.Parse(document, diagnostics);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(projection, Is.Not.Null);
+                Assert.That(
+                    diagnostics.Any(diagnostic =>
+                        diagnostic.Code == WotDiagnosticCode.ProjectionAnnotationNotPermitted &&
+                        diagnostic.Severity == WotDiagnosticSeverity.Error),
+                    Is.EqualTo(expectedAnnotationError),
+                    string.Join("; ", diagnostics));
+            });
+        }
+
+        [Test]
+        public async Task CurrentProjectionAnnotationResolvesWithStrictDefaultsAsync()
+        {
+            var source = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["./source.jsonld"] = SourceJson
+            });
+            var resolver = new WotProjectionResolver(source);
+            using var document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(Projection(
+                    "\"title\":\"Condition signal\"," +
+                    "\"forms\":[{\"href\":\"https://example.com/signal\"," +
+                    "\"op\":[\"readproperty\"]}]")));
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement speed = view.RootElement
+                .GetProperty("properties")
+                .GetProperty("pumpSpeed");
+            Assert.Multiple(() =>
+            {
+                Assert.That(speed.GetProperty("title").GetString(), Is.EqualTo("Condition signal"));
+                Assert.That(speed.GetProperty("type").GetString(), Is.EqualTo("number"));
+                Assert.That(
+                    speed.GetProperty("forms")[0].GetProperty("href").GetString(),
+                    Is.EqualTo("https://example.com/signal"));
+                Assert.That(WotProjection.IsProjection(view), Is.False);
+            });
         }
     }
 }

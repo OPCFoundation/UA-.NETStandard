@@ -35,7 +35,7 @@
     property has no effect.
   -->
   <PropertyGroup>
-    <PreviewPackageBuildNumber Condition="'$(PreviewPackageBuildNumber)' == ''">200</PreviewPackageBuildNumber>
+    <PreviewPackageBuildNumber Condition="'$(PreviewPackageBuildNumber)' == ''">300</PreviewPackageBuildNumber>
     <!--
       Exact, already-published versions that the preview ordering gate
       (.azurepipelines/validate-preview-package-ordering.ps1) must not treat

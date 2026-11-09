@@ -182,14 +182,14 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
-        public void AugmenterThrowingPropagatesException()
+        public async Task AugmenterThrowingPropagatesException()
         {
             var registry = new ServerIdentityRegistry(
                 new StubAuthenticator(AuthenticationResult.Accept(new NamedIdentity("original"))));
             registry.RegisterAugmenter(new ThrowingAugmenter());
 
-            InvalidTimeZoneException ex = Assert.ThrowsAsync<InvalidTimeZoneException>(
-                async () => await registry.AuthenticateAsync(MakeContext()).ConfigureAwait(false))!;
+            InvalidTimeZoneException ex = (await Assert.ThrowsAsync<InvalidTimeZoneException>(
+                async () => await registry.AuthenticateAsync(MakeContext()).ConfigureAwait(false)))!;
 
             Assert.That(ex.Message, Is.EqualTo("augmenter boom"));
         }

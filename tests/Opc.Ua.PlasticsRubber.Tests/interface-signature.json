@@ -1,0 +1,19 @@
+{
+  "comparison": "Read-only comparison with the privately obtained OPC 40083 v1.03 NodeSet; no reference content is redistributed.",
+  "referenceArtifactSha256": "f6ad2231ec4b01c0c447d7b380920927a30568211f8c4fc7eb341955434ca8ac",
+  "exclusions": [
+    "DisplayName",
+    "Description",
+    "Extensions",
+    "BinarySchema Documentation",
+    "XMLSchema annotation/documentation",
+    "Namespace prefix spelling, attribute order and top-level dictionary declaration order"
+  ],
+  "retainedSemantics": "Every node, model/dependency header, reference, field, value, dictionary inheritance/field order/type and XML occurrence rule.",
+  "fingerprints": {
+    "interfaceSha256": "c3c47c8907a975c2683cdde61708e934e2d37ec1a4e29aaa5da71c2d41a5d662",
+    "binaryDictionarySha256": "2d068abc21759e47b89f546d22ee385dc64141bc02894b24d85c78652d058936",
+    "xmlDictionarySha256": "4251bf39535ba5089b7333da76b8ed3d05b4c9daad4f54a01899a049e69f0917",
+    "nodeCount": 961
+  }
+}

@@ -1,7 +1,13 @@
 # Opc.Ua.Vision.Client
 
-Client-side helpers for the **OPC UA — Vision** companion model (working-group
-draft).
+Client-side helpers for **OPC 40100-1** and the **Perception model**.
+
+`vision.MachineVision()` provides independent released-model discovery, typed
+control/management proxies, recipe/configuration upload, and result-download workflows.
+Part 2 asset snapshots and relationships are extensions from
+`Opc.Ua.MachineVision.Client`. Released-model operations do not require the
+Perception namespace; sensor/pipeline discovery uses the Perception model.
+See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md#typed-clients).
 
 Built on **Opc.Ua.Vision** and **Opc.Ua.Client**, this package exposes a
 high-level surface over the source-generated proxies so a client can drive a
@@ -16,18 +22,19 @@ Vision server without knowing NodeIds or BrowseNames:
   transforms between any two named frames (camera → flange → base, camera →
   flange → tool centre point). Follows the §5.12 conventions exactly —
   right-handed frames, quaternion order (x, y, z, w), corner-datum principal
-  point, and refuses a non-unit quaternion within tolerance 1e-6;
-- `VisionMediaClient` — `GetClip` by reference (default), inline
-  `LatestClip`/`LatestClipMetadata`, and honest surfacing of the §6.4 case
-  where inline delivery is disabled (`Bad_NotSupported`);
+  point, and rejects a quaternion when the absolute difference between its
+  norm and 1 exceeds 1e-6;
+- `VisionMediaClient` — `GetClip` by reference (default) and inline
+  `LatestClip`/`LatestClipMetadata`; reports `Bad_NotSupported` when inline
+  delivery is disabled (§6.4);
 - `VisionPipelineClient` — `RunInference`, `StartContinuous`, `Stop`, and
   reading pipeline members including the deployment inference location;
 - `VisionResultReader` — reads `DetectionResultType`, `InspectionResultType`,
   `SegmentationResultType` and streams result changes over an
   `IStreamingSubscription`;
 - `VisionFeedbackClient` — `SubmitDetections`, `SubmitInspectionResult`,
-  `SubmitCorrection`, `SubmitImageReference`, the headline path for an
-  off-server vision-language model publishing results the Server did not
+  `SubmitCorrection`, `SubmitImageReference` let an
+  off-server vision-language model publish results the Server did not
   compute;
 - `AddVisionClient()` — DI registration for `IOpcUaClientBuilder`;
 - `session.Vision(telemetry)` — non-DI extension for creating a client over
@@ -80,6 +87,12 @@ example.
 | `OPCFoundation.NetStandard.Opc.Ua.Vision` | Source-generated Vision model (required) |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Server` | Hosting a Vision server |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | MCP tools that let a language model use `VisionClient` from an agent |
+
+## Versioning
+
+This package follows the repository root version without a forced-preview override.
+Development builds still use the root prerelease version. The separate
+`Opc.Ua.Vision.OpenUsd` renderer remains preview-only.
 
 ## License
 

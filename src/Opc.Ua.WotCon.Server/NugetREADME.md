@@ -21,6 +21,13 @@ wired onto runtime-loaded NodeSet generations, channels open lazily, local
 monitored items sample the async read handlers, and shadow reload keeps
 existing monitored items on the retired generation until they drain.
 
+File-backed registries also expose optional prepared metadata commits using
+validated generation and immutable-content lease evidence. Projection updates
+avoid rereading independent blob content without bypassing manifest conflicts
+or content integrity; unsupported providers do not advertise isolated commits.
+See [prepared registry metadata commits](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotCon.md#prepared-registry-store)
+for capability, platform, lifetime, and persistence-outcome contracts.
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`,
@@ -29,6 +36,6 @@ existing monitored items on the retired generation until they drain.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTConnectivity.md).
+and the [WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotCon.md).
 See also the [WoT protocol bindings guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotBindings.md)
 and [WoT aggregation sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/WotCon/README.md).

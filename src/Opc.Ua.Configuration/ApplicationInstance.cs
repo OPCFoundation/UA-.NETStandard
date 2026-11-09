@@ -49,6 +49,40 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            TaskCompletionSource<bool>? completion = null;
+            Task disposal;
+            lock (m_disposalLock)
+            {
+                if (m_disposeTask == null)
+                {
+                    m_disposalStarted = true;
+                    completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_disposeTask = completion.Task;
+                }
+                disposal = m_disposeTask;
+            }
+            if (completion != null)
+            {
+                try
+                {
+                    await DisposeCoreAsync().ConfigureAwait(false);
+                    completion.SetResult(true);
+                }
+                catch (Exception e)
+                {
+                    completion.SetException(e);
+                }
+            }
+            GC.SuppressFinalize(this);
+            await disposal.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Stops the server and releases owned managers once for all asynchronous disposal callers.
+        /// </summary>
+        private async Task DisposeCoreAsync()
+        {
+            List<Exception>? disposalFailures = null;
             if (Server != null)
             {
                 try
@@ -59,18 +93,38 @@ namespace Opc.Ua.Configuration
                 {
                     m_logger.ErrorStoppingServerDuringDispose(e);
                 }
-                Server.Dispose();
-                Server = null;
+                try
+                {
+                    Server.Dispose();
+                }
+                catch (Exception e)
+                {
+                    disposalFailures = [e];
+                }
+                finally
+                {
+                    Server = null;
+                }
             }
 
-            CertificateManager? localManager = CertificateManager;
-            localManager?.Dispose();
-            if (ApplicationConfiguration?.CertificateManager is CertificateManager configManager && !ReferenceEquals(configManager, localManager))
+            foreach (ApplicationConfiguration configuration in m_certificateManagerConfigurations)
             {
-                configManager.Dispose();
+                try
+                {
+                    await configuration.ReleaseCertificateManagersAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    disposalFailures ??= [];
+                    disposalFailures.Add(e);
+                }
             }
+            m_certificateManagerConfigurations.Clear();
 
-            GC.SuppressFinalize(this);
+            if (disposalFailures != null)
+            {
+                throw new AggregateException(disposalFailures);
+            }
         }
 
         /// <summary>
@@ -131,7 +185,26 @@ namespace Opc.Ua.Configuration
         public IServerBase? Server { get; private set; }
 
         /// <inheritdoc/>
-        public ApplicationConfiguration? ApplicationConfiguration { get; set; }
+        public ApplicationConfiguration? ApplicationConfiguration
+        {
+            get
+            {
+                lock (m_disposalLock)
+                {
+                    return m_applicationConfiguration;
+                }
+            }
+            set
+            {
+                lock (m_disposalLock)
+                {
+                    ThrowIfDisposing();
+                    TrackCertificateManagerConfiguration(value);
+                    m_applicationConfiguration = value;
+                    CertificateManager = value?.CertificateManager as CertificateManager;
+                }
+            }
+        }
 
         /// <summary>
         /// Get or set the message dialog.
@@ -209,7 +282,7 @@ namespace Opc.Ua.Configuration
                         ct)
                     .ConfigureAwait(false);
             }
-            catch (Exception) when (silent)
+            catch (Exception e) when (silent && e is not OperationCanceledException)
             {
             }
 
@@ -219,6 +292,7 @@ namespace Opc.Ua.Configuration
             }
 
             ApplicationConfiguration = FixupAppConfig(configuration);
+            SetCertificateManagerOwnership();
 
             return configuration;
         }
@@ -243,7 +317,7 @@ namespace Opc.Ua.Configuration
                         ct)
                     .ConfigureAwait(false);
             }
-            catch (Exception) when (silent)
+            catch (Exception e) when (silent && e is not OperationCanceledException)
             {
             }
 
@@ -253,6 +327,7 @@ namespace Opc.Ua.Configuration
             }
 
             ApplicationConfiguration = FixupAppConfig(configuration);
+            SetCertificateManagerOwnership();
 
             return configuration;
         }
@@ -349,26 +424,31 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.ConfigurationError("Need at least one Application Certificate.");
             }
 
-            // Initialize CertificateManager early so CheckApplicationInstanceCertificateAsync
-            // can use the new ICertificateValidatorEx pipeline (with CertificateValidationOptions.AcceptError)
-            // for per-certificate validation below. Adopt the configuration's
-            // existing manager (created eagerly by ApplicationConfiguration.ValidateAsync)
-            // when present, so we do not orphan it — its disposal is otherwise
-            // overwritten below and the certificates it loaded would leak.
-            // CA2000: the created manager is stored in the CertificateManager
-            // property which this instance owns and disposes in DisposeAsync
-            // (see above); ownership is retained, not leaked.
-#pragma warning disable CA2000
-            CertificateManager ??= configuration.CertificateManager as CertificateManager
-                ?? CertificateManagerFactory.Create(
-                    securityConfiguration,
-                    m_telemetry!);
-#pragma warning restore CA2000
-
-            // Make the manager visible via the configuration so consumers
-            // that only see ApplicationConfiguration (e.g. Session) can
-            // route validation through the new pipeline.
-            ApplicationConfiguration!.CertificateManager = CertificateManager;
+            CertificateManager? fallback;
+            int generation;
+            lock (m_disposalLock)
+            {
+                ThrowIfDisposing();
+                fallback = ReferenceEquals(m_applicationConfiguration, configuration)
+                    ? CertificateManager
+                    : null;
+                generation = configuration.CaptureCertificateManagerGeneration();
+            }
+            ICertificateManager certificateManager = await configuration
+                .GetOrCreateCertificateManagerAsync(m_telemetry!, fallback, expectedGeneration: generation)
+                .ConfigureAwait(false);
+            lock (m_disposalLock)
+            {
+                ThrowIfDisposing();
+                if (ReferenceEquals(m_applicationConfiguration, configuration))
+                {
+                    CertificateManager = certificateManager as CertificateManager;
+                }
+            }
+            if (certificateManager is CertificateManager concreteManager)
+            {
+                concreteManager.MapFromSecurityConfiguration(securityConfiguration);
+            }
 
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
             // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
@@ -582,6 +662,58 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
+        /// Tracks configurations so assignments made later by validation or callbacks retain their provenance.
+        /// </summary>
+        internal void SetCertificateManagerOwnership()
+        {
+            lock (m_disposalLock)
+            {
+                ThrowIfDisposing();
+                TrackCertificateManagerConfiguration(m_applicationConfiguration);
+                CertificateManager = m_applicationConfiguration?.CertificateManager as CertificateManager;
+            }
+        }
+
+        /// <summary>
+        /// Marks the configured certificate manager as owned by its dependency-injection container.
+        /// </summary>
+        internal void MarkCertificateManagerBorrowed()
+        {
+            lock (m_disposalLock)
+            {
+                ThrowIfDisposing();
+                if (m_applicationConfiguration?.CertificateManager is { } certificateManager)
+                {
+                    m_applicationConfiguration.SetBorrowedCertificateManager(certificateManager);
+                }
+                SetCertificateManagerOwnership();
+            }
+        }
+
+        /// <summary>
+        /// Acquires a configuration lease once and retains it across configuration replacement.
+        /// </summary>
+        private void TrackCertificateManagerConfiguration(ApplicationConfiguration? configuration)
+        {
+            if (configuration != null && !m_certificateManagerConfigurations.Contains(configuration))
+            {
+                configuration.AcquireCertificateManagers();
+                m_certificateManagerConfigurations.Add(configuration);
+            }
+        }
+
+        /// <summary>
+        /// Rejects new configuration ownership after asynchronous disposal starts.
+        /// </summary>
+        private void ThrowIfDisposing()
+        {
+            if (m_disposalStarted)
+            {
+                throw new ObjectDisposedException(nameof(ApplicationInstance));
+            }
+        }
+
+        /// <summary>
         /// Loads the configuration.
         /// </summary>
         internal async ValueTask<ApplicationConfiguration?> LoadAppConfigAsync(
@@ -608,6 +740,10 @@ namespace Opc.Ua.Configuration
                         certificatePasswordProvider,
                         ct)
                     .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -656,6 +792,10 @@ namespace Opc.Ua.Configuration
                         certificatePasswordProvider,
                         ct)
                     .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -730,7 +870,7 @@ namespace Opc.Ua.Configuration
                     : null;
                 using var chain = new CertificateCollection { publicKeyCert ?? certificate };
 
-                CertificateValidationResult result = await CertificateManager!
+                CertificateValidationResult result = await configuration.CertificateManager
                     .ValidateAsync(
                         chain,
                         trustList: null,
@@ -1239,7 +1379,7 @@ namespace Opc.Ua.Configuration
             }
             catch (Exception e)
             {
-                m_logger.CouldNotAddCertificateToTrustedPeerStore(Redact.Create(e));
+                m_logger.CouldNotAddCertificateToTrustedPeerStore(e.Message);
             }
         }
 
@@ -1260,6 +1400,27 @@ namespace Opc.Ua.Configuration
 
         private readonly ITelemetryContext? m_telemetry;
         private readonly ILogger m_logger;
+        private ApplicationConfiguration? m_applicationConfiguration;
+
+        /// <summary>
+        /// Holds one lease per configuration, including configurations replaced during the application's lifetime.
+        /// </summary>
+        private readonly HashSet<ApplicationConfiguration> m_certificateManagerConfigurations = [];
+
+        /// <summary>
+        /// Serializes creation of the shared asynchronous disposal task.
+        /// </summary>
+        private readonly Lock m_disposalLock = new();
+
+        /// <summary>
+        /// The cleanup task awaited by every disposal caller.
+        /// </summary>
+        private Task? m_disposeTask;
+
+        /// <summary>
+        /// Prevents configuration adoption while server shutdown or manager release is in progress.
+        /// </summary>
+        private bool m_disposalStarted;
         private IKeyPairGenerator? m_keyPairGenerator;
     }
 
@@ -1275,7 +1436,7 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 2, Level = LogLevel.Information,
             Message = "Check certificate: {Certificate}")]
-        public static partial void CheckCertificate(this ILogger logger, Certificate certificate);
+        public static partial void CheckCertificate(this ILogger logger, [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 3, Level = LogLevel.Warning,
             Message = "Application Instance certificate auto creation is disabled.")]
@@ -1283,11 +1444,14 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 4, Level = LogLevel.Information,
             Message = "Loading application configuration file. {FilePath}")]
-        public static partial void LoadingApplicationConfigurationFile(this ILogger logger, string filePath);
+        public static partial void LoadingApplicationConfigurationFile(this ILogger logger, [FilePath] string filePath);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 5, Level = LogLevel.Error,
             Message = "Could not load configuration file. {FilePath}")]
-        public static partial void CouldNotLoadConfigurationFile(this ILogger logger, Exception e, string filePath);
+        public static partial void CouldNotLoadConfigurationFile(
+            this ILogger logger,
+            Exception e,
+            [FilePath] string filePath);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 6, Level = LogLevel.Information,
             Message = "Loading application from stream.")]
@@ -1299,7 +1463,9 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 8, Level = LogLevel.Information,
             Message = "Check application instance certificate {Certificate}.")]
-        public static partial void CheckApplicationInstanceCertificate(this ILogger logger, Certificate certificate);
+        public static partial void CheckApplicationInstanceCertificate(
+            this ILogger logger,
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 9, Level = LogLevel.Warning,
             Message = "Application Certificate Validation suppressed {ErrorMessage}")]
@@ -1311,8 +1477,8 @@ namespace Opc.Ua.Configuration
             Message = "Certificate {Certificate} validated for ApplicationUri: {ApplicationUri}")]
         public static partial void CertificateValidatedForApplicationUri(
             this ILogger logger,
-            Certificate certificate,
-            string? applicationUri);
+            [ApplicationIdentity] Certificate certificate,
+            [ApplicationIdentity] string? applicationUri);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 11, Level = LogLevel.Information,
             Message = "Check domains in certificate.")]
@@ -1324,7 +1490,7 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 13, Level = LogLevel.Information,
             Message = " {ServerDomainName}")]
-        public static partial void ServerDomainName(this ILogger logger, string serverDomainName);
+        public static partial void ServerDomainName(this ILogger logger, [NetworkAddress] string serverDomainName);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 14, Level = LogLevel.Information,
             Message = "Certificate Domain names:")]
@@ -1332,7 +1498,7 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 15, Level = LogLevel.Information,
             Message = " {ClientDomainName}")]
-        public static partial void ClientDomainName(this ILogger logger, string clientDomainName);
+        public static partial void ClientDomainName(this ILogger logger, [NetworkAddress] string clientDomainName);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 16, Level = LogLevel.Information,
             Message = "Creating application instance certificate.")]
@@ -1342,38 +1508,40 @@ namespace Opc.Ua.Configuration
             Message = "Certificate {Certificate} created for RSA with key size {KeySize} bits.")]
         public static partial void CertificateCreatedForRsa(
             this ILogger logger,
-            Certificate certificate,
+            [ApplicationIdentity] Certificate certificate,
             ushort keySize);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 18, Level = LogLevel.Information,
             Message = "Certificate {Certificate} created for {Curve}.")]
         public static partial void CertificateCreatedForCurve(
             this ILogger logger,
-            Certificate certificate,
+            [ApplicationIdentity] Certificate certificate,
             string? curve);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 19, Level = LogLevel.Information,
             Message = "Certificate {Certificate} created for {ApplicationUri}.")]
         public static partial void CertificateCreatedForApplicationUri(
             this ILogger logger,
-            Certificate certificate,
-            string? applicationUri);
+            [ApplicationIdentity] Certificate certificate,
+            [ApplicationIdentity] string? applicationUri);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 20, Level = LogLevel.Information,
             Message = "Deleting application instance certificate {Certificate} and private key.")]
-        public static partial void DeletingApplicationInstanceCertificate(this ILogger logger, Certificate certificate);
+        public static partial void DeletingApplicationInstanceCertificate(
+            this ILogger logger,
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 21, Level = LogLevel.Information,
             Message = "Application Instance Certificate [{Thumbprint}] deleted from trusted store.")]
         public static partial void ApplicationInstanceCertificateDeletedFromTrustedStore(
             this ILogger logger,
-            string thumbprint);
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 22, Level = LogLevel.Information,
             Message = "Application certificate {Certificate} and private key deleted.")]
         public static partial void ApplicationCertificateAndPrivateKeyDeleted(
             this ILogger logger,
-            Certificate certificate);
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 23, Level = LogLevel.Warning,
             Message = "Trusted peer store not specified.")]
@@ -1387,11 +1555,13 @@ namespace Opc.Ua.Configuration
             Message = "Adding application certificate {Certificate} to trusted peer store.")]
         public static partial void AddingApplicationCertificateToTrustedPeerStore(
             this ILogger logger,
-            Certificate certificate);
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 26, Level = LogLevel.Information,
             Message = "Delete Certificate {Certificate} from trusted store.")]
-        public static partial void DeleteCertificateFromTrustedStore(this ILogger logger, Certificate certificate);
+        public static partial void DeleteCertificateFromTrustedStore(
+            this ILogger logger,
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 27, Level = LogLevel.Information,
             Message = "Added application certificate to trusted peer store.")]
@@ -1401,10 +1571,10 @@ namespace Opc.Ua.Configuration
             Message = "Could not add certificate to trusted peer store: {ErrorMessage}")]
         public static partial void CouldNotAddCertificateToTrustedPeerStore(
             this ILogger logger,
-            RedactionWrapper<Exception> errorMessage);
+            [SensitiveText] string errorMessage);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 29, Level = LogLevel.Error,
             Message = "Approve Message prompt: {Message} -> Rejected")]
-        public static partial void ApproveMessagePromptRejected(this ILogger logger, string message);
+        public static partial void ApproveMessagePromptRejected(this ILogger logger, [SensitiveText] string message);
     }
 }

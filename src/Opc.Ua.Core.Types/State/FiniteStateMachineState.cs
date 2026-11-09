@@ -458,6 +458,32 @@ namespace Opc.Ua
         internal StateMachineTransitionCallbackFactory? TransitionCallbackFactory { get; set; }
 
         /// <summary>
+        /// Synchronizes attached child machines after an owner's initial state selection.
+        /// </summary>
+        internal event Action<ISystemContext, uint>? InitialStateSynchronization;
+
+        /// <summary>
+        /// Marks attached children for initial-state entry on the next activation of a new Program run.
+        /// </summary>
+        internal event Action? SubStateResetting;
+
+        /// <summary>
+        /// Requests child-state reset without acquiring child-machine synchronization.
+        /// </summary>
+        internal void ResetSubStates()
+        {
+            SubStateResetting?.Invoke();
+        }
+
+        /// <summary>
+        /// Applies the selected initial state to attached child-machine behavior without reporting a transition.
+        /// </summary>
+        internal void SynchronizeInitialState(ISystemContext context, uint stateId)
+        {
+            InitialStateSynchronization?.Invoke(context, stateId);
+        }
+
+        /// <summary>
         /// Gets the revision used to reject work armed before the current state was entered.
         /// </summary>
         internal long StateRevision => Interlocked.Read(ref m_stateRevision);
@@ -503,6 +529,10 @@ namespace Opc.Ua
             uint causeId,
             bool checkUserAccessRights)
         {
+            if (CurrentState?.StatusCode == StatusCodes.BadStateNotActive)
+            {
+                return false;
+            }
             uint transitionId = GetTransitionForCause(context, causeId);
 
             if (transitionId == 0)
@@ -542,6 +572,45 @@ namespace Opc.Ua
                 UpdateTransitionVariable(context, transitionId, LastTransition);
                 m_stateRevision++;
             }
+        }
+
+        /// <summary>
+        /// Checks a model's state table without changing the current state.
+        /// </summary>
+        internal bool IsKnownState(uint stateId)
+        {
+            ElementInfo[]? states = StateTable;
+            return states != null && Array.Exists(states, state => state.Id == stateId);
+        }
+
+        /// <summary>
+        /// Applies Part 16 active-state quality to a nested machine and its state properties.
+        /// </summary>
+        internal void SetActive(ISystemContext context, bool active)
+        {
+            StatusCode status = active ? StatusCodes.Good : StatusCodes.BadStateNotActive;
+            ApplyStateQuality(context, CurrentState, status);
+            ApplyStateQuality(context, LastTransition, status);
+        }
+
+        private static void ApplyStateQuality(
+            ISystemContext context, BaseVariableState? variable, StatusCode status)
+        {
+            if (variable is null)
+            {
+                return;
+            }
+            variable.StatusCode = status;
+            var children = new List<BaseInstanceState>();
+            variable.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is BaseVariableState childVariable)
+                {
+                    childVariable.StatusCode = status;
+                }
+            }
+            variable.ClearChangeMasks(context, true);
         }
 
         /// <summary>
@@ -837,6 +906,52 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks a transition before asynchronous work without retaining a synchronization primitive.
+        /// </summary>
+        internal ServiceResult PrepareTransition(
+            ISystemContext context,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments,
+            out PreparedStateMachineTransition prepared)
+        {
+            try
+            {
+                lock (m_transitionLock)
+                {
+                    return PrepareTransitionCore(
+                        context, transitionId, causeId, inputArguments, outputArguments, out prepared);
+                }
+            }
+            finally
+            {
+                DispatchTransitionCompletions();
+            }
+        }
+
+        /// <summary>
+        /// Commits previously validated work only while its captured state revision is current.
+        /// </summary>
+        internal ServiceResult CommitTransition(
+            ISystemContext context,
+            PreparedStateMachineTransition prepared,
+            Action committed)
+        {
+            try
+            {
+                lock (m_transitionLock)
+                {
+                    return CommitTransitionCore(context, prepared, committed, suppressEvents: true);
+                }
+            }
+            finally
+            {
+                DispatchTransitionCompletions();
+            }
+        }
+
+        /// <summary>
         /// Coalesces related-node synchronization until the outer transition invocation completes.
         /// </summary>
         internal void ScheduleTransitionCompletion(NodeId nodeId, Action completion)
@@ -928,6 +1043,27 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
+            ServiceResult result = PrepareTransitionCore(
+                context, transitionId, causeId, inputArguments, outputArguments,
+                out PreparedStateMachineTransition prepared);
+            return ServiceResult.IsBad(result)
+                ? result
+                : CommitTransitionCore(context, prepared, null, suppressEvents: false);
+        }
+
+        private ServiceResult PrepareTransitionCore(
+            ISystemContext context,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments,
+            out PreparedStateMachineTransition prepared)
+        {
+            prepared = default;
+            if (CurrentState?.StatusCode == StatusCodes.BadStateNotActive)
+            {
+                return StatusCodes.BadStateNotActive;
+            }
             long revision = m_stateRevision;
             uint fromState = GetCurrentStateId();
             // check for valid transition.
@@ -966,33 +1102,52 @@ namespace Opc.Ua
                 return StatusCodes.BadInvalidState;
             }
 
+            prepared = new PreparedStateMachineTransition(
+                this, revision, fromState, newState, transitionId, causeId,
+                inputArguments, outputArguments, after);
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult CommitTransitionCore(
+            ISystemContext context,
+            PreparedStateMachineTransition prepared,
+            Action? committed,
+            bool suppressEvents)
+        {
+            if (!ReferenceEquals(prepared.Machine, this) ||
+                m_stateRevision != prepared.Revision || GetCurrentStateId() != prepared.FromState)
+            {
+                return StatusCodes.BadInvalidState;
+            }
+
             // save the last state.
             LastState = CoreUtils.Clone(CurrentState);
 
             // update state and transition variables.
-            UpdateStateVariable(context, newState, CurrentState);
-            UpdateTransitionVariable(context, transitionId, LastTransition);
+            UpdateStateVariable(context, prepared.ToState, CurrentState);
+            UpdateTransitionVariable(context, prepared.TransitionId, LastTransition);
             m_stateRevision++;
+            committed?.Invoke();
 
             TransitionEventState? transitionEvent = null;
-            if (AreEventsMonitored && !SuppressTransitionEvents)
+            if (AreEventsMonitored && !SuppressTransitionEvents && !suppressEvents)
             {
-                transitionEvent = CreateTransitionEvent(context, transitionId, causeId);
+                transitionEvent = CreateTransitionEvent(context, prepared.TransitionId, prepared.CauseId);
                 if (transitionEvent != null)
                 {
-                    UpdateTransitionEvent(context, transitionId, causeId, transitionEvent);
+                    UpdateTransitionEvent(context, prepared.TransitionId, prepared.CauseId, transitionEvent);
                 }
             }
 
             // do any post-transition processing.
             InvokeCallback(
-                after,
+                prepared.After,
                 context,
                 this,
-                transitionId,
-                causeId,
-                inputArguments,
-                outputArguments);
+                prepared.TransitionId,
+                prepared.CauseId,
+                prepared.InputArguments,
+                prepared.OutputArguments);
 
             // report the event.
             if (transitionEvent != null)
@@ -1059,6 +1214,20 @@ namespace Opc.Ua
         private long m_stateRevision;
         private ILogger m_logger = LoggerUtils.Null.Logger;
     }
+
+    /// <summary>
+    /// An immutable transition authorization bound to one state-machine revision.
+    /// </summary>
+    internal readonly record struct PreparedStateMachineTransition(
+        FiniteStateMachineState Machine,
+        long Revision,
+        uint FromState,
+        uint ToState,
+        uint TransitionId,
+        uint CauseId,
+        ArrayOf<Variant> InputArguments,
+        List<Variant> OutputArguments,
+        StateMachineTransitionHandler? After);
 
     /// <summary>
     /// A delegate used to receive notifications when a state machine transition occurs.

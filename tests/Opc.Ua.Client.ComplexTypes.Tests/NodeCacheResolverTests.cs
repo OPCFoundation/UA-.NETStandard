@@ -104,11 +104,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
-        [Order(100)]
         public async Task LoadStandardDataTypeSystemAsync()
         {
             var nodeResolver = new NodeCacheResolver(Session, Telemetry);
-            ServiceResultException sre = Assert
+            ServiceResultException sre = await Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     {
                         System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> t
@@ -132,6 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(LoadAllServerDataTypeSystemsAsync), AllowFailure = true)]
         public async Task LoadDataTypesAsyncStopsOnCyclicSubtypeGraphAsync()
         {
             var root = new NodeId("Root", 2);
@@ -181,6 +181,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(LoadAllServerDataTypeSystemsAsync), AllowFailure = true)]
         public async Task GetEnumTypeArrayAsyncUsesNamedPropertyAsync()
         {
             var typeId = new NodeId("MyEnum", 2);
@@ -217,8 +218,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
-        [Order(110)]
         [TestCaseSource(nameof(TypeSystems))]
+        [DependsOnTest(nameof(LoadStandardDataTypeSystemAsync), AllowFailure = true)]
         public async Task LoadAllServerDataTypeSystemsAsync(NodeId dataTypeSystem)
         {
             // find the dictionary for the description.

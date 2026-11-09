@@ -688,12 +688,12 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 ByteString.From([0x12, 0x34, 0x56])).ConfigureAwait(false);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await provider.ReadRawAsync(
                         CreateOperationContext(),
                         ReadRequest(nodeId, 0),
                         default,
-                        default).ConfigureAwait(false))!;
+                        default).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -932,14 +932,14 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             };
 
             ServiceResultException invalid =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await provider.ReadProcessedAsync(
                         context,
                         request,
                         default,
-                        default).ConfigureAwait(false))!;
+                        default).ConfigureAwait(false)))!;
             ServiceResultException excessive =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await provider.ReadProcessedAsync(
                         context,
                         request with
@@ -947,7 +947,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                             ProcessingInterval = 0.01
                         },
                         default,
-                        default).ConfigureAwait(false))!;
+                        default).ConfigureAwait(false)))!;
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 

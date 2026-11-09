@@ -174,13 +174,13 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void ADerivedNextAsyncOverrideHonorsCancellation()
+        public async Task ADerivedNextAsyncOverrideHonorsCancellation()
         {
             using var browser = new AsyncOnlyBrowser(m_context, CreateReferences(1));
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.ThrowsAsync<TaskCanceledException>(
+            await Assert.ThrowsAsync<TaskCanceledException>(
                 async () => await browser.NextAsync(cts.Token).ConfigureAwait(false));
         }
 

@@ -17,7 +17,7 @@ You are a code-style enforcement specialist for the OPC UA .NET Standard reposit
   - `.editorconfig` — Roslyn style rules + Roslynator analyzers. Several CA/RCS rules are promoted to `severity = error` (CA1014, CA1305, CA1307, CA2007, CA2016, CA2213, CA2000, RCS1166, NUnit4002, NUnit2046).
   - `Directory.Build.props` → imports `common.props` + `targets.props` + `version.props`.
 - **Analyzers:** Roslynator.Analyzers, Roslynator.Formatting.Analyzers, NUnit.Analyzers, plus built-in .NET analyzers.
-- **Polyfills:** `src/Opc.Ua.Types/Polyfills/System.cs` provides `IndexOf(char, StringComparison)`, `Replace(string, string, StringComparison)`, `Contains(string, StringComparison)` for net48/netstandard2.0. Always check polyfill availability before using .NET 6+ APIs.
+- **Polyfills:** `src/Opc.Ua.Types/Polyfills/System.cs` provides `IndexOf(char, StringComparison)`, `Replace(string, string, StringComparison)`, `Contains(string, StringComparison)` for net48/netstandard2.0. `src/Opc.Ua.Types/Polyfills/System.Threading.cs` supplies `System.Threading.Lock` on pre-.NET-9 targets. Always check polyfill availability before using newer runtime APIs.
 
 ## Scoped runs — formatting changed files only
 
@@ -200,7 +200,7 @@ The Roslynator package ships `Roslynator.CSharp.Analyzers.CodeFixes.dll` (alongs
 3. Any rule-specific `.editorconfig` config option is set (e.g. `roslynator_empty_string_style` for RCS1078).
 4. The rule actually has hits in the targeted scope (verify with `--verify-no-changes` first).
 
-For rules genuinely without a fixer (NUnit4002 etc.), either fix manually or dispatch fleet sub-agents with precise file/line instructions.
+For rules without a fixer (NUnit4002 etc.), either fix manually or dispatch fleet sub-agents with precise file/line instructions.
 
 ### Per-batch loop
 
@@ -221,10 +221,10 @@ For each batch:
 |---|---|---|
 | `string.Replace(string, string, StringComparison)` on net48 | CS0103 — `StringComparison` not in scope | Add `using System;` — the polyfill in `Polyfills/System.cs` provides the extension method. |
 | `ArgumentNullException.ThrowIfNull()` on net48 | CS0117 — method doesn't exist | Use `#pragma warning disable` + TODO comment, or keep the `if (x == null) throw` pattern. |
-| `System.Threading.Lock` (IDE0330) on net48 | CS0246 — type doesn't exist | Skip this rule entirely; it requires net9.0+. |
+| `System.Threading.Lock` (IDE0330) on older targets | The formatter must resolve the repository polyfill | Do not skip solely because of the target framework. Review each conversion and validate affected TFMs. If the formatter cannot resolve the polyfill, record the failure and fix manually. |
 | RCS1249 removing `!` operators | CS8602 on net48/472/net8.0+ | The nullable flow analysis differs across TFMs. Always build after applying RCS1249 and revert files that break. |
 | `await using var x = expr.ConfigureAwait(false)` | Changes variable type to `ConfiguredAsyncDisposable` | Skip `await using var` declarations for ConfigureAwait; the short-hand form can't configure the dispose-await. Use the block-scope form instead. |
-| Collection expressions `[]` on net48 | Usually fine (compiler lowers them) | But watch for `IDE0330` and other net9.0+-only features. |
+| Collection expressions `[]` on net48 | Usually fine (compiler lowers them) | Check runtime API requirements separately and use repository polyfills where available. |
 | CA1835 `Memory<byte>` overload on net48 | Overload doesn't exist on `net48` | Gate with `#if NET` to keep the byte[] overload on older TFMs. |
 
 ### Manual-fix reference table
@@ -233,6 +233,7 @@ For each batch:
 
 | Warning | Typical fix |
 |---|---|
+| **IDE0330** (use `System.Threading.Lock`) | Use the repository polyfill on older targets. Review related `lock`/`Monitor` usage and validate affected TFMs; fix manually if the formatter cannot resolve the type. |
 | **CA1835** (use `Memory<byte>` overload of `Stream.ReadAsync`) | Switch to the `Memory<byte>` / `ReadOnlyMemory<byte>` overload; on `net48` keep the byte[] overload behind `#if NET`. |
 | **CA2007** on a plain `await something` | Add `.ConfigureAwait(false)`. |
 | **CA2007** on an `await using` declaration | Convert to block-scope form (see Dispose patterns below). |
@@ -307,7 +308,7 @@ dotnet_diagnostic.CAXXXX.severity = error
 ```
 
 Before promoting:
-1. Verify the rule has genuinely 0 hits: `dotnet build UA.slnx 2>&1 | Select-String "CAXXXX"`.
+1. Verify the rule has 0 hits: `dotnet build UA.slnx 2>&1 | Select-String "CAXXXX"`.
 2. Prefer rules that catch real bugs (CA2213, CA2016, RCS1166, CA1307) over stylistic ones (CA1861).
 3. Keep `CodeAnalysisTreatWarningsAsErrors=true` in `common.props` — do NOT turn it off or downgrade rules to silence new hits. Rules that are intentionally not enforced stay at `suggestion`/`silent`/`none` in `.editorconfig`; raising one to `warning` makes it build-breaking, so clean up all hits first.
 
@@ -326,7 +327,6 @@ These rules are deliberately not enforced and should not be bulk-fixed:
 | Rule | Reason |
 |---|---|
 | IDE0240 | `dotnet format` fixer adds broken `NoWarn=nullable` to `common.props` instead of removing `#nullable enable` directives |
-| IDE0330 | `System.Threading.Lock` requires net9.0+; breaks net48/472 |
 | JSON002 | Cosmetic JSON string detection in test literals |
 | RCS1059 | Behavioural: changes locking strategy (needs manual case-by-case review) |
 | RCS1130 | Behavioural: requires adding `[Flags]` to enum or rewriting bitwise ops |

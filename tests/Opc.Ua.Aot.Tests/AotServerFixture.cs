@@ -45,9 +45,12 @@ namespace Opc.Ua.Aot.Tests
     public sealed class AotServerFixture<T>
         where T : ServerBase
     {
-        public IApplicationInstance Application { get; private set; }
-        public ApplicationConfiguration Config { get; private set; }
-        public T Server { get; private set; }
+        public IApplicationInstance? Application { get; private set; }
+        public ApplicationConfiguration Config { get; private set; } = null!;
+
+        public T Server => m_server
+            ?? throw new InvalidOperationException("The server has not been started.");
+
         public bool AutoAccept { get; set; }
         public bool SecurityNone { get; set; }
         public bool AllNodeManagers { get; set; }
@@ -65,7 +68,7 @@ namespace Opc.Ua.Aot.Tests
         /// <summary>
         /// Builds the fixture server configuration with its requested transport policies and certificate-store root.
         /// </summary>
-        public async Task LoadConfigurationAsync(string pkiRoot = null)
+        public async Task LoadConfigurationAsync(string? pkiRoot = null)
         {
             Application = new ApplicationInstance(m_telemetry)
             {
@@ -162,11 +165,11 @@ namespace Opc.Ua.Aot.Tests
 
         public async Task StopAsync()
         {
-            if (Server != null)
+            if (m_server != null)
             {
-                await Server.StopAsync().ConfigureAwait(false);
-                Server.Dispose();
-                Server = null;
+                await m_server.StopAsync().ConfigureAwait(false);
+                m_server.Dispose();
+                m_server = null;
             }
             if (Application != null)
             {
@@ -178,10 +181,14 @@ namespace Opc.Ua.Aot.Tests
 
         private async Task InternalStartServerAsync(int port)
         {
-            Config.ServerConfiguration.BaseAddresses
+            IApplicationInstance application = Application
+                ?? throw new InvalidOperationException("The server configuration has not been loaded.");
+            ServerConfiguration serverConfiguration = Config.ServerConfiguration
+                ?? throw new InvalidOperationException("The server configuration has not been loaded.");
+            serverConfiguration.BaseAddresses
                 = [$"{UriScheme}://localhost:{port}/{typeof(T).Name}"];
 
-            bool haveAppCertificate = await Application
+            bool haveAppCertificate = await application
                 .CheckApplicationInstanceCertificatesAsync(
                     true, CertificateFactory.DefaultLifeTime)
                 .ConfigureAwait(false);
@@ -196,13 +203,14 @@ namespace Opc.Ua.Aot.Tests
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
             }
-            await Application.StartAsync(server).ConfigureAwait(false);
-            Server = server;
+            await application.StartAsync(server).ConfigureAwait(false);
+            m_server = server;
             Port = port;
         }
 
         private readonly Func<ITelemetryContext, T> m_factory;
         private readonly ITelemetryContext m_telemetry;
+        private T? m_server;
     }
 
     /// <summary>

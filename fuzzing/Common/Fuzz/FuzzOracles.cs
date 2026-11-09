@@ -158,6 +158,14 @@ namespace Opc.Ua.Fuzzing
         public const int TimeConfirmationRuns = 2;
 
         /// <summary>
+        /// Re-runs of a target over its allocation budget where the counter is not per thread
+        /// (<see cref="IsAllocationMeasurementPerThread"/>). The AppDomain counter of .NET
+        /// Framework also counts every other thread, such as the test host serializing results,
+        /// so only a finding that every run confirms is reported.
+        /// </summary>
+        public const int AllocationConfirmationRuns = 2;
+
+        /// <summary>
         /// Scales the time budget. 0 disables the time oracle.
         /// </summary>
         public const string TimeBudgetScaleVariable = "OPCUA_FUZZ_TIME_BUDGET_SCALE";
@@ -191,6 +199,22 @@ namespace Opc.Ua.Fuzzing
         }
 
         /// <summary>
+        /// Whether the allocation oracle counts only the decoding thread. On .NET Framework it
+        /// counts the whole AppDomain.
+        /// </summary>
+        public static bool IsAllocationMeasurementPerThread
+        {
+            get
+            {
+#if NETFRAMEWORK
+                return false;
+#else
+                return true;
+#endif
+            }
+        }
+
+        /// <summary>
         /// The time budget of an input of the given size, 0 when the time oracle is disabled.
         /// </summary>
         public static long GetTimeBudgetMilliseconds(long inputLength)
@@ -217,6 +241,8 @@ namespace Opc.Ua.Fuzzing
         /// Runs a fuzz target on a thread with a <see cref="WorkerStackSize"/> stack and fails
         /// with <see cref="ResourceFindingKind.Time"/> if it is over the time budget of its
         /// input in the fastest of <see cref="TimeConfirmationRuns"/> additional runs.
+        /// Where the allocation counter is not per thread, an allocation finding is only
+        /// reported when <see cref="AllocationConfirmationRuns"/> additional runs confirm it.
         /// Exceptions of the target propagate unchanged.
         /// </summary>
         /// <exception cref="ResourceBudgetException"></exception>
@@ -237,7 +263,7 @@ namespace Opc.Ua.Fuzzing
                 throw new ArgumentNullException(nameof(run));
             }
 
-            long fastest = RunOnWorker(run);
+            long fastest = RunConfirmingAllocation(run);
             if (budget <= 0 || fastest <= budget)
             {
                 return;
@@ -246,7 +272,7 @@ namespace Opc.Ua.Fuzzing
             long first = fastest;
             for (int ii = 0; ii < TimeConfirmationRuns && fastest > budget; ii++)
             {
-                fastest = Math.Min(fastest, RunOnWorker(run));
+                fastest = Math.Min(fastest, RunConfirmingAllocation(run));
             }
 
             if (fastest > budget)
@@ -346,11 +372,29 @@ namespace Opc.Ua.Fuzzing
         private static long GetAllocatedBytes()
         {
 #if NETFRAMEWORK
-            // Per domain rather than per thread, which only makes the oracle stricter.
+            // Per domain rather than per thread: RunTarget confirms what other threads inflate.
             return AppDomain.MonitoringIsEnabled ? AppDomain.CurrentDomain.MonitoringTotalAllocatedMemorySize : -1;
 #else
             return GC.GetAllocatedBytesForCurrentThread();
 #endif
+        }
+
+        private static long RunConfirmingAllocation(Action run)
+        {
+            for (int ii = 0; ; ii++)
+            {
+                try
+                {
+                    return RunOnWorker(run);
+                }
+                catch (ResourceBudgetException ex) when (
+                    ex.Kind == ResourceFindingKind.Allocation &&
+                    !IsAllocationMeasurementPerThread &&
+                    ii < AllocationConfirmationRuns)
+                {
+                    // A real finding allocates the same again; another thread rarely does.
+                }
+            }
         }
 
         private static long RunOnWorker(Action run)

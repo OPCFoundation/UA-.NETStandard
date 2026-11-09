@@ -33,7 +33,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Opc.Ua;
 using Opc.Ua.RobotIntent;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Vision.BinPickingCell
 {

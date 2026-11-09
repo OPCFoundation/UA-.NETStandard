@@ -352,10 +352,10 @@ namespace Opc.Ua.Server.Tests.Historian
             var second = new TrackingPoint(Guid.NewGuid());
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await points.SaveHistoryAsync(
                         second,
-                        CancellationToken.None).ConfigureAwait(false))!;
+                        CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -451,7 +451,7 @@ namespace Opc.Ua.Server.Tests.Historian
         /// Verifies that a closed session rejects and disposes a late history continuation.
         /// </summary>
         [Test]
-        public void ClosedSessionRejectsAndDisposesLateHistoryContinuation()
+        public async Task ClosedSessionRejectsAndDisposesLateHistoryContinuation()
         {
             NodeId sessionId = new(1000);
             var store = new RecordingStore();
@@ -463,10 +463,10 @@ namespace Opc.Ua.Server.Tests.Historian
             var continuation = new TrackingPoint(Guid.NewGuid());
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await points.SaveHistoryAsync(
                         continuation,
-                        CancellationToken.None).ConfigureAwait(false))!;
+                        CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,

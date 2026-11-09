@@ -8,6 +8,7 @@
 
 ## Contents
 
+- [Persisted subscription files](#persisted-subscription-files)
 - [GDS Client API modernization](#gds-client-api-modernization)
   - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
   - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
@@ -27,6 +28,17 @@
   - [Reverse connect](#reverse-connect)
   - [`IMessageSocket` abstraction removed](#imessagesocket-abstraction-removed)
   - [Transport binding registry — `TransportBindings` static API removed](#transport-binding-registry--transportbindings-static-api-removed)
+
+## Persisted subscription files
+
+**Breaking change from 1.5 to 2.0:** The unversioned XML subscription files
+written by the 1.5 SDK are not compatible with the binary persistence format
+used by the 2.0 SDK. `Session.Load` does not import those 1.5 files.
+
+Applications that retain subscription files across upgrades need to migrate
+their saved state or recreate their subscriptions from application configuration
+and save them using the 2.0 SDK. Recreating a subscription starts new server-side
+queues; it does not recover the old subscription's queued notifications.
 
 ## GDS Client API modernization
 
@@ -504,7 +516,7 @@ The runtime transport boundary moved from `IMessageSocket` to the new public `IU
 | `UaSCUaBinaryClientChannel(..., IMessageSocketFactory, ...)` ctor | `UaSCUaBinaryClientChannel(..., IUaSCByteTransportFactory, ...)` ctor |
 | `ITcpChannelListener.ReconnectToExistingChannel(IMessageSocket, ...)` | `ITcpChannelListener.ReconnectToExistingChannel(IUaSCByteTransport, ...)` |
 
-**If you previously implemented a custom `IMessageSocket`** (rare in practice — almost no consumer subclasses `TcpMessageSocket`): the recommended migration path is to implement [`IUaSCByteTransport`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs) directly. See [`docs/Transports.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Transports.md) § "Implementing a custom byte transport" for the contract, an implementation checklist, and a worked example (the public [`InProcessTransport`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs) reference implementation that consumes only the public surface). The new abstraction is chunk-oriented (one Send / Receive per UASC `MessageChunk`) and exposes only `ValueTask`-based async; it is intentionally narrower than the old SAEA-based `IMessageSocket` and most legacy implementations collapse to ~150 lines.
+**If you previously implemented a custom `IMessageSocket`**, implement [`IUaSCByteTransport`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs) directly. See [`docs/Transports.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Transports.md) § "Implementing a custom byte transport" for the contract, an implementation checklist, and a worked example (the public [`InProcessTransport`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs) reference implementation that consumes only the public surface). The new interface is chunk-oriented (one Send / Receive per UASC `MessageChunk`) and exposes `ValueTask`-based asynchronous operations.
 
 ### Transport binding registry — `TransportBindings` static API removed
 

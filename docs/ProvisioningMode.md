@@ -2,7 +2,7 @@
 
 ## Overview
 
-Provisioning mode is a special server startup mode designed to facilitate secure certificate provisioning and initial server configuration. When enabled, the server starts with a limited default namespace and enhanced security settings to allow administrators to safely configure the server before exposing the full application functionality.
+Provisioning mode starts the server with a limited default namespace and the security settings described below. Administrators can provision certificates and configure the server before exposing application functionality.
 
 ## Contents
 
@@ -12,12 +12,26 @@ Provisioning mode is a special server startup mode designed to facilitate secure
   - [ConsoleReferenceServer](#consolereferenceserver)
   - [Command Line Options](#command-line-options)
 - [Behavior in Provisioning Mode](#behavior-in-provisioning-mode)
-  - [Limited Namespace](#1-limited-namespace)
-  - [Authentication Requirements](#2-authentication-requirements)
-  - [Certificate Handling](#3-certificate-handling)
-  - [Reduced Attack Surface](#4-reduced-attack-surface)
+  - [1. Limited Namespace](#1-limited-namespace)
+  - [2. Authentication Requirements](#2-authentication-requirements)
+  - [3. Certificate Handling](#3-certificate-handling)
+  - [4. Reduced Attack Surface](#4-reduced-attack-surface)
 - [Use Cases](#use-cases)
   - [Initial Server Setup](#initial-server-setup)
+  - [Certificate Provisioning](#certificate-provisioning)
+  - [Secure Configuration](#secure-configuration)
+- [Implementation Details](#implementation-details)
+  - [ReferenceServer Class](#referenceserver-class)
+  - [Programmatic Usage](#programmatic-usage)
+- [Security Considerations](#security-considerations)
+  - [Benefits](#benefits)
+  - [Limitations](#limitations)
+  - [Best Practices](#best-practices)
+- [Comparison with Normal Mode](#comparison-with-normal-mode)
+- [Examples](#examples)
+  - [Start Server in Provisioning Mode](#start-server-in-provisioning-mode)
+  - [Expected Output](#expected-output)
+- [Related Documentation](#related-documentation)
 
 ## Purpose
 
@@ -157,7 +171,9 @@ var server = new ReferenceServer
 
 ### Limitations
 
-- Auto-accept mode accepts all certificates (including potentially malicious ones)
+- Auto-accept allows an untrusted certificate to pass the trust-list check
+  (`BadCertificateUntrusted`). It does not disable other certificate validation
+  or user authentication.
 - Should only be used during controlled setup/configuration periods
 - Not intended for long-term operation
 

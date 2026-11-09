@@ -35,7 +35,12 @@ Every peer is a command line program with two modes.
   (scalar and array variables, methods, `RaiseEvent`) that the fixtures use.
 - `client --url <url> --pki <dir> --policy <uri> --mode <mode> [--user <u> --password <p>] --checks <a,b,...> [--expect-connect-error] [--token-lifetime <ms>] [--token-test-seconds <s>] [--timeout-seconds <s>]`
   prints one `RESULT {"check","outcome","message","milliseconds"}` line per
-  check and a final `SUMMARY passed=<n> failed=<n>` line.
+  check and a final `SUMMARY passed=<n> failed=<n>` line. The `X509UserToken`
+  check logs on with the user certificate the harness trusts on the server:
+  `--x509-user-cert-der <file>` with `--x509-user-key-pem <file>` (unencrypted
+  PKCS#8). The 1.5 peer reads the same certificate as a PFX from
+  `--x509-user-cert <file>`. The reference server never auto-accepts user
+  certificates, so a peer that creates its own is rejected.
 
 The certificate stores use the .NET directory layout below `--pki`:
 `own/certs/*.der`, `own/private`, `trusted/{certs,crl}`, `issuer/{certs,crl}`

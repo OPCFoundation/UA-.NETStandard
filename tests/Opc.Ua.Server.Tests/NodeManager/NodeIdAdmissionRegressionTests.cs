@@ -72,22 +72,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     SubscriptionCallback = subscription.Object
                 };
-                var detachable = (IDetachableMonitoredItem)monitoredItem;
-                var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
-                detachable.Detach(server.Object);
-                detachable.QueueNodeIdUnknown();
+                var detachable = (IMonitoredItemGenerationBinding)monitoredItem;
+                var lifecycle = (INodeManagerMonitoredItemSource)manager;
+                detachable.ReleaseSource();
+                detachable.Invalidate(terminal: false);
                 var master = new Mock<IMasterNodeManager>();
                 Mock<IDynamicNodeManagerHost> recovery = master.As<IDynamicNodeManagerHost>();
+                master.SetupGet(value => value.ConfigurationNodeManager)
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager);
                 master.SetupGet(value => value.CoreNodeManager).Returns(server.Object.CoreNodeManager);
                 server.SetupGet(value => value.NodeManager).Returns(master.Object);
-                recovery.Setup(value => value.RecoverDetachedMonitoredItemsAsync(
+                recovery.Setup(value => value.ResolveUnresolvedSourcesAsync(
                         It.IsAny<IAsyncNodeManager>(), It.IsAny<IReadOnlyCollection<NodeId>>(),
                         It.IsAny<CancellationToken>()))
                     .Returns(async (IAsyncNodeManager owner, IReadOnlyCollection<NodeId> ids, CancellationToken ct) =>
                     {
                         Assert.That(owner, Is.SameAs(manager));
                         Assert.That(ids, Does.Contain(nodeId));
-                        ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(monitoredItem, ct)
+                        ServiceResult attached = await lifecycle.AdoptSourceAsync(
+                            monitoredItem, cancellationToken: ct)
                             .ConfigureAwait(false);
                         Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
                     });
@@ -123,27 +126,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 else if (failureKind == "cancelled")
                 {
-                    OperationCanceledException failure = Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false))!;
+                    OperationCanceledException failure = (await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false)))!;
                     Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
                 }
                 else
                 {
-                    InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false))!;
+                    InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false)))!;
                     Assert.That(failure, Is.SameAs(injectedFailure));
                 }
 
-                IReadOnlyList<IMonitoredItem> snapshot = await lifecycle.GetMonitoredItemsSnapshotAsync()
-                    .ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> snapshot = manager.CaptureMonitoredItems();
                 Assert.Multiple(() =>
                 {
                     Assert.That(manager.NodeCount, Is.Zero);
                     Assert.That(snapshot, Is.Empty);
                     Assert.That(detachable.IsDeleted, Is.True);
-                    Assert.That(detachable.IsDetached, Is.True);
-                    Assert.That(monitoredItem.NodeManager, Is.SameAs(MonitoredItem.GetDetachedOwner(server.Object)));
-                    Assert.That(monitoredItem.ManagerHandle, Is.SameAs(MonitoredItem.DetachedHandle));
+                    Assert.That(detachable.IsSourceUnavailable, Is.True);
+                    Assert.That(monitoredItem.NodeManager, Is.Null);
+                    Assert.That(monitoredItem.ManagerHandle, Is.Null);
                 });
                 using var publishContext = new OperationContext(monitoredItem);
                 var notifications = new Queue<MonitoredItemNotification>();
@@ -158,9 +160,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(retriedId, Is.EqualTo(nodeId));
                 Assert.That(detachable.IsDeleted, Is.False);
-                Assert.That(detachable.IsDetached, Is.False);
+                Assert.That(detachable.IsSourceUnavailable, Is.False);
                 Assert.That(monitoredItem.NodeManager, Is.SameAs(manager));
-                snapshot = await lifecycle.GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                snapshot = manager.CaptureMonitoredItems();
                 Assert.That(snapshot, Is.EqualTo(new IMonitoredItem[] { monitoredItem }));
                 monitoredItem.Publish(publishContext, notifications, new Queue<DiagnosticInfo>(), 10,
                     NullLogger.Instance);
@@ -216,7 +218,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ? new ServiceResultException(StatusCodes.BadResourceUnavailable)
                         : new InvalidOperationException("Registration failed after indexing.");
                 }
-                recovery.Setup(value => value.RecoverDetachedMonitoredItemsAsync(
+                recovery.Setup(value => value.ResolveUnresolvedSourcesAsync(
                         It.IsAny<IAsyncNodeManager>(),
                         It.IsAny<IReadOnlyCollection<NodeId>>(),
                         It.IsAny<CancellationToken>()))
@@ -237,12 +239,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 else if (failureKind == "cancelled")
                 {
-                    Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                    await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                         await manager.AddNodeAsync(context, item, cancellation.Token).ConfigureAwait(false));
                 }
                 else
                 {
-                    Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                         await manager.AddNodeAsync(context, item, cancellation.Token).ConfigureAwait(false));
                 }
 
@@ -444,8 +446,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 if (output == "repeated")
                 {
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await manager.AddNodeAsync(context, item).ConfigureAwait(false))!;
+                    ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await manager.AddNodeAsync(context, item).ConfigureAwait(false)))!;
                     Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 }
                 else
@@ -548,8 +550,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                         else
                         {
-                            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                                await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                            InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                                await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                             Assert.That(error, Is.SameAs(failure));
                         }
                     }
@@ -689,6 +691,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Gets the number of nodes whose registration has completed.
             /// </summary>
             public int NodeCount => PredefinedNodes.Count;
+
+            /// <summary>
+            /// Captures native membership after the tested operation has completed.
+            /// </summary>
+            public IReadOnlyList<IMonitoredItem> CaptureMonitoredItems()
+            {
+                return [.. MonitoredItems.Values];
+            }
 
             /// <summary>
             /// Gets the signal raised when the selected registration reaches its pause.

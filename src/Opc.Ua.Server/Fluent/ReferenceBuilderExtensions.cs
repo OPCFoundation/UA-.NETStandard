@@ -61,10 +61,9 @@ namespace Opc.Ua.Server.Fluent
     /// <para>
     /// Newly created child objects are attached to the parent via
     /// <see cref="NodeState.AddChild"/> and registered with the owning
-    /// node manager. Their NodeIds are generated from the parent's
-    /// NodeId by appending the child browse name (matching the pattern
-    /// used by the generated state classes and the
-    /// PumpDeviceIntegrationServer NodeIdFactory).
+    /// node manager. Their NodeIds are assigned through the owning
+    /// NodeManager's policy; the helper does not impose a fixed
+    /// parent-and-child string format.
     /// </para>
     /// </remarks>
     public static class ReferenceBuilderExtensions
@@ -575,6 +574,13 @@ namespace Opc.Ua.Server.Fluent
                 return this;
             }
 
+            /// <summary>
+            /// Assigns an ordinary handler only while graph authoring is open and no complete handler is installed.
+            /// </summary>
+            /// <param name="wire">The ordinary method-handler assignment.</param>
+            /// <exception cref="ServiceResultException">
+            /// The node is not a method, the graph is sealed, or a complete-result handler is installed.
+            /// </exception>
             private AdHocNodeBuilder<TState> SetMethod(Action<MethodState> wire)
             {
                 FluentNodeRegistration.EnsureGraphAuthoringOpen(Builder);
@@ -585,6 +591,7 @@ namespace Opc.Ua.Server.Fluent
                         "Cannot wire method callback on '{0}' (not a MethodState).",
                         Node.BrowseName);
                 }
+                m.ThrowIfCompleteHandlerRegistered();
                 wire(m);
                 return this;
             }

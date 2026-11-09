@@ -123,7 +123,6 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// <c>Server/Namespaces</c>.
         /// </summary>
         [Test]
-        [Order(100)]
         public async Task ModelNamespaceRegisteredAsync()
         {
             Assert.That(m_ns, Is.GreaterThan(0),
@@ -169,8 +168,8 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// BrowseName and NodeClass.
         /// </summary>
         [Test]
-        [Order(200)]
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.Nodes))]
+        [DependsOnTest(nameof(ModelNamespaceRegisteredAsync), AllowFailure = true)]
         public async Task NodePresentWithBrowseNameAndClassAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
             NodeState node = (await FindNodeAsync(expected.Id).ConfigureAwait(false))!;
@@ -189,8 +188,8 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// <see cref="NodeState"/> family for its NodeClass.
         /// </summary>
         [Test]
-        [Order(210)]
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.Nodes))]
+        [DependsOnTest(nameof(NodePresentWithBrowseNameAndClassAsync), AllowFailure = true)]
         public async Task NodeMaterialisesAsExpectedStateFamilyAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
             NodeState node = (await FindNodeAsync(expected.Id).ConfigureAwait(false))!;
@@ -204,7 +203,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// exactly (no extra, no missing).
         /// </summary>
         [Test]
-        [Order(220)]
+        [DependsOnTest(nameof(NodeMaterialisesAsExpectedStateFamilyAsync), AllowFailure = true)]
         public async Task OwnedNodeCountMatchesCatalogueAsync()
         {
             int found = 0;
@@ -225,8 +224,8 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// with the correct type, direction and target.
         /// </summary>
         [Test]
-        [Order(300)]
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.References))]
+        [DependsOnTest(nameof(OwnedNodeCountMatchesCatalogueAsync), AllowFailure = true)]
         public async Task ReferenceExistsAsync(CoverageTestCatalogue.ExpectedReference expected)
         {
             NodeState source = (await FindNodeAsync(expected.Source).ConfigureAwait(false))!;
@@ -255,7 +254,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// The root instance carries its non-default common-node attributes.
         /// </summary>
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(ReferenceExistsAsync), AllowFailure = true)]
         public async Task RootAttributesRoundTripAsync()
         {
             NodeState root = (await FindNodeAsync(5400).ConfigureAwait(false))!;
@@ -272,7 +271,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// attributes and multi-locale DisplayName/Description.
         /// </summary>
         [Test]
-        [Order(410)]
+        [DependsOnTest(nameof(RootAttributesRoundTripAsync), AllowFailure = true)]
         public async Task BooleanValueAttributesRoundTripAsync()
         {
             var v = (BaseVariableState)(await FindNodeAsync(5420).ConfigureAwait(false))!;
@@ -292,7 +291,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// round-trip on the custom reference types.
         /// </summary>
         [Test]
-        [Order(420)]
+        [DependsOnTest(nameof(BooleanValueAttributesRoundTripAsync), AllowFailure = true)]
         public async Task ReferenceTypeAttributesRoundTripAsync()
         {
             var hierarchical = (ReferenceTypeState)(await FindNodeAsync(5001).ConfigureAwait(false))!;
@@ -312,7 +311,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// The view carries ContainsNoLoops and a non-zero EventNotifier.
         /// </summary>
         [Test]
-        [Order(430)]
+        [DependsOnTest(nameof(ReferenceTypeAttributesRoundTripAsync), AllowFailure = true)]
         public async Task ViewAttributesRoundTripAsync()
         {
             var view = (ViewState)(await FindNodeAsync(5460).ConfigureAwait(false))!;
@@ -324,7 +323,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// The event-source object carries a non-zero EventNotifier bitmask.
         /// </summary>
         [Test]
-        [Order(440)]
+        [DependsOnTest(nameof(ViewAttributesRoundTripAsync), AllowFailure = true)]
         public async Task EventSourceEventNotifierRoundTripAsync()
         {
             var obj = (BaseObjectState)(await FindNodeAsync(5410).ConfigureAwait(false))!;
@@ -336,7 +335,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// The locked method is not executable.
         /// </summary>
         [Test]
-        [Order(450)]
+        [DependsOnTest(nameof(EventSourceEventNotifierRoundTripAsync), AllowFailure = true)]
         public async Task LockedMethodNotExecutableAsync()
         {
             var method = (MethodState)(await FindNodeAsync(5451).ConfigureAwait(false))!;
@@ -352,7 +351,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// The data-type definitions round-trip to the expected shapes.
         /// </summary>
         [Test]
-        [Order(460)]
+        [DependsOnTest(nameof(LockedMethodNotExecutableAsync), AllowFailure = true)]
         public async Task DataTypeDefinitionsRoundTripAsync()
         {
             var enumeration = (DataTypeState)(await FindNodeAsync(5100).ConfigureAwait(false))!;
@@ -377,7 +376,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// The scalar, array and matrix variable value shapes round-trip.
         /// </summary>
         [Test]
-        [Order(470)]
+        [DependsOnTest(nameof(DataTypeDefinitionsRoundTripAsync), AllowFailure = true)]
         public async Task ValueShapesRoundTripAsync()
         {
             var scalar = (BaseVariableState)(await FindNodeAsync(5421).ConfigureAwait(false))!;
@@ -405,7 +404,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// both pipelines (TreeRoot → BranchA → SubBranchA → LeafA2).
         /// </summary>
         [Test]
-        [Order(480)]
+        [DependsOnTest(nameof(ValueShapesRoundTripAsync), AllowFailure = true)]
         public async Task DeepTreeNavigableAsync()
         {
             NodeState treeRoot = (await FindNodeAsync(5490).ConfigureAwait(false))!;
@@ -429,7 +428,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// The callable method exposes its argument metadata.
         /// </summary>
         [Test]
-        [Order(500)]
+        [DependsOnTest(nameof(DeepTreeNavigableAsync), AllowFailure = true)]
         public async Task MethodArgumentMetadataRoundTripsAsync()
         {
             var inputArgs = (BaseVariableState)(await FindNodeAsync(5452).ConfigureAwait(false))!;
@@ -455,7 +454,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// call, identically across all pipelines.
         /// </summary>
         [Test]
-        [Order(505)]
+        [DependsOnTest(nameof(MethodArgumentMetadataRoundTripsAsync), AllowFailure = true)]
         public async Task MethodCallYieldsDeterministicStatusAsync()
         {
             var method = (MethodState)(await FindNodeAsync(5450).ConfigureAwait(false))!;
@@ -494,7 +493,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// The method instance points at its type-level declaration.
         /// </summary>
         [Test]
-        [Order(510)]
+        [DependsOnTest(nameof(MethodCallYieldsDeterministicStatusAsync), AllowFailure = true)]
         public async Task MethodDeclarationIdWiredAsync()
         {
             var method = (MethodState)(await FindNodeAsync(5404).ConfigureAwait(false))!;
@@ -509,7 +508,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// <see cref="DataTypeDefinitionsRoundTripAsync"/>.
         /// </summary>
         [Test]
-        [Order(600)]
+        [DependsOnTest(nameof(MethodDeclarationIdWiredAsync), AllowFailure = true)]
         public void ComplexTypesRegistered()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -541,7 +540,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// resolve in both directions.
         /// </summary>
         [Test]
-        [Order(700)]
+        [DependsOnTest(nameof(ComplexTypesRegistered), AllowFailure = true)]
         public async Task SecondaryNamespaceRoundTripsAsync()
         {
             int secondaryNamespaceIndex = m_server.CurrentInstance.NamespaceUris

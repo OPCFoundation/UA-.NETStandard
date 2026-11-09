@@ -54,6 +54,7 @@ for pluggable cryptography and hardware-held keys, or use the
     - [RejectUnknownRevocationStatus](#rejectunknownrevocationstatus)
     - [MinimumCertificateKeySize](#minimumcertificatekeysize)
     - [UseValidatedCertificates](#usevalidatedcertificates)
+    - [JWKS signing-key trust lifetime](#jwks-signing-key-trust-lifetime)
     - [MaxRejectedCertificates](#maxrejectedcertificates)
   - [Suppressible Validation Errors](#suppressible-validation-errors)
     - [CA (issuer) KeyUsage validation](#ca-issuer-keyusage-validation)
@@ -204,93 +205,38 @@ The chain building process constructs a complete certificate chain from a leaf c
 
 #### Chain Building Algorithm Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Start Chain Building                        │
-│                   Input: Certificate Chain                      │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-                ┌────────────────────────────┐
-                │  Current = certificates[0] │
-                │  (Leaf Certificate)        │
-                └────────────┬───────────────┘
-                             │
-                             ▼
-                ┌────────────────────────────┐
-                │  Create untrusted list     │
-                │  from certificates[1..n]   │
-                └────────────┬───────────────┘
-                             │
-                ┌────────────▼───────────────┐
-                │ Loop: Find Issuer Chain    │
-                └────────────┬───────────────┘
-                             │
-                ┌────────────▼───────────────────────────┐
-                │ Is Current certificate self-signed?    │
-                └─┬─────────────────────────────────┬────┘
-                  │ YES                             │ NO
-                  │                                 │
-                  ▼                                 ▼
-         ┌────────────────┐          ┌─────────────────────────────┐
-         │ Chain Complete │          │ Search for Issuer (Step 1)  │
-         │ Return Result  │          │ Location: Trusted Store     │
-         └────────────────┘          └──────────┬──────────────────┘
-                                                 │
-                                     ┌───────────▼──────────────┐
-                                     │ Issuer Found in Trusted? │
-                                     └─┬─────────────────────┬──┘
-                                       │ YES                 │ NO
-                                       │                     │
-                                       ▼                     ▼
-                          ┌────────────────────┐  ┌──────────────────────────┐
-                          │ Mark as Trusted    │  │ Search for Issuer (Step 2)│
-                          │ Check Revocation   │  │ Location: Issuer Store    │
-                          └──────┬─────────────┘  └────────┬─────────────────┘
-                                 │                         │
-                                 │             ┌───────────▼──────────────┐
-                                 │             │ Issuer Found in Issuer?  │
-                                 │             └─┬─────────────────────┬──┘
-                                 │               │ YES                 │ NO
-                                 │               │                     │
-                                 │               ▼                     ▼
-                                 │    ┌──────────────────┐  ┌──────────────────────────┐
-                                 │    │ Check Revocation │  │ Search for Issuer (Step 3)│
-                                 │    └────────┬─────────┘  │ Location: Untrusted Certs │
-                                 │             │            └────────┬─────────────────┘
-                                 │             │                     │
-                                 │             │         ┌───────────▼──────────────┐
-                                 │             │         │ Issuer Found in Chain?   │
-                                 │             │         └─┬─────────────────────┬──┘
-                                 │             │           │ YES                 │ NO
-                                 │             │           │                     │
-                                 │             │           ▼                     ▼
-                                 │             │  ┌──────────────────┐  ┌──────────────┐
-                                 │             │  │ Check Revocation │  │ Chain Broken │
-                                 │             │  └────────┬─────────┘  │ Return Result│
-                                 │             │           │            └──────────────┘
-                                 │             │           │
-                                 └─────────────┴───────────┘
-                                               │
-                                 ┌─────────────▼──────────────┐
-                                 │ Check for Circular Chain   │
-                                 │ (Duplicate Thumbprint)     │
-                                 └─┬────────────────────────┬─┘
-                                   │ DUPLICATE              │ UNIQUE
-                                   │                        │
-                                   ▼                        ▼
-                          ┌────────────────┐    ┌──────────────────────┐
-                          │ Chain Complete │    │ Add Issuer to List   │
-                          │ Return Result  │    │ Current = Issuer Cert│
-                          └────────────────┘    └──────────┬───────────┘
-                                                            │
-                                                            │
-                                        ┌───────────────────┘
-                                        │ Loop Back to Top
-                                        └──────────────────────┐
-                                                               │
-                                                               ▼
-                                                    (Continue Building Chain)
+```mermaid
+flowchart TD
+    start["Start chain building<br/>Input: certificate chain"]
+    leaf["Current = certificates[0]<br/>(leaf certificate)"]
+    untrusted["Create untrusted list<br/>from certificates[1..n]"]
+    loop["Find issuer chain"]
+    selfSigned{"Is Current self-signed?"}
+    complete["Chain complete<br/>Return result"]
+    trustedSearch["Search for issuer: step 1<br/>Trusted store"]
+    trustedFound{"Issuer found in trusted store?"}
+    trustedCheck["Mark as trusted<br/>Check revocation"]
+    issuerSearch["Search for issuer: step 2<br/>Issuer store"]
+    issuerFound{"Issuer found in issuer store?"}
+    issuerCheck["Check revocation"]
+    chainSearch["Search for issuer: step 3<br/>Untrusted certificates"]
+    chainFound{"Issuer found in chain?"}
+    chainCheck["Check revocation"]
+    broken["Chain broken<br/>Return result"]
+    circular{"Circular chain?<br/>Duplicate thumbprint"}
+    add["Add issuer to list<br/>Current = issuer certificate"]
+    start --> leaf --> untrusted --> loop --> selfSigned
+    selfSigned -->|Yes| complete
+    selfSigned -->|No| trustedSearch --> trustedFound
+    trustedFound -->|Yes| trustedCheck --> circular
+    trustedFound -->|No| issuerSearch --> issuerFound
+    issuerFound -->|Yes| issuerCheck --> circular
+    issuerFound -->|No| chainSearch --> chainFound
+    chainFound -->|Yes| chainCheck --> circular
+    chainFound -->|No| broken
+    circular -->|Duplicate| complete
+    circular -->|Unique| add
+    add -->|Continue building chain| loop
 ```
 
 #### Detailed Algorithm Steps
@@ -741,6 +687,12 @@ The certificate validation behavior is controlled by several configuration setti
 configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates = true;
 ```
 
+Application autoaccept is not a user-identity enrollment mechanism. The Reference
+Server always uses a rejecting per-call policy for the Users trust list, including
+in `--provision` and `--autoaccept` modes. Add approved users or their trusted
+issuers to the user stores; application/Peers trust and cached permissive
+validation do not confer user trust.
+
 #### RejectSHA1SignedCertificates
 
 - **Type**: `bool`
@@ -778,12 +730,29 @@ configuration.SecurityConfiguration.MinimumCertificateKeySize = 2048;
 
 - **Type**: `bool`
 - **Default**: `false`
-- **Description**: When `true`, skips validation for certificates that have already been successfully validated in the current session. This improves performance by caching validation results.
+- **Description**: When `true`, caches accepted certificate paths within the retained validator. Revocation checks still run. A cache hit requires the complete matching issuer path and a time strictly before the earliest certificate expiry; a missing peer intermediate, changed path or expired issuer triggers normal validation. The cache does not retain native certificate handles.
 - **Example**:
 
 ```csharp
 configuration.SecurityConfiguration.UseValidatedCertificates = true;
 ```
+
+#### JWKS signing-key trust lifetime
+
+`JwksIssuerKeyResolver` checks keyset age before **every** lookup, including known
+`kid` values and JWTs without `kid`. The default maximum trust age is five
+minutes. At that deadline the resolver refreshes; an outage or a throttled
+refresh returns no trusted keys rather than authenticating with an expired
+snapshot. The retry throttle does not extend trust. The additive constructor
+overload accepts an independent `maxKeysetAge` when a host needs another bounded
+rotation policy; existing constructors and DI-created resolvers use the same
+five-minute default.
+
+Already returned key objects remain valid for an in-flight signature check, but
+new lookups cannot borrow them after expiry. Issuers must keep keys published for
+the intended overlap period, and hosts should plan for authentication rejection
+during issuer outages exceeding the configured age. See
+[Identity Providers](IdentityProviders.md) for issuer and audience configuration.
 
 #### MaxRejectedCertificates
 
@@ -798,7 +767,8 @@ configuration.SecurityConfiguration.MaxRejectedCertificates = 10;
 
 ### Suppressible Validation Errors
 
-The following validation errors can be suppressed by handling the `CertificateValidation` event and setting `e.Accept = true`:
+Use `CertificateValidationOptions.AcceptError` to accept individual suppressible
+errors; non-suppressible errors cannot be overridden. The following errors are suppressible:
 
 - **BadCertificateUntrusted**: The certificate is not trusted (not in the trusted store or chain).
 - **BadCertificateHostNameInvalid**: The domain name in the endpoint URL does not match any domain in the certificate.

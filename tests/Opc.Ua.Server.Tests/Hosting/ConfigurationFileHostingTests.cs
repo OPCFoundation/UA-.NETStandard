@@ -44,7 +44,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Hosting
 {
@@ -82,7 +84,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                 services =>
                 {
-                    services.AddLogging(builder => builder.AddProvider(loggerProvider));
+                    services.AddLogging(builder => builder.EnableOpcUaRedaction().AddProvider(loggerProvider));
                     services.AddOpcUa().AddServer<ConfigurationCaptureServer>(configurationFile);
                 }).ConfigureAwait(false);
 
@@ -98,7 +100,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 throw new InvalidOperationException("No configuration was captured.");
 
             // Every setting captured at server start must come from the file.
-            Assert.That(configuration.SourceFilePath, Is.EqualTo(configurationFile));
+            Assert.That(configuration.SourceFilePath, Is.EqualTo(Path.GetFullPath(configurationFile)));
             Assert.That(configuration.ApplicationName, Is.EqualTo(applicationName));
             Assert.That(
                 configuration.ApplicationUri,
@@ -133,6 +135,45 @@ namespace Opc.Ua.Server.Tests.Hosting
                     TimeSpan.FromSeconds(30)).ConfigureAwait(false),
                 Is.True,
                 "The endpoint from the configuration file was not reported as listening.");
+        }
+
+        [Test]
+        public async Task AddServerUsesInjectedCertificateManagerWithConfigurationFileAsync()
+        {
+            ConfigurationCaptureServer.Reset();
+            string testRoot = CreateTestRoot();
+            string configurationFile = WriteConfigurationFile(
+                testRoot,
+                "CfgXmlInjectedManager",
+                GetAvailablePort());
+            using var certificateManager = new CertificateManager(
+                NUnitTelemetryContext.Create(isServer: true));
+
+            await using (HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddOpcUa()
+                        .AddServer<ConfigurationCaptureServer>(configurationFile)
+                        .AddCertificateManager(certificateManager);
+                }).ConfigureAwait(false))
+            {
+                Assert.That(
+                    await WaitForAsync(
+                        () => ConfigurationCaptureServer.Started,
+                        TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                    Is.True,
+                    "The hosted server did not start from the configuration file.");
+
+                ApplicationConfiguration configuration =
+                    ConfigurationCaptureServer.StartedConfiguration ??
+                    throw new InvalidOperationException("No configuration was captured.");
+                Assert.That(configuration.CertificateManager, Is.SameAs(certificateManager));
+            }
+
+            using ICertificateStore store = certificateManager.OpenCertificateStore(
+                Path.Combine(GetPkiRoot(testRoot), "own"),
+                CertificateStoreType.Directory);
         }
 
         [Test]
@@ -203,7 +244,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(configuration.ServerConfiguration!.MaxSessionCount, Is.EqualTo(4242));
             Assert.That(configuration.ServerConfiguration.MaxChannelCount, Is.EqualTo(4245));
             Assert.That(configuration.TransportQuotas!.MaxStringLength, Is.EqualTo(654321));
-            Assert.That(configuration.SourceFilePath, Is.EqualTo(configurationFile));
+            Assert.That(configuration.SourceFilePath, Is.EqualTo(Path.GetFullPath(configurationFile)));
         }
 
         [Test]
@@ -242,7 +283,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 ConfigurationCaptureServer.StartedConfiguration ??
                 throw new InvalidOperationException("No configuration was captured.");
 
-            Assert.That(configuration.SourceFilePath, Is.EqualTo(configurationFile));
+            Assert.That(configuration.SourceFilePath, Is.EqualTo(Path.GetFullPath(configurationFile)));
             Assert.That(configuration.ApplicationName, Is.EqualTo(applicationName));
         }
 
@@ -260,7 +301,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                 services =>
                 {
-                    services.AddLogging(builder => builder.AddProvider(loggerProvider));
+                    services.AddLogging(builder => builder.EnableOpcUaRedaction().AddProvider(loggerProvider));
                     // No user database / user management is registered, so the
                     // UserName policy advertised by the file has no matching
                     // authenticator and the hosted service must warn.

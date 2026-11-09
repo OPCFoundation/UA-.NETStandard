@@ -917,13 +917,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Encrypts the buffer like the public overload, reusing an AES instance
-        /// for the CBC policies.
+        /// Encrypts the buffer like the public overload, reusing the keyed ciphers
+        /// of a cache.
         /// </summary>
         /// <remarks>
-        /// <c>aesCache</c> retains an AES instance for <paramref name="encryptingKey"/>
-        /// (one per channel token and direction), or is <see langword="null"/> to use a fresh instance.
-        /// Creating an instance imports the key, which costs more than encrypting a small message.
+        /// <c>cipherCache</c> retains the keyed ciphers for <paramref name="encryptingKey"/>
+        /// and <paramref name="iv"/> (one cache per channel token and direction), or is
+        /// <see langword="null"/> to key a cipher for this call. Keying a cipher costs
+        /// more than encrypting a small message.
         /// </remarks>
         /// <exception cref="NotSupportedException"></exception>
         /// <exception cref="CryptographicException"></exception>
@@ -938,7 +939,7 @@ namespace Opc.Ua
             uint tokenId,
             uint lastSequenceNumber,
             ISymmetricCryptoProvider? provider,
-            AesCache? aesCache)
+            SymmetricCipherCache? cipherCache)
         {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
@@ -950,7 +951,15 @@ namespace Opc.Ua
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
                 return EncryptWithAesGcm(
-                    data, algorithm, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber, provider);
+                    data,
+                    algorithm,
+                    encryptingKey,
+                    iv,
+                    signOnly,
+                    tokenId,
+                    lastSequenceNumber,
+                    provider,
+                    cipherCache);
             }
 
             if (algorithm == SymmetricEncryptionAlgorithm.ChaCha20Poly1305)
@@ -963,7 +972,8 @@ namespace Opc.Ua
                     signOnly,
                     tokenId,
                     lastSequenceNumber,
-                    provider);
+                    provider,
+                    cipherCache);
             }
 
             SymmetricSignatureAlgorithm signatureAlgorithm =
@@ -1061,7 +1071,7 @@ namespace Opc.Ua
                         dataArray,
                         data.Offset,
                         data.Count,
-                        aesCache);
+                        cipherCache);
                 }
             }
 
@@ -1096,7 +1106,8 @@ namespace Opc.Ua
             bool signOnly,
             uint tokenId,
             uint lastSequenceNumber,
-            ISymmetricCryptoProvider? provider)
+            ISymmetricCryptoProvider? provider,
+            SymmetricCipherCache? cipherCache)
         {
             if (encryptingKey == null || encryptingKey.Length != 32)
             {
@@ -1133,14 +1144,23 @@ namespace Opc.Ua
             }
             else
             {
-                using var chacha = new ChaCha20Poly1305(encryptingKey);
-
-                chacha.Encrypt(
-                    iv,
-                    signOnly ? Array.Empty<byte>() : data,
-                    ciphertext,
-                    tag,
-                    extraData);
+                CachedSymmetricCipher cipher = TakeAeadCipher(
+                    encryptingKey, cipherCache, s_createChaCha20Poly1305);
+                bool reusable = false;
+                try
+                {
+                    ((ChaCha20Poly1305)cipher.Cipher).Encrypt(
+                        iv,
+                        signOnly ? Array.Empty<byte>() : data,
+                        ciphertext,
+                        tag,
+                        extraData);
+                    reusable = true;
+                }
+                finally
+                {
+                    ReturnCipher(cipherCache, SymmetricCipherSlot.Aead, cipher, reusable);
+                }
             }
 
             // Return layout: [associated data | ciphertext | tag]
@@ -1165,7 +1185,8 @@ namespace Opc.Ua
            bool signOnly,
            uint tokenId,
            uint lastSequenceNumber,
-           ISymmetricCryptoProvider? provider)
+           ISymmetricCryptoProvider? provider,
+           SymmetricCipherCache? cipherCache)
         {
             if (encryptingKey == null || encryptingKey.Length != 32)
             {
@@ -1226,14 +1247,23 @@ namespace Opc.Ua
             }
             else
             {
-                using var chacha = new ChaCha20Poly1305(encryptingKey);
-
-                chacha.Decrypt(
-                    iv,
-                    encryptedData,
-                    tag,
-                    signOnly ? [] : plaintext,
-                    extraData);
+                CachedSymmetricCipher cipher = TakeAeadCipher(
+                    encryptingKey, cipherCache, s_createChaCha20Poly1305);
+                bool reusable = false;
+                try
+                {
+                    ((ChaCha20Poly1305)cipher.Cipher).Decrypt(
+                        iv,
+                        encryptedData,
+                        tag,
+                        signOnly ? [] : plaintext,
+                        extraData);
+                    reusable = true;
+                }
+                finally
+                {
+                    ReturnCipher(cipherCache, SymmetricCipherSlot.Aead, cipher, reusable);
+                }
             }
 
             // Return layout: [associated data | plaintext]
@@ -1256,7 +1286,8 @@ namespace Opc.Ua
             bool signOnly,
             uint tokenId,
             uint lastSequenceNumber,
-            ISymmetricCryptoProvider? provider)
+            ISymmetricCryptoProvider? provider,
+            SymmetricCipherCache? cipherCache)
         {
             if (encryptingKey == null)
             {
@@ -1293,14 +1324,23 @@ namespace Opc.Ua
             }
             else
             {
-                using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
-
-                aesGcm.Encrypt(
-                    iv,
-                    signOnly ? Array.Empty<byte>() : data,
-                    ciphertext,
-                    tag,
-                    extraData);
+                CachedSymmetricCipher cipher = TakeAeadCipher(
+                    encryptingKey, cipherCache, s_createAesGcm);
+                bool reusable = false;
+                try
+                {
+                    ((AesGcm)cipher.Cipher).Encrypt(
+                        iv,
+                        signOnly ? Array.Empty<byte>() : data,
+                        ciphertext,
+                        tag,
+                        extraData);
+                    reusable = true;
+                }
+                finally
+                {
+                    ReturnCipher(cipherCache, SymmetricCipherSlot.Aead, cipher, reusable);
+                }
             }
 
             // Return layout: [associated data | ciphertext | tag]
@@ -1325,7 +1365,8 @@ namespace Opc.Ua
             bool signOnly,
             uint tokenId,
             uint lastSequenceNumber,
-            ISymmetricCryptoProvider? provider)
+            ISymmetricCryptoProvider? provider,
+            SymmetricCipherCache? cipherCache)
         {
             if (encryptingKey == null)
             {
@@ -1384,14 +1425,23 @@ namespace Opc.Ua
             }
             else
             {
-                using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
-
-                aesGcm.Decrypt(
-                    iv,
-                    encryptedData,
-                    tag,
-                    signOnly ? [] : plaintext,
-                    extraData);
+                CachedSymmetricCipher cipher = TakeAeadCipher(
+                    encryptingKey, cipherCache, s_createAesGcm);
+                bool reusable = false;
+                try
+                {
+                    ((AesGcm)cipher.Cipher).Decrypt(
+                        iv,
+                        encryptedData,
+                        tag,
+                        signOnly ? [] : plaintext,
+                        extraData);
+                    reusable = true;
+                }
+                finally
+                {
+                    ReturnCipher(cipherCache, SymmetricCipherSlot.Aead, cipher, reusable);
+                }
             }
 
             // Return layout: [associated data | plaintext]
@@ -1617,12 +1667,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Decrypts and verifies the buffer like the public overload, reusing an
-        /// AES instance for the CBC policies.
+        /// Decrypts and verifies the buffer like the public overload, reusing the
+        /// keyed ciphers of a cache.
         /// </summary>
         /// <remarks>
-        /// <c>aesCache</c> retains an AES instance for <paramref name="encryptingKey"/>
-        /// (one per channel token and direction), or is <see langword="null"/> to use a fresh instance.
+        /// <c>cipherCache</c> retains the keyed ciphers for <paramref name="encryptingKey"/>
+        /// and <paramref name="iv"/> (one cache per channel token and direction), or is
+        /// <see langword="null"/> to key a cipher for this call.
         /// </remarks>
         /// <exception cref="CryptographicException"></exception>
         /// <exception cref="NotSupportedException"></exception>
@@ -1640,7 +1691,7 @@ namespace Opc.Ua
            uint lastSequenceNumber,
            HMAC? hmac,
            ISymmetricCryptoProvider? provider,
-           AesCache? aesCache)
+           SymmetricCipherCache? cipherCache)
         {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
@@ -1652,7 +1703,15 @@ namespace Opc.Ua
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
                 return DecryptWithAesGcm(
-                    data, algorithm, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber, provider);
+                    data,
+                    algorithm,
+                    encryptingKey,
+                    iv,
+                    signOnly,
+                    tokenId,
+                    lastSequenceNumber,
+                    provider,
+                    cipherCache);
             }
 
             if (algorithm == SymmetricEncryptionAlgorithm.ChaCha20Poly1305)
@@ -1665,7 +1724,8 @@ namespace Opc.Ua
                     signOnly,
                     tokenId,
                     lastSequenceNumber,
-                    provider);
+                    provider,
+                    cipherCache);
             }
 
             SymmetricSignatureAlgorithm signatureAlgorithm =
@@ -1709,7 +1769,7 @@ namespace Opc.Ua
                         dataArray,
                         data.Offset,
                         data.Count,
-                        aesCache);
+                        cipherCache);
                 }
             }
 
@@ -1812,10 +1872,12 @@ namespace Opc.Ua
         /// Encrypts or decrypts whole AES blocks in place with CBC and no padding.
         /// </summary>
         /// <remarks>
-        /// The instance is taken out of <paramref name="aesCache"/> while it is in
-        /// use and put back afterwards, so a concurrent caller creates its own
-        /// rather than sharing it. A channel encrypts and decrypts one message at a
-        /// time per direction, so in practice one instance per key is reused.
+        /// With <paramref name="cipherCache"/> the keyed CBC transform for the key
+        /// and IV is reused: the one-shot APIs import the key on every call
+        /// (BCryptImportKey on Windows, a new cipher context on OpenSSL), which
+        /// costs more than transforming a small message. The transform is taken
+        /// out of the cache while it is in use and put back afterwards, so a
+        /// concurrent caller creates its own rather than sharing it.
         /// </remarks>
         /// <exception cref="CryptographicException"></exception>
         private static void AesCbcTransform(
@@ -1825,43 +1887,155 @@ namespace Opc.Ua
             byte[] buffer,
             int offset,
             int count,
-            AesCache? aesCache)
+            SymmetricCipherCache? cipherCache)
         {
-            Aes aes = aesCache?.Take() ?? CreateCbcAes(key);
+            if (cipherCache == null)
+            {
+                AesCbcTransformOnce(encrypt, key, iv, buffer, offset, count);
+                return;
+            }
+
+            if (count == 0)
+            {
+                return;
+            }
+
+            SymmetricCipherSlot slot = encrypt
+                ? SymmetricCipherSlot.CbcEncryptor
+                : SymmetricCipherSlot.CbcDecryptor;
+            CachedSymmetricCipher cipher =
+                cipherCache.Take(slot, key, iv) ?? CreateCbcTransform(encrypt, key, iv);
+            bool reusable = false;
             try
             {
-#if NET6_0_OR_GREATER
-                Span<byte> data = buffer.AsSpan(offset, count);
-                int written = encrypt
-                    ? aes.EncryptCbc(data, iv, data, PaddingMode.None)
-                    : aes.DecryptCbc(data, iv, data, PaddingMode.None);
+                var transform = (ICryptoTransform)cipher.Cipher;
+                int written = transform.TransformBlock(buffer, offset, count, buffer, offset);
                 if (written != count)
                 {
                     throw new CryptographicException(
                         "The cipher did not transform the whole buffer.");
                 }
-#else
-                aes.IV = iv;
-#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-                using ICryptoTransform transform = encrypt
-                    ? aes.CreateEncryptor()
-                    : aes.CreateDecryptor();
-#pragma warning restore CA5401
-                transform.TransformBlock(buffer, offset, count, buffer, offset);
-#endif
+
+                // Without padding the final block transforms nothing; it rewinds the
+                // chaining state to the IV the transform was created with, so the
+                // next message starts from the IV like a fresh transform.
+                transform.TransformFinalBlock(buffer, offset, 0);
+                reusable = transform.CanReuseTransform;
             }
             finally
             {
-                if (aesCache == null)
-                {
-                    aes.Dispose();
-                }
-                else
-                {
-                    aesCache.Return(aes);
-                }
+                // A transform that failed part way has unknown chaining state.
+                ReturnCipher(cipherCache, slot, cipher, reusable);
             }
         }
+
+        /// <summary>
+        /// Encrypts or decrypts whole AES blocks in place with a cipher keyed for this call.
+        /// </summary>
+        /// <exception cref="CryptographicException"></exception>
+        private static void AesCbcTransformOnce(
+            bool encrypt,
+            byte[] key,
+            byte[] iv,
+            byte[] buffer,
+            int offset,
+            int count)
+        {
+            using Aes aes = CreateCbcAes(key);
+#if NET6_0_OR_GREATER
+            Span<byte> data = buffer.AsSpan(offset, count);
+            int written = encrypt
+                ? aes.EncryptCbc(data, iv, data, PaddingMode.None)
+                : aes.DecryptCbc(data, iv, data, PaddingMode.None);
+            if (written != count)
+            {
+                throw new CryptographicException(
+                    "The cipher did not transform the whole buffer.");
+            }
+#else
+            aes.IV = iv;
+#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
+            using ICryptoTransform transform = encrypt
+                ? aes.CreateEncryptor()
+                : aes.CreateDecryptor();
+#pragma warning restore CA5401
+            transform.TransformBlock(buffer, offset, count, buffer, offset);
+#endif
+        }
+
+        /// <summary>
+        /// Creates a CBC transform keyed with the key and IV, without padding.
+        /// </summary>
+        private static CachedSymmetricCipher CreateCbcTransform(bool encrypt, byte[] key, byte[] iv)
+        {
+            Aes aes = CreateCbcAes(key);
+            try
+            {
+#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
+                ICryptoTransform transform = encrypt
+                    ? aes.CreateEncryptor(key, iv)
+                    : aes.CreateDecryptor(key, iv);
+#pragma warning restore CA5401
+                // The AES instance is kept with the transform: on .NET Framework the
+                // CAPI transform may share the instance's provider.
+                return new CachedSymmetricCipher(transform, key, iv, aes);
+            }
+            catch
+            {
+                aes.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Takes the cached AEAD instance for the key, or creates one. Creating an
+        /// instance keys the cipher, which costs more than sealing a small message.
+        /// </summary>
+        /// <typeparam name="TCipher">The AEAD type.</typeparam>
+        /// <param name="key">The key.</param>
+        /// <param name="cipherCache">The cache, or <see langword="null"/> for a cipher used once.</param>
+        /// <param name="create">Creates a cipher for the key.</param>
+        private static CachedSymmetricCipher TakeAeadCipher<TCipher>(
+            byte[] key,
+            SymmetricCipherCache? cipherCache,
+            Func<byte[], TCipher> create)
+            where TCipher : class, IDisposable
+        {
+            CachedSymmetricCipher? cached = cipherCache?.Take(SymmetricCipherSlot.Aead, key, null);
+            if (cached?.Cipher is TCipher)
+            {
+                return cached;
+            }
+
+            // A cipher of the other AEAD kind cannot be used for this key.
+            cached?.Dispose();
+            return new CachedSymmetricCipher(create(key), key, null);
+        }
+
+        /// <summary>
+        /// Puts a cipher back after a successful operation, or disposes it.
+        /// </summary>
+        private static void ReturnCipher(
+            SymmetricCipherCache? cipherCache,
+            SymmetricCipherSlot slot,
+            CachedSymmetricCipher cipher,
+            bool reusable)
+        {
+            if (reusable && cipherCache != null)
+            {
+                cipherCache.Return(slot, cipher);
+            }
+            else
+            {
+                cipher.Dispose();
+            }
+        }
+
+        private static readonly Func<byte[], AesGcm> s_createAesGcm =
+            static key => new AesGcm(key, kAesGcmTagLength);
+
+        private static readonly Func<byte[], ChaCha20Poly1305> s_createChaCha20Poly1305 =
+            static key => new ChaCha20Poly1305(key);
 
         private static Aes CreateCbcAes(byte[] key)
         {

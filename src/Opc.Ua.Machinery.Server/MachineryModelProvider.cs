@@ -92,6 +92,9 @@ namespace Opc.Ua.Machinery.Server
     /// </summary>
     internal static class MachineryModelProviderUtilities
     {
+        /// <summary>
+        /// Deduplicates provider instances and sorts them after built-in model dependencies.
+        /// </summary>
         public static ArrayOf<IMachineryModelProvider> Normalize(
             ArrayOf<IMachineryModelProvider> providers,
             MachineryParts parts)
@@ -114,7 +117,10 @@ namespace Opc.Ua.Machinery.Server
                     throw new ArgumentException(
                         "Machinery model providers must not contain null entries.",
                         nameof(providers));
-                entries.Add(new ProviderEntry(provider, ii));
+                if (!entries.Exists(entry => ReferenceEquals(entry.Provider, provider)))
+                {
+                    entries.Add(new ProviderEntry(provider, ii));
+                }
             }
 
             entries.Sort(static (left, right) =>
@@ -191,6 +197,9 @@ namespace Opc.Ua.Machinery.Server
             return namespaceUris;
         }
 
+        /// <summary>
+        /// Validates the configured Machinery parts and instance namespace.
+        /// </summary>
         public static MachineryServerOptions ValidateOptions(MachineryServerOptions options)
         {
             if (options == null)
@@ -201,6 +210,9 @@ namespace Opc.Ua.Machinery.Server
             return options;
         }
 
+        /// <summary>
+        /// Validates that options do not reuse a model namespace for instances.
+        /// </summary>
         public static MachineryServerOptions ValidateOptions(
             MachineryServerOptions options,
             ArrayOf<IMachineryModelProvider> providers)
@@ -315,10 +327,13 @@ namespace Opc.Ua.Machinery.Server
 
         private static string GetStableTypeName(IMachineryModelProvider provider)
         {
-            Type type = provider.GetType();
+            Type type = provider is DiModelProviderAdapter adapter ? adapter.ProviderType : provider.GetType();
             return type.FullName ?? type.Name;
         }
 
+        /// <summary>
+        /// Associates a provider with its original registration position.
+        /// </summary>
         private readonly record struct ProviderEntry(
             IMachineryModelProvider Provider,
             int OriginalIndex);

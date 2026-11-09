@@ -72,8 +72,8 @@ namespace Opc.Ua.Vision.OpenUsd
         CameraResolveFailed = 4,
 
         /// <summary>
-        /// <c>SilkFrameCapture.Capture</c> threw. Typically means the
-        /// graphics device was lost or refused the frame.
+        /// Rendering or retained readback failed. Typically means the
+        /// graphics device was lost or refused the requested frame.
         /// </summary>
         RenderFailed = 5,
 
@@ -81,9 +81,9 @@ namespace Opc.Ua.Vision.OpenUsd
         /// The render pipeline reported no drawn geometry, or the returned
         /// pixels are uniform. Serving this frame would be misleading, so
         /// the provider surfaces it as a distinct failure. The most common
-        /// cause is the known session-reuse landmine in the Silk backend,
-        /// which the provider defends against by using a fresh session per
-        /// request.
+        /// cause is a scene or camera with no visible geometry. Capture
+        /// callers retain their renderer rather than discarding incremental
+        /// scene data between requests.
         /// </summary>
         BlankFrame = 6,
 

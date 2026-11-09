@@ -41,9 +41,11 @@ namespace Opc.Ua.Server
     /// <see cref="DefaultPermissionsChanged"/> notification. The behaviour lives in
     /// <see cref="NamespaceMetadataRegistry"/>; the manager satisfies its
     /// <see cref="INamespaceMetadataHost"/> contract with the inherited public members plus
-    /// the <c>Server/Namespaces</c> lookup below.
+    /// the <c>Server/Namespaces</c> lookup below. It also answers synchronous metadata
+    /// lookups (<see cref="INamespaceMetadataSnapshot"/>) for
+    /// <see cref="NamespaceDefaultPermissionReader"/>.
     /// </summary>
-    public partial class ConfigurationNodeManager : INamespaceMetadataHost
+    public partial class ConfigurationNodeManager : INamespaceMetadataHost, INamespaceMetadataSnapshot
     {
         /// <inheritdoc/>
         public event EventHandler? DefaultPermissionsChanged
@@ -91,6 +93,7 @@ namespace Opc.Ua.Server
             if (references != null && references.ContainsKey(ObjectIds.Server_Namespaces))
             {
                 m_namespaceMetadata.Invalidate();
+                await m_namespaceMetadata.PrimeReferencesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -114,9 +117,18 @@ namespace Opc.Ua.Server
             if (ServiceResult.IsGood(result))
             {
                 m_namespaceMetadata.Invalidate();
+                await m_namespaceMetadata.PrimeReferencesAsync(cancellationToken).ConfigureAwait(false);
             }
 
             return result;
+        }
+
+        /// <inheritdoc/>
+        bool INamespaceMetadataSnapshot.TryGetNamespaceMetadataState(
+            ushort namespaceIndex,
+            out NamespaceMetadataState? state)
+        {
+            return m_namespaceMetadata.TryGetSnapshot(namespaceIndex, out state);
         }
 
         /// <inheritdoc/>

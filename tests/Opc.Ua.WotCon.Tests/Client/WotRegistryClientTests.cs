@@ -408,8 +408,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 .GetOrCreateResourceAsync("sensor").ConfigureAwait(false);
             mock.ReturnEmptyCallResultsOnce = true;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await resource.ValidateAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resource.ValidateAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
@@ -465,8 +465,8 @@ namespace Opc.Ua.WotCon.Tests.Client
             await group.GetOrCreateResourceAsync("good").ConfigureAwait(false);
             mock.ReturnEmptyCallResultsOnce = true;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RefreshAllAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.RefreshAllAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
@@ -553,8 +553,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 .ConfigureAwait(false);
             mock.ReturnNoTypeDefinitionOnce = true;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.CreateGroupAsync("orphan").ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.CreateGroupAsync("orphan").ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(ex.Message, Does.Contain("TypeDefinition"));
@@ -569,8 +569,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 .ConfigureAwait(false);
             mock.TypeDefinitionOverride = new NodeId("SomeOtherGroupType", mock.WotConNs);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.CreateGroupAsync("weird").ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.CreateGroupAsync("weird").ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(ex.Message, Does.Contain("unrecognised"));
@@ -586,8 +586,8 @@ namespace Opc.Ua.WotCon.Tests.Client
             mock.FailNextCallOn[mock.ResolveMethodId(MethodIds.WoTRegistryType_Refresh)] =
                 StatusCodes.BadNotSupported;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RefreshAllAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.RefreshAllAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
         }
@@ -603,8 +603,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 mock.ResolveMethodId(MethodIds.WoTRegistryType_Refresh),
                 _ => [new Variant(1u)]);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RefreshAllAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.RefreshAllAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
@@ -620,8 +620,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 mock.ResolveMethodId(MethodIds.WoTRegistryType_Refresh),
                 _ => [new Variant(1), new Variant(2), new Variant("three")]);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RefreshAllAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.RefreshAllAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
@@ -685,8 +685,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                     new Variant(1u)
                 ]);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RefreshAllAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.RefreshAllAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
@@ -705,8 +705,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 mock.ResolveMethodId(MethodIds.WoTRegistryType_Refresh),
                 _ => [new Variant(truncated), new Variant(2), new Variant(1u)]);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RefreshAllAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.RefreshAllAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
@@ -729,8 +729,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                     new Variant(1u)
                 ]);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RefreshAllAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.RefreshAllAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
@@ -876,8 +876,8 @@ namespace Opc.Ua.WotCon.Tests.Client
             mock.FailNextCallOn[mock.ResolveMethodId(MethodIds.WoTDocumentType_Validate)] =
                 StatusCodes.BadUserAccessDenied;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await resource.ValidateAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resource.ValidateAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
@@ -891,8 +891,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 mock.ResolveMethodId(MethodIds.WoTDocumentType_Validate),
                 _ => [new Variant(42)]);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await resource.ValidateAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resource.ValidateAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }

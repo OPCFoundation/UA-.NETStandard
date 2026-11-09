@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [Test]
         [TestCaseSource(nameof(s_certificateTypes))]
-        public void CreateSessionWithMismatchedApplicationUriThrows(NodeId certificateType)
+        public async Task CreateSessionWithMismatchedApplicationUriThrows(NodeId certificateType)
         {
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests
                 certificateType);
 
             // Attempt to create session - should throw BadCertificateUriInvalid
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
         }
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [Test]
         [TestCaseSource(nameof(s_certificateTypes))]
-        public void CreateSessionWithMultipleUrisNoneMatchThrows(NodeId certificateType)
+        public async Task CreateSessionWithMultipleUrisNoneMatchThrows(NodeId certificateType)
         {
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
@@ -251,7 +251,7 @@ namespace Opc.Ua.Server.Tests
             Assert.Contains(uri3, uris.ToList());
 
             // Attempt to create session - should throw BadCertificateUriInvalid
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
         }

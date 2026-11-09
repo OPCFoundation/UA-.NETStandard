@@ -52,7 +52,10 @@ namespace Opc.Ua.Client.Subscriptions
     /// scope), so a handler may safely copy this struct by value and
     /// continue using <see cref="Value"/> after the call. Pool-aware
     /// projection audit: confirmed safe — no reference to a pooled
-    /// instance is surfaced.
+    /// instance is surfaced. The memory that holds the structs passed
+    /// to <see cref="ISubscriptionNotificationHandler.OnDataChangeNotificationAsync"/>
+    /// is rented in this mode and returned after the handler returns:
+    /// copy the structs instead of keeping the memory.
     /// </para>
     /// </summary>
     /// <param name="MonitoredItem"></param>
@@ -63,6 +66,12 @@ namespace Opc.Ua.Client.Subscriptions
         DataValue Value,
         DiagnosticInfo? DiagnosticInfo)
     {
+        /// <summary>
+        /// Gets the wire client handle, including on classic messages whose
+        /// <see cref="MonitoredItem"/> projection is not available.
+        /// </summary>
+        public uint ClientHandle { get; init; }
+
         /// <summary>
         /// <para>
         /// Server-assigned subscription identifier of the partition
@@ -84,6 +93,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// </para>
         /// </summary>
         public uint PartitionServerId { get; init; }
+
+        /// <summary>
+        /// The acknowledgement of the notification message this change
+        /// arrived in. All changes and events of one message share this
+        /// handle, and confirming it acknowledges the whole message. When the
+        /// session acknowledges after confirmation, call
+        /// <see cref="ISessionAcknowledgements.Confirm"/> only once every
+        /// change and event that carries the same handle was processed.
+        /// </summary>
+        public AcknowledgementHandle Acknowledgement { get; init; }
     }
 
     /// <summary>
@@ -100,7 +119,10 @@ namespace Opc.Ua.Client.Subscriptions
     /// array. Arrays are not pooled in this design (out of scope), so
     /// the captured backing array survives the recycle. Pool-aware
     /// projection audit: confirmed safe — no reference to a pooled
-    /// instance is surfaced.
+    /// instance is surfaced. The memory that holds the structs passed
+    /// to <see cref="ISubscriptionNotificationHandler.OnEventDataNotificationAsync"/>
+    /// is rented in this mode and returned after the handler returns:
+    /// copy the structs instead of keeping the memory.
     /// </para>
     /// </summary>
     /// <param name="MonitoredItem"></param>
@@ -110,6 +132,11 @@ namespace Opc.Ua.Client.Subscriptions
         ArrayOf<Variant> Fields)
     {
         /// <summary>
+        /// Gets the wire client handle, including on classic messages.
+        /// </summary>
+        public uint ClientHandle { get; init; }
+
+        /// <summary>
         /// Server-assigned subscription identifier of the partition
         /// that delivered this notification. See
         /// <see cref="DataValueChange.PartitionServerId"/> for full
@@ -117,6 +144,14 @@ namespace Opc.Ua.Client.Subscriptions
         /// notifications.
         /// </summary>
         public uint PartitionServerId { get; init; }
+
+        /// <summary>
+        /// The acknowledgement of the notification message this event
+        /// arrived in, shared by all changes and events of the message.
+        /// Confirm it only once all of them were processed; see
+        /// <see cref="DataValueChange.Acknowledgement"/>.
+        /// </summary>
+        public AcknowledgementHandle Acknowledgement { get; init; }
     }
 
     /// <summary>

@@ -91,8 +91,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             await using (var harness = new ChannelHarness(true) { TransportOwnsSettings = transportOwnsSettings })
             {
                 harness.BeforeOpen = (_, _) => throw new ServiceResultException(StatusCodes.BadCommunicationError);
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                    () => harness.Manager.GetAsync(Participant("failed")).AsTask())!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    () => harness.Manager.GetAsync(Participant("failed")).AsTask()))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
                 AssertPrivateKeyWorks(harness.ClientCertificate);
                 harness.BeforeOpen = null;
@@ -203,8 +203,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             await using (var harness = new ChannelHarness(true, new ChannelManagerOptions { MaxChannels = 1 }))
             {
                 IManagedTransportChannel first = await harness.Manager.GetAsync(Participant("first")).ConfigureAwait(false);
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                    () => harness.Manager.GetAsync(Participant("rejected", "opc.tcp://localhost:4841")).AsTask())!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    () => harness.Manager.GetAsync(Participant("rejected", "opc.tcp://localhost:4841")).AsTask()))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
                 Assert.That(harness.OpenSettings, Has.Count.EqualTo(1));
                 AssertPrivateKeyWorks(harness.ClientCertificate);
@@ -224,8 +224,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             await using (var harness = new ChannelHarness(true))
             {
                 IManagedTransportChannel channel = await harness.Manager.GetAsync(Participant("first")).ConfigureAwait(false);
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                    () => harness.Manager.ReconnectAsync(channel, new RetryBudget(TimeSpan.Zero)).AsTask())!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    () => harness.Manager.ReconnectAsync(channel, new RetryBudget(TimeSpan.Zero)).AsTask()))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
                 Assert.That(channel.State, Is.EqualTo(ChannelState.Faulted));
                 await harness.Manager.ReconnectAsync(channel).ConfigureAwait(false);
@@ -265,7 +265,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 finally
                 {
                     release.TrySetResult(true);
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() => opening)!;
+                    ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(() => opening))!;
                     Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
                 }
             }

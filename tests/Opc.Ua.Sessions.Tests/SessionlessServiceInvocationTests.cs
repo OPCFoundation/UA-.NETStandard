@@ -108,7 +108,7 @@ namespace Opc.Ua.Sessions.Tests
             using SessionClient client = await OpenClientAsync(MessageSecurityMode.None)
                 .ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(
                     AccessTokenHeader(),
                     0,
@@ -125,7 +125,7 @@ namespace Opc.Ua.Sessions.Tests
             using SessionClient client = await OpenClientAsync(MessageSecurityMode.SignAndEncrypt)
                 .ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(
                     new RequestHeader { TimeoutHint = kTimeout },
                     0,
@@ -142,7 +142,7 @@ namespace Opc.Ua.Sessions.Tests
             using SessionClient client = await OpenClientAsync(MessageSecurityMode.SignAndEncrypt)
                 .ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.CreateSubscriptionAsync(
                     AccessTokenHeader(),
                     1000,
@@ -304,7 +304,7 @@ namespace Opc.Ua.Sessions.Tests
             {
                 m_sessionManager.SessionlessInvocation = null;
 
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client.ReadAsync(
                         new RequestHeader { TimeoutHint = kTimeout },
                         0,
@@ -314,7 +314,7 @@ namespace Opc.Ua.Sessions.Tests
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
 
                 // a token that names no Session is still an invalid Session
-                error = Assert.ThrowsAsync<ServiceResultException>(
+                error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client.ReadAsync(
                         new RequestHeader { AuthenticationToken = new NodeId(4711u, 0), TimeoutHint = kTimeout },
                         0,
@@ -355,7 +355,7 @@ namespace Opc.Ua.Sessions.Tests
                 Task<ReadResponse> second = ReadStateAsync(client2);
                 await m_authenticator.WaitUntilHeldAsync(2).ConfigureAwait(false);
 
-                ServiceResultException busy = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException busy = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await ReadStateAsync(client3).ConfigureAwait(false));
                 Assert.That(busy.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
 
@@ -391,7 +391,7 @@ namespace Opc.Ua.Sessions.Tests
                 Task<ReadResponse> held = ReadStateAsync(client1);
                 await m_authenticator.WaitUntilHeldAsync(1).ConfigureAwait(false);
 
-                ServiceResultException channelBusy = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException channelBusy = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await ReadStateAsync(client1).ConfigureAwait(false));
                 Assert.That(channelBusy.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
 
@@ -467,7 +467,7 @@ namespace Opc.Ua.Sessions.Tests
 
                 // the validation waits until the request times out on the server
                 m_authenticator.HoldRequests();
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client.ReadAsync(
                         new RequestHeader
                         {

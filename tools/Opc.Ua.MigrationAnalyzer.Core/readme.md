@@ -7,7 +7,7 @@ analyzer + code-fixer + source-generator DLLs.
 
 ## Directory convention
 
-Source files mirror the project layout in `src/` and `src/`,
+Source files mirror the project layout in `src/`,
 flattened directly under the project root. For example:
 
 | Source project              | Shim path           |
@@ -29,8 +29,10 @@ the source project — e.g. the obsolete extension surface around
 - Every shim member carries **both** `[Obsolete]` and
   `[OpcUaShim(RuleId = "UANNNN")]` so the analyzer can route calls back to
   the corresponding migration-guide section.
-- Sync-over-async shims use `Task.Run(() => XxxAsync()).GetAwaiter().GetResult()`
-  to avoid sync-context deadlocks.
+- Sync-over-async shims block directly with `XxxAsync().GetAwaiter().GetResult()`
+  (using `.AsTask()` for `ValueTask` results). They do not move the call to a
+  worker thread; migrate callers to `async`/`await` rather than relying on these
+  shims to avoid synchronization-context deadlocks.
 - Removed `<Type>Collection` wrapper types are **not** runtime-shimmed —
   the companion `Opc.Ua.MigrationAnalyzer.Generator.dll` emits per-consumer
   `public sealed [Obsolete] class <Name>Collection : List<TElement>`

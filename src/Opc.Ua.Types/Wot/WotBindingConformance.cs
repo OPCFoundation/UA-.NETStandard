@@ -50,9 +50,10 @@ namespace Opc.Ua.Wot
         long CompactUtf8Length);
 
     /// <summary>
-    /// The single statement of what revision of the OPC UA WoT Binding this
-    /// library implements, which conformance units and profiles it recognizes,
-    /// and the closed value sets its validation rules are written against.
+    /// The single statement of what revision of OPC 10101-1 this library
+    /// implements, which WoT Binding conformance units and profiles it
+    /// recognizes, and the closed value sets its validation rules are written
+    /// against.
     /// </summary>
     /// <remarks>
     /// WoT Binding Section 4.1 separates three numbers that are easily
@@ -65,6 +66,12 @@ namespace Opc.Ua.Wot
     /// </remarks>
     public static class WotBindingConformance
     {
+        static WotBindingConformance()
+        {
+            // The vocabulary depends on both term sets having completed initialization.
+            VocabularyTerms = BuildVocabularyTerms();
+        }
+
         /// <summary>
         /// The vocabulary namespace, which never changes across revisions
         /// (WoT Binding Section 4).
@@ -199,6 +206,8 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// The conformance-unit and profile names of WoT Binding Section 11.
+        /// The WoT-Projection unit is defined by Part 2 and appears in the
+        /// recommended profile closures with its part-qualified name.
         /// An authored document names only these; a consumer accepts any
         /// syntactically well-formed name and reports one it does not know as
         /// unrecognized (Section 4.1).
@@ -216,7 +225,6 @@ namespace Opc.Ua.Wot
             "WoT-ModelVocabulary",
             "WoT-DataTypeDefinition",
             "WoT-ExternalResolver",
-            "WoT-Projection",
             "WoT-Reader",
             "WoT-Modeller",
             "WoT-Converter",
@@ -317,7 +325,9 @@ namespace Opc.Ua.Wot
             {
                 CollectOpaqueMembers(
                     item,
-                    pointer + "/" + index.ToString(
+                    pointer +
+                    "/" +
+                    index.ToString(
                         System.Globalization.CultureInfo.InvariantCulture),
                     found);
                 index++;
@@ -458,6 +468,7 @@ namespace Opc.Ua.Wot
         /// <param name="claims">The names a document claims.</param>
         /// <param name="required">The name that has to be covered.</param>
         /// <returns><c>true</c> when the claims cover the required name.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static bool ClaimsSatisfy(IReadOnlyList<string> claims, string required)
         {
             if (claims is null)
@@ -487,7 +498,7 @@ namespace Opc.Ua.Wot
         {
             if (name is null || !IsConformanceName(name))
             {
-                return ArrayOf<string>.Empty;
+                return [];
             }
             if (!s_profileUnits.TryGetValue(name, out HashSet<string>? units))
             {
@@ -501,6 +512,11 @@ namespace Opc.Ua.Wot
                 {
                     expanded.Add(unit);
                 }
+            }
+            string projectionsUnit = "2:" + WotProjection.ConformanceUnitName;
+            if (units.Contains(projectionsUnit))
+            {
+                expanded.Add(projectionsUnit);
             }
             return expanded.ToArray();
         }
@@ -592,11 +608,11 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Every <c>uav:</c> IRI this revision's <c>@context</c> mints: the
-        /// terms a document spells with the prefix and the ones a scoped
-        /// context mints under a short member name (WoT Binding Section 7).
+        /// Every <c>uav:</c> IRI the implementation recognizes, including
+        /// supported Call terms and the IRIs a scoped context mints under a
+        /// short member name (WoT Binding Section 7).
         /// </summary>
-        public static ArrayOf<string> VocabularyTerms => s_vocabularyTerms;
+        public static ArrayOf<string> VocabularyTerms { get; }
 
         /// <summary>
         /// The <c>uav:</c> IRIs a scoped <c>@context</c> mints under a short
@@ -667,7 +683,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// The units each recommended profile of WoT Binding Section 11 names,
-        /// including the units its nested profile names.
+        /// including its part-qualified WoT Projections dependency.
         /// </summary>
         private static readonly Dictionary<string, HashSet<string>> s_profileUnits = BuildProfileUnits();
 
@@ -684,7 +700,7 @@ namespace Opc.Ua.Wot
                 "WoT-ModelVocabulary",
                 "WoT-DataTypeDefinition",
                 "WoT-EventMapping",
-                "WoT-Projection"
+                "2:WoT-Projection"
             };
             var converter = new HashSet<string>(modeller, StringComparer.Ordinal)
             {
@@ -735,6 +751,7 @@ namespace Opc.Ua.Wot
                 "uav:mapToType",
                 "uav:mapToTypeName",
                 "uav:mapByFieldPath",
+                "uav:callObjectId",
                 // Section 5.7 - security schemes.
                 "uav:channelsec",
                 "uav:authentication",
@@ -752,6 +769,7 @@ namespace Opc.Ua.Wot
                 // Section 6.2 - links and references.
                 "uav:refName",
                 "uav:refId",
+                "uav:declaration",
                 WotNodeSetConverter.InverseNameTerm,
                 WotNodeSetConverter.SymmetricTerm,
                 // Section 5.2 - the two NodeClass annotations that complete the
@@ -773,6 +791,7 @@ namespace Opc.Ua.Wot
                 "uav:propertyConfiguration",
                 "uav:actionConfiguration",
                 "uav:eventConfiguration",
+                "uav:eventIdentityMode",
                 "uav:includeInherited",
                 "uav:additionalProperties",
                 "uav:externalSchema",
@@ -794,6 +813,7 @@ namespace Opc.Ua.Wot
                 "uav:structureType",
                 "uav:fields",
                 "uav:fieldOrder",
+                "uav:argumentLayout",
                 "uav:fieldName",
                 "uav:fieldDataTypeDefinition",
                 "uav:fieldDataTypeName",
@@ -806,6 +826,7 @@ namespace Opc.Ua.Wot
                 "uav:enumValue",
                 "uav:isOptionSet",
                 "uav:hasDefaultEncoding",
+                "uav:defaultEncodings",
                 "uav:defaultEncodingId",
                 "uav:binaryEncodingId",
                 "uav:xmlEncodingId",
@@ -815,7 +836,7 @@ namespace Opc.Ua.Wot
                 "uav:nodes",
                 "uav:nodeSet",
                 "uav:sourceDigest",
-                // Section 12 - projections.
+                // OPC 10101-2 - projection-plan vocabulary.
                 "uav:projection",
                 "uav:scenario",
                 "uav:projects",
@@ -834,7 +855,5 @@ namespace Opc.Ua.Wot
             };
 
         private static readonly HashSet<string> s_scopedTerms = BuildSet(ScopedTerms);
-
-        private static readonly ArrayOf<string> s_vocabularyTerms = BuildVocabularyTerms();
     }
 }

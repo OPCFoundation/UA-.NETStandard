@@ -29,7 +29,6 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Vision;
 
 namespace Opc.Ua.Vision.Server
 {

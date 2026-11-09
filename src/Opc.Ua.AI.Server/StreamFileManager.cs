@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using Opc.Ua;
 
 namespace Opc.Ua.AI.Server
 {
@@ -81,6 +80,7 @@ namespace Opc.Ua.AI.Server
         /// readable and not writable, which is not a restriction so much as a
         /// statement: a client that could overwrite a model's answer could forge one.
         /// </param>
+        /// <param name="authorize">Checks the transfer creator on every file operation.</param>
         /// <remarks>
         /// The manager takes ownership of <paramref name="content"/> from here on.
         /// Everything that touches it afterwards goes through
@@ -89,12 +89,13 @@ namespace Opc.Ua.AI.Server
         /// components holding the same MemoryStream under two different locks is a
         /// data race that shows up as a torn payload rather than an exception.
         /// </remarks>
-        public void Attach(FileState file, MemoryStream content, bool writable)
+        public void Attach(FileState file, MemoryStream content, bool writable, Func<ISystemContext, bool> authorize)
         {
             ArgumentNullException.ThrowIfNull(file);
             ArgumentNullException.ThrowIfNull(content);
+            ArgumentNullException.ThrowIfNull(authorize);
 
-            var entry = new Entry(content, writable);
+            var entry = new Entry(content, writable, authorize);
 
             lock (m_lock)
             {
@@ -102,74 +103,47 @@ namespace Opc.Ua.AI.Server
                 entry.Node = file;
             }
 
-            if (file.Writable is not null)
-            {
-                file.Writable.Value = writable;
-            }
+            file.Writable?.Value = writable;
 
-            if (file.UserWritable is not null)
-            {
-                file.UserWritable.Value = writable;
-            }
+            file.UserWritable?.Value = writable;
 
-            if (file.Size is not null)
-            {
-                file.Size.Value = (ulong)content.Length;
-            }
+            file.Size?.Value = (ulong)content.Length;
 
-            if (file.Open is not null)
-            {
-                file.Open.OnCall = (ISystemContext context,
-                    MethodState _,
-                    NodeId objectId,
-                    byte mode,
-                    ref uint fileHandle) => Open(context, objectId, mode, ref fileHandle);
-            }
+            file.Open?.OnCall = (context,
+                    _,
+                    objectId,
+                    mode,
+                    ref fileHandle) => Open(context, objectId, mode, ref fileHandle);
 
-            if (file.Close is not null)
-            {
-                file.Close.OnCall = (ISystemContext context,
-                    MethodState _,
-                    NodeId objectId,
-                    uint fileHandle) => Close(context, objectId, fileHandle);
-            }
+            file.Close?.OnCall = (context,
+                    _,
+                    objectId,
+                    fileHandle) => Close(context, objectId, fileHandle);
 
-            if (file.Read is not null)
-            {
-                file.Read.OnCall = (ISystemContext context,
-                    MethodState _,
-                    NodeId objectId,
-                    uint fileHandle,
-                    int length,
-                    ref ByteString data) => Read(context, objectId, fileHandle, length, ref data);
-            }
+            file.Read?.OnCall = (context,
+                    _,
+                    objectId,
+                    fileHandle,
+                    length,
+                    ref data) => Read(context, objectId, fileHandle, length, ref data);
 
-            if (file.Write is not null)
-            {
-                file.Write.OnCall = (ISystemContext context,
-                    MethodState _,
-                    NodeId objectId,
-                    uint fileHandle,
-                    ByteString data) => Write(context, objectId, fileHandle, data);
-            }
+            file.Write?.OnCall = (context,
+                    _,
+                    objectId,
+                    fileHandle,
+                    data) => Write(context, objectId, fileHandle, data);
 
-            if (file.GetPosition is not null)
-            {
-                file.GetPosition.OnCall = (ISystemContext context,
-                    MethodState _,
-                    NodeId objectId,
-                    uint fileHandle,
-                    ref ulong position) => GetPosition(context, objectId, fileHandle, ref position);
-            }
+            file.GetPosition?.OnCall = (context,
+                    _,
+                    objectId,
+                    fileHandle,
+                    ref position) => GetPosition(context, objectId, fileHandle, ref position);
 
-            if (file.SetPosition is not null)
-            {
-                file.SetPosition.OnCall = (ISystemContext context,
-                    MethodState _,
-                    NodeId objectId,
-                    uint fileHandle,
-                    ulong position) => SetPosition(context, objectId, fileHandle, position);
-            }
+            file.SetPosition?.OnCall = (context,
+                    _,
+                    objectId,
+                    fileHandle,
+                    position) => SetPosition(context, objectId, fileHandle, position);
         }
 
         /// <summary>
@@ -295,6 +269,11 @@ namespace Opc.Ua.AI.Server
                     return StatusCodes.BadNodeIdUnknown;
                 }
 
+                if (!entry.Authorize(context))
+                {
+                    return StatusCodes.BadUserAccessDenied;
+                }
+
                 bool writing = mode == writeEraseExisting;
 
                 if (mode != read && !writing)
@@ -327,9 +306,9 @@ namespace Opc.Ua.AI.Server
         {
             lock (m_lock)
             {
-                if (!TryGet(context, objectId, fileHandle, out Entry? entry, out _))
+                if (!TryGet(context, objectId, fileHandle, out Entry? entry, out _, out ServiceResult error))
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    return error;
                 }
 
                 entry.Handles.Remove(fileHandle);
@@ -348,9 +327,10 @@ namespace Opc.Ua.AI.Server
 
             lock (m_lock)
             {
-                if (!TryGet(context, objectId, fileHandle, out Entry? entry, out Handle? handle))
+                if (!TryGet(
+                    context, objectId, fileHandle, out Entry? entry, out Handle? handle, out ServiceResult error))
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    return error;
                 }
 
                 if (handle.Writing)
@@ -392,9 +372,10 @@ namespace Opc.Ua.AI.Server
         {
             lock (m_lock)
             {
-                if (!TryGet(context, objectId, fileHandle, out Entry? entry, out Handle? handle))
+                if (!TryGet(
+                    context, objectId, fileHandle, out Entry? entry, out Handle? handle, out ServiceResult error))
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    return error;
                 }
 
                 if (!handle.Writing)
@@ -428,9 +409,9 @@ namespace Opc.Ua.AI.Server
         {
             lock (m_lock)
             {
-                if (!TryGet(context, objectId, fileHandle, out _, out Handle? handle))
+                if (!TryGet(context, objectId, fileHandle, out _, out Handle? handle, out ServiceResult error))
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    return error;
                 }
 
                 position = (ulong)handle.Position;
@@ -442,9 +423,10 @@ namespace Opc.Ua.AI.Server
         {
             lock (m_lock)
             {
-                if (!TryGet(context, objectId, fileHandle, out Entry? entry, out Handle? handle))
+                if (!TryGet(
+                    context, objectId, fileHandle, out Entry? entry, out Handle? handle, out ServiceResult error))
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    return error;
                 }
 
                 if (position > (ulong)entry.Content.Length)
@@ -489,12 +471,20 @@ namespace Opc.Ua.AI.Server
             NodeId objectId,
             uint fileHandle,
             [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Entry? entry,
-            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Handle? handle)
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Handle? handle,
+            out ServiceResult error)
         {
             handle = null;
+            error = StatusCodes.BadInvalidArgument;
 
             if (!m_files.TryGetValue(objectId, out entry))
             {
+                return false;
+            }
+
+            if (!entry.Authorize(context))
+            {
+                error = StatusCodes.BadUserAccessDenied;
                 return false;
             }
 
@@ -522,15 +512,24 @@ namespace Opc.Ua.AI.Server
 
         private sealed class Entry
         {
-            public Entry(MemoryStream content, bool writable)
+            /// <summary>
+            /// Associates a buffer with its write policy and immutable creator authorization.
+            /// </summary>
+            public Entry(MemoryStream content, bool writable, Func<ISystemContext, bool> authorize)
             {
                 Content = content;
                 Writable = writable;
+                Authorize = authorize;
             }
 
             public MemoryStream Content { get; }
 
             public bool Writable { get; }
+
+            /// <summary>
+            /// Checks the immutable creator boundary before opening or using any handle.
+            /// </summary>
+            public Func<ISystemContext, bool> Authorize { get; }
 
             public NodeId Owner { get; set; } = NodeId.Null;
 

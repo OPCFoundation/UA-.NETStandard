@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Di.Server.Locking;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Tests
 {
@@ -150,7 +152,7 @@ namespace Opc.Ua.Di.Tests
             using var service = new DefaultLockService();
             service.InitLock(TestSystemContext("session-A", "alice"), s_elementId, "tag-A");
             int status = service.BreakLock(
-                TestSystemContext("session-B", "bob"),
+                AdminContext(),
                 s_elementId);
 
             Assert.That(status, Is.EqualTo(LockStatus.Ok));
@@ -162,7 +164,7 @@ namespace Opc.Ua.Di.Tests
         {
             using var service = new DefaultLockService();
             int status = service.BreakLock(
-                TestSystemContext("session-A", "alice"),
+                AdminContext(),
                 s_elementId);
             Assert.That(status, Is.EqualTo(LockStatus.NotLocked));
         }
@@ -200,23 +202,229 @@ namespace Opc.Ua.Di.Tests
             Assert.That(state.RemainingLockTimeSeconds, Is.Zero);
         }
 
-        /// <summary>
-        /// Minimal <see cref="ISystemContext"/> implementation backed by
-        /// a stock <see cref="SystemContext"/> so the lock service can
-        /// distinguish callers via <see cref="ISystemContext.UserId"/>.
-        /// </summary>
-        private static SystemContext TestSystemContext(string sessionId, string user)
+        [Test]
+        public void IsLockOwnerUsesServerSessionIdRatherThanUserOrClientContext()
         {
-            // sessionId is informational only — the default lock service
-            // falls back to UserId-derived synthetic session ids when
-            // ServerSystemContext is not available.
-            _ = sessionId;
-            return new SystemContext(telemetry: null!)
+            using var service = new DefaultLockService();
+            ServerSystemContext owner = TestSystemContext("session-A", "alice");
+            ServerSystemContext other = TestSystemContext("session-B", "alice");
+            Assert.That(service.InitLock(owner, s_elementId, "session-B"), Is.EqualTo(LockStatus.Ok));
+
+            DefaultLockService ownership = service;
+            Assert.That(ownership.IsLockOwner(owner, s_elementId), Is.True);
+            Assert.That(ownership.IsLockOwner(other, s_elementId), Is.False);
+            Assert.That(service.RenewLock(other, s_elementId), Is.EqualTo(LockStatus.WrongClient));
+            Assert.That(service.ExitLock(other, s_elementId), Is.EqualTo(LockStatus.WrongClient));
+            Assert.That(ownership.IsLockOwner(TestSystemContext("session-A", "bob"), s_elementId), Is.True);
+        }
+
+        [Test]
+        public void IsLockOwnerSupportsSessionSystemContext()
+        {
+            using var service = new DefaultLockService();
+            var context = new SessionSystemContext(telemetry: null!)
             {
-                UserId = user
+                SessionId = new NodeId("session-A", 1)
+            };
+            Assert.That(service.InitLock(context, s_elementId, "tag"), Is.EqualTo(LockStatus.Ok));
+            Assert.That(service.IsLockOwner(context, s_elementId), Is.True);
+            Assert.That(service.IsLockOwner(TestSystemContext("session-A", "alice"), s_elementId), Is.True);
+        }
+
+        [Test]
+        public void IsLockOwnerDoesNotRenewOrChangeLockState()
+        {
+            var time = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            using var service = new DefaultLockService(TimeSpan.FromMinutes(2), time);
+            ServerSystemContext context = TestSystemContext("session-A", "alice");
+            service.InitLock(context, s_elementId, "tag-A");
+            time.Advance(TimeSpan.FromSeconds(90));
+            LockState before = service.GetState(s_elementId);
+
+            Assert.That(service.IsLockOwner(context, s_elementId), Is.True);
+            Assert.That(service.IsLockOwner(context, s_elementId), Is.True);
+            Assert.That(service.GetState(s_elementId), Is.EqualTo(before));
+            Assert.That(before.RemainingLockTimeSeconds, Is.EqualTo(30));
+
+            time.Advance(TimeSpan.FromSeconds(30));
+            Assert.That(service.IsLockOwner(context, s_elementId), Is.False);
+        }
+
+        [TestCase(29, true)]
+        [TestCase(30, false)]
+        [TestCase(31, false)]
+        public void IsLockOwnerDeniesAtAndAfterExpiry(int elapsedSeconds, bool expected)
+        {
+            var time = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            using var service = new DefaultLockService(TimeSpan.FromSeconds(30), time);
+            ServerSystemContext context = TestSystemContext("session-A", "alice");
+            service.InitLock(context, s_elementId, "tag");
+            time.Advance(TimeSpan.FromSeconds(elapsedSeconds));
+
+            Assert.That(service.IsLockOwner(context, s_elementId), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void IsLockOwnerDeniesUnknownAndReleasedElements()
+        {
+            using var service = new DefaultLockService();
+            ServerSystemContext context = TestSystemContext("session-A", "alice");
+            Assert.That(service.IsLockOwner(context, s_elementId), Is.False);
+            service.InitLock(context, s_elementId, "tag");
+            Assert.That(service.ExitLock(context, s_elementId), Is.EqualTo(LockStatus.Ok));
+            Assert.That(service.IsLockOwner(context, s_elementId), Is.False);
+        }
+
+        [Test]
+        public void MissingSessionCannotAcquireOrAuthorizeByUserName()
+        {
+            using var service = new DefaultLockService();
+            ServerSystemContext owner = TestSystemContext("session-A", "alice");
+            var noSession = new SystemContext(telemetry: null!) { UserId = "alice" };
+            ServerSystemContext nullSession = TestSystemContext("session-A", "alice");
+            nullSession.SessionId = NodeId.Null;
+            ServerSystemContext absentSession = TestSystemContext("session-A", "alice");
+            absentSession.SessionId = null;
+
+            foreach (ISystemContext context in new ISystemContext[] { noSession, nullSession, absentSession })
+            {
+                Assert.That(service.InitLock(context, s_elementId, "tag"), Is.EqualTo(LockStatus.CouldNotLock));
+                Assert.That(service.IsLockOwner(context, s_elementId), Is.False);
+            }
+            Assert.That(service.InitLock(owner, s_elementId, "tag"), Is.EqualTo(LockStatus.Ok));
+            foreach (ISystemContext context in new ISystemContext[] { noSession, nullSession, absentSession })
+            {
+                Assert.That(service.IsLockOwner(context, s_elementId), Is.False);
+                Assert.That(service.RenewLock(context, s_elementId), Is.EqualTo(LockStatus.WrongClient));
+                Assert.That(service.ExitLock(context, s_elementId), Is.EqualTo(LockStatus.WrongClient));
+            }
+            Assert.That(service.IsLockOwner(owner, s_elementId), Is.True);
+        }
+
+        [Test]
+        public void SessionClosingRevokesAllOwnedLocksButNotSameUserOtherSession()
+        {
+            var manager = new Mock<ISessionManager>();
+            using var service = new DefaultLockService();
+            service.AttachToSessionManager(manager.Object);
+            ServerSystemContext owner = TestSystemContext("session-A", "alice");
+            ServerSystemContext other = TestSystemContext("session-B", "alice");
+            var secondElement = new NodeId("device-2", 2);
+            var otherElement = new NodeId("device-3", 2);
+            service.InitLock(owner, s_elementId, "first");
+            service.InitLock(owner, secondElement, "second");
+            service.InitLock(other, otherElement, "third");
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.Id).Returns(new NodeId("session-A", 1));
+
+            manager.Raise(value => value.SessionClosing += null, session.Object, SessionEventReason.Closing);
+
+            Assert.That(service.IsLockOwner(owner, s_elementId), Is.False);
+            Assert.That(service.IsLockOwner(owner, secondElement), Is.False);
+            Assert.That(service.GetState(s_elementId).Locked, Is.False);
+            Assert.That(service.GetState(secondElement).Locked, Is.False);
+            Assert.That(service.IsLockOwner(other, otherElement), Is.True);
+            Assert.That(service.InitLock(other, s_elementId, "replacement"), Is.EqualTo(LockStatus.Ok));
+            Assert.That(service.IsLockOwner(owner, s_elementId), Is.False);
+            Assert.That(service.IsLockOwner(other, s_elementId), Is.True);
+        }
+
+        [Test]
+        public void BreakLockRevokesOwnership()
+        {
+            using var service = new DefaultLockService();
+            ServerSystemContext owner = TestSystemContext("session-A", "alice");
+            service.InitLock(owner, s_elementId, "tag");
+
+            Assert.That(service.BreakLock(AdminContext(), s_elementId), Is.EqualTo(LockStatus.Ok));
+            Assert.That(service.IsLockOwner(owner, s_elementId), Is.False);
+        }
+
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt, false, false)]
+        [TestCase(UserTokenType.Anonymous, MessageSecurityMode.SignAndEncrypt, true, false)]
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.Sign, true, true)]
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.None, true, true)]
+        public void BreakLockRejectsUnauthorizedCallerWithoutChangingLock(
+            UserTokenType tokenType,
+            MessageSecurityMode securityMode,
+            bool grantAdmin,
+            bool insufficientSecurity)
+        {
+            StatusCode expectedStatus = insufficientSecurity
+                ? StatusCodes.BadSecurityModeInsufficient
+                : StatusCodes.BadUserAccessDenied;
+            var time = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            using var service = new DefaultLockService(TimeSpan.FromMinutes(2), time);
+            ServerSystemContext owner = TestSystemContext("session-A", "alice");
+            service.InitLock(owner, s_elementId, "tag");
+            LockState before = service.GetState(s_elementId);
+
+            ServiceResultException? exception = Assert.Throws<ServiceResultException>(
+                () => service.BreakLock(AdminContext(tokenType, securityMode, grantAdmin), s_elementId));
+
+            Assert.That(exception!.StatusCode, Is.EqualTo(expectedStatus));
+            Assert.That(service.GetState(s_elementId), Is.EqualTo(before));
+            Assert.That(service.IsLockOwner(owner, s_elementId), Is.True);
+        }
+
+        [Test]
+        public void IsLockOwnerValidatesArguments()
+        {
+            using var service = new DefaultLockService();
+            Assert.Throws<ArgumentNullException>(() => service.IsLockOwner(null!, s_elementId));
+            Assert.Throws<ArgumentNullException>(
+                () => service.IsLockOwner(TestSystemContext("session-A", "alice"), NodeId.Null));
+        }
+
+        /// <summary>
+        /// Creates the server context used by method dispatch with a real session identifier.
+        /// </summary>
+        private static ServerSystemContext TestSystemContext(string sessionId, string user)
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(value => value.DisplayName).Returns(user);
+            return new ServerSystemContext(Mock.Of<IServerInternal>())
+            {
+                SessionId = new NodeId(sessionId, 1),
+                UserIdentity = identity.Object
             };
         }
 
+        /// <summary>
+        /// Creates a caller for the existing SecurityAdmin authorization gate.
+        /// </summary>
+        private static SessionSystemContext AdminContext(
+            UserTokenType tokenType = UserTokenType.UserName,
+            MessageSecurityMode securityMode = MessageSecurityMode.SignAndEncrypt,
+            bool grantAdmin = true)
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(value => value.TokenType).Returns(tokenType);
+            identity.SetupGet(value => value.GrantedRoleIds)
+                .Returns(grantAdmin ? [global::Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin] : ArrayOf<NodeId>.Empty);
+            var channel = new SecureChannelContext(
+                "test-channel",
+                new EndpointDescription { SecurityMode = securityMode },
+                RequestEncoding.Binary);
+            var operation = new OperationContext(
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, identity.Object);
+            return new SessionSystemContext(operation, telemetry: null!);
+        }
+
+        [Test]
+        public void DisposeRevokesOwnershipAndDetachesSessionClosing()
+        {
+            var manager = new Mock<ISessionManager>();
+            var service = new DefaultLockService();
+            service.AttachToSessionManager(manager.Object);
+            ServerSystemContext owner = TestSystemContext("session-A", "alice");
+            service.InitLock(owner, s_elementId, "tag");
+
+            service.Dispose();
+
+            Assert.That(service.IsLockOwner(owner, s_elementId), Is.False);
+            manager.VerifyRemove(value => value.SessionClosing -= It.IsAny<SessionEventHandler>(), Times.Once);
+        }
         /// <summary>
         /// Minimal mutable <see cref="TimeProvider"/> for tests — only
         /// overrides <c>GetUtcNow</c>. Avoids dependency on

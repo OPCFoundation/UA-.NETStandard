@@ -74,33 +74,33 @@ namespace Opc.Ua.Server.Tests.Configuration
         }
 
         [Test]
-        public void SaveRejectsNullArguments()
+        public async Task SaveRejectsNullArguments()
         {
             var store = new HardwarePendingCertificateKeyStore(m_provider!);
 
             using Certificate software = CreateSoftwareCertificate();
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await store.SaveAsync(null!, software)
                         .ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await store.SaveAsync(CreateContext(), null!)
                         .ConfigureAwait(false));
             });
         }
 
         [Test]
-        public void TryTakeAndRemoveRejectNullContext()
+        public async Task TryTakeAndRemoveRejectNullContext()
         {
             var store = new HardwarePendingCertificateKeyStore(m_provider!);
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await store.TryTakeAsync(null!).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await store.RemoveAsync(null!).ConfigureAwait(false));
             });
         }
@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Tests.Configuration
         {
             var store = new HardwarePendingCertificateKeyStore(m_provider!);
 
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await store.RemoveAsync(CreateContext()).ConfigureAwait(false));
 
             Certificate? taken = await store.TryTakeAsync(CreateContext()).ConfigureAwait(false);

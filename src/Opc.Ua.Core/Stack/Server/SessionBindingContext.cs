@@ -133,5 +133,25 @@ namespace Opc.Ua
         /// The session's negotiated message security mode.
         /// </summary>
         public MessageSecurityMode SecurityMode { get; }
+
+        /// <summary>
+        /// Confirms that this binding is still the committed one of a live session, without
+        /// looking the session up again; <c>null</c> when the provider that issued the
+        /// binding offers no such check. Set once, before the binding is published.
+        /// </summary>
+        internal ISessionBindingLiveness? Liveness { get; set; }
+    }
+
+    /// <summary>
+    /// Confirms that a session binding returned earlier is still current.
+    /// </summary>
+    internal interface ISessionBindingLiveness
+    {
+        /// <summary>
+        /// Returns <c>true</c> when the binding provider would still return the same binding
+        /// for the channel context it was returned for, given that this context and the
+        /// binding were valid together when it was returned.
+        /// </summary>
+        bool IsCurrent(SecureChannelContext channelContext);
     }
 }

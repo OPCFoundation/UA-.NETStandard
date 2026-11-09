@@ -38,6 +38,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Moq;
 using NUnit.Framework;
@@ -827,6 +828,61 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Items with an equal filter share the evaluation of an event on a notifier, but
+        /// filtered retain stays per item: only the item that saw the condition pass gets
+        /// the trailing event, with its own Retain = false.
+        /// </summary>
+        [Test]
+        public async Task FilteredRetainStaysPerItemWhenItemsShareTheEvaluationAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+            SystemContext systemContext = GetSystemContext(telemetry);
+
+            // two clients with an equal High-only filter and one that wants every event.
+            using TestableMonitoredItem tracking = CreateMonitoredItem(
+                GetRetainEventFilter(GetHighOnlyFilter(), telemetry), telemetry, id: 11);
+            using TestableMonitoredItem fresh = CreateMonitoredItem(
+                GetRetainEventFilter(GetHighOnlyFilter(), telemetry), telemetry, id: 12);
+            using TestableMonitoredItem everything = CreateMonitoredItem(
+                GetRetainEventFilter(new ContentFilter(), telemetry), telemetry, id: 13);
+
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            nodeManager
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<System.Threading.CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+            var notifier = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            await using var monitoredNode = new MonitoredNode2(
+                nodeManager.Object, CreateServer(telemetry), notifier);
+            monitoredNode.Add((IEventMonitoredItem)tracking);
+            monitoredNode.Add((IEventMonitoredItem)fresh);
+            monitoredNode.Add((IEventMonitoredItem)everything);
+
+            // only the first item sees the condition in scope.
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain!.Value = true;
+            tracking.QueueEvent(CreateSnapshot(alarm, telemetry));
+            Assert.That(PublishRetain(tracking), Is.True);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = true;
+            await monitoredNode.OnReportEventAsync(
+                systemContext, notifier, CreateSnapshot(alarm, telemetry)).ConfigureAwait(false);
+            await monitoredNode.WaitForPendingNotificationsAsync(default).ConfigureAwait(false);
+
+            Assert.That(PublishRetain(tracking), Is.False, "the trailing event of the item that tracked it");
+            Assert.That(fresh.ItemsInQueue, Is.Zero, "never in scope for the other item");
+            Assert.That(PublishRetain(everything), Is.True, "the server's value");
+        }
+
+        /// <summary>
         /// The override belongs to the single transition out of scope. Once the condition
         /// passes the where clause again the client is back to the server's value.
         /// </summary>
@@ -1433,14 +1489,15 @@ namespace Opc.Ua.Server.Tests
         private TestableMonitoredItem CreateMonitoredItem(
             MonitoringFilter filter,
             ITelemetryContext telemetry,
-            uint queueSize = 10)
+            uint queueSize = 10,
+            uint id = 2)
         {
             return new TestableMonitoredItem(
                 CreateServer(telemetry),
                 new Mock<IAsyncNodeManager>().Object,
                 null!,
                 1,
-                2,
+                id,
                 new ReadValueId(),
                 DiagnosticsMasks.All,
                 TimestampsToReturn.Server,

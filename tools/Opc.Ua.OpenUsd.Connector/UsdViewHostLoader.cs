@@ -44,8 +44,8 @@ namespace Opc.Ua.OpenUsd.Connector
     /// <summary>
     /// Finds the optional viewport assembly at run time. Keeping the renderer out of the
     /// connector's own references is what lets the connector package stay small and keep
-    /// targeting .NET Framework, while the viewport needs .NET 10, Avalonia, and a
-    /// per-architecture native OpenUSD payload.
+    /// targeting .NET Framework, while the viewport needs .NET 8 or later, the matching
+    /// optional viewer assembly, Avalonia, and a supported native OpenUSD payload.
     /// </summary>
     internal static class UsdViewHostLoader
     {

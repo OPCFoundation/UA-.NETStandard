@@ -55,7 +55,6 @@ namespace Opc.Ua.Sessions.Tests
         : ChannelManagerIntegrationTestBase
     {
         [Test]
-        [Order(100)]
         [CancelAfter(180_000)]
         public async Task ApplicationCertificateRotationRehandshakesOpenManagedChannelsAsync(
             CancellationToken ct)

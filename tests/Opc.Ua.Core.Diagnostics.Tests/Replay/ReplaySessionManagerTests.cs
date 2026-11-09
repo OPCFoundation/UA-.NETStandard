@@ -76,7 +76,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
                 using var cts = new CancellationTokenSource();
                 cts.Cancel();
 
-                Exception? exception = Assert.CatchAsync(async () =>
+                Exception? exception = await Assert.CatchAsync(async () =>
                     await manager.StartAsync(request, cts.Token).ConfigureAwait(false));
 
                 Assert.That(exception, Is.InstanceOf<OperationCanceledException>());
@@ -103,7 +103,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
             var manager = new ReplaySessionManager();
             await using (manager.ConfigureAwait(false))
             {
-                PcapDiagnosticsException? exception = Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
+                PcapDiagnosticsException? exception = await Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
                     await manager.StopAsync("missing", CancellationToken.None).ConfigureAwait(false));
 
                 Assert.That(exception, Is.Not.Null);

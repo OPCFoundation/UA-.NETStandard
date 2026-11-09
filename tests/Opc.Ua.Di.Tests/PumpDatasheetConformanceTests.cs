@@ -41,7 +41,7 @@ namespace Opc.Ua.Di.Tests
     /// <summary>
     /// Pins the address space of the <c>PumpDeviceIntegrationServer</c> sample
     /// to the published PumpX-2000 datasheet
-    /// (<c>samples/DI/PumpDeviceIntegrationServer/DATASHEET.md</c>). Every value
+    /// (<c>samples/Di/PumpDeviceIntegrationServer/DATASHEET.md</c>). Every value
     /// asserted here is quoted from that document, so a change to the sample
     /// that is not reflected in the datasheet - or the other way round - fails
     /// the build.
@@ -63,6 +63,7 @@ namespace Opc.Ua.Di.Tests
             m_manager = new PumpNodeManager(server.CurrentInstance, m_fixture.Config);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
+            await m_manager.OnServerReadyAsync().ConfigureAwait(false);
 
             // the manager reports the identifiers it actually minted, so the
             // test does not restate the factory's identifier format.

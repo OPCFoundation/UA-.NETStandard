@@ -32,7 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Vision.VisualInspectionCell
@@ -97,7 +97,7 @@ namespace Vision.VisualInspectionCell
                 frameReference,
                 analysis.FixtureName,
                 cancellationToken).ConfigureAwait(false);
-            if (analysis.Verdict == Opc.Ua.Vision.VisionResultEvaluationEnum.NotDecidable)
+            if (analysis.Verdict == VisionResultEvaluationEnum.NotDecidable)
             {
                 m_operatorDialog.RequestDisposition(published);
             }
@@ -153,6 +153,6 @@ namespace Vision.VisualInspectionCell
             this ILogger<VisualInspectionInferenceProvider> logger,
             string resultId,
             string fixtureName,
-            Opc.Ua.Vision.VisionResultEvaluationEnum verdict);
+            VisionResultEvaluationEnum verdict);
     }
 }

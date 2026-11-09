@@ -35,6 +35,7 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -956,7 +957,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public static partial void DictionaryLoadErrorDictionaryDitionaryIdErrorMessage(
             this ILogger logger,
             ExpandedNodeId ditionaryId,
-            string errorMessage);
+            [SensitiveText] string errorMessage);
 
         [LoggerMessage(EventId = ClientEventIds.NodeCacheResolver + 3, Level = LogLevel.Information,
             Message = "LoadDataTypes returns {Count} nodes in {Duration}ms")]

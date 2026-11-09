@@ -220,6 +220,7 @@ namespace Opc.Ua.Schema.Model
             }
             return other is not null &&
                 ArrayEqualityComparer<Permissions>.Default.Equals(Permission, other.Permission) &&
+                RoleId == other.RoleId &&
                 XmlQualifiedNameEqualityComparer.Default.Equals(Role, other.Role);
         }
 
@@ -228,6 +229,7 @@ namespace Opc.Ua.Schema.Model
         {
             var hash = new HashCode();
             hash.Add(Permission, ArrayEqualityComparer<Permissions>.Default);
+            hash.Add(RoleId);
             hash.Add(Role, XmlQualifiedNameEqualityComparer.Default);
             return hash.ToHashCode();
         }
@@ -888,6 +890,8 @@ namespace Opc.Ua.Schema.Model
                 GuidIdSpecified == other.GuidIdSpecified &&
                 ArrayEqualityComparer<byte>.Default.Equals(OpaqueId, other.OpaqueId) &&
                 WriteAccess == other.WriteAccess &&
+                UserWriteAccess == other.UserWriteAccess &&
+                UserWriteAccessSpecified == other.UserWriteAccessSpecified &&
                 PartNo == other.PartNo &&
                 Category == other.Category &&
                 NotInAddressSpace == other.NotInAddressSpace &&
@@ -922,6 +926,8 @@ namespace Opc.Ua.Schema.Model
             hash.Add(GuidIdSpecified);
             hash.Add(OpaqueId, ArrayEqualityComparer<byte>.Default);
             hash.Add(WriteAccess);
+            hash.Add(UserWriteAccess);
+            hash.Add(UserWriteAccessSpecified);
             hash.Add(PartNo);
             hash.Add(Category);
             hash.Add(NotInAddressSpace);
@@ -983,6 +989,14 @@ namespace Opc.Ua.Schema.Model
         public DataTypeDesign? DataTypeNode { get; set; }
 
         /// <summary>
+        /// Whether the node was imported from a NodeSet2 that declares no
+        /// Value for it. Its Value is then null (OPC 10000-6 F.5) rather than
+        /// the default value of its DataType, which a ModelDesign implies.
+        /// </summary>
+        [XmlIgnore]
+        public bool NodeSetValueIsNull { get; set; }
+
+        /// <summary>
         /// The verbatim OPC UA AccessLevel bitmask imported from a
         /// NodeSet2 model. The ModelDesign <see cref="AccessLevel"/>
         /// enumeration cannot represent combinations such as
@@ -1025,6 +1039,7 @@ namespace Opc.Ua.Schema.Model
                 AccessLevelSpecified == other.AccessLevelSpecified &&
                 RawAccessLevel == other.RawAccessLevel &&
                 RawUserAccessLevel == other.RawUserAccessLevel &&
+                NodeSetValueIsNull == other.NodeSetValueIsNull &&
                 InstanceAccessLevel == other.InstanceAccessLevel &&
                 InstanceAccessLevelSpecified == other.InstanceAccessLevelSpecified &&
                 MinimumSamplingInterval == other.MinimumSamplingInterval &&
@@ -1046,6 +1061,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(AccessLevelSpecified);
             hash.Add(RawAccessLevel);
             hash.Add(RawUserAccessLevel);
+            hash.Add(NodeSetValueIsNull);
             hash.Add(InstanceAccessLevel);
             hash.Add(InstanceAccessLevelSpecified);
             hash.Add(MinimumSamplingInterval);
@@ -1094,6 +1110,14 @@ namespace Opc.Ua.Schema.Model
         [XmlIgnore]
         public DataTypeDesign? DataTypeNode { get; set; }
 
+        /// <summary>
+        /// Whether the node was imported from a NodeSet2 that declares no
+        /// Value for it. Its Value is then null (OPC 10000-6 F.5) rather than
+        /// the default value of its DataType, which a ModelDesign implies.
+        /// </summary>
+        [XmlIgnore]
+        public bool NodeSetValueIsNull { get; set; }
+
         /// <inheritdoc/>
         public override bool Equals(object? obj)
         {
@@ -1121,6 +1145,7 @@ namespace Opc.Ua.Schema.Model
                 MinimumSamplingIntervalSpecified == other.MinimumSamplingIntervalSpecified &&
                 Historizing == other.Historizing &&
                 HistorizingSpecified == other.HistorizingSpecified &&
+                NodeSetValueIsNull == other.NodeSetValueIsNull &&
                 ExposesItsChildren == other.ExposesItsChildren;
         }
 
@@ -1140,6 +1165,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(MinimumSamplingIntervalSpecified);
             hash.Add(Historizing);
             hash.Add(HistorizingSpecified);
+            hash.Add(NodeSetValueIsNull);
             hash.Add(ExposesItsChildren);
             return hash.ToHashCode();
         }
@@ -1199,7 +1225,9 @@ namespace Opc.Ua.Schema.Model
                 ArrayEqualityComparer<Parameter>.Default.Equals(InputArguments, other.InputArguments) &&
                 ArrayEqualityComparer<Parameter>.Default.Equals(OutputArguments, other.OutputArguments) &&
                 NonExecutable == other.NonExecutable &&
-                NonExecutableSpecified == other.NonExecutableSpecified;
+                NonExecutableSpecified == other.NonExecutableSpecified &&
+                UserExecutable == other.UserExecutable &&
+                UserExecutableSpecified == other.UserExecutableSpecified;
         }
 
         /// <inheritdoc/>
@@ -1211,6 +1239,8 @@ namespace Opc.Ua.Schema.Model
             hash.Add(OutputArguments, ArrayEqualityComparer<Parameter>.Default);
             hash.Add(NonExecutable);
             hash.Add(NonExecutableSpecified);
+            hash.Add(UserExecutable);
+            hash.Add(UserExecutableSpecified);
             return hash.ToHashCode();
         }
 

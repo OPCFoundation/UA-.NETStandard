@@ -141,6 +141,24 @@ namespace Robotics
             IRoboticsBuildContext context,
             CancellationToken cancellationToken)
         {
+            bool materialised = await ConfigureAddressSpaceAsync(context, cancellationToken).ConfigureAwait(false);
+            if (materialised)
+            {
+                ushort usdNs = (ushort)Server.NamespaceUris.GetIndex(Opc.Ua.OpenUsd.Namespaces.OpenUSD);
+                _ = RunDynamicToolAsync(context.InstanceNamespaceIndex, usdNs);
+            }
+            Configure(context.Nodes);
+            m_logger.RoboticsAddressSpaceReady(m_axes.Count + m_robots.Count + 1);
+        }
+
+        /// <summary>
+        /// Builds the cell and its callbacks without starting the sample animations.
+        /// </summary>
+        /// <returns>Whether the robot cell was fully materialised.</returns>
+        internal async ValueTask<bool> ConfigureAddressSpaceAsync(
+            IRoboticsBuildContext context,
+            CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -152,9 +170,7 @@ namespace Robotics
             await MaterialiseOpenUsdFacilityAsync(cancellationToken).ConfigureAwait(false);
             await MaterialiseTwinNodesAsync(context.InstanceNamespaceIndex, cancellationToken)
                 .ConfigureAwait(false);
-            await MaterialiseRobotCellAsync(context, cancellationToken).ConfigureAwait(false);
-            Configure(context.Nodes);
-            m_logger.RoboticsAddressSpaceReady(m_axes.Count + m_robots.Count + 1);
+            return await MaterialiseRobotCellAsync(context, cancellationToken).ConfigureAwait(false);
         }
 
         internal static RobotCell GetForManager(AsyncCustomNodeManager manager)
@@ -193,13 +209,13 @@ namespace Robotics
             return NodeId.Create(id, Opc.Ua.Robotics.Namespaces.Robotics, Server.NamespaceUris);
         }
 
-        private async ValueTask MaterialiseRobotCellAsync(
+        private async ValueTask<bool> MaterialiseRobotCellAsync(
             IRoboticsBuildContext context,
             CancellationToken cancellationToken)
         {
             if (m_cellStage == null)
             {
-                return;
+                return false;
             }
 
             try
@@ -277,16 +293,17 @@ namespace Robotics
                 }
 
                 Manager.ModelChangeEmissionEnabled = true;
-                _ = RunDynamicToolAsync(ns, usdNs);
 
                 m_logger.MaterialisedRobotCell(
                     s_robots.Length,
                     m_axes.Count,
                     1 + robotReps.Count + m_axisReps.Count);
+                return true;
             }
             catch (Exception ex)
             {
                 m_logger.RobotCellFailed(ex);
+                return false;
             }
         }
 
@@ -324,7 +341,7 @@ namespace Robotics
             builder.WithComponentName(robot.BrowseName)
                 .WithCategory(MotionDeviceCategoryEnumeration.ARTICULATED_ROBOT)
                 .WithSpeedOverride(100.0);
-            if (robot.HasTool)
+            if (string.Equals(robot.BrowseName, "R1", StringComparison.Ordinal))
             {
                 builder.BindSpeedOverrideWrite(WriteSpeedOverrideAsync);
             }

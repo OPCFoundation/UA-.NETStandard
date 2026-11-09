@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Robotics.Client.Intent
 {
@@ -234,7 +235,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         public static partial void ChannelLeaseGranted(
             this ILogger logger,
             string channelId,
-            string endpointUrl,
+            [NetworkAddress] string endpointUrl,
             DateTimeUtc leaseExpiry);
 
         [LoggerMessage(
@@ -252,7 +253,10 @@ namespace Opc.Ua.Robotics.Client.Intent
             Level = LogLevel.Warning,
             Message = "Robot Intent real-time channel lease lapsed or was refused. ChannelId={ChannelId}, " +
                 "Message={Message}.")]
-        public static partial void ChannelLeaseLapsed(this ILogger logger, string channelId, string message);
+        public static partial void ChannelLeaseLapsed(
+            this ILogger logger,
+            string channelId,
+            [SensitiveText] string message);
 
         [LoggerMessage(
             EventId = RobotIntentClientEventIds.ChannelLeaseRenewalFailed,

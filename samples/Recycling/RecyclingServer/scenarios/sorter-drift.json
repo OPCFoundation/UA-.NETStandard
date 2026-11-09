@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "scenario": "sorter-drift",
+  "seed": 104729,
+  "windows": [
+    {
+      "startTick": 8,
+      "endTick": 20,
+      "sorterRecoveryPermille": 250,
+      "electricalSupplyPermille": 1000,
+      "thermalSupplyPermille": 1000
+    }
+  ]
+}

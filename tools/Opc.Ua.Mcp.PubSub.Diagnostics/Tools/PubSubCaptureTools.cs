@@ -62,13 +62,25 @@ namespace Opc.Ua.Mcp.Tools
             "PubSubCaptureSessionInfo (isActive:true, frameCount, byteCount, state).")]
         public static async Task<PubSubCaptureSessionInfo> StartCaptureAsync(
             PubSubCaptureSessionManager manager,
+            McpCallerContext callers,
             CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(manager);
+            string ownerKey = PubSubDiagnosticsCaller.GetOwnerKey(callers);
 
-            await ClearLastSourceAsync(ct).ConfigureAwait(false);
-            IPubSubCaptureSource source = await manager.StartAsync(ct).ConfigureAwait(false);
+            await manager.ClearStoppedSourceForCallerAsync(ownerKey, ct).ConfigureAwait(false);
+            IPubSubCaptureSource source = await manager.StartForCallerAsync(ownerKey, ct).ConfigureAwait(false);
             return CreateInfo(source, isActive: true);
+        }
+
+        /// <summary>
+        /// Starts a capture for trusted in-process callers that use the original tool helper signature.
+        /// </summary>
+        internal static Task<PubSubCaptureSessionInfo> StartCaptureAsync(
+            PubSubCaptureSessionManager manager,
+            CancellationToken ct)
+        {
+            return StartCaptureAsync(manager, new McpCallerContext(), ct);
         }
 
         /// <summary>
@@ -80,14 +92,17 @@ namespace Opc.Ua.Mcp.Tools
             "frameCount, byteCount, state) describing the stopped or last snapshot.")]
         public static async Task<PubSubCaptureSessionInfo> StopCaptureAsync(
             PubSubCaptureSessionManager manager,
+            McpCallerContext callers,
             CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(manager);
+            string ownerKey = PubSubDiagnosticsCaller.GetOwnerKey(callers);
 
-            IPubSubCaptureSource? source = await manager.StopAsync(ct).ConfigureAwait(false);
+            IPubSubCaptureSource? source = await manager.StopForCallerAsync(ownerKey, ct).ConfigureAwait(false);
             if (source is null)
             {
-                IPubSubCaptureSource? last = await GetLastSourceAsync(ct).ConfigureAwait(false);
+                IPubSubCaptureSource? last = await manager.GetStoppedSourceForCallerAsync(ownerKey, ct)
+                    .ConfigureAwait(false);
                 if (last is null)
                 {
                     return new PubSubCaptureSessionInfo
@@ -105,8 +120,18 @@ namespace Opc.Ua.Mcp.Tools
             SnapshotPubSubCaptureSource snapshot = await SnapshotPubSubCaptureSource.CreateAsync(source, ct)
                 .ConfigureAwait(false);
             await source.DisposeAsync().ConfigureAwait(false);
-            await StoreLastSourceAsync(snapshot, ct).ConfigureAwait(false);
+            await manager.StoreStoppedSourceForCallerAsync(ownerKey, snapshot, ct).ConfigureAwait(false);
             return CreateInfo(snapshot, isActive: false);
+        }
+
+        /// <summary>
+        /// Stops a capture for trusted in-process callers that use the original tool helper signature.
+        /// </summary>
+        internal static Task<PubSubCaptureSessionInfo> StopCaptureAsync(
+            PubSubCaptureSessionManager manager,
+            CancellationToken ct)
+        {
+            return StopCaptureAsync(manager, new McpCallerContext(), ct);
         }
 
         /// <summary>
@@ -117,17 +142,20 @@ namespace Opc.Ua.Mcp.Tools
             "capture or the last stopped capture snapshot.")]
         public static async Task<PubSubCaptureSessionInfo> CaptureStatusAsync(
             PubSubCaptureSessionManager manager,
+            McpCallerContext callers,
             CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(manager);
+            string ownerKey = PubSubDiagnosticsCaller.GetOwnerKey(callers);
 
-            IPubSubCaptureSource? active = manager.ActiveSource;
+            IPubSubCaptureSource? active = manager.GetActiveSourceForCaller(ownerKey);
             if (active is not null)
             {
                 return CreateInfo(active, isActive: true);
             }
 
-            IPubSubCaptureSource? last = await GetLastSourceAsync(ct).ConfigureAwait(false);
+            IPubSubCaptureSource? last = await manager.GetStoppedSourceForCallerAsync(ownerKey, ct)
+                .ConfigureAwait(false);
             return last is null
                 ? new PubSubCaptureSessionInfo
                 {
@@ -137,6 +165,16 @@ namespace Opc.Ua.Mcp.Tools
                     State = "idle"
                 }
                 : CreateInfo(last, isActive: false);
+        }
+
+        /// <summary>
+        /// Reads capture status for trusted in-process callers that use the original tool helper signature.
+        /// </summary>
+        internal static Task<PubSubCaptureSessionInfo> CaptureStatusAsync(
+            PubSubCaptureSessionManager manager,
+            CancellationToken ct)
+        {
+            return CaptureStatusAsync(manager, new McpCallerContext(), ct);
         }
 
         /// <summary>
@@ -165,7 +203,8 @@ namespace Opc.Ua.Mcp.Tools
                 Directory.CreateDirectory(directory);
             }
 
-            IPubSubCaptureSource source = await GetStoppedSourceAsync(manager, ct).ConfigureAwait(false);
+            string ownerKey = PubSubDiagnosticsCaller.GetOwnerKey(services);
+            IPubSubCaptureSource source = await GetStoppedSourceAsync(manager, ownerKey, ct).ConfigureAwait(false);
             var writer = new PubSubPcapWriter();
             bool isPcapNg = IsPcapNgPath(filePath);
             long framesWritten = isPcapNg
@@ -185,41 +224,56 @@ namespace Opc.Ua.Mcp.Tools
 
         internal static async ValueTask<IPubSubCaptureSource> GetLastStoppedSourceAsync(
             PubSubCaptureSessionManager manager,
+            McpCallerContext callers,
             CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(manager);
+            string ownerKey = PubSubDiagnosticsCaller.GetOwnerKey(callers);
 
-            if (manager.ActiveSource is not null)
+            if (manager.GetActiveSourceForCaller(ownerKey) is not null)
             {
                 throw new PcapDiagnosticsException(
                     "A PubSub capture is still active; stop it with pubsub_stop_capture before dissecting it.");
             }
 
-            IPubSubCaptureSource? source = await GetLastSourceAsync(ct).ConfigureAwait(false);
+            IPubSubCaptureSource? source = await manager.GetStoppedSourceForCallerAsync(ownerKey, ct)
+                .ConfigureAwait(false);
             return source ??
                 throw new PcapDiagnosticsException(
                     "No stopped PubSub capture is available. Start and stop a capture first.");
         }
 
-        private static async ValueTask<IPubSubCaptureSource> GetStoppedSourceAsync(
+        internal static ValueTask<IPubSubCaptureSource> GetLastStoppedSourceAsync(
             PubSubCaptureSessionManager manager,
             CancellationToken ct)
         {
-            IPubSubCaptureSource? active = manager.ActiveSource;
+            return GetLastStoppedSourceAsync(manager, new McpCallerContext(), ct);
+        }
+
+        private static async ValueTask<IPubSubCaptureSource> GetStoppedSourceAsync(
+            PubSubCaptureSessionManager manager,
+            string ownerKey,
+            CancellationToken ct)
+        {
+            IPubSubCaptureSource? active = manager.GetActiveSourceForCaller(ownerKey);
             if (active is not null)
             {
-                IPubSubCaptureSource? stopped = await manager.StopAsync(ct).ConfigureAwait(false);
+                IPubSubCaptureSource? stopped = await manager.StopForCallerAsync(ownerKey, ct)
+                    .ConfigureAwait(false);
                 if (stopped is not null)
                 {
                     SnapshotPubSubCaptureSource snapshot = await SnapshotPubSubCaptureSource.CreateAsync(stopped, ct)
                         .ConfigureAwait(false);
                     await stopped.DisposeAsync().ConfigureAwait(false);
-                    await StoreLastSourceAsync(snapshot, ct).ConfigureAwait(false);
+                    await manager.StoreStoppedSourceForCallerAsync(ownerKey, snapshot, ct).ConfigureAwait(false);
                     return snapshot;
                 }
             }
 
-            return await GetLastStoppedSourceAsync(manager, ct).ConfigureAwait(false);
+            IPubSubCaptureSource? last = await manager.GetStoppedSourceForCallerAsync(ownerKey, ct)
+                .ConfigureAwait(false);
+            return last ?? throw new PcapDiagnosticsException(
+                "No stopped PubSub capture is available. Start and stop a capture first.");
         }
 
         private static PubSubCaptureSessionInfo CreateInfo(IPubSubCaptureSource source, bool isActive)
@@ -231,55 +285,6 @@ namespace Opc.Ua.Mcp.Tools
                 ByteCount = source.ByteCount,
                 State = isActive ? "running" : "stopped"
             };
-        }
-
-        private static async ValueTask StoreLastSourceAsync(IPubSubCaptureSource source, CancellationToken ct)
-        {
-            await m_lastSourceGate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                IPubSubCaptureSource? previous = m_lastSource;
-                m_lastSource = source;
-                if (previous is not null && !ReferenceEquals(previous, source))
-                {
-                    await previous.DisposeAsync().ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                m_lastSourceGate.Release();
-            }
-        }
-
-        private static async ValueTask ClearLastSourceAsync(CancellationToken ct)
-        {
-            await m_lastSourceGate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                IPubSubCaptureSource? previous = m_lastSource;
-                m_lastSource = null;
-                if (previous is not null)
-                {
-                    await previous.DisposeAsync().ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                m_lastSourceGate.Release();
-            }
-        }
-
-        private static async ValueTask<IPubSubCaptureSource?> GetLastSourceAsync(CancellationToken ct)
-        {
-            await m_lastSourceGate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                return m_lastSource;
-            }
-            finally
-            {
-                m_lastSourceGate.Release();
-            }
         }
 
         private static string GetPcapAllowedRoot(IServiceProvider services)
@@ -300,9 +305,6 @@ namespace Opc.Ua.Mcp.Tools
         {
             return string.Equals(Path.GetExtension(filePath), ".pcapng", StringComparison.OrdinalIgnoreCase);
         }
-
-        private static readonly SemaphoreSlim m_lastSourceGate = new(1, 1);
-        private static IPubSubCaptureSource? m_lastSource;
 
         private sealed class SnapshotPubSubCaptureSource : IPubSubCaptureSource
         {

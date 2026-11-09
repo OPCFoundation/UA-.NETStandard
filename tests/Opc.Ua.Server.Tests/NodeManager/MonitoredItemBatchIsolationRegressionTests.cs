@@ -68,11 +68,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void RequestCancellationStillStopsDispatchInsteadOfBecomingAnItemFailure(bool setMode)
+        public async Task RequestCancellationStillStopsDispatchInsteadOfBecomingAnItemFailure(bool setMode)
         {
             using var cancellation = new CancellationTokenSource();
             using var harness = new BatchHarness(partial: false, cancellation);
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await harness.DispatchAsync(setMode, cancellation.Token).ConfigureAwait(false));
             Assert.That(harness.Calls, Is.EqualTo(s_cancelledOwners));
             Assert.That(harness.Errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -296,6 +296,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     var item = new Mock<IEventMonitoredItem>();
                     item.SetupGet(value => value.Id).Returns((uint)i + 1);
                     item.SetupGet(value => value.NodeManager).Returns(m_owners[i + 1]);
+                    item.SetupGet(value => value.ManagerHandle).Returns(new NodeHandle());
                     item.SetupGet(value => value.MonitoredItemType).Returns(
                         i == 0 && allEvents
                             ? MonitoredItemTypeMask.Events | MonitoredItemTypeMask.AllEvents

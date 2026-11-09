@@ -33,6 +33,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Microsoft.Extensions.Time.Testing;
 using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
@@ -41,6 +42,9 @@ using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
+using Opc.Ua.PubSub.Security.Sks;
+using Opc.Ua.PubSub.Tests.Security;
+using Opc.Ua.PubSub.Tests.Security.Sks;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 using UadpDataSetMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
@@ -64,6 +68,43 @@ namespace Opc.Ua.PubSub.Tests.Connections
     {
         private const string UdpProfile =
             "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
+
+        /// <summary>
+        /// An expired pushed token cannot authenticate, promote replay state, or reach the real connection decoder.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR05ExpiredPushedTokenCannotReachConfiguredReceiveDecoderAsync()
+        {
+            var clock = new FakeTimeProvider();
+            await using var keys = new PushSecurityKeyProvider("group", timeProvider: clock);
+            await PushSecurityKeyProviderTests.PushAsync(keys, 1).ConfigureAwait(false);
+            using var ring = new PubSubSecurityKeyRing("group");
+            ring.SetCurrent(TestSecurityKeyFactory.Create(1));
+            using var nonce = new RandomNonceProvider(PublisherId.FromByte(1));
+            var publisher = new UadpSecurityWrapper(PubSubAes128CtrPolicy.Instance,
+                new StaticSecurityKeyProvider("group", ring), nonce, new SecurityTokenWindow(),
+                NUnitTelemetryContext.Create());
+            clock.Advance(TimeSpan.FromSeconds(10));
+            await PushSecurityKeyProviderTests.PushAsync(keys, 2).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromSeconds(10));
+            await PushSecurityKeyProviderTests.PushAsync(keys, 3).ConfigureAwait(false);
+            byte[] stale = await BuildSecuredFrameAsync(publisher).ConfigureAwait(false);
+            int promotions = 0;
+            var subscriber = new UadpSecurityWrapper(PubSubAes128CtrPolicy.Instance,
+                keys, nonce, new SecurityTokenWindow(), NUnitTelemetryContext.Create(),
+                securityEventSink: null,
+                registerAuthenticatedToken: _ => promotions++);
+            var transport = new ProgrammableTransport([stale]);
+            var decoder = new RecordingDecoder();
+            await using PubSubConnection connection = NewConnection(
+                transport, decoder, subscriber, MessageSecurityMode.SignAndEncrypt);
+            await connection.EnableAsync().ConfigureAwait(false);
+            await transport.WaitUntilDrainedAsync().ConfigureAwait(false);
+            await connection.DisableAsync().ConfigureAwait(false);
+            Assert.That(decoder.CallCount, Is.Zero);
+            Assert.That(promotions, Is.Zero);
+        }
 
         [Test]
         public async Task SecuredReaderRejectsForgedPlaintextFrameAsync()

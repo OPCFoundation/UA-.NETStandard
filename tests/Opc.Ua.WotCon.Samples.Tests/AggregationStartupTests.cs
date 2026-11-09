@@ -39,11 +39,17 @@ using AggregationServer;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Tests aggregation sample target frameworks and protocol executor registration.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     [Category("Samples")]
     public sealed class AggregationStartupTests
     {
+        /// <summary>
+        /// Verifies that sample targets only executable aggregation frameworks.
+        /// </summary>
         [Test]
         public void SampleTargetsOnlyExecutableAggregationFrameworks()
         {
@@ -63,6 +69,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Is.EqualTo("$(AppTargetFrameworks)"));
         }
 
+        /// <summary>
+        /// Verifies that the aggregation host registers an OPC UA binding executor.
+        /// </summary>
         [Test]
         public void AggregationHostRegistersOpcUaExecutor()
         {
@@ -115,6 +124,15 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         private static string FindRepositoryRoot()
         {
+            string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configuredRoot))
+            {
+                if (!File.Exists(Path.Combine(configuredRoot, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                }
+                return configuredRoot;
+            }
             var directory = new DirectoryInfo(AppContext.BaseDirectory);
             while (directory is not null)
             {

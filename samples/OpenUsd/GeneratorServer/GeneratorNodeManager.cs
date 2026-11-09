@@ -46,6 +46,7 @@ using Opc.Ua.OpenUsd;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.NodeManager;
+using Opc.Ua.XRegistry;
 
 namespace Generators
 {
@@ -148,7 +149,8 @@ namespace Generators
                   // model reaches into IA. The reduced Machinery copy this
                   // sample used to carry had that edge stripped out.
                   Opc.Ua.IA.Namespaces.IA,
-                  Opc.Ua.OpenUsd.Namespaces.OpenUSD)
+                  Opc.Ua.OpenUsd.Namespaces.OpenUSD,
+                  Opc.Ua.XRegistry.Namespaces.xRegistry)
         {
             m_options = options?.Value ?? new GeneratorDeviceIntegrationOptions();
             if (m_options.GeneratorCount is < 1 or > 100)
@@ -229,6 +231,7 @@ namespace Generators
             nodes.AddOpcUaIA(context);
             nodes.AddOpcUaMachinery(context);
             nodes.AddOpcUaGenerators(context);
+            nodes.AddOpcUaXRegistry(context);
             nodes.AddOpcUaOpenUsd(context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
@@ -564,6 +567,7 @@ namespace Generators
             Opc.Ua.Generators.Namespaces.Generators,
             Opc.Ua.Machinery.Namespaces.Machinery,
             Opc.Ua.OpenUsd.Namespaces.OpenUSD,
+            Opc.Ua.XRegistry.Namespaces.xRegistry,
         }.ToArrayOf();
 
         /// <inheritdoc/>

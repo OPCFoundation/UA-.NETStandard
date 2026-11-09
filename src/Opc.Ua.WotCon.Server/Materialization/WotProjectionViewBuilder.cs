@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -41,13 +40,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
     /// Builds a <see cref="WotViewProjectionPlan"/> from a WoT <em>projection
-    /// document</em> (WoT Binding Section 12): it resolves the document to its
+    /// document</em> (OPC 10101-2): it resolves the document to its
     /// resolved view with <see cref="WotProjectionResolver"/>, maps each selected
     /// affordance to the OPC UA Node already materialized from its source with an
     /// <see cref="IWotMaterializedNodeIndex"/>, grows the organizational Objects
-    /// from the document's <c>ua:Organizes</c> links (Section 12.7), and computes
-    /// a deterministic <c>ViewVersion</c>. It creates no affordance Node: a
-    /// projection selects, it never defines.
+    /// from the document's <c>ua:Organizes</c> links, and computes
+    /// a deterministic <c>ViewVersion</c>. It creates no affordance Node:
+    /// locally defined affordances are materialized through the ordinary
+    /// Binding pipeline and organized alongside imported Nodes.
     /// </summary>
     /// <remarks>
     /// This is the address-space-mapping sense of "projection", distinct from the
@@ -56,7 +56,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// it performs no address-space mutation. An <see cref="IWotViewProjectionHost"/>
     /// applies the plan it returns.
     /// </remarks>
-    public sealed class WotProjectionViewBuilder
+    public sealed partial class WotProjectionViewBuilder
     {
         /// <summary>
         /// Initializes a new builder.
@@ -73,7 +73,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="serverNamespaceUris">
         /// The server's namespace table, used to write a member's NodeId in the
         /// portable ExpandedNodeId form the <c>ViewVersion</c> algorithm of
-        /// <i>OPC UA — WoT Binding</i> §12.6 is defined over.
+        /// OPC 10101-2 defines over.
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="thingResolver"/> or <paramref name="nodeIndex"/> is
@@ -107,10 +107,44 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <exception cref="ArgumentNullException">
         /// <paramref name="projectionDocument"/> is <c>null</c>.
         /// </exception>
-        public async ValueTask<WotViewProjectionResult> BuildAsync(
+        public ValueTask<WotViewProjectionResult> BuildAsync(
             WotDocument projectionDocument,
             WotResolutionContext? resolutionContext = null,
             CancellationToken cancellationToken = default)
+        {
+            return BuildCoreAsync(projectionDocument, null, resolutionContext, cancellationToken);
+        }
+
+        /// <summary>
+        /// Builds a View plan while identifying the registry resource that owns
+        /// the projection's locally defined affordances.
+        /// </summary>
+        /// <param name="projectionDocument">The projection document.</param>
+        /// <param name="localSourceHref">
+        /// The href by which this document resolves to its materialized registry resource.
+        /// </param>
+        /// <param name="cancellationToken">A token that cancels the operation.</param>
+        /// <returns>The build result.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="projectionDocument"/> or <paramref name="localSourceHref"/> is <c>null</c>.
+        /// </exception>
+        internal ValueTask<WotViewProjectionResult> BuildForResourceAsync(
+            WotDocument projectionDocument,
+            string localSourceHref,
+            CancellationToken cancellationToken)
+        {
+            if (localSourceHref is null)
+            {
+                throw new ArgumentNullException(nameof(localSourceHref));
+            }
+            return BuildCoreAsync(projectionDocument, localSourceHref, null, cancellationToken);
+        }
+
+        private async ValueTask<WotViewProjectionResult> BuildCoreAsync(
+            WotDocument projectionDocument,
+            string? localSourceHref,
+            WotResolutionContext? resolutionContext,
+            CancellationToken cancellationToken)
         {
             if (projectionDocument is null)
             {
@@ -128,6 +162,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return new WotViewProjectionResult(null, diagnostics);
             }
 
+            var projection = WotProjection.Parse(projectionDocument, diagnostics);
+            if (projection is null || HasErrors(diagnostics))
+            {
+                return new WotViewProjectionResult(null, diagnostics);
+            }
+
             WotResolutionContext context = resolutionContext ?? new WotResolutionContext();
             var visited = new HashSet<string>(StringComparer.Ordinal);
             var resolvedGroups = new Dictionary<string, Membership>(StringComparer.Ordinal);
@@ -135,9 +175,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Membership root;
             try
             {
+                string sourceHref = string.IsNullOrEmpty(projectionDocument.Id)
+                    ? localSourceHref ?? string.Empty
+                    : projectionDocument.Id!;
                 root = await BuildNodeAsync(
                     projectionDocument, visited, resolvedGroups, intermediates, diagnostics,
-                    context, cancellationToken)
+                    sourceHref, context, cancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -152,10 +195,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return new WotViewProjectionResult(null, diagnostics);
             }
 
-            string scenario = ReadScenario(projectionDocument);
             var plan = new WotViewProjectionPlan(
-                scenario,
-                projectionDocument.Kind,
+                projection.Scenario,
+                projection.ResultKind,
                 root.Members,
                 root.Groups,
                 ComputeViewVersion(root),
@@ -169,6 +211,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Dictionary<string, Membership> resolvedGroups,
             Dictionary<string, WotDocument?> intermediates,
             List<WotDiagnostic> diagnostics,
+            string localSourceHref,
             WotResolutionContext context,
             CancellationToken cancellationToken)
         {
@@ -189,14 +232,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             using (WotDocument view = resolved.Value)
             {
                 await CollectMembersAsync(
-                    view.Properties, WotAffordanceKind.Property, members, omissions,
-                    intermediates, context, cancellationToken).ConfigureAwait(false);
+                    view, view.Properties, WotAffordanceKind.Property, members, omissions,
+                    localSourceHref, intermediates, context, cancellationToken).ConfigureAwait(false);
                 await CollectMembersAsync(
-                    view.Actions, WotAffordanceKind.Action, members, omissions,
-                    intermediates, context, cancellationToken).ConfigureAwait(false);
+                    view, view.Actions, WotAffordanceKind.Action, members, omissions,
+                    localSourceHref, intermediates, context, cancellationToken).ConfigureAwait(false);
                 await CollectMembersAsync(
-                    view.Events, WotAffordanceKind.Event, members, omissions,
-                    intermediates, context, cancellationToken).ConfigureAwait(false);
+                    view, view.Events, WotAffordanceKind.Event, members, omissions,
+                    localSourceHref, intermediates, context, cancellationToken).ConfigureAwait(false);
             }
 
             var groups = new List<WotOrganizationalGroup>();
@@ -240,7 +283,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return;
             }
             // Defensive cycle guard. WotProjectionResolver.ResolveAsync already
-            // validates the whole ua:Organizes graph is acyclic (Section 12.7),
+            // validates the whole ua:Organizes graph is acyclic (OPC 10101-2),
             // so a re-visit here indicates a graph that was not validated.
             if (!visited.Add(link.Href))
             {
@@ -265,8 +308,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 using (organized)
                 {
                     Membership child = await BuildNodeAsync(
-                        organized, visited, resolvedGroups, intermediates, diagnostics, context,
-                        cancellationToken)
+                        organized, visited, resolvedGroups, intermediates, diagnostics,
+                        string.IsNullOrEmpty(organized.Id) ? link.Href : organized.Id!,
+                        context, cancellationToken)
                         .ConfigureAwait(false);
                     resolvedGroups[link.Href] = child;
                     groups.Add(new WotOrganizationalGroup(
@@ -284,21 +328,32 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private async ValueTask CollectMembersAsync(
+            WotDocument view,
             IReadOnlyDictionary<string, JsonElement> affordances,
             WotAffordanceKind kind,
             List<NodeId> members,
             List<string> omissions,
+            string localSourceHref,
             Dictionary<string, WotDocument?> intermediates,
             WotResolutionContext context,
             CancellationToken cancellationToken)
         {
             foreach (KeyValuePair<string, JsonElement> entry in affordances)
             {
-                if (!TryReadResolvedFrom(
-                        entry.Value, out string href, out WotAffordanceKind sourceKind,
-                        out string sourceName))
+                if (view.IsSupportOnly(kind, entry.Key))
                 {
+                    // A dependency the resolver carried (for example a unit property) is
+                    // structural support; only what the projection selected is organized.
                     continue;
+                }
+                bool hasProvenance = TryReadResolvedFrom(
+                    entry.Value, out string href, out WotAffordanceKind sourceKind,
+                    out string sourceName);
+                if (!hasProvenance)
+                {
+                    href = localSourceHref;
+                    sourceKind = kind;
+                    sourceName = entry.Key;
                 }
                 ExpandedNodeId authoredId = ReadAuthoredId(entry.Value);
                 var reference = new WotMaterializedAffordanceRef(
@@ -327,7 +382,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Follows a selection whose source is itself a projection document to
         /// the Node its ultimate source materialized. <c>uav:resolvedFrom</c> is
-        /// by <i>OPC UA — WoT Binding</i> §12 "the reference the selection was
+        /// by OPC 10101-2, "the reference the selection was
         /// made by", so a projection that selects from a projection names the
         /// intermediate document — and an intermediate materializes a View, not
         /// Nodes, so the index cannot locate it. <i>OPC UA — WoT Connectivity</i>
@@ -463,14 +518,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private static string ReadScenario(WotDocument document)
-        {
-            return document.TryGetUav("scenario", out JsonElement scenario) &&
-                scenario.ValueKind == JsonValueKind.String
-                ? scenario.GetString() ?? string.Empty
-                : string.Empty;
-        }
-
         private static bool TryReadResolvedFrom(
             JsonElement affordance,
             out string href,
@@ -599,7 +646,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CollectPortableMembers(root, collected);
 
             // The set/sort/encode/digest algorithm itself is the shared one in
-            // Opc.Ua.Types, which the published Annex G.3 and Section 12.6
+            // Opc.Ua.Types, which the published Annex G.3 and OPC 10101-2
             // vectors are run against directly. Recomputing it here would be a
             // second implementation of one formula, and the two would drift.
             return WotPortableIdentity.ComputeViewVersion(collected.ToArrayOf());
@@ -619,7 +666,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 WotOrganizationalGroup group = membership.Groups[i];
                 CollectPortableMembers(
-                    new Membership(group.OrganizedNodeIds, group.Groups, ArrayOf<string>.Empty),
+                    new Membership(group.OrganizedNodeIds, group.Groups, []),
                     members);
             }
         }
@@ -644,7 +691,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 // throwing during a materialization.
                 return nodeId.ToString();
             }
-            var builder = new StringBuilder("nsu=").Append(uri).Append(';');
+            StringBuilder builder = new StringBuilder("nsu=").Append(uri).Append(';');
             NodeId.Format(
                 CultureInfo.InvariantCulture,
                 builder,
@@ -652,17 +699,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 nodeId.IdType,
                 0);
             return builder.ToString();
-        }
-
-        private static byte[] Sha256(byte[] content)
-        {
-            // TODO: SHA256.HashData is only available on .NET 5+; this project
-            // also targets net48, where the instance
-            // ComputeHash API is the portable equivalent.
-#pragma warning disable CA1850
-            using var sha = SHA256.Create();
-            return sha.ComputeHash(content);
-#pragma warning restore CA1850
         }
 
         private readonly IWotThingResolver m_thingResolver;
@@ -678,18 +714,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         private readonly struct Membership
         {
+            /// <summary>
+            /// Initializes a new <c>Membership</c> instance.
+            /// </summary>
+            /// <param name="members">The members used to initialize the instance.</param>
+            /// <param name="groups">The groups used to initialize the instance.</param>
+            /// <param name="omissions">The omissions used to initialize the instance.</param>
             public Membership(
                 ArrayOf<NodeId> members,
                 ArrayOf<WotOrganizationalGroup> groups,
                 ArrayOf<string> omissions)
             {
-                Members = members.IsNull ? ArrayOf<NodeId>.Empty : members;
-                Groups = groups.IsNull ? ArrayOf<WotOrganizationalGroup>.Empty : groups;
-                Omissions = omissions.IsNull ? ArrayOf<string>.Empty : omissions;
+                Members = members.IsNull ? [] : members;
+                Groups = groups.IsNull ? [] : groups;
+                Omissions = omissions.IsNull ? [] : omissions;
             }
 
+            /// <summary>
+            /// Gets the empty for <c>Membership</c>.
+            /// </summary>
             public static Membership Empty { get; } = new Membership(
-                ArrayOf<NodeId>.Empty, ArrayOf<WotOrganizationalGroup>.Empty, ArrayOf<string>.Empty);
+                [], [], []);
 
             public ArrayOf<NodeId> Members { get; }
 

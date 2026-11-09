@@ -46,8 +46,11 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// callback, which is where an application parses its recipe format:
     /// OPC 40200 leaves the recipe file format to the vendor.
     /// </remarks>
-    internal sealed class ScaleFileBinder
+    internal sealed class ScaleFileBinder : IDisposable
     {
+        /// <summary>
+        /// Creates an in-memory file binder with a bounded upload size.
+        /// </summary>
         public ScaleFileBinder(long maximumSize = 16 * 1024 * 1024)
         {
             m_maximumSize = maximumSize;
@@ -69,6 +72,16 @@ namespace Opc.Ua.Scales.Server.Runtime
             entry.Content.Write(content, 0, content.Length);
             lock (m_lock)
             {
+                if (m_disposed)
+                {
+                    entry.Content.Dispose();
+                    throw new ObjectDisposedException(nameof(ScaleFileBinder));
+                }
+                if (m_files.TryGetValue(file, out Entry? previous))
+                {
+                    CloseHandles(previous);
+                    previous.Content.Dispose();
+                }
                 m_files[file] = entry;
             }
             Set(file.Writable, uploaded != null);
@@ -131,12 +144,54 @@ namespace Opc.Ua.Scales.Server.Runtime
                 {
                     return;
                 }
-                entry.Content.SetLength(0);
-                entry.Content.Write(content, 0, content.Length);
-                entry.Handles.Clear();
-                Set(file.OpenCount, (ushort)0);
-                RefreshSize(entry);
+                ReplaceContent(entry, content);
             }
+        }
+
+        /// <summary>
+        /// Closes all open file handles and releases stored recipe and report content.
+        /// </summary>
+        public void Dispose()
+        {
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                foreach (Entry entry in m_files.Values)
+                {
+                    CloseHandles(entry);
+                    entry.Content.Dispose();
+                    Set(entry.File.OpenCount, (ushort)0);
+                }
+                m_files.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Replaces one entry while its caller retains exclusive ownership of the file table.
+        /// </summary>
+        private static void ReplaceContent(Entry entry, byte[] content)
+        {
+            entry.Content.SetLength(0);
+            entry.Content.Write(content, 0, content.Length);
+            CloseHandles(entry);
+            Set(entry.File.OpenCount, (ushort)0);
+            RefreshSize(entry);
+        }
+
+        /// <summary>
+        /// Releases the buffers of all open uploads for a file.
+        /// </summary>
+        private static void CloseHandles(Entry entry)
+        {
+            foreach (Handle handle in entry.Handles.Values)
+            {
+                handle.Buffer?.Dispose();
+            }
+            entry.Handles.Clear();
         }
 
         private ServiceResult Open(ISystemContext context, FileState file, byte mode, ref uint handle)
@@ -145,6 +200,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             const byte writeEraseExisting = 6;
             lock (m_lock)
             {
+                if (m_disposed)
+                {
+                    return StatusCodes.BadShutdown;
+                }
                 if (!m_files.TryGetValue(file, out Entry? entry))
                 {
                     return StatusCodes.BadNodeIdUnknown;
@@ -210,12 +269,24 @@ namespace Opc.Ua.Scales.Server.Runtime
                 ServiceResult result = entry.Uploaded!(uploaded);
                 if (ServiceResult.IsGood(result))
                 {
-                    Replace(file, uploaded);
+                    lock (m_lock)
+                    {
+                        if (m_disposed)
+                        {
+                            return StatusCodes.BadShutdown;
+                        }
+                        if (!m_files.TryGetValue(file, out Entry? current))
+                        {
+                            return StatusCodes.BadNodeIdUnknown;
+                        }
+                        ReplaceContent(current, uploaded);
+                    }
                 }
                 return result;
             }
             finally
             {
+                open.Buffer?.Dispose();
                 lock (m_lock)
                 {
                     entry.Uploading = false;
@@ -387,5 +458,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly Lock m_lock = new();
         private readonly long m_maximumSize;
         private uint m_nextHandle;
+
+        /// <summary>Whether this owner's file runtime has stopped.</summary>
+        private bool m_disposed;
     }
 }

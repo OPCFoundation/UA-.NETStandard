@@ -135,13 +135,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void SignatureOverAnotherServerCertificateIsRejectedWithoutOriginalCertificate()
+        public async Task SignatureOverAnotherServerCertificateIsRejectedWithoutOriginalCertificate()
         {
             using ServerSession session = CreateSession(out byte[] serverNonce, out OperationContext context);
 
             SignatureData signature = Sign(m_originalServerCertificate, serverNonce);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ValidateBeforeActivateAsync(
                     context, signature, default, new SignatureData(), CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));

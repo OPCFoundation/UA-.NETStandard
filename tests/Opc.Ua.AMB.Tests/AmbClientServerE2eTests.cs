@@ -72,6 +72,110 @@ namespace Opc.Ua.AMB.Tests
         private static readonly string[] s_levels = ["Plant1", "Plant1/Hall3", "Plant1/Hall3/Line2"];
 
         [Test]
+        public async Task RemoteSubAssetsAreFollowedAcrossTwoHostedServersWithoutTakingSessionOwnershipAsync()
+        {
+            const string sourceUri = "urn:localhost:AmbRemoteSource";
+            const string targetUri = "urn:localhost:AmbRemoteTarget";
+            await using Plant source = await Plant.StartAsync("AmbRemoteSource", null).ConfigureAwait(false);
+            await using Plant target = await Plant.StartAsync("AmbRemoteTarget", null).ConfigureAwait(false);
+            uint targetIndex = source.Server.Server.ServerUris.GetIndexOrAppend(targetUri);
+            uint sourceIndex = target.Server.Server.ServerUris.GetIndexOrAppend(sourceUri);
+            NodeState sourceMotor = await source.Server.FindNodeAsync<NodeState>(source.Motor!.NodeId)
+                .ConfigureAwait(false);
+            NodeState targetMotor = await target.Server.FindNodeAsync<NodeState>(target.Motor!.NodeId)
+                .ConfigureAwait(false);
+            ExpandedNodeId remotePump = NodeId.ToExpandedNodeId(
+                target.Pump!.NodeId, target.Server.Server.NamespaceUris).WithServerIndex(targetIndex);
+            sourceMotor.AddReference(Ua.ReferenceTypeIds.HasComponent, false, remotePump);
+            targetMotor.AddReference(Ua.ReferenceTypeIds.HasComponent, false, NodeId.ToExpandedNodeId(
+                source.Pump!.NodeId, source.Server.Server.NamespaceUris).WithServerIndex(sourceIndex));
+            await using Connection local = await Connection.OpenAsync(source.Server, "remote-source")
+                .ConfigureAwait(false);
+            await using Connection remote = await Connection.OpenAsync(target.Server, "remote-target")
+                .ConfigureAwait(false);
+            using var timeout = new CancellationTokenSource(s_timeout);
+            int resolutions = 0;
+            var client = new AmbClient(local.Session, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                MaximumBrowseReferences = 4096,
+                RemoteSessionResolver = (uri, token) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    Assert.That(uri, Is.EqualTo(targetUri));
+                    resolutions++;
+                    return Task.FromResult(remote.Session);
+                }
+            });
+            var found = new List<AssetSubAssetReference>();
+
+            await foreach (AssetSubAssetReference subAsset in client
+                .EnumerateSubAssetsAcrossServersAsync(source.Pump.NodeId, timeout.Token).ConfigureAwait(false))
+            {
+                found.Add(subAsset);
+            }
+
+            Assert.That(found, Is.EqualTo(new[]
+            {
+                new AssetSubAssetReference(sourceUri, NodeId.ToExpandedNodeId(
+                    source.Motor.NodeId, local.Session.NamespaceUris)),
+                new AssetSubAssetReference(targetUri, NodeId.ToExpandedNodeId(
+                    target.Pump.NodeId, remote.Session.NamespaceUris)),
+                new AssetSubAssetReference(targetUri, NodeId.ToExpandedNodeId(
+                    target.Motor.NodeId, remote.Session.NamespaceUris))
+            }));
+            Assert.That(resolutions, Is.EqualTo(1), "The cycle to the source reuses the root session.");
+            DataValue alive = await remote.Session.ReadValueAsync(
+                Ua.VariableIds.Server_NamespaceArray, timeout.Token).ConfigureAwait(false);
+            Assert.That(alive.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(remote.Session.Disposed, Is.False);
+        }
+
+        [Test]
+        public async Task BoundedClientReadsAndEditsThePlantOnABorrowedSessionAsync()
+        {
+            await using Plant plant = await Plant.StartAsync(
+                nameof(BoundedClientReadsAndEditsThePlantOnABorrowedSessionAsync), null).ConfigureAwait(false);
+            await using Connection connection = await Connection.OpenAsync(plant.Server, "bounded")
+                .ConfigureAwait(false);
+            var client = new AmbClient(connection.Session, NUnitTelemetryContext.Create(), new AmbClientOptions());
+            NodeId pump = plant.Pump!.NodeId;
+
+            ArrayOf<NodeId> assets = await client.DiscoverAssetsAsync().ConfigureAwait(false);
+            AssetSnapshot snapshot = await client.ReadAssetAsync(pump).ConfigureAwait(false);
+            ArrayOf<AssetLocationNode> locations = await client.BrowseLocationsAsync(AssetLocationKind.Hierarchical)
+                .ConfigureAwait(false);
+            await client.WriteAssetIdAsync(pump, "P-bounded").ConfigureAwait(false);
+            NodeId link = await client.AddDocumentationLinkAsync(
+                pump, "https://example.invalid/bounded", new QualifiedName("BoundedManual", pump.NamespaceIndex))
+                .ConfigureAwait(false);
+            ArrayOf<DocumentationLinkRecord> links = await client.ReadDocumentationLinksAsync(pump)
+                .ConfigureAwait(false);
+            await client.RemoveDocumentationLinkAsync(pump, link).ConfigureAwait(false);
+            AssetIdentificationRecord written = await client.ReadIdentificationAsync(pump).ConfigureAwait(false);
+            DataValue alive = await connection.Session.ReadValueAsync(Ua.VariableIds.Server_NamespaceArray,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(assets.ToArray(), Does.Contain(pump));
+                Assert.That(snapshot.Identification.ProductInstanceUri, Is.EqualTo(PumpUri));
+                Assert.That(snapshot.Identification.Values.Count, Is.EqualTo(10));
+                Assert.That(snapshot.DeviceHealthValue!.IsAbsent, Is.False);
+                Assert.That(snapshot.DeviceHealthValue.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(snapshot.HealthAlarms.Count, Is.EqualTo(1));
+                Assert.That(snapshot.HealthAlarms[0].Values.Count, Is.EqualTo(AmbConditionFields.Count - 1));
+                Assert.That(snapshot.MaintenanceActivities.Count, Is.EqualTo(1));
+                Assert.That(snapshot.MaintenanceActivities[0].PlannedDate, Is.EqualTo(s_planned));
+                Assert.That(snapshot.MaintenanceActivities[0].Values.Count, Is.EqualTo(AmbConditionFields.Count - 1));
+                Assert.That(locations.Count, Is.EqualTo(3));
+                Assert.That(links.ToArray()!.Single(value => value.NodeId == link).IsUserLink, Is.True);
+                Assert.That(written.AssetId, Is.EqualTo("P-bounded"));
+                Assert.That(alive.StatusCode, Is.EqualTo(StatusCodes.Good),
+                    "the borrowed session still accepts reads");
+            });
+        }
+
+        [Test]
         public async Task TheClientDiscoversAndReadsThePlantAsync()
         {
             await using Plant plant = await Plant.StartAsync(nameof(TheClientDiscoversAndReadsThePlantAsync), null)
@@ -196,6 +300,80 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task HostedClientOptionsReachClientsAsync(bool strict, bool configuredOnBuilder)
+        {
+            await using Plant plant = await Plant.StartAsync(nameof(HostedClientOptionsReachClientsAsync), null)
+                .ConfigureAwait(false);
+            await using Connection connection = await Connection.OpenAsync(plant.Server, "hosted")
+                .ConfigureAwait(false);
+            var services = new ServiceCollection();
+            IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(options =>
+            {
+                options.ApplicationName = "AmbClientOptions";
+                options.ApplicationUri = "urn:localhost:OPCFoundation:AmbClientOptions";
+            });
+            var limits = new AmbClientOptions { MaximumBrowseReferences = 1 };
+            if (configuredOnBuilder)
+            {
+                Assert.That(builder.AddAssetManagementClient(limits), Is.SameAs(builder));
+            }
+            else
+            {
+                if (strict)
+                {
+                    services.AddSingleton(limits);
+                }
+                builder.AddAssetManagementClient();
+            }
+            using var cancellation = new CancellationTokenSource();
+            int opened = 0;
+            Task<ManagedSession> OpenSessionAsync(CancellationToken token)
+            {
+                Assert.That(token, Is.EqualTo(cancellation.Token));
+                opened++;
+                return Task.FromResult(connection.Session);
+            }
+            services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(OpenSessionAsync);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            AmbClientFactory directFactory = strict
+                ? new AmbClientFactory(OpenSessionAsync, telemetry, limits)
+                : new AmbClientFactory(OpenSessionAsync, telemetry);
+            AmbClient[] clients =
+            [
+                await provider.GetRequiredService<AmbClientFactory>()
+                    .CreateAsync(cancellation.Token).ConfigureAwait(false),
+                await provider.GetRequiredService<Func<CancellationToken, Task<AmbClient>>>()
+                    (cancellation.Token).ConfigureAwait(false),
+                await directFactory.CreateAsync(cancellation.Token).ConfigureAwait(false)
+            ];
+            foreach (AmbClient client in clients)
+            {
+                Assert.That(client.Session, Is.SameAs(connection.Session));
+                AssetIdentificationRecord identity = await client.ReadIdentificationAsync(plant.Pump!.NodeId)
+                    .ConfigureAwait(false);
+                Assert.That(identity.ProductInstanceUri, Is.EqualTo(PumpUri));
+                Assert.That(identity.Values.Count, Is.EqualTo(strict ? 10 : 0));
+                if (strict)
+                {
+                    await Assert.ThatAsync(
+                        async () => await client.DiscoverAssetsAsync().ConfigureAwait(false),
+                        Throws.TypeOf<ServiceResultException>()
+                            .With.Property(nameof(ServiceResultException.StatusCode))
+                            .EqualTo(StatusCodes.BadEncodingLimitsExceeded)).ConfigureAwait(false);
+                }
+                else
+                {
+                    ArrayOf<NodeId> assets = await client.DiscoverAssetsAsync().ConfigureAwait(false);
+                    Assert.That(assets.Count, Is.EqualTo(3));
+                }
+            }
+            Assert.That(opened, Is.EqualTo(3));
+        }
+
         [Test]
         public async Task WritingTheAssetIdMovesTheAssetAsync()
         {
@@ -238,10 +416,10 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(old.Count, Is.Zero);
                 Assert.That(identification.AssetId, Is.EqualTo(written));
             });
-            ServiceResultException tooLong = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await amb.WriteAssetIdAsync(pump, new string('x', 300)).ConfigureAwait(false))!;
-            ServiceResultException none = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await amb.WriteAssetIdAsync(plant.Motor!.NodeId, "M-1").ConfigureAwait(false))!;
+            ServiceResultException tooLong = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await amb.WriteAssetIdAsync(pump, new string('x', 300)).ConfigureAwait(false)))!;
+            ServiceResultException none = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await amb.WriteAssetIdAsync(plant.Motor!.NodeId, "M-1").ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(tooLong.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
@@ -436,10 +614,10 @@ namespace Opc.Ua.AMB.Tests
                     ListOf(links).Single(link => link.BrowseName.Name == "Handbook").NodeId,
                     "https://plant.example/handbook").ConfigureAwait(false);
                 await amb.WriteAssetIdAsync(pump, "P-42").ConfigureAwait(false);
-                ServiceResultException manual = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException manual = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await amb.RemoveDocumentationLinkAsync(
                         pump,
-                        ListOf(links).Single(link => link.BrowseName.Name == "Manual").NodeId).ConfigureAwait(false))!;
+                        ListOf(links).Single(link => link.BrowseName.Name == "Manual").NodeId).ConfigureAwait(false)))!;
                 Assert.That(manual.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             }
 
@@ -458,11 +636,11 @@ namespace Opc.Ua.AMB.Tests
             ArrayOf<DocumentationLinkRecord> withoutAddIn = await client
                 .ReadDocumentationLinksAsync(second.Motor!.NodeId)
                 .ConfigureAwait(false);
-            ServiceResultException noAddIn = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException noAddIn = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.AddDocumentationLinkAsync(
                     second.Motor!.NodeId,
                     "https://x",
-                    new QualifiedName("X")).ConfigureAwait(false))!;
+                    new QualifiedName("X")).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {

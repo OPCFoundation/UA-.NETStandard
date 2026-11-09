@@ -5,13 +5,11 @@ operations through the APM (Asynchronous Programming Model). APM uses
 `IAsyncResult` and the Begin/End pattern. .NET Framework 1.0 introduced
 this pattern, which remains supported in .NET 8.0.
 
-The stack also supports the TAP (Task Asynchronous Pattern) for server
-operations. TAP uses `Task` and the `async`/`await` keywords introduced
-in .NET Framework 4.0. It is the recommended way to implement asynchronous
-operations in modern .NET applications.
+The stack also supports TAP for server operations. TAP uses task-based APIs
+with `async`/`await` and is the recommended pattern for asynchronous server code.
 
-Server applications can implement node managers with TAP. This pattern
-improves scalability by using server resources more efficiently.
+Server applications can implement node managers with TAP to await I/O without
+blocking a request worker.
 
 The server library provides these TAP features:
 
@@ -191,6 +189,21 @@ public MyNodeManager(IServerInternal server, ApplicationConfiguration config)
 through an asynchronous push path. This path does not block a thread when a
 node uses an asynchronous value-read handler or when the per-node notification
 channel applies back-pressure.
+
+The per-node channel admits two pending notifications behind the active consumer. Each
+notification retains its enqueue-time attribute values, including large structures and subscriber-specific
+copies. Producers asynchronously wait when that bound is reached; accepted data changes and
+events are preserved in order rather than discarded. Await the asynchronous reporting APIs
+so a slow consumer cannot accumulate thousands of retained snapshots.
+
+Subscriber-specific access checks use values captured for that subscriber at enqueue time.
+A subscriber joining behind an already queued change does not inherit the reporter's denied
+value when no value was captured for the new subscriber. It receives its initial value and
+subsequent changes instead. The dispatcher does not reread the node for that notification,
+because a reread could return a later value. Subscribers denied access receive the corresponding error.
+Captured subscriber-specific values also retain their session and identity attribution.
+Attaching or transferring an item before dispatch cannot make it inherit an older owner's
+captured value or unauthenticated access-denied result.
 
 `NodeState` exposes asynchronous counterparts of its change-notification API alongside the existing synchronous members:
 

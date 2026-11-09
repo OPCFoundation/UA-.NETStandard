@@ -8,7 +8,9 @@ stack:
    event-driven API. Items added with
    `subscription.AddItem(item); subscription.ApplyChangesAsync()`;
    notifications delivered through the per-item `Notification` event
-   or the per-subscription `FastDataChangeCallback` / `FastEventCallback`.
+   or the per-subscription `FastDataChangeCallback` / `FastEventCallback`
+   (obsolete, see the
+   [Migration Guide](MigrationGuide.md#migrating-from-the-classic-subscription-fast-callbacks-and-defaultsubscription)).
 2. **V2 `ISubscriptionManager` / `ISubscription`** — the options-based
    callback API in `src/Opc.Ua.Client/Subscription/`. Items added
    with `subscription.MonitoredItems.TryAdd(name, options, out _)`;
@@ -41,6 +43,9 @@ pools, when to pick which) see
   - [Lifecycle, cancellation, disposal](#lifecycle-cancellation-disposal)
   - [Pairing with `AlarmClient`](#pairing-with-alarmclient)
 - [Server retransmission queues](#server-retransmission-queues)
+- [Publish acknowledgements](#publish-acknowledgements)
+  - [Acknowledgement providers](#acknowledgement-providers)
+  - [Legacy acknowledgement event](#legacy-acknowledgement-event)
 - [Publishing during session recovery](#publishing-during-session-recovery)
 - [Triggering (SetTriggering)](#triggering-settriggering)
   - [Declarative triggering](#declarative-triggering)
@@ -189,9 +194,7 @@ is overridden internally per node.
 ### Subscribing to events
 
 ```csharp
-EventFilter filter = new AlarmEventFilterBuilder()
-    .ForAlarms()
-    .Build();
+EventFilter filter = AlarmConditionTypeRecord.EventFilters.Build();
 
 await foreach (EventNotification evt in streaming
     .SubscribeEventsAsync(ObjectIds.Server, filter, ct: ct)
@@ -202,9 +205,11 @@ await foreach (EventNotification evt in streaming
 }
 ```
 
-`SubscribeEventsAsync` does *not* validate the filter. Use
-`AlarmEventFilterBuilder` for Part 9 events and any custom
-`SimpleAttributeOperand`-based filter for other event types.
+`SubscribeEventsAsync` does *not* validate the filter. Use the
+generated `{Type}Record.EventFilters.Build()` factories for Part 9 and
+other modelled event types, or any custom
+`SimpleAttributeOperand`-based filter; see
+[Alarms and Conditions](AlarmsAndConditions.md).
 
 ### Composing streams
 
@@ -345,6 +350,19 @@ can recycle the retained pooled graph without changing a response still
 waiting for encoding or a captured retransmission/durable snapshot.
 Pooling remains enabled for the retained notifications.
 
+Retained notifications belong to the session's authenticated and effective
+identity and role grants. Activating a different identity or changing those
+grants retires queued values, events, aggregate state, and retransmission
+messages before the new identity can publish them. Renewing a token without
+changing the principal or grants preserves the queue. A response already
+admitted under the previous identity can finish encoding its leased snapshot;
+it does not grant the new identity access to retained messages.
+
+Event subscription transfer checks the destination session's notifier
+permissions and channel restrictions before preparing node-manager transfer
+work. An incompatible destination cannot acquire the subscription. Delivery
+also rechecks current notifier restrictions, including namespace defaults.
+
 The server retains notification messages for acknowledgement and Republish
 (Part 4 §5.14). When a new batch exceeds the configured retransmission capacity,
 only the excess oldest retained messages are evicted. The remaining sequence
@@ -363,7 +381,290 @@ regardless of other sessions' subscriptions. A closing session retains
 counters remain equal, with one increment per authorized request; the
 successful-message counter advances only when a message is returned.
 
+## Publish acknowledgements
+
+V2 Publish request timeouts account for concurrent workers waiting on a quiet
+subscription. With `K` equal to the largest server-revised publishing interval
+times keep-alive count, and `W` equal to the current worker count (at least one),
+the initial budget is `W * K + max(K, 1 second)`, capped at 30 minutes and rounded
+up to whole milliseconds. The extra period, with a one-second minimum, provides
+scheduling headroom rather than assuming queued keepalives arrive exactly on
+their deadlines. Each worker retains its larger budget across subsequent
+requests; timeout retries add one second without exceeding the same cap.
+Settings and worker count are checked again after acknowledgement preparation.
+
+The server's enclosing request lifetime still enforces the Publish timeout hint.
+The session Publish queue's separate 500 ms timer grace does not extend it.
+Acknowledgements are processed before waiting for a response, so a timed-out
+request may already have removed the acknowledged message. Its later absence
+from the retransmission queue is not proof of a successful acknowledgement
+result at the client. Cancellation and `NotRetained` outcomes are unchanged.
+Scheduling delays beyond the margin, or keepalive/worker configurations whose
+required budget exceeds the cap, can still time out.
+
+V2 Publish workers select at least one queued acknowledgement when the queue is
+non-empty, even when there are more workers than pending acknowledgements.
+Progress does not depend on the worker entering its wait-for-ack path: that wait
+can be skipped when Publish latency exceeds the publishing interval or the server
+reports `MoreNotifications`. A quiet subscription therefore does not need another
+notification or a reduction in the worker count to release its pending acknowledgement.
+
+Each queued acknowledgement remembers the subscription that produced it and that
+subscription's message generation. Just before a Publish request is sent (and when a
+failed request returns its acknowledgements to the queue), an entry is discarded if:
+
+- its subscription was removed, deleted or recreated, or now uses another server id;
+- the server reused its server id for a subscription created later. The most recently
+  created subscription owns a reused id, and Publish responses for that id are
+  dispatched to it;
+- a later Publish response for the subscription no longer lists the message in
+  `availableSequenceNumbers`, so the server has already removed it (Part 4, 5.14.5.2);
+- a data response for the subscription listed no available sequence numbers, which
+  means the server has no retransmission queue. Part 4 says the client should then
+  not acknowledge.
+
+This prevents a late acknowledgement from confirming a message of a different subscription
+that the client never processed, and keeps deferred acknowledgements from accumulating for
+messages the server already discarded. Because stale entries are filtered when sent, deleting
+or completing one subscription does not pause or cancel Publish requests of the session.
+Validation is constant time per acknowledgement. Acknowledgements the server rejects are
+logged (`Bad_SubscriptionIdInvalid` at information level, `Bad_SequenceNumberUnknown`,
+which is expected after a retried request, at debug level).
+
+A Publish response to a request sent before a reused id was claimed can still carry a
+message of the id's previous subscription. Such a message is not delivered to the new owner
+(it would move the owner's sequence cursor past its own first messages) when the server
+published it before the new subscription was created: its `PublishTime` is earlier than the
+`CreateSubscription` response's `ResponseHeader.Timestamp`, both from the server's clock. It
+is not acknowledged and the id is not deleted. A message wrongly discarded this way, for example
+after a server clock change, stays in the server's retransmission queue and is republished when
+the owner receives its next message. Without both timestamps, messages are delivered as before.
+
+### Acknowledgement providers
+
+By default a session acknowledges a notification once it was dispatched to the application.
+Applications that must not lose a notification before they processed it downstream
+(at-least-once delivery), or that need their own acknowledgement policy, configure the
+session's acknowledgement providers. They work with the V2 and the classic subscription
+engine, are fixed when the session is created and replace the obsolete
+`ISession.PublishSequenceNumbersToAcknowledge` event.
+
+| Type | Purpose |
+|---|---|
+| `AcknowledgementHandle` | Identifies the acknowledgement of one message of one subscription lifetime. Unlike a subscription id and sequence number it stays unambiguous when the server reuses an id or a recreated subscription restarts its sequence numbers. Compares by value; process-local. |
+| `ISubscriptionAcknowledgementProvider` | `DecideAsync(ArrayOf<AcknowledgementHandle>)` returns which acknowledgements to defer (`AcknowledgementDecision`). |
+| `ISubscriptionAcknowledgementObserver` | `OnCompletedAsync(ArrayOf<AcknowledgementOutcome>)` reports how every acknowledgement ended, exactly once. |
+| `AcknowledgementMode.AfterConfirmation` | Built-in provider: a notification is acknowledged only after the application confirmed its handle. |
+| `ISessionAcknowledgements` | Session facet (`session.TryGetAcknowledgements(out …)`, implemented by `Session` and `ManagedSession`) with `Mode` and `Confirm(handle)`. |
+
+**Delivery before acknowledgement.** Enable confirmation and use a whole-message handler
+when processing can fan out or run asynchronously. One OPC UA `NotificationMessage` is
+the acknowledgement unit, even when it contains several data-change and event payloads:
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .AcknowledgeAfterConfirmation()
+    .ConnectAsync(ct);
+
+// Register an ISubscriptionNotificationMessageHandler:
+ISubscription subscription = session.AddMessageSubscription(handler, new SubscriptionOptions
+{
+    PublishingInterval = TimeSpan.FromSeconds(1),
+    PublishingEnabled = true
+});
+
+// In the handler. DeliverAllPayloadsAsync is application code: it completes only
+// after every downstream operation succeeded, not just after enqueueing work.
+public async ValueTask OnNotificationMessageAsync(
+    SubscriptionNotificationMessage message, CancellationToken ct = default)
+{
+    await DeliverAllPayloadsAsync(message.Notifications, ct).ConfigureAwait(false);
+    session.Confirm(message.Acknowledgement);
+}
+```
+
+The immutable envelope preserves payload order, the physical partition's acknowledgement
+identity, publish time and diagnostic string table. Each payload identifies data changes,
+events or a status change. Its arrays do not borrow pooled wire containers, so they can be
+retained after the callback returns; monitored-item references remain live SDK objects.
+`message.MoreNotifications` preserves the originating Publish response's flag for that
+physical subscription, including through V2 partition forwarding and classic whole-message
+delivery. `true` means further notifications are queued; `false` means that Publish response
+reported no more queued notifications. Republish responses do not contain this flag, so the
+property is `null` (unknown) for republished messages, not a fabricated `false`. Manually
+constructed envelopes also default to `null`.
+
+The flag describes further Publish responses, not additional parts of this envelope or a
+larger acknowledgement unit. Applications that batch across responses must retain each
+message's handle and confirm each only after all of its downstream work succeeds. Do not
+interpret `null` as proof that a burst ended; apply an explicit recovery/batching policy.
+For example:
+
+```csharp
+switch (message.MoreNotifications)
+{
+    case true:
+        // More notifications were queued when this Publish response was sent.
+        break;
+    case false:
+        // This live Publish response reported an end to the queued burst.
+        break;
+    case null:
+        // Republish (or manually constructed message): the original flag is unknown.
+        break;
+}
+```
+
+The existing constructor and deconstruction shape are unchanged; the metadata is an
+additional immutable init property. Existing payload callbacks are unchanged.
+Whole-message delivery is opt-in and does not allocate an envelope for existing handlers.
+Data-change diagnostics are projected from the indexed wire diagnostic array, independently
+of classic monitored-item caching and local client-handle registration.
+
+On V2, use `ManagedSession.AddMessageSubscription` or the `ISubscriptionManager.Add`
+overload accepting `ISubscriptionNotificationMessageHandler`. The distinct managed-session
+method name avoids overload ambiguity for handlers implementing both notification interfaces;
+the existing `ManagedSession.AddSubscription` API remains unchanged. On the classic engine, assign
+`Subscription.NotificationMessageHandler`. Whole-message handling replaces data/event
+callbacks for that subscription, avoiding duplicate delivery; keep-alive and state handling
+remain unchanged. A V2 handler can also implement `ISubscriptionNotificationHandler` to
+receive those lifecycle callbacks. Handler instances can be supplied directly or resolved
+from application DI. Existing load/restore factories accepting
+`ISubscriptionNotificationHandler` can return a handler implementing both interfaces;
+the restored subscription then uses whole-message delivery as well.
+
+Every `DataValueChange` and `EventNotification` carries the handle of the message it arrived
+in. A message can contain several data change and event payloads, delivered in separate
+handler calls that all carry the same handle; confirming the handle acknowledges the whole
+message, so do not confirm individual payloads independently. Existing payload handlers
+remain supported; use the complete-message API when the application cannot otherwise prove
+that it has processed the complete message. Returning from a handler never substitutes for
+explicit confirmation in `AfterConfirmation` mode.
+On the classic engine, `Subscription.TryGetAcknowledgementHandle(notification, out handle)`
+returns it for a notification the fast callbacks received. A classic `Subscription` served by
+the default V2 engine (the compatibility path) has no handle, because that path does not
+track its acknowledgements. Until it is confirmed, the server
+keeps the message in its retransmission queue. The session tracks an acknowledgement from
+just before its notification is delivered until the acknowledgement ends, and only accepts
+confirmations of tracked acknowledgements: confirming a handle twice, after its
+acknowledgement ended, or after its subscription was retired has no effect and keeps no
+state.
+
+Delayed acknowledgement alone is not a downstream retry or durable-storage mechanism.
+The application still owns failed-publication retries and any durable buffering. Server
+retransmission queues are finite; `NotRetained` reports that retention ended, not successful
+downstream delivery. Managed model-change tracking uses its own whole-message subscription
+and confirms only after all events were processed, so it cannot confirm application streams.
+
+**Custom policies.** Register a provider and, optionally, an observer through the session
+options, the builder (`WithAcknowledgementProvider`, `WithAcknowledgementObserver`) or
+dependency injection:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => options.Session = new ManagedSessionOptions { Endpoint = endpoint })
+    .AddAcknowledgementProvider<MyAcknowledgementProvider>()
+    .AddAcknowledgementObserver<MyAcknowledgementObserver>();
+```
+
+Options set on `ManagedSessionOptions` take precedence over registered services. A provider
+cannot be combined with `AcknowledgementMode.AfterConfirmation`: setting both on the options
+fails when the session is created, and a registered provider service is not used in that
+mode.
+
+**Behaviour.**
+
+- Publish workers call the provider concurrently and without holding SDK locks; an
+  implementation must be thread-safe. The acknowledgements are validated again after the
+  decision on both engines, so one whose subscription was deleted or recreated meanwhile
+  is retired instead of being sent against a reused subscription id.
+- Deferred acknowledgements are presented again with later Publish requests, even if no new
+  notification arrives, until they are sent or end. They are not lost when a Publish
+  attempt is aborted while the provider decides.
+- If the provider throws, the whole batch is deferred (fail-closed); the error is logged.
+- The classic engine publishes synchronously: a decision that does not complete
+  synchronously keeps its acknowledgements pending and is applied to a later Publish request.
+  The pending decision is reserved before invoking application code; concurrent Publish
+  calls cannot replace it or lose its result.
+- When a session is recreated in place (the managed session's reconnect path), in-flight
+  acknowledgements are kept and validated again: a subscription transferred to the new
+  session keeps its handles, while a recreated subscription retires them.
+- Transferring a classic subscription to a *different* `Session` object
+  (`TransferSubscriptionsAsync` on another session) hands its tracked acknowledgements
+  over. The previous session reports no outcome for them. The new session tracks those whose
+  message the server still holds and keeps the confirmation the application already gave in
+  `AfterConfirmation` mode. It ends the others as `NotRetained`. The new session's
+  configuration governs: its observer receives the outcomes and confirmations carry over
+  only if it uses `AfterConfirmation`. If the new session has no acknowledgement
+  configuration, the previous session ends them as `OwnerRetired`.
+- Each acknowledgement has a single entry while it is pending or in flight: queuing it again
+  (for example after a transfer) does not create a second entry, so it ends exactly once.
+  Cancelling a local queue attempt preserves that outstanding lifecycle if the queue still
+  accepts work; a retry does not produce a second terminal outcome.
+- Outcomes are delivered in order from a background loop, outside SDK locks. Dispositions:
+  `Acknowledged` (the server confirmed), `NotRetained` (the server no longer holds the
+  message or rejected the acknowledgement; the status tells why), `OwnerRetired` (the
+  subscription was deleted, recreated or completed, another subscription owns its id, or
+  the session ended) and `Abandoned` (the engine was disposed before the acknowledgement
+  was confirmed by the server, including one still in flight, or an obsolete
+  `PublishSequenceNumbersToAcknowledge` handler dropped it).
+  Internal confirmation state is retired before observer delivery. A slow observer cannot
+  retain that internal state or revive an ended confirmation. Observer delivery is ordered,
+  asynchronous and buffered; a slow observer can still grow the notification backlog.
+  Observers should return promptly or hand work to their own processing pipeline.
+  Disposal waits up to five seconds for queued outcomes; an unresponsive observer can outlive
+  disposal. Observer exceptions are logged without retrying the callback and do not affect publishing.
+- Without a provider or observer, no provider calls or outcome bookkeeping are
+  added to the Publish path. Notifications still carry their handle; it reuses one cached
+  object per subscription lifetime and does not allocate per message.
+
+### Legacy acknowledgement event
+
+`ISession.PublishSequenceNumbersToAcknowledge` is obsolete; use the providers above. It is
+still honored, with its previous behaviour, when no acknowledgement provider is
+configured; with a provider it is not raised. A handler can move entries from
+`AcknowledgementsToSend` to `DeferredAcknowledgementsToSend`; deferred entries are
+reconsidered on later Publish attempts and removed when their subscription is retired.
+Acknowledgements a handler adds itself are attributed to the subscription that currently
+uses their id and validated like the others. The handler is never invoked concurrently,
+must be idempotent (an acknowledgement of a failed request is presented again) and should
+not block. If it throws, the error is logged and every acknowledgement presented to it is
+sent (fail-open). When more than 1000 acknowledgements are deferred, a warning is logged
+once until the backlog drains.
+
 ## Publishing during session recovery
+
+The V2 Publish pipeline reports `BadSessionIdInvalid`, `BadSecureChannelIdInvalid`,
+`BadSecureChannelClosed`, `BadNotConnected`, and `BadConnectionClosed` through the
+session's keep-alive error callback. A managed session can therefore initiate recovery
+from a failed Publish without waiting for the next keep-alive Read. The worker rolls
+back its acknowledgements and releases its active request count before reporting the
+error; it does not await the recovery operation that may need to drain other workers.
+Transport-down throttling remains in effect. Publish is not retried as an idempotent
+transport request.
+
+Concurrent failures from one outage share a recovery notification. Pausing and resuming
+publishing retires the previous attempts for recovery reporting, even when the session
+identifier is unchanged. A successful attempt begun after a reported outage also
+rearms notification for a subsequent failure; an older in-flight response does not.
+A failure from an attempt older than the successful retry cannot report that outage
+again. Successful session reactivation retires recovery signals from all previous
+Publish attempts, including when recovery started before any Publish failure was reported.
+Recovery callbacks revalidate the attempt after acquiring session recovery admission,
+so a callback delayed across reactivation cannot start another reconnect. Recovery
+ordering is assigned after acknowledgement preparation, immediately before dispatch.
+If a pool resize cancels the reporting worker before the session accepts its notification,
+the manager releases that notification reservation so a surviving worker can report the
+outage. Releasing a reservation does not overwrite a newer success or reactivation.
+Cancelled attempts and errors from closing, disposed, disconnected, or replaced
+sessions do not initiate recovery. When a channel manager is already recovering the
+session, the managed session leaves recovery with that owner instead of starting a
+competing outer reconnect.
+
+After a reported error, successful service responses do not defer the keep-alive Read
+that clears the latched error. Publishing can therefore recover without leaving a plain
+session marked as stopped while notifications continue.
 
 V2 session recreation pauses publishing and drains active Publish attempts
 before replacing the session. The drain cancels each attempt, including an
@@ -381,6 +682,19 @@ create a competing subscription on a retiring or replacement session. Pending
 option changes resume after restoration, without changing explicit
 `RecreateAsync` or transfer semantics. Cancellation remains client-side and does
 not guarantee that an already-sent request was not processed by the server.
+
+V2 notification ingress is bounded. Manager shutdown cancels a Publish worker waiting
+for an ingress slot before joining the workers and disposing their subscriptions; a
+cooperative whole-message handler cannot therefore deadlock this shutdown ordering.
+Queued messages do not enter application callbacks after manager shutdown and are not
+acknowledged merely because the ingress buffer is drained.
+Logical subscription disposal starts shutdown of every physical partition before awaiting
+any partition's retirement. This lets a blocked whole-message handler observe cancellation
+even when a sibling callback is waiting for the shared forwarding gate. The forwarding
+handler remains alive until all partition disposals finish; their retirement may overlap.
+Ordinary Publish quiescence does not cancel admission of a successfully received
+response. Cancellation removes the capacity waiter itself, so it cannot consume a
+slot after its caller has stopped waiting.
 
 Once the session and subscriptions are restored, publishing resumes through the
 same subscription-facing interface. Temporarily clearing server-side subscription
@@ -645,9 +959,12 @@ When the per-subscription cap (`MaxMonitoredItemsPerSubscription` from
 the server's capabilities, OPC UA Part 4 §5.13.2) would be exceeded,
 the engine transparently splits monitored items across additional
 server-side **partition** subscriptions and presents one logical
-collection to the caller. Single-partition workloads (the common
-case) keep their pre-existing fast path; partitioning kicks in only
-when needed.
+collection to the caller. With unbounded item mode enabled, the composite
+collection uses partition-placement and indexing logic even while only
+one partition exists. Setting
+`SubscriptionOptions.DisableUnboundedItemMode = true` selects the
+primary-partition delegation path, avoiding the composite collection's
+placement logic and global indexes.
 
 ### How it works
 
@@ -688,10 +1005,9 @@ when needed.
 
 * `ISubscriptionNotificationHandler` callbacks always receive the
   logical wrapper as the `ISubscription subscription` parameter.
-  When more than one partition is active the engine serialises calls
-  through a per-wrapper semaphore so consumers observe one handler
-  invocation at a time, matching the single-partition behaviour they
-  came to rely on under V2.
+  With unbounded item mode enabled, the engine serialises calls through
+  a per-wrapper semaphore even while only one partition exists, so
+  consumers observe one handler invocation at a time.
 
 * Notifications include the source partition's server-side id via
   the `PartitionServerId` field on `DataValueChange` and
@@ -797,6 +1113,19 @@ The restore path:
 subscriptions regroup items into the same affinity-pinned partition
 the source had.
 
+After a snapshot transfer, V2 rebinds the saved item handles and reapplies the
+saved monitoring parameters with `ModifyMonitoredItems`. The response supplies
+the actual revised sampling interval, queue size and filter result:
+`GetMonitoredItems` returns handles only. This does not recreate the items or
+change their monitoring mode or triggering links. Live items that already have
+revised parameters do not require this extra snapshot-restoration step.
+Refresh enqueueing is ordered with concurrent options changes, so a restored
+snapshot cannot overwrite newer requested sampling intervals, queue sizes or
+filters.
+A successful initiated transfer also reports `PublishState.Transferred` to the
+target handler after handle synchronization, before attempting retained-message
+recovery; failed synchronization does not report transfer completion.
+
 Republishing retained notifications and requesting initial values are independent.
 If an origin session disconnects before acknowledging a message, a transfer can
 recover that message from the server's retransmission queue. With
@@ -830,24 +1159,37 @@ state machine awaits the hook exactly once between
 `CreateSubscription` and the first `CreateMonitoredItems`,
 satisfying the OPC UA Part 4 §5.13.9 ordering rule that
 `SetSubscriptionDurable` must precede any monitored-item creation.
-The hook is cleared after invocation; the wrapper re-installs it on
-each `SetAsDurableAsync` call so it survives reconnect / recreate
-cycles. Hook failures are logged as a warning and surfaced via
-`SubscriptionState.Modified` rather than tearing the partition
-down.
+The hook stays installed, so it runs again on every later physical
+create (recreate after `BadSubscriptionIdInvalid`, recreate after a
+failed transfer, a new partition). Hook failures are logged as a
+warning and surfaced via `SubscriptionState.Modified` rather than
+tearing the partition down.
+
+`SetAsDurableAsync(Func<TimeSpan?> lifetime)` takes a provider
+instead of a fixed lifetime. The provider is evaluated once for the
+call itself and again by the hook before each later physical create,
+so an application whose lifetime bound changes over time (for
+example, a bound that ends at a known instant) requests the value
+that is current when the server-side subscription is created. A
+`null` result requests no durability for that create (and makes the
+call itself return `TimeSpan.Zero` without contacting the server);
+an exception thrown by the provider during a later create is handled
+like a rejected `SetSubscriptionDurable` call. The `TimeSpan`
+overload is equivalent to a provider that always returns the same
+lifetime.
 
 ### Performance
 
-Single-partition workloads observe **no overhead** from the wrapper
-— the composite collection short-circuits to the primary's own
-collection without taking any extra locks or building indexes.
-Multi-partition workloads pay:
+With `SubscriptionOptions.DisableUnboundedItemMode = true`, the composite
+delegates collection operations to the primary partition, avoiding its
+own placement logic and global indexes. With unbounded mode enabled,
+coordination and indexing apply even before a second partition is created:
 
-* One semaphore acquire/release per notification callback (small).
+* One semaphore acquire/release per notification callback.
 * O(P) partition scans for `TryGetMonitoredItemByName` /
   `TryGetMonitoredItemByClientHandle` misses against the composite
-  index (P is typically single-digit).
-* One extra `Subscription` instance per partition (each holds its
+  index, where P is the number of partitions.
+* One extra `Subscription` instance per secondary partition (each holds its
   own state machine, ack queue position, and notification pipeline).
 
 ### Limitations and roadmap
@@ -859,10 +1201,6 @@ delete + recreate (losing per-item server ids and briefly stopping
 publishing). Plan `Affinity` up-front for items that need to
 participate in a triggering relationship; the engine will keep the
 group co-located for the lifetime of the wrapper.
-
-This is the only multi-partition feature gap — single-partition
-workloads cover the vast majority of OPC UA client use cases
-unchanged.
 
 ## Classic → V2 surface mapping
 
@@ -902,13 +1240,13 @@ reconciliation, etc.) along with the recommended V2 alternative.
 
 | Classic | V2 |
 |---|---|
-| `s.RepublishAsync(seq, ct)` | Not on V2. The V2 engine auto-republishes on gap detection via `MessageProcessor.TryRepublishAsync`; there is no user-driven variant. Callers needing raw access can call `session.RepublishAsync(null, subscriptionId, seq, ct)`. |
+| `s.RepublishAsync(seq, ct)` | Not on V2. The V2 engine auto-republishes on gap detection via `MessageProcessor.TryRepublishAsync`, about 100 ms after the gap opens so that a response overtaken on another publish worker is not fetched again; there is no user-driven variant. Callers needing raw access can call `session.RepublishAsync(null, subscriptionId, seq, ct)`. |
 | `s.ResendDataAsync(ct)` | Not on V2. Callers needing raw access call `session.CallAsync(null, ResendData methodId, ...)`. |
 | `s.ConditionRefreshAsync(ct)` | `s.ConditionRefreshAsync(ct)` — same shape. |
 | `s.ConditionRefresh2Async(monitoredItemId, ct)` | `item.ConditionRefreshAsync(ct)` on `IMonitoredItem` (per-item; no `monitoredItemId` arg needed). |
 | `s.SetTriggeringAsync(triggering, links, removes, ct)` returning `SetTriggeringResponse` | `ISubscription.SetTriggeringAsync(IMonitoredItem triggeringItem, IReadOnlyCollection<IMonitoredItem>? linksToAdd, IReadOnlyCollection<IMonitoredItem>? linksToRemove, CancellationToken ct)` returning `SetTriggeringResult` with per-link statuses; plus name-based fluent overloads; plus the declarative `MonitoredItemOptions.TriggeredByNames` option (see [Triggering](#triggering-settriggering)). Supports N:M via `IMonitoredItem.TriggeringItems` plural; batches per-triggering-item requests; replays automatically on recreate/reconnect. |
 | `s.TransferAsync(target, sendInitialValues, ct)` | Configure transfer-on-recreate via `ManagedSessionBuilder.WithTransferSubscriptionsOnRecreate(true)`. The per-call `sendInitialValues` toggle lives on `SubscriptionOptions.SendInitialValuesOnTransfer` (default `false`). |
-| `s.SetSubscriptionDurableAsync(...)` | `ISubscription.SetAsDurableAsync(TimeSpan lifetime, CancellationToken ct = default)` → revised lifetime hours. |
+| `s.SetSubscriptionDurableAsync(...)` | `ISubscription.SetAsDurableAsync(TimeSpan lifetime, CancellationToken ct = default)` → revised lifetime hours; `SetAsDurableAsync(Func<TimeSpan?> lifetime, CancellationToken ct = default)` evaluates the lifetime again on every later physical create (see [Durable subscriptions](#durable-subscriptions)). |
 | `s.SaveMessageInCache(...)` | Not on V2 (classic internal). The V2 message pipeline is channel-based with no replay cache. |
 
 ### Monitored-item management
@@ -938,6 +1276,46 @@ reconciliation, etc.) along with the recommended V2 alternative.
 | `item.TriggeringItemId` / `item.TriggeredItems` (1:1) | `IMonitoredItem.TriggeringItems` (plural, N:M) and `IMonitoredItem.TriggeredItems` (reverse "items I trigger") — both on-demand projections by stable name. Matches OPC UA Part 4 §5.13.5 N:M; runtime desired-state mutations from imperative `SetTriggeringAsync` are immediately visible. |
 
 ### Persistence (save / load)
+
+Classic snapshots preserve the original resolved target of relative-path items
+as SDK-owned metadata. `Session.Load(..., transferSubscriptions: true)` restores
+`ResolvedNodeId` and `Status.NodeId` on the local monitored-item objects before
+`TransferSubscriptionsAsync` or `ReactivateSubscriptionsAsync` is called.
+These operations use the saved handles without translating the path again, so
+a changed browse relationship or lost browse permission does not retarget an
+existing server monitored item.
+
+```csharp
+// Before deliberately closing the origin session:
+origin.DeleteSubscriptionsOnClose = false;
+origin.Save(snapshotStream, origin.Subscriptions);
+
+// With a connected target session and the snapshot stream positioned at its start:
+var restored = new SubscriptionCollection(
+    target.Load(snapshotStream, transferSubscriptions: true));
+if (!await target.TransferSubscriptionsAsync(restored, sendInitialValues: true, ct))
+{
+    throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+}
+
+foreach (Subscription subscription in restored)
+{
+    await subscription.ApplyChangesAsync(ct);
+}
+```
+
+Attach notification handlers after loading and before transfer. Loading only
+restores local objects; it does not perform the server transfer. For a restored
+session, use `ReactivateSubscriptionsAsync` after reactivating that session
+instead. No call to `ResolveItemNodeIdsAsync` or a resolution-state setter is
+needed for transfer, reactivation, or subsequent maintenance.
+
+Loading for recreation or creating a replacement server subscription resolves
+paths afresh instead of reusing the saved target. Changing `StartNodeId` or
+`RelativePath` on a created item, or while its creation is in flight, throws
+`BadInvalidState` immediately; assigning the same value is allowed. Delete the
+server item successfully before changing its target, or replace the item.
+Failed deletion retains its handle and target for retry.
 
 | Classic | V2 |
 |---|---|

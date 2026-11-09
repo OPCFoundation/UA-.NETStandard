@@ -150,7 +150,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Func<CancellationToken, Task<Client.ManagedSession>> factory =
                 sp.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 () => factory(CancellationToken.None));
 
             Assert.That(ex, Is.Not.Null);
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
-        public void AddDiscoveryAndConnectRewritesAdvertisedHostToDiscoveryHost()
+        public async Task AddDiscoveryAndConnectRewritesAdvertisedHostToDiscoveryHost()
         {
             var services = new ServiceCollection();
             services.AddOpcUa()
@@ -284,7 +284,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Func<CancellationToken, Task<Client.ManagedSession>> connect =
                 sp.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
 
-            Assert.CatchAsync<OperationCanceledException>(() => connect(CancellationToken.None));
+            await Assert.CatchAsync<OperationCanceledException>(() => connect(CancellationToken.None));
 
             Assert.That(connected, Is.Not.Null);
             Uri url = connected!.EndpointUrl!;
@@ -292,6 +292,56 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(url.Host, Is.EqualTo("public-name"));
             Assert.That(url.Port, Is.EqualTo(4841));
             Assert.That(url.AbsolutePath, Is.EqualTo("/path"));
+        }
+
+        /// <summary>
+        /// Discovered endpoints inherit explicitly bounded application quotas instead of the 2 MiB defaults.
+        /// </summary>
+        [Test]
+        public async Task AddDiscoveryAndConnectPreservesApplicationTransportQuotas()
+        {
+            ApplicationConfiguration configuration = CreateConfig();
+            configuration.TransportQuotas = new TransportQuotas
+            {
+                MaxMessageSize = 16 * 1024 * 1024,
+                MaxByteStringLength = 16 * 1024 * 1024,
+                MaxArrayLength = 100_000
+            };
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(options => options.Configuration = configuration)
+                .AddDiscoveryAndConnect(options =>
+                {
+                    options.DiscoveryUrl = "opc.tcp://localhost:4840";
+                    options.SecurityMode = MessageSecurityMode.None;
+                    options.SecurityPolicyUri = SecurityPolicies.None;
+                });
+            services.AddSingleton<IOpcUaDiscoveryService>(new EndpointDiscoveryStub(
+            [
+                new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://localhost:4840",
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None
+                }
+            ]));
+            ConfiguredEndpoint? connected = null;
+            var factory = new Mock<IManagedSessionFactory>();
+            factory.Setup(value => value.ConnectAsync(It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Callback<ConfiguredEndpoint, CancellationToken>((endpoint, _) => connected = endpoint)
+                .ThrowsAsync(new OperationCanceledException());
+            services.AddSingleton(factory.Object);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Func<CancellationToken, Task<Client.ManagedSession>> connect =
+                provider.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
+
+            await Assert.CatchAsync<OperationCanceledException>(() => connect(CancellationToken.None));
+
+            Assert.That(connected, Is.Not.Null);
+            EndpointConfiguration quotas = connected!.Configuration ??
+                throw new InvalidOperationException("Endpoint quotas are required.");
+            Assert.That(quotas.MaxMessageSize, Is.EqualTo(16 * 1024 * 1024));
+            Assert.That(quotas.MaxByteStringLength, Is.EqualTo(16 * 1024 * 1024));
+            Assert.That(quotas.MaxArrayLength, Is.EqualTo(100_000));
         }
 
         [Test]
@@ -350,7 +400,51 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(captured.IdentityProvider, Is.SameAs(provider));
         }
 
-        private static Task<ManagedSessionOptions> CaptureAppliedSessionOptionsAsync(
+        [Test]
+        public async Task ApplyManagedSessionOptionsRediscoveredEndpointValidatorFromSessionOptionsAsync()
+        {
+            RediscoveredEndpointValidator validator = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            RediscoveredEndpointValidator registered = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
+            {
+                services.AddOpcUa().AddClient(opts =>
+                {
+                    opts.Configuration = CreateConfig();
+                    opts.Session = new ManagedSessionOptions
+                    {
+                        ValidateRediscoveredEndpoint = validator
+                    };
+                });
+                services.AddSingleton(registered);
+            }).ConfigureAwait(false);
+
+            Assert.That(captured.ValidateRediscoveredEndpoint, Is.SameAs(validator));
+        }
+
+        [Test]
+        public async Task ApplyManagedSessionOptionsRediscoveredEndpointValidatorFromServicesAsync()
+        {
+            RediscoveredEndpointValidator registered = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
+            {
+                services.AddOpcUa().AddClient(opts => opts.Configuration = CreateConfig());
+                services.AddSingleton(registered);
+            }).ConfigureAwait(false);
+
+            Assert.That(captured.ValidateRediscoveredEndpoint, Is.SameAs(registered));
+        }
+
+        [Test]
+        public async Task ApplyManagedSessionOptionsWithoutRediscoveredEndpointValidatorAsync()
+        {
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
+                services.AddOpcUa().AddClient(opts => opts.Configuration = CreateConfig()))
+                .ConfigureAwait(false);
+
+            Assert.That(captured.ValidateRediscoveredEndpoint, Is.Null);
+        }
+
+        private static async Task<ManagedSessionOptions> CaptureAppliedSessionOptionsAsync(
             Action<ServiceCollection> configureServices)
         {
             var services = new ServiceCollection();
@@ -361,7 +455,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             IManagedSessionFactory factory = sp.GetRequiredService<IManagedSessionFactory>();
             ManagedSessionOptions? captured = null;
 
-            OperationCanceledException? ex = Assert.CatchAsync<OperationCanceledException>(async () =>
+            OperationCanceledException? ex = await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await factory.ConnectAsync(
                     CreateEndpoint(),
                     builder =>
@@ -373,7 +467,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(ex, Is.Not.Null);
             Assert.That(captured, Is.Not.Null);
-            return Task.FromResult(captured!);
+            return captured!;
         }
 
         private static ApplicationConfiguration CreateConfig()

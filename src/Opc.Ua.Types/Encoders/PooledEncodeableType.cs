@@ -93,6 +93,19 @@ namespace Opc.Ua
         public int MaximumRetained => m_pool.MaximumRetained;
 
         /// <summary>
+        /// Raises the number of instances this activator's pool retains to
+        /// at least <paramref name="maximumRetained"/>; the bound never
+        /// shrinks. Used by a producer that knows how many instances it
+        /// recycles at once (for example the server's notifications in
+        /// flight), which the default bound may not cover.
+        /// </summary>
+        /// <param name="maximumRetained">The minimum bound.</param>
+        internal void EnsureMaximumRetained(int maximumRetained)
+        {
+            m_pool.EnsureMaximumRetained(maximumRetained);
+        }
+
+        /// <summary>
         /// Rent an instance of <typeparamref name="T"/> from the pool,
         /// or construct a fresh one on a pool miss. After rent the
         /// <see cref="InitializeRent"/> hook is invoked so the derived

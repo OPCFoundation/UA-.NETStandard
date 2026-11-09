@@ -1,0 +1,111 @@
+# OPC 30500-1 LADS samples
+
+Two console applications that run a LADS (Laboratory and Analytical Device
+Standard, OPC 30500-1) device end to end. The server publishes a simulated
+shaking incubator. The client discovers it, runs an incubation program, watches
+the chamber and downloads the result file.
+
+| Sample | What it does |
+| --- | --- |
+| [LadsServer](LadsServer/) | Describes the incubator with `AddLads().ConfigureLads(...)`: one functional unit `Chamber` with the `Temperature` and `ShakerSpeed` analog controls, a `CO2` analog sensor, a `Door` cover, a `Timer` and the program templates `Incubation` and `Overnight`. `IncubatorHardware` accepts setpoints without applying them; `IncubatorSimulation` updates the measured values every 500 ms |
+| [LadsClient](LadsClient/) | Connects with `AddClient().AddDiscoveryAndConnect(...).AddLadsClient()`, locks the door, starts `Incubation`, holds and suspends processing, requests orderly completion, waits for `Complete`, resets the unit and downloads the result file |
+
+The server uses the default `InMemoryLadsProgramExecutor`. It applies the
+setpoints of each step, waits for the step duration and adds `Protocol.csv` to
+the result. The `Incubation` template takes 13 seconds: `WarmUp` (37 °C,
+150 rpm, 5 s), `Shake` (250 rpm, 5 s) and `CoolDown` (25 °C, 0 rpm, 3 s).
+
+The sample selects `RunningOperations()` for the chamber. The client
+demonstrates Hold/Unhold and Suspend/Unsuspend before requesting ToComplete.
+The executor writes the protocol for the steps reached and stops its controls;
+the unit stays Running/Complete until Reset. This demonstration therefore ends
+before the full 13-second template duration. Omitting `RunningOperations()`
+retains the SDK's default automatic stop after a successful program.
+
+The timer reports processing time in milliseconds and stops advancing during
+Held and Suspended. Temperature preservation continues during these pauses;
+the simulated shaker moves toward zero. When the temperature
+control stops or aborts, the temperature returns toward ambient (22 °C). When
+the shaker control stops or aborts, its speed returns toward zero. Restarting
+either control resumes its retained target.
+
+The device selects AMB configurable asset identification and DeviceHealth.
+The client prints its asset identifier and health with the device state.
+`--data-root` retains client-written asset configuration in the `assets`
+subdirectory as well as LADS data; without it, AMB configuration uses the
+memory store and is not retained across process restarts.
+
+The device also selects DI `Locking()`. The client acquires that device lock
+before the incubation and releases it afterwards; another session can read
+values and browse, but cannot change the device, its AMB configuration or its
+result files while the lock is held. This is separate from the incubator door
+lock. The sample client requires this optional DI Lock and reports
+`BadNotSupported` when connecting to a server that omits it.
+
+After an interrupted run, the simulator's configured callback confirms readiness
+on the next start attempt. It can do so without inspecting external equipment
+because all controls are simulated. A physical-device application must supply
+its own async equipment check; missing or unsuccessful confirmation blocks a
+new start.
+
+## Run
+
+In two terminals:
+
+```sh
+dotnet run --project samples/LADS/LadsServer -f net10.0
+dotnet run --project samples/LADS/LadsClient -f net10.0
+```
+
+The server listens on `opc.tcp://localhost:62565/LadsServer` and takes
+`--port`, `--host`, `--pki-root` and `--data-root` (absolute paths), `--autoaccept` and
+`--run-seconds`. The client connects with `SignAndEncrypt` and
+`Basic256Sha256` and takes `--url <endpoint>`, `--pki-root <absolute path>` and
+`--autoaccept true|false`. Both accept untrusted certificates by default so that
+the pair runs without trust setup; never do this in production.
+
+To retain completed results and their file bytes across restarts, start the
+server with `--data-root D:\lads-data`. Run the client, stop the server and start
+it again with the same directory. Run the client again: before starting a new
+program, it prints the retained result count and downloads the latest retained
+result's files, reporting their readable byte counts. The result remains in the
+chamber's `ProgramManager/ResultSet`, and the operation counters and calibration
+record are restored. The sample uses a fixed ProductInstanceUri for this simulated
+device. A production deployment must assign distinct physical-device
+identities and protect the data directory.
+
+Restart never resumes a physical process. If the server stops during a run,
+its program manager records the interrupted run id and starts without an
+active program. Configured templates win content conflicts; explicit template
+removals and result retention remain effective after restart.
+
+The client prints device discovery and measurements, followed by pause
+acknowledgments and a protocol for the steps reached. Identifiers, timestamps
+and measured values vary. For example, discovery begins with:
+
+```
+Device Incubator: OPC Foundation Shaking incubator (SN-0001), state Operate, asset Incubator-1, health 0
+Functional unit Chamber: Stopped
+  Temperature  AnalogControl                current 22, target 22
+  ShakerSpeed  AnalogControl                current 0, target 0
+  CO2          AnalogScalarSensor           value 0.04
+  Door         Cover                        Closed
+  Timer        TimerControl                 current 0, target 0
+  Program template Incubation: Warm up, shake and cool down a culture.
+  Program template Overnight: Shake at 37 degrees for twelve hours.
+Door: Locked
+Started program run aedc879dea954ba28077194beb1bbf65
+  Temperature  22
+  ShakerSpeed  50
+  Temperature  24
+  ...
+Held: the executor has acknowledged the processing pause.
+Suspended: sample-preservation simulation continues without processing.
+Program run aedc879dea954ba28077194beb1bbf65 completed with 1 result file(s).
+--- Protocol.csv (text/csv) ---
+step;name;started;durationMs
+1;WarmUp;2026-10-31T13:09:53.8479514Z;5000
+```
+
+The server logs each command it receives, for example
+`Temperature: StartWithTargetValue 37` and `Door: Lock`.

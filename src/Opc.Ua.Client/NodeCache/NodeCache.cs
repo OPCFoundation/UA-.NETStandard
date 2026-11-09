@@ -651,7 +651,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.CouldNotFindNodeNodeIdError(
                     nodeId,
-                    Redact.Create(e));
+                    e.Message);
                 return null;
             }
         }
@@ -735,7 +735,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.CouldNotFetchReferencesNodeNodeId(
                     localId,
-                    Redact.Create(e));
+                    e.Message);
             }
         }
 
@@ -763,7 +763,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.CouldNotFetchNodeNodeIdError(
                     nodeId,
-                    Redact.Create(e));
+                    e.Message);
                 return null;
             }
         }
@@ -1382,21 +1382,21 @@ namespace Opc.Ua.Client
         public static partial void CouldNotFindNodeNodeIdError(
             this ILogger logger,
             ExpandedNodeId nodeId,
-            RedactionWrapper<Exception> error);
+            [SensitiveText] string error);
 
         [LoggerMessage(EventId = ClientEventIds.NodeCache + 1, Level = LogLevel.Error,
             Message = "Could not fetch references for node {NodeId}: {Error}")]
         public static partial void CouldNotFetchReferencesNodeNodeId(
             this ILogger logger,
             NodeId nodeId,
-            RedactionWrapper<Exception> error);
+            [SensitiveText] string error);
 
         [LoggerMessage(EventId = ClientEventIds.NodeCache + 2, Level = LogLevel.Error,
             Message = "Could not fetch node {NodeId}: {Error}")]
         public static partial void CouldNotFetchNodeNodeIdError(
             this ILogger logger,
             ExpandedNodeId nodeId,
-            RedactionWrapper<Exception> error);
+            [SensitiveText] string error);
 
         [LoggerMessage(EventId = ClientEventIds.NodeCache + 3, Level = LogLevel.Warning,
             Message = "Cycle detected while walking the type hierarchy of {NodeId}; " +

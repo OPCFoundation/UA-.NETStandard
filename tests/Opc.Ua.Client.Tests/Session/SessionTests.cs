@@ -320,7 +320,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchOperationLimitsAsyncShouldHandleEmptyResponse()
+        public async Task FetchOperationLimitsAsyncShouldHandleEmptyResponse()
         {
             // Arrange
             using var sut = SessionMock.Create();
@@ -340,14 +340,14 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
         }
 
         [Test]
-        public void FetchOperationLimitsAsyncShouldHandlePartialData()
+        public async Task FetchOperationLimitsAsyncShouldHandlePartialData()
         {
             // Arrange
             using var sut = SessionMock.Create();
@@ -375,14 +375,14 @@ namespace Opc.Ua.Client.Tests
                     DiagnosticInfos = []
                 }));
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
         }
 
         [Test]
-        public void FetchOperationLimitsAsyncShouldHandleErrors()
+        public async Task FetchOperationLimitsAsyncShouldHandleErrors()
         {
             // Arrange
             using var sut = SessionMock.Create();
@@ -402,14 +402,14 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Exactly(2));
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
         }
 
         [Test]
-        public void FetchOperationLimitsAsyncShouldThrowWhenInvalidDataTypes()
+        public async Task FetchOperationLimitsAsyncShouldThrowWhenInvalidDataTypes()
         {
             // Arrange
             using var sut = SessionMock.Create();
@@ -430,14 +430,14 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Exactly(2));
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
         }
 
         [Test]
-        public void FetchOperationLimitsAsyncShouldHandleTimeout()
+        public async Task FetchOperationLimitsAsyncShouldHandleTimeout()
         {
             using var sut = SessionMock.Create();
             using var cts = new CancellationTokenSource(100);
@@ -450,7 +450,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new TaskCanceledException())
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<TaskCanceledException>(
+            await Assert.ThrowsAsync<TaskCanceledException>(
                 async () => await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
@@ -1013,7 +1013,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchNamespaceTablesAsyncShouldThrowInCaseOfBadResponse()
+        public async Task FetchNamespaceTablesAsyncShouldThrowInCaseOfBadResponse()
         {
             // Arrange
             using var sut = SessionMock.Create();
@@ -1034,7 +1034,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
@@ -1042,7 +1042,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchNamespaceTablesAsyncShouldThrowWhenNamespaceArrayCouldNotBeRetrieved()
+        public async Task FetchNamespaceTablesAsyncShouldThrowWhenNamespaceArrayCouldNotBeRetrieved()
         {
             // Arrange
             using var sut = SessionMock.Create();
@@ -1062,7 +1062,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
@@ -1070,7 +1070,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchNamespaceTablesAsyncShoulThrowWhenEmptyResponse()
+        public async Task FetchNamespaceTablesAsyncShoulThrowWhenEmptyResponse()
         {
             // Arrange
             using var sut = SessionMock.Create();
@@ -1090,7 +1090,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
@@ -1098,7 +1098,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchNamespaceTablesAsyncShouldThrowWhenInvalidDataTypesForNamespaceTable()
+        public async Task FetchNamespaceTablesAsyncShouldThrowWhenInvalidDataTypesForNamespaceTable()
         {
             // Arrange
             using var sut = SessionMock.Create();
@@ -1118,7 +1118,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
 
@@ -1126,7 +1126,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchNamespaceTablesAsyncShouldThrowWhenInvalidDataTypeForServerUrls()
+        public async Task FetchNamespaceTablesAsyncShouldThrowWhenInvalidDataTypeForServerUrls()
         {
             // Arrange
             using var sut = SessionMock.Create();
@@ -1146,7 +1146,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
 
@@ -1245,7 +1245,7 @@ namespace Opc.Ua.Client.Tests
             StatusCode closed = await sut.CloseAsync(closeChannel: false, ct).ConfigureAwait(false);
 
             Assert.That(closed, Is.EqualTo(StatusCodes.Good));
-            ServiceResultException? sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ReadServerStateAsync(sut, ct).ConfigureAwait(false));
             Assert.That(sre!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(sent, Is.Empty, "The request must not reach the channel.");
@@ -1615,7 +1615,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReconnectAsyncShouldHandleReconnectFailure()
+        public async Task ReconnectAsyncShouldHandleReconnectFailure()
         {
             using var sut = SessionMock.Create();
             sut.SetConnected();
@@ -1631,7 +1631,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.SupportedFeatures)
                 .Returns(TransportChannelFeatures.Reconnect);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.ReconnectAsync(ct).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
@@ -1640,7 +1640,7 @@ namespace Opc.Ua.Client.Tests
 
         [Test]
         [Explicit("Requires proper channel creation mocking")]
-        public void ReconnectAsyncShouldHandleNoSupportedFeatures()
+        public async Task ReconnectAsyncShouldHandleNoSupportedFeatures()
         {
             using var sut = SessionMock.Create();
             sut.SetConnected();
@@ -1652,14 +1652,14 @@ namespace Opc.Ua.Client.Tests
 
             // TODO: Should properly mock channel creation
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.ReconnectAsync(ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
         }
 
         [Test]
-        public void ReconnectAsyncShouldHandleCancellation()
+        public async Task ReconnectAsyncShouldHandleCancellation()
         {
             using var sut = SessionMock.Create();
             sut.SetConnected();
@@ -1674,7 +1674,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.SupportedFeatures)
                 .Returns(TransportChannelFeatures.Reconnect);
 
-            Assert.ThrowsAsync<TaskCanceledException>(
+            await Assert.ThrowsAsync<TaskCanceledException>(
                 async () => await sut.ReconnectAsync(default).ConfigureAwait(false));
 
             sut.Channel.Verify();
@@ -1715,7 +1715,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReconnectAsyncShouldThrowWithIncompatibleIdentity()
+        public async Task ReconnectAsyncShouldThrowWithIncompatibleIdentity()
         {
             var ep = new EndpointDescription
             {
@@ -1735,7 +1735,7 @@ namespace Opc.Ua.Client.Tests
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.ReconnectAsync(ct).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
 
@@ -1743,7 +1743,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReconnectAsyncShouldThrowWithBadActivationResponse()
+        public async Task ReconnectAsyncShouldThrowWithBadActivationResponse()
         {
             using var sut = SessionMock.Create();
             sut.SetConnected();
@@ -1770,7 +1770,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.ReconnectAsync(ct).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
 
@@ -1778,7 +1778,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReconnectAsyncShouldThrowWhenTimingOut()
+        public async Task ReconnectAsyncShouldThrowWhenTimingOut()
         {
             using var sut = SessionMock.Create();
             sut.SetConnected();
@@ -1800,7 +1800,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new OperationCanceledException())
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await sut.ReconnectAsync(ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
@@ -1938,6 +1938,90 @@ namespace Opc.Ua.Client.Tests
             sut.Channel.Verify();
         }
 
+        /// <summary>
+        /// A changed CreateSession application URI is rejected before ActivateSession credentials are sent.
+        /// </summary>
+        [Test]
+        public async Task OpenAsyncRejectsChangedCreateSessionApplicationUriBeforeActivationAsync()
+        {
+            EndpointDescription selectedEndpoint = CreateSessionEndpointDescription(
+                "opc.tcp://localhost:4840");
+            selectedEndpoint.Server = new ApplicationDescription
+            {
+                ApplicationUri = "urn:opcfoundation:server:selected"
+            };
+            selectedEndpoint.UserIdentityTokens =
+            [
+                CreateUserTokenPolicy("username", UserTokenType.UserName)
+            ];
+            EndpointDescription authenticatedEndpoint = CoreUtils.Clone(selectedEndpoint)!;
+            authenticatedEndpoint.Server.ApplicationUri = "urn:opcfoundation:server:alternate";
+            using var sut = SessionMock.Create(selectedEndpoint);
+            sut.ApplicationConfiguration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
+            ((IExpectedServerApplicationUriSession)sut)
+                .RequireServerApplicationUri("urn:opcfoundation:server:selected");
+            ConfigureSuccessfulOpenResponses(
+                sut.Channel,
+                [authenticatedEndpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=cookie"));
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await sut.OpenAsync(
+                    "test",
+                    new UserIdentity("target-user", "secret"u8),
+                    CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(error.Message, Does.Contain("different application URI"));
+            sut.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<CreateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            sut.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task OpenAsyncDoesNotRequireSelectedApplicationUriForGenericSessionsAsync()
+        {
+            EndpointDescription selectedEndpoint = CreateSessionEndpointDescription(
+                "opc.tcp://localhost:4840");
+            selectedEndpoint.Server = new ApplicationDescription
+            {
+                ApplicationUri = "urn:opcfoundation:server:selected"
+            };
+            selectedEndpoint.UserIdentityTokens =
+            [
+                CreateUserTokenPolicy("username", UserTokenType.UserName)
+            ];
+            EndpointDescription authenticatedEndpoint = CoreUtils.Clone(selectedEndpoint)!;
+            authenticatedEndpoint.Server.ApplicationUri = "urn:opcfoundation:server:alternate";
+            using var sut = SessionMock.Create(selectedEndpoint);
+            sut.ApplicationConfiguration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
+            ConfigureSuccessfulOpenResponses(
+                sut.Channel,
+                [authenticatedEndpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=cookie"));
+
+            await sut.OpenAsync(
+                "test",
+                new UserIdentity("target-user", "secret"u8),
+                CancellationToken.None).ConfigureAwait(false);
+
+            sut.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
         [Test]
         public async Task OpenAsyncAcceptsUserTokenPoliciesWithDifferentOrderingAsync()
         {
@@ -2012,7 +2096,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void OpenAsyncRejectsChangedAuthenticatedTokenType()
+        public async Task OpenAsyncRejectsChangedAuthenticatedTokenType()
         {
             EndpointDescription discovery = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
             discovery.UserIdentityTokens = [CreateUserTokenPolicy("identity", UserTokenType.Anonymous)];
@@ -2026,7 +2110,7 @@ namespace Opc.Ua.Client.Tests
                 NodeId.Parse("s=token"));
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.OpenAsync("test", new UserIdentity(), timeout.Token)
                     .ConfigureAwait(false));
 
@@ -2232,7 +2316,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void OpenAsyncShouldHandleCreateSessionSuccessButActivationError()
+        public async Task OpenAsyncShouldHandleCreateSessionSuccessButActivationError()
         {
             // Arrange
             var ep = new EndpointDescription
@@ -2292,14 +2376,14 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             var identity = new UserIdentity();
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
             sut.Channel.Verify();
         }
 
         [Test]
-        public void OpenAsyncShouldHandleCreateSessionSuccessButActivationErrorAndThenCloseAlsoFails()
+        public async Task OpenAsyncShouldHandleCreateSessionSuccessButActivationErrorAndThenCloseAlsoFails()
         {
             // Arrange
             var ep = new EndpointDescription
@@ -2359,7 +2443,7 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             var identity = new UserIdentity();
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync(
                     "test",
                     60000,
@@ -2374,7 +2458,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void OpenAsyncShouldHandleSessionOpeningFailure()
+        public async Task OpenAsyncShouldHandleSessionOpeningFailure()
         {
             var ep = new EndpointDescription
             {
@@ -2396,7 +2480,7 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Exactly(2));
 
             var identity = new UserIdentity();
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                   async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
@@ -2429,7 +2513,7 @@ namespace Opc.Ua.Client.Tests
 #endif
 
         [Test]
-        public void OpenAsyncShouldHandleBadIdentityTokenPolicy()
+        public async Task OpenAsyncShouldHandleBadIdentityTokenPolicy()
         {
             var ep = new EndpointDescription
             {
@@ -2448,14 +2532,14 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create(ep);
 
             var identity = new UserIdentity();
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                   async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
             sut.Channel.Verify();
         }
 
         [Test]
-        public void OpenAsyncShouldHandleCancellation()
+        public async Task OpenAsyncShouldHandleCancellation()
         {
             using var sut = SessionMock.Create();
 
@@ -2467,14 +2551,14 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             var identity = new UserIdentity();
-            Assert.ThrowsAsync<TaskCanceledException>(
+            await Assert.ThrowsAsync<TaskCanceledException>(
                 async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
 
             sut.Channel.Verify();
         }
 
         [Test]
-        public void OpenAsyncShouldHandleInvalidServerResponse()
+        public async Task OpenAsyncShouldHandleInvalidServerResponse()
         {
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
@@ -2491,7 +2575,7 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             var identity = new UserIdentity();
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync("test", identity, ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
@@ -2592,7 +2676,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReactivateMirroredSessionAsyncRequiresExistingSession()
+        public async Task ReactivateMirroredSessionAsyncRequiresExistingSession()
         {
             EndpointDescription failoverDescription = CreateSessionEndpointDescription("opc.tcp://failover:4840");
             using var sut = SessionMock.Create();
@@ -2600,12 +2684,12 @@ namespace Opc.Ua.Client.Tests
 
             Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await InvokeRecreateInPlaceCoreAsync(
                     sut,
                     new ConfiguredEndpoint(null!, failoverDescription),
                     failoverChannel.Object,
-                    requireTokenReuse: true).ConfigureAwait(false))!;
+                    requireTokenReuse: true).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             failoverChannel.Verify(
@@ -2827,6 +2911,7 @@ namespace Opc.Ua.Client.Tests
                     typeof(bool),
                     typeof(SessionClient),
                     typeof(bool),
+                    typeof(bool),
                     typeof(bool)
                 ],
                 null);
@@ -2835,7 +2920,7 @@ namespace Opc.Ua.Client.Tests
 
             var task = (Task?)method!.Invoke(
                 session,
-                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null, false, false]);
+                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null, false, false, false]);
 
             Assert.That(task, Is.Not.Null);
             return task!;

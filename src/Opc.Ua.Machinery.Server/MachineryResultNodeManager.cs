@@ -294,6 +294,7 @@ namespace Opc.Ua.Machinery.Server
                 management,
                 SystemContext,
                 m_options.ToTransferOptions());
+            builder.Attach((_, _) => new ValueTask<IAsyncDisposable?>(binder));
             binder.BindMethods(m_store);
             await binder.BindEventTypeAsync(
                 this,
@@ -387,7 +388,8 @@ namespace Opc.Ua.Machinery.Server
                 await MachineryResultIngestion
                     .StoreAsync(m_store, result, cancellationToken)
                     .ConfigureAwait(false);
-                m_binder.RaiseResultReady(result);
+                await m_binder.RaiseResultReadyAsync(result, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
                 m_owner.m_raisedResultEvent = true;
             }
 

@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -55,7 +56,7 @@ namespace Opc.Ua.Client
     /// overloads and <see cref="Dispose()"/> are retained only as obsolete
     /// compatibility wrappers around the async lifecycle.
     /// </remarks>
-    public class ReverseConnectManager : IDisposable, IAsyncDisposable
+    public class ReverseConnectManager : IDisposable, IAsyncDisposable, IReverseConnectionAvailability
     {
         /// <summary>
         /// A default value for reverse hello configurations, if undefined.
@@ -2044,6 +2045,42 @@ namespace Opc.Ua.Client
             {
                 UnregisterWait(hashCode, tcs);
             }
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ITransportWaitingConnection> IReverseConnectionSource.WaitForConnectionAsync(
+            Uri endpointUrl,
+            string? serverUri,
+            CancellationToken ct)
+        {
+            return new ValueTask<ITransportWaitingConnection>(WaitForConnectionAsync(endpointUrl, serverUri, ct));
+        }
+
+        /// <inheritdoc/>
+        /// <exception cref="ArgumentNullException"><paramref name="serverUri"/> is <c>null</c>.</exception>
+        IReadOnlyList<Uri> IReverseConnectionAvailability.GetAvailableEndpointUrls(string serverUri)
+        {
+            if (serverUri == null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
+
+            // Registrations match the server uri after the same replacement.
+            string? normalized = Utils.ReplaceLocalhost(serverUri);
+            var endpointUrls = new List<Uri>();
+            lock (m_registrationsLock)
+            {
+                foreach (ConnectionWaitingEventArgs held in m_heldConnections)
+                {
+                    if (!held.Accepted &&
+                        string.Equals(held.ServerUri, normalized, StringComparison.Ordinal) &&
+                        !endpointUrls.Contains(held.EndpointUrl))
+                    {
+                        endpointUrls.Add(held.EndpointUrl);
+                    }
+                }
+            }
+            return endpointUrls;
         }
 
         /// <summary>
@@ -4595,12 +4632,21 @@ namespace Opc.Ua.Client
             var callbackScope = new OperationScope(
                 Interlocked.Increment(ref m_operationScopeGeneration));
             m_activeCallbackOwner.Value = callbackScope;
+            bool held = false;
             try
             {
                 long startTimestamp = m_timeProvider.GetTimestamp();
                 var holdTime = TimeSpan.FromMilliseconds(m_configuration?.HoldTime ?? 15000);
 
                 bool matched = MatchRegistration(sender, e);
+                if (!matched)
+                {
+                    lock (m_registrationsLock)
+                    {
+                        m_heldConnections.Add(e);
+                    }
+                    held = true;
+                }
                 while (!matched)
                 {
                     TimeSpan delay = holdTime - m_timeProvider.GetElapsedTime(startTimestamp);
@@ -4686,6 +4732,13 @@ namespace Opc.Ua.Client
             }
             finally
             {
+                if (held)
+                {
+                    lock (m_registrationsLock)
+                    {
+                        m_heldConnections.Remove(e);
+                    }
+                }
                 callbackScope.Active = false;
                 m_activeCallbackOwner.Value = previousCallbackOwner;
                 ExitConnectionCallback();
@@ -5449,6 +5502,12 @@ namespace Opc.Ua.Client
         private readonly List<TaskCompletionSource<ITransportWaitingConnection>> m_activeWaits =
             [];
 
+        /// <summary>
+        /// Connections held while no registration matches them, guarded by
+        /// m_registrationsLock.
+        /// </summary>
+        private readonly List<ConnectionWaitingEventArgs> m_heldConnections = [];
+
         private CancellationTokenSource m_cts;
 
         /// <summary>
@@ -5569,15 +5628,15 @@ namespace Opc.Ua.Client
         public static partial void CouldNotLoadUpdatedConfigurationFile(
             this ILogger logger,
             Exception? exception,
-            string filePath);
+            [FilePath] string filePath);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 1, Level = LogLevel.Error,
             Message = "Failed to Open {Uri}.")]
-        public static partial void FailedOpenUri(this ILogger logger, Exception? exception, Uri? uri);
+        public static partial void FailedOpenUri(this ILogger logger, Exception? exception, [NetworkAddress] Uri? uri);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 2, Level = LogLevel.Error,
             Message = "Failed to Close {Uri}.")]
-        public static partial void FailedCloseUri(this ILogger logger, Exception? exception, Uri? uri);
+        public static partial void FailedCloseUri(this ILogger logger, Exception? exception, [NetworkAddress] Uri? uri);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 3, Level = LogLevel.Error,
             Message = "Unexpected error starting reverse connect manager.")]
@@ -5590,21 +5649,21 @@ namespace Opc.Ua.Client
         public static partial void NoListenerFoundEndpointEndpointUrl(
             this ILogger logger,
             Exception? exception,
-            Uri endpointUrl);
+            [NetworkAddress] Uri endpointUrl);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 5, Level = LogLevel.Information,
             Message = "Holding reverse connection: {ServerUri} {EndpointUrl}")]
         public static partial void HoldingReverseConnectionServerUriEndpointUrl(
             this ILogger logger,
-            string serverUri,
-            Uri endpointUrl);
+            [ApplicationIdentity] string serverUri,
+            [NetworkAddress] Uri endpointUrl);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 6, Level = LogLevel.Information,
             Message = "Matched reverse connection {ServerUri} {EndpointUrl} after {Duration}ms")]
         public static partial void MatchedReverseConnectionServerUriEndpointUrlAfter(
             this ILogger logger,
-            string serverUri,
-            Uri endpointUrl,
+            [ApplicationIdentity] string serverUri,
+            [NetworkAddress] Uri endpointUrl,
             long duration);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 7, Level = LogLevel.Information,
@@ -5612,29 +5671,29 @@ namespace Opc.Ua.Client
         public static partial void ActionReverseConnectionServerUriEndpointUrlAfter(
             this ILogger logger,
             string action,
-            string serverUri,
-            Uri endpointUrl,
+            [ApplicationIdentity] string serverUri,
+            [NetworkAddress] Uri endpointUrl,
             long duration);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 8, Level = LogLevel.Information,
             Message = "Accepted reverse connection: {ServerUri} {EndpointUrl}")]
         public static partial void AcceptedReverseConnectionServerUriEndpointUrl(
             this ILogger logger,
-            string serverUri,
-            Uri endpointUrl);
+            [ApplicationIdentity] string serverUri,
+            [NetworkAddress] Uri endpointUrl);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 9, Level = LogLevel.Information,
             Message = "Accept any reverse connection for approval: {ServerUri} {EndpointUrl}")]
         public static partial void AcceptAnyReverseConnectionApprovalServerUri(
             this ILogger logger,
-            string serverUri,
-            Uri endpointUrl);
+            [ApplicationIdentity] string serverUri,
+            [NetworkAddress] Uri endpointUrl);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 10, Level = LogLevel.Information,
             Message = "Channel status: {EndpointUrl} {ChannelStatus} {Closed}")]
         public static partial void ChannelStatusEndpointUrlChannelStatusClosed(
             this ILogger logger,
-            Uri endpointUrl,
+            [NetworkAddress] Uri endpointUrl,
             ServiceResult channelStatus,
             bool closed);
 
@@ -5655,7 +5714,7 @@ namespace Opc.Ua.Client
         public static partial void ReverseConnectConfigurationReloadFailed(
             this ILogger logger,
             Exception? exception,
-            string filePath);
+            [FilePath] string filePath);
 
         [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 14, Level = LogLevel.Information,
             Message = "Reverse connect configuration reload (watcher generation {WatcherGeneration}, " +
@@ -5670,7 +5729,7 @@ namespace Opc.Ua.Client
         public static partial void ReverseConnectionCallbackFailed(
             this ILogger logger,
             Exception? exception,
-            string serverUri,
-            Uri endpointUrl);
+            [ApplicationIdentity] string serverUri,
+            [NetworkAddress] Uri endpointUrl);
     }
 }

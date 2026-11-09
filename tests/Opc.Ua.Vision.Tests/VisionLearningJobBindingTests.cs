@@ -31,8 +31,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Vision.Client;
-using Opc.Ua.Vision.Server;
-using Opc.Ua.Vision.Server.Builders;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -59,7 +58,7 @@ namespace Opc.Ua.Vision.Tests
                     .WithLearningJob(learningJobNodeId));
 
                 NodeState pipeline = FindChild(context.Root.Pipelines!, "Detector");
-                learningJobPropertyId = FindChild(pipeline, BrowseNames.LearningJob).NodeId;
+                learningJobPropertyId = FindChild(pipeline, Perception.BrowseNames.LearningJob).NodeId;
             }).ConfigureAwait(false);
 
             NodeState? registered = fixture.Manager.FindPredefinedNode<NodeState>(learningJobPropertyId);
@@ -77,10 +76,10 @@ namespace Opc.Ua.Vision.Tests
             {
                 Assert.That(learningJobProperty.Value, Is.EqualTo(learningJobNodeId));
                 Assert.That(learningJobProperty.ReferenceTypeId,
-                    Is.EqualTo(global::Opc.Ua.ReferenceTypeIds.HasProperty),
+                    Is.EqualTo(ReferenceTypeIds.HasProperty),
                     "LearningJob is a property of the pipeline, not a component or external reference.");
                 Assert.That(learningJobProperty.TypeDefinitionId,
-                    Is.EqualTo(global::Opc.Ua.VariableTypeIds.PropertyType),
+                    Is.EqualTo(VariableTypeIds.PropertyType),
                     "clients filtering by PropertyType must not silently skip the generated child.");
             });
         }
@@ -102,7 +101,8 @@ namespace Opc.Ua.Vision.Tests
             }).ConfigureAwait(false);
 
             Assert.That(pipeline, Is.Not.Null);
-            Assert.That(TryFindChild(pipeline!, BrowseNames.LearningJob, out NodeState? learningJob), Is.False,
+            Assert.That(TryFindChild(pipeline!, Perception.BrowseNames.LearningJob, out NodeState? learningJob),
+                Is.False,
                 "LearningJob is optional and should be absent unless the host binds one.");
             Assert.That(learningJob, Is.Null);
         }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Vision.Tests
             harness.ConfigureVisionFolders();
             harness.AddPipeline();
             var learningJobNodeId = new NodeId("learning-job-1", 3);
-            harness.AddValueChild(harness.PipelineNodeId, BrowseNames.LearningJob,
+            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.LearningJob,
                 new NodeId(3014u, 3), learningJobNodeId);
 
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);

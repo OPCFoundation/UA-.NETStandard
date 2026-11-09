@@ -14,8 +14,13 @@
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- Rendering.Silk and the native OpenUSD payload are not trim/AOT clean;
-         the connector viewer package makes the same call. -->
+    <!-- Preserve the consumer RID for native resource manifests during cross-publish. -->
+    <IsRidAgnostic>false</IsRidAgnostic>
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64</RuntimeIdentifiers>
+    <!-- The native package rehydrates library aliases after Build, including class-library builds. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- RetainedSceneCameraCaptureProvider is a typed adapter with no probing.
+         Legacy device-probing entry points are not an assembly-wide AOT contract. -->
     <IsAotCompatible>false</IsAotCompatible>
     <!-- The OpenUSD rendering stack has no net48 asset, so legacy
          CustomTestTarget solution legs build this project as a no-op shell. -->

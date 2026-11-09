@@ -50,6 +50,7 @@ namespace System.Threading.Tasks
         /// may not be the same instance as the current instance.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="TimeoutException"></exception>
+        /// <exception cref="OperationCanceledException">The source task or the wait was cancelled.</exception>
         public static async Task<T> WaitAsync<T>(this Task<T> task, TimeSpan timeout, CancellationToken ct = default)
         {
             if (task is null)
@@ -85,6 +86,7 @@ namespace System.Threading.Tasks
         /// may not be the same instance as the current instance.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="TimeoutException"></exception>
+        /// <exception cref="OperationCanceledException">The source task or the wait was cancelled.</exception>
         public static async Task WaitAsync(this Task task, TimeSpan timeout, CancellationToken ct = default)
         {
             if (task is null)

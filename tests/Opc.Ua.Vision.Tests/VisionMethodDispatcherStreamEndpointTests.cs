@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -62,7 +62,7 @@ namespace Opc.Ua.Vision.Tests
                 VisionStreamProtocolEnum.Rtsp).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]
@@ -72,7 +72,7 @@ namespace Opc.Ua.Vision.Tests
                 ServiceResult.Good,
                 new VisionStreamSessionDataType
                 {
-                    SessionToken = new ByteString(new byte[] { 9, 9 }),
+                    SessionToken = new ByteString("\t\t"u8.ToArray()),
                     Uri = "rtsp://cam.local/main",
                     Protocol = VisionStreamProtocolEnum.Rtsp,
                     ExpiresAt = new DateTimeUtc(new DateTime(2025, 5, 5, 0, 0, 0, DateTimeKind.Utc))
@@ -124,7 +124,7 @@ namespace Opc.Ua.Vision.Tests
                 VisionStreamProtocolEnum.Rtsp).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInternalError));
+                Is.EqualTo(StatusCodes.BadInternalError));
         }
 
         [Test]
@@ -157,7 +157,7 @@ namespace Opc.Ua.Vision.Tests
                 new ByteString(new byte[] { 1, 2, 3 })).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]
@@ -194,7 +194,7 @@ namespace Opc.Ua.Vision.Tests
                 ByteString.Empty).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInternalError));
+                Is.EqualTo(StatusCodes.BadInternalError));
         }
 
         [Test]
@@ -225,7 +225,7 @@ namespace Opc.Ua.Vision.Tests
                 1920, 1080, 30.0, 8_000_000).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]
@@ -273,7 +273,7 @@ namespace Opc.Ua.Vision.Tests
                 1280, 720, 25.0, 4_000_000).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInternalError));
+                Is.EqualTo(StatusCodes.BadInternalError));
         }
 
         [Test]
@@ -304,7 +304,7 @@ namespace Opc.Ua.Vision.Tests
                 harness.EndpointNodeId, harness.ClipEndpointNodeId).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]
@@ -350,7 +350,7 @@ namespace Opc.Ua.Vision.Tests
                 harness.EndpointNodeId, harness.ClipEndpointNodeId).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInternalError));
+                Is.EqualTo(StatusCodes.BadInternalError));
         }
 
         [Test]

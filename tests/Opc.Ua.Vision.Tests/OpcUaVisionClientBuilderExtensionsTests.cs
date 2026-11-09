@@ -61,7 +61,7 @@ namespace Opc.Ua.Vision.Tests
         public void AddVisionClientRegistersFactorySingleton()
         {
             IServiceCollection services = new ServiceCollection();
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
             services.AddSingleton(telemetry);
             services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 _ => Task.FromResult<ManagedSession>(null!));
@@ -85,7 +85,7 @@ namespace Opc.Ua.Vision.Tests
         public void AddVisionClientFactoryThrowsWhenAddClientWasNotCalled()
         {
             IServiceCollection services = new ServiceCollection();
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
             services.AddSingleton(telemetry);
 
             var builder = new TestClientBuilder(services);
@@ -100,7 +100,7 @@ namespace Opc.Ua.Vision.Tests
         public void AddVisionClientReturnsSameBuilder()
         {
             IServiceCollection services = new ServiceCollection();
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
             services.AddSingleton(telemetry);
             services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 _ => Task.FromResult<ManagedSession>(null!));
@@ -115,7 +115,7 @@ namespace Opc.Ua.Vision.Tests
         public void AddVisionClientIsIdempotent()
         {
             IServiceCollection services = new ServiceCollection();
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
             services.AddSingleton(telemetry);
             services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 _ => Task.FromResult<ManagedSession>(null!));

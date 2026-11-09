@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -518,7 +518,7 @@ namespace Opc.Ua.Vision.Tests
                     null!,
                     null!,
                     PipelineNodeId,
-                    ArrayOf<Variant>.Empty,
+                    [],
                     outputs,
                     CancellationToken.None).ConfigureAwait(false);
             }
@@ -530,7 +530,7 @@ namespace Opc.Ua.Vision.Tests
                     null!,
                     null!,
                     PipelineNodeId,
-                    ArrayOf<Variant>.Empty,
+                    [],
                     outputs,
                     CancellationToken.None).ConfigureAwait(false);
             }

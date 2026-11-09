@@ -162,7 +162,6 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// BrowseName and NodeClass.
         /// </summary>
         [Test]
-        [Order(100)]
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.Nodes))]
         public async Task NodeIdentityMatchesAcrossPipelinesAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
@@ -175,8 +174,17 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
                 Assert.That(sourceGen, Is.Not.Null, $"source-gen missing {expected.BrowseName}");
                 Assert.That(runtime, Is.Not.Null, $"runtime missing {expected.BrowseName}");
                 Assert.That(fluentGen, Is.Not.Null, $"fluent-gen missing {expected.BrowseName}");
-                Assert.That(sourceGen!.BrowseName, Is.EqualTo(runtime!.BrowseName));
-                Assert.That(fluentGen!.BrowseName, Is.EqualTo(runtime.BrowseName));
+                Assert.That(sourceGen!.BrowseName.Name, Is.EqualTo(runtime!.BrowseName.Name));
+                Assert.That(fluentGen!.BrowseName.Name, Is.EqualTo(runtime.BrowseName.Name));
+                string? sourceGenUri = m_sourceGen.CurrentInstance.NamespaceUris.GetString(
+                    sourceGen.BrowseName.NamespaceIndex);
+                string? runtimeUri = m_runtime.CurrentInstance.NamespaceUris.GetString(
+                    runtime.BrowseName.NamespaceIndex);
+                string? fluentGenUri = m_fluentGen.CurrentInstance.NamespaceUris.GetString(
+                    fluentGen.BrowseName.NamespaceIndex);
+                Assert.That(sourceGenUri, Is.Not.Null.And.Not.Empty);
+                Assert.That(runtimeUri, Is.EqualTo(sourceGenUri));
+                Assert.That(fluentGenUri, Is.EqualTo(sourceGenUri));
                 Assert.That(sourceGen.NodeClass, Is.EqualTo(runtime.NodeClass));
                 Assert.That(fluentGen.NodeClass, Is.EqualTo(runtime.NodeClass));
                 Assert.That(sourceGen.DisplayName.Text, Is.EqualTo(runtime.DisplayName.Text));
@@ -188,8 +196,8 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// Every catalogue reference edge exists in both address spaces.
         /// </summary>
         [Test]
-        [Order(200)]
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.References))]
+        [DependsOnTest(nameof(SecondaryNodeIdentityMatchesAcrossPipelinesAsync), AllowFailure = true)]
         public async Task ReferenceEdgeMatchesAcrossPipelinesAsync(CoverageTestCatalogue.ExpectedReference expected)
         {
             bool inSourceGen = await ReferenceExistsAsync(m_sourceGen, m_sourceGenNs, expected).ConfigureAwait(false);
@@ -249,8 +257,8 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// with identical BrowseName and NodeClass.
         /// </summary>
         [Test]
-        [Order(150)]
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.SecondaryNodes))]
+        [DependsOnTest(nameof(NodeIdentityMatchesAcrossPipelinesAsync), AllowFailure = true)]
         public async Task SecondaryNodeIdentityMatchesAcrossPipelinesAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
             NodeState sourceGen = (await FindAsync(m_sourceGen, SecondaryNs(m_sourceGen), expected.Id).ConfigureAwait(false))!;

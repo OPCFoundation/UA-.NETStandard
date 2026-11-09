@@ -337,7 +337,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IAsyncNodeManagerFactory)));
+                    d => d is not null && d.ServiceType == typeof(IAsyncNodeManagerFactory)));
         }
 
         [Test]
@@ -357,7 +357,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerNodeManagerRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerNodeManagerRegistration)));
         }
 
         [Test]

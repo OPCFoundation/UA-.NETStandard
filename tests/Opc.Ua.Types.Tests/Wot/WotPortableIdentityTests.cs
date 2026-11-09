@@ -55,6 +55,159 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string EscapedModel = "nsu=urn%3Atest%3Aidentity;";
 
         /// <summary>
+        /// Verifies that generated IDs use qualified paths and the actual model namespace.
+        /// </summary>
+        [Test]
+        public void GeneratedIdsUseQualifiedPathsAndTheActualModelNamespace()
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@context": {
+                    "ns1": "urn:auxiliary",
+                    "ns2": "urn:test:identity",
+                    "a": "urn:measurements:a",
+                    "b": "urn:measurements:b"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "id": "urn:test:identity",
+                  "title": "Root",
+                  "uav:browseName": "ns2:Root",
+                  "properties": {
+                    "first": { "uav:browseName": "a:Value", "type": "number" },
+                    "second": { "uav:browseName": "b:Value", "type": "number" }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            UANode[] nodes = result.Value!.Items!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(nodes.Select(n => n.NodeId), Is.Unique);
+                Assert.That(nodes[0].NodeId, Is.EqualTo("ns=2;s=/nsu=urn%3Atest%3Aidentity;Root"));
+                Assert.That(nodes.OfType<UAVariable>().Select(n => n.NodeId), Is.EquivalentTo(s_qualifiedPropertyIds));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that an authored identity cannot belong to two declarations.
+        /// </summary>
+        /// <param name="secondId">The second ID used by this test case.</param>
+        [TestCase("nsu=urn:test:identity;i=2")]
+        [TestCase("nsu=urn%3Atest%3Aidentity;i=2")]
+        public void AnAuthoredIdentityCannotBelongToTwoDeclarations(string secondId)
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=urn:test:identity;i=1",
+                  "properties": {
+                    "first": { "type": "number", "uav:id": "nsu=urn:test:identity;i=2" },
+                    "second": { "type": "string", "uav:id": "{{secondId}}" }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Diagnostics.Any(d =>
+                    d.Severity == WotDiagnosticSeverity.Error &&
+                    d.Code == WotDiagnosticCode.ValidationError &&
+                    d.Location?.NodeId == "ns=1;i=2"), Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that argument IDs retain the qualified method path.
+        /// </summary>
+        [Test]
+        public void ArgumentIdsRetainTheQualifiedMethodPath()
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@context": {
+                    "ns1": "urn:auxiliary",
+                    "ns2": "urn:test:identity",
+                    "a": "urn:methods:a",
+                    "b": "urn:methods:b"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "id": "urn:test:identity",
+                  "title": "Root",
+                  "uav:browseName": "ns2:Root",
+                  "actions": {
+                    "first": { "uav:browseName": "a:Reset", "input": { "type": "number" } },
+                    "second": { "uav:browseName": "b:Reset", "input": { "type": "number" } }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            string[] ids = result.Value!.Items!.OfType<UAVariable>().Select(v => v.NodeId!).ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(ids, Is.Unique);
+                Assert.That(ids,
+                    Has.Member("ns=2;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Amethods%3Aa;Reset/InputArguments"));
+                Assert.That(ids,
+                    Has.Member("ns=2;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Amethods%3Ab;Reset/InputArguments"));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that namespace URI escaping does not create another model namespace.
+        /// </summary>
+        /// <param name="namespaceForm">The namespace form used by this test case.</param>
+        [TestCase("urn:test:identity")]
+        [TestCase("urn%3Atest%3Aidentity")]
+        public void NamespaceUriEscapingDoesNotCreateAnotherModelNamespace(string namespaceForm)
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@context": { "m": "urn:test:identity" },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "uav:id": "nsu={{namespaceForm}};i=1",
+                  "uav:browseName": "m:Root",
+                  "properties": { "Speed": { "type": "number" } }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Assert.That(result.Value!.NamespaceUris!.Single(), Is.EqualTo(ModelNamespace));
+            Assert.That(result.Value.Models!.Single().ModelUri, Is.EqualTo(ModelNamespace));
+            Assert.That(result.Value.Items!.OfType<UAVariable>().Single().NodeId,
+                Is.EqualTo("ns=1;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Atest%3Aidentity;Speed"));
+        }
+
+        /// <summary>
+        /// Verifies that generated node IDs escape the namespace qualifier as well as the path.
+        /// </summary>
+        [Test]
+        public void GeneratedNodeIdsEscapeTheNamespaceQualifierAsWellAsThePath()
+        {
+            const string namespaceUri = "urn:test:model;edition=2";
+            string identity = WotPortableIdentity.GenerateNodeId(
+                namespaceUri, Path(("Root", namespaceUri)));
+
+            Assert.That(WotPortableIdentity.IsPortableNodeId(identity), Is.True);
+            Assert.That(ExpandedNodeId.Parse(identity).NamespaceUri, Is.EqualTo(namespaceUri));
+        }
+
+        /// <summary>
         /// The escaping is what makes the encoding injective. Without it a
         /// member named <c>A/B</c> of <c>Root</c> and a member named <c>B</c>
         /// of <c>Root/A</c> are one string, so two Nodes answer to one
@@ -198,6 +351,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// without the <c>nsu=</c> qualifier, and refuses the session-local
         /// <c>ns=</c> and the <c>svr=</c> prefix.
         /// </summary>
+        /// <param name="portable">The portable flag for this test case.</param>
         [TestCase("i=2041", true)]
         [TestCase("s=Pump", true)]
         [TestCase("g=09087e75-8e5e-499b-954f-f2a9603db28a", true)]
@@ -211,6 +365,10 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("svr=1;nsu=urn:t;s=A", false)]
         [TestCase("x=1", false)]
         [TestCase("i=", false)]
+        [TestCase("i=not-a-number", false)]
+        [TestCase("i=4294967296", false)]
+        [TestCase("g=not-a-guid", false)]
+        [TestCase("b=not-base64", false)]
         [TestCase("i;1", false)]
         [TestCase("nsu=urn:t", false)]
         [TestCase("nsu=;s=A", false)]
@@ -440,7 +598,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Section 12.6 computes the <c>ViewVersion</c> over a <em>set</em>: a
+        /// OPC 10101-2 computes the <c>ViewVersion</c> over a <em>set</em>: a
         /// member reached twice contributes once, and a member that is
         /// <c>null</c> stands for the empty identity rather than ending the
         /// computation.
@@ -618,6 +776,175 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("/nsu=a%2Fb%3Ac%3Bd%25e;Node"));
         }
 
+        /// <summary>
+        /// A query target is decoded once: URI escapes in the query are
+        /// decoded, while a percent-escaped character in the resulting
+        /// ExpandedNodeId stays escaped for the NodeId grammar to interpret.
+        /// Other query components and the full endpoint resource path survive.
+        /// </summary>
+        [Test]
+        public void ReadUriTargetNodeIdDecodesOneLayerAndPreservesEndpointResource()
+        {
+            const string href =
+                "opc.tcp://server.example:4840/UA/Plant/Line" +
+                "?view=compact&id=nsu=urn%3Atest%3Aidentity;" +
+                "s=Pump%252FNorth%2B%E2%98%83%20A&locale=en#client";
+
+            string? nodeId = WotPortableIdentity.ReadUriTargetNodeId(href, out string endpoint);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    nodeId,
+                    Is.EqualTo("nsu=urn:test:identity;s=Pump%2FNorth+\u2603 A"));
+                Assert.That(
+                    endpoint,
+                    Is.EqualTo(
+                        "opc.tcp://server.example:4840/UA/Plant/Line?view=compact&locale=en"));
+            });
+        }
+
+        /// <summary>
+        /// A name combines a path delimiter, non-ASCII and supplementary
+        /// characters, whitespace, and percent text; only the path delimiter
+        /// is escaped by the browse-path grammar.
+        /// </summary>
+        [Test]
+        public void GeneratedBrowsePathEscapesReservedDelimitersButPreservesNameText()
+        {
+            const string namespaceUri = "urn:line/west;edition=%2F";
+            const string name = "Pump/Gr\u00FC\u00DF \U0001F600 100%";
+
+            string path = WotPortableIdentity.GenerateBrowsePath(
+                Path((name, namespaceUri)));
+
+            Assert.That(
+                path,
+                Is.EqualTo(
+                    "/nsu=urn%3Aline%2Fwest%3Bedition=%252F;" +
+                    "Pump&/Gr\u00FC\u00DF \U0001F600 100%"));
+            Assert.That(
+                WotPortableIdentity.GenerateNodeId(
+                    ModelNamespace, Path((name, namespaceUri))),
+                Is.EqualTo(
+                    "nsu=urn:test:identity;s=" +
+                    "/nsu=urn%3Aline%2Fwest%3Bedition=%252F;" +
+                    "Pump&/Gr\u00FC\u00DF \U0001F600 100%"));
+        }
+
+        /// <summary>
+        /// Reordering the document's namespace authority changes the numeric
+        /// NodeId namespace index but not the URI-qualified model identity.
+        /// </summary>
+        [Test]
+        public void GeneratedIdentityUsesStableNamespaceAfterContextOrdering()
+        {
+            const string auxiliaryFirst =
+                """
+                {
+                  "@context": {
+                    "aux": "urn:auxiliary",
+                    "model": "urn:test:identity"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "id": "urn:test:identity",
+                  "title": "Root",
+                  "uav:browseName": "model:Root",
+                  "properties": {
+                    "Auxiliary": { "uav:browseName": "aux:Marker", "type": "string" },
+                    "Speed": { "uav:browseName": "model:Speed", "type": "number" }
+                  }
+                }
+                """;
+            const string modelFirst =
+                """
+                {
+                  "@context": {
+                    "model": "urn:test:identity",
+                    "aux": "urn:auxiliary"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "id": "urn:test:identity",
+                  "title": "Root",
+                  "uav:browseName": "model:Root",
+                  "properties": {
+                    "Auxiliary": { "uav:browseName": "aux:Marker", "type": "string" },
+                    "Speed": { "uav:browseName": "model:Speed", "type": "number" }
+                  }
+                }
+                """;
+            UANodeSet first = WotNodeSetConverter.ToNodeSet(
+                WotTestData.Utf8(auxiliaryFirst));
+            UANodeSet reordered = WotNodeSetConverter.ToNodeSet(
+                WotTestData.Utf8(modelFirst));
+            NodeId firstId = NodeId.Parse(
+                first.Items!.OfType<UAVariable>().Single(
+                    node => node.NodeId!.Contains("Speed", StringComparison.Ordinal)).NodeId!);
+            NodeId reorderedId = NodeId.Parse(
+                reordered.Items!.OfType<UAVariable>().Single(
+                    node => node.NodeId!.Contains("Speed", StringComparison.Ordinal)).NodeId!);
+            string firstNamespace = first.NamespaceUris![firstId.NamespaceIndex - 1];
+            string reorderedNamespace =
+                reordered.NamespaceUris![reorderedId.NamespaceIndex - 1];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstId.NamespaceIndex, Is.EqualTo(reorderedId.NamespaceIndex));
+                Assert.That(reorderedId.NamespaceIndex, Is.EqualTo(1));
+                Assert.That(firstNamespace, Is.EqualTo(ModelNamespace));
+                Assert.That(reorderedNamespace, Is.EqualTo(ModelNamespace));
+                Assert.That(
+                    firstId.IdentifierAsString,
+                    Is.EqualTo(
+                        "/nsu=urn%3Atest%3Aidentity;Root/" +
+                        "nsu=urn%3Atest%3Aidentity;Speed"));
+                Assert.That(reorderedId.IdentifierAsString, Is.EqualTo(firstId.IdentifierAsString));
+            });
+        }
+
+        /// <summary>
+        /// An absent target is different from an empty target, and both retain
+        /// the endpoint's complete path and non-target query.
+        /// </summary>
+        [Test]
+        public void ReadUriTargetNodeIdDistinguishesMissingAndEmptyTarget()
+        {
+            string? missing = WotPortableIdentity.ReadUriTargetNodeId(
+                "opc.tcp://server.example:4840/UA/Plant/Line?view=compact#client",
+                out string missingEndpoint);
+            string? empty = WotPortableIdentity.ReadUriTargetNodeId(
+                "opc.tcp://server.example:4840/UA/Plant/Line?view=compact&id=",
+                out string emptyEndpoint);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(missing, Is.Null);
+                Assert.That(
+                    missingEndpoint,
+                    Is.EqualTo("opc.tcp://server.example:4840/UA/Plant/Line?view=compact"));
+                Assert.That(empty, Is.EqualTo(string.Empty));
+                Assert.That(
+                    emptyEndpoint,
+                    Is.EqualTo("opc.tcp://server.example:4840/UA/Plant/Line?view=compact"));
+            });
+        }
+
+        /// <summary>
+        /// Query-name decoding is case-insensitive and happens before
+        /// duplicate detection, so encoded spellings cannot create two targets.
+        /// </summary>
+        [TestCase("?id=i=1&ID=i=2")]
+        [TestCase("?%69d=i=1&id=i=2")]
+        public void ReadUriTargetNodeIdRejectsDuplicateDecodedTargetNames(string query)
+        {
+            FormatException? exception = Assert.Throws<FormatException>(
+                () => WotPortableIdentity.ReadUriTargetNodeId(query, out _));
+
+            Assert.That(
+                exception!.Message,
+                Is.EqualTo("A URI cannot identify more than one target NodeId."));
+        }
+
         private static readonly string[] s_repeatedMembership =
             ["nsu=urn:t;i=2", "nsu=urn:t;i=1", "nsu=urn:t;i=2"];
 
@@ -693,5 +1020,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
                 "\"actions\":{\"Reset\":{\"uav:modellingRule\":\"Mandatory\"}}}";
         }
+
+        private static readonly string[] s_qualifiedPropertyIds =
+        [
+            "ns=2;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Ameasurements%3Aa;Value",
+            "ns=2;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Ameasurements%3Ab;Value"
+        ];
     }
 }

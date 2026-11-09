@@ -66,6 +66,21 @@ namespace Opc.Ua
         public const int DefaultSessionFactory = 520;
         public const int AliasNameResolver = 560;
 
+        /// <summary>Bounded FileType transfer diagnostics.</summary>
+        public const int FileTypeStreamExtensions = 570;
+
+        /// <summary>History continuation-point cleanup diagnostics.</summary>
+        public const int HistoryClient = 580;
+
+        /// <summary>
+        /// Additional <c>SubscriptionManagerLog</c> messages; the
+        /// <see cref="SubscriptionManager"/> block is fully used.
+        /// </summary>
+        public const int SubscriptionManagerContinued = 590;
+
+        /// <summary>Part 22 discovery continuation cleanup diagnostics.</summary>
+        public const int NetworkModelClient = 600;
+
         /// <summary>
         /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that
         /// preserves the identity of the legacy "OPC-UA-Client" EventSource provider

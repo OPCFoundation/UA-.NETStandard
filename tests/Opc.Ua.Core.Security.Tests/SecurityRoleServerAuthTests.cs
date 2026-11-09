@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ServiceResultException ex =
-                Assert.ThrowsAsync<ServiceResultException>(
+                await Assert.ThrowsAsync<ServiceResultException>(
                     async () =>
                     {
                         using ISession session =

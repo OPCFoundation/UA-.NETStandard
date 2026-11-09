@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Lds.Server.Hosting
 {
@@ -252,7 +253,7 @@ namespace Opc.Ua.Lds.Server.Hosting
     {
         [LoggerMessage(EventId = LdsServerEventIds.LdsServerHostedService + 0, Level = LogLevel.Information,
             Message = "OPC UA LDS listening at {Endpoint}.")]
-        public static partial void OpcUaLdsListening(this ILogger logger, string endpoint);
+        public static partial void OpcUaLdsListening(this ILogger logger, [NetworkAddress] string endpoint);
 
         [LoggerMessage(EventId = LdsServerEventIds.LdsServerHostedService + 1, Level = LogLevel.Information,
             Message = "Stopping OPC UA LDS...")]

@@ -13,9 +13,10 @@ validation and **long-haul** soak tests for extended runs on dedicated CI jobs.
 
 ## Contents
 
-- [Short-haul tests](#short-haul-tests-pull-request-validation)
-- [Long-haul tests](#long-haul-tests-manual--scheduled-soak)
-- [Multi-replica leader-election failover](#multi-replica-leader-election-failover)
+- [Redundant Sample Integration Tests](#redundant-sample-integration-tests)
+  - [Short-haul tests (pull-request validation)](#short-haul-tests-pull-request-validation)
+  - [Long-haul tests (manual / scheduled soak)](#long-haul-tests-manual--scheduled-soak)
+  - [Multi-replica leader-election failover](#multi-replica-leader-election-failover)
 
 ## Short-haul tests (pull-request validation)
 

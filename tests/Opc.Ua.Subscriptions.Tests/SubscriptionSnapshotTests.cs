@@ -83,7 +83,6 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(60_000)]
         public async Task SnapshotRoundTripPreservesConfigAndItemsAsync(
             CancellationToken ct)
@@ -225,8 +224,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SnapshotRoundTripPreservesConfigAndItemsAsync), AllowFailure = true)]
         public async Task SnapshotCapturesTriggeringForReplayAsync(
             CancellationToken ct)
         {

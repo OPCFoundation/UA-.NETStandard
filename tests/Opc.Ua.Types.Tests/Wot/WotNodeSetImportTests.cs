@@ -57,7 +57,7 @@ namespace Opc.Ua.Types.Tests.Wot
     public class WotNodeSetImportTests
     {
         [Test]
-        public void EveryPublishedExampleThatConvertsCanBeImported()
+        public void EveryRegressionFixtureThatConvertsCanBeImported()
         {
             IReadOnlyList<string> names = ExampleNames();
             Assert.That(names, Is.Not.Empty, "The example fixtures should be embedded.");
@@ -84,7 +84,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 imported,
                 Is.Not.Empty,
-                "At least one published example should convert to a NodeSet.");
+                "At least one local regression fixture should convert to a NodeSet.");
         }
 
         [Test]
@@ -250,20 +250,14 @@ namespace Opc.Ua.Types.Tests.Wot
             return [.. typeof(WotNodeSetImportTests).Assembly
                 .GetManifestResourceNames()
                 .Where(n => n.Contains(ResourcePrefix, StringComparison.Ordinal) &&
-                    n.EndsWith(".jsonld", StringComparison.Ordinal))
+                    n.EndsWith(".jsonld", StringComparison.Ordinal) &&
+                    char.IsDigit(n[n.IndexOf(ResourcePrefix, StringComparison.Ordinal) + ResourcePrefix.Length]))
                 .OrderBy(n => n, StringComparer.Ordinal)];
         }
 
         private static byte[] ReadExample(string name)
         {
-            string resource = ExampleNames()
-                .Single(n => n.EndsWith(name, StringComparison.Ordinal));
-            using Stream stream = typeof(WotNodeSetImportTests).Assembly
-                .GetManifestResourceStream(resource)
-                ?? throw new InvalidOperationException($"Missing fixture '{name}'.");
-            using var buffer = new MemoryStream();
-            stream.CopyTo(buffer);
-            return buffer.ToArray();
+            return WotSpecExampleTests.ReadExample(name);
         }
 
         private const string ResourcePrefix = "Wot.Assets.";

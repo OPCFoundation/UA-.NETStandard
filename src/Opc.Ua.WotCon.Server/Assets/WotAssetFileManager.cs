@@ -55,18 +55,35 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// </remarks>
     internal sealed class WotAssetFileManager : IDisposable
     {
+        /// <summary>
+        /// Initializes a new <c>WotAssetFileManager</c> instance.
+        /// </summary>
+        /// <param name="file">The file used to initialize the instance.</param>
+        /// <param name="maxOpenHandles">The max open handles used to initialize the instance.</param>
+        /// <param name="maxThingDescriptionSize">
+        /// The max thing description size used to initialize the instance.
+        /// </param>
+        /// <param name="onCloseAndUpdate">The on close and update used to initialize the instance.</param>
+        /// <param name="logger">The logger used to initialize the instance.</param>
+        /// <param name="enforceAccess">The enforce access used to initialize the instance.</param>
+        /// <param name="updateDocument">The update document used to initialize the instance.</param>
         public WotAssetFileManager(
             WoTAssetFileState file,
             int maxOpenHandles,
             int maxThingDescriptionSize,
             Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> onCloseAndUpdate,
             ILogger logger,
-            Action<ISystemContext, string>? enforceAccess = null)
+            Action<ISystemContext, string>? enforceAccess = null,
+            Func<ThingDescription, ByteString, CancellationToken, ValueTask<ServiceResult>>? updateDocument = null)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_maxHandles = maxOpenHandles;
             m_maxSize = maxThingDescriptionSize;
-            m_onCloseAndUpdate = onCloseAndUpdate ?? throw new ArgumentNullException(nameof(onCloseAndUpdate));
+            if (onCloseAndUpdate is null)
+            {
+                throw new ArgumentNullException(nameof(onCloseAndUpdate));
+            }
+            m_onCloseAndUpdate = updateDocument ?? ((description, _, token) => onCloseAndUpdate(description, token));
             m_logger = logger;
             m_enforceAccess = enforceAccess;
 
@@ -84,8 +101,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             file.Write?.OnCall = new WriteMethodStateMethodCallHandler(OnWrite);
             file.GetPosition?.OnCall = new GetPositionMethodStateMethodCallHandler(OnGetPosition);
             file.SetPosition?.OnCall = new SetPositionMethodStateMethodCallHandler(OnSetPosition);
-            file.CloseAndUpdate?.OnCall =
-                new CloseAndUpdateIWoTAssetTypeWoTFileMethodStateMethodCallHandler(OnCloseAndUpdate);
+            file.CloseAndUpdate?.OnCallAsync = OnCloseAndUpdateAsync;
         }
 
         /// <summary>
@@ -104,9 +120,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             m_file.LastModifiedTime?.Value = DateTime.UtcNow;
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 foreach (Handle handle in m_handles.Values)
                 {
@@ -116,9 +133,44 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private static NodeId? SessionIdOf(ISystemContext context)
+        /// <summary>
+        /// Discards the open handles owned by a closing session without committing pending writes.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <param name="sessionId">The session identifier.</param>
+        public void CloseSession(NodeId sessionId)
         {
-            return (context as ISessionSystemContext)?.SessionId;
+            if (sessionId.IsNull)
+            {
+                throw new ArgumentException("A SessionId is required.", nameof(sessionId));
+            }
+            lock (m_gate)
+            {
+                var handles = new List<uint>();
+                foreach (KeyValuePair<uint, Handle> entry in m_handles)
+                {
+                    if (entry.Value.SessionId == sessionId)
+                    {
+                        handles.Add(entry.Key);
+                    }
+                }
+                foreach (uint id in handles)
+                {
+                    Handle handle = m_handles[id];
+                    m_handles.Remove(id);
+                    if (m_writingHandle == id)
+                    {
+                        m_writingHandle = 0;
+                    }
+                    handle.Dispose();
+                }
+                m_file.OpenCount?.Value = (ushort)m_handles.Count;
+            }
+        }
+
+        private static NodeId SessionIdOf(ISystemContext context)
+        {
+            return context is ISessionSystemContext { SessionId: NodeId sessionId } ? sessionId : NodeId.Null;
         }
 
         private ServiceResult OnOpen(
@@ -147,17 +199,17 @@ namespace Opc.Ua.WotCon.Server.Assets
                     return access;
                 }
             }
-            NodeId? sessionId = SessionIdOf(context);
-            lock (m_handles)
+            NodeId sessionId = SessionIdOf(context);
+            lock (m_gate)
             {
                 if (m_handles.Count >= m_maxHandles)
                 {
                     return StatusCodes.BadTooManyOperations;
                 }
-                if (mode == writeEraseMode && m_writingHandle != 0)
+                if (m_writingHandle != 0 || (mode == writeEraseMode && m_handles.Count != 0))
                 {
                     return ServiceResult.Create(StatusCodes.BadInvalidState,
-                        "Another writer is already open on this file.");
+                        "File access conflicts with an existing reader or writer.");
                 }
                 Handle handle = mode == writeEraseMode
                     ? Handle.OpenWrite(sessionId)
@@ -179,7 +231,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             NodeId objectId,
             uint fileHandle)
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -204,7 +256,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             int length,
             ref ByteString data)
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -220,7 +272,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 if (length <= 0)
                 {
                     data = ByteString.Empty;
-                    return ServiceResult.Good;
+                    return ServiceResult.Create(StatusCodes.BadInvalidArgument, "Read length must be positive.");
                 }
                 int available = checked((int)(handle.Stream.Length - handle.Stream.Position));
                 int toRead = Math.Min(available, length);
@@ -265,7 +317,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return access;
             }
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -299,7 +351,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             uint fileHandle,
             ref ulong position)
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -317,27 +369,36 @@ namespace Opc.Ua.WotCon.Server.Assets
             uint fileHandle,
             ulong position)
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
                     return err;
                 }
-                if (position > (ulong)handle.Stream.Length)
-                {
-                    return ServiceResult.Create(StatusCodes.BadInvalidArgument,
-                        "Requested position exceeds file length.");
-                }
-                handle.Stream.Position = (long)position;
+                handle.Stream.Position = (long)Math.Min(position, (ulong)handle.Stream.Length);
             }
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnCloseAndUpdate(
+        private async ValueTask<CloseAndUpdateIWoTAssetTypeWoTFileMethodStateResult> OnCloseAndUpdateAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            uint fileHandle)
+            uint fileHandle,
+            CancellationToken cancellationToken)
+        {
+            ServiceResult result = await CloseAndUpdateAsync(context, fileHandle, cancellationToken)
+                .ConfigureAwait(false);
+            return new CloseAndUpdateIWoTAssetTypeWoTFileMethodStateResult
+            {
+                ServiceResult = result
+            };
+        }
+
+        private async ValueTask<ServiceResult> CloseAndUpdateAsync(
+            ISystemContext context,
+            uint fileHandle,
+            CancellationToken cancellationToken)
         {
             ServiceResult access = EnforceAccess(context, "CloseAndUpdate");
             if (ServiceResult.IsBad(access))
@@ -345,7 +406,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 return access;
             }
             Handle handle;
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out handle, out ServiceResult err))
                 {
@@ -357,7 +418,6 @@ namespace Opc.Ua.WotCon.Server.Assets
                         "CloseAndUpdate requires a write handle.");
                 }
                 m_handles.Remove(fileHandle);
-                m_writingHandle = 0;
                 m_file.OpenCount?.Value = (ushort)m_handles.Count;
             }
 
@@ -377,14 +437,14 @@ namespace Opc.Ua.WotCon.Server.Assets
                 // "title" mandatory, so either one identifies the document.
                 try
                 {
-                    using WotDocument probe = WotDocument.Parse(content);
+                    using var probe = WotDocument.Parse(content);
                     if (probe.RootElement.ValueKind != JsonValueKind.Object ||
                         !HasIdentifyingMember(probe.RootElement))
                     {
                         m_logger.UploadedDocumentIsNotAThingDescription();
                         return ServiceResult.Create(StatusCodes.BadDecodingError,
                             "The uploaded document is not a Thing Description: it must be " +
-                            "a JSON object carrying a 'name' or 'title'.");
+                            "a JSON object carrying a 'name' or 'title', not an unresolved projection plan.");
                     }
                 }
                 catch (Exception ex) when (ex is FormatException or JsonException)
@@ -413,10 +473,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                         "Empty Thing Description payload.");
                 }
 
-                ServiceResult result = m_onCloseAndUpdate(td, CancellationToken.None)
-                    .AsTask()
-                    .GetAwaiter()
-                    .GetResult();
+                ServiceResult result = await m_onCloseAndUpdate(
+                    td, ByteString.From(content), cancellationToken).ConfigureAwait(false);
                 if (ServiceResult.IsGood(result))
                 {
                     UpdatePersistedContent(content);
@@ -425,6 +483,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             finally
             {
+                lock (m_gate)
+                {
+                    if (m_writingHandle == fileHandle)
+                    {
+                        m_writingHandle = 0;
+                    }
+                }
                 handle.Dispose();
             }
         }
@@ -441,8 +506,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 error = ServiceResult.Create(StatusCodes.BadInvalidArgument, "Unknown file handle.");
                 return false;
             }
-            NodeId? expected = SessionIdOf(context);
-            if (expected != null && located.SessionId != null && located.SessionId != expected)
+            NodeId expected = SessionIdOf(context);
+            if (!expected.IsNull && !located.SessionId.IsNull && located.SessionId != expected)
             {
                 handle = null!;
                 error = ServiceResult.Create(StatusCodes.BadUserAccessDenied,
@@ -456,23 +521,35 @@ namespace Opc.Ua.WotCon.Server.Assets
 
         private sealed class Handle : IDisposable
         {
-            private Handle(NodeId? sessionId, Stream stream, bool writing)
+            private Handle(NodeId sessionId, Stream stream, bool writing)
             {
                 SessionId = sessionId;
                 Stream = stream;
                 Writing = writing;
             }
 
-            public NodeId? SessionId { get; }
+            /// <summary>
+            /// Gets the session ID for <c>Handle</c>.
+            /// </summary>
+            public NodeId SessionId { get; }
             public Stream Stream { get; }
             public bool Writing { get; }
 
-            public static Handle OpenRead(NodeId? sessionId, byte[] snapshot)
+            /// <summary>
+            /// Opens a read-only handle over a snapshot of the file content.
+            /// </summary>
+            /// <param name="sessionId">The session identifier.</param>
+            /// <param name="snapshot">The file content snapshot to read.</param>
+            public static Handle OpenRead(NodeId sessionId, byte[] snapshot)
             {
                 return new(sessionId, new MemoryStream(snapshot, writable: false), writing: false);
             }
 
-            public static Handle OpenWrite(NodeId? sessionId)
+            /// <summary>
+            /// Opens a writable handle over an empty buffer.
+            /// </summary>
+            /// <param name="sessionId">The session identifier.</param>
+            public static Handle OpenWrite(NodeId sessionId)
             {
                 return new(sessionId, new MemoryStream(), writing: true);
             }
@@ -487,7 +564,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// Applies the management access policy to a mutating file operation.
         /// </summary>
         /// <remarks>
-        /// WoT Connectivity 1.1-draft3 names the WoTFile Write and
+        /// WoT Connectivity names the WoTFile Write and
         /// CloseAndUpdate operations alongside the management Methods, because
         /// they reach the same materializer and a server implementing only the
         /// 1.02 surface would otherwise inherit no obligation at all.
@@ -528,24 +605,45 @@ namespace Opc.Ua.WotCon.Server.Assets
         private readonly WoTAssetFileState m_file;
         private readonly int m_maxHandles;
         private readonly int m_maxSize;
-        private readonly Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> m_onCloseAndUpdate;
+
+        private readonly Func<ThingDescription, ByteString, CancellationToken, ValueTask<ServiceResult>>
+            m_onCloseAndUpdate;
+
         private readonly ILogger m_logger;
         private readonly Action<ISystemContext, string>? m_enforceAccess;
+        private readonly Lock m_gate = new();
         private readonly Dictionary<uint, Handle> m_handles = [];
         private uint m_nextHandle;
         private uint m_writingHandle;
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for WoT asset file manager.
+    /// </summary>
     internal static partial class WotAssetFileManagerLog
     {
+        /// <summary>
+        /// Logs a Thing Description rejected because its JSON cannot be parsed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 0, Level = LogLevel.Warning,
             Message = "Thing description JSON could not be parsed")]
         public static partial void ThingDescriptionJsonCouldNotBeParsed(this ILogger logger, JsonException ex);
 
+        /// <summary>
+        /// Logs an uploaded document rejected before materialization because format validation failed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 1, Level = LogLevel.Warning,
             Message = "Uploaded document failed format validation and materialized nothing")]
         public static partial void ThingDescriptionFailedFormatValidation(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a valid JSON upload rejected because it is not a Thing Description.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 2, Level = LogLevel.Warning,
             Message = "Uploaded document is well formed JSON but is not a Thing Description " +
                 "and materialized nothing")]

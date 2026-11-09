@@ -164,7 +164,7 @@ namespace Opc.Ua.Sessions.Tests
                 }
             }
 
-            ServiceResultException lockoutException = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException lockoutException = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 using ISession session = await m_clientFixture.SessionFactory.CreateAsync(
                     m_clientFixture.Config,
@@ -293,7 +293,7 @@ namespace Opc.Ua.Sessions.Tests
                 }
             }
 
-            ServiceResultException lockoutException = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException lockoutException = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 using ISession anonSession = await m_clientFixture.SessionFactory.CreateAsync(
                 m_clientFixture.Config,

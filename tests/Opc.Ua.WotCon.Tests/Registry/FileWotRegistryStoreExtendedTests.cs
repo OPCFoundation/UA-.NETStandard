@@ -29,7 +29,6 @@
 
 using System;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Registry;
@@ -49,7 +48,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static string MakeRoot()
         {
             string root = Path.Combine(
-                TestContext.CurrentContext.TestDirectory,
+                Path.GetTempPath(),
                 "wot-store-ext-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             return root;
@@ -88,7 +87,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void LoadRejectsInvalidManifestWithoutChangingIt()
+        public async Task LoadRejectsInvalidManifestWithoutChangingIt()
         {
             string root = MakeRoot();
             try
@@ -98,7 +97,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 File.WriteAllText(manifestPath, invalidManifest);
                 var store = new FileWotRegistryStore(root);
 
-                InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
+                InvalidDataException error = await Assert.ThrowsAsync<InvalidDataException>(
                     async () => await store.LoadAsync());
 
                 Assert.That(error.Message, Does.Contain("corrupt"));

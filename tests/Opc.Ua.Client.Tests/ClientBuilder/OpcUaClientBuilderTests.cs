@@ -319,7 +319,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 IManagedSessionFactory factory =
                     sp.GetRequiredService<IManagedSessionFactory>();
                 OperationCanceledException? exception =
-                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await Assert.CatchAsync<OperationCanceledException>(async () =>
                         await factory.ConnectAsync(
                             CreateEndpoint(),
                             _ => throw new OperationCanceledException(),
@@ -478,8 +478,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     : throw new InvalidOperationException("The pool retried a closed factory result."));
             await using var pool = new ManagedSessionPool(factory.Object);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await pool.GetOrConnectAsync("primary", CreateEndpoint(), timeout.Token).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await pool.GetOrConnectAsync("primary", CreateEndpoint(), timeout.Token).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
             Assert.That(attempts, Is.EqualTo(1));
@@ -531,7 +531,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using var caller = new CancellationTokenSource();
             Task<Client.ManagedSession> waiting = pool.GetOrConnectAsync("primary", CreateEndpoint(), caller.Token);
             caller.Cancel();
-            Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(),
+            await Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(),
                 async () => await waiting.ConfigureAwait(false));
             Task<bool> removal = pool.RemoveAsync("primary").AsTask();
             try

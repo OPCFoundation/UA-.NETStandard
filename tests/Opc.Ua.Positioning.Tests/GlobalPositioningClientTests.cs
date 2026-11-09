@@ -121,7 +121,7 @@ namespace Opc.Ua.Positioning.Tests
         }
 
         [Test]
-        public void ObserveGlobalPositionWithWrongValueTypeThrowsBadTypeMismatch()
+        public async Task ObserveGlobalPositionWithWrongValueTypeThrowsBadTypeMismatch()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             NodeId positionId = new("Position", 2);
@@ -163,7 +163,7 @@ namespace Opc.Ua.Positioning.Tests
                 sessionMock.Object,
                 Mock.Of<ITelemetryContext>());
 
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ReadSingleAsync(
                     client.ObserveGlobalPositionAsync(
                         positionId,
@@ -253,7 +253,7 @@ namespace Opc.Ua.Positioning.Tests
         }
 
         [Test]
-        public void ReadGlobalLocationWithPersistentMismatchThrowsBadDataEncodingInvalid()
+        public async Task ReadGlobalLocationWithPersistentMismatchThrowsBadDataEncodingInvalid()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             NodeId locationId = new("Location", 2);
@@ -295,7 +295,7 @@ namespace Opc.Ua.Positioning.Tests
                 sessionMock.Object,
                 Mock.Of<ITelemetryContext>());
 
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadGlobalLocationAsync(locationId)
                     .ConfigureAwait(false));
 

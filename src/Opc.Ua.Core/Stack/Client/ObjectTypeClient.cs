@@ -152,6 +152,34 @@ namespace Opc.Ua
             CancellationToken ct,
             params Variant[] args)
         {
+            (_, ArrayOf<Variant> outputArguments) = await CallMethodWithStatusAsync(
+                methodId, methodNamespaceUri, methodBrowseName, ct, args).ConfigureAwait(false);
+            return outputArguments;
+        }
+
+        /// <summary>
+        /// Calls a method with the same instance MethodId fallback as
+        /// <see cref="CallMethodAsync(NodeId, string, string, CancellationToken, Variant[])"/>
+        /// and returns its operation status separately from its output arguments.
+        /// Good and Uncertain statuses are preserved. Bad statuses throw before
+        /// output arguments can be interpreted; only BadMethodInvalid triggers fallback.
+        /// </summary>
+        /// <param name="methodId">The type-declaration MethodId.</param>
+        /// <param name="methodNamespaceUri">The method browse-name namespace URI.</param>
+        /// <param name="methodBrowseName">The method browse name.</param>
+        /// <param name="ct">Cancellation token for the request.</param>
+        /// <param name="args">The input arguments.</param>
+        /// <returns>The operation status and uninterpreted output arguments.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The service or operation returned a Bad status.
+        /// </exception>
+        protected async ValueTask<(StatusCode CallStatus, ArrayOf<Variant> OutputArguments)> CallMethodWithStatusAsync(
+            NodeId methodId,
+            string methodNamespaceUri,
+            string methodBrowseName,
+            CancellationToken ct,
+            params Variant[] args)
+        {
             // Reuse a previously resolved instance MethodId if we already
             // had to fall back for this method against a non-conformant
             // server; otherwise start with the type-declaration MethodId.
@@ -186,7 +214,8 @@ namespace Opc.Ua
                 }
             }
 
-            return ThrowOrGetOutputArguments(response);
+            ArrayOf<Variant> outputArguments = ThrowOrGetOutputArguments(response);
+            return (response.Results[0].StatusCode, outputArguments);
         }
 
         /// <summary>
@@ -209,6 +238,7 @@ namespace Opc.Ua
             string browseName,
             CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
             int nsIdx = Session.MessageContext.NamespaceUris.GetIndex(namespaceUri);
             if (nsIdx < 0)
             {
@@ -238,14 +268,30 @@ namespace Opc.Ua
             TranslateBrowsePathsToNodeIdsResponse response =
                 await Session.TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)
                     .ConfigureAwait(false);
-            if (response.Results.Count == 0 ||
-                StatusCode.IsBad(response.Results[0].StatusCode) ||
-                response.Results[0].Targets.Count == 0)
+            ClientBase.ValidateResponse(response.Results, paths);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, paths);
+            BrowsePathResult result = response.Results[0];
+            if (result.StatusCode == StatusCodes.BadNoMatch || result.StatusCode == StatusCodes.BadNotFound)
             {
                 return NodeId.Null;
             }
+            if (StatusCode.IsBad(result.StatusCode))
+            {
+                throw ServiceResultException.Create(
+                    result.StatusCode,
+                    "Could not resolve child '{0}' of object '{1}'.",
+                    browseName,
+                    ObjectId);
+            }
+            if (result.Targets.Count == 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "Resolving child '{0}' returned success without a target.",
+                    browseName);
+            }
             return ExpandedNodeId.ToNodeId(
-                response.Results[0].Targets[0].TargetId,
+                result.Targets[0].TargetId,
                 Session.MessageContext.NamespaceUris);
         }
 
@@ -276,6 +322,10 @@ namespace Opc.Ua
                 requests,
                 ct).ConfigureAwait(false);
 
+            if (StatusCode.IsBad(response.ResponseHeader.ServiceResult))
+            {
+                throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+            }
             ClientBase.ValidateResponse(response.Results, requests);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
 

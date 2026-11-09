@@ -44,12 +44,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 #if INTENT_VIEWER_MCP
 using Microsoft.Extensions.Logging.Console;
-using ModelContextProtocol.Server;
 #endif
 using Opc.Ua;
 using Opc.Ua.Client;
 #if INTENT_VIEWER_MCP
 using Opc.Ua.Mcp;
+using Opc.Ua.Samples.Robotics;
 #endif
 using Opc.Ua.OpenUsd.Client;
 using Opc.Ua.Robotics.Client;
@@ -245,7 +245,7 @@ namespace IntentViewerClient
             }
 
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-                builder.SetMinimumLevel(LogLevel.Information));
+                builder.EnableOpcUaRedaction().SetMinimumLevel(LogLevel.Information));
             ILogger logger = loggerFactory.CreateLogger("IntentViewerClient");
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Warning));
             using CancellationTokenSource lifetime = options.Seconds > 0
@@ -446,11 +446,14 @@ namespace IntentViewerClient
             return host;
         }
 
-        private static IHost BuildStdioMcpHost()
+        /// <summary>
+        /// Composes the Robotics MCP tools over stdio without an HTTP listener.
+        /// </summary>
+        internal static IHost BuildStdioMcpHost()
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             ConfigureMcpLogging(builder.Logging, useStdioTransport: true);
-            ConfigureMcpServices(builder.Services);
+            ConfigureMcpServices(builder.Services, useStdioTransport: true);
 
             IMcpServerBuilder mcpServerBuilder = builder.Services
                 .AddMcpServer()
@@ -459,26 +462,32 @@ namespace IntentViewerClient
             return builder.Build();
         }
 
-        private static WebApplication BuildHttpMcpHost(int port)
+        /// <summary>
+        /// Composes the Robotics MCP tools behind the loopback HTTP request guard.
+        /// </summary>
+        internal static WebApplication BuildHttpMcpHost(int port)
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder();
             ConfigureMcpLogging(builder.Logging, useStdioTransport: false);
-            ConfigureMcpServices(builder.Services);
+            ConfigureMcpServices(builder.Services, useStdioTransport: false);
 
             IMcpServerBuilder mcpServerBuilder = builder.Services
                 .AddMcpServer()
                 .WithHttpTransport();
             ConfigureRoboticsMcpTools(mcpServerBuilder);
 
-            WebApplication app = builder.Build();
+            WebApplication app = SampleMcpHttpHost.Build(builder, port, "intent-viewer");
             app.MapMcp("/mcp");
-            app.Urls.Add($"http://localhost:{port}");
             return app;
         }
 
-        private static void ConfigureMcpServices(IServiceCollection services)
+        private static void ConfigureMcpServices(IServiceCollection services, bool useStdioTransport)
         {
-            services.AddOpcUaMcpCore(new OpcUaMcpOptions { ToolProfile = McpToolProfile.Robotics });
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions
+            {
+                ToolProfile = McpToolProfile.Robotics,
+                Execution = SampleMcpHttpHost.CreateExecutionOptions("intent-viewer", useStdioTransport)
+            });
             services.AddOpcUaMcpRobotics();
         }
 
@@ -492,6 +501,7 @@ namespace IntentViewerClient
         private static void ConfigureMcpLogging(ILoggingBuilder logging, bool useStdioTransport)
         {
             logging.ClearProviders();
+            logging.EnableOpcUaRedaction();
             logging.SetMinimumLevel(LogLevel.Information);
             logging.AddSimpleConsole(options =>
             {
@@ -786,7 +796,7 @@ namespace IntentViewerClient
             IUsdSink sink,
             CancellationToken cancellationToken)
         {
-            var connector = new OpenUsdConnector(session, sink, enableCommands: false);
+            OpenUsdConnector connector = CreateViewportConnector(session, sink);
             await using (connector.ConfigureAwait(false))
             {
                 await StreamConnectorUntilCancelledAsync(
@@ -794,6 +804,20 @@ namespace IntentViewerClient
                     connector.StopAsync,
                     cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Creates the remote live-stream connector without granting structural viewport authority.
+        /// </summary>
+        internal static OpenUsdConnector CreateViewportConnector(
+            ISession session,
+            IUsdSink sink,
+            OpenUsdConnectorOptions? options = null)
+        {
+            return new OpenUsdConnector(
+                session,
+                new UsdViewportValueSink(sink),
+                options ?? new OpenUsdConnectorOptions { EnableCommands = false });
         }
 
         internal static async Task StreamConnectorUntilCancelledAsync(
@@ -850,7 +874,7 @@ namespace IntentViewerClient
             NodeId poseNodeId = await BrowseChildAsync(
                 session, locationNodeId, "Pose", cancellationToken).ConfigureAwait(false);
             DataValue value = await session.ReadValueAsync(poseNodeId, cancellationToken).ConfigureAwait(false);
-            Pose3DDataType pose = null!;
+            Pose3DDataType pose;
             if (value.WrappedValue.TryGetValue(out pose!, session.MessageContext) && pose is not null)
             {
                 return pose;
@@ -890,7 +914,7 @@ namespace IntentViewerClient
                     [parent],
                     0,
                     BrowseDirection.Forward,
-                    global::Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                    Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
                     includeSubtypes: true,
                     0,
                     cancellationToken).ConfigureAwait(false);

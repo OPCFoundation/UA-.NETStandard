@@ -33,7 +33,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text.Json;
 using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Wot
@@ -57,10 +56,9 @@ namespace Opc.Ua.Types.Tests.Wot
     /// is a clause held by nothing.
     /// </para>
     /// <para>
-    /// The ledger is temporary. The specification publishes no requirement
-    /// identifiers yet, so the clause numbers are read from a pinned commit and
-    /// the pin is checked against the fixture manifest beside it; when the
-    /// specification lands its published revision, re-pin both.
+    /// This clause-level view complements the statement-level requirement
+    /// inventory. The local fixture manifest is independent and does not
+    /// establish conformance to the specification baseline.
     /// </para>
     /// </remarks>
     [TestFixture]
@@ -152,30 +150,5 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
-        /// <summary>
-        /// The clause numbering was read from one revision of the
-        /// specification, and so were the vendored examples. If the two pins
-        /// disagree, one of them was updated and the other was forgotten.
-        /// </summary>
-        [Test]
-        public void TheLedgerAndTheFixturesArePinnedToTheSameRevision()
-        {
-            using JsonDocument document = JsonDocument.Parse(WotTraceabilityLedger.Read(Assembly));
-            JsonElement pinned = document.RootElement.GetProperty("pinnedTo");
-            WotSpecFixtureManifest manifest = WotSpecFixtureManifest.Load();
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    pinned.GetProperty("commit").GetString(),
-                    Is.EqualTo(manifest.Commit));
-                Assert.That(
-                    pinned.GetProperty("repository").GetString(),
-                    Is.EqualTo(manifest.Repository));
-                Assert.That(
-                    pinned.GetProperty("bindingRevision").GetString(),
-                    Is.EqualTo(Opc.Ua.Wot.WotBindingConformance.CurrentRevision));
-            });
-        }
     }
 }

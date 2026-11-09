@@ -12,13 +12,14 @@
     <_PreviewPackageBaseId>$([System.Text.RegularExpressions.Regex]::Replace('$(PackageId)', '\.Debug$', ''))</_PreviewPackageBaseId>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.XRegistry' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.XRegistry.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.WotCon' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.WotCon.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Vision' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Vision.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Vision.OpenUsd' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Vision.OpenUsd.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.CranesHoists' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.CranesHoists.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Robotics' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Robotics.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Redundancy' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Redundancy.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Positioning' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Positioning.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.OpenUsd.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.AI' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.AI.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Robotics' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Vision' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer'">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Robotics' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.CranesHoists' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer'">true</_IsPreviewPackage>
     <!--
       On a canonical release/M.m branch build (NBGV_PublicRelease == 'True'),
       common.props/version.props deliberately do NOT reference the

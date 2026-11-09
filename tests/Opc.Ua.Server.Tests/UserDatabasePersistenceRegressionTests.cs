@@ -50,7 +50,9 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true)]
         public void SuccessfulUserMutationSurvivesDatabaseReload(bool delete)
         {
-            string path = Path.Combine(Path.GetTempPath(), $"opcua-user-{Guid.NewGuid():N}.json");
+            string directory = Path.Combine(Path.GetTempPath(), $"opcua-user-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(directory);
+            string path = Path.Combine(directory, "users.json");
             try
             {
                 var original = new JsonUserDatabase(path);
@@ -75,6 +77,7 @@ namespace Opc.Ua.Server.Tests
             finally
             {
                 File.Delete(path);
+                Directory.Delete(directory);
             }
         }
 
@@ -84,7 +87,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RejectedUserMutationsPreservePersistedCredentials()
         {
-            string path = Path.Combine(Path.GetTempPath(), $"opcua-user-{Guid.NewGuid():N}.json");
+            string directory = Path.Combine(Path.GetTempPath(), $"opcua-user-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(directory);
+            string path = Path.Combine(directory, "users.json");
             try
             {
                 var original = new JsonUserDatabase(path);
@@ -101,6 +106,7 @@ namespace Opc.Ua.Server.Tests
             finally
             {
                 File.Delete(path);
+                Directory.Delete(directory);
             }
         }
     }

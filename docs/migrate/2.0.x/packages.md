@@ -4,13 +4,14 @@
 
 ## Contents
 
-- [New published packages](#new-published-packages)
-- [Renamed packages — the GDS libraries drop `.Common`](#renamed-packages--the-gds-libraries-drop-common)
-- [`.Debug` packages are no longer published to nuget.org](#debug-packages-are-no-longer-published-to-nugetorg)
-- [Target Frameworks (only Opc.Ua.Types changes)](#target-frameworks-only-opcuatypes-changes)
-- [NuGet dependency additions and removals](#nuget-dependency-additions-and-removals)
-- [ASP.NET Core packages are versioned per target framework](#aspnet-core-packages-are-versioned-per-target-framework)
-- [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)
+- [Package, Target Framework, and Dependency Changes](#package-target-framework-and-dependency-changes)
+  - [New published packages](#new-published-packages)
+  - [Renamed packages — the GDS libraries drop `.Common`](#renamed-packages--the-gds-libraries-drop-common)
+  - [`.Debug` packages are no longer published to nuget.org](#debug-packages-are-no-longer-published-to-nugetorg)
+  - [Target Frameworks (only Opc.Ua.Types changes)](#target-frameworks-only-opcuatypes-changes)
+  - [NuGet dependency additions and removals](#nuget-dependency-additions-and-removals)
+  - [ASP.NET Core packages are versioned per target framework](#aspnet-core-packages-are-versioned-per-target-framework)
+  - [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)
 
 ## New published packages
 

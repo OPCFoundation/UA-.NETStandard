@@ -69,9 +69,9 @@ namespace Opc.Ua.Server.Tests
             harness.Clock.Advance(TimeSpan.FromSeconds(2));
             Assert.That(created.Session.HasExpired, Is.True);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.Read)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(harness.Manager.GetSession(created.AuthenticationToken), Is.Null);
@@ -104,6 +104,178 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// LC-1: request validation refreshes the contact time without a lock. A request
+        /// that read the clock before the session monitor observed the expiry must still
+        /// not refresh the contact time afterwards and revive the session.
+        /// </summary>
+        [Test]
+        public async Task RequestRacingObservedExpiryDoesNotReviveTheSessionAsync()
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            var session = (ServerSession)created.Session;
+            var channel = new SecureChannelContext(kChannelId, harness.Endpoint, RequestEncoding.Binary);
+            harness.Clock.Advance(TimeSpan.FromMilliseconds(900));
+            bool? expiredInRace = null;
+
+            // The request reads the clock (900 ms, not expired); before it refreshes the
+            // contact time the timeout elapses and the monitor observes the expiry.
+            harness.Clock.AfterNextTimestamp(() =>
+            {
+                harness.Clock.Advance(TimeSpan.FromMilliseconds(200));
+                expiredInRace = session.HasExpired;
+            });
+
+            Assert.That(
+                () => session.ValidateRequest(
+                    new RequestHeader { AuthenticationToken = created.AuthenticationToken },
+                    channel,
+                    RequestType.Read),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadSessionClosed));
+            Assert.That(expiredInRace, Is.True);
+            Assert.That(session.HasExpired, Is.True, "An observed expiry must stay observed.");
+        }
+
+        /// <summary>
+        /// The request counters are updated without the diagnostics lock and applied when
+        /// the diagnostics are read: concurrent requests must all be counted exactly once,
+        /// and a reader never sees a count go backwards.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentRequestsAreCountedExactlyAsync()
+        {
+            const int kThreads = 8;
+            const int kRequests = 2000;
+            const int kRejected = 100;
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            var session = (ServerSession)created.Session;
+            var channel = new SecureChannelContext(kChannelId, harness.Endpoint, RequestEncoding.Binary);
+            var otherChannel = new SecureChannelContext("other-channel", harness.Endpoint, RequestEncoding.Binary);
+            var header = new RequestHeader { AuthenticationToken = created.AuthenticationToken };
+            (uint Total, uint Read) baseline = session.ReadDiagnostics(
+                d => (d.TotalRequestCount.TotalCount, d.ReadCount.TotalCount));
+
+            using var stop = new CancellationTokenSource();
+            Task<bool> reader = Task.Run(() =>
+            {
+                uint last = 0;
+                while (!stop.IsCancellationRequested)
+                {
+                    (uint total, bool consistent) = session.ReadDiagnostics(d => (
+                        d.TotalRequestCount.TotalCount,
+                        d.WriteCount.ErrorCount <= d.WriteCount.TotalCount &&
+                            d.UnauthorizedRequestCount <= d.TotalRequestCount.ErrorCount));
+                    if (total < last || !consistent)
+                    {
+                        return false;
+                    }
+                    last = total;
+                }
+                return true;
+            });
+            var workers = new Task[kThreads];
+            for (int ii = 0; ii < kThreads; ii++)
+            {
+                workers[ii] = Task.Run(() =>
+                {
+                    for (int jj = 0; jj < kRequests; jj++)
+                    {
+                        session.ValidateRequest(header, channel, (jj & 1) == 0 ? RequestType.Read : RequestType.Browse);
+                    }
+                    for (int jj = 0; jj < kRejected; jj++)
+                    {
+                        Assert.Throws<ServiceResultException>(
+                            () => session.ValidateRequest(header, otherChannel, RequestType.Write));
+                    }
+                });
+            }
+            await Task.WhenAll(workers).ConfigureAwait(false);
+            stop.Cancel();
+            Assert.That(await reader.ConfigureAwait(false), Is.True,
+                "The total request count went backwards, or an error was counted without its request.");
+
+            session.ReadDiagnostics(d =>
+            {
+                Assert.That(d.TotalRequestCount.TotalCount - baseline.Total,
+                    Is.EqualTo((uint)(kThreads * (kRequests + kRejected))));
+                Assert.That(d.TotalRequestCount.ErrorCount, Is.EqualTo((uint)(kThreads * kRejected)));
+                Assert.That(d.UnauthorizedRequestCount, Is.EqualTo((uint)(kThreads * kRejected)));
+                Assert.That(d.ReadCount.TotalCount - baseline.Read, Is.EqualTo((uint)(kThreads * kRequests / 2)));
+                Assert.That(d.ReadCount.ErrorCount, Is.Zero);
+                Assert.That(d.BrowseCount.TotalCount, Is.EqualTo((uint)(kThreads * kRequests / 2)));
+                Assert.That(d.WriteCount.TotalCount, Is.EqualTo((uint)(kThreads * kRejected)));
+                Assert.That(d.WriteCount.ErrorCount, Is.EqualTo((uint)(kThreads * kRejected)));
+                return true;
+            });
+        }
+
+        /// <summary>
+        /// Without a diagnostics reader nothing applies the pending request counts, so the
+        /// recording request folds them before a packed field could carry into the next:
+        /// more rejected requests than the error field holds must still be counted exactly.
+        /// </summary>
+        [Test]
+        public async Task PendingCountsFoldBeforeTheyOverflowWithoutAReaderAsync()
+        {
+            const int kRejected = 70_000;
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            var session = (ServerSession)created.Session;
+            var otherChannel = new SecureChannelContext("other-channel", harness.Endpoint, RequestEncoding.Binary);
+            var header = new RequestHeader { AuthenticationToken = created.AuthenticationToken };
+            uint baseline = session.ReadDiagnostics(d => d.TotalRequestCount.TotalCount);
+
+            for (int ii = 0; ii < kRejected; ii++)
+            {
+                try
+                {
+                    session.ValidateRequest(header, otherChannel, RequestType.Write);
+                }
+                catch (ServiceResultException)
+                {
+                }
+            }
+
+            session.ReadDiagnostics(d =>
+            {
+                Assert.That(d.TotalRequestCount.TotalCount - baseline, Is.EqualTo((uint)kRejected));
+                Assert.That(d.TotalRequestCount.ErrorCount, Is.EqualTo((uint)kRejected));
+                Assert.That(d.UnauthorizedRequestCount, Is.EqualTo((uint)kRejected));
+                Assert.That(d.WriteCount.TotalCount, Is.EqualTo((uint)kRejected));
+                Assert.That(d.WriteCount.ErrorCount, Is.EqualTo((uint)kRejected));
+                return true;
+            });
+        }
+
+        /// <summary>
+        /// The expiry checks read the session timeout without the diagnostics lock; a
+        /// timeout changed through UpdateDiagnostics must still take effect for them.
+        /// </summary>
+        [Test]
+        public async Task SessionTimeoutChangedThroughDiagnosticsAppliesToExpiryAsync()
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            var session = (ServerSession)created.Session;
+            var channel = new SecureChannelContext(kChannelId, harness.Endpoint, RequestEncoding.Binary);
+
+            session.UpdateDiagnostics(d => d.ActualSessionTimeout = 5_000);
+            harness.Clock.Advance(TimeSpan.FromSeconds(2));
+            Assert.That(session.HasExpired, Is.False);
+            session.ValidateRequest(
+                new RequestHeader { AuthenticationToken = created.AuthenticationToken },
+                channel,
+                RequestType.Read);
+
+            session.UpdateDiagnostics(d => d.ActualSessionTimeout = 1_000);
+            harness.Clock.Advance(TimeSpan.FromSeconds(2));
+            Assert.That(session.HasExpired, Is.True);
+        }
+
+        /// <summary>
         /// LC-1 / LC-2: a session that is being closed admits no new requests.
         /// </summary>
         [Test]
@@ -113,9 +285,9 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
             Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.Read)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(harness.Diagnostics.SessionTimeoutCount, Is.Zero, "A closing session is not a timeout.");
@@ -132,8 +304,8 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
             Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
@@ -148,9 +320,9 @@ namespace Opc.Ua.Server.Tests
             using var harness = new Harness();
             CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.Read)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
             harness.Server.Verify(
@@ -299,14 +471,14 @@ namespace Opc.Ua.Server.Tests
                     "other-channel",
                     secureChannelContext.EndpointDescription,
                     RequestEncoding.Binary);
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ReadAsync(
                         otherChannel,
                         new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken },
                         0,
                         TimestampsToReturn.Neither,
                         nodesToRead,
-                        RequestLifetime.None).ConfigureAwait(false))!;
+                        RequestLifetime.None).ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
 
                 Assert.That(
@@ -385,9 +557,9 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
             harness.Clock.Advance(TimeSpan.FromSeconds(2));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.Read)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
             Assert.That(harness.Manager.GetSession(created.AuthenticationToken), Is.Null);
@@ -409,8 +581,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
             harness.Clock.Advance(TimeSpan.FromSeconds(2));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(harness.Diagnostics.SessionTimeoutCount, Is.Zero);
@@ -458,7 +630,7 @@ namespace Opc.Ua.Server.Tests
             harness.Authenticator.Gate.TrySetResult(true);
 
             Assert.That(completed, Is.SameAs(create), "CreateSession waited for the activation.");
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await create.ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () => await create.ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManySessions));
             await activation.ConfigureAwait(false);
             Assert.That(first.Session.Activated, Is.True);
@@ -495,9 +667,9 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
             Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.CloseSession)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
@@ -533,8 +705,8 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult first = await harness.CreateSessionAsync(firstNonce).ConfigureAwait(false);
             CreateSessionResult second = await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
             Assert.That(harness.Manager.GetSession(first.AuthenticationToken), Is.SameAs(first.Session));
@@ -568,8 +740,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(custom.Object.IsClosing, Is.False);
             Assert.That(SessionTermination.IsClosingOrClaimed(custom.Object), Is.True);
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.ValidateAsync(token, RequestType.Read).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ValidateAsync(token, RequestType.Read).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
 
@@ -601,6 +773,27 @@ namespace Opc.Ua.Server.Tests
             }
 
             private readonly AnonymousAuthenticator m_inner = new();
+        }
+
+        /// <summary>
+        /// A fake clock that can run a callback right after the next timestamp was read,
+        /// i.e. between a caller reading the clock and acting on the value.
+        /// </summary>
+        private sealed class HookClock : FakeTimeProvider
+        {
+            public override long GetTimestamp()
+            {
+                long timestamp = base.GetTimestamp();
+                Interlocked.Exchange(ref m_afterNextTimestamp, null)?.Invoke();
+                return timestamp;
+            }
+
+            public void AfterNextTimestamp(Action callback)
+            {
+                m_afterNextTimestamp = callback ?? throw new ArgumentNullException(nameof(callback));
+            }
+
+            private Action? m_afterNextTimestamp;
         }
 
         /// <summary>
@@ -717,7 +910,7 @@ namespace Opc.Ua.Server.Tests
 
             public Mock<IServerInternal> Server { get; } = new();
 
-            public FakeTimeProvider Clock { get; } = new();
+            public HookClock Clock { get; } = new();
 
             public SessionManager Manager { get; }
 

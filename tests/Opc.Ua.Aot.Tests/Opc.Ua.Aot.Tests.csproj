@@ -34,24 +34,53 @@
     <PackageReference Include="TUnit" />
   </ItemGroup>
   <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.Server.Tests\Programs\Assets\DomainDownloadModel.xml">
+      <ModelSourceGeneratorModelUri>urn:opcfoundation:tests:programs</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>DomainDownloadModel</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.TestModels.DomainDownload</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="..\Opc.Ua.Server.Tests\Programs\Assets\DomainDownloadModel.csv" />
+    <Compile Include="..\Opc.Ua.Server.Tests\Programs\DomainDownloadState.cs" Link="Programs\DomainDownloadState.cs" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <ItemGroup>
     <!-- These unchanged tests run in the always-enabled MCP NativeAOT companion. -->
     <Compile Remove="McpAotTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.AI.Client\Opc.Ua.AI.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AutoID.Client\Opc.Ua.AutoID.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AutoID.Server\Opc.Ua.AutoID.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Pumps.Client\Opc.Ua.Pumps.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Pumps.Server\Opc.Ua.Pumps.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ECM.Client\Opc.Ua.ECM.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ECM.Server\Opc.Ua.ECM.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.IA.Client\Opc.Ua.IA.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.IA.Server\Opc.Ua.IA.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.LADS.Client\Opc.Ua.LADS.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.LADS.Server\Opc.Ua.LADS.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning\Opc.Ua.Positioning.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Client\Opc.Ua.Positioning.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PADIM.Server\Opc.Ua.PADIM.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PADIM.Client\Opc.Ua.PADIM.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Client\Opc.Ua.MachineVision.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Server\Opc.Ua.MachineVision.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Kubernetes\Opc.Ua.Redundancy.Kubernetes.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Security.Pkcs11\Opc.Ua.Security.Pkcs11.csproj" />

@@ -180,7 +180,7 @@ namespace Opc.Ua.Vision.Tests
             for (int i = 8; i + 8 <= png.Length;)
             {
                 uint length = ReadUInt32BE(png, i);
-                if (length > (uint)int.MaxValue)
+                if (length > int.MaxValue)
                 {
                     return -1;
                 }

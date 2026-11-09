@@ -21,7 +21,7 @@ aggregate value per interval.
 - [Overview](#overview)
 - [Supported aggregate functions](#supported-aggregate-functions)
 - [Architecture](#architecture)
-  - [`AnnotationCount`](#annotationcount)
+  - [AnnotationCount](#annotationcount)
 - [Server configuration](#server-configuration)
 - [Client usage](#client-usage)
 - [Notes and limitations](#notes-and-limitations)
@@ -44,15 +44,22 @@ status-code rules, and special cases.
 
 ## Architecture
 
-```
-HistoryRead (ReadProcessedDetails)
-      ↓
-AsyncCustomNodeManager / CustomNodeManager2  → HistorianDispatcher.DispatchProcessedReadAsync
-      ↓                                              ├─ provider implements IHistorianProcessedProvider → native push-down
-      ↓                                              └─ otherwise: framework fallback
-      ↓                                                    ├─ AnnotationCount → IHistorianAnnotationProvider (counts Annotations)
-      ↓                                                    └─ other aggregates → AggregateManager.CreateCalculator
-      ↓                                                          → stream raw values through IAggregateCalculator
+```mermaid
+flowchart TD
+    request["HistoryRead<br/>(ReadProcessedDetails)"]
+    manager["AsyncCustomNodeManager / CustomNodeManager2"]
+    dispatch["HistorianDispatcher.DispatchProcessedReadAsync"]
+    native{"Provider implements<br/>IHistorianProcessedProvider?"}
+    pushdown["Native push-down"]
+    fallback{"Framework fallback"}
+    annotations["IHistorianAnnotationProvider<br/>Counts Annotations"]
+    calculator["AggregateManager.CreateCalculator"]
+    stream["Stream raw values through IAggregateCalculator"]
+    request --> manager --> dispatch --> native
+    native -->|Yes| pushdown
+    native -->|No| fallback
+    fallback -->|AnnotationCount| annotations
+    fallback -->|Other aggregates| calculator --> stream
 ```
 
 - **`AggregateManager`** (`Opc.Ua.Server`) owns the registered aggregate factories, the server default

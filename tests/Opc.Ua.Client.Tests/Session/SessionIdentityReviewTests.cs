@@ -163,7 +163,7 @@ namespace Opc.Ua.Client.Tests
             discovered.SecurityLevel = discovered.SecurityLevel == 0 ? (byte)1 : (byte)0;
             await using var manager = new ClientChannelManager(ClientFixture.Config, Telemetry);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 using ISession session = staticFactory
                     ? await Client.Session.CreateAsync(
@@ -252,7 +252,9 @@ namespace Opc.Ua.Client.Tests
             factory.SetupGet(value => value.SubscriptionEngineFactory)
                 .Returns(DefaultSubscriptionEngineFactory.Instance);
             factory.Setup(value => value.CreateAsync(
-                    ClientFixture.Config, endpoint, It.IsAny<bool>(), false,
+                    ClientFixture.Config,
+                    It.Is<ConfiguredEndpoint>(candidate => candidate.EndpointUrl == endpoint.EndpointUrl),
+                    It.IsAny<bool>(), false,
                     It.IsAny<string>(), It.IsAny<uint>(), It.IsAny<IUserIdentity>(),
                     It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(inner);
@@ -594,7 +596,7 @@ namespace Opc.Ua.Client.Tests
 
             if (explicitNone)
             {
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await factory.CreateAsync(
                         ClientFixture.Config, endpoint, false, false, "unencrypted-token",
                         60000, identity, default, timeout.Token).ConfigureAwait(false));
@@ -645,7 +647,7 @@ namespace Opc.Ua.Client.Tests
 
             if (changeTokenSecurity)
             {
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await factory.CreateAsync(
                         ClientFixture.Config, endpoint, false, false, "changed-token-policy",
                         60000, identity, default, timeout.Token).ConfigureAwait(false));

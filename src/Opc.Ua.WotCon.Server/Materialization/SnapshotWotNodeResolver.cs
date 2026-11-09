@@ -109,7 +109,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return new ValueTask<bool>(Index().Namespaces.Contains(namespaceUri));
         }
 
+        /// <summary>
+        /// Resolves a NamespaceUri-qualified BrowseName.
+        /// </summary>
         /// <inheritdoc/>
+        /// <param name="namespaceUri">The NamespaceUri the compact model name's prefix resolved to.</param>
+        /// <param name="browseName">The unqualified BrowseName.</param>
+        /// <param name="expected">The NodeClass the caller requires, or
+        /// <see cref="WotExpectedNodeClass.Any"/>.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
         public ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
             string namespaceUri,
             string browseName,
@@ -126,29 +134,32 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (!Index().ByBrowseName.TryGetValue(
                 Key(namespaceUri, browseName), out ArrayOf<WotResolvedNode> found))
             {
-                return new ValueTask<ArrayOf<WotResolvedNode>>(ArrayOf<WotResolvedNode>.Empty);
+                return new ValueTask<ArrayOf<WotResolvedNode>>([]);
             }
-            if (expected == WotExpectedNodeClass.Any)
-            {
-                return new ValueTask<ArrayOf<WotResolvedNode>>(found);
-            }
-
             // Section 5.2.1 makes a resolved type of the wrong NodeClass an
             // invalid document, so a match of a NodeClass the caller did not
             // ask for is not offered at all.
             var accepted = new List<WotResolvedNode>(found.Count);
             foreach (WotResolvedNode node in found)
             {
-                if (node.NodeClass == expected)
+                WotResolvedNode current = Index().ByNodeId.TryGetValue(node.NodeId, out WotResolvedNode authoritative)
+                    ? authoritative
+                    : node;
+                if (expected == WotExpectedNodeClass.Any || current.NodeClass == expected)
                 {
-                    accepted.Add(node);
+                    accepted.Add(WithAncestry(current));
                 }
             }
             return new ValueTask<ArrayOf<WotResolvedNode>>(
                 new ArrayOf<WotResolvedNode>(accepted.ToArray()));
         }
 
+        /// <summary>
+        /// Resolves a definitive ExpandedNodeId.
+        /// </summary>
         /// <inheritdoc/>
+        /// <param name="expandedNodeId">The portable ExpandedNodeId, in the <c>nsu=…;…</c> form.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
         public ValueTask<WotResolvedNode?> ResolveByNodeIdAsync(
             string expandedNodeId,
             CancellationToken cancellationToken = default)
@@ -157,7 +168,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResolvedNode? match =
                 !string.IsNullOrEmpty(expandedNodeId) &&
                 Index().ByNodeId.TryGetValue(expandedNodeId, out WotResolvedNode found)
-                    ? found
+                    ? WithAncestry(found)
                     : null;
             return new ValueTask<WotResolvedNode?>(match);
         }
@@ -209,6 +220,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             cancellationToken.ThrowIfCancellationRequested();
             return new ValueTask<WotTypeDeclarationSet?>(
                 Index().Declarations.Resolve(typeNodeId, scope));
+        }
+
+        private WotResolvedNode WithAncestry(WotResolvedNode node)
+        {
+            WotDocumentDeclarationIndex declarations = Index().Declarations;
+            return node with
+            {
+                SupertypeNodeIds = declarations.Resolve(node.NodeId, WotDeclarationScope.Effective)?.Supertypes ?? [],
+                DirectSupertypeNodeIds = declarations.GetDirectSupertypes(node.NodeId)
+            };
         }
 
         /// <summary>
@@ -315,6 +336,26 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         continue;
+                    }
+                }
+
+                foreach ((WotResolvedNode node, WotBrowsePathElement name) in built.Declarations.GetNativeNodes())
+                {
+                    built.ByNodeId[node.NodeId] = node;
+                    if (name.NamespaceUri is null || string.IsNullOrEmpty(name.Name))
+                    {
+                        continue;
+                    }
+                    built.Namespaces.Add(name.NamespaceUri);
+                    string key = Key(name.NamespaceUri, name.Name);
+                    if (!buckets.TryGetValue(key, out List<WotResolvedNode>? bucket))
+                    {
+                        bucket = [];
+                        buckets.Add(key, bucket);
+                    }
+                    if (!bucket.Exists(existing => existing.NodeId == node.NodeId))
+                    {
+                        bucket.Add(node);
                     }
                 }
 

@@ -1,0 +1,346 @@
+name: recycling-sample
+
+x-common: &common
+  image: ${RECYCLING_IMAGE:-recycling-server:local}
+  init: true
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp]
+  restart: on-failure
+
+x-view: &view
+  <<: *common
+  depends_on: [coordinator]
+
+services:
+  operator-console:
+    <<: *common
+    profiles: [operator-console]
+    image: ${RECYCLING_CLIENT_IMAGE:-recycling-client:local}
+    build:
+      context: ../../..
+      dockerfile: samples/Recycling/RecyclingOperatorConsole/Dockerfile
+    depends_on: [coordinator]
+    environment:
+      RecyclingConsole__ContainerBind: "true"
+      RecyclingConsole__AllowedHost: "localhost:8080"
+      RecyclingConsole__Endpoint: "opc.tcp://recycling-coordinator:62570/Recycling"
+      RecyclingConsole__LineId: "line-1"
+      RecyclingConsole__Role: "Observer"
+      RecyclingConsole__BootstrapKeyFile: "/run/console-secrets/bootstrap-key"
+      RecyclingConsole__UserCertificatePath: "/run/console-secrets/users"
+      RecyclingConsole__UserCertificateSubject: "CN=Recycling-line-1-observer"
+      RecyclingConsole__UserCertificatePasswordFile: "/run/console-secrets/user-password"
+      RecyclingConsole__ApplicationCertificateStore: "/data/pki/own"
+      RecyclingConsole__TrustedPeerStore: "/data/pki/trusted"
+      RecyclingConsole__TrustedIssuerStore: "/data/pki/issuer"
+      RecyclingConsole__RejectedCertificateStore: "/data/pki/rejected"
+      RecyclingConsole__ProcessEndpoints__Collection: "opc.tcp://recycling-collection:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Sorting: "opc.tcp://recycling-sorting:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Shredding: "opc.tcp://recycling-shredding:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Washing: "opc.tcp://recycling-washing:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__DensitySeparation: "opc.tcp://recycling-density-separation:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Drying: "opc.tcp://recycling-drying:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Extrusion: "opc.tcp://recycling-extrusion:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__MeltFiltration: "opc.tcp://recycling-melt-filtration:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Pelletizing: "opc.tcp://recycling-pelletizing:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Bagging: "opc.tcp://recycling-bagging:62570/Recycling"
+    ports: ["127.0.0.1:8080:8080"]
+    volumes:
+      - "${RECYCLING_DATA_DIR:?Set an absolute provisioned directory outside the repository}/operator-console/pki:/data/pki"
+      - "${RECYCLING_DATA_DIR}/operator-console/secrets:/run/console-secrets:ro"
+
+  coordinator:
+    <<: *common
+    hostname: recycling-coordinator
+    build:
+      context: ../../..
+      dockerfile: samples/Recycling/RecyclingServer/Dockerfile
+    command:
+      - "--role"
+      - "coordinator"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+    ports: ["127.0.0.1:62570:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR:?Set an absolute provisioned directory outside the repository}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/coordinator:/data"
+
+  collection:
+    <<: *view
+    hostname: recycling-collection
+    command:
+      - "--process"
+      - "collection"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-collection:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-collection"
+    ports: ["127.0.0.1:62571:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/collection:/data"
+
+  sorting:
+    <<: *view
+    hostname: recycling-sorting
+    command:
+      - "--process"
+      - "sorting"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-sorting:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-sorting"
+    ports: ["127.0.0.1:62572:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/sorting:/data"
+
+  shredding:
+    <<: *view
+    hostname: recycling-shredding
+    command:
+      - "--process"
+      - "shredding"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-shredding:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-shredding"
+    ports: ["127.0.0.1:62573:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/shredding:/data"
+
+  washing:
+    <<: *view
+    hostname: recycling-washing
+    command:
+      - "--process"
+      - "washing"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-washing:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-washing"
+    ports: ["127.0.0.1:62574:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/washing:/data"
+
+  density-separation:
+    <<: *view
+    hostname: recycling-density-separation
+    command:
+      - "--process"
+      - "density-separation"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-density-separation:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-density-separation"
+    ports: ["127.0.0.1:62575:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/density-separation:/data"
+
+  drying:
+    <<: *view
+    hostname: recycling-drying
+    command:
+      - "--process"
+      - "drying"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-drying:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-drying"
+    ports: ["127.0.0.1:62576:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/drying:/data"
+
+  extrusion:
+    <<: *view
+    hostname: recycling-extrusion
+    command:
+      - "--process"
+      - "extrusion"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-extrusion:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-extrusion"
+    ports: ["127.0.0.1:62577:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/extrusion:/data"
+
+  melt-filtration:
+    <<: *view
+    hostname: recycling-melt-filtration
+    command:
+      - "--process"
+      - "melt-filtration"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-melt-filtration:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-melt-filtration"
+    ports: ["127.0.0.1:62578:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/melt-filtration:/data"
+
+  pelletizing:
+    <<: *view
+    hostname: recycling-pelletizing
+    command:
+      - "--process"
+      - "pelletizing"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-pelletizing:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-pelletizing"
+    ports: ["127.0.0.1:62579:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/pelletizing:/data"
+
+  bagging:
+    <<: *view
+    hostname: recycling-bagging
+    command:
+      - "--process"
+      - "bagging"
+      - "--line-id"
+      - "line-1"
+      - "--endpoint"
+      - "opc.tcp://recycling-bagging:62570/Recycling"
+      - "--coordinator"
+      - "opc.tcp://recycling-coordinator:62570/Recycling"
+      - "--identities"
+      - "/config/identities.json"
+      - "--pki-root"
+      - "/data/pki"
+      - "--state-root"
+      - "/data/state"
+      - "--identity-store"
+      - "/data/users"
+      - "--identity-subject"
+      - "CN=Recycling-line-1-bagging"
+    ports: ["127.0.0.1:62580:62570"]
+    volumes:
+      - "${RECYCLING_DATA_DIR}/identities.json:/config/identities.json:ro"
+      - "${RECYCLING_DATA_DIR}/bagging:/data"

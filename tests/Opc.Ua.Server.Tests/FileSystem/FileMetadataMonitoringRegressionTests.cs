@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -45,7 +46,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [Test]
         public async Task FirstSizeNotificationContainsActualFileSizeWithoutRetainingHandlesAsync()
         {
-            string directory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            string directory = Path.Combine(AppContext.BaseDirectory, Path.GetRandomFileName());
             Directory.CreateDirectory(directory);
             string path = Path.Combine(directory, "payload.bin");
             try

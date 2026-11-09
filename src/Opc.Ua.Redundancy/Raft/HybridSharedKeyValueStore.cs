@@ -51,10 +51,15 @@ namespace Opc.Ua.Redundancy
     /// A scan whose prefix spans both keyspaces (for example the empty prefix used for full hydration) enumerates the
     /// bulk store and then the strong store.
     /// </para>
+    /// <para>
+    /// The snapshot management of <see cref="IRaftSnapshotManager"/> is delegated to the strong store, so a snapshot
+    /// holds the strong keyspaces; the bulk keyspace is replicated by the CRDT store and is not part of it.
+    /// </para>
     /// </remarks>
     public sealed class HybridSharedKeyValueStore :
         ISharedKeyValueStore,
         ISharedKeyValueStoreConsistency,
+        IRaftSnapshotManager,
         IAsyncDisposable
     {
         /// <summary>
@@ -155,6 +160,23 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
+        /// <exception cref="NotSupportedException">The strong store does not manage Raft snapshots.</exception>
+        public ValueTask<RaftKeyValueSnapshot> CreateSnapshotAsync(CancellationToken ct = default)
+        {
+            return GetStrongSnapshots().CreateSnapshotAsync(ct);
+        }
+
+        /// <inheritdoc/>
+        /// <exception cref="NotSupportedException">The strong store does not manage Raft snapshots.</exception>
+        public ValueTask RestoreSnapshotAsync(
+            ByteString snapshot,
+            RaftSnapshotLogReplay replay = RaftSnapshotLogReplay.AfterSnapshot,
+            CancellationToken ct = default)
+        {
+            return GetStrongSnapshots().RestoreSnapshotAsync(snapshot, replay, ct);
+        }
+
+        /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
             if (Interlocked.Exchange(ref m_disposed, 1) != 0)
@@ -166,6 +188,13 @@ namespace Opc.Ua.Redundancy
                 await DisposeStoreAsync(m_strong).ConfigureAwait(false);
                 await DisposeStoreAsync(m_bulk).ConfigureAwait(false);
             }
+        }
+
+        private IRaftSnapshotManager GetStrongSnapshots()
+        {
+            return m_strong as IRaftSnapshotManager ??
+                throw new NotSupportedException(
+                    "The strong store of this hybrid store does not manage Raft snapshots.");
         }
 
         private ISharedKeyValueStore Route(string key)

@@ -41,7 +41,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Redaction;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable CA2254 // Template should be a static expression
@@ -107,7 +106,7 @@ namespace Opc.Ua
             private static ILoggerFactory CreateLoggerFactory()
             {
                 return Microsoft.Extensions.Logging.LoggerFactory.Create(
-                    builder => builder.AddProvider(LoggerProvider));
+                    builder => builder.EnableOpcUaRedaction().AddProvider(LoggerProvider));
             }
         }
 
@@ -213,9 +212,9 @@ namespace Opc.Ua
             var buffer = new StringBuilder();
             buffer
                 .Append('[')
-                .Append(Redact.Create(certificate.Subject))
+                .Append(certificate.Subject)
                 .Append("], [")
-                .Append(Redact.Create(certificate.Thumbprint))
+                .Append(certificate.Thumbprint)
                 .Append(']');
 
             if (certificate.Handle == IntPtr.Zero)

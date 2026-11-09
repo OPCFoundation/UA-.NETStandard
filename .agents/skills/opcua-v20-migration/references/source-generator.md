@@ -22,30 +22,23 @@ the names the consumer actually uses.
 
 ## Pipeline
 
-```
-┌─────────────────────────────┐
-│ Consumer source has         │       ┌────────────────────┐
-│   new Int32Collection {}    │ ─────▶│ Syntactic filter   │  match: ends in "Collection"
-│   DataValueCollection x;    │       │ (cheap, every kb)  │  in type position
-│   WaterPumpCollection wps;  │       └────────┬───────────┘
-│   NeverSeenCollection nss;  │                │
-└─────────────────────────────┘                ▼
-                                  ┌──────────────────────────┐
-                                  │ Semantic transform       │
-                                  │                          │
-                                  │ if symbol binds → skip   │
-                                  │ else:                    │
-                                  │   1. catalog override?   │  (rename cases only)
-                                  │   2. semantic lookup?    │  (Compilation.GetSymbolsWithName)
-                                  │   3. else MIG01          │
-                                  └────────┬─────────────────┘
-                                           │
-                                           ▼
-                                  ┌──────────────────────────┐
-                                  │ Dedup + emit             │
-                                  │ <Name>Collection.g.cs    │
-                                  │ per unique entry         │
-                                  └──────────────────────────┘
+```mermaid
+flowchart TD
+    source["Consumer source<br/>new Int32Collection {}<br/>DataValueCollection x;<br/>WaterPumpCollection wps;<br/>NeverSeenCollection nss;"]
+    filter["Syntactic filter<br/>(cheap, every kb)<br/>Match: ends in Collection in type position"]
+    binds{"Does the symbol bind?"}
+    skip["Skip"]
+    catalog{"Catalog override?<br/>(rename cases only)"}
+    lookup{"Semantic lookup?<br/>Compilation.GetSymbolsWithName"}
+    error["MIG01"]
+    emit["Deduplicate and emit<br/>&lt;Name&gt;Collection.g.cs<br/>per unique entry"]
+    source --> filter --> binds
+    binds -->|Yes| skip
+    binds -->|No| catalog
+    catalog -->|Yes| emit
+    catalog -->|No| lookup
+    lookup -->|Yes| emit
+    lookup -->|No| error
 ```
 
 ### 1. Catalog override (rename cases only)
@@ -137,7 +130,7 @@ namespace Opc.Ua
   public API.
 - **`[Obsolete]` with `(UA0002)` suffix** — fires both CS0612 (or CS0618) **and**
   UA0002 with a consistent rule id.
-- **Implicit conversion to `ArrayOf<TElement>`** — graceful bridge into 2.0
+- **Implicit conversion to `ArrayOf<TElement>`** — lets callers pass shims to 2.0
   APIs that take `ArrayOf<T>`.
 - **`global::` qualification everywhere** — avoids ambiguity with any
   consumer-defined types of the same name.
@@ -191,31 +184,26 @@ If `Foo` itself was renamed / removed during your 2.0 work, the
 
 Last resort: define the wrapper class yourself in consumer code. Match its
 accessibility to the signatures that use it; when the symbol binds, the
-generator skips emission. This is useful when the element type is genuinely
-synthesized at runtime (rare).
+generator skips emission. Use this fallback for a compile-time element type
+that the generator cannot resolve. A type created only at runtime cannot be
+named as the element type in a source-defined generic wrapper.
 
 ## Performance
 
-The generator is incremental — Roslyn re-runs the transform stage only for
-changed syntax trees, and the emit stage only when the deduplicated
-`(shortName, elementDisplay)` set changes. `dotnet build` + IDE
-`/p:ReportAnalyzer=true` numbers from real consumer projects:
-
-```
-Generator: Opc.Ua.MigrationAnalyzer.Generator
-  Time (s)    %   Generator
-  < 0.001  < 1   Opc.Ua.MigrationAnalyzer.Generator.MigrationGenerator
-```
-
-In practice the generator is unmeasurable next to csc.exe's own startup cost.
+The generator uses Roslyn's incremental pipeline. Measure its execution time
+in the consumer project with `/p:ReportAnalyzer=true`, and record the SDK,
+project, build configuration and whether the build was clean or incremental.
+Generator execution time alone does not measure compiler startup or total
+build overhead.
 
 ## Limitations
 
 - **Identifier-position only.** The generator matches `IdentifierNameSyntax`
   in type positions (object-creation type, variable/parameter/field/property
-  type, generic argument, `typeof`, cast). It does **not** intercept calls like
-  `Activator.CreateInstance(typeof(Int32Collection))` — but those are extremely
-  rare in real consumer code and would have failed at runtime on 2.0 anyway.
+  type, generic argument, `typeof`, cast). It detects eligible legacy type
+  identifiers inside `typeof`, including the operand in
+  `Activator.CreateInstance(typeof(Int32Collection))`. It does not rewrite
+  Activator calls or infer collection types from strings used for runtime lookup.
 - **Single-element-name semantic lookup.** The generator looks up the bare
   element short name with `Compilation.GetSymbolsWithName`; it doesn't try to
   enumerate generic instantiations or open generics. `MyCollection<T>` patterns

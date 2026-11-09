@@ -35,6 +35,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace IntentViewerClient
 {
@@ -121,16 +122,58 @@ namespace IntentViewerClient
                 throw ServiceResultException.Create(StatusCodes.BadTimeout, "Could not reach {0}.", options.ServerUrl);
             }
 
+            return await ConnectAsync(
+                options, telemetry, configuration, endpointDescription, sessionFactory: null, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Connects using prepared application resources while retaining the operator's peer identity.
+        /// </summary>
+        internal static async Task<SampleSession> ConnectAsync(
+            IntentViewerOptions options,
+            ITelemetryContext telemetry,
+            ApplicationConfiguration configuration,
+            EndpointDescription endpointDescription,
+            ISessionFactory? sessionFactory,
+            CancellationToken cancellationToken)
+        {
+            if (!Uri.TryCreate(options.ServerUrl, UriKind.Absolute, out Uri? requested) ||
+                !Uri.TryCreate(endpointDescription.EndpointUrl, UriKind.Absolute, out Uri? advertised) ||
+                string.IsNullOrEmpty(requested.Host) ||
+                !string.Equals(requested.Scheme, advertised.Scheme, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Discovery must preserve the requested transport and hostname identity.");
+            }
+            EndpointDescription description = CoreUtils.Clone(endpointDescription)!;
+            description.EndpointUrl = new UriBuilder(advertised)
+            {
+                Host = requested.IdnHost,
+                Port = requested.Port
+            }.Uri.AbsoluteUri;
+            description.Server.DiscoveryUrls = [requested.AbsoluteUri];
             var endpoint = new ConfiguredEndpoint(
                 null,
-                endpointDescription,
+                description,
                 EndpointConfiguration.Create(configuration));
-            ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+            if (description.ServerCertificate.Length > 0)
+            {
+                using var certificate = Certificate.FromRawData(description.ServerCertificate);
+                configuration.CertificateManager.ValidateDomains(certificate, endpoint, serverValidation: true);
+            }
+            var builder = new ManagedSessionBuilder(configuration, telemetry)
                 .UseEndpoint(endpoint)
+                .WithCheckDomain(true)
                 .WithSessionName("IntentViewerClient")
                 .WithSessionTimeout(TimeSpan.FromSeconds(60))
-                .WithUserIdentity(new UserIdentity(new AnonymousIdentityToken()))
-                .ConnectAsync(cancellationToken).ConfigureAwait(false);
+                .WithUserIdentity(new UserIdentity(new AnonymousIdentityToken()));
+            if (sessionFactory != null)
+            {
+                builder.UseSessionFactory(sessionFactory);
+            }
+            ManagedSession session = await builder.ConnectAsync(cancellationToken).ConfigureAwait(false);
             return new SampleSession(session, session.DefaultStreaming, configuration);
         }
 

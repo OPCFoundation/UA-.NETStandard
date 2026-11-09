@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
@@ -935,7 +936,114 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(info.RedundantServers, Has.Count.EqualTo(1));
             Assert.That(info.RedundantServers[0].Endpoint, Is.Null);
+            Assert.That(info.RedundantServers[0].ResolutionError, Is.Not.Null);
+            Assert.That(info.RedundantServers[0].ResolutionError!.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
             Assert.That(target, Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies that a ServiceLevel monitoring interval must be positive and is off by default.
+        /// </summary>
+        [Test]
+        public void ServiceLevelMonitoringIntervalMustBePositive()
+        {
+            var defaults = new ServerRedundancyOptions();
+            Assert.That(defaults.ServiceLevelMonitoringInterval, Is.Null);
+            Assert.That(defaults.ProbeMemberServiceLevel, Is.False);
+            Assert.That(
+                () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.Zero }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = Timeout.InfiniteTimeSpan }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.FromSeconds(1) }.Validate(),
+                Throws.Nothing);
+        }
+
+        /// <summary>
+        /// Verifies that a failed endpoint resolution keeps the exact status of the failure.
+        /// </summary>
+        [Test]
+        public async Task FetchRedundancyInfoReportsResolutionErrorOfFailedPeerAsync()
+        {
+            m_resolver.Setup(r => r.ResolveAsync(
+                    "urn:refusing",
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadCertificateUntrusted));
+            Mock<ISession> mockSession = CreateMockSession(
+                redundancySupport: (int)RedundancySupport.Warm,
+                serviceLevel: ServiceLevels.Maximum,
+                serverUris: ["urn:refusing"]);
+
+            ServerRedundancyInfo info = await m_handler.FetchRedundancyInfoAsync(
+                mockSession.Object).ConfigureAwait(false);
+
+            Assert.That(info.RedundantServers, Has.Count.EqualTo(1));
+            Assert.That(info.RedundantServers[0].Endpoint, Is.Null);
+            Assert.That(info.RedundantServers[0].ServiceLevelKnown, Is.False);
+            Assert.That(
+                info.RedundantServers[0].ResolutionError?.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// Verifies that a discovery failure of the default resolver is reported instead of BadNotFound.
+        /// </summary>
+        [Test]
+        public async Task FetchRedundancyInfoReportsDiscoveryFailureOfDefaultResolverAsync()
+        {
+            var resolver = new DefaultRedundantServerEndpointResolver(
+                NUnitTelemetryContext.Create(),
+                new FailingDiscovery(StatusCodes.BadCertificateUntrusted));
+            var handler = new DefaultServerRedundancyHandler(resolver, new FixedTimeProvider(s_now));
+            Mock<ISession> mockSession = CreateMockSession(
+                redundancySupport: (int)RedundancySupport.Warm,
+                serviceLevel: ServiceLevels.Maximum,
+                serverUris: ["urn:refusing"]);
+
+            ServerRedundancyInfo info = await handler.FetchRedundancyInfoAsync(
+                mockSession.Object).ConfigureAwait(false);
+
+            Assert.That(info.RedundantServers, Has.Count.EqualTo(1));
+            Assert.That(info.RedundantServers[0].Endpoint, Is.Null);
+            Assert.That(
+                info.RedundantServers[0].ResolutionError?.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// Verifies that the status of every redundancy node read is reported, including refused nodes.
+        /// </summary>
+        [Test]
+        public async Task FetchRedundancyInfoReportsReadStatusOfEachNodeAsync()
+        {
+            Mock<ISession> mockSession = CreateMockSession(
+                redundancySupport: (int)RedundancySupport.Transparent,
+                serviceLevel: ServiceLevels.Maximum,
+                currentServerId: "urn:current");
+
+            ServerRedundancyInfo info = await m_handler.FetchRedundancyInfoAsync(
+                mockSession.Object).ConfigureAwait(false);
+
+            Assert.That(info.CurrentServerId, Is.EqualTo("urn:current"));
+            Assert.That(info.ReadStatuses, Has.Count.EqualTo(6));
+            Assert.That(
+                info.ReadStatuses[VariableIds.Server_ServerRedundancy_RedundancySupport],
+                Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(
+                info.ReadStatuses[VariableIds.Server_ServiceLevel],
+                Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(
+                info.ReadStatuses[VariableIds.Server_ServerRedundancy_RedundantServerArray],
+                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(
+                info.ReadStatuses[VariableIds.Server_ServerRedundancy_ServerUriArray],
+                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(
+                info.ReadStatuses[VariableIds.Server_ServerRedundancy_CurrentServerId],
+                Is.EqualTo((StatusCode)StatusCodes.Good));
         }
 
         /// <summary>
@@ -1274,6 +1382,35 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             }
 
             private readonly DateTimeOffset m_utcNow;
+        }
+
+        private sealed class FailingDiscovery : IRedundantServerDiscovery
+        {
+            public FailingDiscovery(StatusCode statusCode)
+            {
+                m_statusCode = statusCode;
+            }
+
+            public ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
+                Uri discoveryUri,
+                EndpointConfiguration configuration,
+                string serverUri,
+                ITelemetryContext telemetry,
+                CancellationToken ct)
+            {
+                throw new ServiceResultException(m_statusCode);
+            }
+
+            public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
+                Uri discoveryUri,
+                EndpointConfiguration configuration,
+                ITelemetryContext telemetry,
+                CancellationToken ct)
+            {
+                throw new ServiceResultException(m_statusCode);
+            }
+
+            private readonly StatusCode m_statusCode;
         }
     }
 }

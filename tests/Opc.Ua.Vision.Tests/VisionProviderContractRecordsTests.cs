@@ -29,9 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using Moq;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -51,7 +50,7 @@ namespace Opc.Ua.Vision.Tests
             var pipeline = new NodeId(1, 1);
             var sensor = new NodeId(2, 1);
             var deployment = new NodeId(3, 1);
-            DateTimeUtc timestamp = DateTimeUtc.From(new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+            var timestamp = DateTimeUtc.From(new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc));
 
             var request = new VisionInferenceRunRequest(pipeline, sensor, deployment, timestamp);
 
@@ -148,7 +147,7 @@ namespace Opc.Ua.Vision.Tests
         public void VisionClipRequestRoundTripsPositionalProperties()
         {
             var endpoint = new NodeId(10, 1);
-            DateTimeUtc timestamp = DateTimeUtc.From(new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+            var timestamp = DateTimeUtc.From(new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc));
 
             var request = new VisionClipRequest(
                 endpoint, "result-1", timestamp, VisionClipFormatEnum.Jpeg, RequestInline: true);
@@ -169,7 +168,7 @@ namespace Opc.Ua.Vision.Tests
             ServiceResult sr = ServiceResult.Good;
             var image = new VisionImageReferenceDataType();
             var endpointOut = new NodeId(1, 1);
-            ByteString inline = ByteString.From(new byte[] { 0x01, 0x02 });
+            var inline = ByteString.From(new byte[] { 0x01, 0x02 });
 
             var result = new VisionClipResult(sr, image, endpointOut, inline);
 
@@ -186,7 +185,7 @@ namespace Opc.Ua.Vision.Tests
         public void VisionSubmitDetectionsRequestRoundTripsPositionalProperties()
         {
             var pipeline = new NodeId(10, 1);
-            ArrayOf<VisionDetectionDataType> detections =
+            var detections =
                 new List<VisionDetectionDataType>().ToArrayOf();
             var frameRef = new VisionImageReferenceDataType();
             ByteString inline = ByteString.Empty;
@@ -207,7 +206,7 @@ namespace Opc.Ua.Vision.Tests
         public void VisionSubmitInspectionResultRequestRoundTripsPositionalProperties()
         {
             var pipeline = new NodeId(10, 1);
-            ArrayOf<VisionCharacteristicDataType> characteristics =
+            var characteristics =
                 new List<VisionCharacteristicDataType>().ToArrayOf();
 
             var request = new VisionSubmitInspectionResultRequest(
@@ -225,9 +224,9 @@ namespace Opc.Ua.Vision.Tests
         public void VisionSubmitCorrectionRequestRoundTripsPositionalProperties()
         {
             var pipeline = new NodeId(10, 1);
-            ArrayOf<VisionDetectionDataType> dets =
+            var dets =
                 new List<VisionDetectionDataType>().ToArrayOf();
-            ArrayOf<VisionCharacteristicDataType> chars =
+            var chars =
                 new List<VisionCharacteristicDataType>().ToArrayOf();
             var reason = new LocalizedText("en", "bad");
             ByteString inline = ByteString.Empty;

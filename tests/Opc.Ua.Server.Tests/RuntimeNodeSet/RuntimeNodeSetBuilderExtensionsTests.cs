@@ -138,11 +138,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Assert.That(
                     services,
                     Has.Some.Matches<ServiceDescriptor>(
-                        d => d.ServiceType == typeof(IAsyncNodeManagerFactory)));
+                        d => d is not null && d.ServiceType == typeof(IAsyncNodeManagerFactory)));
                 Assert.That(
                     services,
                     Has.Some.Matches<ServiceDescriptor>(
-                        d => d.ServiceType == typeof(OpcUaServerNodeManagerRegistration)));
+                        d => d is not null && d.ServiceType == typeof(OpcUaServerNodeManagerRegistration)));
             });
 
             using ServiceProvider sp = services.BuildServiceProvider();

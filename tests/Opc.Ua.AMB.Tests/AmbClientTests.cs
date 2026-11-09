@@ -356,13 +356,52 @@ namespace Opc.Ua.AMB.Tests
             {
                 Assert.That(provider.GetRequiredService<AmbClientFactory>(), Is.Not.Null);
                 Assert.That(provider.GetRequiredService<Func<CancellationToken, Task<AmbClient>>>(), Is.Not.Null);
+                Assert.That(provider.GetService<AmbClientOptions>(), Is.Null);
                 Assert.Throws<ArgumentNullException>(
                     () => OpcUaAmbClientBuilderExtensions.AddAssetManagementClient(null!));
+                Assert.Throws<ArgumentNullException>(
+                    () => OpcUaAmbClientBuilderExtensions.AddAssetManagementClient(null!, new AmbClientOptions()));
+                Assert.Throws<ArgumentNullException>(() => builder.AddAssetManagementClient(null!));
                 Assert.Throws<ArgumentNullException>(
                     () => _ = new AmbClientFactory(null!, NUnitTelemetryContext.Create()));
                 Assert.Throws<ArgumentNullException>(
                     () => _ = new AmbClientFactory(_ => Task.FromResult<ManagedSession>(null!), null!));
             });
+        }
+
+        [TestCase(0, 1)]
+        [TestCase(1, 0)]
+        public void InvalidHostedLimitsAreRejectedBeforeOpeningASession(int references, int pages)
+        {
+            var services = new ServiceCollection();
+            IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(options =>
+            {
+                options.ApplicationName = "InvalidAmbClientOptions";
+                options.ApplicationUri = "urn:localhost:OPCFoundation:InvalidAmbClientOptions";
+            });
+            var limits = new AmbClientOptions
+            {
+                MaximumBrowseReferences = references,
+                MaximumBrowsePages = pages
+            };
+            int opened = 0;
+            Task<ManagedSession> OpenSessionAsync(CancellationToken _)
+            {
+                opened++;
+                return Task.FromResult<ManagedSession>(null!);
+            }
+            services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(OpenSessionAsync);
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddAssetManagementClient(limits));
+            Assert.That(services.Any(service => service.ServiceType == typeof(AmbClientOptions)), Is.False);
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => _ = new AmbClientFactory(OpenSessionAsync, NUnitTelemetryContext.Create(), limits));
+
+            services.AddSingleton(limits);
+            builder.AddAssetManagementClient();
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.Throws<ArgumentOutOfRangeException>(() => provider.GetRequiredService<AmbClientFactory>());
+            Assert.That(opened, Is.Zero);
         }
 
         [Test]

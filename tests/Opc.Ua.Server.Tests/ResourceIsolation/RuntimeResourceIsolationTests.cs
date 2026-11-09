@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests
             int rental = probe.Length;
             buffers.ReturnBuffer(probe, "probe");
             var budget = new ChunkReassemblyBudget(8L * rental);
-            var bindings = new Mock<ISessionBindingProvider>();
+            var bindings = new Mock<IServerSessionBindingProvider>();
             var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 2L * rental };
             ApplicationConfiguration configuration = Configuration();
             using var provider = new DefaultServerResourceIsolationProvider(
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests
         {
             ServerResourceIsolationOptions options = Options();
             options.MaxTrackedOwners = 4;
-            var bindings = new Mock<ISessionBindingProvider>();
+            var bindings = new Mock<IServerSessionBindingProvider>();
             bindings.Setup(value => value.HasSession("active")).Returns(true);
             using DefaultServerResourceIsolationProvider provider =
                 CreateProvider(options, new TestClassifier(), bindings.Object);
@@ -272,7 +272,7 @@ namespace Opc.Ua.Server.Tests
             ResourceIsolationIdentity identity = new("shared-tenant", ResourceIsolationClass.Established);
             classifier.Setup(value => value.TryClassify(
                     It.IsAny<SecureChannelContext>(), It.IsAny<SessionBindingContext>(), out identity)).Returns(true);
-            var bindings = new Mock<ISessionBindingProvider>();
+            var bindings = new Mock<IServerSessionBindingProvider>();
             bindings.Setup(value => value.HasSession(It.IsAny<string>())).Returns(true);
             using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), classifier.Object,
                 bindings.Object);
@@ -313,7 +313,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ReassemblyMembershipPromotionCannotGrantOtherResourceOrRatePrivileges()
         {
-            var bindings = new Mock<ISessionBindingProvider>();
+            var bindings = new Mock<IServerSessionBindingProvider>();
             bindings.Setup(value => value.HasSession("active")).Returns(true);
             using DefaultServerResourceIsolationProvider provider =
                 CreateProvider(Options(), bindings: bindings.Object);
@@ -354,6 +354,126 @@ namespace Opc.Ua.Server.Tests
             Assert.That(provider.GetRevalidationStatus(owner, channel, token),
                 Is.EqualTo(StatusCodes.BadSessionIdInvalid));
         }
+
+        [Test]
+        public void AdmissionEvidenceConfirmsOnlyAnUnchangedBindingAndChannel()
+        {
+            var bindings = new TestBindings();
+            var token = new NodeId(1);
+            var liveness = new TestLiveness();
+            SessionBindingContext binding = Binding(1, "user-a");
+            binding.Liveness = liveness;
+            bindings.Bindings.Add(token, binding);
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), bindings: bindings);
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            byte[] certificate = [1, 2, 3];
+            SecureChannelContext channel = Channel("channel", certificate);
+
+            ResourceIsolationOwner owner = evidenceProvider.Classify(channel, token, false, false, out ResourceIsolationAdmissionEvidence? evidence);
+            Assert.That(owner, Is.SameAs(provider.Classify(channel, token)));
+            Assert.That(evidence, Is.Not.Null);
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.True);
+            Assert.That(liveness.Checks, Is.EqualTo(1));
+
+            // Every trigger the liveness check reports (close, expiry, re-activation, transfer,
+            // shutdown) ends the evidence; the full revalidation then decides the status.
+            liveness.Current = false;
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.False);
+            bindings.Bindings.Clear();
+            Assert.That(provider.GetRevalidationStatus(owner, channel, token),
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+
+            // Changed channel evidence ends it without consulting the session.
+            liveness.Current = true;
+            bindings.Bindings.Add(token, binding);
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.True);
+            int checks = liveness.Checks;
+            certificate[0] = 9;
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.False);
+            Assert.That(liveness.Checks, Is.EqualTo(checks));
+            Assert.That(provider.GetRevalidationStatus(owner, channel, token),
+                Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
+        }
+
+        [Test]
+        public void AdmissionEvidenceWithoutSessionTokenDependsOnTheChannelOnly()
+        {
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            byte[] certificate = [1, 2, 3];
+            SecureChannelContext channel = Channel("channel", certificate);
+
+            _ = evidenceProvider.Classify(channel, default, true, false, out ResourceIsolationAdmissionEvidence? evidence);
+            Assert.That(evidence, Is.Not.Null);
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.True);
+            certificate[0] = 9;
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.False);
+        }
+
+        [Test]
+        public void AdmissionEvidenceIsWithheldWhenItCannotBeConfirmedCheaply()
+        {
+            var bindings = new TestBindings();
+            bindings.Bindings.Add(new NodeId(1), Binding(1, "user-a"));
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), bindings: bindings);
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            SecureChannelContext channel = Channel("channel", [1, 2, 3]);
+
+            // A binding issued without a liveness check.
+            _ = evidenceProvider.Classify(channel, new NodeId(1), false, false, out ResourceIsolationAdmissionEvidence? evidence);
+            Assert.That(evidence, Is.Null);
+            // A token without a binding: an activation can bind it while the request waits.
+            _ = evidenceProvider.Classify(channel, new NodeId(2), false, false, out evidence);
+            Assert.That(evidence, Is.Null);
+
+            // A classifier may map the same inputs differently at any time.
+            var classifier = new Mock<IResourceIsolationClassifier>();
+            using DefaultServerResourceIsolationProvider classified = CreateProvider(Options(), classifier.Object);
+            _ = ((IResourceIsolationAdmissionEvidence)classified).Classify(
+                channel, default, false, false, out evidence);
+            Assert.That(evidence, Is.Null);
+        }
+
+        [Test]
+        public void AdmissionEvidenceIsNotConfirmedByADisposedProvider()
+        {
+            DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            SecureChannelContext channel = Channel("channel", [1, 2, 3]);
+            _ = evidenceProvider.Classify(channel, default, false, false, out ResourceIsolationAdmissionEvidence? evidence);
+            provider.Dispose();
+
+            Assert.That(() => evidenceProvider.IsAdmissionCurrent(evidence!, channel),
+                Throws.TypeOf<ObjectDisposedException>());
+        }
+
+#if NET8_0_OR_GREATER
+        [Test]
+        public void AdmissionEvidenceCheckDoesNotAllocate()
+        {
+            var bindings = new TestBindings();
+            var token = new NodeId(1);
+            SessionBindingContext binding = Binding(1, "user-a");
+            binding.Liveness = new TestLiveness();
+            bindings.Bindings.Add(token, binding);
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), bindings: bindings);
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            SecureChannelContext channel = Channel("channel", new byte[1500]);
+            _ = evidenceProvider.Classify(channel, token, false, false, out ResourceIsolationAdmissionEvidence? evidence);
+            _ = evidenceProvider.IsAdmissionCurrent(evidence!, channel);
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            bool current = true;
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                current &= evidenceProvider.IsAdmissionCurrent(evidence!, channel);
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(current, Is.True);
+            Assert.That(allocated, Is.Zero);
+        }
+#endif
 
         [Test]
         public void SessionDerivedKeysAreCachedPerActivationNotChannelOrSequence()
@@ -979,6 +1099,132 @@ namespace Opc.Ua.Server.Tests
             Assert.That(plan.GetStage(ResourceIsolationStage.Connection).SharedCapacity, Is.EqualTo(3));
         }
 
+        [TestCase(ServerResourceIsolationMode.Balanced, 3)]
+        [TestCase(ServerResourceIsolationMode.FairShare, 0)]
+        [TestCase(ServerResourceIsolationMode.TrustedReservations, 4)]
+        public void DecodedRequestFloorsAreAddedOnTopOfTheConfiguredQueue(
+            ServerResourceIsolationMode mode,
+            int floors)
+        {
+            var options = new ServerResourceIsolationOptions { Mode = mode, MaxRetainedMessageBytes = 10 };
+            if (mode == ServerResourceIsolationMode.TrustedReservations)
+            {
+                options.TrustedOwners = [new TrustedResourceOwnerOptions { Key = "tenant-a" }];
+            }
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxQueuedRequestCount = 150;
+            configuration.ServerConfiguration.MaxRequestThreadCount = 120;
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
+
+            ResourceIsolationStagePlan queue = plan.GetStage(ResourceIsolationStage.RequestQueue);
+            Assert.That(queue.SharedCapacity, Is.EqualTo(150));
+            Assert.That(queue.Capacity, Is.EqualTo(150 + floors));
+            ResourceIsolationStagePlan parked = plan.GetStage(ResourceIsolationStage.ParkedRequest);
+            Assert.That(parked.SharedCapacity, Is.EqualTo(150));
+            Assert.That(parked.Capacity, Is.EqualTo(150 + floors));
+            ResourceIsolationStagePlan bytes = plan.GetStage(ResourceIsolationStage.RequestQueueBytes);
+            Assert.That(bytes.SharedCapacity, Is.EqualTo((2 * 150 + 120) * 10));
+            Assert.That(bytes.Capacity, Is.EqualTo(((2 * 150) + 120 + floors) * 10));
+
+            // execution floors stay inside the worker limit, so a worker remains for protected work.
+            ResourceIsolationStagePlan execution = plan.GetStage(ResourceIsolationStage.RequestExecution);
+            Assert.That(execution.Capacity, Is.EqualTo(120));
+            Assert.That(execution.SharedCapacity, Is.EqualTo(120 - floors));
+        }
+
+        [Test]
+        public void ExplicitQueueCapacityStillIncludesTheFloors()
+        {
+            var options = new ServerResourceIsolationOptions
+            {
+                MaxRetainedMessageBytes = 10,
+                Stages =
+                [
+                    new ResourceIsolationStageOptions { Stage = ResourceIsolationStage.RequestQueue, Capacity = 120 }
+                ]
+            };
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxQueuedRequestCount = 150;
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
+            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueue).Capacity, Is.EqualTo(120));
+            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueue).SharedCapacity, Is.EqualTo(117));
+            options.Stages[0].Capacity = 154;
+            Assert.That(() => options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100)),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void FairQueueAdmitsExactlyMaxQueuedRequestCountFromSeveralOwnersAndKeepsFloors()
+        {
+            const int maxQueued = 100;
+            var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10 };
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxQueuedRequestCount = maxQueued;
+            using var provider = new DefaultServerResourceIsolationProvider(
+                options.CreateRuntimePlan(configuration, new ServerRateLimitOptions(),
+                    new ChunkReassemblyBudget(100, 50)),
+                NUnitTelemetryContext.Create(), null, new TestClassifier());
+            var completed = new List<StatusCode>();
+            var completedLock = new Lock();
+            using var queue = new FairRequestQueue(provider, maxQueued, 10, false, (_, status) =>
+            {
+                lock (completedLock)
+                {
+                    completed.Add(status);
+                }
+            });
+
+            // four established owners fill the configured queue exactly.
+            for (int ii = 0; ii < maxQueued; ii++)
+            {
+                Assert.That(queue.TryEnqueue(QueueRequest(10 + (ii % 4)), default, out StatusCode error), Is.True,
+                    $"request {ii}: {error}");
+            }
+            Assert.That(queue.Count, Is.EqualTo(maxQueued));
+            Assert.That(queue.TryEnqueue(QueueRequest(10), default, out StatusCode rejected), Is.False);
+            Assert.That(rejected, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(queue.TryEnqueue(QueueRequest(14), default, out rejected), Is.False);
+            Assert.That(rejected, Is.EqualTo(StatusCodes.BadServerTooBusy));
+
+            // the protected classes still find their floors in the full queue.
+            Assert.That(queue.TryEnqueue(QueueRequest(1), default, out StatusCode bootstrap), Is.True,
+                bootstrap.ToString());
+            Assert.That(queue.TryEnqueue(QueueRequest(2), default, out StatusCode reconnect), Is.True,
+                reconnect.ToString());
+            Assert.That(queue.TryEnqueue(QueueRequest(1), default, out rejected), Is.False);
+            Assert.That(rejected, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(queue.Count, Is.EqualTo(maxQueued + 2));
+            Assert.That(provider.GetUsage(ResourceIsolationStage.RequestQueue), Is.EqualTo(maxQueued + 2));
+
+            // a dequeued ordinary request frees exactly one shared slot.
+            var dequeued = new List<FairRequestQueue.Entry>();
+            try
+            {
+                do
+                {
+                    dequeued.Add(Dequeue(queue));
+                }
+                while (dequeued[^1].Owner.Class != ResourceIsolationClass.Established);
+                Assert.That(queue.TryEnqueue(QueueRequest(11), default, out StatusCode refill), Is.True,
+                    refill.ToString());
+                Assert.That(queue.TryEnqueue(QueueRequest(12), default, out rejected), Is.False);
+            }
+            finally
+            {
+                foreach (FairRequestQueue.Entry entry in dequeued)
+                {
+                    entry.Dispose();
+                }
+            }
+            lock (completedLock)
+            {
+                Assert.That(completed, Is.Empty);
+            }
+        }
+
         [Test]
         public void MissingOrUnprovisionedTrustedClassifierFailsExplicitly()
         {
@@ -1233,8 +1479,9 @@ namespace Opc.Ua.Server.Tests
             long queued = Math.Max(100, configuration.ServerConfiguration.MaxQueuedRequestCount);
             long executing = Math.Max(100, Math.Max(configuration.ServerConfiguration.MinRequestThreadCount,
                 configuration.ServerConfiguration.MaxRequestThreadCount));
-            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueueBytes).Capacity,
+            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueueBytes).SharedCapacity,
                 Is.EqualTo((2 * queued + executing) * configuration.TransportQuotas.MaxMessageSize));
+            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueue).SharedCapacity, Is.EqualTo(queued));
             for (int ii = 0; ii <= (int)ResourceIsolationStage.ParkedRequest; ii++)
             {
                 var stage = (ResourceIsolationStage)ii;
@@ -1554,6 +1801,105 @@ namespace Opc.Ua.Server.Tests
             disposable.Verify(d => d.Dispose(), Times.Never);
         }
 
+        /// <summary>
+        /// Admission without the server-wide lock: concurrent leases of ordinary and protected
+        /// owners never exceed the stage capacity or an owner ceiling, the owner table never holds
+        /// more entries than allowed, and every counter and table entry is returned at the end.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentLeasesStayWithinLimitsAndAreAllReturnedAsync()
+        {
+            ServerResourceIsolationOptions options = Options();
+            options.MaxTrackedOwners = 4;
+            const ResourceIsolationStage stage = ResourceIsolationStage.Connection;
+            using DefaultServerResourceIsolationProvider provider =
+                CreateProvider(options, new TestClassifier());
+            ResourceIsolationStagePlan plan = provider.Plan.GetStage(stage);
+            ResourceIsolationOwner[] owners =
+            [
+                provider.ClassifyConnection(Peer(1)),
+                provider.ClassifyConnection(Peer(2)),
+                provider.ClassifyConnection(Peer(10)),
+                provider.ClassifyConnection(Peer(11)),
+                provider.ClassifyConnection(Peer(12)),
+                provider.ClassifyConnection(Peer(13))
+            ];
+            long[] ownerHeld = new long[owners.Length];
+            long totalHeld = 0;
+            int violations = 0;
+            int admitted = 0;
+            int maxOwners = 0;
+
+            async Task WorkerAsync(int seed)
+            {
+                // a deterministic xorshift per worker; the interleaving is what varies
+                uint random = (uint)seed + 0x9E3779B9u;
+                int Next(int max)
+                {
+                    random ^= random << 13;
+                    random ^= random >> 17;
+                    random ^= random << 5;
+                    return (int)(random % (uint)max);
+                }
+                await Task.Yield();
+                var held = new List<(int Owner, long Amount, IDisposable Lease)>();
+                for (int ii = 0; ii < 20000; ii++)
+                {
+                    if (held.Count > 0 && (held.Count > 3 || Next(2) == 0))
+                    {
+                        (int owner, long amount, IDisposable lease) = held[^1];
+                        held.RemoveAt(held.Count - 1);
+                        Interlocked.Add(ref ownerHeld[owner], -amount);
+                        Interlocked.Add(ref totalHeld, -amount);
+                        lease.Dispose();
+                        lease.Dispose();
+                        continue;
+                    }
+                    int index = Next(owners.Length);
+                    long take = 1 + Next(3);
+                    if (provider.TryAcquire(stage, owners[index], take, out IDisposable? acquired, out _))
+                    {
+                        Interlocked.Increment(ref admitted);
+                        if (Interlocked.Add(ref ownerHeld[index], take) > owners[index].GetHardLimit(stage) ||
+                            Interlocked.Add(ref totalHeld, take) > plan.Capacity ||
+                            provider.GetUsage(stage) > plan.Capacity)
+                        {
+                            Interlocked.Increment(ref violations);
+                        }
+                        int tracked = provider.TrackedOwnerCount;
+                        int observed;
+                        while (tracked > (observed = Volatile.Read(ref maxOwners)) &&
+                            Interlocked.CompareExchange(ref maxOwners, tracked, observed) != observed)
+                        {
+                        }
+                        held.Add((index, take, acquired!));
+                    }
+                }
+                foreach ((int owner, long amount, IDisposable lease) in held)
+                {
+                    Interlocked.Add(ref ownerHeld[owner], -amount);
+                    Interlocked.Add(ref totalHeld, -amount);
+                    lease.Dispose();
+                }
+            }
+
+            await Task.WhenAll(Enumerable.Range(0, 8).Select(WorkerAsync)).ConfigureAwait(false);
+
+            Assert.That(violations, Is.Zero);
+            Assert.That(admitted, Is.GreaterThan(1000));
+            Assert.That(maxOwners, Is.LessThanOrEqualTo(options.MaxTrackedOwners));
+            Assert.That(provider.GetUsage(stage), Is.Zero);
+            Assert.That(provider.TrackedOwnerCount, Is.Zero);
+
+            // nothing leaked: the protected floors and the whole shared capacity are available again
+            Assert.That(plan.BootstrapReserved, Is.Positive);
+            Assert.That(plan.ReconnectReserved, Is.Positive);
+            using IDisposable bootstrap = Acquire(provider, stage, owners[0], plan.BootstrapReserved);
+            using IDisposable reconnect = Acquire(provider, stage, owners[1], plan.ReconnectReserved);
+            using IDisposable shared = Acquire(provider, stage, owners[2], plan.SharedCapacity);
+            AssertRejected(provider, stage, owners[3], 1, ResourceIsolationFailureReason.Capacity);
+        }
+
         private static IDisposable Acquire(
             DefaultServerResourceIsolationProvider provider,
             ResourceIsolationStage stage,
@@ -1609,7 +1955,7 @@ namespace Opc.Ua.Server.Tests
         private static DefaultServerResourceIsolationProvider CreateProvider(
             ServerResourceIsolationOptions options,
             IResourceIsolationClassifier? classifier = null,
-            ISessionBindingProvider? bindings = null)
+            IServerSessionBindingProvider? bindings = null)
         {
             return new DefaultServerResourceIsolationProvider(
                 options.CreateRuntimePlan(Configuration(), new ServerRateLimitOptions(),
@@ -1675,7 +2021,7 @@ namespace Opc.Ua.Server.Tests
                 SecurityPolicies.Basic256Sha256, MessageSecurityMode.SignAndEncrypt);
         }
 
-        private sealed class TestBindings : ISessionBindingProvider
+        private sealed class TestBindings : IServerSessionBindingProvider
         {
             public Dictionary<NodeId, SessionBindingContext> Bindings { get; } = [];
 
@@ -1695,6 +2041,19 @@ namespace Opc.Ua.Server.Tests
                 }
                 context = null;
                 return false;
+            }
+        }
+
+        private sealed class TestLiveness : ISessionBindingLiveness
+        {
+            public bool Current { get; set; } = true;
+
+            public int Checks { get; private set; }
+
+            public bool IsCurrent(SecureChannelContext channelContext)
+            {
+                Checks++;
+                return Current;
             }
         }
 

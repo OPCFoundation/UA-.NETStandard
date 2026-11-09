@@ -38,8 +38,8 @@ using Opc.Ua.WotCon.Server.Materialization;
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
     /// <summary>
-    /// The ordering <i>OPC UA — WoT Binding</i> §12.6 requires of the
-    /// <c>ViewVersion</c> canonicalization.
+    /// The ordering OPC 10101-2 requires of the <c>ViewVersion</c>
+    /// canonicalization.
     /// </summary>
     /// <remarks>
     /// The clause sorts the portable member identifiers by Unicode code point.

@@ -378,7 +378,7 @@ namespace Opc.Ua.Server.Tests
                 CommitAsync = _ => Task.CompletedTask
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await node.Open!.OnCallAsync!(
                         otherContext,
                         node.Open,

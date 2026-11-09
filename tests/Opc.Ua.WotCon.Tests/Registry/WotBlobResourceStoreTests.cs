@@ -141,11 +141,11 @@ namespace Opc.Ua.XRegistry
         }
 
         [Test]
-        public void WriteWithOversizedExistingBlobThrowsServiceResultException()
+        public async Task WriteWithOversizedExistingBlobThrowsServiceResultException()
         {
             using var store = new WotBlobResourceStore("blobs", new OversizedFileSystem());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await store.WriteAsync("blob", 0, ByteString.From(new byte[] { 1 })));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadOutOfMemory));

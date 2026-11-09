@@ -79,15 +79,33 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(buffer));
             }
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            var stream = new MemoryStream(buffer, start, count, false);
-            m_reader = new BinaryReader(stream);
+            // the checks of the stream over the buffer, which is created on demand now
+            if (start < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(start));
+            }
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+            if (buffer.Length - start < count)
+            {
+                throw new ArgumentException("The range exceeds the buffer.", nameof(count));
+            }
             m_buffer = new ReadOnlyMemory<byte>(buffer, start, count);
             m_hasBuffer = true;
+            // Decoding reads the buffer directly; the stream over it is only created when
+            // BaseStream exposes it (see CreateBufferReader).
+            m_reader = null!;
         }
 
         /// <summary>
         /// Creates a decoder that reads from a stream.
         /// </summary>
+        /// <remarks>
+        /// Forward-only streams are supported. Binary ExtensionObject bodies on
+        /// these streams must have a length so recovery can buffer only that body.
+        /// </remarks>
         public BinaryDecoder(
             Stream stream,
             IServiceMessageContext context,
@@ -97,11 +115,15 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(stream));
             }
-            if (!stream.CanSeek || !stream.CanRead)
+            if (!stream.CanRead)
             {
-                throw new ArgumentException("Stream must be seekable and readable.");
+                throw new ArgumentException("Stream must be readable.");
             }
             Context = context ?? throw new ArgumentNullException(nameof(context));
+            if (!stream.CanSeek)
+            {
+                stream = new PositionTrackingStream(stream);
+            }
             m_reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen);
         }
 
@@ -161,16 +183,19 @@ namespace Opc.Ua
         /// The end of the ExtensionObject body when the whole buffer of this
         /// decoder is such a body, -1 when unknown.
         /// </param>
+        /// <param name="recoveries">The recoveries of the response, if shared.</param>
         internal void InheritDecodingState(
             ushort[]? namespaceMappings,
             ushort[]? serverMappings,
             uint nestingLevel,
-            int bodyEnd = -1)
+            int bodyEnd = -1,
+            DecoderRecoveries? recoveries = null)
         {
             m_namespaceMappings = namespaceMappings;
             m_serverMappings = serverMappings;
             m_nestingLevel = nestingLevel;
             m_bodyEnd = bodyEnd;
+            m_recoveries = recoveries;
         }
 
         /// <summary>
@@ -178,7 +203,7 @@ namespace Opc.Ua
         /// </summary>
         public void Close()
         {
-            m_reader.Close();
+            m_reader?.Close();
         }
 
         /// <summary>
@@ -189,8 +214,16 @@ namespace Opc.Ua
         {
             get
             {
+                // A buffer decoder knows its position without exposing a stream over the
+                // buffer, which would make every later read synchronize with it.
+                if (m_hasBuffer && (!m_baseStreamExposed || m_reader != null))
+                {
+                    SynchronizeBufferPosition();
+                    return m_bufferPosition;
+                }
+
                 Stream stream = BaseStream;
-                if (stream?.CanSeek != true)
+                if (stream?.CanSeek != true && stream is not PositionTrackingStream)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
@@ -216,6 +249,7 @@ namespace Opc.Ua
             {
                 if (m_hasBuffer && !m_baseStreamExposed)
                 {
+                    m_reader ??= CreateBufferReader();
                     m_reader.BaseStream.Position = m_bufferPosition;
                     m_synchronizedStreamPosition = m_bufferPosition;
                     m_baseStreamExposed = true;
@@ -223,6 +257,17 @@ namespace Opc.Ua
 
                 return m_reader?.BaseStream!;
             }
+        }
+
+        /// <summary>
+        /// Creates the reader over the buffer of a buffer decoder, the first time
+        /// <see cref="BaseStream"/> exposes the stream; until then every read goes to the
+        /// buffer directly and the stream position is never used.
+        /// </summary>
+        private BinaryReader CreateBufferReader()
+        {
+            MemoryMarshal.TryGetArray(m_buffer, out ArraySegment<byte> segment);
+            return new BinaryReader(new MemoryStream(segment.Array!, segment.Offset, segment.Count, false));
         }
 
         /// <summary>
@@ -500,7 +545,12 @@ namespace Opc.Ua
                 {
                     utf8StringLength--;
                 }
-                return Encoding.UTF8.GetString(bytes[..utf8StringLength]);
+
+                // short strings repeat across the values of a message (event source names,
+                // messages, locales, string node ids): reuse the instance decoded last.
+                return utf8StringLength <= DecodedStringCache.MaxUtf8Length
+                    ? DecodedStringCache.GetOrAdd(bytes[..utf8StringLength])
+                    : Encoding.UTF8.GetString(bytes[..utf8StringLength]);
             }
             finally
             {
@@ -1037,7 +1087,7 @@ namespace Opc.Ua
                         // up to MaxDecoderRecoveries times and logged once, so a
                         // message cannot flood the log with its own content.
                         if (typeId.NamespaceIndex == 0 ||
-                            m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                            !(m_recoveries ??= new DecoderRecoveries()).TryReserve(Context.MaxDecoderRecoveries))
                         {
                             if (e is ServiceResultException)
                             {
@@ -1051,12 +1101,10 @@ namespace Opc.Ua
                                 extension.TypeId);
                         }
 
-                        if (m_encodeablesRecovered == 0)
+                        if (m_recoveries.TryLogFailure())
                         {
                             Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message);
                         }
-
-                        m_encodeablesRecovered++;
                     }
                 }
 
@@ -1067,6 +1115,115 @@ namespace Opc.Ua
             // Allow a length of -1 to support legacy devices that don't fill the length correctly
             int length = SafeReadInt32();
 
+            // A notification body is only needed when it is dispatched: keep the bytes
+            // flat until then, so that messages waiting for dispatch cost the GC nothing.
+            // A forward-only stream cannot tell that the length is available up front.
+            if (activator != null &&
+                length > 0 &&
+                DeferredExtensionObjectBody.IsDeferred(Context, typeId) &&
+                m_namespaceMappings == null &&
+                m_serverMappings == null &&
+                (m_hasBuffer || BaseStream.CanSeek))
+            {
+                return ReadDeferredExtensionObject(extension.TypeId, activator, length);
+            }
+            if (!m_hasBuffer && !BaseStream.CanSeek)
+            {
+                if (length < 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "An ExtensionObject on a forward-only stream must have a known body length.");
+                }
+                if (activator == null && Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < length)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxByteStringLength exceeded in ExtensionObject: {0} < {1}",
+                        Context.MaxByteStringLength,
+                        length);
+                }
+                if (activator != null && Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxMessageSize exceeded in ExtensionObject replay: {0} < {1}",
+                        Context.MaxMessageSize,
+                        length);
+                }
+
+                // Only this length-delimited body needs replay for recovery.
+                // Keep the enclosing stream forward-only and grow the body
+                // buffer with bytes actually read. Known structures retain
+                // field limits; opaque and recovered bodies retain the ByteString limit.
+                byte[] body = SafeReadStreamBytes(length, nameof(ReadExtensionObject));
+                using var bodyDecoder = new BinaryDecoder(body, Context);
+                bodyDecoder.InheritDecodingState(
+                    m_namespaceMappings,
+                    m_serverMappings,
+                    m_nestingLevel,
+                    body.Length,
+                    m_recoveries ??= new DecoderRecoveries());
+                return bodyDecoder.ReadBinaryExtensionObject(typeId, extension, activator, length);
+            }
+
+            return ReadBinaryExtensionObject(typeId, extension, activator, length);
+        }
+
+        /// <summary>
+        /// Copies a body that is decoded on first use into a rented buffer.
+        /// </summary>
+        private ExtensionObject ReadDeferredExtensionObject(
+            ExpandedNodeId typeId,
+            IEncodeableType activator,
+            int length)
+        {
+            // the eager path enforces the limit when it starts on the body, and a body
+            // without nested structures would never reach another check.
+            CheckNestingLevel();
+
+            // never rent a length the input cannot satisfy.
+            CheckRemainingBytes(length, nameof(ReadExtensionObject));
+            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize exceeded in ExtensionObject: {0} < {1}",
+                    Context.MaxMessageSize,
+                    length);
+            }
+            byte[] buffer = DeferredExtensionObjectBody.Rent(length);
+            try
+            {
+                ReadRawBytes(buffer.AsSpan(0, length));
+            }
+            catch
+            {
+                DeferredExtensionObjectBody.Return(buffer);
+                throw;
+            }
+            return new ExtensionObject(
+                typeId,
+                new DeferredExtensionObjectBody(
+                    typeId,
+                    buffer,
+                    length,
+                    activator,
+                    Context,
+                    m_nestingLevel + 1,
+                    m_recoveries ??= new DecoderRecoveries()));
+        }
+
+        /// <summary>
+        /// Decodes a binary body on seekable input, retaining the original
+        /// namespace-zero failure and bounded recovery policy.
+        /// </summary>
+        private ExtensionObject ReadBinaryExtensionObject(
+            NodeId typeId,
+            ExtensionObject extension,
+            IEncodeableType? activator,
+            int length)
+        {
             // save the current position.
             int start = Position;
 
@@ -1142,7 +1299,7 @@ namespace Opc.Ua
                     // reset stream to return ExtensionObject if configured to do so!
                     // decoding failure of a known type in ns=0 is always a decoding error.
                     if (typeId.NamespaceIndex == 0 ||
-                        m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                        !(m_recoveries ??= new DecoderRecoveries()).TryReserve(Context.MaxDecoderRecoveries))
                     {
                         throw exception
                             ?? ServiceResultException.Create(
@@ -1152,7 +1309,8 @@ namespace Opc.Ua
                                 activator!.XmlName,
                                 extension.TypeId);
                     }
-                    else if (m_encodeablesRecovered == 0)
+
+                    if (m_recoveries.TryLogFailure())
                     {
                         // log the error only once to avoid flooding the log.
                         Logger.DecodeEncodeableRecovered(
@@ -1165,9 +1323,6 @@ namespace Opc.Ua
                     // reset the stream to the begin of the ExtensionObject body.
                     SetPosition(start);
                     encodeable = null;
-
-                    // count number of recoveries
-                    m_encodeablesRecovered++;
                 }
             }
 
@@ -2333,6 +2488,12 @@ namespace Opc.Ua
         private T[] ReadArrayElements<T, TReader>(int length, TReader reader)
             where TReader : struct, IElementReader<T>
         {
+            // an empty array is immutable: all share one instance.
+            if (length == 0)
+            {
+                return [];
+            }
+
             int capacity = GetInitialArrayCapacity<T>(length);
             if (capacity < length)
             {
@@ -2427,6 +2588,11 @@ namespace Opc.Ua
         /// against the remaining bytes by the caller.</param>
         private T[] ReadFixedWidthArray<T>(int length) where T : unmanaged
         {
+            if (length == 0)
+            {
+                return [];
+            }
+
             // The caller verified the length against the remaining bytes. If
             // they are unknown the array grows with the bytes actually read.
             int capacity = GetRemainingLength() >= 0
@@ -2669,22 +2835,7 @@ namespace Opc.Ua
                 return;
             }
 
-            int length;
-#if NET6_0_OR_GREATER
-            length = m_reader.Read(bytes);
-#else
-            length = ReadFromReader(bytes);
-#endif
-
-            if (bytes.Length != length)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
-                    bytes.Length,
-                    functionName ?? string.Empty,
-                    length);
-            }
+            ReadRawBytes(bytes, functionName);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2810,19 +2961,8 @@ namespace Opc.Ua
                 return SafeReadBufferBytes(bytes, functionName);
             }
 
-            int length = m_reader.Read(bytes);
-
-            if (bytes.Length != length)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
-                    bytes.Length,
-                    functionName ?? string.Empty,
-                    length);
-            }
-
-            return length;
+            ReadRawBytes(bytes, functionName);
+            return bytes.Length;
         }
 #endif
 
@@ -3101,6 +3241,17 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void CheckAndIncrementNestingLevel()
         {
+            CheckNestingLevel();
+            EncodingLimits.EnsureSufficientStack();
+            m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Test the nesting level.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckNestingLevel()
+        {
             if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
@@ -3108,8 +3259,56 @@ namespace Opc.Ua
                     "Maximum nesting level of {0} was exceeded",
                     Context.MaxEncodingNestingLevels);
             }
-            EncodingLimits.EnsureSufficientStack();
-            m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Counts bytes consumed from readable non-seekable input without
+        /// buffering or claiming seek support.
+        /// </summary>
+        private sealed class PositionTrackingStream(Stream source) : Stream
+        {
+            public override bool CanRead => source.CanRead;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position
+            {
+                get => m_position;
+                set => throw new NotSupportedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                int read = source.Read(buffer, offset, count);
+                m_position += read;
+                return read;
+            }
+
+            public override int ReadByte()
+            {
+                int value = source.ReadByte();
+                if (value >= 0)
+                {
+                    m_position++;
+                }
+                return value;
+            }
+
+            public override void Flush() => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    source.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            private long m_position;
         }
 
         private BinaryReader m_reader;
@@ -3123,7 +3322,9 @@ namespace Opc.Ua
         // The end position of the ExtensionObject body being decoded, or -1
         // when none is. See TryReadRemainingBodyBytes.
         private int m_bodyEnd = -1;
-        private uint m_encodeablesRecovered;
+
+        // Shared with the decoders of the bodies of the same response.
+        private DecoderRecoveries? m_recoveries;
 
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.

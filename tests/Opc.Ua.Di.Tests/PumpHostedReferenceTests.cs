@@ -46,6 +46,8 @@ using Opc.Ua.Server.Hosting;
 using Opc.Ua.Tests;
 using Pumps;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Di.Tests
 {
     [TestFixture]
@@ -72,7 +74,8 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(
                     await WaitForAsync(
                         () => CaptureServer.StartedInstance != null,
-                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                        TimeSpan.FromSeconds(30),
+                        hostedService).ConfigureAwait(false),
                     Is.True);
                 IServerInternal server = CaptureServer.StartedInstance!;
                 ushort diNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
@@ -90,12 +93,13 @@ namespace Opc.Ua.Di.Tests
                     }
                 ];
 
+                using var browseContext = new OperationContext(
+                    new RequestHeader(),
+                    null,
+                    RequestType.Browse,
+                    RequestLifetime.None);
                 (ArrayOf<BrowseResult> results, _) = await server.NodeManager.BrowseAsync(
-                    new OperationContext(
-                        new RequestHeader(),
-                        null,
-                        RequestType.Browse,
-                        RequestLifetime.None),
+                    browseContext,
                     new ViewDescription(),
                     0,
                     nodesToBrowse,
@@ -115,7 +119,7 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(
                     pumpReferences,
                     Has.All.Matches<ReferenceDescription>(reference =>
-                        ExpandedNodeId.ToNodeId(
+                        reference is not null && ExpandedNodeId.ToNodeId(
                             reference.ReferenceTypeId,
                             server.NamespaceUris) == Types.ReferenceTypeIds.Organizes));
 
@@ -150,7 +154,7 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(
                     clientPumpReferences,
                     Has.All.Matches<ReferenceDescription>(reference =>
-                        ExpandedNodeId.ToNodeId(
+                        reference is not null && ExpandedNodeId.ToNodeId(
                             reference.ReferenceTypeId,
                             session.NamespaceUris) == Types.ReferenceTypeIds.Organizes));
 
@@ -355,7 +359,8 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(
                     await WaitForAsync(
                         () => CaptureServer.StartedInstance != null,
-                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                        TimeSpan.FromSeconds(30),
+                        hostedService).ConfigureAwait(false),
                     Is.True);
                 IServerInternal server = CaptureServer.StartedInstance!;
 
@@ -559,11 +564,19 @@ namespace Opc.Ua.Di.Tests
 
         private static async Task<bool> WaitForAsync(
             Func<bool> condition,
-            TimeSpan timeout)
+            TimeSpan timeout,
+            IHostedService hostedService)
         {
+            Task execution = ((BackgroundService)hostedService).ExecuteTask ??
+                throw new InvalidOperationException("The hosted service did not start its execution task.");
             DateTime deadline = DateTime.UtcNow + timeout;
             while (DateTime.UtcNow < deadline)
             {
+                if (execution.IsCompleted)
+                {
+                    await execution.ConfigureAwait(false);
+                    throw new InvalidOperationException("The hosted service stopped before startup completed.");
+                }
                 if (condition())
                 {
                     return true;

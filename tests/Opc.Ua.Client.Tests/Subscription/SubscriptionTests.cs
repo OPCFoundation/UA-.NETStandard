@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Subscriptions
     [Category("SubscriptionManager")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class SubscriptionTests
+    public sealed partial class SubscriptionTests
     {
         [SetUp]
         public void SetUp()
@@ -555,6 +555,300 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Verifies stop detection follows the threshold and recovers on a subsequent publish.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldReportStoppedAfterThresholdAndRecoverAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+
+                clock.Advance(TimeSpan.FromSeconds(5));
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+
+                clock.Advance(TimeSpan.FromMilliseconds(6500));
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+
+                clock.Advance(TimeSpan.FromMilliseconds(5500));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(2));
+
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(2), null, [])
+                    .ConfigureAwait(false);
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Recovered));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(3));
+            }
+        }
+
+        /// <summary>
+        /// Verifies a slow stopped-state handler does not delay the next watchdog notification.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldScheduleBeforeStoppedStateHandlerAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                int handlerCalls = 0;
+                sut.OnPublishStateChangedAction = state =>
+                {
+                    if (state == PublishState.Stopped && Interlocked.Increment(ref handlerCalls) == 1)
+                    {
+                        clock.Advance(TimeSpan.FromSeconds(2));
+                    }
+                };
+
+                clock.Advance(TimeSpan.FromMilliseconds(6501));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+
+                clock.Advance(TimeSpan.FromMilliseconds(3500));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(2));
+            }
+        }
+
+        /// <summary>
+        /// Verifies recovery refreshes the watchdog before invoking a synchronous state-change handler.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldRearmBeforeRecoveredStateHandlerAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                var states = new List<PublishState>();
+                bool recoveryHandlerCompleted = false;
+                var messageDispatched = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                sut.OnPublishStateChangedAction = state =>
+                {
+                    states.Add(state);
+                    if (state == PublishState.Recovered)
+                    {
+                        clock.Advance(TimeSpan.FromMilliseconds(100));
+                        recoveryHandlerCompleted = true;
+                    }
+                };
+                sut.OnKeepAliveAsync = () =>
+                {
+                    messageDispatched.TrySetResult(recoveryHandlerCompleted);
+                    return default;
+                };
+
+                clock.Advance(TimeSpan.FromMilliseconds(6501));
+                clock.Advance(TimeSpan.FromMilliseconds(5499));
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+
+                Assert.That(await messageDispatched.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false), Is.True);
+                Assert.That(states, Is.EqualTo(new[] { PublishState.Stopped, PublishState.Recovered }));
+                Assert.That(sut.PublishingStopped, Is.False);
+
+                clock.Advance(TimeSpan.FromMilliseconds(6400));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(2));
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(3));
+            }
+        }
+
+        /// <summary>
+        /// Verifies early callbacks never schedule a sub-millisecond timer delay.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(5000)]
+        [TestCase(9999)]
+        public async Task KeepAliveTimerShouldClampFractionalMillisecondRechecksAsync(long remainingTicks)
+        {
+            var clock = new Mock<FakeTimeProvider> { CallBase = true };
+            var timer = new Mock<ITimer>();
+            TimerCallback? watchdogCallback = null;
+            clock.Setup(provider => provider.CreateTimer(
+                    It.IsAny<TimerCallback>(), It.IsAny<object>(),
+                    It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Callback<TimerCallback, object?, TimeSpan, TimeSpan>((callback, _, _, _) =>
+                    watchdogCallback = callback)
+                .Returns(timer.Object);
+            clock.Object.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock.Object);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                timer.Invocations.Clear();
+
+                clock.Object.Advance(TimeSpan.FromMilliseconds(6500) - TimeSpan.FromTicks(remainingTicks));
+                Assert.That(watchdogCallback, Is.Not.Null);
+                watchdogCallback!(null);
+
+                timer.Verify(value => value.Change(
+                    TimeSpan.FromMilliseconds(1), Timeout.InfiniteTimeSpan), Times.Once);
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// Verifies a callback cannot restart the watchdog after transfer pauses it.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldNotRestartWhileTransferPausesItAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            using var handlerEntered = new ManualResetEventSlim();
+            using var releaseHandler = new ManualResetEventSlim();
+            var transferCallEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var transferResponse = new TaskCompletionSource<CallResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool>? transferTask = null;
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                sut.OnPublishStateChangedAction = state =>
+                {
+                    if (state == PublishState.Stopped)
+                    {
+                        handlerEntered.Set();
+                        releaseHandler.Wait();
+                    }
+                };
+                m_mockMethodServices
+                    .Setup(service => service.CallAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<ArrayOf<CallMethodRequest>>(requests =>
+                            requests.Count == 1 &&
+                            requests[0].MethodId == MethodIds.Server_GetMonitoredItems),
+                        It.IsAny<CancellationToken>()))
+                    .Callback(() => transferCallEntered.TrySetResult(true))
+                    .Returns(() => new ValueTask<CallResponse>(transferResponse.Task));
+
+                Task timerCallback = Task.Run(() =>
+                    clock.Advance(TimeSpan.FromMilliseconds(6501)));
+                try
+                {
+                    Assert.That(handlerEntered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+
+                    transferTask = sut.TryCompleteTransferAsync([], CancellationToken.None).AsTask();
+                    await transferCallEntered.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false);
+                    releaseHandler.Set();
+                    await timerCallback.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                    clock.Advance(TimeSpan.FromMilliseconds(5500));
+                    Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+                }
+                finally
+                {
+                    releaseHandler.Set();
+                    transferResponse.TrySetResult(new CallResponse
+                    {
+                        Results =
+                        [
+                            new CallMethodResult
+                            {
+                                StatusCode = StatusCodes.BadMethodInvalid,
+                                OutputArguments = []
+                            }
+                        ]
+                    });
+                }
+
+                Assert.That(await transferTask!.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Verifies an initial publishing silence is detected at the minimum watchdog interval.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldDetectInitialSilenceAtMinimumIntervalAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.SetOptionsForTest(TestSubscription.SubscriptionOptions with
+                {
+                    PublishingInterval = TimeSpan.Zero,
+                    KeepAliveCount = 1
+                });
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.Zero, 1, 3, 3, 10, false);
+                sut.ResetPublishStateForTest();
+
+                clock.Advance(TimeSpan.FromSeconds(2));
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
+        /// Verifies a maximum watchdog interval is checked in timer-supported segments.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldSegmentMaximumIntervalThresholdAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                TimeSpan maximumInterval = TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    maximumInterval, 0, 3, 3, 10, false);
+                sut.ResetPublishStateForTest();
+
+                clock.Advance(maximumInterval);
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+
+                clock.Advance(TimeSpan.FromSeconds(1));
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+            }
+        }
+
         private static async Task<bool> WaitForSignalAsync(
             AsyncManualResetEvent signal,
             TimeSpan timeout)
@@ -961,7 +1255,7 @@ namespace Opc.Ua.Client.Subscriptions
                 async Task act() => await sut.ConditionRefreshAsync(CancellationToken.None).ConfigureAwait(false);
 
                 // Assert
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act().ConfigureAwait(false));
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await act().ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             }
@@ -989,7 +1283,24 @@ namespace Opc.Ua.Client.Subscriptions
                 await sut.DeleteAsync(default).ConfigureAwait(false);
 
                 // Assert
+                Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
+                Assert.That(m_completion.PublishingQuiescenceCalls, Is.Zero,
+                    "Deleting one subscription must not pause publishing for the whole session.");
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
+            }
+        }
+
+        [Test]
+        public async Task ResetToRecreateRetiresTheServerIdAsync()
+        {
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.ResetToRecreateAsync(default).ConfigureAwait(false);
+
+                Assert.That(sut.Id, Is.Zero);
+                Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
             }
         }
 
@@ -1051,6 +1362,9 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Retired messages never reach replacement acknowledgements, and captured acknowledgements stay stable.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task DeleteAndResetRetireQueuedMessagesBeforeReplacementAsync(bool delete)
@@ -1074,7 +1388,17 @@ namespace Opc.Ua.Client.Subscriptions
             var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var barrier = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var freshData = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFresh = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var freshAcknowledged = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var received = new ConcurrentQueue<uint>();
+            m_completion.OnQueueAsync = (acknowledgement, _) =>
+            {
+                if (acknowledgement.SubscriptionId == 22 && acknowledgement.SequenceNumber == 1)
+                {
+                    freshAcknowledged.TrySetResult(true);
+                }
+                return default;
+            };
             var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 10);
             await using (sut.ConfigureAwait(false))
@@ -1090,6 +1414,7 @@ namespace Opc.Ua.Client.Subscriptions
                     if (sequenceNumber == 1)
                     {
                         freshData.TrySetResult(true);
+                        await releaseFresh.Task.ConfigureAwait(false);
                     }
                 };
                 sut.OnKeepAliveAsync = () =>
@@ -1119,15 +1444,44 @@ namespace Opc.Ua.Client.Subscriptions
                     await barrier.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                     Assert.That(received, Is.EqualTo(new uint[] { 4999 }));
+                    List<SubscriptionAcknowledgement> beforeFreshAcknowledgement = m_completion.QueuedAcks;
+                    const int retainedAcknowledgements = 1;
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(retainedAcknowledgements),
+                        "The queue is not scanned; send-time validation discards the retired generation.");
+                    Assert.That(m_completion.QueuedAckGenerations[0], Is.Not.EqualTo(sut.MessageGeneration),
+                        "Deletion and reset both retire the generation that produced the queued acknowledgement.");
                     await sut.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
                     await freshData.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(freshAcknowledged.Task.IsCompleted, Is.False,
+                        "Notification dispatch precedes acknowledgement enqueue.");
+                    releaseFresh.TrySetResult(true);
+                    await freshAcknowledged.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(retainedAcknowledgements),
+                        "A captured acknowledgement snapshot must not change when the worker enqueues another ack.");
                     Assert.That(received, Is.EqualTo(new uint[] { 4999, 1 }));
-                    Assert.That(m_completion.QueuedAcks, Has.None.Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement.SequenceNumber == 5000));
+                    List<SubscriptionAcknowledgement> acknowledgements = m_completion.QueuedAcks;
+                    Assert.That(acknowledgements, Has.Count.EqualTo(retainedAcknowledgements + 1));
+                    Assert.That(
+                        acknowledgements,
+                        Has.Exactly(retainedAcknowledgements).Matches<SubscriptionAcknowledgement>(
+                            acknowledgement => acknowledgement is not null &&
+                                acknowledgement.SubscriptionId == 10 &&
+                                acknowledgement.SequenceNumber == 4999));
+                    Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
+                        acknowledgement => acknowledgement is not null &&
+                            acknowledgement.SubscriptionId == 22 &&
+                            acknowledgement.SequenceNumber == 1));
+                    Assert.That(acknowledgements, Has.None.Matches<SubscriptionAcknowledgement>(
+                        acknowledgement => acknowledgement is not null && acknowledgement.SequenceNumber == 5000));
+                    List<long> generations = m_completion.QueuedAckGenerations;
+                    Assert.That(generations[^1], Is.EqualTo(sut.MessageGeneration),
+                        "The replacement's acknowledgement carries the current generation.");
                 }
                 finally
                 {
                     releaseFirst.TrySetResult(true);
+                    releaseFresh.TrySetResult(true);
                 }
             }
         }
@@ -1590,11 +1944,13 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-                bool success = sut.MonitoredItems.TryAdd("Test", options, out _);
+                bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem? monitoredItem);
                 Assert.That(success, Is.True);
+                Assert.That(monitoredItem, Is.Not.Null);
 
                 // Act
-                success = sut.MonitoredItems.TryGetMonitoredItemByClientHandle(55,
+                success = sut.MonitoredItems.TryGetMonitoredItemByClientHandle(
+                    unchecked(monitoredItem.ClientHandle + 1),
                     out IMonitoredItem? result);
 
                 // Assert
@@ -1852,7 +2208,7 @@ namespace Opc.Ua.Client.Subscriptions
                 sut.SetMessageStateForTest(17, 19, [11, 13]);
 
                 ServiceResultException exception =
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await sut.RecreateAsync(default).ConfigureAwait(false));
 
                 Assert.That(exception.StatusCode,
@@ -2080,6 +2436,55 @@ namespace Opc.Ua.Client.Subscriptions
                 // Assert
                 Assert.That(success, Is.True);
                 Assert.That(sut.MonitoredItems.Items, Does.Not.Contain(monitoredItem));
+            }
+        }
+
+        /// <summary>
+        /// An initiated transfer has its own confirmation callback; a failed handle rebind must not claim success.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InitiatedTransferReportsOnlySuccessfulHandleRebindAsync(bool succeeds)
+        {
+            m_mockSubscriptionServices.Setup(service => service.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            m_mockMonitoredItemServices.Setup(service => service.CreateMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<uint>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateMonitoredItemsResponse
+                {
+                    Results =
+                    [
+                        new MonitoredItemCreateResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            MonitoredItemId = 9,
+                            RevisedSamplingInterval = 1000,
+                            RevisedQueueSize = 17
+                        }
+                    ]
+                });
+            var subscription = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (subscription.ConfigureAwait(false))
+            {
+                Assert.That(subscription.MonitoredItems.TryAdd("known",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(), out IMonitoredItem? item), Is.True);
+                Assert.That(item!.Created, Is.True);
+                SetupGetMonitoredItemsResult(succeeds ? StatusCodes.BadMethodInvalid : StatusCodes.BadTimeout);
+                subscription.ResetPublishStateForTest();
+
+                bool transferred = await subscription.TryCompleteTransferAsync([], CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(transferred, Is.EqualTo(succeeds));
+                Assert.That(subscription.LastPublishState & PublishState.Transferred,
+                    Is.EqualTo(succeeds ? PublishState.Transferred : PublishState.None));
+                m_mockNotificationDataHandler.Verify(handler => handler.OnSubscriptionStateChangedAsync(
+                    subscription, It.IsAny<SubscriptionState>(),
+                    It.Is<PublishState>(state => (state & PublishState.Transferred) != 0)),
+                    succeeds ? Times.Once() : Times.Never());
             }
         }
 
@@ -3201,9 +3606,11 @@ namespace Opc.Ua.Client.Subscriptions
                 IMessageAckQueue completion, OptionsMonitor<SubscriptionOptions> options,
                 ITelemetryContext telemetry, uint? subscriptionIdForAlreadyCreatedState = null,
                 SubscriptionRecoveryPolicy recoveryPolicy = SubscriptionRecoveryPolicy.ReportOnly,
-                TimeProvider? timeProvider = null)
+                TimeProvider? timeProvider = null,
+                Action<IManagedSubscription>? initialize = null)
                 : base(session, handler, completion, !subscriptionIdForAlreadyCreatedState.HasValue ?
-                      options : options.Configure(o => o with { Disabled = true }), telemetry, timeProvider: timeProvider)
+                      options : options.Configure(o => o with { Disabled = true }), telemetry,
+                      timeProvider: timeProvider, initialize: initialize)
             {
                 // Let the subscription create itself
                 if (subscriptionIdForAlreadyCreatedState.HasValue)
@@ -3219,6 +3626,10 @@ namespace Opc.Ua.Client.Subscriptions
             public AsyncManualResetEvent SubscriptionStateChanged { get; } = new();
             public AsyncManualResetEvent PublishStateChanged { get; } = new();
             public PublishState LastPublishState { get; private set; }
+            /// <summary>
+            /// Gets the number of publish-state notifications observed by the test subscription.
+            /// </summary>
+            public int PublishStateChangedCount { get; private set; }
             public uint LastSequenceNumberForTest => LastSequenceNumberProcessed;
             public uint LastDataSequenceNumberForTest => LastDataSequenceNumberProcessed;
 
@@ -3233,6 +3644,25 @@ namespace Opc.Ua.Client.Subscriptions
 
             public Func<ValueTask>? OnKeepAliveAsync { get; set; }
             public Func<uint, ValueTask>? OnDataChangeAsync { get; set; }
+            public Action<PublishState>? OnPublishStateChangedAction { get; set; }
+
+            /// <summary>
+            /// Observes an actual asynchronous admission wait, not merely receipt of a response.
+            /// </summary>
+            public Action? OnAdmissionBackpressure { get; set; }
+
+            /// <inheritdoc/>
+            public override ValueTask OnPublishReceivedAsync(
+                NotificationMessage message, IReadOnlyList<uint>? availableSequenceNumbers,
+                IReadOnlyList<string> stringTable)
+            {
+                ValueTask admission = base.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable);
+                if (!admission.IsCompleted)
+                {
+                    OnAdmissionBackpressure?.Invoke();
+                }
+                return admission;
+            }
 
             public void SetMessageStateForTest(uint lastSequenceNumber,
                 uint lastDataSequenceNumber,
@@ -3252,7 +3682,17 @@ namespace Opc.Ua.Client.Subscriptions
             public void ResetPublishStateForTest()
             {
                 LastPublishState = default;
+                PublishStateChangedCount = 0;
                 PublishStateChanged.Reset();
+            }
+
+            /// <summary>
+            /// Sets the options used for the watchdog fallback calculation.
+            /// </summary>
+            /// <param name="options">The options to apply.</param>
+            public void SetOptionsForTest(SubscriptionOptions options)
+            {
+                Options = options;
             }
 
             protected override void OnSubscriptionStateChanged(SubscriptionState state)
@@ -3267,7 +3707,9 @@ namespace Opc.Ua.Client.Subscriptions
             protected override void OnPublishStateChanged(PublishState stateMask)
             {
                 LastPublishState = stateMask;
+                PublishStateChangedCount++;
                 PublishStateChanged.Set();
+                OnPublishStateChangedAction?.Invoke(stateMask);
                 base.OnPublishStateChanged(stateMask);
             }
 

@@ -1,7 +1,7 @@
 # FileSystemClient — a `System.IO`-style async client for OPC UA file systems
 
 `FileSystemClient` (in `src/Opc.Ua.Client/FileSystem/`, namespace
-`Opc.Ua.Client.FileSystem`) is an ergonomic, async-only wrapper around the
+`Opc.Ua.Client.FileSystem`) provides asynchronous operations over the
 OPC UA file-system primitives defined in **Part 5 §C** and **Part 20 §4** —
 the `FileType`, `FileDirectoryType`, and `TemporaryFileTransferType`
 ObjectTypes. It is layered on top of the source-generated proxies emitted
@@ -9,6 +9,9 @@ into `Opc.Ua.Core` (`FileTypeClient`, `FileDirectoryTypeClient`,
 `TemporaryFileTransferTypeClient`) and exposes a surface that closely
 mirrors `System.IO.{File, Directory, FileInfo, DirectoryInfo, FileStream}`
 to make remote file-system navigation feel like working with a local disk.
+
+`UaFileStream` also provides synchronous `Stream` compatibility members;
+prefer its asynchronous methods to avoid blocking. See [Streams](#streams).
 
 ## Quick reference
 
@@ -22,6 +25,7 @@ to make remote file-system navigation feel like working with a local disk.
 | `UaPath` | `System.IO.Path` | Helpers for parsing, formatting, combining, and splitting OPC UA file paths. |
 | `FileSystemClientOptions` | n/a | Tuning knobs: `ChunkSize`, `MaxBufferedReadSize`, `PathCacheSize`, type-subtype filters. |
 | `TemporaryFileTransferClient` + `UaTemporaryWriteFile` | n/a | Separate surface for Part 5 §C.5 atomic temp-file transfers (`GenerateFileForRead/Write` + `CloseAndCommit`). |
+| `SessionFileHandle` | n/a | Opaque, generation-bound handle for bounded transfers that must not follow a replacement session. |
 
 ## Contents
 
@@ -33,16 +37,19 @@ to make remote file-system navigation feel like working with a local disk.
   - [Stream a large file](#stream-a-large-file)
   - [Create a directory tree and write a file](#create-a-directory-tree-and-write-a-file)
   - [Move and delete](#move-and-delete)
+  - [Use a file known by its NodeId](#use-a-file-known-by-its-nodeid)
 - [Path syntax](#path-syntax)
 - [Path resolution and caching](#path-resolution-and-caching)
-- [Type classification](#type-classification-filetype-vs-filedirectorytype)
+- [Type classification (FileType vs FileDirectoryType)](#type-classification-filetype-vs-filedirectorytype)
 - [File metadata](#file-metadata)
 - [Streams](#streams)
 - [Error mapping](#error-mapping)
 - [Move, copy, and delete semantics](#move-copy-and-delete-semantics)
-- [Temporary file transfer](#temporary-file-transfer-part-5-c5)
+- [Temporary file transfer (Part 5 §C.5)](#temporary-file-transfer-part-5-c5)
+- [Generation-bound transfers](#generation-bound-transfers)
 - [What lives where](#what-lives-where)
 - [Server-side file bindings](#server-side-file-bindings)
+  - [Physical provider confinement](#physical-provider-confinement)
 - [See also](#see-also)
 
 ## Getting started
@@ -100,6 +107,30 @@ UaFileInfo file = await fs.GetFileAsync("/Drafts/v1.txt");
 await file.MoveToAsync("/Published/v1.txt");
 
 await fs.DeleteAsync("/Drafts", recursive: true);
+```
+
+### Use a file known by its NodeId
+
+A `FileType` NodeId can come from somewhere other than a path below the
+root, for example from a reference or a method result. Create the
+`UaFileInfo` directly instead of falling back to the raw `FileTypeClient`
+proxy:
+
+```csharp
+// The containing directory is known: every operation is available and
+// the path is the directory's path followed by the BrowseName.
+UaDirectoryInfo reports = await fs.GetDirectoryAsync("/Reports");
+var report = new UaFileInfo(reports, reportNodeId, new QualifiedName("summary.json"));
+await report.RefreshAsync();
+await report.DeleteAsync();
+
+// Only the NodeId is known: the file is detached. It can be refreshed,
+// opened, read and written, but DeleteAsync, MoveToAsync and CopyToAsync
+// throw InvalidOperationException, because those are methods of the
+// containing FileDirectoryType.
+var result = new UaFileInfo(fs, resultFileNodeId, new QualifiedName("result.bin"));
+byte[] bytes = await result.ReadAllBytesAsync();
+bool detached = result.IsDetached; // true; Parent is null
 ```
 
 ## Path syntax
@@ -299,6 +330,80 @@ implicit server rollback) — is sent to the server. The wrapped
 `Stream` cannot accidentally close the server handle; its `Dispose`
 is a no-op.
 
+`FileNodeId` and `Handle` expose the server-allocated identities for companion
+methods that exchange metadata for an open transfer, such as OPC 40083
+production datasets. They do not transfer lifecycle ownership: still commit
+or dispose the wrapper rather than closing the handle separately. Cleanup
+after a closed session uses the normal `BadSecureChannelClosed` protocol
+failure instead of dereferencing a missing channel.
+
+For a bounded generated-file download, `CopyToAsync` accepts a caller-owned
+writable stream and a non-negative byte limit:
+
+```csharp
+var temp = new TemporaryFileTransferClient(managedSession, transferObject);
+long copied = await temp.CopyToAsync(
+    generateOptions: default, destination, maxBytes: 64 * 1024 * 1024, ct);
+```
+
+With a `ManagedSession`, this operation captures one `SessionRequestContext`
+for generation, readiness polling, copying and cleanup. Recovery invalidates
+the operation instead of sending the old handle to a replacement session.
+An already-dispatched generation response is retained even if the caller
+cancels before it returns. A valid returned file node and handle are retained
+for cleanup before non-Good statuses or malformed response metadata are rejected.
+Close calls the standard `FileType.Close` declaration directly, without method
+discovery, using an independent five-second deadline. Transfer and cleanup
+failures are both reported when both occur.
+
+The destination remains open and may contain partial data on failure. An
+ordinary or custom session remains caller-owned; prevent its replacement during
+the transfer. The operation allows at most 1024 file reads of at most 64 KiB
+(or a smaller configured chunk size), including the end-of-file probe, and at
+most 64 generation-state reads.
+
+## Generation-bound transfers
+
+Use [`SessionRequestContext`](Sessions.md#generation-bound-client-requests) when
+retaining a remote file handle across calls. If the owning managed session
+recovers, the transfer fails rather than sending the old handle to its
+replacement.
+
+```csharp
+using Opc.Ua.Client;
+using Opc.Ua.Client.FileSystem;
+
+await using SessionRequestContext context =
+    await SessionRequestContext.CaptureAsync(managedSession, ct);
+await using SessionFileHandle file = await context.OpenFileAsync(fileId, mode: 6, ct);
+long bytes = await file.WriteFromAsync(source, maxBytes: 64 * 1024 * 1024, ct: ct);
+CallMethodResult close = await file.CloseAsync(ct);
+```
+
+`SessionFileHandle` has no raw-handle constructor or import method and cannot be
+attached to another context. Use it sequentially like a stream and dispose it
+before the context. Disposal attempts Close only on the original session;
+cleanup failures are logged without replacing the transfer failure.
+
+For whole transfers, `context.UploadFromWithResultAsync` and
+`context.DownloadToStreamWithResultAsync` return the byte count and unmodified
+Close result, including a refused Close. They enforce chunk and total-byte
+bounds, continue after short nonempty reads, and leave the caller's stream open.
+
+Construct `TemporaryFileTransferClient(context.Session, transferId)` for
+generation-bound temporary transfers. Its context-taking generation overloads
+return `SessionFileHandle`; bounded `UploadFromAsync` and `DownloadToAsync`
+preserve the final method result. Upload returns the file ID, the
+completion-state-machine ID and the actual `CloseAndCommit` result.
+`IsCommitted` remains true if a successful commit has malformed output, so
+disposal does not close the consumed handle again.
+
+Ordinary Close is not an atomic commit or rollback. A known committed result
+is not replaced by late cancellation. Existing raw-handle helpers remain
+compatible, but keep Open/Generate, every chunk and Close/CloseAndUpdate or
+CloseAndCommit on the same captured session; do not recreate a proxy from the
+newly current connection.
+
 ## What lives where
 
 ```
@@ -314,6 +419,7 @@ src/Opc.Ua.Client/FileSystem/
 ├── UaFileInfo.cs                       # System.IO.FileInfo mirror
 ├── UaDirectoryInfo.cs                  # System.IO.DirectoryInfo mirror
 ├── UaFileStream.cs                     # System.IO.Stream mirror
+├── SessionFileHandle.cs                # opaque generation-bound transfer handle
 ├── TemporaryFileTransferClient.cs      # Part 5 §C.5 surface
 └── UaTemporaryWriteFile.cs             # commit/rollback wrapper
 ```
@@ -321,6 +427,27 @@ src/Opc.Ua.Client/FileSystem/
 Tests live under `tests/Opc.Ua.Client.Tests/FileSystem/`.
 
 ## Server-side file bindings
+
+`IFileTypeBinder` / `FileTypeBinder` binds an already-created `FileState` to
+bounded in-memory content and an optional asynchronous commit callback, without
+a separate file-system node manager. It shares `FileHandle` ownership/mode rules
+and the existing response-size calculation. Bindings allow at most 64 open
+handles, one writer, and independent reader snapshots. Temporary writers commit
+through `CommitAsync`; `commitOnClose` selects the ordinary FileType close lifecycle.
+Application commit callbacks run without holding the binding's operation gate, so
+publication can refresh other file bindings. Session closure and disposal request
+cancellation of a running commit and retain its writer reservation until the
+callback and stream cleanup finish. A successful callback remains published even
+if it ignored cancellation. Session closure discards a buffer whose commit has
+not started; it does not invoke `commitOnClose`. [Machine Vision](Vision.md) uses this
+surface for its specialized transfers and recipe files.
+
+Direct `IFileTypeBinding.OpenAsync` calls use the same session admission as the
+generated methods. When the binding has a server session manager, the owner must
+appear in its registry and must not be closing or expired; an absent owner is
+rejected with `BadSessionClosed`. In-process callers using a server context must
+therefore supply a registered session identity. Without a session manager, the
+caller supplies the logical owner identity and owns its lifetime.
 
 Both lazy `FileSystemNodeManager` nodes and materialized
 `FileDirectoryBinder` nodes protect their mounted root from deletion,
@@ -360,9 +487,51 @@ synchronous delegates remain available.
 
 File opens reserve compatible access before invoking the provider. This
 prevents a rejected erase request from truncating a file held by another
-opener. Failed or cancelled opens release their reservations. If a provider
-returns a stream after session closure or disposal, the system closes it
-instead of publishing it.
+opener. Failed or cancelled opens release their reservations after stream
+cleanup. If a provider returns a stream after session closure or disposal, the
+system closes it instead of publishing it.
+
+Providers can opt into combined Read and Write mode through the additive
+`IFileSystemReadWriteProvider.OpenReadWriteAsync` capability. Existing providers
+need no changes: a combined request returns `BadNotSupported` before either
+provider open method is called. The physical provider and writable bounded-content
+bindings support combined access. A bounded binding without a commit callback
+remains read-only.
+
+A combined handle owns one seekable stream and one cursor, exclusively for its
+session. Read and Write permissions come from the accepted mode bits, not the
+stream's `CanRead` or `CanWrite` properties. Append sets the initial position to
+EOF; later `SetPosition` calls can seek backwards. Erase truncates before the
+handle is published. The physical provider uses `FileAccess.ReadWrite` and
+`FileShare.None` for combined access, with `Create` for erase and `OpenOrCreate`
+otherwise.
+
+Each handle serializes Read, Write, GetPosition, and SetPosition. Explicit Close
+stops admission, drains operations already admitted, then closes the stream.
+Session closure and server shutdown also request cancellation of active provider
+requests. `FileSystemNodeManager.CloseTimeout`, `FileTypeBinder.CloseTimeout`,
+and `FileDirectoryBindingOptions.CloseTimeout` bound lifecycle waits; the default
+is ten seconds. An expired deadline does not prove that provider I/O stopped:
+unfinished I/O retains its stream and writer reservation through actual cleanup.
+Disposal can be awaited again to observe retained cleanup and any errors. Cleanup
+attempts every stream before surfacing failures. If stream cleanup fails, the
+reservation remains held: a thrown disposal does not establish that the provider
+released the file. Repeated lifecycle waits report the retained failure rather
+than reopening the file or silently retrying provider cleanup. Each repeated
+disposal wait uses the configured deadline. Applications that require an
+unbounded cleanup wait can configure `Timeout.InfiniteTimeSpan` before binding.
+Resources used by an unfinished provider operation or commit callback must remain
+available until that operation actually finishes.
+
+Materialized `FileDirectoryBinder` bindings supplied with a `ServerSystemContext`
+attach to that server's session lifecycle on the first open. Explicit session
+closure and expiry release only that session's handles and pending reservations;
+other sessions keep their readers and positions. Late opens from a closing,
+expired, or removed session return `BadSessionClosed`. No historical session-ID
+list is retained. Binding disposal removes the lifecycle subscription, so the
+application must dispose the binding when its directory is removed or its node
+manager shuts down. A context without a server session manager has no automatic
+session lifecycle; such standalone bindings remain owned by their caller.
 `Read` and `Write` enforce the requested open mode even if the provider's
 stream supports both operations. `SetPosition` clamps positions beyond
 EOF to the current file length. `Writable` describes the provider/file
@@ -376,6 +545,35 @@ query the provider asynchronously without allocating retained handle state.
 Closed or failed opens release idle handle bags; pending opens remain
 protected by their reservations. Extended Windows roots (`\\?\...`) retain
 literal trailing-dot names rather than conflating distinct directory entries.
+
+### Physical provider confinement
+
+`PhysicalFileSystemProvider` rejects paths outside its configured root and
+rejects symbolic links, Windows junctions, and other reparse points with
+`UnauthorizedAccessException`. This no-link policy applies even to links
+whose targets are inside the mount, dangling links, and the configured root
+and every existing ancestor of that root. Use a physical root path without
+linked ancestors (for example, avoid the `/var` alias on systems where it is
+a symlink). The checks run before root creation and again on operations.
+On .NET 8 and later, the ReferenceServer resolves system temporary-directory
+aliases before selecting its default mount; provider-relative links remain rejected.
+Enumeration fails on a linked entry rather than exposing its target metadata.
+Recursive copy, move, and delete validate the source tree one directory level
+at a time, before entering any child directory. Copy validates its source tree
+before creating the destination; deletion does not use unchecked recursive
+traversal. Ordinary in-root files, directories, and creation of missing paths
+remain supported.
+
+These are **path-based checks, not a race-free filesystem sandbox**. An
+untrusted local process could replace a checked file or ancestor between
+validation and I/O (TOCTOU). Protect the mount and its ancestors with host
+permissions so untrusted processes cannot rename, replace, or introduce
+entries while provider operations run. Existing open handles are not
+revalidated. Hard links and filesystem mount points that are not reported as
+reparse points are outside this policy; use a dedicated filesystem or
+OS-level isolation when local filesystem attackers are in scope. Recursive
+operations are not transactional and concurrent changes or I/O errors can
+leave partial results.
 
 Materialized directory bindings serialize capacity admission, provider
 mutations, refresh, and teardown. Creates and cross-directory moves/copies

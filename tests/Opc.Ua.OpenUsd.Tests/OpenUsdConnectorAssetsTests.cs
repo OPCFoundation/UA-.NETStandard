@@ -241,7 +241,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public void FetchServedAssetsThrowsWhenTheDigestDoesNotMatch()
+        public async Task FetchServedAssetsThrowsWhenTheDigestDoesNotMatch()
         {
             byte[] content = Encoding.UTF8.GetBytes("#usda 1.0");
             NodeId assets = m_space.AddObject(AddStage(AddRepresentation()), "Assets");
@@ -249,20 +249,20 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                 digest: new ByteString(new byte[] { 9, 9, 9 }));
             OpenUsdConnector connector = Connector();
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await connector.FetchServedAssetsAsync(m_cacheDir, CancellationToken.None));
 
             Assert.That(ex!.Message, Does.Contain("failed digest verification"));
         }
 
         [Test]
-        public void FetchServedAssetsThrowsWhenADigestIsMissingAndDigestsAreRequired()
+        public async Task FetchServedAssetsThrowsWhenADigestIsMissingAndDigestsAreRequired()
         {
             NodeId assets = m_space.AddObject(AddStage(AddRepresentation()), "Assets");
             AddAsset(assets, "undigested.usda", Encoding.UTF8.GetBytes("#usda 1.0"));
             OpenUsdConnector connector = Connector();
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await connector.FetchServedAssetsAsync(m_cacheDir, CancellationToken.None));
 
             Assert.That(ex!.Message, Does.Contain("without a digest"));
@@ -284,7 +284,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public void FetchServedAssetsThrowsWhenTheClosureExceedsTheTotalSizeLimit()
+        public async Task FetchServedAssetsThrowsWhenTheClosureExceedsTheTotalSizeLimit()
         {
             byte[] content = Encoding.UTF8.GetBytes("#usda 1.0");
             NodeId assets = m_space.AddObject(AddStage(AddRepresentation()), "Assets");
@@ -294,14 +294,14 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                 MaxTotalAssetBytes = 2
             });
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await connector.FetchServedAssetsAsync(m_cacheDir, CancellationToken.None));
 
             Assert.That(ex!.Message, Does.Contain("maximum total size"));
         }
 
         [Test]
-        public void FetchServedAssetsThrowsWhenALayerExceedsTheSingleAssetSizeLimit()
+        public async Task FetchServedAssetsThrowsWhenALayerExceedsTheSingleAssetSizeLimit()
         {
             NodeId assets = m_space.AddObject(AddStage(AddRepresentation()), "Assets");
             AddAsset(assets, "big.usda", Encoding.UTF8.GetBytes("#usda 1.0 padding padding"));
@@ -310,49 +310,49 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                 MaxAssetBytes = 4
             });
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await connector.FetchServedAssetsAsync(m_cacheDir, CancellationToken.None));
 
             Assert.That(ex!.Message, Does.Contain("maximum size"));
         }
 
         [Test]
-        public void FetchServedAssetsThrowsWhenTheAssetIsMissingPart5Methods()
+        public async Task FetchServedAssetsThrowsWhenTheAssetIsMissingPart5Methods()
         {
             NodeId assets = m_space.AddObject(AddStage(AddRepresentation()), "Assets");
             NodeId asset = m_space.AddObject(assets, "Asset-broken", AssetTypeId);
             m_space.AddVariable(asset, "AssetIdentifier", new Variant("broken.usda"));
             OpenUsdConnector connector = Connector();
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await connector.FetchServedAssetsAsync(m_cacheDir, CancellationToken.None));
 
             Assert.That(ex!.Message, Does.Contain("Part 5 Open/Read/Close"));
         }
 
         [Test]
-        public void FetchServedAssetsThrowsWhenOpenReturnsNoOutputArguments()
+        public async Task FetchServedAssetsThrowsWhenOpenReturnsNoOutputArguments()
         {
             NodeId assets = m_space.AddObject(AddStage(AddRepresentation()), "Assets");
             AddAsset(assets, "nohandle.usda", Encoding.UTF8.GetBytes("#usda 1.0"));
             m_space.OpenResultOverride = [];
             OpenUsdConnector connector = Connector();
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await connector.FetchServedAssetsAsync(m_cacheDir, CancellationToken.None));
 
             Assert.That(ex!.Message, Does.Contain("no file handle"));
         }
 
         [Test]
-        public void FetchServedAssetsThrowsWhenOpenReturnsANonNumericHandle()
+        public async Task FetchServedAssetsThrowsWhenOpenReturnsANonNumericHandle()
         {
             NodeId assets = m_space.AddObject(AddStage(AddRepresentation()), "Assets");
             AddAsset(assets, "badhandle.usda", Encoding.UTF8.GetBytes("#usda 1.0"));
             m_space.OpenResultOverride = [new Variant("not-a-handle")];
             OpenUsdConnector connector = Connector();
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await connector.FetchServedAssetsAsync(m_cacheDir, CancellationToken.None));
 
             Assert.That(ex!.Message, Does.Contain("no file handle"));

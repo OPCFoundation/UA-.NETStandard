@@ -148,7 +148,7 @@ namespace Opc.Ua.Positioning.Tests
         }
 
         [Test]
-        public void ObservePositionFrameWithWrongValueTypeThrowsBadTypeMismatch()
+        public async Task ObservePositionFrameWithWrongValueTypeThrowsBadTypeMismatch()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             NodeId spatialObjectId = new("SpatialObject", 2);
@@ -185,7 +185,7 @@ namespace Opc.Ua.Positioning.Tests
                 sessionMock.Object,
                 Mock.Of<ITelemetryContext>());
 
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ReadSingleAsync(
                     client.ObservePositionFrameAsync(
                         spatialObjectId,

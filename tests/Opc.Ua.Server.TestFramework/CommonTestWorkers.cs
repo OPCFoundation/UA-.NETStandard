@@ -248,12 +248,12 @@ namespace Opc.Ua.Server.TestFramework
 
             // Test if server responds with BadNothingToDo
             {
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException sre = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     _ = await services.BrowseAsync(
                         requestHeader,
                         null!,
                         0,
-                        []).ConfigureAwait(false))!;
+                        []).ConfigureAwait(false)))!;
                 Assert.That(sre!.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
             }
 
@@ -265,12 +265,12 @@ namespace Opc.Ua.Server.TestFramework
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException sre = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                             _ = await services.BrowseAsync(
                                 requestHeader,
                                 null!,
                                 0,
-                                browseDescriptionCollection).ConfigureAwait(false))!;
+                                browseDescriptionCollection).ConfigureAwait(false)))!;
                     Assert.That(
                         sre!.StatusCode,
                         Is.EqualTo(StatusCodes.BadTooManyOperations));
@@ -278,12 +278,12 @@ namespace Opc.Ua.Server.TestFramework
                     // Test if server responds with BadTooManyOperations
                     ArrayOf<BrowseDescription> tempBrowsePath =
                         browseDescriptionCollection[..((int)operationLimits.MaxNodesPerBrowse + 1)];
-                    sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    sre = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         _ = await services.BrowseAsync(
                             requestHeader,
                             null!,
                             0,
-                            tempBrowsePath).ConfigureAwait(false))!;
+                            tempBrowsePath).ConfigureAwait(false)))!;
                     Assert.That(
                         sre!.StatusCode,
                         Is.EqualTo(StatusCodes.BadTooManyOperations));
@@ -439,10 +439,10 @@ namespace Opc.Ua.Server.TestFramework
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException sre = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                             _ = await services.TranslateBrowsePathsToNodeIdsAsync(
                                 requestHeader,
-                                browsePaths).ConfigureAwait(false))!;
+                                browsePaths).ConfigureAwait(false)))!;
                     Assert.That(
                         sre!.StatusCode,
                         Is.EqualTo(StatusCodes.BadTooManyOperations));
@@ -515,12 +515,12 @@ namespace Opc.Ua.Server.TestFramework
 
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate = default;
             // check badnothingtodo
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException sre = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await services.CreateMonitoredItemsAsync(
                     requestHeader,
                     id,
                     TimestampsToReturn.Neither,
-                    itemsToCreate).ConfigureAwait(false))!;
+                    itemsToCreate).ConfigureAwait(false)))!;
             Assert.That(sre!.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
 
             // add item
@@ -790,7 +790,8 @@ namespace Opc.Ua.Server.TestFramework
             RequestHeader requestHeader,
             ArrayOf<uint> subscriptionIds,
             bool sendInitialData,
-            bool expectAccessDenied)
+            bool expectAccessDenied,
+            bool expectAuthorizationInvalidation = false)
         {
             Assert.That(subscriptionIds.Count, Is.EqualTo(1));
 
@@ -820,7 +821,9 @@ namespace Opc.Ua.Server.TestFramework
                 else
                 {
                     Assert.That(StatusCode.IsGood(transferResult.StatusCode), Is.True);
-                    Assert.That(transferResult.AvailableSequenceNumbers.Count, Is.EqualTo(1));
+                    Assert.That(
+                        transferResult.AvailableSequenceNumbers.Count,
+                        Is.EqualTo(expectAuthorizationInvalidation ? 0 : 1));
                 }
             }
 
@@ -842,8 +845,11 @@ namespace Opc.Ua.Server.TestFramework
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(sendInitialData ? 1 : 0));
-            if (sendInitialData)
+            bool expectInitialData = sendInitialData && !expectAuthorizationInvalidation;
+            Assert.That(
+                publishResponse.NotificationMessage.NotificationData.Count,
+                Is.EqualTo(expectInitialData ? 1 : 0));
+            if (expectInitialData)
             {
                 ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
                 Assert.That(items.TryGetValue(out DataChangeNotification? dataChangeNotification), Is.True);

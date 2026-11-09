@@ -522,7 +522,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void CallerSuppliedClientWithCredentialFormFailsClosed()
+        public async Task CallerSuppliedClientWithCredentialFormFailsClosed()
         {
             using var server = new TestHttpServer((method, path, body) => TestHttpResponse.Json(200, "1"));
             using var client = new HttpClient();
@@ -535,12 +535,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
             WotCompiledForm read = ReadForm(registry, server.BaseUrl + "/p");
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await registry.OpenChannelAsync(read).ConfigureAwait(false));
         }
 
         [Test]
-        public void CallerSuppliedAutoRedirectClientWithDefaultHeadersFailsClosed()
+        public async Task CallerSuppliedAutoRedirectClientWithDefaultHeadersFailsClosed()
         {
             var origin = new Recorder();
             var target = new Recorder();
@@ -571,7 +571,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
             WotCompiledForm read = ReadFormNoSecurity(registry, originServer.BaseUrl + "/p");
 
-            InvalidOperationException? exception = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await registry.OpenChannelAsync(read).ConfigureAwait(false));
             Assert.Multiple(() =>
             {
@@ -586,7 +586,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
         [TestCase(false)]
         [TestCase(true)]
-        public void CallerSuppliedClientWithoutHeadersFailsClosed(bool configureEmptyHeaders)
+        public async Task CallerSuppliedClientWithoutHeadersFailsClosed(bool configureEmptyHeaders)
         {
             var recorder = new Recorder();
             using var server = new TestHttpServer(request =>
@@ -620,7 +620,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
             WotCompiledForm read = ReadFormNoSecurity(registry, server.BaseUrl + "/p");
 
-            InvalidOperationException? exception = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await registry.OpenChannelAsync(read).ConfigureAwait(false));
             Assert.Multiple(() =>
             {
@@ -671,7 +671,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
             WotCompiledForm read = ReadFormNoSecurity(registry, originServer.BaseUrl + "/p");
 
-            InvalidOperationException? exception = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await registry.OpenChannelAsync(read).ConfigureAwait(false));
             Assert.Multiple(() =>
             {

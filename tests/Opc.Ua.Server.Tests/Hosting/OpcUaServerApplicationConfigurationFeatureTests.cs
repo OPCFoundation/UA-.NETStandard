@@ -178,7 +178,6 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
                 EndpointUrl = "opc.tcp://reverse-client:4841",
                 Timeout = 500,
-                MaxSessionCount = 2,
                 Enabled = true
             });
             options.EndpointUrls.Add("opc.tcp://localhost:0/ReverseConnect");
@@ -195,7 +194,6 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(reverseConnect.Clients.Count, Is.EqualTo(1));
             Assert.That(reverseConnect.Clients[0].EndpointUrl, Is.EqualTo("opc.tcp://reverse-client:4841"));
             Assert.That(reverseConnect.Clients[0].Timeout, Is.EqualTo(500));
-            Assert.That(reverseConnect.Clients[0].MaxSessionCount, Is.EqualTo(2));
             Assert.That(reverseConnect.Clients[0].Enabled, Is.True);
         }
 

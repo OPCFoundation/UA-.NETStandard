@@ -67,6 +67,13 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitObjectTypeProxies { get; set; }
 
         /// <summary>
+        /// Emits additional typed WithStatusAsync proxy methods that preserve
+        /// the Call operation status separately from declared output arguments.
+        /// Bad statuses throw before output decoding. Disabled by default.
+        /// </summary>
+        public bool ObjectTypeProxyMethodsWithStatus { get; set; }
+
+        /// <summary>
         /// When set to <c>true</c>, the
         /// <see cref="StateMachineIdsGenerator"/> is suppressed and no
         /// <c>{TypeName}Ids</c> classes (nested <c>StateIds</c> /
@@ -107,6 +114,27 @@ namespace Opc.Ua.SourceGeneration
         public bool FluentAccessorsOnly { get; set; }
 
         /// <summary>
+        /// Emits only typed variable accessors and placeholder enumerators over client proxies
+        /// supplied by a referenced model assembly. Disabled by default.
+        /// </summary>
+        public bool ClientAccessorsOnly { get; set; }
+
+        /// <summary>
+        /// Emits an internal client accessor class instead of the default public class.
+        /// </summary>
+        public bool ClientAccessorsInternal { get; set; }
+
+        /// <summary>
+        /// Overrides the namespace of client accessor extensions. Defaults to the model prefix plus Client.
+        /// </summary>
+        public string? ClientAccessorNamespace { get; set; }
+
+        /// <summary>
+        /// Overrides the partial extension class name. Defaults to the model name plus ClientMembers.
+        /// </summary>
+        public string? ClientAccessorClassName { get; set; }
+
+        /// <summary>
         /// Optional override for the C# namespace used by classes emitted
         /// by the <see cref="ObjectTypeProxyGenerator"/>. When unset,
         /// the model's target namespace prefix is used.
@@ -134,6 +162,26 @@ namespace Opc.Ua.SourceGeneration
         /// </para>
         /// </summary>
         public bool UseTypeDefinitionModellingRules { get; set; }
+
+        /// <summary>
+        /// When set to <c>true</c>, the predefined nodes generated for a
+        /// NodeSet2 input are exactly the nodes the NodeSet2 declares. A
+        /// subtype in the NodeSet2 does not get copies of the Mandatory
+        /// InstanceDeclarations of its supertypes, and an instance does not
+        /// get children its NodeSet2 does not declare or references to them,
+        /// so the address space holds no node with an identifier the NodeSet2
+        /// does not assign.
+        /// <para>
+        /// The typed state classes and the <c>CreateInstanceOf*</c> factories
+        /// are not affected: inherited members still resolve through the
+        /// state classes of the supertypes, and an instance created at run
+        /// time still gets every Mandatory descendant of its type.
+        /// </para>
+        /// <para>
+        /// Off by default. A ModelDesign input is not affected.
+        /// </para>
+        /// </summary>
+        public bool EmitNodeSetNodesOnly { get; set; }
 
         /// <summary>
         /// Maps an OPC UA namespace URI (key) to the C# namespace (value)

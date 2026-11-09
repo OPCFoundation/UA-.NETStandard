@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.WotCon.Bindings.Modbus
 {
@@ -36,6 +39,14 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
     /// </summary>
     public sealed class ModbusWotBindingOptions
     {
+        /// <summary>
+        /// Gets or sets an optional connector used for every initial connection and reconnect.
+        /// The returned readable, writable stream transfers to the channel and is disposed with it.
+        /// A host can validate resolved addresses and connect to an approved IP without a second DNS lookup.
+        /// When absent, the existing TCP connector is used.
+        /// </summary>
+        public Func<string, int, CancellationToken, ValueTask<Stream>>? StreamConnector { get; set; }
+
         /// <summary>
         /// Gets or sets the poll interval used for observe operations.
         /// </summary>

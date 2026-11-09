@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
             Assert.That(
                 standbyEvents,
                 Has.Some.Matches<PubSubRoleChangedEventArgs>(e =>
-                    string.Equals(e.ComponentId, WriterComponentId, StringComparison.Ordinal) &&
+                    e is not null && string.Equals(e.ComponentId, WriterComponentId, StringComparison.Ordinal) &&
                     e.Role == PubSubComponentRole.Active));
         }
 

@@ -68,6 +68,7 @@ namespace Opc.Ua.XRegistry.Server
             m_seedDocument = opts.SeedDocument;
             m_seedFormat = opts.SeedFormat;
             m_seedBrowseName = opts.SeedBrowseName;
+            m_requireEncryptionForReads = opts.RequireEncryptionForReads;
         }
 
         /// <summary>
@@ -143,6 +144,7 @@ namespace Opc.Ua.XRegistry.Server
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
+                AccessRestrictions = m_requireEncryptionForReads ? AccessRestrictionType.EncryptionRequired : null,
                 Historizing = false,
                 Value = new Variant(m_seedDocument)
             };
@@ -157,5 +159,8 @@ namespace Opc.Ua.XRegistry.Server
         private readonly ByteString m_seedDocument;
         private readonly string m_seedFormat;
         private readonly string m_seedBrowseName;
+
+        /// <summary>Whether seeded document reads require encrypted client access.</summary>
+        private readonly bool m_requireEncryptionForReads;
     }
 }

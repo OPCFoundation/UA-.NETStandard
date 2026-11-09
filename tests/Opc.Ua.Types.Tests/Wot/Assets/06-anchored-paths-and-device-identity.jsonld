@@ -11,7 +11,7 @@
   "@type": ["Thing", "uav:object"],
   "id": "urn:dev:opcua:pump-07",
   "title": "Pump 07",
-  "description": "A Thing Description that anchors its relative browse paths at the Object it describes and names its device-identification facts through the Device Integration model rather than through uav terms.",
+  "description": "An anchored Thing Description with an endpoint resource path, id/path agreement for two properties and a path-only Manufacturer form. Device-identification facts use the Device Integration model.",
   "uav:browseName": "pump:Pump",
   "uav:id": "nsu=http://example.com/demo/pump;s=Pump07",
   "uav:browsePathAnchor": "nsu=http://example.com/demo/pump;s=Pump07",
@@ -23,7 +23,7 @@
     }
   },
   "security": "opcua_channel_sc",
-  "base": "opc.tcp://opcuademo.com:4840",
+  "base": "opc.tcp://opcuademo.com:4840/UA/Factory",
   "properties": {
     "serialNumber": {
       "@type": "uav:variable",
@@ -34,7 +34,7 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
+          "href": "?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump07.SerialNumber",
           "contentType": "application/octet-stream",
           "op": ["readproperty"]
         }
@@ -49,7 +49,7 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
+          "href": "opc.tcp://opcuademo.com:4840/UA/Factory",
           "contentType": "application/octet-stream",
           "op": ["readproperty"]
         }
@@ -64,7 +64,7 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
+          "href": "?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump07.DeviceManual",
           "contentType": "application/octet-stream",
           "op": ["readproperty"]
         }

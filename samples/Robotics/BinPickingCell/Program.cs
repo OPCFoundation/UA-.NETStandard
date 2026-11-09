@@ -47,6 +47,7 @@ string stagePath = stage.Extract();
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.Logging.ClearProviders();
+builder.Logging.EnableOpcUaRedaction();
 builder.Logging.AddConsole();
 
 int port = int.TryParse(builder.Configuration["port"], out int configuredPort)
@@ -91,6 +92,8 @@ builder.Services.AddSingleton(_ => new BinPickingPalletizerKinematics
     Collisions = BinPickingCellGeometry.CreateCollisionModel()
 });
 builder.Services.AddSingleton<BinPickingRobotCell>();
+builder.Services.TryAddEnumerable(
+    ServiceDescriptor.Singleton<IRobotIntentModelProvider, Robotics.IntentEnabledRobot.OpenUsdIntentModelProvider>());
 builder.Services.AddSingleton<BinPickingWorldState>();
 builder.Services.AddSingleton<IBinPickingTargetProvider, BinPickingTargetProvider>();
 builder.Services.AddSingleton<BinPickingGroundTruthInferenceProvider>();

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -62,7 +61,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public bool Created => ServerId != 0;
 
         /// <inheritdoc/>
-        public bool HasPendingChanges => !m_pendingChanges.IsEmpty;
+        public bool HasPendingChanges
+        {
+            get
+            {
+                lock (m_pendingChangesLock)
+                {
+                    return m_pendingChanges != null;
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public ServiceResult Error { get; private set; }
@@ -341,7 +349,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// The caller is responsible for binding the (possibly
         /// freshly-revised) server-side state via the
         /// <c>TransferSubscriptions</c> / <c>GetMonitoredItems</c> path
-        /// that runs in <see cref="MonitoredItemManager.TrySynchronizeHandlesAsync"/>.
+        /// that runs in <see cref="MonitoredItemManager.TrySynchronizeHandlesAsync(CancellationToken)"/>.
         /// </summary>
         internal void ApplyLoadState(MonitoredItemLoadState state)
         {
@@ -360,12 +368,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // loaded state - otherwise TryRequeue force-recreates it.
             Error = ServiceResult.Good;
             CurrentMonitoringMode = m_currentOptions.MonitoringMode;
+            m_refreshParametersAfterTransfer = true;
             ClientHandle = state.ClientHandle;
             // Raise the global counter past the loaded handle, otherwise a
             // freshly started process mints handles from 1 again and the first
             // collision throws out of Dictionary.Add in MonitoredItemManager.
             Utils.SetIdentifierToAtLeast(ref GlobalClientHandleUint, state.ClientHandle);
             ServerId = state.ServerId;
+            if (state.HasRevisedSettings)
+            {
+                CurrentSamplingInterval = state.RevisedSamplingInterval;
+                CurrentQueueSize = state.RevisedQueueSize;
+                FilterResult = state.RevisedFilterResult == null
+                    ? null
+                    : (MonitoringFilterResult)state.RevisedFilterResult.Clone();
+            }
             // Install the saved desired triggering set as the runtime
             // canonical state. For TransferSubscriptions this restores
             // the local view without re-issuing SetTriggering (the
@@ -445,7 +462,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_options.CurrentValue,
                 ClientHandle,
                 ServerId,
-                DesiredTriggeredByNames);
+                DesiredTriggeredByNames) with
+            {
+                HasRevisedSettings = true,
+                RevisedSamplingInterval = CurrentSamplingInterval,
+                RevisedQueueSize = CurrentQueueSize,
+                RevisedFilterResult = FilterResult == null
+                    ? null
+                    : (MonitoringFilterResult)FilterResult.Clone()
+            };
         }
 
         /// <inheritdoc/>
@@ -577,7 +602,25 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <returns></returns>
         internal bool TryGetPendingChange([NotNullWhen(true)] out Change? change)
         {
-            return m_pendingChanges.TryPeek(out change);
+            lock (m_pendingChangesLock)
+            {
+                if (m_pendingChanges != null)
+                {
+                    change = m_pendingChanges.Peek();
+                    return true;
+                }
+            }
+            change = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Enqueue a change, the caller holds <see cref="m_pendingChangesLock"/>.
+        /// </summary>
+        /// <param name="change"></param>
+        private void EnqueuePendingChangeLocked(Change change)
+        {
+            (m_pendingChanges ??= new Queue<Change>(1)).Enqueue(change);
         }
 
         /// <summary>
@@ -585,8 +628,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="clientHandle"></param>
         /// <param name="serverHandle"></param>
+        /// <param name="refreshParameters">Whether to reapply the saved parameters on the
+        /// server. An adopted item keeps the parameters the server already has.</param>
         /// <exception cref="ObjectDisposedException"></exception>
-        internal void SetTransferResult(uint clientHandle, uint serverHandle)
+        internal void SetTransferResult(uint clientHandle, uint serverHandle, bool refreshParameters = true)
         {
             if (m_disposedValue)
             {
@@ -614,6 +659,35 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 ServerId = serverHandle;
             }
+            if (!refreshParameters)
+            {
+                lock (m_pendingChangesLock)
+                {
+                    m_refreshParametersAfterTransfer = false;
+                }
+                return;
+            }
+            while (m_refreshParametersAfterTransfer &&  Volatile.Read(ref m_currentOptions) is { } options)
+            {
+                // GetMonitoredItems supplies handles, not revised parameters. Reapply
+                // the saved parameters without recreating the item or changing its mode.
+                // A filter can invoke caller code while constructing the request, so
+                // build outside the enqueue gate and retry if newer options arrived.
+                var refresh = new Change(this, options, options);
+                lock (m_pendingChangesLock)
+                {
+                    if (!m_refreshParametersAfterTransfer)
+                    {
+                        break;
+                    }
+                    if (!ReferenceEquals(options, Volatile.Read(ref m_currentOptions)))
+                    {
+                        continue;
+                    }
+                    EnqueuePendingChangeLocked(refresh);
+                    m_refreshParametersAfterTransfer = false;
+                }
+            }
         }
 
         /// <summary>
@@ -635,6 +709,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             m_logger.ItemRESET(this);
             ServerId = 0;
+            m_refreshParametersAfterTransfer = false;
 
             MonitoredItemOptions? options = m_currentOptions;
             while (TryGetPendingChange(out Change? change))
@@ -743,8 +818,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
             }
 
-            m_currentOptions = options;
-            m_pendingChanges.Enqueue(new Change(this, options, currentOptions));
+            Volatile.Write(ref m_currentOptions, options);
+            var change = new Change(this, options, currentOptions);
+            lock (m_pendingChangesLock)
+            {
+                EnqueuePendingChangeLocked(change);
+            }
         }
 
         /// <summary>
@@ -820,8 +899,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <returns></returns>
         internal bool CompleteChange(Change change)
         {
-            return m_pendingChanges.TryDequeue(out Change? completed) &&
-                change == completed;
+            lock (m_pendingChangesLock)
+            {
+                if (m_pendingChanges == null)
+                {
+                    return false;
+                }
+                Change completed = m_pendingChanges.Dequeue();
+                if (m_pendingChanges.Count == 0)
+                {
+                    // Most items stay idle once applied, drop the queue
+                    m_pendingChanges = null;
+                }
+                return change == completed;
+            }
         }
 
         /// <summary>
@@ -848,7 +939,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 return false;
             }
-            m_pendingChanges.Enqueue(new Change(this, options, null));
+            var change = new Change(this, options, null);
+            lock (m_pendingChangesLock)
+            {
+                EnqueuePendingChangeLocked(change);
+            }
             return true;
         }
 
@@ -1265,11 +1360,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         private bool m_disposedValue;
+        private bool m_refreshParametersAfterTransfer;
         private MonitoredItemOptions? m_currentOptions;
 #pragma warning disable CA2213 // Disposed in DisposeAsync(bool)
         private IDisposable? m_changeTracking;
 #pragma warning restore CA2213
-        private readonly ConcurrentQueue<Change> m_pendingChanges = new();
+        /// <summary>Pending changes, null while empty, guarded by <see cref="m_pendingChangesLock"/>.</summary>
+        private Queue<Change>? m_pendingChanges;
+        /// <summary>Guards the pending change queue; orders option-change enqueueing with transfer-refresh validation and enqueueing.</summary>
+        private readonly Lock m_pendingChangesLock = new();
         private readonly ILogger m_logger;
         internal static uint GlobalClientHandleUint;
         private IOptionsMonitor<MonitoredItemOptions> m_options;

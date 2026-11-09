@@ -121,7 +121,18 @@ namespace Opc.Ua.XRegistry.Server
         public bool PublishFederationProxy { get; set; }
 
         /// <summary>
-        /// The document hosted by the remote registry (federated locally as a proxy).
+        /// The independently configured trusted remote logical Resource binding. Required for a proxy.
+        /// </summary>
+        public XRegistryFederationTarget? FederationTarget { get; set; }
+
+        /// <summary>
+        /// The provider that verifies the trusted logical Resource before proxy publication or relocation.
+        /// </summary>
+        public IXRegistryFederationProvider? FederationProvider { get; set; }
+
+        /// <summary>
+        /// Optional remote document bytes retained for callers that compute a separate content lookup.
+        /// Proxy publication and identity do not depend on these bytes or a content-id provider.
         /// </summary>
         public ByteString FederatedDocument { get; set; }
 
@@ -131,7 +142,8 @@ namespace Opc.Ua.XRegistry.Server
         public string FederatedFormat { get; set; } = "avro";
 
         /// <summary>
-        /// The remote registry's companion namespace URI carried by the proxy.
+        /// The namespace used by a remote content lookup. The logical Resource namespace comes from
+        /// <see cref="FederationTarget"/> and may be different.
         /// </summary>
         public string RemoteRegistryNamespaceUri { get; set; } = XRegistryWellKnown.XRegistryNamespaceUri;
 
@@ -141,7 +153,8 @@ namespace Opc.Ua.XRegistry.Server
         public string RemoteEndpointUrl { get; set; } = string.Empty;
 
         /// <summary>
-        /// The remote server's index into the local <c>ServerArray</c>.
+        /// A legacy server-index hint. Federation identity does not use this value; the current
+        /// <c>ServerArray</c> is resolved from <see cref="FederationTarget"/>'s trusted ApplicationUri.
         /// </summary>
         public uint RemoteServerIndex { get; set; }
 
@@ -198,13 +211,30 @@ namespace Opc.Ua.XRegistry.Server
         public bool RequireEncryptionForReads { get; set; }
 
         /// <summary>
-        /// Validates event configuration when event support is enabled.
+        /// Validates enabled event and federation configuration before publication.
         /// </summary>
         /// <exception cref="System.ArgumentException">
-        /// The event source URL is not absolute or a domain attribute name is missing.
+        /// Enabled federation has no trusted target or valid locator, or enabled event configuration is incomplete.
         /// </exception>
+        /// <exception cref="ServiceResultException">Enabled federation has no verification provider.</exception>
         public void Validate()
         {
+            if (PublishFederationProxy)
+            {
+                if (FederationTarget is null)
+                {
+                    throw new System.ArgumentException(
+                        "A trusted FederationTarget is required to publish a federation proxy.",
+                        nameof(FederationTarget));
+                }
+                XRegistryFederationTarget.ValidateEndpoint(RemoteEndpointUrl);
+                if (FederationProvider is null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "A FederationProvider with logical Resource verification is required.");
+                }
+            }
             if (!EventsEnabled)
             {
                 return;

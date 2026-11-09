@@ -289,14 +289,13 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public Task RepublishInvalidSequenceNumberReturnsBadMessageNotAvailable()
+        public async Task RepublishInvalidSequenceNumberReturnsBadMessageNotAvailable()
         {
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await Session.RepublishAsync(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await Session.RepublishAsync(
                     null, m_subscriptionId, 999999u,
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadMessageNotAvailable));
-            return Task.CompletedTask;
         }
 
         [Test]

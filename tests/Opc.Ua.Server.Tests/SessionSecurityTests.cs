@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests
                 created.ServerNonce,
                 m_clientCertificate);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.ActivateSessionAsync(
                     newContext,
                     created.Result.AuthenticationToken,
@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests
                     default,
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             AssertRequestAcceptedOnOriginalChannel(created);
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests
                 created.ServerNonce,
                 m_clientCertificate);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.ActivateSessionAsync(
                     newContext,
                     created.Result.AuthenticationToken,
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server.Tests
                     CreateUserNameToken("alice-alias"),
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -364,7 +364,7 @@ namespace Opc.Ua.Server.Tests
                 created.ServerNonce,
                 m_clientCertificate);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.ActivateSessionAsync(
                     created.Context,
                     created.Result.AuthenticationToken,
@@ -372,7 +372,7 @@ namespace Opc.Ua.Server.Tests
                     default,
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }
@@ -393,13 +393,13 @@ namespace Opc.Ua.Server.Tests
                 RequestType.ActivateSession,
                 RequestLifetime.None);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await created.Result.Session.ValidateBeforeActivateAsync(
                     contextWithoutChannel,
                     new SignatureData(),
                     default,
                     null!,
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
         }
@@ -485,13 +485,13 @@ namespace Opc.Ua.Server.Tests
             SignatureData signature = CreateClientSignature(
                 created.Context, created.ClientNonce, created.ServerNonce, m_clientCertificate);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await created.Result.Session.ValidateBeforeActivateAsync(
                     created.Context,
                     signature,
                     identity,
                     new SignatureData(),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
@@ -563,10 +563,10 @@ namespace Opc.Ua.Server.Tests
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await created.Result.Session.ValidateBeforeActivateAsync(
                         created.Context, signature, identity, userSignature, CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserSignatureInvalid));
             }
         }
@@ -640,10 +640,10 @@ namespace Opc.Ua.Server.Tests
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await created.Result.Session.ValidateBeforeActivateAsync(
                         created.Context, signature, identity, userSignature, CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserSignatureInvalid));
             }
         }
@@ -673,13 +673,13 @@ namespace Opc.Ua.Server.Tests
                 Password = ByteString.From([1, 2, 3])
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await created.Result.Session.ValidateBeforeActivateAsync(
                     created.Context,
                     signature,
                     binaryToken,
                     null!,
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             // An unknown policy is Bad_IdentityTokenInvalid (Part 4 5.7.3.3), as on the
             // regular decoding path.
@@ -708,7 +708,7 @@ namespace Opc.Ua.Server.Tests
 
             // A non-ServiceResultException from an identity provider must surface
             // as Bad_IdentityTokenInvalid rather than escaping as an internal fault.
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.ActivateSessionAsync(
                     created.Context,
                     created.Result.AuthenticationToken,
@@ -716,7 +716,7 @@ namespace Opc.Ua.Server.Tests
                     CreateUserNameToken("alice"),
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -847,7 +847,7 @@ namespace Opc.Ua.Server.Tests
                 "channel-2",
                 m_clientCertificate);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.ActivateSessionAsync(
                     newContext,
                     created.Result.AuthenticationToken,
@@ -855,7 +855,7 @@ namespace Opc.Ua.Server.Tests
                     default,
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             AssertRequestAcceptedOnOriginalChannel(created);
@@ -880,7 +880,7 @@ namespace Opc.Ua.Server.Tests
                 "channel-2",
                 m_clientCertificate);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.ActivateSessionAsync(
                     newContext,
                     created.Result.AuthenticationToken,
@@ -888,7 +888,7 @@ namespace Opc.Ua.Server.Tests
                     default,
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             AssertRequestAcceptedOnOriginalChannel(created);
@@ -915,7 +915,7 @@ namespace Opc.Ua.Server.Tests
                 created.ServerNonce,
                 m_clientCertificate);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.ActivateSessionAsync(
                     newContext,
                     created.Result.AuthenticationToken,
@@ -923,7 +923,7 @@ namespace Opc.Ua.Server.Tests
                     default,
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -959,7 +959,7 @@ namespace Opc.Ua.Server.Tests
                 64 * 1024,
                 default).ConfigureAwait(false);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.ActivateSessionAsync(
                     context,
                     result.AuthenticationToken,
@@ -967,7 +967,7 @@ namespace Opc.Ua.Server.Tests
                     default,
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -1025,7 +1025,7 @@ namespace Opc.Ua.Server.Tests
                 created.ServerNonce,
                 m_clientCertificate);
 
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.ActivateSessionAsync(
                     wrongContext,
                     created.Result.AuthenticationToken,
@@ -1033,7 +1033,7 @@ namespace Opc.Ua.Server.Tests
                     default,
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
 
             SignatureData originalSignature = CreateClientSignature(
@@ -1072,7 +1072,7 @@ namespace Opc.Ua.Server.Tests
             var cancellation = new OperationCanceledException("authentication cancelled");
             manager.CancelNextAuthentication(cancellation);
 
-            OperationCanceledException propagated = Assert.ThrowsAsync<OperationCanceledException>(
+            OperationCanceledException propagated = (await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await manager.ActivateSessionAsync(
                     created.Context,
                     created.Result.AuthenticationToken,
@@ -1080,7 +1080,7 @@ namespace Opc.Ua.Server.Tests
                     default,
                     null,
                     [],
-                    default).ConfigureAwait(false))!;
+                    default).ConfigureAwait(false)))!;
             Assert.That(propagated, Is.SameAs(cancellation));
 
             (_, ByteString serverNonce, _) = await manager.ActivateSessionAsync(
@@ -1141,7 +1141,7 @@ namespace Opc.Ua.Server.Tests
                     closeOperation,
                     Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
                 Assert.That(completed, Is.SameAs(closeOperation));
-                Assert.CatchAsync<OperationCanceledException>(
+                await Assert.CatchAsync<OperationCanceledException>(
                     async () => await closeOperation.ConfigureAwait(false));
                 Assert.That(
                     manager.GetSession(created.Result.AuthenticationToken),
@@ -1300,10 +1300,10 @@ namespace Opc.Ua.Server.Tests
             var rejections = new List<StatusCode>();
             for (int i = 0; i < 5; i++)
             {
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await manager.ActivateSessionAsync(
                         attacker, victim.Result.AuthenticationToken, new SignatureData(), default, null!, [], default)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 rejections.Add(rejected.StatusCode);
             }
             SignatureData valid = CreateClientSignature(
@@ -1334,18 +1334,18 @@ namespace Opc.Ua.Server.Tests
                 created.Context, created.ClientNonce, created.ServerNonce, m_otherClientCertificate);
             for (int i = 0; i < 5; i++)
             {
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await manager.ActivateSessionAsync(
                         created.Context, created.Result.AuthenticationToken, invalid, default, null!, [], default)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
             }
             SignatureData valid = CreateClientSignature(
                 created.Context, created.ClientNonce, created.ServerNonce, m_clientCertificate);
-            ServiceResultException lockedOut = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException lockedOut = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await manager.ActivateSessionAsync(
                     created.Context, created.Result.AuthenticationToken, valid, default, null!, [], default)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(lockedOut.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             OperationContext otherContext = CreateContext(endpoint, "other-channel", m_otherClientCertificate);
             ByteString otherNonce = ByteString.From(CreateBytes(32, 0x42));

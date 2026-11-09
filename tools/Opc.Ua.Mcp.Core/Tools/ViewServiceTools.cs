@@ -360,7 +360,8 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ["nodeId"] = ds.NodeId.ToString(),
                     ["typeDefinitionNode"] = ds.TypeDefinitionNode.ToString(),
-                    ["values"] = ds.Values.IsNull ? null : ds.Values.ToArray()!.Select(v => OpcUaJsonHelper.VariantToObject(v)).ToList()
+                    ["values"] = ds.Values.IsNull ? null : ds.Values.ToArray()!.Select(
+                        v => OpcUaJsonHelper.VariantToObject(v, session.MessageContext)).ToList()
                 })];
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
@@ -412,7 +413,8 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ["nodeId"] = ds.NodeId.ToString(),
                     ["typeDefinitionNode"] = ds.TypeDefinitionNode.ToString(),
-                    ["values"] = ds.Values.IsNull ? null : ds.Values.ToArray()!.Select(v => OpcUaJsonHelper.VariantToObject(v)).ToList()
+                    ["values"] = ds.Values.IsNull ? null : ds.Values.ToArray()!.Select(
+                        v => OpcUaJsonHelper.VariantToObject(v, session.MessageContext)).ToList()
                 })];
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>

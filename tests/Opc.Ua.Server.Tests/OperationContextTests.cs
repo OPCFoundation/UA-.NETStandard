@@ -29,6 +29,7 @@
 
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -134,6 +135,26 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult.IsGood(result),
                 Is.True,
                 $"A SecurityAdmin has ReceiveEvents on this node, but the check answered {result}.");
+        }
+
+        /// <summary>
+        /// The string table of a request is created when first used, and stays the same.
+        /// </summary>
+        [Test]
+        public void StringTableIsCreatedOnFirstUse()
+        {
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+
+            Assert.That(context.CreatedStringTable, Is.Null);
+
+            StringTable table = context.StringTable;
+            Assert.That(table, Is.Not.Null);
+            Assert.That(context.StringTable, Is.SameAs(table));
+            Assert.That(context.CreatedStringTable, Is.SameAs(table));
+
+            var systemContext = new SessionSystemContext(context, NUnitTelemetryContext.Create());
+            Assert.That(systemContext.StringTable, Is.SameAs(table));
         }
 
         /// <summary>

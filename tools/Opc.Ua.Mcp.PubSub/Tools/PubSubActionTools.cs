@@ -35,8 +35,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Server;
-using Opc.Ua.Client;
 using Opc.Ua.Mcp.Serialization;
+using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Encoding;
 
@@ -140,21 +140,32 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentException.ThrowIfNullOrWhiteSpace(objectId);
             ArgumentException.ThrowIfNullOrWhiteSpace(methodId);
 
-            ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo info = sessionManager.GetSessionInfoOrThrow(sessionName);
             NodeId parsedObjectId = OpcUaJsonHelper.ParseNodeId(objectId);
             NodeId parsedMethodId = OpcUaJsonHelper.ParseNodeId(methodId);
             PubSubActionTarget target = CreateTarget(connectionName, dataSetWriterId, actionTargetId, actionName);
-
-            return await manager.RegisterActionResponderAsync(
-                target,
-                new DelegatePubSubActionHandler((invocation, cancellationToken) =>
-                    CallBoundMethodAsync(session, parsedObjectId, parsedMethodId, invocation, cancellationToken)),
-                "method",
-                string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"Calls objectId={parsedObjectId}, methodId={parsedMethodId}, " +
-                    $"sessionName={sessionName ?? string.Empty}."),
-                ct).ConfigureAwait(false);
+            McpPubSubBorrowedSession session = await manager.CreateMethodBindingAsync(
+                sessionManager, info, parsedObjectId, parsedMethodId, ct).ConfigureAwait(false);
+            bool transferred = false;
+            try
+            {
+                PubSubActionResponderRegistration result = await manager.RegisterBoundActionResponderAsync(
+                    target,
+                    new DelegatePubSubActionHandler((invocation, cancellationToken) =>
+                        CallBoundMethodAsync(session, parsedObjectId, parsedMethodId, invocation, cancellationToken)),
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"Calls objectId={parsedObjectId}, methodId={parsedMethodId}, sessionName={info.Name}."),
+                    session, ct).ConfigureAwait(false);
+                transferred = true;
+                return result;
+            }
+            finally
+            {
+                if (!transferred)
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         /// <summary>
@@ -184,29 +195,19 @@ namespace Opc.Ua.Mcp.Tools
         }
 
         private static async ValueTask<PubSubActionHandlerResult> CallBoundMethodAsync(
-            ISession session,
+            McpPubSubBorrowedSession session,
             NodeId objectId,
             NodeId methodId,
             PubSubActionInvocation invocation,
             CancellationToken ct)
         {
-            ArrayOf<CallMethodRequest> methodsToCall =
-            [
-                new CallMethodRequest
-                {
-                    ObjectId = objectId,
-                    MethodId = methodId,
-                    InputArguments = CreateInputArguments(invocation.InputFields)
-                }
-            ];
-
             try
             {
-                CallResponse response = await session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
-                CallMethodResult result = response.Results[0];
+                RemoteCallResult result = await session.CallAsync(
+                    objectId, methodId, CreateInputArguments(invocation.InputFields), ct).ConfigureAwait(false);
                 return new PubSubActionHandlerResult
                 {
-                    StatusCode = result.StatusCode,
+                    StatusCode = result.Status,
                     OutputFields = result.OutputArguments.IsNull
                         ? []
                         : CreateOutputFields(result.OutputArguments)

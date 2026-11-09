@@ -213,6 +213,74 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task SetAsDurableWithProviderEvaluatesItOnceForAllCreatedPartitionsAsync()
+        {
+            FakeManagedSubscription primary = CreateFake(id: 11, created: true);
+            FakeManagedSubscription secondary = CreateFake(id: 12, created: true);
+            secondary.OnSetAsDurableAsync = (_, _) => new ValueTask<TimeSpan>(TimeSpan.FromHours(2));
+            int evaluations = 0;
+            LogicalSubscription sut = new(primary);
+            sut.AppendPreloadedPartition(secondary);
+            try
+            {
+                TimeSpan revised = await sut.SetAsDurableAsync(() =>
+                {
+                    evaluations++;
+                    return TimeSpan.FromHours(3);
+                }).ConfigureAwait(false);
+
+                Assert.That(evaluations, Is.EqualTo(1));
+                Assert.That(primary.SetAsDurableCalls, Has.Count.EqualTo(1));
+                Assert.That(primary.SetAsDurableCalls[0].Lifetime, Is.EqualTo(TimeSpan.FromHours(3)));
+                Assert.That(secondary.SetAsDurableCalls, Has.Count.EqualTo(1));
+                Assert.That(secondary.SetAsDurableCalls[0].Lifetime, Is.EqualTo(TimeSpan.FromHours(3)));
+                Assert.That(revised, Is.EqualTo(TimeSpan.FromHours(2)));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task SetAsDurableWithProviderReturningNullSendsNothingAsync()
+        {
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
+            {
+                TimeSpan revised = await sut.SetAsDurableAsync(() => null).ConfigureAwait(false);
+
+                Assert.That(fake.SetAsDurableCalls, Is.Empty);
+                Assert.That(revised, Is.EqualTo(TimeSpan.Zero));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task SetAsDurableWithNullProviderThrowsAsync()
+        {
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
+            {
+                Assert.That(
+                    async () => await sut.SetAsDurableAsync((Func<TimeSpan?>)null!).ConfigureAwait(false),
+                    Throws.TypeOf<ArgumentNullException>()
+                        .With.Property(nameof(ArgumentNullException.ParamName))
+                        .EqualTo("lifetime"));
+                Assert.That(fake.SetAsDurableCalls, Is.Empty);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task ConditionRefreshForwardsToPrimaryAsync()
         {
             FakeManagedSubscription fake = CreateFake(id: 11, created: true);
@@ -263,7 +331,7 @@ namespace Opc.Ua.Client.Subscriptions
             sut.AppendPreloadedPartition(secondary);
             try
             {
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await ((ISubscription)sut).RecreateAsync().ConfigureAwait(false));
 
                 await ((ISubscription)sut).RecreateAsync().ConfigureAwait(false);
@@ -305,6 +373,64 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(fake.DisposeAsyncCalls, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A synchronous failure in one partition must not prevent siblings from starting shutdown.
+        /// </summary>
+        [Test]
+        public async Task DisposalFailureStillStartsEveryPartitionAsync()
+        {
+            FakeManagedSubscription primary = CreateFake(id: 11, created: true);
+            FakeManagedSubscription secondary = CreateFake(id: 12, created: true);
+            secondary.OnDisposeAsync = () => throw new InvalidOperationException("Injected disposal failure.");
+            var logical = new LogicalSubscription(primary);
+            logical.AppendPreloadedPartition(secondary);
+
+            await Assert.ThatAsync(async () => await logical.DisposeAsync().ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+
+            Assert.That(primary.DisposeAsyncCalls, Is.EqualTo(1));
+            Assert.That(secondary.DisposeAsyncCalls, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// The shared forwarding handler remains usable until the last partition retires,
+        /// even if the primary has already finished its disposal.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ForwarderOutlivesEveryPartitionDisposalAsync(CancellationToken ct)
+        {
+            FakeManagedSubscription primary = CreateFake(id: 11, created: true);
+            FakeManagedSubscription secondary = CreateFake(id: 12, created: true);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            secondary.OnDisposeAsync = () => new ValueTask(release.Task);
+            var logical = new LogicalSubscription(primary);
+            logical.AppendPreloadedPartition(secondary);
+            var handler = new Mock<ISubscriptionNotificationHandler>();
+            var forwarding = new PartitionForwardingHandler(handler.Object);
+            forwarding.BindLogical(logical);
+            logical.AttachForwardingHandler(forwarding);
+            Task disposing = logical.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(primary.DisposeAsyncCalls, Is.EqualTo(1));
+                Assert.That(secondary.DisposeAsyncCalls, Is.EqualTo(1));
+                Assert.That(disposing.IsCompleted, Is.False);
+                await forwarding.OnKeepAliveNotificationAsync(
+                    secondary, 1, DateTime.UtcNow, PublishState.KeepAlive).ConfigureAwait(false);
+                handler.Verify(value => value.OnKeepAliveNotificationAsync(
+                    logical, 1, It.IsAny<DateTime>(), PublishState.KeepAlive), Times.Once);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await disposing.WaitAsync(ct).ConfigureAwait(false);
+            }
+            await Assert.ThatAsync(async () => await forwarding.OnKeepAliveNotificationAsync(
+                secondary, 2, DateTime.UtcNow, PublishState.KeepAlive).ConfigureAwait(false),
+                Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
         }
 
         [Test]

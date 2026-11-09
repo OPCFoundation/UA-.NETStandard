@@ -8,6 +8,8 @@ suppression, alarm metrics, and streaming alarm records.
 For the formal model, see
 [OPC UA Part 9 — Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9/full).
 
+## Contents
+
 - [Quick reference](#quick-reference)
 - [Server side](#server-side)
   - [Creating an alarm](#creating-an-alarm)
@@ -25,6 +27,7 @@ For the formal model, see
   - [`AlarmClient` — typed operations](#alarmclient--typed-operations)
   - [Subscribing to alarms with `IAsyncEnumerable`](#subscribing-to-alarms-with-iasyncenumerable)
   - [Typed alarm records](#typed-alarm-records)
+  - [Source-generated decoders + `EventRecordDecoderRegistry`](#source-generated-decoders--eventrecorddecoderregistry)
   - [Per-record event filters](#per-record-event-filters)
   - [Dialog conditions](#dialog-conditions)
   - [`ConditionRefresh`](#conditionrefresh)
@@ -43,6 +46,7 @@ For the formal model, see
 | Shelve / Unshelve | `SetShelvingState` | `AlarmClient.TimedShelveAsync` / `OneShotShelveAsync` / `UnshelveAsync` |
 | Re-alarm | `ProcessReAlarm` | n/a (server timer) |
 | Filtered retain | `ConditionState.SupportsFilteredRetain` | n/a (per-subscription) |
+| Additional retention | `ConditionState.RetainStateProvider` | read Retain / observe condition events |
 | Alarm groups | `AlarmGroup`, `AlarmSuppressionEngine` | `AlarmClient.GetGroupMembershipsAsync` |
 | Alarm rate | `AlarmRateTracker` | read `AlarmMetricsType` attributes |
 | Refresh state | `Server.ConditionRefresh` (server-driven) | `AlarmClient.ConditionRefreshAsync` / `ConditionRefresh2Async` |
@@ -78,6 +82,13 @@ await new AlarmConditionTypeClient(session, conditionId, telemetry)
 ```
 
 ## Server side
+
+An enabled condition can supply `RetainStateProvider` for an additional
+application retention requirement, such as an unresolved Machine Vision error
+that must remain visible after acknowledgement. Returning false does not bypass
+standard acknowledgement, confirmation, or branch retention. Disabled conditions
+are not retained by this provider. The callback must be non-blocking and receives
+the branch being evaluated when the condition is branched.
 
 Fluent-created alarms have distinct per-instance NodeIds for their entire
 subtree, including condition Methods and state properties. Configuring
@@ -136,6 +147,23 @@ All state transitions go through typed setters that:
 | `SetShelvingState(context, shelved, oneShot, shelvingTime)` | Drives the `ShelvedStateMachineState`, runs the unshelve timer, computes `UnshelveTime`. |
 | `SetLatchedState(context, latched)` | Direct latched-state setter; usually called automatically from `SetActiveState`. |
 | `SetSilenceState(context, silenced)` | Direct silence-state setter; usually called automatically on activation / re-alarm. |
+
+`SetSeverity`, `SetActiveState`, `SetAcknowledgedState`, `SetLatchedState` and
+`SetSilenceState` also have overloads with `clearChangeMasks: false`. These update
+the base-condition attributes without notifying state observers; call
+`ClearChangeMasks(context, includeChildren: true)` after the related writes are
+finished. They do not serialize concurrent writers or replace a derived alarm's
+specialized transition logic. The existing virtual setters retain their
+immediate-notification behavior.
+
+The active-state and acknowledgement overloads also require
+`updateRetainState`. Use `true` to recompute `Retain`, including a configured
+`RetainStateProvider`. With `false`, the caller must assign the resulting
+`Retain` value itself before publishing. This permits a component with its own
+retention policy to complete its attribute writes without invoking that
+provider. Deferred active-state notification is rejected before any attribute
+change when deactivation would unshelve a one-shot shelving machine; that
+machine has separate transition callbacks.
 
 ### Latched alarms
 
@@ -470,20 +498,24 @@ parent record and exposes one init-only property for each declared field.
 The standard NodeSet produces the following hierarchy, abridged to show
 the most commonly observed types:
 
-```
-EventRecord                              (anchor; hand-written)
-└── BaseEventTypeRecord                  (i=2041)
-    └── ConditionTypeRecord              (i=2782)
-        ├── DialogConditionTypeRecord    (i=2830)
-        └── AcknowledgeableConditionTypeRecord
-            └── AlarmConditionTypeRecord
-                ├── LimitAlarmTypeRecord
-                │   ├── ExclusiveLimitAlarmTypeRecord
-                │   └── NonExclusiveLimitAlarmTypeRecord
-                ├── DiscreteAlarmTypeRecord
-                │   └── OffNormalAlarmTypeRecord
-                │       └── CertificateExpirationAlarmTypeRecord
-                └── DiscrepancyAlarmTypeRecord
+```mermaid
+classDiagram
+    EventRecord <|-- BaseEventTypeRecord
+    BaseEventTypeRecord <|-- ConditionTypeRecord
+    ConditionTypeRecord <|-- DialogConditionTypeRecord
+    ConditionTypeRecord <|-- AcknowledgeableConditionTypeRecord
+    AcknowledgeableConditionTypeRecord <|-- AlarmConditionTypeRecord
+    AlarmConditionTypeRecord <|-- LimitAlarmTypeRecord
+    LimitAlarmTypeRecord <|-- ExclusiveLimitAlarmTypeRecord
+    LimitAlarmTypeRecord <|-- NonExclusiveLimitAlarmTypeRecord
+    AlarmConditionTypeRecord <|-- DiscreteAlarmTypeRecord
+    DiscreteAlarmTypeRecord <|-- OffNormalAlarmTypeRecord
+    OffNormalAlarmTypeRecord <|-- CertificateExpirationAlarmTypeRecord
+    AlarmConditionTypeRecord <|-- DiscrepancyAlarmTypeRecord
+    note for EventRecord "Hand-written anchor"
+    note for BaseEventTypeRecord "i=2041"
+    note for ConditionTypeRecord "i=2782"
+    note for DialogConditionTypeRecord "i=2830"
 ```
 
 Vendor models that derive from these types automatically get their own

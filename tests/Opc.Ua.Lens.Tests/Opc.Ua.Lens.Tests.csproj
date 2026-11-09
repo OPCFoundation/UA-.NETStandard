@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="LensTestCommon.props" />
+  <ItemGroup>
+    <Compile Remove="Desktop\ConnectedProtocolContext.cs" />
+    <ProjectReference Include="..\..\samples\Di\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj"
+                      Aliases="PumpUpdateSample" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
+    <ProjectReference Include="..\..\samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj"
+                      Aliases="RobotIntentSample"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+  </ItemGroup>
+</Project>

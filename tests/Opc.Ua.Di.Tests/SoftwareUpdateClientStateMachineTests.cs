@@ -107,44 +107,44 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void InstallSoftwarePackageAsyncThrowsBadNotFoundWhenChildAbsent()
+        public async Task InstallSoftwarePackageAsyncThrowsBadNotFoundWhenChildAbsent()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
             SoftwareUpdateClient client = NewClient(sessionMock);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.InstallSoftwarePackageAsync(
-                    "urn:vendor", "1.0", global::Opc.Ua.ArrayOf.Empty<string>(), default).ConfigureAwait(false))!;
+                    "urn:vendor", "1.0", global::Opc.Ua.ArrayOf.Empty<string>(), default).ConfigureAwait(false)))!;
 
             Assert.That((uint)ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNotFound));
         }
 
         [Test]
-        public void PrepareAsyncThrowsBadNotFoundWhenChildAbsent()
+        public async Task PrepareAsyncThrowsBadNotFoundWhenChildAbsent()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
             SoftwareUpdateClient client = NewClient(sessionMock);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.PrepareAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.PrepareAsync().ConfigureAwait(false)))!;
 
             Assert.That((uint)ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNotFound));
         }
 
         [Test]
-        public void ConfirmAsyncThrowsBadNotFoundWhenChildAbsent()
+        public async Task ConfirmAsyncThrowsBadNotFoundWhenChildAbsent()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
             SoftwareUpdateClient client = NewClient(sessionMock);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ConfirmAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ConfirmAsync().ConfigureAwait(false)))!;
 
             Assert.That((uint)ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNotFound));
         }

@@ -301,7 +301,6 @@ namespace Opc.Ua.Sessions.Tests
         /// Tests CPU and memory overhead for small messages with different security policies.
         /// </summary>
         [Test]
-        [Order(100)]
         [Benchmark(Baseline = true, Description = "Read 10 nodes")]
         public async Task ReadSmallMessageAsync()
         {
@@ -322,8 +321,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Read small messages repeatedly - measures sustained throughput.
         /// </summary>
         [Test]
-        [Order(101)]
         [Benchmark(Description = "Read 10 nodes x100 iterations")]
+        [DependsOnTest(nameof(ReadSmallMessageAsync), AllowFailure = true)]
         public async Task ReadSmallMessageBurstAsync()
         {
             for (int i = 0; i < kMessageCount; i++)
@@ -342,8 +341,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Read medium message (50 nodes) - measures typical workload performance.
         /// </summary>
         [Test]
-        [Order(200)]
         [Benchmark(Description = "Read 50 nodes")]
+        [DependsOnTest(nameof(ReadSmallMessageBurstAsync), AllowFailure = true)]
         public async Task ReadMediumMessageAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -363,8 +362,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Read medium messages repeatedly - measures sustained medium-load throughput.
         /// </summary>
         [Test]
-        [Order(201)]
         [Benchmark(Description = "Read 50 nodes x100 iterations")]
+        [DependsOnTest(nameof(ReadMediumMessageAsync), AllowFailure = true)]
         public async Task ReadMediumMessageBurstAsync()
         {
             for (int i = 0; i < kMessageCount; i++)
@@ -384,8 +383,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Tests encryption/decryption overhead with larger payloads.
         /// </summary>
         [Test]
-        [Order(300)]
         [Benchmark(Description = "Read 200 nodes")]
+        [DependsOnTest(nameof(ReadMediumMessageBurstAsync), AllowFailure = true)]
         public async Task ReadLargeMessageAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -405,8 +404,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Read large messages repeatedly - measures sustained high-load throughput.
         /// </summary>
         [Test]
-        [Order(301)]
         [Benchmark(Description = "Read 200 nodes x100 iterations")]
+        [DependsOnTest(nameof(ReadLargeMessageAsync), AllowFailure = true)]
         public async Task ReadLargeMessageBurstAsync()
         {
             for (int i = 0; i < kMessageCount; i++)
@@ -426,8 +425,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Tests CPU and memory overhead for write operations with different security policies.
         /// </summary>
         [Test]
-        [Order(400)]
         [Benchmark(Description = "Write 10 nodes")]
+        [DependsOnTest(nameof(ReadLargeMessageBurstAsync), AllowFailure = true)]
         public async Task WriteSmallMessageAsync()
         {
             var writeValues =
@@ -452,8 +451,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Write small messages repeatedly - measures sustained write throughput.
         /// </summary>
         [Test]
-        [Order(401)]
         [Benchmark(Description = "Write 10 nodes x100 iterations")]
+        [DependsOnTest(nameof(WriteSmallMessageAsync), AllowFailure = true)]
         public async Task WriteSmallMessageBurstAsync()
         {
             for (int i = 0; i < kMessageCount; i++)
@@ -479,8 +478,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Tests how security policy affects browse operations and reference enumeration.
         /// </summary>
         [Test]
-        [Order(500)]
         [Benchmark(Description = "Browse Objects folder")]
+        [DependsOnTest(nameof(WriteSmallMessageBurstAsync), AllowFailure = true)]
         public async Task BrowseAsync()
         {
             ArrayOf<BrowseDescription> nodesToBrowse =
@@ -513,8 +512,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Browse multiple nodes - measures browse throughput.
         /// </summary>
         [Test]
-        [Order(501)]
         [Benchmark(Description = "Browse 10 nodes")]
+        [DependsOnTest(nameof(BrowseAsync), AllowFailure = true)]
         public async Task BrowseMultipleNodesAsync()
         {
             //await Task.Delay(5000);
@@ -546,8 +545,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Tests how security policy affects method call operations.
         /// </summary>
         [Test]
-        [Order(600)]
         [Benchmark(Description = "Call GetMonitoredItems method")]
+        [DependsOnTest(nameof(BrowseMultipleNodesAsync), AllowFailure = true)]
         public async Task CallMethodAsync()
         {
             ArrayOf<Variant> inputArguments =
@@ -581,8 +580,8 @@ namespace Opc.Ua.Sessions.Tests
         /// This is critical for understanding the cost of security policy negotiation.
         /// </summary>
         [Test]
-        [Order(700)]
         [Benchmark(Description = "Create and close session")]
+        [DependsOnTest(nameof(CallMethodAsync), AllowFailure = true)]
         public async Task CreateCloseSessionAsync()
         {
             ISession session = await ClientFixture.ConnectAsync(
@@ -601,8 +600,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Create, use, and close session - measures full session lifecycle.
         /// </summary>
         [Test]
-        [Order(701)]
         [Benchmark(Description = "Session lifecycle with read")]
+        [DependsOnTest(nameof(CreateCloseSessionAsync), AllowFailure = true)]
         public async Task SessionLifecycleWithReadAsync()
         {
             ISession session = await ClientFixture.ConnectAsync(
@@ -630,8 +629,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Discover endpoints - tracks endpoint discovery cost independently from session establishment.
         /// </summary>
         [Test]
-        [Order(702)]
         [Benchmark(Description = "Discover endpoints")]
+        [DependsOnTest(nameof(SessionLifecycleWithReadAsync), AllowFailure = true)]
         public async Task DiscoverEndpointsAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
@@ -644,8 +643,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Combines read, write, browse, and call operations to simulate real applications.
         /// </summary>
         [Test]
-        [Order(800)]
         [Benchmark(Description = "Mixed workload (read+write+browse+call)")]
+        [DependsOnTest(nameof(DiscoverEndpointsAsync), AllowFailure = true)]
         public async Task MixedWorkloadAsync()
         {
             // Read
@@ -719,8 +718,8 @@ namespace Opc.Ua.Sessions.Tests
         /// BenchmarkDotNet will show the total time; ops/sec = 100 / (Mean in seconds).
         /// </summary>
         [Test]
-        [Order(850)]
         [Benchmark(Description = "Read 100 ops (for throughput)")]
+        [DependsOnTest(nameof(MixedWorkloadAsync), AllowFailure = true)]
         public async Task ReadThroughputAsync()
         {
             const int operationCount = 100;
@@ -744,8 +743,8 @@ namespace Opc.Ua.Sessions.Tests
         /// BenchmarkDotNet will show the total time; ops/sec = 100 / (Mean in seconds).
         /// </summary>
         [Test]
-        [Order(851)]
         [Benchmark(Description = "Write 100 ops (for throughput)")]
+        [DependsOnTest(nameof(ReadThroughputAsync), AllowFailure = true)]
         public async Task WriteThroughputAsync()
         {
             const int operationCount = 100;
@@ -774,8 +773,8 @@ namespace Opc.Ua.Sessions.Tests
         /// BenchmarkDotNet will show the total time; ops/sec = 100 / (Mean in seconds).
         /// </summary>
         [Test]
-        [Order(852)]
         [Benchmark(Description = "Browse 100 ops (for throughput)")]
+        [DependsOnTest(nameof(WriteThroughputAsync), AllowFailure = true)]
         public async Task BrowseThroughputAsync()
         {
             ArrayOf<BrowseDescription> nodesToBrowse =
@@ -811,8 +810,8 @@ namespace Opc.Ua.Sessions.Tests
         /// BenchmarkDotNet will show the total time; ops/sec = 100 / (Mean in seconds).
         /// </summary>
         [Test]
-        [Order(853)]
         [Benchmark(Description = "Call 100 ops (for throughput)")]
+        [DependsOnTest(nameof(BrowseThroughputAsync), AllowFailure = true)]
         public async Task CallThroughputAsync()
         {
             ArrayOf<Variant> inputArguments = [new Variant(0u)];
@@ -843,8 +842,8 @@ namespace Opc.Ua.Sessions.Tests
         /// This is not a benchmark but validates that all security policies can be tested.
         /// </summary>
         [Test]
-        [Order(900)]
         [Category("SecurityPolicyValidation")]
+        [DependsOnTest(nameof(CallThroughputAsync), AllowFailure = true)]
         public async Task TestAllSecurityPoliciesAsync()
         {
             // Use the same policy list as benchmarks (excludes None)
@@ -1011,7 +1010,6 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Create and close session for policies common with OPC UA .NET Standard 1.5.378.
         /// </summary>
         [Test]
-        [Order(700)]
         [Benchmark(Description = "Create and close session (common with 1.5.378)")]
         public async Task CreateCloseSessionAsync()
         {
@@ -1031,8 +1029,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Create, read, and close session for policies common with OPC UA .NET Standard 1.5.378.
         /// </summary>
         [Test]
-        [Order(701)]
         [Benchmark(Description = "Session lifecycle with read (common with 1.5.378)")]
+        [DependsOnTest(nameof(CreateCloseSessionAsync), AllowFailure = true)]
         public async Task SessionLifecycleWithReadAsync()
         {
             ISession session = await m_framework.ClientFixture.ConnectAsync(
@@ -1065,8 +1063,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Benchmark: Discover endpoints for policies common with OPC UA .NET Standard 1.5.378.
         /// </summary>
         [Test]
-        [Order(702)]
         [Benchmark(Description = "Discover endpoints (common with 1.5.378)")]
+        [DependsOnTest(nameof(SessionLifecycleWithReadAsync), AllowFailure = true)]
         public async Task DiscoverEndpointsAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await m_framework.ClientFixture

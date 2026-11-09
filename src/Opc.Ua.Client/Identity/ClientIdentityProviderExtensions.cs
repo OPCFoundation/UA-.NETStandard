@@ -34,6 +34,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Identity
 {
@@ -675,7 +676,7 @@ namespace Opc.Ua.Identity
         public static partial void EndpointDescriptionAdvertisesCountISSUEDTOKENUserTokenPoliciesIssuerEndpointUrl(
             this ILogger logger,
             int count,
-            string url);
+            [NetworkAddress] string url);
     }
 
 }

@@ -57,7 +57,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
                 {
                     using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
-                    Exception? exception = Assert.CatchAsync(async () =>
+                    Exception? exception = await Assert.CatchAsync(async () =>
                         await replay.RunAsync(cts.Token).ConfigureAwait(false));
 
                     Assert.That(exception, Is.Not.Null);
@@ -76,7 +76,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
                 {
                     using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
-                    Exception? exception = Assert.CatchAsync(async () =>
+                    Exception? exception = await Assert.CatchAsync(async () =>
                         await replay.RunAsync(cts.Token).ConfigureAwait(false));
 
                     Assert.That(exception, Is.Not.Null);
@@ -96,7 +96,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
                 };
                 await using (replay.ConfigureAwait(false))
                 {
-                    ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(async () =>
+                    ArgumentException? exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
                         await replay.RunAsync(CancellationToken.None).ConfigureAwait(false));
 
                     Assert.That(exception, Is.Not.Null);

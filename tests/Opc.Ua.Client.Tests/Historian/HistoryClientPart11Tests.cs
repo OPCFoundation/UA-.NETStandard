@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.Tests.Historian
         /// Verifies that modified-history reads reject mismatched value and metadata counts.
         /// </summary>
         [Test]
-        public Task ReadModifiedAsyncRejectsMismatchedMetadataAsync()
+        public async Task ReadModifiedAsyncRejectsMismatchedMetadataAsync()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -157,7 +157,7 @@ namespace Opc.Ua.Client.Tests.Historian
             var client = new HistoryClient(mockSession.Object);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     await foreach (ModifiedHistoryValue value in client.ReadModifiedAsync(
                         new NodeId("ModifiedNode", 2),
@@ -166,17 +166,16 @@ namespace Opc.Ua.Client.Tests.Historian
                     {
                         Assert.Fail($"Unexpected modified value {value}.");
                     }
-                })!;
+                }))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
-            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Verifies that modified-history reads reject an unexpected response payload type.
         /// </summary>
         [Test]
-        public Task ReadModifiedAsyncRejectsUnexpectedPayloadTypeAsync()
+        public async Task ReadModifiedAsyncRejectsUnexpectedPayloadTypeAsync()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -204,7 +203,7 @@ namespace Opc.Ua.Client.Tests.Historian
             var client = new HistoryClient(mockSession.Object);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     await foreach (ModifiedHistoryValue value in client.ReadModifiedAsync(
                         new NodeId("ModifiedNode", 2),
@@ -213,10 +212,9 @@ namespace Opc.Ua.Client.Tests.Historian
                     {
                         Assert.Fail($"Unexpected modified value {value}.");
                     }
-                })!;
+                }))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -381,7 +379,7 @@ namespace Opc.Ua.Client.Tests.Historian
         /// Verifies that event-history reads reject rows with an unexpected number of selected fields.
         /// </summary>
         [Test]
-        public void ReadEventsAsyncRejectsMismatchedFieldCount()
+        public async Task ReadEventsAsyncRejectsMismatchedFieldCount()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -422,7 +420,7 @@ namespace Opc.Ua.Client.Tests.Historian
             var client = new HistoryClient(mockSession.Object);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () =>
                     {
                         await foreach (HistoryEventFieldList _ in
@@ -433,7 +431,7 @@ namespace Opc.Ua.Client.Tests.Historian
                                 filter).ConfigureAwait(false))
                         {
                         }
-                    })!;
+                    }))!;
 
             Assert.That(
                 exception.StatusCode,

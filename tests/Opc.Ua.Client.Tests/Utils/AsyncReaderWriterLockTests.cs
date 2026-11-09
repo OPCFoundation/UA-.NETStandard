@@ -427,5 +427,91 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
             Assert.That(peakHolding, Is.EqualTo(kReaders),
                 "All 32 readers should have held the lock simultaneously.");
         }
+
+        [Test]
+        public async Task TryEnterReaderFailsWhileAWriterHoldsTheLockAsync()
+        {
+            using var rwLock = new AsyncReaderWriterLock();
+            using (await rwLock.WriterLockAsync().ConfigureAwait(false))
+            {
+                Assert.That(rwLock.TryEnterReader(), Is.False);
+            }
+            Assert.That(rwLock.TryEnterReader(), Is.True);
+            rwLock.ExitReader();
+        }
+
+        [Test]
+        public async Task ReaderFromTryEnterIsHeldUntilTheOperationCompletesAsync()
+        {
+            using var rwLock = new AsyncReaderWriterLock();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var operation = new TaskCompletionSource<int>();
+            Assert.That(rwLock.TryEnterReader(), Is.True);
+            ValueTask<int> call = rwLock.ExitReaderOnCompletion(new ValueTask<int>(operation.Task));
+
+            Task<AsyncReaderWriterLock.Releaser> writer = rwLock.WriterLockAsync(timeout.Token).AsTask();
+            await Task.Delay(50, timeout.Token).ConfigureAwait(false);
+            Assert.That(writer.IsCompleted, Is.False, "the writer waits for the reader to drain");
+
+            operation.SetResult(42);
+            using (await writer.WaitAsync(timeout.Token).ConfigureAwait(false))
+            {
+                Assert.That(await call.ConfigureAwait(false), Is.EqualTo(42));
+            }
+        }
+
+        [Test]
+        public async Task AwaiterResumesAfterTheReaderFromTryEnterIsReleasedAsync()
+        {
+            using var rwLock = new AsyncReaderWriterLock();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var operation = new TaskCompletionSource<int>();
+            Assert.That(rwLock.TryEnterReader(), Is.True);
+            ValueTask<int> call = rwLock.ExitReaderOnCompletion(new ValueTask<int>(operation.Task));
+
+            // A writer requested in the awaiter's continuation finds no reader left,
+            // as after a using block around the awaited operation.
+            bool writerAcquiredAtOnce = false;
+            Task resumed = Task.Run(async () =>
+            {
+                await call.ConfigureAwait(false);
+                ValueTask<AsyncReaderWriterLock.Releaser> writer = rwLock.WriterLockAsync(timeout.Token);
+                writerAcquiredAtOnce = writer.IsCompleted;
+                (await writer.ConfigureAwait(false)).Dispose();
+            });
+            await Task.Delay(50, timeout.Token).ConfigureAwait(false);
+            operation.SetResult(42);
+
+            await resumed.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(writerAcquiredAtOnce, Is.True);
+        }
+
+        [Test]
+        public async Task ReaderFromTryEnterIsReleasedWhenTheOperationFailsAsync()
+        {
+            using var rwLock = new AsyncReaderWriterLock();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var operation = new TaskCompletionSource<int>();
+            Assert.That(rwLock.TryEnterReader(), Is.True);
+            ValueTask<int> call = rwLock.ExitReaderOnCompletion(new ValueTask<int>(operation.Task));
+            operation.SetException(new InvalidOperationException("failed"));
+
+            Assert.That(async () => await call.ConfigureAwait(false), Throws.InvalidOperationException);
+            using AsyncReaderWriterLock.Releaser writer =
+                await rwLock.WriterLockAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ReaderFromTryEnterIsReleasedAtOnceForACompletedOperationAsync()
+        {
+            using var rwLock = new AsyncReaderWriterLock();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Assert.That(rwLock.TryEnterReader(), Is.True);
+            ValueTask<int> call = rwLock.ExitReaderOnCompletion(new ValueTask<int>(7));
+            Assert.That(call.IsCompleted, Is.True);
+            Assert.That(await call.ConfigureAwait(false), Is.EqualTo(7));
+            using AsyncReaderWriterLock.Releaser writer =
+                await rwLock.WriterLockAsync(timeout.Token).ConfigureAwait(false);
+        }
     }
 }

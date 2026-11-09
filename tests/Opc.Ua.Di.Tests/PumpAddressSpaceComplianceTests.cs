@@ -159,7 +159,7 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(
                     references,
                     Has.Some.Matches<ReferenceDescription>(reference =>
-                        reference.BrowseName.Name == "OverTempAlarm" &&
+                        reference is not null && reference.BrowseName.Name == "OverTempAlarm" &&
                         ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris).NamespaceIndex ==
                         server.NamespaceUris.GetIndex("urn:localhost:" + nameof(PumpAddressSpaceComplianceTests))),
                     "OverTempAlarm was not browsable from Pump_1/Events through References/Both.");
@@ -375,6 +375,10 @@ namespace Opc.Ua.Di.Tests
                     reachable,
                     Has.None.Matches<ReferenceDescription>(reference =>
                     {
+                        if (reference is null)
+                        {
+                            return false;
+                        }
                         var nodeId = ExpandedNodeId.ToNodeId(
                             reference.NodeId,
                             server.NamespaceUris);
@@ -654,7 +658,7 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(
                     references,
                     Has.Some.Matches<ReferenceDescription>(reference =>
-                        reference.BrowseName.Name == "GeneralMaintenance"),
+                        reference is not null && reference.BrowseName.Name == "GeneralMaintenance"),
                     "Maintenance was materialised but did not expose a concrete maintenance child.");
             }).ConfigureAwait(false);
         }
@@ -1306,9 +1310,19 @@ namespace Opc.Ua.Di.Tests
             await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
+                Task execution = ((BackgroundService)hostedService).ExecuteTask ??
+                    throw new InvalidOperationException("The hosted service did not start its execution task.");
                 Assert.That(
                     await WaitForAsync(
-                        () => ComplianceCaptureServer.StartedInstance != null,
+                        async () =>
+                        {
+                            if (execution.IsCompleted)
+                            {
+                                await execution.ConfigureAwait(false);
+                                throw new InvalidOperationException("The hosted service stopped before startup completed.");
+                            }
+                            return ComplianceCaptureServer.StartedInstance != null;
+                        },
                         TimeSpan.FromSeconds(30)).ConfigureAwait(false),
                     Is.True,
                     "The server did not start.");

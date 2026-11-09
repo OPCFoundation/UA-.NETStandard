@@ -77,6 +77,20 @@ agent's certificate in the server's PKI store first.
 | `--port <number>` | Endpoint port. Default `62865`. |
 | `--inferenceLocation OnServer\|EdgeOffServer` | Selects the advertised Vision inference location. Default `OnServer`. |
 | `--insecure` | Demo-only certificate convenience. |
+| `--pki-root <absolute-path>` | Use a private certificate-store root instead of the hosting default. Does not enable automatic peer trust. |
+| `--run-seconds <1-3600>` | Stop the hosted server after a bounded run. Omit for the normal interactive lifetime. |
+
+For an owned, non-rendering qualification run, select a private PKI root and an
+unused loopback port, without `--insecure`:
+
+```powershell
+dotnet run --project samples\Vision\VisualInspectionCell\VisualInspectionCell.csproj -- `
+  --host 127.0.0.1 --port 62865 --pki-root D:\owned-vision-run\pki --run-seconds 120
+```
+
+Establish trust explicitly in the client's and server's private peer stores
+before connecting with SignAndEncrypt. The cell uses checked-in PNG fixtures and
+an in-process backend; it does not need a camera, media download, renderer or GPU.
 
 ## Fixtures and measurement
 
@@ -105,6 +119,11 @@ it is not invented to force a result.
   order id instead of accepting invented payloads.
 - `OperatorDispositionDialog`, the human-disposition condition the agent uses
   when the deterministic rule returns `NotDecidable`.
+
+The fixture clip endpoint and pipeline advertise `Ready` after their in-process
+providers are attached. `GetClip` selects a fixture by its file name or a known
+published ResultId; `RunInference` requires an explicit acquisition timestamp for
+stable result correlation. The sample does not implement continuous inference.
 
 ## Deliberately not implemented
 

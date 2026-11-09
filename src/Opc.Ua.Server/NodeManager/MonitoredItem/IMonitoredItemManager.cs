@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -130,5 +132,98 @@ namespace Opc.Ua.Server
             NodeState source,
             IEventMonitoredItem monitoredItem,
             bool unsubscribe);
+    }
+
+    /// <summary>
+    /// Provides lifecycle-owned semantic resampling for monitored-item managers.
+    /// </summary>
+    internal static class MonitoredItemManagerLifecycleOperations
+    {
+        /// <summary>
+        /// Captures native membership while the caller holds its node-manager mutation gate.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager whose membership is captured.</param>
+        /// <param name="nodeIds">The requested nodes, or null to capture all native items.</param>
+        /// <returns>A stable snapshot independent of subsequent membership changes.</returns>
+        internal static IReadOnlyList<IMonitoredItem> CaptureMonitoredItems(
+            this IMonitoredItemManager manager,
+            IReadOnlyCollection<NodeId>? nodeIds)
+        {
+            if (nodeIds is null)
+            {
+                return [.. manager.MonitoredItems.Values];
+            }
+            if (nodeIds.Count == 0)
+            {
+                return [];
+            }
+            var requestedNodeIds = new HashSet<NodeId>(nodeIds, NodeIdComparer.Default);
+            return [.. manager.MonitoredItems.Values.Where(item => requestedNodeIds.Contains(item.NodeId))];
+        }
+
+        /// <summary>
+        /// Captures a notification fence without acquiring another lifetime admission.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager.</param>
+        /// <param name="nodeId">The NodeId whose notifications must drain.</param>
+        /// <returns>The consumer's fence, or null when the node has no consumer.</returns>
+        internal static Func<CancellationToken, ValueTask>? GetNotificationDrain(
+            this IMonitoredItemManager manager,
+            NodeId nodeId)
+        {
+            if (manager.MonitoredNodes.TryGetValue(nodeId, out MonitoredNode2? monitoredNode))
+            {
+                return monitoredNode.WaitForPendingNotificationsAsync;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Queues a force-resample for the exact node and monitored item currently owned by the manager.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager.</param>
+        /// <param name="source">The exact source node whose semantics changed.</param>
+        /// <param name="item">The monitored item that must be resampled.</param>
+        /// <returns><c>true</c> when the manager admitted the request.</returns>
+        internal static bool TryQueueSemanticResample(
+            this IMonitoredItemManager manager,
+            NodeState source,
+            ISampledDataChangeMonitoredItem item)
+        {
+            if (manager == null || source == null || item == null)
+            {
+                return false;
+            }
+
+            return manager switch
+            {
+                MonitoredNodeMonitoredItemManager monitoredNodeManager =>
+                    monitoredNodeManager.TryQueueSemanticResample(source, item),
+                SamplingGroupMonitoredItemManager samplingGroupManager =>
+                    samplingGroupManager.TryQueueSemanticResample(source, item),
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Waits for semantic resample work already admitted by the manager.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager.</param>
+        /// <param name="cancellationToken">Cancels the wait.</param>
+        /// <returns>A task for the admitted work that was pending when called.</returns>
+        internal static ValueTask WaitForPendingSemanticResamplesAsync(
+            this IMonitoredItemManager manager,
+            CancellationToken cancellationToken = default)
+        {
+            return manager switch
+            {
+                MonitoredNodeMonitoredItemManager monitoredNodeManager =>
+                    monitoredNodeManager.WaitForPendingSemanticResamplesAsync(cancellationToken),
+                SamplingGroupMonitoredItemManager samplingGroupManager =>
+                    samplingGroupManager.WaitForPendingSemanticResamplesAsync(cancellationToken),
+                _ => default
+            };
+        }
+
     }
 }

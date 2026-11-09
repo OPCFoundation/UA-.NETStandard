@@ -4,11 +4,12 @@
 
 ## Contents
 
-- [Migrating model projects](#migrating-model-projects)
-- [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
-- [Server default Aggregate configuration now treats Uncertain as Bad (Part 13)](#server-default-aggregate-configuration-now-treats-uncertain-as-bad-part-13)
-- [MIG01 resolution playbook](#mig01-resolution-playbook)
-- [Project Structure](#project-structure)
+- [Source Generation](#source-generation)
+  - [Migrating model projects](#migrating-model-projects)
+  - [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
+  - [Server default Aggregate configuration now treats Uncertain as Bad (Part 13)](#server-default-aggregate-configuration-now-treats-uncertain-as-bad-part-13)
+  - [MIG01 resolution playbook](#mig01-resolution-playbook)
+  - [Project Structure](#project-structure)
 
 ## Migrating model projects
 
@@ -24,6 +25,9 @@ To migrate remove all your generated files (ending in `*.Classes.cs`, `*.Constan
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Replace x.y.z with the version used by the stack packages. -->
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.SourceGeneration"
+                      Version="x.y.z" PrivateAssets="all" />
     <!-- Generate code behind for the following design or nodeset2.xml files during build-->
     <AdditionalFiles Include="Boiler\Generated\BoilerDesign.csv" />
     <AdditionalFiles Include="Boiler\Generated\BoilerDesign.xml" />
@@ -34,9 +38,13 @@ To migrate remove all your generated files (ending in `*.Classes.cs`, `*.Constan
   </ItemGroup>
 ```
 
-The [source generator model](https://devblogs.microsoft.com/dotnet/introducing-c-source-generators/) has several benefits that go beyond custom `msbuild` targets: Among the most important is that the generator ships with the stack and therefore code that is generated conforms to the stack version that ships the analyzer (the source generator will be part of `Opc.Ua.Core` nuget package). Therefore when updating to a newer version the code generated automatically takes advantage of the improvements made across the entire stack.
+Model code is generated at compile time by
+`OPCFoundation.NetStandard.Opc.Ua.SourceGeneration`. Keep its version equal to
+the stack packages and rebuild model projects after upgrading. With central
+package management, set the version in `Directory.Packages.props` instead of
+the `PackageReference`.
 
-Code generation during compilation also allows not just emitting code ahead of time, but also to generate code while you are developing. We now take advantage of this feature to generate `IEncodeable` implementations for partial POCO types on the fly using the `[DataType]` and `[DataTypeField]` attributes as annotation (similar to `DataContract`/`DataMember`).
+Code generation also runs while you are developing. The stack uses this feature to generate `IEncodeable` implementations for partial POCO types using the `[DataType]` and `[DataTypeField]` attributes as annotation (similar to `DataContract`/`DataMember`).
 
 The stack itself uses source generators to generate the core opc ua code. Therefore all pre-generated code files (`Generated/` folders) have been removed and are now generated at build time. As a result of using source generators to generate the stack code all `*.nodeset2.xml` files previously included as embedded zip have been removed. Also, all `*.Types.xsd` and `*.Types.bsd` files are now included as string resource instead of embedded resources. If you need access to these, use the new `Schemas.XmlAsStream` and `Schemas.BinaryAsStream` APIs in the node manager namespace which produce a utf8 stream. Alternatively you can use the existing ModelCompiler tool to generate these files.
 

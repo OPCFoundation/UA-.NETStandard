@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+  OPC Foundation MIT License 1.00
+  Independently authored SAMPLE domain and coordination model, not a companion specification.
+-->
+<opc:ModelDesign
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:di="http://opcfoundation.org/UA/DI/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns="urn:opcfoundation.org:sample:recycling"
+  TargetNamespace="urn:opcfoundation.org:sample:recycling"
+  TargetXmlNamespace="urn:opcfoundation.org:sample:recycling:types"
+  TargetVersion="2.0.0"
+  TargetPublicationDate="2026-10-12T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace Name="RecyclingModel" Prefix="Opc.Ua.Recycling.Model"
+      XmlNamespace="urn:opcfoundation.org:sample:recycling:types"
+      XmlPrefix="RecyclingModel">urn:opcfoundation.org:sample:recycling</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" Version="1.05.07"
+      PublicationDate="2025-12-25T00:00:00Z" InternalPrefix="Opc.Ua.Server"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="OpcUaDi" Prefix="Opc.Ua.Di" Version="1.05.0"
+      PublicationDate="2025-11-15T00:00:00Z"
+      XmlNamespace="http://opcfoundation.org/UA/DI/Types.xsd"
+      XmlPrefix="OpcUaDi">http://opcfoundation.org/UA/DI/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:DataType SymbolicName="ProcessEnum" BaseType="ua:Enumeration" NumericId="1001">
+    <opc:Description>Sample process roles, not standardized equipment states.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Collection" Identifier="0" />
+      <opc:Field Name="Sorting" Identifier="1" />
+      <opc:Field Name="Shredding" Identifier="2" />
+      <opc:Field Name="Washing" Identifier="3" />
+      <opc:Field Name="DensitySeparation" Identifier="4" />
+      <opc:Field Name="Drying" Identifier="5" />
+      <opc:Field Name="Extrusion" Identifier="6" />
+      <opc:Field Name="MeltFiltration" Identifier="7" />
+      <opc:Field Name="Pelletizing" Identifier="8" />
+      <opc:Field Name="Bagging" Identifier="9" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="LifecycleEnum" BaseType="ua:Enumeration" NumericId="1002">
+    <opc:Fields>
+      <opc:Field Name="WaitingForParticipants" Identifier="0" />
+      <opc:Field Name="Running" Identifier="1" />
+      <opc:Field Name="Paused" Identifier="2" />
+      <opc:Field Name="Stopped" Identifier="3" />
+      <opc:Field Name="ResourceLimited" Identifier="4" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="EquipmentEnum" BaseType="ua:Enumeration" NumericId="1003">
+    <opc:Fields>
+      <opc:Field Name="Idle" Identifier="0" />
+      <opc:Field Name="Executing" Identifier="1" />
+      <opc:Field Name="Stopped" Identifier="2" />
+      <opc:Field Name="Unavailable" Identifier="3" />
+      <opc:Field Name="BufferFull" Identifier="4" />
+      <opc:Field Name="ElectricalConstraint" Identifier="5" />
+      <opc:Field Name="ThermalConstraint" Identifier="6" />
+      <opc:Field Name="Jammed" Identifier="7" />
+      <opc:Field Name="StrandBroken" Identifier="8" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="FormEnum" BaseType="ua:Enumeration" NumericId="1004">
+    <opc:Fields>
+      <opc:Field Name="Collected" Identifier="0" />
+      <opc:Field Name="Sorted" Identifier="1" />
+      <opc:Field Name="Shreds" Identifier="2" />
+      <opc:Field Name="Flakes" Identifier="3" />
+      <opc:Field Name="Washed" Identifier="4" />
+      <opc:Field Name="Dried" Identifier="5" />
+      <opc:Field Name="Melt" Identifier="6" />
+      <opc:Field Name="Pellets" Identifier="7" />
+      <opc:Field Name="Packaged" Identifier="8" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="DispositionEnum" BaseType="ua:Enumeration" NumericId="1005">
+    <opc:Fields>
+      <opc:Field Name="Held" Identifier="0" />
+      <opc:Field Name="Released" Identifier="1" />
+      <opc:Field Name="Rejected" Identifier="2" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="CommandEnum" BaseType="ua:Enumeration" NumericId="1006">
+    <opc:Fields>
+      <opc:Field Name="Register" Identifier="0" />
+      <opc:Field Name="Initialize" Identifier="1" />
+      <opc:Field Name="Heartbeat" Identifier="2" />
+      <opc:Field Name="Disconnect" Identifier="3" />
+      <opc:Field Name="Pause" Identifier="4" />
+      <opc:Field Name="Resume" Identifier="5" />
+      <opc:Field Name="Stop" Identifier="6" />
+      <opc:Field Name="EnableProcess" Identifier="7" />
+      <opc:Field Name="DisableProcess" Identifier="8" />
+      <opc:Field Name="Step" Identifier="9" />
+      <opc:Field Name="Reset" Identifier="10" />
+      <opc:Field Name="DisposeHold" Identifier="11" />
+      <opc:Field Name="Checkpoint" Identifier="12" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="MassDataType" BaseType="ua:Structure" NumericId="1101">
+    <opc:Description>Exact milligrams; water is separate from the five dry components.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="NaturalPolymer" DataType="ua:Int64" />
+      <opc:Field Name="ColoredPolymer" DataType="ua:Int64" />
+      <opc:Field Name="DensePolymer" DataType="ua:Int64" />
+      <opc:Field Name="Labels" DataType="ua:Int64" />
+      <opc:Field Name="Dirt" DataType="ua:Int64" />
+      <opc:Field Name="Water" DataType="ua:Int64" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="ContributionDataType" BaseType="ua:Structure" NumericId="1102">
+    <opc:Fields>
+      <opc:Field Name="SourceId" DataType="ua:String" />
+      <opc:Field Name="Mass" DataType="MassDataType" />
+      <opc:Field Name="SourceZone" DataType="ua:String" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="ParcelDataType" BaseType="ua:Structure" NumericId="1103">
+    <opc:Fields>
+      <opc:Field Name="Id" DataType="ua:Int64" />
+      <opc:Field Name="Stage" DataType="ua:Int32" />
+      <opc:Field Name="EnteredTick" DataType="ua:Int64" />
+      <opc:Field Name="ResidenceRemaining" DataType="ua:Int32" />
+      <opc:Field Name="Form" DataType="FormEnum" />
+      <opc:Field Name="Contributions" DataType="ContributionDataType" ValueRank="Array" />
+      <opc:Field Name="HoldIds" DataType="ua:Int64" ValueRank="Array" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="StageDataType" BaseType="ua:Structure" NumericId="1104">
+    <opc:Fields>
+      <opc:Field Name="Index" DataType="ua:Int32" />
+      <opc:Field Name="Process" DataType="ProcessEnum" />
+      <opc:Field Name="Name" DataType="ua:String" />
+      <opc:Field Name="State" DataType="EquipmentEnum" />
+      <opc:Field Name="Enabled" DataType="ua:Boolean" />
+      <opc:Field Name="Inventory" DataType="MassDataType" />
+      <opc:Field Name="Received" DataType="MassDataType" />
+      <opc:Field Name="Transferred" DataType="MassDataType" />
+      <opc:Field Name="Additions" DataType="MassDataType" />
+      <opc:Field Name="Rejected" DataType="MassDataType" />
+      <opc:Field Name="Evaporated" DataType="MassDataType" />
+      <opc:Field Name="ElectricalJoules" DataType="ua:Int64" />
+      <opc:Field Name="ThermalJoules" DataType="ua:Int64" />
+      <opc:Field Name="ElectricalDemandWatts" DataType="ua:Int64" />
+      <opc:Field Name="ThermalDemandWatts" DataType="ua:Int64" />
+      <opc:Field Name="Executions" DataType="ua:Int64" />
+      <opc:Field Name="JamAlarm" DataType="ua:Boolean" />
+      <opc:Field Name="JamEvents" DataType="ua:Int64" />
+      <opc:Field Name="StrandBreakAlarm" DataType="ua:Boolean" />
+      <opc:Field Name="StrandBreakEvents" DataType="ua:Int64" />
+      <opc:Field Name="PhAvailable" DataType="ua:Boolean" />
+      <opc:Field Name="Ph" DataType="ua:Double" />
+      <opc:Field Name="PhSourceTimestampUtc" DataType="ua:DateTime" />
+      <opc:Field Name="ColorAvailable" DataType="ua:Boolean" />
+      <opc:Field Name="Color" DataType="SyntheticRgbDataType" />
+      <opc:Field Name="ColorMaterialId" DataType="ua:Int64" />
+      <opc:Field Name="ColorNaturalPolymerMilligrams" DataType="ua:Int64" />
+      <opc:Field Name="ColorColoredPolymerMilligrams" DataType="ua:Int64" />
+      <opc:Field Name="ColorSourceTimestampUtc" DataType="ua:DateTime" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="SyntheticRgbDataType" BaseType="ua:Structure" NumericId="1114">
+    <opc:Description>Synthetic mass-weighted display response, not calibrated physical RGB, Lab or DeltaE.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Red" DataType="ua:Byte" />
+      <opc:Field Name="Green" DataType="ua:Byte" />
+      <opc:Field Name="Blue" DataType="ua:Byte" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="PackageDataType" BaseType="ua:Structure" NumericId="1105">
+    <opc:Fields>
+      <opc:Field Name="Id" DataType="ua:Int64" />
+      <opc:Field Name="Tick" DataType="ua:Int64" />
+      <opc:Field Name="Material" DataType="ParcelDataType" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="ResidueDataType" BaseType="ua:Structure" NumericId="1106">
+    <opc:Fields>
+      <opc:Field Name="Id" DataType="ua:Int64" />
+      <opc:Field Name="Tick" DataType="ua:Int64" />
+      <opc:Field Name="Stage" DataType="ua:Int32" />
+      <opc:Field Name="IsEvaporation" DataType="ua:Boolean" />
+      <opc:Field Name="Material" DataType="ParcelDataType" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="HoldDataType" BaseType="ua:Structure" NumericId="1107">
+    <opc:Fields>
+      <opc:Field Name="Id" DataType="ua:Int64" />
+      <opc:Field Name="Tick" DataType="ua:Int64" />
+      <opc:Field Name="Stage" DataType="ua:Int32" />
+      <opc:Field Name="Reason" DataType="ua:String" />
+      <opc:Field Name="Disposition" DataType="DispositionEnum" />
+      <opc:Field Name="DisposedBy" DataType="ua:String" />
+      <opc:Field Name="DispositionRevision" DataType="ua:Int64" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="ExecutionDataType" BaseType="ua:Structure" NumericId="1108">
+    <opc:Fields>
+      <opc:Field Name="Id" DataType="ua:Int64" />
+      <opc:Field Name="Tick" DataType="ua:Int64" />
+      <opc:Field Name="Stage" DataType="ua:Int32" />
+      <opc:Field Name="Inputs" DataType="ua:Int64" ValueRank="Array" />
+      <opc:Field Name="Outputs" DataType="ua:Int64" ValueRank="Array" />
+      <opc:Field Name="Input" DataType="MassDataType" />
+      <opc:Field Name="Addition" DataType="MassDataType" />
+      <opc:Field Name="Output" DataType="MassDataType" />
+      <opc:Field Name="Reject" DataType="MassDataType" />
+      <opc:Field Name="Evaporation" DataType="MassDataType" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="ParticipantDataType" BaseType="ua:Structure" NumericId="1109">
+    <opc:Fields>
+      <opc:Field Name="Process" DataType="ProcessEnum" />
+      <opc:Field Name="Identity" DataType="ua:String" />
+      <opc:Field Name="ConnectionId" DataType="ua:String" />
+      <opc:Field Name="Initialized" DataType="ua:Boolean" />
+      <opc:Field Name="LeaseExpiresUtc" DataType="ua:DateTime" />
+      <opc:Field Name="ObservedRevision" DataType="ua:Int64" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="SnapshotDataType" BaseType="ua:Structure" NumericId="1110">
+    <opc:Description>Committed typed production image. Source time is wall time; Tick and LogicalSeconds are material time.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="SchemaVersion" DataType="ua:Int32" />
+      <opc:Field Name="RunId" DataType="ua:String" />
+      <opc:Field Name="Scenario" DataType="ua:String" />
+      <opc:Field Name="ConfigurationId" DataType="ua:String" />
+      <opc:Field Name="Revision" DataType="ua:Int64" />
+      <opc:Field Name="Tick" DataType="ua:Int64" />
+      <opc:Field Name="LogicalSeconds" DataType="ua:Int64" />
+      <opc:Field Name="SourceTimestampUtc" DataType="ua:DateTime" />
+      <opc:Field Name="Lifecycle" DataType="LifecycleEnum" />
+      <opc:Field Name="BlockingReason" DataType="ua:String" />
+      <opc:Field Name="RandomState" DataType="ua:UInt64" />
+      <opc:Field Name="NextId" DataType="ua:Int64" />
+      <opc:Field Name="SourceBatches" DataType="ua:Int32" />
+      <opc:Field Name="SourceMass" DataType="MassDataType" />
+      <opc:Field Name="Sources" DataType="ContributionDataType" ValueRank="Array" />
+      <opc:Field Name="Stages" DataType="StageDataType" ValueRank="Array" />
+      <opc:Field Name="Parcels" DataType="ParcelDataType" ValueRank="Array" />
+      <opc:Field Name="Packages" DataType="PackageDataType" ValueRank="Array" />
+      <opc:Field Name="Residues" DataType="ResidueDataType" ValueRank="Array" />
+      <opc:Field Name="Holds" DataType="HoldDataType" ValueRank="Array" />
+      <opc:Field Name="History" DataType="ExecutionDataType" ValueRank="Array" />
+      <opc:Field Name="Participants" DataType="ParticipantDataType" ValueRank="Array" />
+      <opc:Field Name="Energy" DataType="EnergyIntensityDataType" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="CommandDataType" BaseType="ua:Structure" NumericId="1111">
+    <opc:Description>Bounded sample command. Identity comes from the authenticated UA session, never this structure.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="RequestId" DataType="ua:String" />
+      <opc:Field Name="LineId" DataType="ua:String" />
+      <opc:Field Name="RunId" DataType="ua:String" />
+      <opc:Field Name="ExpectedRevision" DataType="ua:Int64" />
+      <opc:Field Name="Kind" DataType="CommandEnum" />
+      <opc:Field Name="Process" DataType="ProcessEnum" />
+      <opc:Field Name="HoldId" DataType="ua:Int64" />
+      <opc:Field Name="Disposition" DataType="DispositionEnum" />
+      <opc:Field Name="Steps" DataType="ua:Int32" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="CommandOutcomeDataType" BaseType="ua:Structure" NumericId="1112">
+    <opc:Fields>
+      <opc:Field Name="RequestId" DataType="ua:String" />
+      <opc:Field Name="RunId" DataType="ua:String" />
+      <opc:Field Name="Revision" DataType="ua:Int64" />
+      <opc:Field Name="Tick" DataType="ua:Int64" />
+      <opc:Field Name="Status" DataType="ua:StatusCode" />
+      <opc:Field Name="Message" DataType="ua:String" />
+    </opc:Fields>
+  </opc:DataType>
+  <opc:DataType SymbolicName="EnergyIntensityDataType" BaseType="ua:Structure" NumericId="1113">
+    <opc:Description>Run-to-date utility energy / packaged dry mass (including held packages). Zero denominator is not applicable.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="BaselineId" DataType="ua:String" />
+      <opc:Field Name="StartTick" DataType="ua:Int64" />
+      <opc:Field Name="EndTick" DataType="ua:Int64" />
+      <opc:Field Name="ElectricalJoules" DataType="ua:Int64" />
+      <opc:Field Name="ThermalJoules" DataType="ua:Int64" />
+      <opc:Field Name="PackagedDryMilligrams" DataType="ua:Int64" />
+      <opc:Field Name="IsApplicable" DataType="ua:Boolean" />
+      <opc:Field Name="ElectricalJoulesPerKilogram" DataType="ua:Double" />
+      <opc:Field Name="ThermalJoulesPerKilogram" DataType="ua:Double" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:Method SymbolicName="ExecuteCommandMethodType" NumericId="2001">
+    <opc:InputArguments>
+      <opc:Argument Name="Command" DataType="CommandDataType" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="Outcome" DataType="CommandOutcomeDataType" />
+    </opc:OutputArguments>
+  </opc:Method>
+  <opc:Method SymbolicName="ReadSnapshotMethodType" NumericId="2002">
+    <opc:OutputArguments>
+      <opc:Argument Name="Snapshot" DataType="SnapshotDataType" />
+    </opc:OutputArguments>
+  </opc:Method>
+  <opc:Method SymbolicName="ReadGenealogyMethodType" NumericId="2003">
+    <opc:InputArguments>
+      <opc:Argument Name="AfterExecutionId" DataType="ua:Int64" />
+      <opc:Argument Name="MaximumResults" DataType="ua:Int32" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="Executions" DataType="ExecutionDataType" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:ObjectType SymbolicName="RecyclingCoordinatorType" BaseType="ua:BaseObjectType" NumericId="3001">
+    <opc:Description>Sample-only single-writer coordinator. Not an equipment companion model.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="LineId" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="State" DataType="SnapshotDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Available" DataType="ua:Boolean" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="Execute" TypeDefinition="ExecuteCommandMethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ReadSnapshot" TypeDefinition="ReadSnapshotMethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ReadGenealogy" TypeDefinition="ReadGenealogyMethodType" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="RecyclingProcessViewType" BaseType="ua:BaseObjectType" NumericId="3002">
+    <opc:Description>Sample projection/control seam. Companion equipment binding is separate and is not implied by this type.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="LineId" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="Process" DataType="ProcessEnum" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="CompanionBindingsComplete" DataType="ua:Boolean" ModellingRule="Mandatory">
+        <opc:Description>The selected read-only native equipment bindings are implemented and verified. Does not assert original-source parity, optional remote production controls or profile certification.</opc:Description>
+      </opc:Property>
+      <opc:Variable SymbolicName="State" DataType="SnapshotDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Available" DataType="ua:Boolean" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ForwardCommand" TypeDefinition="ExecuteCommandMethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ReadSnapshot" TypeDefinition="ReadSnapshotMethodType" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:Object SymbolicName="Coordinator" TypeDefinition="RecyclingCoordinatorType" NumericId="5001">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+  <opc:Object SymbolicName="ProcessView" TypeDefinition="RecyclingProcessViewType" NumericId="5002">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:VariableType SymbolicName="SyntheticMeasurementType" BaseType="ua:AnalogUnitRangeType"
+    DataType="ua:Double" ValueRank="Scalar" NumericId="6001">
+    <opc:Description>Sample-only deterministic signal, not a calibrated physical measurement. Read Formula and the DataValue status.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="SemanticField" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="Formula" DataType="ua:String" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:VariableType>
+  <opc:ObjectType SymbolicName="RecyclingProcessAssetType" BaseType="di:DeviceType" NumericId="6101">
+    <opc:Description>Sample-owned DI process asset. Machinery and AMB are composed capabilities. This type does not fulfill an unavailable plastics, extrusion or drying companion binding.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="MachineId" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="Process" DataType="ProcessEnum" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="StageIndex" DataType="ua:Int32" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="BindingStatus" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="SignalOrigin" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Stage" DataType="StageDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Available" DataType="ua:Boolean" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="RunState" DataType="EquipmentEnum" ModellingRule="Mandatory">
+        <opc:Description>run_state: committed sample equipment state; not a standard companion enumeration.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="Timestamp" DataType="ua:DateTime" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Revision" DataType="ua:Int64" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Tick" DataType="ua:Int64" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="RunId" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="LotId" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="SourceZone" DataType="ua:String" ModellingRule="Mandatory">
+        <opc:Description>source_zone: committed dry-material provenance, or mixed when contributions have different zones. Exact zones remain in Contributions.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="SourceBinId" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="SourceIds" DataType="ua:String" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Material" DataType="ParcelDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Contributions" DataType="ContributionDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Executions" DataType="ua:Int64" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ThroughputKgHr" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Object SymbolicName="Equipment" TypeDefinition="ua:FolderType" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="CollectionBinType" BaseType="RecyclingProcessAssetType" NumericId="6201" />
+  <opc:ObjectType SymbolicName="CollectionTransportType" BaseType="RecyclingProcessAssetType" NumericId="6202" />
+  <opc:ObjectType SymbolicName="InboundIdentificationType" BaseType="RecyclingProcessAssetType" NumericId="6203" />
+  <opc:ObjectType SymbolicName="FeedConveyorType" BaseType="RecyclingProcessAssetType" NumericId="6204">
+    <opc:Children>
+      <opc:Variable SymbolicName="BeltSpeedMps" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ThroughputTph" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="JamAlarm" DataType="ua:Boolean" ModellingRule="Mandatory">
+        <opc:Description>jam_alarm: committed synthetic jam window. The coordinator blocks residence and material flow while active.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="JamEvents" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>Sample extension: absolute committed synthetic jam onset count, not a view-local increment.</opc:Description>
+      </opc:Variable>
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="OpticalSortingStationType" BaseType="RecyclingProcessAssetType" NumericId="6205">
+    <opc:Description>Mechanical sorting station, not a VisionSystemType. Equipment references the real Part 1 control and Part 2 vision assets.</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="ClassificationAccuracyPct" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ContaminationPpm" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DriftScore" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="CameraHealth" DataType="di:DeviceHealthEnumeration" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="PrimaryReductionType" BaseType="RecyclingProcessAssetType" NumericId="6206">
+    <opc:Children>
+      <opc:Variable SymbolicName="MotorLoadPct" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="FeedRateKgMin" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="JamEvents" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>jam_events: absolute committed synthetic jam onset count, unchanged by reprojection or recovery.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="JamAlarm" DataType="ua:Boolean" ModellingRule="Mandatory">
+        <opc:Description>Sample extension: current committed synthetic jam flag; correlated with JamEvents and RunState.</opc:Description>
+      </opc:Variable>
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="SecondaryReductionType" BaseType="RecyclingProcessAssetType" NumericId="6207">
+    <opc:Children>
+      <opc:Variable SymbolicName="FlakeSizeAvgMm" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="JamAlarm" DataType="ua:Boolean" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="JamEvents" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>Sample extension: absolute committed synthetic jam onset count.</opc:Description>
+      </opc:Variable>
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="PreWashType" BaseType="RecyclingProcessAssetType" NumericId="6208">
+    <opc:Children>
+      <opc:Variable SymbolicName="PumpStatus" DataType="ua:Boolean" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="TurbidityNtu" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="WaterTempC" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="FrictionWashType" BaseType="RecyclingProcessAssetType" NumericId="6209">
+    <opc:Children>
+      <opc:Variable SymbolicName="FaultState" DataType="EquipmentEnum" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="WashEffectivenessPct" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="MotorLoadPct" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="HotWashType" BaseType="RecyclingProcessAssetType" NumericId="6210">
+    <opc:Children>
+      <opc:Variable SymbolicName="FaultState" DataType="EquipmentEnum" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="BathTempC" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Ph" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="AdhesiveRemovalPct" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="RinsingType" BaseType="RecyclingProcessAssetType" NumericId="6211" />
+  <opc:ObjectType SymbolicName="DensitySeparationType" BaseType="RecyclingProcessAssetType" NumericId="6212">
+    <opc:Children>
+      <opc:Variable SymbolicName="CirculationPumpStatus" DataType="ua:Boolean" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="SeparationPurityPct" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="HdpeRecoveryPct" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="MechanicalDewateringType" BaseType="RecyclingProcessAssetType" NumericId="6213">
+    <opc:Children>
+      <opc:Variable SymbolicName="OutletMoisturePct" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="SampleThermalDryingType" BaseType="RecyclingProcessAssetType" NumericId="6214">
+    <opc:Description>Sample thermal-process context linked to a native OPC 40082-6 granulate dryer with a bin and desiccant bed. Mechanical dewatering and buffering remain separate processes.</opc:Description>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="DryMaterialBufferType" BaseType="RecyclingProcessAssetType" NumericId="6215" />
+  <opc:ObjectType SymbolicName="SampleExtrusionType" BaseType="RecyclingProcessAssetType" NumericId="6216">
+    <opc:Description>Sample melt-process context linked to native OPC 40084 extrusion-line and extruder interfaces. Vendor process metrics remain in the sample namespace.</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="MeltTempC" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="MeltPressureBar" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ExtrusionStabilityScore" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="SampleMeltFiltrationType" BaseType="RecyclingProcessAssetType" NumericId="6217">
+    <opc:Description>Sample filter-process context linked to a native OPC 40084-6 filter. Differential pressure and contamination metrics remain sample extensions; the disputed Filter profile is not advertised.</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="AlarmState" DataType="EquipmentEnum" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DiffPressureBar" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="CloggingPct" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="MeltCleanlinessIndex" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="SamplePelletizingType" BaseType="RecyclingProcessAssetType" NumericId="6218">
+    <opc:Description>Sample pellet-process context linked to a native OPC 40084-8 pelletizer. Pellet size, mass throughput and strand-break measurements are sample extensions, not drive-speed substitutes.</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="FaultState" DataType="EquipmentEnum" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="PelletSizeAvgMm" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="StrandBreakEvents" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>strand_break_events: absolute committed synthetic strand-break onset count, unchanged by reprojection or recovery.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="StrandBreakAlarm" DataType="ua:Boolean" ModellingRule="Mandatory">
+        <opc:Description>Sample extension: committed synthetic strand-break window, blocking pelletizer residence and flow.</opc:Description>
+      </opc:Variable>
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="PelletScreeningType" BaseType="RecyclingProcessAssetType" NumericId="6219" />
+  <opc:ObjectType SymbolicName="BaggingStationType" BaseType="RecyclingProcessAssetType" NumericId="6220">
+    <opc:Children>
+      <opc:Variable SymbolicName="BagWeightKg" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="BagsPerHr" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="PackageCount" DataType="ua:Int64" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ColourR" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ColourG" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ColourB" TypeDefinition="SyntheticMeasurementType"
+        DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="QualityClassification" DataType="DispositionEnum" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+</opc:ModelDesign>

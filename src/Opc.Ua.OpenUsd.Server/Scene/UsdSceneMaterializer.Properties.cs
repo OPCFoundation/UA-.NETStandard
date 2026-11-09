@@ -108,8 +108,10 @@ namespace Opc.Ua.OpenUsd.Server.Scene
                 // Mode A (§9): the Value is server-maintained and time-varying, so a
                 // Subscription delivers changes and — where the Server retains it —
                 // HistoryRead exposes the value timeline.
-                node.AccessLevel = AccessLevels.CurrentReadOrWrite;
-                node.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                // Opaque values carry authored USDA text rather than a validated UA value
+                // shape. A remote String replacement must not become layer syntax on export.
+                node.AccessLevel = mapping.IsOpaque ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite;
+                node.UserAccessLevel = node.AccessLevel;
                 if (options.HistorizeLiveAttributes)
                 {
                     node.Historizing = true;

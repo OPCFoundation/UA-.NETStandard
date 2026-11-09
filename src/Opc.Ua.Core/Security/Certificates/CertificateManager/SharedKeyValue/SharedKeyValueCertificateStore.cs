@@ -37,6 +37,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Security.Certificates;
 
@@ -609,32 +610,32 @@ namespace Opc.Ua
             Message = "Certificate {Thumbprint} added to shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog0(
             this ILogger logger,
-            string? thumbprint,
-            string? storePath);
+            [ApplicationIdentity] string? thumbprint,
+            [FilePath] string? storePath);
 
         [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 1, Level = LogLevel.Debug,
             Message = "CRL for issuer {Issuer} added to shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog1(
             this ILogger logger,
-            string? issuer,
-            string? storePath);
+            [ApplicationIdentity] string? issuer,
+            [FilePath] string? storePath);
 
         [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 2, Level = LogLevel.Warning,
             Message = "Skipping an undecodable certificate record in shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog2(
             this ILogger logger,
             Exception? exception,
-            string? storePath);
+            [FilePath] string? storePath);
 
         [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 3, Level = LogLevel.Warning,
             Message = "Skipping an undecodable CRL record in shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog3(
             this ILogger logger,
             Exception? exception,
-            string? storePath);
+            [FilePath] string? storePath);
 
         [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 4, Level = LogLevel.Warning,
             Message = "Rejected a certificate record that failed integrity verification in shared store {StorePath}.")]
-        public static partial void SharedKeyValueStoreLog4(this ILogger logger, string? storePath);
+        public static partial void SharedKeyValueStoreLog4(this ILogger logger, [FilePath] string? storePath);
     }
 }

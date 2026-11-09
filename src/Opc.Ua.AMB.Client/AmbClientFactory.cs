@@ -49,9 +49,27 @@ namespace Opc.Ua.AMB.Client
         public AmbClientFactory(
             Func<CancellationToken, Task<ManagedSession>> sessionFactory,
             ITelemetryContext telemetry)
+            : this(sessionFactory, telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory with optional strict-read traversal limits.
+        /// </summary>
+        /// <param name="sessionFactory">Opens a session.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="options">The immutable limits; <c>null</c> retains tolerant behavior.</param>
+        /// <exception cref="ArgumentNullException">A required argument is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">A traversal limit is not positive.</exception>
+        public AmbClientFactory(
+            Func<CancellationToken, Task<ManagedSession>> sessionFactory,
+            ITelemetryContext telemetry,
+            AmbClientOptions? options)
         {
             m_sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            options?.Validate();
+            m_options = options;
         }
 
         /// <summary>
@@ -62,10 +80,13 @@ namespace Opc.Ua.AMB.Client
         public async Task<AmbClient> CreateAsync(CancellationToken cancellationToken = default)
         {
             ManagedSession session = await m_sessionFactory(cancellationToken).ConfigureAwait(false);
-            return new AmbClient(session, m_telemetry);
+            return m_options is null
+                ? new AmbClient(session, m_telemetry)
+                : new AmbClient(session, m_telemetry, m_options);
         }
 
         private readonly Func<CancellationToken, Task<ManagedSession>> m_sessionFactory;
         private readonly ITelemetryContext m_telemetry;
+        private readonly AmbClientOptions? m_options;
     }
 }

@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -193,7 +194,7 @@ namespace Opc.Ua
     {
         [LoggerMessage(EventId = CoreEventIds.CertificateTrustList + 0, Level = LogLevel.Error,
             Message = "Could not load certificates from store: {StorePath}.")]
-        public static partial void CertificateTrustListLogMessage0(this ILogger logger, string? storePath);
+        public static partial void CertificateTrustListLogMessage0(this ILogger logger, [FilePath] string? storePath);
     }
 
 }

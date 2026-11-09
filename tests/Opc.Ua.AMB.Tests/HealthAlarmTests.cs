@@ -166,9 +166,9 @@ namespace Opc.Ua.AMB.Tests
                 .ConfigureAwait(false);
             var cable = new NodeId("Cable", server.Manager.InstanceNamespaceIndex);
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await fieldbus.RaiseAsync(AssetFaultSeverities.InactiveMaximum, new LocalizedText("x")).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await fieldbus.RaiseAsync(1001, new LocalizedText("x")).ConfigureAwait(false));
 
             await fieldbus.RaiseAsync(
@@ -229,7 +229,7 @@ namespace Opc.Ua.AMB.Tests
                     server.Manager.ConformanceUnits.ToArray(),
                     Does.Contain(new QualifiedName("AMB Asset Health Status Alarms")));
             });
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await health.SetDeviceHealthAsync(DeviceHealthEnumeration.FAILURE).ConfigureAwait(false));
         }
 
@@ -281,7 +281,7 @@ namespace Opc.Ua.AMB.Tests
                     maintenance.WrappedValue.TryGetValue(out int value) ? (DeviceHealthEnumeration)value : default,
                     Is.EqualTo(DeviceHealthEnumeration.MAINTENANCE_REQUIRED));
             });
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await health.SetDeviceHealthAsync(DeviceHealthEnumeration.FAILURE).ConfigureAwait(false));
         }
 

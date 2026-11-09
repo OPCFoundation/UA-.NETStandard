@@ -718,16 +718,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// The lowest identifier the counter ever mints.
+        /// The base value used to seed the counter.
         /// </summary>
         /// <remarks>
-        /// A NodeManager usually mints into the same namespace its NodeSet
-        /// occupies, and a counter that started near zero would walk into
-        /// that model's numeric identifiers - the predefined-node index
-        /// overwrites rather than rejects, so a long-running server would
-        /// quietly replace a type node with a runtime instance. Identifiers
-        /// this large are out of reach of any authored model, which makes
-        /// the separation structural rather than a matter of seeding luck.
+        /// Separates initial counter allocations from lower numeric model
+        /// identifiers. It does not reserve the higher range or prevent
+        /// collisions with caller-assigned identifiers; namespace and
+        /// identifier allocation must still be coordinated.
         /// </remarks>
         private const uint kCounterBase = 0x40000000;
 

@@ -777,7 +777,9 @@ namespace Opc.Ua.Client.FileSystem
         {
             if (target.Parent == null)
             {
-                throw new IOException("Cannot delete the root directory.");
+                throw target is UaFileInfo { IsDetached: true }
+                    ? DetachedFileError(target, "deleted")
+                    : new IOException("Cannot delete the root directory.");
             }
 
             // Empty-check before delegating to the server, whose Delete on a
@@ -815,6 +817,13 @@ namespace Opc.Ua.Client.FileSystem
             bool copy,
             CancellationToken ct)
         {
+            // Reject a detached file before the destination is resolved: the
+            // operation cannot succeed, and resolving the destination could
+            // fail first with a misleading error and cost server requests.
+            if (source is UaFileInfo { IsDetached: true })
+            {
+                throw DetachedFileError(source, copy ? "copied" : "moved");
+            }
             QualifiedName[] segments = UaPath.Parse(destPath);
             if (segments.Length == 0)
             {
@@ -846,7 +855,9 @@ namespace Opc.Ua.Client.FileSystem
             ValidateLeafName(newName);
             if (source.Parent == null)
             {
-                throw new IOException("Cannot move or copy the root directory.");
+                throw source is UaFileInfo { IsDetached: true }
+                    ? DetachedFileError(source, copy ? "copied" : "moved")
+                    : new IOException("Cannot move or copy the root directory.");
             }
 
             NodeId newId;
@@ -1412,7 +1423,7 @@ namespace Opc.Ua.Client.FileSystem
             return TryGetQualifiedName(dv.WrappedValue) ?? QualifiedName.Null;
         }
 
-        private static QualifiedName[] AppendSegment(
+        internal static QualifiedName[] AppendSegment(
             IReadOnlyList<QualifiedName> parent,
             QualifiedName name)
         {
@@ -1423,6 +1434,15 @@ namespace Opc.Ua.Client.FileSystem
             }
             combined[^1] = name;
             return combined;
+        }
+
+        private static InvalidOperationException DetachedFileError(
+            UaFileSystemInfo target,
+            string operation)
+        {
+            return new InvalidOperationException(
+                $"File '{target.Name}' ({target.NodeId}) cannot be {operation} because the directory " +
+                "that contains it is not known. Create the UaFileInfo with its parent directory instead.");
         }
 
         private static void ValidateLeafName(string name)

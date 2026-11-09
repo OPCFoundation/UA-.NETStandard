@@ -49,7 +49,9 @@ namespace Opc.Ua.AI.Client
             }
             DeploymentNodeId = deploymentNodeId;
             m_proxy = new DeploymentTypeClient(
-                m_operations.Session, deploymentNodeId, m_operations.Telemetry);
+                m_operations.Session,
+                deploymentNodeId,
+                m_operations.Telemetry);
         }
 
         public NodeId DeploymentNodeId { get; }
@@ -68,14 +70,20 @@ namespace Opc.Ua.AI.Client
                 BrowseNames.EndpointUri
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                DeploymentNodeId, members, cancellationToken).ConfigureAwait(false);
+                DeploymentNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(nodes, cancellationToken)
                 .ConfigureAwait(false);
             int cursor = 0;
             NodeId model = await m_operations.FollowReferenceAsync(
-                DeploymentNodeId, ReferenceTypes.UsesModel, cancellationToken).ConfigureAwait(false);
+                DeploymentNodeId,
+                ReferenceTypes.UsesModel,
+                cancellationToken).ConfigureAwait(false);
             NodeId fallback = await m_operations.FollowReferenceAsync(
-                DeploymentNodeId, ReferenceTypes.FallsBackTo, cancellationToken).ConfigureAwait(false);
+                DeploymentNodeId,
+                ReferenceTypes.FallsBackTo,
+                cancellationToken).ConfigureAwait(false);
             return new AIDeploymentSnapshot
             {
                 NodeId = DeploymentNodeId,
@@ -84,7 +92,7 @@ namespace Opc.Ua.AI.Client
                 State = ReadEnum<DeploymentStateEnum>(nodes, values, ref cursor, 2),
                 DataJurisdiction = ReadString(nodes, values, ref cursor, 3),
                 EgressPermitted = ReadBoolean(nodes, values, ref cursor, 4),
-                MaxInlinePayloadSize = ReadUInt64(nodes, values, ref cursor, 5),
+                MaxInlinePayloadSize = ReadInlineLimit(nodes, values, ref cursor, 5),
                 EndpointUri = ReadString(nodes, values, ref cursor, 6),
                 ModelId = model,
                 FallbackDeploymentId = fallback
@@ -108,7 +116,12 @@ namespace Opc.Ua.AI.Client
             try
             {
                 return await InvokeProxyAsync(
-                    payload, contentType, parameters, timeout, payloadUri, cancellationToken)
+                    payload,
+                    contentType,
+                    parameters,
+                    timeout,
+                    payloadUri,
+                    cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadMethodInvalid)
@@ -146,7 +159,9 @@ namespace Opc.Ua.AI.Client
             try
             {
                 (NodeId transfer, bool accepted) = await m_proxy.BeginTransferAsync(
-                    contentType ?? string.Empty, requestSize, cancellationToken).ConfigureAwait(false);
+                    contentType ?? string.Empty,
+                    requestSize,
+                    cancellationToken).ConfigureAwait(false);
                 return new AIBeginTransferResult
                 {
                     TransferId = transfer,
@@ -172,7 +187,9 @@ namespace Opc.Ua.AI.Client
             CancellationToken cancellationToken = default)
         {
             NodeId model = await m_operations.FollowReferenceAsync(
-                DeploymentNodeId, ReferenceTypes.UsesModel, cancellationToken).ConfigureAwait(false);
+                DeploymentNodeId,
+                ReferenceTypes.UsesModel,
+                cancellationToken).ConfigureAwait(false);
             return model.IsNull ? null : new AIModelClient(m_operations, model);
         }
 
@@ -180,7 +197,9 @@ namespace Opc.Ua.AI.Client
             CancellationToken cancellationToken = default)
         {
             NodeId fallback = await m_operations.FollowReferenceAsync(
-                DeploymentNodeId, ReferenceTypes.FallsBackTo, cancellationToken).ConfigureAwait(false);
+                DeploymentNodeId,
+                ReferenceTypes.FallsBackTo,
+                cancellationToken).ConfigureAwait(false);
             return fallback.IsNull ? null : new AIDeploymentClient(m_operations, fallback);
         }
 
@@ -235,12 +254,12 @@ namespace Opc.Ua.AI.Client
                 double retryAfter,
                 bool transferRequired,
                 NodeId transfer) = await m_proxy.InvokeAsync(
-                payload,
-                payloadUri ?? string.Empty,
-                contentType ?? string.Empty,
-                parameters,
-                timeout,
-                cancellationToken).ConfigureAwait(false);
+                    payload,
+                    payloadUri ?? string.Empty,
+                    contentType ?? string.Empty,
+                    parameters,
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
             return new AIInvokeResult
             {
                 ResponsePayload = responsePayload,
@@ -421,9 +440,22 @@ namespace Opc.Ua.AI.Client
             return !nodes[index].IsNull && AIClientOperations.ReadBoolean(values[cursor++]);
         }
 
-        private static ulong ReadUInt64(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
+        private static uint ReadInlineLimit(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? 0 : AIClientOperations.ReadUInt64(values[cursor++]);
+            if (nodes[index].IsNull)
+            {
+                return 0;
+            }
+            DataValue value = values[cursor++];
+            if (!StatusCode.IsGood(value.StatusCode))
+            {
+                throw new ServiceResultException(value.StatusCode, "The AI deployment inline limit is unreadable.");
+            }
+            return value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.UInt32 &&
+                value.WrappedValue.TryGetValue(out uint limit) ? limit :
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeMismatch,
+                    "The AI deployment inline limit must be a UInt32.");
         }
 
         private static TEnum ReadEnum<TEnum>(

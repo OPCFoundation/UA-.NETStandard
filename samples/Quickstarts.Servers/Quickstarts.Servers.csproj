@@ -32,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Tools.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
   </ItemGroup>
   <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>

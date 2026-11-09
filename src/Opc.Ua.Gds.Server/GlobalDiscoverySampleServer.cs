@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
@@ -201,30 +202,30 @@ namespace Opc.Ua.Gds.Server
         /// by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+        protected override async ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
             m_logger.CreatingTheNodeManagers();
 
-            // create the custom node managers.
-            var nodeManagers = new IAsyncNodeManager[]
+            cancellationToken.ThrowIfCancellationRequested();
+            MasterNodeManager? master = null;
+            try
             {
-                new ApplicationsNodeManager(
-                    server,
-                    configuration,
-                    m_database,
-                    m_request,
-                    m_certificateGroup,
-                    m_autoApprove)
-            };
-
-            // create master node manager.
-#pragma warning disable CA2000 // ownership of MasterNodeManager transfers to the caller via the returned ValueTask<IMasterNodeManager>
-            return new ValueTask<IMasterNodeManager>(
-                new MasterNodeManager(server, configuration, null, nodeManagers));
-#pragma warning restore CA2000
+                master = new MasterNodeManager(server, configuration, null,
+                    [
+                        new ApplicationsStartupFactory(m_database, m_request, m_certificateGroup, m_autoApprove),
+                        .. GetInitialNodeManagerFactories()
+                    ]);
+                IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master).ConfigureAwait(false);
+                master = null;
+                return result;
+            }
+            finally
+            {
+                master?.Dispose();
+            }
         }
 
         /// <summary>
@@ -377,6 +378,54 @@ namespace Opc.Ua.Gds.Server
                         LoadServerProperties().ProductUri,
                         new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
+            }
+        }
+
+        /// <summary>
+        /// Defers the GDS model and its injected services until private initial preparation.
+        /// </summary>
+        private protected sealed class ApplicationsStartupFactory(
+            IApplicationsDatabase database,
+            ICertificateRequest request,
+            ICertificateGroup certificateGroup,
+            bool autoApprove,
+            IAccessTokenProvider? accessTokenProvider = null,
+            IKeyCredentialRequestStore? keyCredentialStore = null,
+            Action<ApplicationsNodeManager>? configure = null) : IAsyncNodeManagerFactory
+        {
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris =>
+                [Namespaces.OpcUaGds, ApplicationsNodeManager.ApplicationsNamespaceUri];
+
+            /// <inheritdoc/>
+            public async ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ApplicationsNodeManager? manager = null;
+                try
+                {
+                    manager = new ApplicationsNodeManager(
+                        server, configuration, database, request, certificateGroup, autoApprove);
+                    if (accessTokenProvider is not null)
+                    {
+                        manager.AccessTokenProvider = accessTokenProvider;
+                    }
+                    if (keyCredentialStore is not null)
+                    {
+                        manager.KeyCredentialRequestStore = keyCredentialStore;
+                    }
+                    configure?.Invoke(manager);
+                    IAsyncNodeManager result = await new ValueTask<IAsyncNodeManager>(manager).ConfigureAwait(false);
+                    manager = null;
+                    return result;
+                }
+                finally
+                {
+                    manager?.Dispose();
+                }
             }
         }
 
@@ -538,6 +587,9 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.GlobalDiscoverySampleServer + 1, Level = LogLevel.Information,
             Message = "X509 Token Accepted: {Identity} as {Role}")]
-        public static partial void X509TokenAccepted(this ILogger logger, string identity, Role role);
+        public static partial void X509TokenAccepted(
+            this ILogger logger,
+            [UserIdentity] string identity,
+            Role role);
     }
 }

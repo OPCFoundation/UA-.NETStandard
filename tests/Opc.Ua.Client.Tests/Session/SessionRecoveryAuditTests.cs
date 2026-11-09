@@ -41,6 +41,8 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Client.Tests.Stack.Client.Fakes;
 using Opc.Ua.Security.Certificates;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -61,6 +63,202 @@ namespace Opc.Ua.Client.Tests
                 harness.CreateOpenedStandaloneChannel(endpoint).Channel, harness.Configuration, endpoint);
 
             Assert.That(second.NewRequestHandle(), Is.Not.EqualTo(first.NewRequestHandle()));
+        }
+
+        /// <summary>
+        /// Normal reactivation retires an outstanding Publish failure without replacing or pausing the session.
+        /// </summary>
+        [Test]
+        [CancelAfter(20_000)]
+        public async Task ReactivationRetiresLatePublishFailureWithoutPriorRecoveryReportAsync(CancellationToken ct)
+        {
+            await using var harness = new SessionChannelHarness();
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            var response = new TaskCompletionSource<IServiceResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nextSent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int publishCount = 0;
+            channel.RequestHandler = async (request, requestCt) =>
+            {
+                if (request is CreateSubscriptionRequest create)
+                {
+                    return new CreateSubscriptionResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        SubscriptionId = 1,
+                        RevisedPublishingInterval = create.RequestedPublishingInterval,
+                        RevisedLifetimeCount = create.RequestedLifetimeCount,
+                        RevisedMaxKeepAliveCount = create.RequestedMaxKeepAliveCount
+                    };
+                }
+                if (request is DeleteSubscriptionsRequest delete)
+                {
+                    return new DeleteSubscriptionsResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = delete.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
+                    };
+                }
+                if (request is PublishRequest)
+                {
+                    if (Interlocked.Increment(ref publishCount) == 1)
+                    {
+                        return await response.Task.WaitAsync(requestCt).ConfigureAwait(false);
+                    }
+                    nextSent.TrySetResult(true);
+                    await Task.Delay(Timeout.Infinite, requestCt).ConfigureAwait(false);
+                    throw new InvalidOperationException("The pending Publish must be cancelled during cleanup.");
+                }
+                return channel.CreateResponse(request);
+            };
+            var engineFactory = new ObservingSubscriptionEngineFactory(TimeProvider.System);
+            await using var session = new Session(
+                channel.Channel, harness.Configuration, endpoint, engineFactory: engineFactory);
+            await session.OpenAsync("late-publish-after-reactivation", new UserIdentity(), ct).ConfigureAwait(false);
+            int recoveryErrors = 0;
+            session.KeepAlive += (_, args) =>
+            {
+                if (ServiceResult.IsBad(args.Status))
+                {
+                    Interlocked.Increment(ref recoveryErrors);
+                }
+            };
+            await using Subscriptions.ISubscription subscription = engineFactory.Engine.SubscriptionManager.Add(
+                Mock.Of<Subscriptions.ISubscriptionNotificationHandler>(),
+                OptionsFactory.Create(new Subscriptions.SubscriptionOptions
+                {
+                    DisableUnboundedItemMode = true,
+                    PublishingEnabled = true,
+                    PublishingInterval = TimeSpan.FromMilliseconds(10)
+                }));
+            ObservingSubscriptionEngineFactory.PublishAttempt attempt = await engineFactory
+                .NextAttemptAsync(ct).ConfigureAwait(false);
+            NodeId sessionId = session.SessionId;
+
+            await session.ReconnectAsync(null, channel.Channel, ct).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(session.SessionId, Is.EqualTo(sessionId));
+                Assert.That(session.Reconnecting, Is.False);
+                Assert.That(attempt.CancellationToken.IsCancellationRequested, Is.False,
+                    "The test must exercise reactivation without a publishing pause.");
+            });
+
+            response.SetException(new ServiceResultException(StatusCodes.BadConnectionClosed));
+            await nextSent.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref recoveryErrors), Is.Zero,
+                "A failure from the pre-reactivation transport must not trigger recovery on the reactivated session.");
+        }
+
+        /// <summary>
+        /// Successful publishing after a reported error must not indefinitely defer the liveness recovery Read.
+        /// </summary>
+        [Test]
+        [CancelAfter(20_000)]
+        public async Task PublishSuccessAfterFailureAllowsKeepAliveStatusRecoveryAsync(CancellationToken ct)
+        {
+            var clock = new ObservableFakeTimeProvider();
+            await using var harness = new SessionChannelHarness(timeProvider: clock);
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            using var publishReplies = new SemaphoreSlim(0);
+            using var publishSent = new SemaphoreSlim(0);
+            int publishCount = 0;
+            channel.RequestHandler = async (request, requestCt) =>
+            {
+                if (request is CreateSubscriptionRequest create)
+                {
+                    return new CreateSubscriptionResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        SubscriptionId = 1,
+                        RevisedPublishingInterval = create.RequestedPublishingInterval,
+                        RevisedLifetimeCount = create.RequestedLifetimeCount,
+                        RevisedMaxKeepAliveCount = create.RequestedMaxKeepAliveCount
+                    };
+                }
+                if (request is DeleteSubscriptionsRequest delete)
+                {
+                    return new DeleteSubscriptionsResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = delete.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
+                    };
+                }
+                if (request is PublishRequest publish)
+                {
+                    if (Interlocked.Increment(ref publishCount) == 1)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                    }
+                    publishSent.Release();
+                    await publishReplies.WaitAsync(requestCt).ConfigureAwait(false);
+                    return new PublishResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        SubscriptionId = 1,
+                        MoreNotifications = true,
+                        NotificationMessage = new NotificationMessage(),
+                        Results = publish.SubscriptionAcknowledgements.ConvertAll(_ => StatusCodes.Good)
+                    };
+                }
+                return channel.CreateResponse(request);
+            };
+            var engineFactory = new ObservingSubscriptionEngineFactory(TimeProvider.System);
+            await using var session = new Session(
+                channel.Channel, harness.Configuration, endpoint, engineFactory: engineFactory, timeProvider: clock)
+            {
+                KeepAliveInterval = 500
+            };
+            var initialKeepAlive = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var reported = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var recovered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            session.KeepAlive += (_, args) =>
+            {
+                if (ServiceResult.IsBad(args.Status))
+                {
+                    reported.TrySetResult(true);
+                }
+                else if (reported.Task.IsCompleted)
+                {
+                    recovered.TrySetResult(true);
+                }
+                else
+                {
+                    initialKeepAlive.TrySetResult(true);
+                }
+            };
+            await session.OpenAsync("publish-liveness-recovery", new UserIdentity(), ct).ConfigureAwait(false);
+            clock.Advance(TimeSpan.Zero);
+            await initialKeepAlive.Task.WaitAsync(ct).ConfigureAwait(false);
+            await using Subscriptions.ISubscription subscription = engineFactory.Engine.SubscriptionManager.Add(
+                Mock.Of<Subscriptions.ISubscriptionNotificationHandler>(),
+                OptionsFactory.Create(new Subscriptions.SubscriptionOptions
+                {
+                    DisableUnboundedItemMode = true,
+                    PublishingEnabled = true,
+                    PublishingInterval = TimeSpan.FromMilliseconds(10)
+                }));
+
+            await reported.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(session.KeepAliveStopped, Is.True);
+            await publishSent.WaitAsync(ct).ConfigureAwait(false);
+            for (int index = 0; index < 4; index++)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(100));
+                publishReplies.Release();
+                await publishSent.WaitAsync(ct).ConfigureAwait(false);
+            }
+            clock.Advance(TimeSpan.FromMilliseconds(100));
+            await recovered.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(session.KeepAliveStopped, Is.False);
+                Assert.That(Volatile.Read(ref publishCount), Is.GreaterThan(2),
+                    "Publishing must have resumed while the latched error awaited a keep-alive Read.");
+                Assert.That(channel.ReconnectCount, Is.Zero);
+            });
         }
 
         [Test]
@@ -101,7 +299,7 @@ namespace Opc.Ua.Client.Tests
                     string _, uint _, IUserIdentity _, ArrayOf<string> _, CancellationToken _) =>
                 {
                     attempted.Add(endpoint);
-                    if (ReferenceEquals(endpoint, primary))
+                    if (endpoint.EndpointUrl == primary.EndpointUrl)
                     {
                         throw new ServiceResultException(failure);
                     }
@@ -119,13 +317,15 @@ namespace Opc.Ua.Client.Tests
             if (rotate)
             {
                 await using Client.ManagedSession session = await connecting.ConfigureAwait(false);
-                Assert.That(attempted, Is.EqualTo([primary, alternate]));
+                Assert.That(attempted.Select(endpoint => endpoint.EndpointUrl),
+                    Is.EqualTo(new[] { primary.EndpointUrl, alternate.EndpointUrl }));
                 Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
             }
             else
             {
-                Assert.ThrowsAsync<ServiceResultException>(() => connecting);
-                Assert.That(attempted, Is.EqualTo([primary]));
+                await Assert.ThrowsAsync<ServiceResultException>(() => connecting);
+                Assert.That(attempted.Select(endpoint => endpoint.EndpointUrl),
+                    Is.EqualTo(new[] { primary.EndpointUrl }));
             }
         }
 
@@ -236,6 +436,7 @@ namespace Opc.Ua.Client.Tests
         {
             var clock = new ObservableFakeTimeProvider();
             using var keepAlive = new SemaphoreSlim(0);
+            var completedKeepAlives = System.Threading.Channels.Channel.CreateUnbounded<KeepAliveEventArgs>();
             var originalPublish = new AsyncOperationGate();
             var activation = new AsyncOperationGate();
             var resumedPublish = new AsyncOperationGate();
@@ -360,6 +561,14 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(session.Reconnecting, Is.True);
                 Assert.That(session.GoodPublishRequestCount, Is.Zero,
                     "The old Publish must finish while recovery owns admission, without refilling itself.");
+                session.KeepAlive += (current, args) =>
+                {
+                    if (args.Status == null &&
+                        current.TransportChannel.EndpointDescription.EndpointUrl == alternate.Description.EndpointUrl)
+                    {
+                        completedKeepAlives.Writer.TryWrite(args);
+                    }
+                };
                 activation.Release();
                 await recovering.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(session.SessionId, Is.EqualTo(sessionId));
@@ -383,6 +592,11 @@ namespace Opc.Ua.Client.Tests
                         clock.Advance(TimeSpan.FromMilliseconds(session.KeepAliveInterval));
                         Assert.That(await keepAlive.WaitAsync(s_timeout).ConfigureAwait(false), Is.True,
                             "Reusing a session must restart ongoing keepalive reads.");
+                        // Wait for response processing before advancing past the next keepalive deadline.
+                        KeepAliveEventArgs completed = await completedKeepAlives.Reader.ReadAsync(cancellation.Token)
+                            .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                        Assert.That(completed.Status, Is.Null);
+                        Assert.That(completed.CurrentState, Is.EqualTo(ServerState.Running));
                     }
                 }
             }
@@ -424,6 +638,8 @@ namespace Opc.Ua.Client.Tests
         public async Task RestoredUserNameCredentialsAreResuppliedWithoutSerializationAsync(bool renewal)
         {
             await using var harness = new SessionChannelHarness();
+            // The harness endpoint is unsecured; this test covers credential re-supply, not token encryption.
+            harness.Configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
             ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
             endpoint.Description.UserIdentityTokens =
             [
@@ -470,6 +686,58 @@ namespace Opc.Ua.Client.Tests
             Assert.That(target.SessionId, Is.EqualTo(source.SessionId));
         }
 
+        /// <summary>
+        /// A restored session activates for the first time on its reconnect,
+        /// so that is where a plain text password is gated. With the default
+        /// configuration the reconnect is rejected before the credentials
+        /// reach the channel, whether the snapshot carries the identity or a
+        /// renewal callback supplies it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RestoredUserNameRejectsPlaintextPasswordOnReconnectByDefaultAsync(bool renewal)
+        {
+            await using var harness = new SessionChannelHarness();
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            endpoint.Description.UserIdentityTokens =
+            [
+                new UserTokenPolicy
+                {
+                    PolicyId = "user", TokenType = UserTokenType.UserName, SecurityPolicyUri = SecurityPolicies.None
+                }
+            ];
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            await using var session = new Session(channel.Channel, harness.Configuration, endpoint);
+            var supplied = new UserIdentity("snapshot-user", Guid.NewGuid().ToByteArray());
+            var saved = new SessionConfiguration
+            {
+                SessionName = "snapshot",
+                SessionId = new NodeId("restored", 1),
+                AuthenticationToken = new NodeId("token", 1),
+                UserIdentityTokenPolicy = SecurityPolicies.None
+            };
+            if (renewal)
+            {
+                saved.IdentityToken = new UserNameIdentityToken { UserName = "snapshot-user", PolicyId = "user" };
+                session.RenewUserIdentity += (_, _) => supplied;
+            }
+            else
+            {
+                saved.Identity = supplied;
+            }
+            session.Restore(saved);
+
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => session.ReconnectAsync(null, channel.Channel, CancellationToken.None)))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(error.Message,
+                Does.Contain(nameof(SecurityConfiguration.AllowUnencryptedUserNameTokens)));
+            channel.Mock.Verify(value => value.SendRequestAsync(
+                It.Is<IServiceRequest>(request => request is ActivateSessionRequest),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         [Test]
         public async Task RestoredUserNameWithoutCredentialsFailsBeforeActivationAsync()
         {
@@ -492,8 +760,8 @@ namespace Opc.Ua.Client.Tests
                 UserIdentityTokenPolicy = SecurityPolicies.None
             });
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => session.ReconnectAsync(null, channel.Channel, CancellationToken.None))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => session.ReconnectAsync(null, channel.Channel, CancellationToken.None)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
             Assert.That(error.Message, Does.Contain("credentials"));
@@ -575,8 +843,8 @@ namespace Opc.Ua.Client.Tests
                 harness.Configuration, initial.Object, endpoint, false, false,
                 "reverse", 60000, new UserIdentity(), default, cancellation.Token).ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => session.ReconnectAsync(null, null, cancellation.Token))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => session.ReconnectAsync(null, null, cancellation.Token)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
             harness.CreatedChannels[0].Mock.Verify(value => value.ReconnectAsync(
@@ -602,9 +870,9 @@ namespace Opc.Ua.Client.Tests
             connection.SetupGet(value => value.Handle).Returns(Mock.Of<IUaSCByteTransport>());
             using var cancellation = new CancellationTokenSource(s_timeout);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() => reverse
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(() => reverse
                 ? session.RecreateAsync(connection.Object, cancellation.Token)
-                : session.RecreateAsync(cancellation.Token))!;
+                : session.RecreateAsync(cancellation.Token)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             registry.Verify(value => value.GetInfo(SecurityPolicies.None), Times.AtLeastOnce);
@@ -678,9 +946,9 @@ namespace Opc.Ua.Client.Tests
             {
                 await create.Entered.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(session.Reconnecting, Is.True, "CreateSession must remain inside recovery admission.");
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session.RecreateInPlaceAsync(channel: channel.Channel, ct: cancellation.Token)
-                        .WaitAsync(s_timeout).ConfigureAwait(false))!;
+                        .WaitAsync(s_timeout).ConfigureAwait(false)))!;
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 engine.Verify(value => value.PausePublishing(), Times.Once);
                 engine.Verify(value => value.ResumePublishing(), Times.Never);
@@ -803,12 +1071,12 @@ namespace Opc.Ua.Client.Tests
                     Assert.That(publishing.IsSet, Is.False);
                     Assert.That(Volatile.Read(ref publishCount), Is.EqualTo(1));
                 }
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await contender.WaitAsync(s_timeout).ConfigureAwait(false))!;
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await contender.WaitAsync(s_timeout).ConfigureAwait(false)))!;
                 Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
 
                 publishUnwind.Release();
-                Assert.CatchAsync<OperationCanceledException>(
+                await Assert.CatchAsync<OperationCanceledException>(
                     async () => await owner.WaitAsync(s_timeout).ConfigureAwait(false));
                 Assert.That(attempt.Operation.IsCanceled, Is.True);
                 Assert.That(session.Reconnecting, Is.False);
@@ -876,9 +1144,9 @@ namespace Opc.Ua.Client.Tests
             await using var session = new Session(
                 channel.Channel, harness.Configuration, endpoint, engineFactory: factory.Object);
 
-            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await session.RecreateInPlaceAsync(channel: channel.Channel)
-                    .WaitAsync(s_timeout).ConfigureAwait(false))!;
+                    .WaitAsync(s_timeout).ConfigureAwait(false)))!;
 
             Assert.That(error, Is.SameAs(failure));
             Assert.That(session.Reconnecting, Is.False, "A cleanup failure must still release recovery admission.");
@@ -967,7 +1235,7 @@ namespace Opc.Ua.Client.Tests
                 if (cancel)
                 {
                     cancellation.Cancel();
-                    Assert.CatchAsync<OperationCanceledException>(
+                    await Assert.CatchAsync<OperationCanceledException>(
                         async () => await recreate.WaitAsync(s_timeout).ConfigureAwait(false));
                 }
                 else
@@ -990,6 +1258,88 @@ namespace Opc.Ua.Client.Tests
                 create.Release();
                 await ObserveCancelledRecoveryAsync(recreate).ConfigureAwait(false);
             }
+        }
+
+        [Test]
+        public async Task RotatingBackToASharedEndpointChecksWhatAnotherSessionPublishedAsync()
+        {
+            const byte accepted = 10;
+            const byte published = 20;
+            bool primaryDown = false;
+            bool alternateDown = false;
+            await using var harnessA = new SessionChannelHarness(configureChannel: channel =>
+            {
+                channel.SupportedFeatures = TransportChannelFeatures.Reconnect;
+                channel.ReconnectHandler = _ =>
+                    (primaryDown && channel.OpenedEndpointUrl == "opc.tcp://primary:4840") ||
+                    (alternateDown && channel.OpenedEndpointUrl == "opc.tcp://alternate:4840")
+                        ? throw new ServiceResultException(StatusCodes.BadCommunicationError)
+                        : default(ValueTask);
+                channel.Mock.As<ISecureChannel>().Setup(value => value.OpenAsync(
+                        It.Is<Uri>(uri => (primaryDown && uri.Host == "primary") ||
+                            (alternateDown && uri.Host == "alternate")),
+                        It.IsAny<TransportChannelSettings>(), It.IsAny<CancellationToken>()))
+                    .Throws(new ServiceResultException(StatusCodes.BadCommunicationError));
+            });
+            await using var harnessB = new SessionChannelHarness();
+            ConfiguredEndpoint primary = SessionChannelHarness.CreateEndpoint("opc.tcp://primary:4840");
+            primary.Description.SecurityLevel = accepted;
+            ConfiguredEndpoint alternate = SessionChannelHarness.CreateEndpoint("opc.tcp://alternate:4840");
+            alternate.Description.Server.ApplicationUri = primary.Description.Server.ApplicationUri;
+            using var cancellation = new CancellationTokenSource(s_timeout);
+            await using Client.ManagedSession sessionA = await Client.ManagedSession.CreateAsync(
+                harnessA.Configuration, primary,
+                new ChannelManagerSessionFactory(harnessA.Manager, harnessA.Telemetry),
+                reconnectPolicy: new ReconnectPolicy { InitialDelay = TimeSpan.Zero, MaxRetries = 2 },
+                networkRedundancy: new NetworkRedundancyOptions { AlternateEndpoints = [alternate] },
+                ct: cancellation.Token).ConfigureAwait(false);
+            await using Client.ManagedSession sessionB = await Client.ManagedSession.CreateAsync(
+                harnessB.Configuration, primary,
+                new ChannelManagerSessionFactory(harnessB.Manager, harnessB.Telemetry),
+                ct: cancellation.Token).ConfigureAwait(false);
+            var checkedByA = new ConcurrentQueue<(byte Current, byte Rediscovered)>();
+            sessionA.ValidateRediscoveredEndpoint = (current, rediscovered, _) =>
+            {
+                checkedByA.Enqueue((current.SecurityLevel, rediscovered.SecurityLevel));
+                return new ValueTask<ServiceResult>(current.SecurityLevel == rediscovered.SecurityLevel
+                    ? ServiceResult.Good
+                    : new ServiceResult(StatusCodes.BadCertificateInvalid));
+            };
+
+            // A moves from the shared primary to the alternate.
+            primaryDown = true;
+            sessionA.StateMachine.TriggerReconnect();
+            await sessionA.StateMachine.WaitForConnectedAsync(cancellation.Token).ConfigureAwait(false);
+            Assert.That(sessionA.ConfiguredEndpoint.EndpointUrl, Is.EqualTo(alternate.EndpointUrl));
+
+            // B accepts a change that A would reject and publishes it to the shared primary.
+            await sessionB.RefreshEndpointAndRecreateAsync(
+                sessionB.InnerSession,
+                new RetryBudget(s_timeout),
+                (target, _) =>
+                {
+                    EndpointDescription description = CoreUtils.Clone(target.Description)!;
+                    description.SecurityLevel = published;
+                    target.Update(description);
+                    return Task.CompletedTask;
+                },
+                cancellation.Token).ConfigureAwait(false);
+            Assert.That(primary.Description.SecurityLevel, Is.EqualTo(published));
+
+            // A moves back to the primary: B's change is checked and, rejected, not taken over.
+            primaryDown = false;
+            alternateDown = true;
+            sessionA.StateMachine.TriggerReconnect();
+            await sessionA.StateMachine.WaitForConnectedAsync(cancellation.Token).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sessionA.ConfiguredEndpoint.EndpointUrl, Is.EqualTo(primary.EndpointUrl));
+                Assert.That(sessionA.ConfiguredEndpoint, Is.Not.SameAs(primary));
+                Assert.That(sessionA.ConfiguredEndpoint.Description.SecurityLevel, Is.EqualTo(accepted));
+                Assert.That(checkedByA.ToArray(), Is.EqualTo(new[] { (accepted, published) }));
+                Assert.That(primary.Description.SecurityLevel, Is.EqualTo(published));
+            });
         }
 
         private static async Task ObserveCancelledRecoveryAsync(Task task)

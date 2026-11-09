@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Mqtt.Internal
@@ -173,7 +174,9 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
 
         [LoggerMessage(EventId = PubSubMqttEventIds.TrustedIssuerStoreResolver + 1, Level = LogLevel.Warning,
             Message = "MQTT trusted issuer certificate '{Subject}' was not found in the trusted issuer store.")]
-        public static partial void TrustedIssuerCertificateNotFound(this ILogger logger, string subject);
+        public static partial void TrustedIssuerCertificateNotFound(
+            this ILogger logger,
+            [ApplicationIdentity] string subject);
 
         [LoggerMessage(EventId = PubSubMqttEventIds.TrustedIssuerStoreResolver + 2, Level = LogLevel.Error,
             Message = "Failed to resolve MQTT trusted issuer certificates from the trusted issuer store.")]

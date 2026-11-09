@@ -129,6 +129,14 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Restores known target metadata without fabricating a service result.
+        /// </summary>
+        internal void RestoreTarget(NodeId nodeId)
+        {
+            NodeId = nodeId;
+        }
+
+        /// <summary>
         /// Updates the object with the results of a create monitored item request.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
@@ -260,7 +268,11 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void SetDeleteResult(ServiceResult? error)
         {
-            Id = 0;
+            if (ServiceResult.IsGood(error) || error?.StatusCode == StatusCodes.BadMonitoredItemIdInvalid)
+            {
+                Id = 0;
+                NodeId = NodeId.Null;
+            }
             Error = error;
         }
 

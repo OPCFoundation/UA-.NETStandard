@@ -89,6 +89,31 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        [Category("Programs")]
+        public async Task BadServiceEnvelopeCannotBeInterpretedAsSuccessfulMethodOutput()
+        {
+            m_sessionMock.Setup(session => session.CallAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<ArrayOf<CallMethodRequest>>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.BadSessionClosed },
+                    Results = [Good(new Variant(42))]
+                });
+            TestObjectTypeClient client = CreateClient();
+
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.InvokeAsync(
+                    m_typeMethodId, kMethodNamespaceUri, kMethodBrowseName, CancellationToken.None)
+                    .ConfigureAwait(false)))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+            VerifyCallCount(Times.Once());
+            VerifyTranslateCount(Times.Never());
+        }
+
+        [Test]
         public async Task NonConformantServerResolvesInstanceMethodIdAndRetriesAsync()
         {
             SetupCall(req => req.MethodId.Equals(m_typeMethodId) ? BadMethodInvalid() : Good(new Variant(7)));
@@ -126,16 +151,16 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void UnresolvedInstanceMethodIdSurfacesOriginalBadMethodInvalid()
+        public async Task UnresolvedInstanceMethodIdSurfacesOriginalBadMethodInvalid()
         {
             SetupCall(_ => BadMethodInvalid());
             SetupTranslate(NodeId.Null);
             TestObjectTypeClient client = CreateClient();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client
                     .InvokeAsync(m_typeMethodId, kMethodNamespaceUri, kMethodBrowseName, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadMethodInvalid));
             // Only the initial attempt is made; the missed resolution means no retry.
@@ -174,7 +199,7 @@ namespace Opc.Ua.Client.Tests
         private void SetupTranslate(NodeId resolved)
         {
             BrowsePathResult result = resolved.IsNull
-                ? new BrowsePathResult { StatusCode = StatusCodes.Good, Targets = default }
+                ? new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch, Targets = default }
                 : new BrowsePathResult
                 {
                     StatusCode = StatusCodes.Good,

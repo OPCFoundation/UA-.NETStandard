@@ -139,7 +139,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                     Assert.That(SnapshotAttempts(attempts).Count(attempt => attempt == -1), Is.EqualTo(1));
                 });
 
-                ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await channel
                         .SendRequestAsync(CreateServerStatusReadRequest(), ct)
                         .AsTask()

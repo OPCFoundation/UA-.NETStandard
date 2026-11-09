@@ -8,7 +8,8 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": ["Thing", "uav:projection"],
+  "@type": "uav:projection",
+  "uav:projectionKind": "ThingDescription",
   "id": "urn:dev:opcua:asset:pump-01",
   "title": "Pump 01 asset",
   "description": "An asset authored as projections. It selects its own identity and organizes four groups, each of which is a projection that selects its members from the pump Thing Description. Nothing is copied and the pump is unaware that it is grouped.",
@@ -29,25 +30,25 @@
       "rel": "ua:Organizes",
       "href": "./10-group-process-data.jsonld",
       "uav:refName": "ProcessData",
-      "type": "application/td+json"
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
     },
     {
       "rel": "ua:Organizes",
       "href": "./11-group-condition-data.jsonld",
       "uav:refName": "ConditionData",
-      "type": "application/td+json"
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
     },
     {
       "rel": "ua:Organizes",
       "href": "./12-group-alarms.jsonld",
       "uav:refName": "Alarms",
-      "type": "application/td+json"
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
     },
     {
       "rel": "ua:Organizes",
       "href": "./13-group-management.jsonld",
       "uav:refName": "Management",
-      "type": "application/td+json"
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
     }
   ]
 }

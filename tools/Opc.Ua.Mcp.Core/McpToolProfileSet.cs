@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 
@@ -86,7 +87,7 @@ namespace Opc.Ua.Mcp
         public McpToolProfileSet(IEnumerable<McpToolProfile> profiles)
         {
             ArgumentNullException.ThrowIfNull(profiles);
-            uint bits = 0;
+            ulong bits = 0;
             foreach (McpToolProfile profile in profiles)
             {
                 ValidateProfile(profile);
@@ -95,7 +96,7 @@ namespace Opc.Ua.Mcp
             Bits = bits;
         }
 
-        private McpToolProfileSet(uint bits)
+        private McpToolProfileSet(ulong bits)
         {
             Bits = bits;
         }
@@ -116,6 +117,11 @@ namespace Opc.Ua.Mcp
         public int Count => BitOperations.PopCount(Bits);
 
         /// <summary>
+        /// Stores distinct profile membership across the complete supported 64-bit range.
+        /// </summary>
+        internal ulong Bits { get; }
+
+        /// <summary>
         /// Whether <paramref name="profile"/> is a member of the set.
         /// </summary>
         /// <param name="profile">The profile to test for membership.</param>
@@ -124,7 +130,7 @@ namespace Opc.Ua.Mcp
         /// </returns>
         public bool Contains(McpToolProfile profile)
         {
-            return Enum.IsDefined(profile) && (Bits & ToBit(profile)) != 0;
+            return Enum.IsDefined(profile) && (uint)profile < 64 && (Bits & ToBit(profile)) != 0;
         }
 
         /// <summary>
@@ -148,7 +154,7 @@ namespace Opc.Ua.Mcp
         /// <returns>The profiles in the set.</returns>
         public IEnumerable<McpToolProfile> Enumerate()
         {
-            uint bits = Bits;
+            ulong bits = Bits;
             foreach (McpToolProfile profile in Enum.GetValues<McpToolProfile>())
             {
                 if ((bits & ToBit(profile)) != 0)
@@ -222,7 +228,7 @@ namespace Opc.Ua.Mcp
                 return false;
             }
 
-            uint bits = 0;
+            ulong bits = 0;
             string[] tokens = value.Split(
                 [
                     kListSeparatorComma,
@@ -241,14 +247,25 @@ namespace Opc.Ua.Mcp
 
             foreach (string token in tokens)
             {
-                if (!Enum.TryParse(token, ignoreCase: true, out McpToolProfile profile) ||
-                    !Enum.IsDefined(profile))
+                string name = token.ToLowerInvariant() switch
+                {
+                    "wot-documents" => nameof(McpToolProfile.WotDocuments),
+                    "pubsub-runtime" => nameof(McpToolProfile.PubSubRuntime),
+                    "pubsub-configuration" => nameof(McpToolProfile.PubSubConfiguration),
+                    "pubsub-bridge" => nameof(McpToolProfile.PubSubBridge),
+                    "pubsub-security" => nameof(McpToolProfile.PubSubSecurity),
+                    "wot-runtime" => nameof(McpToolProfile.WotRuntime),
+                    _ => token
+                };
+                if (!Enum.TryParse(name, ignoreCase: true, out McpToolProfile profile) ||
+                    !Enum.IsDefined(profile) ||
+                    (uint)profile >= 64)
                 {
                     error = string.Format(
                         CultureInfo.InvariantCulture,
                         "Unknown MCP tool profile '{0}'. Valid profiles: {1}.",
                         token,
-                        string.Join(", ", Enum.GetNames<McpToolProfile>()));
+                        string.Join(", ", Enum.GetValues<McpToolProfile>().Select(ProfileName)));
                     return false;
                 }
                 bits |= ToBit(profile);
@@ -278,7 +295,7 @@ namespace Opc.Ua.Mcp
                 {
                     builder.Append(kListSeparatorComma);
                 }
-                builder.Append(profile.ToString());
+                builder.Append(ProfileName(profile));
             }
             return builder.ToString();
         }
@@ -298,7 +315,7 @@ namespace Opc.Ua.Mcp
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return unchecked((int)Bits);
+            return Bits.GetHashCode();
         }
 
         /// <summary>
@@ -318,6 +335,15 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
+        /// Creates a single-profile set for callers that do not use the implicit conversion.
+        /// </summary>
+        /// <param name="profile">The profile to wrap in a set.</param>
+        public static McpToolProfileSet FromMcpToolProfile(McpToolProfile profile)
+        {
+            return new McpToolProfileSet(profile);
+        }
+
+        /// <summary>
         /// Implicit conversion from a single profile so an existing
         /// single-profile call site can be re-typed to
         /// <see cref="McpToolProfileSet"/> without changing its intent.
@@ -325,25 +351,40 @@ namespace Opc.Ua.Mcp
         /// <param name="profile">The profile to wrap in a set.</param>
         public static implicit operator McpToolProfileSet(McpToolProfile profile)
         {
-            return new McpToolProfileSet(profile);
+            return FromMcpToolProfile(profile);
         }
 
-        internal uint Bits { get; }
-
-        private static uint ToBit(McpToolProfile profile)
+        private static ulong ToBit(McpToolProfile profile)
         {
-            return 1u << (int)profile;
+            return 1UL << (int)profile;
         }
 
         private static void ValidateProfile(McpToolProfile profile)
         {
-            if (!Enum.IsDefined(profile))
+            if (!Enum.IsDefined(profile) || (uint)profile >= 64)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(profile),
                     profile,
                     "Unknown MCP tool profile.");
             }
+        }
+
+        /// <summary>
+        /// Retains existing display names and canonical multiword profile slugs.
+        /// </summary>
+        private static string ProfileName(McpToolProfile profile)
+        {
+            return profile switch
+            {
+                McpToolProfile.WotDocuments => "wot-documents",
+                McpToolProfile.PubSubRuntime => "pubsub-runtime",
+                McpToolProfile.PubSubConfiguration => "pubsub-configuration",
+                McpToolProfile.PubSubBridge => "pubsub-bridge",
+                McpToolProfile.PubSubSecurity => "pubsub-security",
+                McpToolProfile.WotRuntime => "wot-runtime",
+                _ => profile.ToString()
+            };
         }
     }
 }

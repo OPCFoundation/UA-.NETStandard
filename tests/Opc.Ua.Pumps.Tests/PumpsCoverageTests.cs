@@ -488,22 +488,22 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         [Test]
-        public void EnumeratePumpsPropagatesAFailedBrowseCall()
+        public async Task EnumeratePumpsPropagatesAFailedBrowseCall()
         {
             PumpsClient pumps = CreateClientWhoseBrowseTimesOut();
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await CollectAsync(pumps.EnumeratePumpsUnderAsync(s_unknownNode))
                     .ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
         }
 
         [Test]
-        public void ReadPumpPropagatesAFailedBrowseCall()
+        public async Task ReadPumpPropagatesAFailedBrowseCall()
         {
             PumpsClient pumps = CreateClientWhoseBrowseTimesOut();
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await pumps.ReadPumpAsync(s_unknownNode).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
         }

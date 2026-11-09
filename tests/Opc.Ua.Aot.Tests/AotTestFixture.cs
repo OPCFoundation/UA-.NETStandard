@@ -41,12 +41,16 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public sealed class AotTestFixture : IAsyncInitializer, IAsyncDisposable
     {
-        public AotServerFixture<ReferenceServer> ServerFixture { get; private set; }
-        public ISession Session { get; private set; }
-        public string ServerUrl { get; private set; }
-        public ITelemetryContext Telemetry { get; private set; }
-        private ApplicationConfiguration m_clientConfiguration;
-        private string m_pkiRoot;
+        public AotServerFixture<ReferenceServer> ServerFixture { get; private set; } = null!;
+
+        public ISession Session => m_session
+            ?? throw new InvalidOperationException("The client session has not been initialized.");
+
+        public string ServerUrl { get; private set; } = null!;
+        public ITelemetryContext Telemetry { get; private set; } = null!;
+        private ISession? m_session;
+        private ApplicationConfiguration? m_clientConfiguration;
+        private string? m_pkiRoot;
 
         public async Task InitializeAsync()
         {
@@ -118,14 +122,15 @@ namespace Opc.Ua.Aot.Tests
             // Connect session
             EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                 m_clientConfiguration, ServerUrl, useSecurity: false,
-                Telemetry, CancellationToken.None).ConfigureAwait(false);
+                Telemetry, CancellationToken.None).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("No suitable server endpoint was found.");
             var configuredEndpoint = new ConfiguredEndpoint(
                 null, endpointDescription,
                 EndpointConfiguration.Create(m_clientConfiguration));
 
             var sessionFactory = new DefaultSessionFactory(Telemetry);
 #pragma warning disable CA2000 // Dispose objects before losing scope
-            Session = await sessionFactory.CreateAsync(
+            m_session = await sessionFactory.CreateAsync(
                 m_clientConfiguration,
                 configuredEndpoint,
                 updateBeforeConnect: false,
@@ -141,20 +146,26 @@ namespace Opc.Ua.Aot.Tests
         /// Creates a new independent <see cref="ISession"/> connected to the
         /// same server. Callers are responsible for closing and disposing.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The client fixture is not initialized or no suitable endpoint is available.
+        /// </exception>
         public async Task<ISession> CreateSessionAsync(
             string sessionName = "AotTestNewSession")
         {
+            ApplicationConfiguration clientConfiguration = m_clientConfiguration
+                ?? throw new InvalidOperationException("The client fixture has not been initialized.");
             EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
-                m_clientConfiguration, ServerUrl, useSecurity: false,
-                Telemetry, CancellationToken.None).ConfigureAwait(false);
+                clientConfiguration, ServerUrl, useSecurity: false,
+                Telemetry, CancellationToken.None).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("No suitable server endpoint was found.");
             var configuredEndpoint = new ConfiguredEndpoint(
                 null, endpointDescription,
-                EndpointConfiguration.Create(m_clientConfiguration));
+                EndpointConfiguration.Create(clientConfiguration));
 
             var sessionFactory = new DefaultSessionFactory(Telemetry);
 #pragma warning disable CA2000 // Dispose objects before losing scope
             return await sessionFactory.CreateAsync(
-                m_clientConfiguration,
+                clientConfiguration,
                 configuredEndpoint,
                 updateBeforeConnect: false,
                 sessionName: sessionName,
@@ -173,18 +184,24 @@ namespace Opc.Ua.Aot.Tests
         /// or <see cref="Client.Subscriptions.IPartitionedSubscription"/>.
         /// Callers are responsible for closing and disposing.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The client fixture is not initialized or no suitable endpoint is available.
+        /// </exception>
         public async Task<ManagedSession> CreateManagedSessionAsync(
             string sessionName = "AotTestManagedSession")
         {
+            ApplicationConfiguration clientConfiguration = m_clientConfiguration
+                ?? throw new InvalidOperationException("The client fixture has not been initialized.");
             EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
-                m_clientConfiguration, ServerUrl, useSecurity: false,
-                Telemetry, CancellationToken.None).ConfigureAwait(false);
+                clientConfiguration, ServerUrl, useSecurity: false,
+                Telemetry, CancellationToken.None).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("No suitable server endpoint was found.");
             var configuredEndpoint = new ConfiguredEndpoint(
                 null, endpointDescription,
-                EndpointConfiguration.Create(m_clientConfiguration));
+                EndpointConfiguration.Create(clientConfiguration));
 
 #pragma warning disable CA2000 // Ownership transfers to caller via returned ManagedSession.
-            return await new ManagedSessionBuilder(m_clientConfiguration, Telemetry)
+            return await new ManagedSessionBuilder(clientConfiguration, Telemetry)
                 .UseEndpoint(configuredEndpoint)
                 .WithSessionName(sessionName)
                 .WithSessionTimeout(TimeSpan.FromSeconds(60))
@@ -194,20 +211,20 @@ namespace Opc.Ua.Aot.Tests
 
         public async ValueTask DisposeAsync()
         {
-            if (Session != null)
+            if (m_session != null)
             {
-                Session.DeleteSubscriptionsOnClose = true;
-                await Session.CloseAsync(CancellationToken.None)
+                m_session.DeleteSubscriptionsOnClose = true;
+                await m_session.CloseAsync(CancellationToken.None)
                     .ConfigureAwait(false);
-                await Session.DisposeAsync().ConfigureAwait(false);
-                Session = null;
+                await m_session.DisposeAsync().ConfigureAwait(false);
+                m_session = null;
             }
 
             if (m_clientConfiguration?.CertificateManager is IDisposable disposableManager)
             {
                 disposableManager.Dispose();
-                m_clientConfiguration.CertificateManager = null;
             }
+            m_clientConfiguration = null;
 
             if (ServerFixture != null)
             {
@@ -215,7 +232,7 @@ namespace Opc.Ua.Aot.Tests
             }
 
             // Clean up pki folders
-            foreach (string dir in new[] {
+            foreach (string? dir in new[] {
                 m_pkiRoot,
                 Path.Combine(Directory.GetCurrentDirectory(), "pki") })
             {

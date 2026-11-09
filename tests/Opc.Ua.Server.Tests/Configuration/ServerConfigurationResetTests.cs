@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     if (outcome == 1)
                     {
-                        Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                             await manager.DrainPendingResetAsync(drainTimeout.Token).ConfigureAwait(false));
                     }
                     else
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
                 });
                 if (outcome == 1)
                 {
-                    Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                         await manager.DrainPendingResetAsync().ConfigureAwait(false));
                 }
 

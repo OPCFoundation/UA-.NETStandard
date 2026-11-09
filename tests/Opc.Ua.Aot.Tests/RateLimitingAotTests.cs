@@ -77,16 +77,16 @@ namespace Opc.Ua.Aot.Tests
                 new IPEndPoint(IPAddress.Loopback, 4840));
             bool admitted = provider.TryAcquire(
                 ResourceIsolationStage.ReassemblyBytes, ordinary, bytes.SharedCapacity,
-                out IDisposable shared, out _);
+                out IDisposable? shared, out _);
             using (shared)
             {
                 await Assert.That(admitted).IsTrue();
                 await Assert.That(provider.TryAcquire(
-                    ResourceIsolationStage.ReassemblyBytes, ordinary, 1, out IDisposable denied, out _)).IsFalse();
+                    ResourceIsolationStage.ReassemblyBytes, ordinary, 1, out IDisposable? denied, out _)).IsFalse();
                 denied?.Dispose();
                 bool protectedAdmission = provider.TryAcquire(
                     ResourceIsolationStage.ReassemblyBytes, bootstrap, bytes.BootstrapReserved,
-                    out IDisposable reserved, out _);
+                    out IDisposable? reserved, out _);
                 using (reserved)
                 {
                     await Assert.That(protectedAdmission).IsTrue();
@@ -127,12 +127,12 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(provider.ConnectionRateLimiter).IsNotNull();
 
             bool first = provider.TryAcquireSessionEstablishment(
-                out IDisposable lease1,
+                out IDisposable? lease1,
                 out _);
             await Assert.That(first).IsTrue();
 
             bool second = provider.TryAcquireSessionEstablishment(
-                out IDisposable lease2,
+                out IDisposable? lease2,
                 out _);
             await Assert.That(second).IsFalse();
             await Assert.That(lease2).IsNull();
@@ -140,7 +140,7 @@ namespace Opc.Ua.Aot.Tests
             lease1?.Dispose();
 
             bool third = provider.TryAcquireSessionEstablishment(
-                out IDisposable lease3,
+                out IDisposable? lease3,
                 out _);
             await Assert.That(third).IsTrue();
             lease3?.Dispose();
@@ -194,14 +194,14 @@ namespace Opc.Ua.Aot.Tests
 
         private sealed class BootstrapClassifier : IResourceIsolationClassifier
         {
-            public bool TryClassifyIngress(IPEndPoint remoteEndpoint, out ResourceIsolationIdentity identity)
+            public bool TryClassifyIngress(IPEndPoint? remoteEndpoint, out ResourceIsolationIdentity identity)
             {
                 identity = new ResourceIsolationIdentity("protected-loopback", ResourceIsolationClass.Bootstrap);
                 return remoteEndpoint?.Address.Equals(IPAddress.Loopback) == true;
             }
 
             public bool TryClassify(
-                SecureChannelContext channelContext, SessionBindingContext sessionBinding,
+                SecureChannelContext channelContext, SessionBindingContext? sessionBinding,
                 out ResourceIsolationIdentity identity)
             {
                 identity = default;

@@ -54,11 +54,10 @@ namespace Opc.Ua.XRegistry
     /// <para>
     /// The construction is deliberately lossy and one-way: distinct source
     /// identities can normalize to the same token, which is what the
-    /// disambiguator resolves. A consumer holding a source identity computes
-    /// the identifier in closed form and confirms it by reading the entity's
-    /// source-identity Property; a consumer holding only an identifier resolves
-    /// the entity by matching that Property. Never attempt to recover a source
-    /// identity by inverting this.
+    /// allocator resolves. A consumer obtains the assigned identifier from the
+    /// registry or resolves the exact source-identity Property. Allocation must
+    /// reuse the registry's durable authority mapping before constructing a new
+    /// candidate. Never attempt to recover an identity by inverting a token.
     /// </para>
     /// </remarks>
     public static class XRegistryIdentifier
@@ -73,6 +72,11 @@ namespace Opc.Ua.XRegistry
         /// The greatest length an identifier may have.
         /// </summary>
         public const int MaxLength = 128;
+
+        /// <summary>
+        /// The maximum collision ordinal attempted after all SHA-256 suffix lengths are occupied.
+        /// </summary>
+        public const uint MaxCollisionOrdinal = 1024;
 
         /// <summary>
         /// Constructs the symbolic identifier for a source identity.
@@ -93,16 +97,7 @@ namespace Opc.Ua.XRegistry
                 throw new ArgumentNullException(nameof(sourceIdentity));
             }
 
-            List<string> labels = CollectLabels(sourceIdentity);
-            if (labels.Count == 0)
-            {
-                return Empty;
-            }
-
-            string identifier = string.Join(".", labels);
-            return identifier.Length > MaxLength
-                ? Truncate(identifier, sourceIdentity)
-                : identifier;
+            return Allocate(sourceIdentity, [], string.Empty, MaxCollisionOrdinal);
         }
 
         /// <summary>
@@ -136,20 +131,53 @@ namespace Opc.Ua.XRegistry
                 throw new ArgumentNullException(nameof(siblings));
             }
 
-            string identifier = FromSourceIdentity(sourceIdentity);
-            foreach (string sibling in siblings)
+            return Allocate(sourceIdentity, siblings, string.Empty, MaxCollisionOrdinal);
+        }
+
+        /// <summary>
+        /// Allocates a bounded identifier in a domain's readable prefix, after the caller has
+        /// checked its durable exact-authority map under the same transaction.
+        /// </summary>
+        /// <param name="sourceIdentity">The exact source identity, never document bytes or a content digest.</param>
+        /// <param name="siblings">Occupied identifiers, compared case-insensitively.</param>
+        /// <param name="prefix">A readable domain prefix, such as <c>td.</c> or <c>tm.</c>.</param>
+        /// <param name="maxCollisionOrdinal">The finite positive bound for the final collision ordinal.</param>
+        /// <exception cref="ArgumentNullException">The source identity or prefix is null.</exception>
+        /// <exception cref="ArgumentException">The prefix is not an identifier-safe domain prefix.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">The ordinal bound is zero.</exception>
+        /// <exception cref="InvalidOperationException">All bounded candidates are occupied.</exception>
+        public static string FromSourceIdentity(
+            string sourceIdentity,
+            ArrayOf<string> siblings,
+            string prefix,
+            uint maxCollisionOrdinal = MaxCollisionOrdinal)
+        {
+            if (sourceIdentity is null)
             {
-                if (string.Equals(sibling, identifier, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentNullException(nameof(sourceIdentity));
+            }
+            if (prefix is null)
+            {
+                throw new ArgumentNullException(nameof(prefix));
+            }
+            if (prefix.Length > 32 ||
+                (prefix.Length > 0 &&
+                    (prefix[0] is '.' or '-' || prefix[^1] != '.' || Trim(prefix).Length == 0)))
+            {
+                throw new ArgumentException("A domain prefix must be readable and end with '.'.", nameof(prefix));
+            }
+            foreach (char c in prefix)
+            {
+                if (!IsAllowed(c))
                 {
-                    // Disambiguate appends "." plus the fixed-width disambiguator,
-                    // so the head has to be shortened first or the result would
-                    // exceed MaxLength - which Truncate already reserves room for.
-                    return identifier.Length > TruncatedLength
-                        ? Truncate(identifier, sourceIdentity)
-                        : Disambiguate(identifier, sourceIdentity);
+                    throw new ArgumentException("The domain prefix contains an invalid character.", nameof(prefix));
                 }
             }
-            return identifier;
+            if (maxCollisionOrdinal == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxCollisionOrdinal));
+            }
+            return Allocate(sourceIdentity, siblings.ToArray() ?? [], prefix, maxCollisionOrdinal);
         }
 
         /// <summary>
@@ -172,18 +200,23 @@ namespace Opc.Ua.XRegistry
             {
                 throw new ArgumentNullException(nameof(sourceIdentity));
             }
+            return IdentityHash(sourceIdentity)[..DisambiguatorLength];
+        }
+
+        private static string IdentityHash(string sourceIdentity)
+        {
 #if NET5_0_OR_GREATER
             byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(sourceIdentity));
 #else
             using var sha = SHA256.Create();
             byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(sourceIdentity));
 #endif
-            var builder = new StringBuilder(DisambiguatorLength);
-            for (int ii = 0; builder.Length < DisambiguatorLength; ii++)
+            var builder = new StringBuilder(64);
+            for (int ii = 0; ii < hash.Length; ii++)
             {
                 builder.Append(hash[ii].ToString("x2", CultureInfo.InvariantCulture));
             }
-            return builder.ToString(0, DisambiguatorLength);
+            return builder.ToString();
         }
 
         private static List<string> CollectLabels(string sourceIdentity)
@@ -218,22 +251,23 @@ namespace Opc.Ua.XRegistry
                 // An absolute URI with an authority: the host and its port
                 // become the authority, the URI path becomes the path, and the
                 // scheme, userinfo, query and fragment are discarded.
-                string rest = sourceIdentity.Substring(scheme + 3);
+                string rest = StripQueryAndFragment(sourceIdentity[(scheme + 3)..]);
                 int slash = rest.IndexOf('/', StringComparison.Ordinal);
-                string hostPart = slash < 0 ? rest : rest.Substring(0, slash);
-                string pathPart = slash < 0 ? string.Empty : rest.Substring(slash);
+                string hostPart = slash < 0 ? rest : rest[..slash];
+                string pathPart = slash < 0 ? string.Empty : rest[slash..];
                 pathPart = StripQueryAndFragment(pathPart);
 
                 int at = hostPart.LastIndexOf('@');
                 if (at >= 0)
                 {
-                    hostPart = hostPart.Substring(at + 1);
+                    hostPart = hostPart[(at + 1)..];
                 }
                 int colon = hostPart.LastIndexOf(':');
-                if (colon >= 0)
+                int bracket = hostPart.LastIndexOf(']');
+                if (colon >= 0 && colon > bracket)
                 {
-                    port = hostPart.Substring(colon + 1);
-                    hostPart = hostPart.Substring(0, colon);
+                    port = hostPart[(colon + 1)..];
+                    hostPart = hostPart[..colon];
                 }
                 authority = hostPart;
                 pathSegments = [.. pathPart.Split('/')];
@@ -316,7 +350,7 @@ namespace Opc.Ua.XRegistry
                 builder.Append(c);
                 return;
             }
-            char last = builder[builder.Length - 1];
+            char last = builder[^1];
             if ((c == '-' && last == '-') || (c == '.' && last == '.'))
             {
                 return;
@@ -336,7 +370,7 @@ namespace Opc.Ua.XRegistry
             {
                 end--;
             }
-            return value.Substring(start, end - start);
+            return value[start..end];
         }
 
         private static bool IsAllowed(char c)
@@ -348,7 +382,7 @@ namespace Opc.Ua.XRegistry
         private static string StripQueryAndFragment(string value)
         {
             int cut = value.IndexOfAny(['?', '#']);
-            return cut < 0 ? value : value.Substring(0, cut);
+            return cut < 0 ? value : value[..cut];
         }
 
         private static string PercentDecode(string segment)
@@ -367,30 +401,51 @@ namespace Opc.Ua.XRegistry
             }
         }
 
-        private static string Truncate(string identifier, string sourceIdentity)
+        private static string Allocate(
+            string sourceIdentity,
+            IEnumerable<string> siblings,
+            string prefix,
+            uint maxCollisionOrdinal)
         {
-            // Drop trailing labels - never the first, because it carries the
-            // reverse-DNS root a reader recognizes - until the result fits,
-            // then append the disambiguator.
-            var labels = new List<string>(identifier.Split('.'));
-            while (labels.Count > 1 && string.Join(".", labels).Length > TruncatedLength)
+            List<string> labels = CollectLabels(sourceIdentity);
+            string readable = prefix + (labels.Count == 0 ? Empty : string.Join(".", labels));
+            var occupied = new HashSet<string>(siblings, StringComparer.OrdinalIgnoreCase);
+            if (readable.Length <= MaxLength && !occupied.Contains(readable))
             {
-                labels.RemoveAt(labels.Count - 1);
+                return readable;
             }
-            string head = string.Join(".", labels);
-            if (head.Length > TruncatedLength)
+            string hash = IdentityHash(sourceIdentity);
+            for (int length = DisambiguatorLength; length <= hash.Length; length *= 2)
             {
-                head = Trim(head.Substring(0, TruncatedLength));
+                string candidate = WithSuffix(readable, hash[..length]);
+                if (!occupied.Contains(candidate))
+                {
+                    return candidate;
+                }
             }
-            return Disambiguate(head, sourceIdentity);
+            for (uint ordinal = 1; ; ordinal++)
+            {
+                string candidate = WithSuffix(
+                    readable,
+                    hash + "." + ordinal.ToString(CultureInfo.InvariantCulture));
+                if (!occupied.Contains(candidate))
+                {
+                    return candidate;
+                }
+                if (ordinal == maxCollisionOrdinal)
+                {
+                    throw new InvalidOperationException("The bounded identifier collision sequence is exhausted.");
+                }
+            }
         }
 
-        private static string Disambiguate(string identifier, string sourceIdentity)
+        private static string WithSuffix(string readable, string suffix)
         {
-            return identifier + "." + Disambiguator(sourceIdentity);
+            int budget = MaxLength - 1 - suffix.Length;
+            string prefix = readable[..Math.Min(readable.Length, budget)].TrimEnd('.', '-');
+            return prefix + "." + suffix;
         }
 
         private const int DisambiguatorLength = 8;
-        private const int TruncatedLength = 119;
     }
 }

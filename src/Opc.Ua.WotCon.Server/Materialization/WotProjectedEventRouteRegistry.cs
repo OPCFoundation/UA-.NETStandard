@@ -27,8 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
+using Opc.Ua.WotCon.Bindings;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
@@ -37,8 +40,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// owned by their generations, but an active Method can resolve an EventId
     /// delivered by a retiring generation of the same declaration and source.
     /// </summary>
-    internal sealed class WotProjectedEventRouteRegistry
+    internal sealed partial class WotProjectedEventRouteRegistry
     {
+        /// <summary>
+        /// Gets the event bindings registered for a notifier.
+        /// </summary>
+        /// <param name="notifierId">The notifier identifier.</param>
+        public ArrayOf<WotProjectedEventBinding> GetDescriptorBindings(NodeId notifierId)
+        {
+            lock (m_gate)
+            {
+                return m_bindings.Values.SelectMany(bindings => bindings)
+                    .Where(binding => binding.Notifier.NodeId == notifierId).Distinct().ToArrayOf();
+            }
+        }
+
+        /// <summary>
+        /// Registers a binding generation under its resource identity and event-affordance pointer.
+        /// </summary>
+        /// <param name="binding">The projected event binding to register.</param>
         public void Add(WotProjectedEventBinding binding)
         {
             lock (m_gate)
@@ -53,10 +73,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Removes a binding and releases its transparent registrations.
+        /// </summary>
+        /// <param name="binding">The WoT projected event binding.</param>
         public void Remove(WotProjectedEventBinding binding)
         {
             lock (m_gate)
             {
+                ReleaseTransparentBinding(binding);
                 var key = (binding.ResourceXid, binding.JsonPointer);
                 if (m_bindings.TryGetValue(key, out List<WotProjectedEventBinding>? generations))
                 {
@@ -69,6 +94,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Resolves a projected event identifier across compatible generations of the requesting binding.
+        /// </summary>
+        /// <param name="requester">The binding requesting resolution of a projected event identifier.</param>
+        /// <param name="eventId">The projected event identifier to resolve.</param>
+        /// <param name="originalEventId">The source event identifier when resolution succeeds.</param>
         public ServiceResult Resolve(
             WotProjectedEventBinding requester, ByteString eventId, out ByteString originalEventId)
         {
@@ -90,6 +121,46 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
             }
             originalEventId = default;
+            return new ServiceResult(StatusCodes.BadEventIdUnknown);
+        }
+
+        /// <summary>
+        /// Resolves a captured condition action requested by a binding.
+        /// </summary>
+        /// <param name="requester">The WoT projected event binding.</param>
+        /// <param name="eventId">The event ID.</param>
+        /// <param name="action">The action name.</param>
+        /// <param name="occurrence">The WoT captured event.</param>
+        /// <param name="capturedAction">The captured action.</param>
+        /// <param name="call">The call on the binding that resolved the action; the caller disposes it.</param>
+        public ServiceResult ResolveAction(
+            WotProjectedEventBinding requester,
+            ByteString eventId,
+            string action,
+            out WotCapturedEvent? occurrence,
+            out WotCapturedConditionAction? capturedAction,
+            out IDisposable? call)
+        {
+            WotProjectedEventBinding[] candidates;
+            lock (m_gate)
+            {
+                candidates = m_bindings.TryGetValue(
+                    (requester.ResourceXid, requester.JsonPointer), out List<WotProjectedEventBinding>? generations)
+                    ? [.. generations] : [];
+            }
+            foreach (WotProjectedEventBinding candidate in candidates)
+            {
+                if (candidate.SourceCondition == requester.SourceCondition &&
+                    candidate.EventTypeId == requester.EventTypeId &&
+                    WotProjectedEventSource.SameEndpoint(candidate.Source.Form, requester.Source.Form) &&
+                    candidate.TryResolveOwnAction(eventId, action, out occurrence, out capturedAction, out call))
+                {
+                    return ServiceResult.Good;
+                }
+            }
+            occurrence = null;
+            capturedAction = null;
+            call = null;
             return new ServiceResult(StatusCodes.BadEventIdUnknown);
         }
 

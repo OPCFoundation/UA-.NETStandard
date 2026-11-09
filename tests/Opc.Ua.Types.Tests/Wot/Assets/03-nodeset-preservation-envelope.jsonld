@@ -38,7 +38,7 @@
       "observable": true,
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;i=6001",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bi%3D6001",
           "contentType": "application/octet-stream",
           "op": [
             "readproperty",

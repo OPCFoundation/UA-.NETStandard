@@ -151,6 +151,79 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(record.GetProperty("Elapsed")!.PropertyType, Is.EqualTo(typeof(double?)));
         }
 
+        /// <summary>
+        /// Program transition records select captured state identifiers as well as display values.
+        /// </summary>
+        [Test]
+        [Category("Programs")]
+        public void ProgramEventRecordIncludesCapturedStateIds()
+        {
+            string model = Model.Replace(
+                "BaseType=\"ua:BaseEventType\"",
+                "BaseType=\"ua:ProgramTransitionEventType\"",
+                StringComparison.Ordinal);
+            string records = DataTypeModelTests.Generate(model, omitEventRecords: false)
+                .Single(f => f.Key.EndsWith("EventRecords.g.cs", StringComparison.Ordinal))
+                .Value;
+            string compactRecords = string.Concat(records.Where(c => !char.IsWhiteSpace(c)));
+
+            foreach (string name in new[] { "FromState", "ToState", "Transition" })
+            {
+                Assert.That(compactRecords, Does.Contain(
+                    $"global::Opc.Ua.BrowseNames.{name})," +
+                    "global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.Id)"));
+                Assert.That(compactRecords,
+                    Does.Contain($"{name}Id=global::Opc.Ua.EventRecordFieldReaders.GetVariant("));
+            }
+            Assert.That(compactRecords,
+                Does.Contain("IntermediateResult=global::Opc.Ua.EventRecordFieldReaders.GetVariant("));
+        }
+
+        /// <summary>
+        /// Concrete optional controls on a vendor Program retain the declared argument signature.
+        /// </summary>
+        [Test]
+        [Category("Programs")]
+        public void ProgramControlProxyPreservesSubtypeArguments()
+        {
+            const string model =
+                """
+                <opc:ModelDesign
+                  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                  xmlns:ua="http://opcfoundation.org/UA/"
+                  xmlns="http://test.org/UA/Program/"
+                  TargetNamespace="http://test.org/UA/Program/">
+                  <opc:Namespaces>
+                    <opc:Namespace Name="Program" Prefix="Test.Program">http://test.org/UA/Program/</opc:Namespace>
+                    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua">http://opcfoundation.org/UA/</opc:Namespace>
+                  </opc:Namespaces>
+                  <opc:ObjectType SymbolicName="ArgumentProgramType" BaseType="ua:ProgramStateMachineType">
+                    <opc:Children>
+                      <opc:Method SymbolicName="Start" ModellingRule="Optional">
+                        <opc:InputArguments>
+                          <opc:Argument Name="BatchId" DataType="ua:String" />
+                        </opc:InputArguments>
+                        <opc:OutputArguments>
+                          <opc:Argument Name="JobId" DataType="ua:NodeId" />
+                        </opc:OutputArguments>
+                      </opc:Method>
+                    </opc:Children>
+                  </opc:ObjectType>
+                </opc:ModelDesign>
+                """;
+            string proxies = DataTypeModelTests.Generate(model)
+                .Single(f => f.Key.EndsWith("TypeProxies.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(proxies, Does.Contain("ValueTask<global::Opc.Ua.NodeId> StartAsync("));
+                Assert.That(proxies, Does.Contain("string batchId,"));
+                Assert.That(proxies, Does.Contain("global::Opc.Ua.Variant.From(batchId)"));
+                Assert.That(proxies, Does.Contain("global::Opc.Ua.ProgramStateMachineTypeClient"));
+            });
+        }
+
         private const string Model =
             """
             <?xml version="1.0" encoding="utf-8" ?>

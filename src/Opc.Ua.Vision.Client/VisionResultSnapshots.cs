@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Vision.Perception;
+
 namespace Opc.Ua.Vision.Client
 {
     /// <summary>

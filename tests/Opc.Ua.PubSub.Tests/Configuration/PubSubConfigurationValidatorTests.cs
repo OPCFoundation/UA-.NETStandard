@@ -182,10 +182,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             PubSubConfigurationValidationResult result = NewValidator()
                 .Validate(NewMinimalValidConfig());
-            Assert.That(result.IsValid, Is.True, () => string.Join(
-                "; ",
-                (((PubSubConfigurationIssue[]?)result.Issues) ?? [])
-                    .Select(static i => $"{i.Code} {i.Path}: {i.Message}")));
+            Assert.That(
+                result.IsValid,
+                Is.True,
+                () => string.Join(
+                    "; ",
+                    (((PubSubConfigurationIssue[]?)result.Issues) ?? [])
+                        .Select(static i => $"{i.Code} {i.Path}: {i.Message}")));
         }
 
         [Test]
@@ -204,7 +207,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0002"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0002"));
         }
 
         [Test]
@@ -219,7 +222,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0001"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0001"));
         }
 
         [Test]
@@ -235,7 +238,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0003"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0003"));
         }
 
         [Test]
@@ -251,7 +254,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0004"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0004"));
         }
 
         [Test]
@@ -267,7 +270,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0005"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0005"));
         }
 
         [Test]
@@ -284,7 +287,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0007"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0007"));
         }
 
         [Test]
@@ -302,7 +305,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0007"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0007"));
         }
 
         [Test]
@@ -337,7 +340,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0010"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0010"));
         }
 
         [Test]
@@ -354,7 +357,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0011"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0011"));
         }
 
         [Test]
@@ -366,7 +369,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0012"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0012"));
         }
 
         [Test]
@@ -379,7 +382,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0013"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0013"));
         }
 
         [Test]
@@ -391,7 +394,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0020"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0020"));
         }
 
         [Test]
@@ -408,7 +411,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0021"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0021"));
         }
 
         [Test]
@@ -420,7 +423,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0023"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0023"));
         }
 
         [Test]
@@ -432,7 +435,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0022"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0022"));
         }
 
         [Test]
@@ -458,7 +461,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0030"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0030"));
         }
 
         [Test]
@@ -488,7 +491,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0040"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0040"));
         }
 
         [Test]
@@ -500,7 +503,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0041"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0041"));
         }
 
         [Test]
@@ -513,7 +516,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0042"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0042"));
         }
 
         [Test]
@@ -528,7 +531,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0050"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0050"));
         }
 
         [Test]
@@ -542,7 +545,45 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0051"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0051"));
+        }
+
+        [TestCase("Group1", true)]
+        [TestCase("group1", false)]
+        [TestCase("AnotherGroup", false)]
+        [TestCase("", false)]
+        public void OutOfBandKeyRegistrationAppliesOnlyToTheExactSecurityGroup(string registration, bool valid)
+        {
+            PubSubConfigurationDataType configuration = NewMinimalValidConfig();
+            WriterGroupDataType group = configuration.Connections[0].WriterGroups[0];
+            group.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            group.SecurityGroupId = "Group1";
+            var validator = new PubSubConfigurationValidator(s_allProfiles)
+            {
+                RegisteredSecurityGroupIds = [registration]
+            };
+            PubSubConfigurationValidationResult result = validator.Validate(configuration);
+
+            Assert.That(result.Issues.Contains(issue => issue.Code == "PSC0051"), Is.EqualTo(!valid));
+            Assert.That(group.SecurityKeyServices.IsEmpty, Is.True);
+            Assert.That(group.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(group.SecurityGroupId, Is.EqualTo("Group1"));
+        }
+
+        [Test]
+        public void RegistrationCannotAuthorizeMissingGroupOrUnsecuredConfiguration()
+        {
+            PubSubConfigurationDataType configuration = NewMinimalValidConfig();
+            WriterGroupDataType group = configuration.Connections[0].WriterGroups[0];
+            group.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            var validator = new PubSubConfigurationValidator(s_allProfiles)
+            {
+                RegisteredSecurityGroupIds = ["Group1", string.Empty]
+            };
+            Assert.That(validator.Validate(configuration).Issues.Contains(issue => issue.Code == "PSC0050"), Is.True);
+            group.SecurityMode = MessageSecurityMode.None;
+            group.SecurityGroupId = "Group1";
+            Assert.That(validator.Validate(configuration).Issues.Contains(issue => issue.Code == "PSC0052"), Is.True);
         }
 
         [Test]
@@ -556,7 +597,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0052"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0052"));
         }
 
         [Test]
@@ -571,7 +612,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0053"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0053"));
         }
 
         [Test]
@@ -600,7 +641,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0054"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0054"));
         }
 
         [Test]
@@ -656,7 +697,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0056"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0056"));
         }
 
         [Test]
@@ -679,7 +720,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0056"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0056"));
         }
 
         [Test]
@@ -697,7 +738,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
                 Has.None.Matches<PubSubConfigurationIssue>(
                     static i =>
-                        i.Code is "PSC0050" or
+                        i is not null && i.Code is "PSC0050" or
                         "PSC0051" or
                         "PSC0052" or
                         "PSC0053"));
@@ -717,7 +758,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0061"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0061"));
         }
 
         [Test]
@@ -730,7 +771,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0060"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0060"));
         }
 
         [Test]
@@ -754,7 +795,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0006"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0006"));
         }
 
         [Test]
@@ -772,11 +813,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = validator.Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0004"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0004"));
         }
 
         [Test]
-        [TestSpec("7.2.4.5.11",
+        [TestSpec(
+            "7.2.4.5.11",
             Summary = "RawData encoding requires MaxStringLength / ArrayDimensions")]
         public void Validate_RawDataWithMaxStringLength_NoPaddingWarning()
         {
@@ -787,16 +829,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 DataSetMetaData = new DataSetMetaDataType
                 {
                     Name = "DS1",
-                    Fields = new ArrayOf<FieldMetaData>(new[]
-                    {
-                        new FieldMetaData
+                    Fields = new ArrayOf<FieldMetaData>(
+                        new[]
                         {
-                            Name = "stringField",
-                            BuiltInType = (byte)BuiltInType.String,
-                            ValueRank = ValueRanks.Scalar,
-                            MaxStringLength = 10
-                        }
-                    })
+                            new FieldMetaData
+                            {
+                                Name = "stringField",
+                                BuiltInType = (byte)BuiltInType.String,
+                                ValueRank = ValueRanks.Scalar,
+                                MaxStringLength = 10
+                            }
+                        })
                 }
             };
             config.PublishedDataSets =
@@ -809,11 +852,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0025"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0025"));
         }
 
         [Test]
-        [TestSpec("7.2.4.5.11",
+        [TestSpec(
+            "7.2.4.5.11",
             Summary = "RawData String field without MaxStringLength must warn")]
         public void Validate_RawDataStringFieldWithoutMaxStringLength_EmitsWarning()
         {
@@ -824,16 +868,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 DataSetMetaData = new DataSetMetaDataType
                 {
                     Name = "DS1",
-                    Fields = new ArrayOf<FieldMetaData>(new[]
-                    {
-                        new FieldMetaData
+                    Fields = new ArrayOf<FieldMetaData>(
+                        new[]
                         {
-                            Name = "stringField",
-                            BuiltInType = (byte)BuiltInType.String,
-                            ValueRank = ValueRanks.Scalar,
-                            MaxStringLength = 0
-                        }
-                    })
+                            new FieldMetaData
+                            {
+                                Name = "stringField",
+                                BuiltInType = (byte)BuiltInType.String,
+                                ValueRank = ValueRanks.Scalar,
+                                MaxStringLength = 0
+                            }
+                        })
                 }
             };
             config.PublishedDataSets =
@@ -847,7 +892,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationIssue? issue = (((PubSubConfigurationIssue[]?)result.Issues) ?? [])
                 .FirstOrDefault(static i => i.Code == "PSC0025");
             Assert.That(issue, Is.Not.Null);
-            Assert.That(issue!.Severity,
+            Assert.That(
+                issue!.Severity,
                 Is.EqualTo(PubSubConfigurationIssueSeverity.Warning));
             Assert.That(issue.SpecClause, Is.EqualTo("7.2.4.5.11"));
             Assert.That(issue.Message, Does.Contain("RawData"));
@@ -855,7 +901,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         }
 
         [Test]
-        [TestSpec("7.2.4.5.11",
+        [TestSpec(
+            "7.2.4.5.11",
             Summary = "RawData array field without ArrayDimensions must warn")]
         public void Validate_RawDataArrayFieldWithoutArrayDimensions_EmitsWarning()
         {
@@ -866,15 +913,16 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 DataSetMetaData = new DataSetMetaDataType
                 {
                     Name = "DS1",
-                    Fields = new ArrayOf<FieldMetaData>(new[]
-                    {
-                        new FieldMetaData
+                    Fields = new ArrayOf<FieldMetaData>(
+                        new[]
                         {
-                            Name = "intArrayField",
-                            BuiltInType = (byte)BuiltInType.Int32,
-                            ValueRank = ValueRanks.OneDimension
-                        }
-                    })
+                            new FieldMetaData
+                            {
+                                Name = "intArrayField",
+                                BuiltInType = (byte)BuiltInType.Int32,
+                                ValueRank = ValueRanks.OneDimension
+                            }
+                        })
                 }
             };
             config.PublishedDataSets =
@@ -888,14 +936,16 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationIssue? issue = (((PubSubConfigurationIssue[]?)result.Issues) ?? [])
                 .FirstOrDefault(static i => i.Code == "PSC0025");
             Assert.That(issue, Is.Not.Null);
-            Assert.That(issue!.Severity,
+            Assert.That(
+                issue!.Severity,
                 Is.EqualTo(PubSubConfigurationIssueSeverity.Warning));
             Assert.That(issue.SpecClause, Is.EqualTo("7.2.4.5.11"));
             Assert.That(issue.Message, Does.Contain("intArrayField"));
         }
 
         [Test]
-        [TestSpec("7.2.4.5.11",
+        [TestSpec(
+            "7.2.4.5.11",
             Summary = "Non-RawData encoding suppresses PSC0025")]
         public void Validate_VariantEncodingWithoutBounds_NoPaddingWarning()
         {
@@ -906,16 +956,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 DataSetMetaData = new DataSetMetaDataType
                 {
                     Name = "DS1",
-                    Fields = new ArrayOf<FieldMetaData>(new[]
-                    {
-                        new FieldMetaData
+                    Fields = new ArrayOf<FieldMetaData>(
+                        new[]
                         {
-                            Name = "stringField",
-                            BuiltInType = (byte)BuiltInType.String,
-                            ValueRank = ValueRanks.Scalar,
-                            MaxStringLength = 0
-                        }
-                    })
+                            new FieldMetaData
+                            {
+                                Name = "stringField",
+                                BuiltInType = (byte)BuiltInType.String,
+                                ValueRank = ValueRanks.Scalar,
+                                MaxStringLength = 0
+                            }
+                        })
                 }
             };
             config.PublishedDataSets =
@@ -928,7 +979,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0025"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0025"));
         }
     }
 }

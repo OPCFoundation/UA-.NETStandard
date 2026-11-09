@@ -248,7 +248,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (IsGood(values[ii]))
+                if (IsGoodValue(values[ii]))
                 {
                     try
                     {

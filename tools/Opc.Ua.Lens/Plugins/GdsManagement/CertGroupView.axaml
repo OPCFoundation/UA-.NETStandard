@@ -1,0 +1,105 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.GdsManagement"
+             x:Class="UaLens.Plugins.GdsManagement.CertGroupView"
+             x:DataType="vm:GdsManagementPlugin">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+    <Style Selector="TextBlock.k">
+      <Setter Property="Foreground" Value="{DynamicResource TextDim}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="TextBlock.v">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <ItemsControl ItemsSource="{CompiledBinding CertGroups}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate DataType="vm:GdsCertGroupVm">
+          <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+                  Background="{DynamicResource PanelBg}" Padding="8" Margin="4,4,4,8">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Classes="h"
+                         Text="{CompiledBinding DisplayName}" />
+
+              <TextBlock Grid.Row="1" Classes="k" Margin="0,6,0,2"
+                         Text="Trusted certificates" />
+              <ListBox   Grid.Row="2" ItemsSource="{CompiledBinding Trusted}"
+                         Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}"
+                         BorderThickness="0" Height="100">
+                <ListBox.ItemTemplate>
+                  <DataTemplate DataType="vm:GdsAppCertItem">
+                    <Grid ColumnDefinitions="180,*,100">
+                      <TextBlock Grid.Column="0" Classes="v"
+                                 Text="{CompiledBinding Thumbprint}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="1" Classes="v"
+                                 Text="{CompiledBinding Subject}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="2" Classes="v"
+                                 Text="{CompiledBinding NotAfter}" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+
+              <TextBlock Grid.Row="3" Classes="k" Margin="0,6,0,2"
+                         Text="Issuer certificates" />
+              <ListBox   Grid.Row="4" ItemsSource="{CompiledBinding Issuers}"
+                         Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}"
+                         BorderThickness="0" Height="80">
+                <ListBox.ItemTemplate>
+                  <DataTemplate DataType="vm:GdsAppCertItem">
+                    <Grid ColumnDefinitions="180,*,100">
+                      <TextBlock Grid.Column="0" Classes="v"
+                                 Text="{CompiledBinding Thumbprint}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="1" Classes="v"
+                                 Text="{CompiledBinding Subject}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="2" Classes="v"
+                                 Text="{CompiledBinding NotAfter}" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </ScrollViewer>
+</UserControl>

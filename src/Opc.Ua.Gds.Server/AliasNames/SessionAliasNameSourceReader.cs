@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Gds.Server.AliasNames
 {
@@ -488,11 +489,17 @@ namespace Opc.Ua.Gds.Server.AliasNames
         [LoggerMessage(EventId = GdsServerCommonEventIds.AliasNameAggregation + 0, Level = LogLevel.Warning,
             Message = "AliasName source {ApplicationUri}: reading via {DiscoveryUrl} (secure: {Secure}) failed: {Error}")]
         public static partial void AliasNameSourceConnectFailed(
-            this ILogger logger, string? applicationUri, string discoveryUrl, bool secure, string error);
+            this ILogger logger,
+            [ApplicationIdentity] string? applicationUri,
+            [NetworkAddress] string discoveryUrl,
+            bool secure,
+            [SensitiveText] string error);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.AliasNameAggregation + 1, Level = LogLevel.Debug,
             Message = "AliasName source {ApplicationUri}: closing the session failed: {Error}")]
         public static partial void AliasNameSourceCloseFailed(
-            this ILogger logger, string? applicationUri, string error);
+            this ILogger logger,
+            [ApplicationIdentity] string? applicationUri,
+            [SensitiveText] string error);
     }
 }

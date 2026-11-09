@@ -402,6 +402,8 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             Fixture h = CreateFixture();
             var nodeId = new NodeId($"evt-read-{Guid.NewGuid():N}", 1);
+            HistoricalEventAuthorizationTestHelper.RegisterUnrestrictedEventNodes(
+                h.SystemContext, [ObjectTypeIds.BaseEventType, nodeId]);
             h.Provider.SetCapabilities(nodeId, HistorianNodeCapabilities.ReadWrite);
             HistorianOperationContext ctx = CreateContext(h.SystemContext);
 

@@ -24,8 +24,12 @@ The managers provide:
   byte-identical closes are side-effect free, and each Version permits one writer.
   `Delete(ExpectedEpoch)` gives optimistic concurrency on removal.
 - **Federation** — publishes a proxy for a resource hosted by a remote registry as a real
-  `ResourceType` instance carrying an `ExternalReference` and `ResourceUrl` while retaining
-  structural `ResourceId`, `VersionId`, and `Xid`.
+  `ResourceType` instance carrying immutable trusted `OriginRegistry`, a logical Resource
+  `ExternalReference` and an authorized `ResourceUrl`, while retaining its local structural
+  `ResourceId`, `VersionId`, and `Xid`. Enabled publication requires `FederationTarget` and an
+  `IXRegistryFederationProvider`, available through options or DI; document bytes and content-id
+  providers are independent. `UpdateEndpointAsync` verifies the existing binding before changing
+  only the locator. Failure or cancellation does not publish a partial binding.
 - **Events** — optionally emits the xRegistry 0.5.0 native OPC UA event hierarchy for successful
   registry interactions and projection reconciliation. Event support is disabled by default and
   requires an absolute `EventSourceUrl`; generated concrete `EventState` types are reported through

@@ -6,6 +6,9 @@ Server hosting for the source-generated **OPC 40200 Weighing Technology
 - `AddScales()` registers a DI-based node manager that loads the DI, IA,
   Machinery, PackML and Scales models; `ConfigureScales(...)` creates scales
   once the address space is ready.
+- `AddScalesToMachinery()` and `ConfigureScalesFor<MachineryNodeManager>()`
+  add the same complete runtime to an existing Machinery owner, without
+  another DI manager. The owner must include `MachineryParts.BuildingBlocks`.
 - `CreateScaleAsync(name, ScaleKind, builder => ...)` materialises any of the
   fourteen concrete scale types into the `DeviceSet` and the Machinery
   `Machines` folder; `CreateScaleSystemAsync` builds a scale system with its
@@ -20,6 +23,22 @@ Server hosting for the source-generated **OPC 40200 Weighing Technology
   piece-counting reference weighing, laboratory draft shields and calibration,
   vehicle inbound/outbound/one-pass weighing, feeder speed, totalizers and
   recipe management and processing.
+- Opt-in `WithItemProcessing` accepts typed registered catchweigher or
+  price-labeler acquisitions with dimensions, zones, source metadata and an
+  injectable price policy. `WithCompletedFills` counts completed totalizing-hopper
+  downpours against the selected product. Neither path operates physical equipment.
+- Acquisition publication awaits live-node notifications. Runtime calls and OPC UA
+  Value writes retain admission through their complete operations; synchronous
+  writes overlapping awaited publication reject with `BadInvalidState`.
+  Executor-bound async Value writes require a native async handler or core;
+  otherwise they return `BadNotSupported` without invoking synchronous handlers.
+  Stock writable variables receive a native async cache-write policy so product
+  targets, tolerances and recipe condition settings remain client-writable.
+  Direct node-property assignments require application serialization, and notification
+  sinks must not await another write or acquisition on the same scale.
+- `ConfigureRecipes` enables local, registered analog/edge observations explicitly.
+  Timeout leaves the step awaiting operator intervention; manual recipe execution
+  remains the default.
 
 ```csharp
 builder.Services.AddOpcUa()
@@ -45,6 +64,35 @@ builder.Services.AddOpcUa()
         scale.PublishLoad(1.234);
     });
 ```
+
+## Shared Machinery owner
+
+Register `AddMachinery()` followed by `AddScalesToMachinery()`. Configure with:
+
+```csharp
+serverBuilder.ConfigureScalesFor<MachineryNodeManager>(async (context, ct) =>
+{
+    ScaleHandle scale = await context.Runtime.CreateScaleAsync(
+        new QualifiedName("Scale1", context.Runtime.InstanceNamespaceIndex),
+        ScaleKind.Simple,
+        b => b.WithIdentification(identification)
+            .WithWeighingRange(new WeighingRangeDefinition(0, 30, 0.005, 0.01))
+            .WithPackMLState(),
+        ct);
+    scale.PublishLoad(1.234);
+});
+```
+
+`ScalesRuntime` shares all scale kinds, systems, subdevices and controllers with
+the standalone manager. Instances and AMB asset additions stay on the same owner,
+including when Pumps is added with `AddPumpsToMachinery()`. Nested events reach
+their system and server subscribers. Shutdown releases file buffers, handles and
+session lock subscriptions.
+
+For direct construction, pass `ScalesMachineryModelProvider` to the stock
+`MachineryNodeManager` alongside its building-block provider, then call
+`owner.CreateScalesRuntime()` after initialization. No inheritance changes are
+required, and the stock owner manages disposal.
 
 ## Target frameworks
 

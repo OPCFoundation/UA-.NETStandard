@@ -69,7 +69,13 @@ namespace Opc.Ua.WotCon.Bindings.Http
                     string.Equals(form.Endpoint.Scheme, "https", StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>
+        /// Opens a live channel for the supplied compiled form.
+        /// </summary>
         /// <inheritdoc/>
+        /// <param name="form">The WoT compiled form.</param>
+        /// <param name="context">The WoT executor context.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "The client and channel are owned by the returned channel, disposed via DisposeAsync.")]
@@ -83,6 +89,14 @@ namespace Opc.Ua.WotCon.Bindings.Http
             if (context is null)
             {
                 throw new ArgumentNullException(nameof(context));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            bool registered = context.Codecs.TrySelect(form.Payload.ContentType, out IWotPayloadCodec codec);
+            if (form.AffordanceKind != WotAffordanceKind.Property &&
+                (!registered || !string.Equals(codec.Id, form.Payload.CodecId, StringComparison.Ordinal)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The compiled HTTP payload codec is not registered.");
             }
             ImmutableArray<KeyValuePair<string, string>> defaultHeaders =
                 SnapshotDefaultHeaders(m_options.DefaultHeaders);
@@ -111,7 +125,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 })
                 : clientFactory!.Invoke();
             IWotBindingChannel channel = new HttpWotBindingChannel(
-                client, ownsClient, manualRedirects: ownsClient, defaultHeaders, form, context, m_options);
+                client, ownsClient, manualRedirects: ownsClient, defaultHeaders, form, context, m_options, codec);
             return new ValueTask<IWotBindingChannel>(channel);
         }
 

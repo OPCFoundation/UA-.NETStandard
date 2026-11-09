@@ -93,12 +93,13 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
             if (!TryParseUri(href, out Uri uri) ||
+                string.IsNullOrWhiteSpace(uri.Host) ||
                 (!string.Equals(uri.Scheme, "mqtt", StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(uri.Scheme, "mqtts", StringComparison.OrdinalIgnoreCase)))
             {
                 diagnostics.Add(WotBindingDiagnostic.Error(
                     WotBindingDiagnosticCode.InvalidHref,
-                    "The href is not a valid absolute mqtt(s) URI.", form.Pointer("href")));
+                    "The href must be an absolute mqtt(s) URI with a broker host.", form.Pointer("href")));
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 

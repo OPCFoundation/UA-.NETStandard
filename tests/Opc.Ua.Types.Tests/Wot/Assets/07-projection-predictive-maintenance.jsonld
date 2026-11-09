@@ -7,7 +7,8 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": ["Thing", "uav:projection"],
+  "@type": "uav:projection",
+  "uav:projectionKind": "ThingDescription",
   "id": "urn:dev:opcua:view:pump-predictive-maintenance",
   "title": "Pump condition view",
   "description": "A projection document. It defines no affordance of its own: it names two source Thing Descriptions and states which of their affordances the predictive-maintenance view is assembled from, annotating the selection with maintenance semantics. The sources stay pristine and no definition is copied.",

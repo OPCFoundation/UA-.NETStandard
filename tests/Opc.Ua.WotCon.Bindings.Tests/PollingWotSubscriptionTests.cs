@@ -246,7 +246,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Task dispose = subscription.DisposeAsync().AsTask();
             Task first = await Task.WhenAny(dispose, Task.Delay(5000)).ConfigureAwait(false);
             Assert.That(first, Is.SameAs(dispose), "DisposeAsync must not hang after a callback fault.");
-            Assert.DoesNotThrowAsync(async () => await dispose.ConfigureAwait(false),
+            await Assert.DoesNotThrowAsync(async () => await dispose.ConfigureAwait(false),
                 "DisposeAsync must never rethrow a transient poll/callback fault.");
         }
 
@@ -268,7 +268,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             // Cooperative cancellation on dispose stops the loop cleanly without
             // surfacing an OperationCanceledException from DisposeAsync.
-            Assert.DoesNotThrowAsync(async () => await subscription.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await subscription.DisposeAsync().ConfigureAwait(false));
         }
 
         [Test]
@@ -284,7 +284,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Task faulted = await Task.WhenAny(policy.Faulted, Task.Delay(5000)).ConfigureAwait(false);
             Assert.That(faulted, Is.SameAs(policy.Faulted), "The retry policy fault must be observed first.");
 
-            Assert.DoesNotThrowAsync(async () => await subscription.DisposeAsync().ConfigureAwait(false),
+            await Assert.DoesNotThrowAsync(async () => await subscription.DisposeAsync().ConfigureAwait(false),
                 "DisposeAsync must not rethrow residual non-cancellation loop faults.");
         }
     }

@@ -21,14 +21,13 @@
   <!-- Opc.Ua.IA and Opc.Ua.PackML are referenced explicitly: the node manager
        loads IA ahead of Machinery (Machinery's Stacklight is typed by the IA
        BasicStacklightType) and PackML ahead of Scales (ScaleDeviceType/State
-       is typed by the PackML state machines). Opc.Ua.Machinery.Server is
-       deliberately not referenced, as in Opc.Ua.Pumps.Server: it would pull
-       ISA-95 Job Control, energy, process-value and result transfer into
-       every weighing server. -->
+       is typed by the PackML state machines). Machinery.Server supplies
+       the additive model-provider and runtime-lifetime composition seams. -->
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Scales\Opc.Ua.Scales.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.IA\Opc.Ua.IA.csproj" />
     <ProjectReference Include="..\Opc.Ua.PackML\Opc.Ua.PackML.csproj" />
   </ItemGroup>

@@ -97,8 +97,8 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
         {
             ArgumentNullException.ThrowIfNull(context);
 
-            IWebApiServer server = context.RequestServices
-                .GetRequiredService<IWebApiServer>();
+            IWebApiServer server = context.Features.Get<WebApiServer>() ??
+                context.RequestServices.GetRequiredService<IWebApiServer>();
             ISessionlessIdentityProvider? identityProvider = context.RequestServices
                 .GetService<ISessionlessIdentityProvider>();
             ILoggerFactory loggerFactory = context.RequestServices
@@ -194,6 +194,13 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                     logger.FailedToEncodeBody(ex, typeof(TResponse).Name, SanitizePathForLog(request.Path));
                 }
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            }
+            finally
+            {
+                // encoded or abandoned: the response is no longer read, which releases
+                // pooled and leased payloads (a Publish response's notification message),
+                // as the binary transports do.
+                (dispatched as IPooledEncodeable)?.Reuse();
             }
         }
 

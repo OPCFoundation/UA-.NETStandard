@@ -974,7 +974,7 @@ namespace Opc.Ua.Server.Tests
 
             await data.DisposeAsync().ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(async () => await data.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await data.DisposeAsync().ConfigureAwait(false));
         }
 
         [Test]
@@ -1001,7 +1001,7 @@ namespace Opc.Ua.Server.Tests
 
             data.Dispose();
 
-            Assert.DoesNotThrowAsync(async () => await data.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await data.DisposeAsync().ConfigureAwait(false));
             Assert.That(counts.Total, Is.EqualTo(5));
             Assert.That(counts.SubscriptionAsync, Is.EqualTo(1));
             Assert.That(counts.SubscriptionSync, Is.Zero);

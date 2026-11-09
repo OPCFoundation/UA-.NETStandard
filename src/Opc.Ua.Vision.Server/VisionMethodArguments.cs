@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Vision.Server.Builders;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server
 {
     /// <summary>
     /// Declares the <c>InputArguments</c> and <c>OutputArguments</c>
-    /// Properties of the Vision Methods.
+    /// Properties of the Vision Perception.Methods.
     /// </summary>
     /// <remarks>
     /// The NodeSet now browse-names its Argument Properties correctly, so the
@@ -56,8 +56,8 @@ namespace Opc.Ua.Vision.Server
     {
         internal static void Declare(ISystemContext context, RunInferenceMethodState method)
         {
-            SetInput(context, method, Argument("Timestamp", global::Opc.Ua.DataTypeIds.DateTime));
-            SetOutput(context, method, Argument("ResultId", global::Opc.Ua.DataTypeIds.String));
+            SetInput(context, method, Argument("Timestamp", DataTypeIds.DateTime));
+            SetOutput(context, method, Argument("ResultId", DataTypeIds.String));
         }
 
         internal static void DeclareStartContinuous(ISystemContext context, MethodState method)
@@ -77,14 +77,15 @@ namespace Opc.Ua.Vision.Server
             SetInput(
                 context,
                 method,
-                Argument("Purpose", VisionDataType(context, DataTypeIds.VisionFeedbackPurposeEnum)),
+                Argument("Purpose", VisionDataType(context, Perception.DataTypeIds.VisionFeedbackPurposeEnum)),
                 Argument(
                     "Detections",
-                    VisionDataType(context, DataTypeIds.VisionDetectionDataType),
+                    VisionDataType(context, Perception.DataTypeIds.VisionDetectionDataType),
                     ValueRanks.OneDimension),
-                Argument("FrameReference", VisionDataType(context, DataTypeIds.VisionImageReferenceDataType)),
-                Argument("InlineImage", global::Opc.Ua.DataTypeIds.ByteString),
-                Argument("SceneIsEmpty", global::Opc.Ua.DataTypeIds.Boolean));
+                Argument("FrameReference", VisionDataType(context,
+                    Perception.DataTypeIds.VisionImageReferenceDataType)),
+                Argument("InlineImage", DataTypeIds.ByteString),
+                Argument("SceneIsEmpty", DataTypeIds.Boolean));
             SetOutput(context, method);
         }
 
@@ -93,11 +94,11 @@ namespace Opc.Ua.Vision.Server
             SetInput(
                 context,
                 method,
-                Argument("ResultId", global::Opc.Ua.DataTypeIds.String),
-                Argument("Evaluation", VisionDataType(context, DataTypeIds.VisionResultEvaluationEnum)),
+                Argument("ResultId", DataTypeIds.String),
+                Argument("Evaluation", VisionDataType(context, Perception.DataTypeIds.VisionResultEvaluationEnum)),
                 Argument(
                     "Characteristics",
-                    VisionDataType(context, DataTypeIds.VisionCharacteristicDataType),
+                    VisionDataType(context, Perception.DataTypeIds.VisionCharacteristicDataType),
                     ValueRanks.OneDimension));
             SetOutput(context, method);
         }
@@ -107,19 +108,19 @@ namespace Opc.Ua.Vision.Server
             SetInput(
                 context,
                 method,
-                Argument("ResultId", global::Opc.Ua.DataTypeIds.String),
-                Argument("Purpose", VisionDataType(context, DataTypeIds.VisionFeedbackPurposeEnum)),
+                Argument("ResultId", DataTypeIds.String),
+                Argument("Purpose", VisionDataType(context, Perception.DataTypeIds.VisionFeedbackPurposeEnum)),
                 Argument(
                     "CorrectedDetections",
-                    VisionDataType(context, DataTypeIds.VisionDetectionDataType),
+                    VisionDataType(context, Perception.DataTypeIds.VisionDetectionDataType),
                     ValueRanks.OneDimension),
                 Argument(
                     "CorrectedCharacteristics",
-                    VisionDataType(context, DataTypeIds.VisionCharacteristicDataType),
+                    VisionDataType(context, Perception.DataTypeIds.VisionCharacteristicDataType),
                     ValueRanks.OneDimension),
-                Argument("Reason", global::Opc.Ua.DataTypeIds.LocalizedText),
-                Argument("InlineImage", global::Opc.Ua.DataTypeIds.ByteString),
-                Argument("RetractAll", global::Opc.Ua.DataTypeIds.Boolean));
+                Argument("Reason", DataTypeIds.LocalizedText),
+                Argument("InlineImage", DataTypeIds.ByteString),
+                Argument("RetractAll", DataTypeIds.Boolean));
             SetOutput(context, method);
         }
 
@@ -128,9 +129,9 @@ namespace Opc.Ua.Vision.Server
             SetInput(
                 context,
                 method,
-                Argument("Purpose", VisionDataType(context, DataTypeIds.VisionFeedbackPurposeEnum)),
-                Argument("Image", VisionDataType(context, DataTypeIds.VisionImageReferenceDataType)),
-                Argument("ResultId", global::Opc.Ua.DataTypeIds.String));
+                Argument("Purpose", VisionDataType(context, Perception.DataTypeIds.VisionFeedbackPurposeEnum)),
+                Argument("Image", VisionDataType(context, Perception.DataTypeIds.VisionImageReferenceDataType)),
+                Argument("ResultId", DataTypeIds.String));
             SetOutput(context, method);
         }
 
@@ -139,19 +140,20 @@ namespace Opc.Ua.Vision.Server
             SetInput(
                 context,
                 method,
-                Argument("Endpoint", global::Opc.Ua.DataTypeIds.NodeId),
-                Argument("ProfileName", global::Opc.Ua.DataTypeIds.String),
-                Argument("PreferredProtocol", VisionDataType(context, DataTypeIds.VisionStreamProtocolEnum)));
+                Argument("Endpoint", DataTypeIds.NodeId),
+                Argument("ProfileName", DataTypeIds.String),
+                Argument("PreferredProtocol", VisionDataType(context,
+                    Perception.DataTypeIds.VisionStreamProtocolEnum)));
             SetOutput(
                 context,
                 method,
-                Argument("Session", VisionDataType(context, DataTypeIds.VisionStreamSessionDataType)),
-                Argument("Endpoint", global::Opc.Ua.DataTypeIds.NodeId));
+                Argument("Session", VisionDataType(context, Perception.DataTypeIds.VisionStreamSessionDataType)),
+                Argument("Endpoint", DataTypeIds.NodeId));
         }
 
         internal static void Declare(ISystemContext context, ReleaseStreamEndpointMethodState method)
         {
-            SetInput(context, method, Argument("SessionToken", global::Opc.Ua.DataTypeIds.ByteString));
+            SetInput(context, method, Argument("SessionToken", DataTypeIds.ByteString));
             SetOutput(context, method);
         }
 
@@ -160,12 +162,12 @@ namespace Opc.Ua.Vision.Server
             SetInput(
                 context,
                 method,
-                Argument("Endpoint", global::Opc.Ua.DataTypeIds.NodeId),
-                Argument("Codec", VisionDataType(context, DataTypeIds.VisionVideoCodecEnum)),
-                Argument("Width", global::Opc.Ua.DataTypeIds.UInt32),
-                Argument("Height", global::Opc.Ua.DataTypeIds.UInt32),
-                Argument("FrameRate", global::Opc.Ua.DataTypeIds.Double),
-                Argument("Bitrate", global::Opc.Ua.DataTypeIds.UInt32));
+                Argument("Endpoint", DataTypeIds.NodeId),
+                Argument("Codec", VisionDataType(context, Perception.DataTypeIds.VisionVideoCodecEnum)),
+                Argument("Width", DataTypeIds.UInt32),
+                Argument("Height", DataTypeIds.UInt32),
+                Argument("FrameRate", DataTypeIds.Double),
+                Argument("Bitrate", DataTypeIds.UInt32));
             SetOutput(context, method);
         }
 
@@ -174,8 +176,8 @@ namespace Opc.Ua.Vision.Server
             SetInput(
                 context,
                 method,
-                Argument("StreamEndpoint", global::Opc.Ua.DataTypeIds.NodeId),
-                Argument("ClipEndpoint", global::Opc.Ua.DataTypeIds.NodeId));
+                Argument("StreamEndpoint", DataTypeIds.NodeId),
+                Argument("ClipEndpoint", DataTypeIds.NodeId));
             SetOutput(context, method);
         }
 
@@ -184,17 +186,17 @@ namespace Opc.Ua.Vision.Server
             SetInput(
                 context,
                 method,
-                Argument("Endpoint", global::Opc.Ua.DataTypeIds.NodeId),
-                Argument("ResultId", global::Opc.Ua.DataTypeIds.String),
-                Argument("Timestamp", global::Opc.Ua.DataTypeIds.DateTime),
-                Argument("Format", VisionDataType(context, DataTypeIds.VisionClipFormatEnum)),
-                Argument("RequestInline", global::Opc.Ua.DataTypeIds.Boolean));
+                Argument("Endpoint", DataTypeIds.NodeId),
+                Argument("ResultId", DataTypeIds.String),
+                Argument("Timestamp", DataTypeIds.DateTime),
+                Argument("Format", VisionDataType(context, Perception.DataTypeIds.VisionClipFormatEnum)),
+                Argument("RequestInline", DataTypeIds.Boolean));
             SetOutput(
                 context,
                 method,
-                Argument("Image", VisionDataType(context, DataTypeIds.VisionImageReferenceDataType)),
-                Argument("Endpoint", global::Opc.Ua.DataTypeIds.NodeId),
-                Argument("InlineImage", global::Opc.Ua.DataTypeIds.ByteString));
+                Argument("Image", VisionDataType(context, Perception.DataTypeIds.VisionImageReferenceDataType)),
+                Argument("Endpoint", DataTypeIds.NodeId),
+                Argument("InlineImage", DataTypeIds.ByteString));
         }
 
         private static void SetInput(

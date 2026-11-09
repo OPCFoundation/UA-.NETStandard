@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
@@ -110,6 +112,35 @@ namespace Opc.Ua.Di.Tests
             Assert.That(units, Does.Contain("DI DeviceTopology"));
             Assert.That(units, Does.Not.Contain("DI Offline"));
             Assert.That(m_fixture.Manager.ServerProfiles.ToList(), Does.Not.Contain(DeviceIntegrationHost));
+        }
+
+        [Test]
+        public void ComposedContributorIsDeduplicatedAndReevaluated()
+        {
+            var contributor = new Mock<IConformanceContributor>();
+            bool enabled = true;
+            contributor.SetupGet(value => value.ConformanceUnits)
+                .Returns(() => enabled ? [new QualifiedName("DI Offline")] : ArrayOf<QualifiedName>.Empty);
+            contributor.SetupGet(value => value.ServerProfiles)
+                .Returns(() => enabled ? ["urn:example:profile:test"] : ArrayOf<string>.Empty);
+            m_fixture.Manager.RegisterConformanceContributor(contributor.Object);
+            m_fixture.Manager.RegisterConformanceContributor(contributor.Object);
+            Assert.That(Units().Count(unit => unit == "DI Offline"), Is.EqualTo(1));
+            Assert.That(m_fixture.Manager.ServerProfiles.ToList(), Does.Contain(DeviceIntegrationHost));
+            Assert.That(
+                m_fixture.Manager.ServerProfiles.ToList().Count(profile => profile == "urn:example:profile:test"),
+                Is.EqualTo(1));
+            enabled = false;
+            Assert.That(Units(), Does.Not.Contain("DI Offline"));
+            Assert.That(m_fixture.Manager.ServerProfiles.ToList(), Does.Not.Contain(DeviceIntegrationHost));
+            Assert.That(m_fixture.Manager.ServerProfiles.ToList(), Does.Not.Contain("urn:example:profile:test"));
+        }
+
+        [Test]
+        public void ComposedContributorRejectsNullAndSelfReference()
+        {
+            Assert.Throws<ArgumentNullException>(() => m_fixture.Manager.RegisterConformanceContributor(null!));
+            Assert.Throws<ArgumentException>(() => m_fixture.Manager.RegisterConformanceContributor(m_fixture.Manager));
         }
 
         [TestCase(SoftwareLoadingMode.Package)]

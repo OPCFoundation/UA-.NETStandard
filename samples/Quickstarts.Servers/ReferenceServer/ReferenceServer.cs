@@ -64,8 +64,22 @@ namespace Quickstarts.ReferenceServer
         /// Create reference server
         /// </summary>
         public ReferenceServer(ITelemetryContext telemetry)
+            : this(telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a reference server with a master factory fixed before startup.
+        /// </summary>
+        internal ReferenceServer(
+            ITelemetryContext telemetry,
+            Func<IServerInternal, ApplicationConfiguration,
+                ArrayOf<IAsyncNodeManagerFactory>, MasterNodeManager>? masterNodeManagerFactory)
             : base(telemetry)
         {
+            m_masterNodeManagerFactory = masterNodeManagerFactory ??
+                (static (server, configuration, factories) =>
+                    new MasterNodeManager(server, configuration, null, factories));
             m_telemetry = telemetry;
             m_userDatabase = new LinqUserDatabase();
             m_userDatabase.CreateUser("sysadmin", "demo"u8, [Role.SecurityAdmin, Role.AuthenticatedUser]);
@@ -149,61 +163,9 @@ namespace Quickstarts.ReferenceServer
         {
             m_logger.CreatingReferenceServerNodeManager();
 
-            var nodeManagers = new List<INodeManager>();
-            var asyncNodeManagers = new List<IAsyncNodeManager>();
-
-            if (ProvisioningMode)
+            if (!ProvisioningMode)
             {
-                m_logger.ProvisioningModeEnabled();
-                nodeManagers = [];
-            }
-            else
-            {
-                ReferenceNodeManager? referenceNodeManager = null;
-                try
-                {
-                    // CA2000: ownership-transfer pattern — nulled after handoff to asyncNodeManagers.
-#pragma warning disable CA2000
-                    referenceNodeManager = new ReferenceNodeManager(
-                        server,
-                        configuration,
-                        UseSamplingGroupsInReferenceNodeManager);
-#pragma warning restore CA2000
-                    asyncNodeManagers = [referenceNodeManager];
-                    referenceNodeManager = null;
-                }
-                finally
-                {
-                    // CA1508: only non-null on the exceptional path (try block clears it on success).
-#pragma warning disable CA1508
-                    referenceNodeManager?.Dispose();
-#pragma warning restore CA1508
-                }
-
-                foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
-                {
-                    nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
-                }
-
-                foreach (IAsyncNodeManagerFactory nodeManagerFactory in AsyncNodeManagerFactories)
-                {
-                    asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
-                }
-            }
-
-            if (EnableFileSystemNodeManager)
-            {
-                // FileSystem node manager — exposes the configured
-                // provider (defaults to a temp folder) under the standard
-                // Server.FileSystem object (i=16314). The reference server is a
-                // test server, so anonymous clients may modify the mount too.
-                Opc.Ua.Server.FileSystem.IFileSystemProvider provider =
-                    FileSystemProvider ?? CreateDefaultFileSystemProvider();
-                asyncNodeManagers.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManager(
-                    server, configuration, provider)
-                {
-                    AllowAnonymousWrite = true
-                });
+                server.NamespaceUris.GetIndexOrAppend(Namespaces.ReferenceServer);
             }
 
             // OPC UA Part 17 — AliasName provider for the reference server.
@@ -218,20 +180,58 @@ namespace Quickstarts.ReferenceServer
             // service of standard categories; apps wanting their own
             // categories with full Add/Delete support add an
             // AliasNameNodeManager configured with their own namespace.
-            ConfigureAliasNameStore(server);
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories = GetReferenceInitialNodeManagerFactories();
+            MasterNodeManager master = m_masterNodeManagerFactory(server, configuration, initialFactories);
+            try
+            {
+                ConfigureAliasNameStore(server);
+                return master;
+            }
+            catch
+            {
+                master.Dispose();
+                throw;
+            }
+        }
 
-            return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
+        /// <summary>
+        /// Composes the sample models and registered application factories in address-space initialization order.
+        /// </summary>
+        protected ArrayOf<IAsyncNodeManagerFactory> GetReferenceInitialNodeManagerFactories()
+        {
+            var factories = new List<IAsyncNodeManagerFactory>();
+            if (ProvisioningMode)
+            {
+                m_logger.ProvisioningModeEnabled();
+            }
+            else
+            {
+                factories.Add(new ReferenceStartupFactory(UseSamplingGroupsInReferenceNodeManager));
+            }
+            if (EnableFileSystemNodeManager)
+            {
+                factories.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManagerFactory(
+                    FileSystemProvider ?? CreateDefaultFileSystemProvider())
+                {
+                    AllowAnonymousWrite = true
+                });
+            }
+            if (!ProvisioningMode)
+            {
+                factories.AddRange(GetInitialNodeManagerFactories().ToList());
+            }
+            return factories.ToArrayOf();
         }
 
         /// <inheritdoc/>
-        protected override Opc.Ua.Server.UserManagement.IUserManagement CreateUserManagement(
+        protected override IUserManagement CreateUserManagement(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
             return m_userManagement;
         }
 
-        private static void ConfigureAliasNameStore(IServerInternal server)
+        private void ConfigureAliasNameStore(IServerInternal server)
         {
             if (server is not Opc.Ua.Server.AliasNames.IAliasNameStoreRegistryProvider provider)
             {
@@ -299,14 +299,32 @@ namespace Quickstarts.ReferenceServer
                 [aliases]);
 #pragma warning restore CA2000
 
-            int refServerNsIndex = server.NamespaceUris.GetIndex(
-                Namespaces.ReferenceServer);
-            ushort refServerNs = refServerNsIndex >= 0
-                ? (ushort)refServerNsIndex
-                : ushort.MaxValue;
+            // The application namespace remains private until initial publication.
+            // Seed its aliases from OnNodeManagerStartedAsync once that publication completes.
+            provider.AliasNameStoreRegistry.Register(store);
+            m_referenceAliasesConfigured = true;
+        }
 
-            if (refServerNs != ushort.MaxValue)
+        /// <inheritdoc/>
+        protected override async ValueTask OnNodeManagerStartedAsync(
+            IServerInternal server,
+            CancellationToken cancellationToken = default)
+        {
+            if (!ProvisioningMode && m_referenceAliasesConfigured)
             {
+                if (server is not Opc.Ua.Server.AliasNames.IAliasNameStoreRegistryProvider provider ||
+                    provider.AliasNameStoreRegistry.GetStoreForCategory(Opc.Ua.ObjectIds.TagVariables) is not
+                        Opc.Ua.Server.AliasNames.InMemoryAliasNameStore store)
+                {
+                    throw new InvalidOperationException("The configured reference alias store is missing.");
+                }
+                int namespaceIndex = server.NamespaceUris.GetIndex(Namespaces.ReferenceServer);
+                if (namespaceIndex < 0)
+                {
+                    throw new InvalidOperationException("The published reference namespace is missing.");
+                }
+                ushort refServerNs = (ushort)namespaceIndex;
+                ushort diagnosticsNamespaceIndex = server.NamespaceUris.GetIndexOrAppend(DiagnosticsNamespaceUri);
                 SeedTag(store, Opc.Ua.ObjectIds.TagVariables, "TIC101_Setpoint",
                     new ExpandedNodeId("Scalar_Static_Double", refServerNs));
                 SeedTag(store, Opc.Ua.ObjectIds.TagVariables, "TIC101_PV",
@@ -321,20 +339,24 @@ namespace Quickstarts.ReferenceServer
                 // The device tags live in the nested category, so FindAlias
                 // on Devices returns exactly these two while FindAlias on
                 // TagVariables still returns all six.
-                SeedTag(store, devices.NodeId, "Pump1_Status",
+                SeedTag(store, new NodeId(DevicesCategoryName, diagnosticsNamespaceIndex), "Pump1_Status",
                     new ExpandedNodeId("Scalar_Static_Boolean", refServerNs));
-                SeedTag(store, devices.NodeId, "Heater_Power",
+                SeedTag(store, new NodeId(DevicesCategoryName, diagnosticsNamespaceIndex), "Heater_Power",
                     new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
             }
 
             // The Topics aliases are NOT seeded here: Part 17 §9 constrains
             // that hierarchy to aliases for PublishedDataSetType instances,
-            // and those dataset nodes are created later by
+            // and those dataset nodes are created by
             // ReferenceServerConfigurationNodeManager.AddConformanceDataSetsAsync
             // — which seeds the aliases in the same place, so an alias can
             // never point at a dataset that was not created.
 
-            provider.AliasNameStoreRegistry.Register(store);
+            if (server.ConfigurationNodeManager is ReferenceServerConfigurationNodeManager manager)
+            {
+                await manager.InitializeSampleAliasesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
 
             static void SeedTag(
                 Opc.Ua.Server.AliasNames.InMemoryAliasNameStore store,
@@ -397,8 +419,23 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private static Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider CreateDefaultFileSystemProvider()
         {
-            string root = System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
+            string temporaryDirectory = Path.GetTempPath();
+#if NET8_0_OR_GREATER
+            // Select the physical system temp directory before defining the mount boundary (macOS aliases /var).
+            string physicalDirectory = Path.GetPathRoot(temporaryDirectory)!;
+            foreach (string component in temporaryDirectory[physicalDirectory.Length..].Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries))
+            {
+                var directory = new DirectoryInfo(Path.Combine(physicalDirectory, component));
+                physicalDirectory = directory.Exists
+                    ? directory.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? directory.FullName
+                    : directory.FullName;
+            }
+            temporaryDirectory = physicalDirectory;
+#endif
+            string root = Path.Combine(
+                temporaryDirectory,
                 "OpcUaReferenceServerFs");
             return new Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider(
                 root,
@@ -411,7 +448,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new Servers.DurableMonitoredItemQueueFactory(server.Telemetry, server.MessageContext);
+                return new DurableMonitoredItemQueueFactory(server.Telemetry, server.MessageContext);
             }
             return new MonitoredItemQueueFactory(server.Telemetry);
         }
@@ -428,7 +465,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new Servers.SubscriptionStore(server);
+                return new SubscriptionStore(server);
             }
             return null;
         }
@@ -515,13 +552,10 @@ namespace Quickstarts.ReferenceServer
             RegisterIdentityAuthenticators(server);
 
             // Key the ApplicationName of the endpoints, so the resource manager translates it.
-            if (ServerDescription != null)
-            {
-                ServerDescription.ApplicationName = new LocalizedText(
+            ServerDescription?.ApplicationName = new LocalizedText(
                     ApplicationNameKey,
                     "en-US",
                     ServerDescription.ApplicationName.Text ?? string.Empty);
-            }
 
             try
             {
@@ -536,10 +570,12 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Override some of the default user token policies for some endpoints.
+        /// Override the default user token policies of the endpoints.
         /// </summary>
         /// <remarks>
-        /// Sample to show how to override default user token policies.
+        /// Sample to show how to override default user token policies. Every endpoint
+        /// offers the same token types: clients pick the most secure endpoint of a
+        /// security policy and expect it to accept every configured token type.
         /// </remarks>
         public override ArrayOf<UserTokenPolicy> GetUserTokenPolicies(
             ApplicationConfiguration configuration,
@@ -553,23 +589,6 @@ namespace Quickstarts.ReferenceServer
             if (ProvisioningMode)
             {
                 return policies.Filter(u => u.TokenType != UserTokenType.Anonymous);
-            }
-
-            // sample how to modify default user token policies
-            if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
-                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
-            {
-                return policies.Filter(u => u.TokenType != UserTokenType.Certificate);
-            }
-            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
-                description.SecurityMode == MessageSecurityMode.Sign)
-            {
-                return policies.Filter(u => u.TokenType != UserTokenType.Anonymous);
-            }
-            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
-                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
-            {
-                return policies.Filter(u => u.TokenType != UserTokenType.UserName);
             }
             return policies;
         }
@@ -668,7 +687,8 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
-            if (!m_userDatabase.CheckCredentials(userName, password))
+            bool credentialsValid = m_userDatabase.CheckCredentials(userName, password);
+            if (!m_userManagement.IsUserActive(userName) || !credentialsValid)
             {
                 // construct translation object with default text.
                 var info = new TranslationInfo(
@@ -711,13 +731,22 @@ namespace Quickstarts.ReferenceServer
             using Certificate? userCertificate = wireToken.CertificateData.IsEmpty
                 ? null
                 : Certificate.FromRawData(wireToken.CertificateData);
+            using var userChain = new CertificateCollection();
+            if (userCertificate != null)
+            {
+                userChain.Add(userCertificate);
+            }
             try
             {
                 Opc.Ua.CertificateValidationResult userCertResult =
                     await (m_userCertificateValidator ?? CertificateManager!)
                         .ValidateAsync(
-                            userCertificate!,
+                            userChain,
                             TrustListIdentifier.Users,
+                            new Opc.Ua.Security.Certificates.CertificateValidationOptions
+                            {
+                                AcceptError = static (_, _) => false
+                            },
                             ct)
                         .ConfigureAwait(false);
                 if (!userCertResult.IsValid)
@@ -901,10 +930,50 @@ namespace Quickstarts.ReferenceServer
             base.Dispose(disposing);
         }
 
+        /// <summary>
+        /// Creates the reference model against the initial transaction's private staging server.
+        /// </summary>
+        private sealed class ReferenceStartupFactory(bool useSamplingGroups) : IAsyncNodeManagerFactory
+        {
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => [Namespaces.ReferenceServer];
+
+            /// <inheritdoc/>
+            public async ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ReferenceNodeManager? manager = null;
+                try
+                {
+                    manager = new ReferenceNodeManager(server, configuration, useSamplingGroups);
+                    IAsyncNodeManager result = await new ValueTask<IAsyncNodeManager>(manager)
+                        .ConfigureAwait(false);
+                    manager = null;
+                    return result;
+                }
+                finally
+                {
+                    manager?.Dispose();
+                }
+            }
+        }
+
         private const string ApplicationNameKey = "ApplicationName";
+
+        /// <summary>Whether initial startup registered the sample alias store.</summary>
+        private bool m_referenceAliasesConfigured;
+
         private CertificateManager? m_userCertificateValidator;
         private string? m_rejectedUserStorePath;
         private readonly ITelemetryContext m_telemetry;
+
+        /// <summary>The master factory supplied at construction, before host binding.</summary>
+        private readonly Func<IServerInternal, ApplicationConfiguration,
+            ArrayOf<IAsyncNodeManagerFactory>, MasterNodeManager> m_masterNodeManagerFactory;
+
         private readonly LinqUserDatabase m_userDatabase;
         private readonly UserManagement m_userManagement;
     }

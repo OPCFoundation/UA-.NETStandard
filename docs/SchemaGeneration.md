@@ -4,7 +4,7 @@ The `Opc.Ua.Core.Schema` library generates schemas for OPC UA data types at runt
 
 - **XSD** for the XML encoding.
 - **BSD** (OPC Binary, Part 6) for the binary encoding.
-- **JSON Schema** (Part 6 Annex C, draft 2020-12) for the JSON encoding, in both the **compact** (reversible, BrowseName-keyed) and **verbose** flavors.
+- **JSON Schema** (draft 2020-12) for the Part 6 JSON encoding, in both the **compact** and **verbose** flavors.
 
 Schemas are built as strongly-typed object models in code — there are no embedded schema strings — so unused generation paths are trimmed away and the whole library is NativeAOT compatible. The XSD object model is the in-box `System.Xml.Schema.XmlSchema`. BSD uses
 the existing `Opc.Ua.Schema.Binary.TypeDictionary`, and JSON uses
@@ -15,10 +15,11 @@ the existing `Opc.Ua.Schema.Binary.TypeDictionary`, and JSON uses
 - [Concepts](#concepts)
 - [Registration](#registration)
 - [Registering data types](#registering-data-types)
+  - [Standard field encodings](#standard-field-encodings)
   - [Namespace identity](#namespace-identity)
 - [Generating a schema](#generating-a-schema)
 - [Working with the object model](#working-with-the-object-model)
-- [JSON encoding notes](#json-encoding-notes-part-6)
+- [JSON encoding notes (Part 6)](#json-encoding-notes-part-6)
 - [PubSub schemas](#pubsub-schemas)
 - [OpenAPI document of the REST binding](#openapi-document-of-the-rest-binding)
 - [Trimming and NativeAOT](#trimming-and-nativeaot)
@@ -113,6 +114,20 @@ IDataTypeDefinitionResolver resolver = new CompositeDataTypeDefinitionResolver(
 
 Once registered, fields that reference other registered types are resolved automatically and included in the generated document.
 
+### Standard field encodings
+
+`Number` (`i=26`), `Integer` (`i=27`) and `UInteger` (`i=28`) are abstract simple
+types, not structures requiring a `DataTypeDefinition`. When used as structure
+fields, they use Variant encoding as specified by
+[OPC 10000-6, 5.1.6](https://reference.opcfoundation.org/Core/Part6/v105/docs/5.1.6).
+Their scalar and array field schemas therefore reference Variant rather than an
+unconstrained value or an ExtensionObject.
+
+`SchemaTypeInfo.GetFieldEncodingType` exposes this classification to callers that
+walk schema dependencies. It also preserves the standard primitive/alias mappings;
+custom-namespace identifiers such as `ns=1;i=26` still require their own definitions.
+It does not change the general-purpose `TypeInfo` classification.
+
 ### Namespace identity
 
 `BrowseName.NamespaceIndex` is not a mapping for the data type's NodeId namespace; the
@@ -187,6 +202,12 @@ The JSON schemas follow the Part 6 JSON encoding faithfully, matching what the s
 - `Float`/`Double` accept the special string values `Infinity`, `-Infinity` and `NaN`, so they are typed as `["number", "string"]`.
 - `ByteString` is a base64 `string`; `DateTime` is a `date-time` string; `Guid` is a `uuid` string.
 - The standard structured built-ins (`NodeId`, `Variant`, `ExtensionObject`, `DataValue`, ...) are described once per document in the `$defs` section and referenced.
+- Variant fields, including abstract numeric structure fields, use the `UaType`
+  and `Value` envelope with optional `Dimensions`. Null array entries are allowed,
+  and numeric defaults such as zero retain an explicit `Value` in both Compact
+  and Verbose encoding. `Value` is omitted only for the NULL value of a nullable
+  type (Part 6, 5.4.2.17, Table 41), while retaining `UaType`.
+  The deprecated `Type`/`Body` envelope is not the Compact/Verbose format.
 - Compact enums are integers (with the allowed values listed via `oneOf`); verbose enums are the `Name_Value` strings.
 
 ## PubSub schemas
@@ -219,7 +240,7 @@ JsonObject document = generator.Generate(
 Without `includeSchemas` the document holds the paths and operations only
 (about 12 KB for all 28 services). With it, every request, response and the
 structures and enumerations they contain become component schemas (about 46 KB),
-which is what OpenAPI client generators need. The schemas describe the Compact
+as required by OpenAPI client generators. The schemas describe the Compact
 JSON encoding with the property names and types the published OPC Foundation
 documents use; [OPC UA over OpenAPI](OpenApi.md) lists the differences and the
 tests that keep the document correct. Pass an `IDataTypeDefinitionResolver` to

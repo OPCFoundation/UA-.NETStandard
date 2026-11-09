@@ -20,7 +20,7 @@
   "uav:symmetric": false,
   "links": [
     {
-      "rel": "ua:HasSubtype",
+      "rel": "ua:HasSupertype",
       "href": "i=32",
       "uav:refName": "NonHierarchicalReferences",
       "uav:refId": "i=45"

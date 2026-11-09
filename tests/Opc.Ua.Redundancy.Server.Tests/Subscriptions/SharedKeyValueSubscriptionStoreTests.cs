@@ -86,6 +86,44 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertMonitoredItem((StoredMonitoredItem)actual.MonitoredItems.Single(), NewItem(100, 10));
         }
 
+        /// <summary>
+        /// Terminal items survive persistence without requiring newer definitions for unaffected subscriptions.
+        /// </summary>
+        [TestCase(false, false, 5)]
+        [TestCase(false, true, 6)]
+        [TestCase(true, false, 7)]
+        [TestCase(true, true, 7)]
+        public async Task StoreAndRestorePreservesTerminalInvalidationAsync(
+            bool terminal, bool triggering, int expectedVersion)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(100, 10);
+            var item = (StoredMonitoredItem)expected.MonitoredItems.Single();
+            item.IsTerminal = terminal;
+            item.IsDeleted = true;
+            item.IsDetached = true;
+            if (triggering)
+            {
+                expected.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>
+                {
+                    [10] = [11]
+                };
+            }
+
+            Assert.That(ReadDefinitionVersion(store, expected), Is.EqualTo(expectedVersion));
+            Assert.That(await store.StoreSubscriptionsAsync([expected]).ConfigureAwait(false), Is.True);
+            RestoreSubscriptionResult restored = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(restored.Success, Is.True);
+            var actual = (StoredMonitoredItem)restored.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.That(actual.IsTerminal, Is.EqualTo(terminal));
+            AssertMonitoredItem(actual, item);
+        }
+
+        /// <summary>
+        /// Verifies that a snapshot cannot replay the same subscription identifier from an older generation.
+        /// </summary>
         [Test]
         public async Task SubscriptionSnapshotCannotReplaySameIdFromOlderGenerationAsync()
         {
@@ -123,6 +161,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 restored.Subscriptions!.Single().PublishingInterval, Is.EqualTo(replacement.PublishingInterval));
         }
 
+        /// <summary>
+        /// Verifies that subscription manifests reject an empty persistence context.
+        /// </summary>
         [Test]
         public async Task SubscriptionManifestRejectsEmptyContextAsync()
         {
@@ -144,6 +185,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     .EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that retransmission state and messages cannot be loaded under different persistence keys.
+        /// </summary>
         [Test]
         public async Task RetransmissionStateAndMessagesRejectDifferentKeysAsync()
         {
@@ -257,6 +301,32 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         /// <summary>
         /// Verifies that stored subscriptions preserve filtered retained-condition identifiers.
+        /// </summary>
+        [Test]
+        public async Task StoreAndRestorePreservesExternalValueSourceAcquisitionMode()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(106, 16);
+            var expectedItem = (StoredMonitoredItem)expected.MonitoredItems.Single();
+            expectedItem.TypeMask = MonitoredItemTypeMask.DataChange | MonitoredItemTypeMask.ExternalValueSource;
+            expectedItem.SourceSamplingInterval = 0;
+
+            bool stored = await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(stored, Is.True);
+            Assert.That(result.Success, Is.True);
+            var actual = (StoredMonitoredItem)result.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.That(actual.TypeMask,
+                Is.EqualTo(MonitoredItemTypeMask.DataChange | MonitoredItemTypeMask.ExternalValueSource));
+            Assert.That(actual.SourceSamplingInterval, Is.Zero);
+            AssertMonitoredItem(actual, expectedItem);
+        }
+
+        /// <summary>
+        /// Verifies that store and restore round trips filtered retain condition IDs.
         /// </summary>
         [Test]
         public async Task StoreAndRestoreRoundTripsFilteredRetainConditionIdsAsync()
@@ -396,7 +466,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 SharedKeyValueSubscriptionStore.KeyFor(expected.Id),
                 ByteString.From(encoder.CloseAndReturnBuffer())).ConfigureAwait(false);
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 () => store.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -621,7 +691,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .SetAsync(record.Key, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }))
                 .ConfigureAwait(false);
 
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => store.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
@@ -669,7 +739,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     ByteString.From(new byte[] { 1, 2, 3, 4, 5 }))
                 .ConfigureAwait(false);
 
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => reader.RestoreSubscriptionsAsync().AsTask());
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(GetCachedSubscriptionIds(reader), Is.EqualTo(new uint[] { 450 }));
@@ -701,7 +771,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -718,7 +788,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StoredSubscription subscription = NewSubscription(490, 49);
             ((StoredMonitoredItem)subscription.MonitoredItems.Single()).SubscriptionId = 491;
 
-            ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? exception = await Assert.ThrowsAsync<ArgumentException>(
                 () => store.StoreSubscriptionsAsync([subscription]).AsTask());
             (bool foundManifest, _) = await kv
                 .TryGetAsync(SharedKeyValueSubscriptionStore.SnapshotManifestKey())
@@ -774,7 +844,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StoredSubscription first = NewSubscription(950, 95);
             StoredSubscription duplicate = NewSubscription(950, 96);
 
-            ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? exception = await Assert.ThrowsAsync<ArgumentException>(
                 () => store.StoreSubscriptionsAsync([first, duplicate]).AsTask());
             (bool foundManifest, _) = await kv
                 .TryGetAsync(SharedKeyValueSubscriptionStore.SnapshotManifestKey())
@@ -831,7 +901,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var store = new SharedKeyValueSubscriptionStore(failingBackend, CreateContext());
             await store.StoreSubscriptionsAsync([NewSubscription(990, 103)]).ConfigureAwait(false);
 
-            InvalidOperationException? exception = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 () => store.StoreSubscriptionsAsync(
                     [NewSubscription(990, 103), NewSubscription(991, 104)]).AsTask());
 
@@ -883,7 +953,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     ByteString.From(0xFF, 0xFE, 0xFD))
                 .ConfigureAwait(false);
 
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => store.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
@@ -907,7 +977,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .ConfigureAwait(false);
 
             await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => store.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -930,7 +1000,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -953,7 +1023,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -978,7 +1048,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -997,7 +1067,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var duplicating = new DuplicatingScanStore(kv);
             var reader = new SharedKeyValueSubscriptionStore(duplicating, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => reader.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1020,7 +1090,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1043,7 +1113,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1069,7 +1139,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -2067,6 +2137,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static void AssertMonitoredItem(StoredMonitoredItem actual, StoredMonitoredItem expected)
         {
+            Assert.That(actual.IsTerminal, Is.EqualTo(expected.IsTerminal));
             Assert.That(actual.IsDeleted, Is.EqualTo(expected.IsDeleted));
             Assert.That(actual.IsDetached, Is.EqualTo(expected.IsDetached));
             Assert.That(actual.SubscriptionId, Is.EqualTo(expected.SubscriptionId));

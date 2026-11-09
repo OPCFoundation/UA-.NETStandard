@@ -23,11 +23,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Client;
 using Opc.Ua.Robotics.Client.Intent;
 using Opc.Ua.RobotIntent;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace BinPickingClient
 {
@@ -272,7 +271,7 @@ namespace BinPickingClient
             return NodeId.Null;
         }
 
-        private async Task<VisionDetectionResultSnapshot> CaptureAndReadDetectionsAsync(
+        private static async Task<VisionDetectionResultSnapshot> CaptureAndReadDetectionsAsync(
             VisionClient vision,
             VisionPipelineClient pipeline,
             CancellationToken cancellationToken)
@@ -292,7 +291,7 @@ namespace BinPickingClient
             return await reader.ReadDetectionAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        private void LogDetections(VisionDetectionResultSnapshot snapshot)
+        private static void LogDetections(VisionDetectionResultSnapshot snapshot)
         {
             var detections = new List<VisionDetectionDataType>(snapshot.Detections.Count);
             for (int ii = 0; ii < snapshot.Detections.Count; ii++)
@@ -614,7 +613,7 @@ namespace BinPickingClient
 
         private static (double X, double Y, double Z) ReadVec3(ArrayOf<double> vec)
         {
-            System.ReadOnlySpan<double> span = vec.Span;
+            ReadOnlySpan<double> span = vec.Span;
             if (span.Length < 3)
             {
                 return (0.0, 0.0, 0.0);

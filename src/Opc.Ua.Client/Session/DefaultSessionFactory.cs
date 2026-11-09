@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -622,7 +623,7 @@ namespace Opc.Ua.Client
                 "retrying with a fresh connection (attempt {Attempt} of {Max}).")]
         public static partial void RetryStaleReverseConnection(
             this ILogger logger,
-            Uri? endpointUrl,
+            [NetworkAddress] Uri? endpointUrl,
             StatusCode statusCode,
             int attempt,
             int max);

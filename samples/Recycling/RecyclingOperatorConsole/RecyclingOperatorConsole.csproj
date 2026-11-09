@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>RecyclingOperatorConsole</AssemblyName>
+    <RootNamespace>Opc.Ua.Recycling.OperatorConsole</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot Condition="'$(RuntimeIdentifier)' != ''">true</PublishAot>
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Recycling.Client\Recycling.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Machinery.Client\Opc.Ua.Machinery.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.AMB.Client\Opc.Ua.AMB.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Extrusion.Client\Opc.Ua.Extrusion.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Pumps.Client\Opc.Ua.Pumps.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Scales.Client\Opc.Ua.Scales.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.PlasticsRubber.Client\Opc.Ua.PlasticsRubber.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Recycling.Operator.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+  <!-- The Web SDK includes its logging generator alongside the repository's
+       transitive R9 generator. Keep R9 as in the other modern stack projects,
+       rather than generating both implementations of each LoggerMessage. -->
+  <Target Name="RemoveWebSdkDuplicateLoggingGenerator" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)"
+                Condition="$([System.String]::Copy('%(Analyzer.Filename)').Equals('Microsoft.Extensions.Logging.Generators'))" />
+    </ItemGroup>
+  </Target>
+</Project>

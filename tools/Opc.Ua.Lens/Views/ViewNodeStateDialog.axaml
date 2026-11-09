@@ -1,0 +1,73 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Views.ViewNodeStateDialog"
+        Title="Node state"
+        Width="720" Height="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto">
+
+    <TextBlock Grid.Row="0" Margin="0,0,0,4" TextWrapping="Wrap"
+               Text="Recursive dump of the node's attributes, references (grouped by reference type), and (for Variables) the current Value." />
+
+    <TextBlock Grid.Row="1" x:Name="HeaderBlock"
+               Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,0,0,6"
+               FontFamily="Cascadia Mono, Consolas, monospace"
+               Text="" TextWrapping="Wrap" />
+
+    <TreeView Grid.Row="2" x:Name="StateTree"
+              Background="{DynamicResource AppBg}"
+              Foreground="{DynamicResource TextPrimary}"
+              BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1">
+      <TreeView.ItemTemplate>
+        <TreeDataTemplate DataType="v:NodeStateItem" ItemsSource="{CompiledBinding Children}">
+          <TextBlock Text="{CompiledBinding Header}"
+                     FontFamily="Cascadia Mono, Consolas, monospace"
+                     FontSize="12" />
+        </TreeDataTemplate>
+      </TreeView.ItemTemplate>
+      <TreeView.Styles>
+        <Style Selector="TreeViewItem" x:DataType="v:NodeStateItem">
+          <Setter Property="IsExpanded" Value="{CompiledBinding IsExpanded, Mode=TwoWay}" />
+          <Setter Property="Padding" Value="4,2" />
+        </Style>
+      </TreeView.Styles>
+    </TreeView>
+
+    <StackPanel Grid.Row="3" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,12,0,0" Spacing="6">
+      <Button x:Name="CopyButton"  Content="Copy as text" Width="120" />
+      <Button x:Name="CloseButton" Content="Close" IsCancel="True" Width="100" />
+    </StackPanel>
+  </Grid>
+</Window>

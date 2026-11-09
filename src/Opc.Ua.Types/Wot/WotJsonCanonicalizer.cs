@@ -475,6 +475,7 @@ namespace Opc.Ua.Wot
         /// the target frameworks whose <c>double</c> formatter is not itself
         /// shortest-round-trip.
         /// </remarks>
+        /// <exception cref="FormatException"></exception>
         private static string FormatDouble(double value)
         {
             if (value == 0)
@@ -501,7 +502,11 @@ namespace Opc.Ua.Wot
                     break;
                 }
             }
-            Decompose(shortest, out bool negative, out string digitsOnly, out int exponent);
+            if (!WotJsonNumberComparer.TryDecompose(
+                shortest, out bool negative, out string digitsOnly, out long exponent))
+            {
+                throw new FormatException("The finite Double did not have a supported decimal representation.");
+            }
             if (digitsOnly.Length == 0)
             {
                 return "0";
@@ -511,7 +516,7 @@ namespace Opc.Ua.Wot
             {
                 text.Append('-');
             }
-            AppendEcmaScriptDigits(text, digitsOnly, exponent);
+            AppendEcmaScriptDigits(text, digitsOnly, checked((int)exponent));
             return text.ToString();
         }
 
@@ -554,106 +559,18 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Decomposes a decimal literal into its sign, its significant digits
-        /// and the exponent that places them, so that the value is
-        /// <c>0.&lt;digits&gt; * 10^exponent</c> with no leading or trailing
-        /// zero among the digits.
-        /// </summary>
-        private static void Decompose(
-            string literal, out bool negative, out string digits, out int exponent)
-        {
-            negative = false;
-            exponent = 0;
-            int index = 0;
-            if (index < literal.Length && (literal[index] == '-' || literal[index] == '+'))
-            {
-                negative = literal[index] == '-';
-                index++;
-            }
-            var mantissa = new StringBuilder();
-            int pointPosition = -1;
-            int power = 0;
-            for (; index < literal.Length; index++)
-            {
-                char unit = literal[index];
-                if (unit == '.')
-                {
-                    pointPosition = mantissa.Length;
-                    continue;
-                }
-                if (unit is 'e' or 'E')
-                {
-                    power = ParseExponent(literal, index + 1);
-                    break;
-                }
-                mantissa.Append(unit);
-            }
-            if (pointPosition < 0)
-            {
-                pointPosition = mantissa.Length;
-            }
-            string allDigits = mantissa.ToString();
-            int leading = 0;
-            while (leading < allDigits.Length && allDigits[leading] == '0')
-            {
-                leading++;
-            }
-            int trailing = allDigits.Length;
-            while (trailing > leading && allDigits[trailing - 1] == '0')
-            {
-                trailing--;
-            }
-            if (leading >= trailing)
-            {
-                digits = string.Empty;
-                exponent = 0;
-                negative = false;
-                return;
-            }
-            digits = allDigits.Substring(leading, trailing - leading);
-            exponent = pointPosition - leading + power;
-        }
-
-        /// <summary>
-        /// Reads the exponent of a decimal literal, saturating rather than
-        /// overflowing: a literal whose exponent no <c>int</c> holds names a
-        /// value no double holds, and the caller rejects it on the comparison
-        /// that follows.
-        /// </summary>
-        private static int ParseExponent(string literal, int index)
-        {
-            bool negative = false;
-            if (index < literal.Length && (literal[index] == '-' || literal[index] == '+'))
-            {
-                negative = literal[index] == '-';
-                index++;
-            }
-            const int limit = int.MaxValue / 4;
-            int power = 0;
-            for (; index < literal.Length; index++)
-            {
-                char unit = literal[index];
-                if (unit is < '0' or > '9')
-                {
-                    break;
-                }
-                if (power < limit)
-                {
-                    power = (power * 10) + (unit - '0');
-                }
-            }
-            return negative ? -power : power;
-        }
-
-        /// <summary>
         /// Determines whether two decimal literals name the same exact value,
         /// which is how a literal is held to the double it parsed to.
         /// </summary>
         private static bool SameDecimalValue(string left, string right)
         {
-            Decompose(left, out bool leftNegative, out string leftDigits, out int leftExponent);
-            Decompose(
-                right, out bool rightNegative, out string rightDigits, out int rightExponent);
+            if (!WotJsonNumberComparer.TryDecompose(
+                    left, out bool leftNegative, out string leftDigits, out long leftExponent) ||
+                !WotJsonNumberComparer.TryDecompose(
+                    right, out bool rightNegative, out string rightDigits, out long rightExponent))
+            {
+                return false;
+            }
             if (leftDigits.Length == 0 || rightDigits.Length == 0)
             {
                 return leftDigits.Length == rightDigits.Length;

@@ -39,6 +39,8 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
 using Opc.Ua.Gds.Server.Identity;
+using Opc.Ua.Gds.Server.Onboarding;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -88,7 +90,7 @@ namespace Opc.Ua.Gds.Server
         AdditionalNamespaceUris = [ApplicationsNamespaceUri],
         GenerateFactory = false,
         GenerateDefaultConstructor = false)]
-    public partial class ApplicationsNodeManager
+    public partial class ApplicationsNodeManager : INodeManagerReadinessNotification
     {
         /// <summary>
         /// Namespace the GDS mints application records, certificate
@@ -108,6 +110,13 @@ namespace Opc.Ua.Gds.Server
         /// Gets or sets the trust-list manager for named store access.
         /// </summary>
         public ICertificateTrustListManager? TrustListManager { get; set; }
+
+        /// <summary>
+        /// Gets or sets the optional device-onboarding gate for certificate requests and delivery.
+        /// Configure before loading the address space. A known onboarding relation must pass this gate;
+        /// unrelated applications retain the existing GDS role and privilege checks.
+        /// </summary>
+        public IDeviceRegistrarCertificateAuthorization? DeviceRegistrarCertificateAuthorization { get; set; }
 
         private readonly NodeId m_directoryId;
         private readonly NodeId m_defaultApplicationGroupId;
@@ -214,12 +223,10 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        // --- Fluent wiring of the GDS companion model -------------
         // Everything the Directory object, its certificate groups and
         // the authorization service need is resolved against the
         // loaded address space here, once, from the source-generated
         // CreateAddressSpaceAsync.
-
         /// <summary>
         /// Brings the GDS up and binds its handlers to the loaded model.
         /// </summary>
@@ -254,7 +261,7 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            m_certTypeMap = CreateCertificateTypeMap();
+            m_certTypeMap = s_certificateTypeMap;
             m_database.NamespaceIndex = ApplicationsNamespaceIndex;
             m_request.NamespaceIndex = ApplicationsNamespaceIndex;
 
@@ -270,8 +277,22 @@ namespace Opc.Ua.Gds.Server
             // stages the node, finalises its NodeIds before handing it back,
             // and registers it once this pass returns.
             ConfigureAuthorizationService(EnsureDefaultAuthorizationService(builder));
+        }
 
-            InitializeAliasNameAggregation();
+        /// <inheritdoc/>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TaskCompletionSource<bool> operation = BeginAliasNameOperation();
+            try
+            {
+                InitializeAliasNameAggregation();
+            }
+            finally
+            {
+                CompleteAliasNameOperation(operation);
+            }
+            return default;
         }
 
         /// <summary>
@@ -311,27 +332,27 @@ namespace Opc.Ua.Gds.Server
             SelfAdministered<GetApplicationMethodState>(
                     directory, BrowseNames.GetApplication)
                 .OnCall = OnGetApplication;
-            SelfAdministered<StartNewKeyPairRequestMethodState>(
+            OnboardingCertificateMethod<StartNewKeyPairRequestMethodState>(
                     directory, BrowseNames.StartNewKeyPairRequest)
-                .OnCall = OnStartNewKeyPairRequest;
-            SelfAdministered<StartSigningRequestMethodState>(
+                .OnCallAsync = OnStartNewKeyPairRequestAsync;
+            OnboardingCertificateMethod<StartSigningRequestMethodState>(
                     directory, BrowseNames.StartSigningRequest)
                 .OnCallAsync = OnStartSigningRequestAsync;
-            SelfAdministered<FinishRequestMethodState>(
+            OnboardingCertificateMethod<FinishRequestMethodState>(
                     directory, BrowseNames.FinishRequest)
                 .OnCallAsync = OnFinishRequestAsync;
             SelfAdministered<GetCertificateGroupsMethodState>(
                     directory, BrowseNames.GetCertificateGroups)
                 .OnCall = OnGetCertificateGroups;
-            SelfAdministered<GetTrustListMethodState>(
+            OnboardingCertificateMethod<GetTrustListMethodState>(
                     directory, BrowseNames.GetTrustList)
-                .OnCall = OnGetTrustList;
+                .OnCallAsync = OnGetTrustListAsync;
             SelfAdministered<GetCertificateStatusMethodState>(
                     directory, BrowseNames.GetCertificateStatus)
                 .OnCall = OnGetCertificateStatus;
-            SelfAdministered<GetCertificatesMethodState>(
+            OnboardingCertificateMethod<GetCertificatesMethodState>(
                     directory, BrowseNames.GetCertificates)
-                .OnCall = OnGetCertificates;
+                .OnCallAsync = OnGetCertificatesAsync;
         }
 
         /// <summary>
@@ -517,6 +538,11 @@ namespace Opc.Ua.Gds.Server
                 new TrustList.SecureAccess(
                     (context, _) => AuthorizationHelper.HasTrustListWriteAccess(context)),
                 Server.Telemetry);
+            if (DeviceRegistrarCertificateAuthorization != null)
+            {
+                trustList.SetReadAuthorization(AuthorizeOnboardingTrustListReadAsync);
+                ConfigureOnboardingTrustListMethods(certificateGroup.DefaultTrustList);
+            }
             if (!string.Equals(groupId, "DefaultHttpsGroup", StringComparison.OrdinalIgnoreCase) &&
                 !string.Equals(groupId, "DefaultUserTokenGroup", StringComparison.OrdinalIgnoreCase))
             {
@@ -1019,6 +1045,14 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
+        /// Gets the GDS certificate type identifier associated with a supported certificate type node.
+        /// </summary>
+        internal static bool TryGetCertificateTypeName(NodeId certificateTypeId, out string? certificateTypeName)
+        {
+            return s_certificateTypeMap.TryGetValue(certificateTypeId, out certificateTypeName);
+        }
+
+        /// <summary>
         /// Brings up every configured certificate authority and binds it to
         /// its nodes, in one pass per group.
         /// </summary>
@@ -1467,7 +1501,10 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
-        private async ValueTask<CheckRevocationStatusMethodStateResult> OnCheckRevocationStatusAsync(
+        /// <summary>
+        /// Checks a caller certificate using only configured issuer certificates and local CRLs.
+        /// </summary>
+        internal async ValueTask<CheckRevocationStatusMethodStateResult> OnCheckRevocationStatusAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1482,14 +1519,6 @@ namespace Opc.Ua.Gds.Server
                 ValidityTime = DateTime.MinValue
             };
 
-            // Per OPC 10000-12 §7.6.11, ValidityTime indicates when the
-            // CertificateStatus result expires and should be rechecked.
-            // We compute it as the earliest NextUpdate across the CRLs in
-            // the trusted-issuer store after the chain has validated; for
-            // Bad results the field remains DateTime.MinValue so callers
-            // re-check immediately.
-            DateTime computedValidityTime = DateTime.MinValue;
-
             Certificate x509;
             try
             {
@@ -1503,176 +1532,285 @@ namespace Opc.Ua.Gds.Server
                 return result;
             }
 
-            // Caller-owned X509Certificate2 copies of the issuer store for the
-            // chains' ExtraStore; X509Chain does not dispose them.
-            X509Certificate2Collection? extraCerts = null;
-            try
+            using (x509)
             {
-                //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
-                using ICertificateStore store = m_configuration.SecurityConfiguration
-                    .TrustedIssuerCertificates
-                    .OpenStore(Server.Telemetry);
-                using CertificateCollection issuerCerts = await EnumerateCertificatesAsync(
-                    store,
-                    cancellationToken).ConfigureAwait(false);
-                if (store != null)
+                try
                 {
-                    X509CRLCollection crls = await store
-                        .EnumerateCRLsAsync(cancellationToken)
-                        .ConfigureAwait(false);
-                    DateTime nextUpdate = DateTime.MaxValue;
-                    foreach (X509CRL crl in crls)
+                    using ICertificateStore store = m_configuration.SecurityConfiguration
+                        .TrustedIssuerCertificates
+                        .OpenStore(Server.Telemetry);
+                    using CertificateCollection issuerCerts = await EnumerateCertificatesAsync(
+                        store,
+                        cancellationToken).ConfigureAwait(false);
+                    using var localChain = new CertificateCollection();
+                    result.CertificateStatus = BuildOfflineIssuerChain(x509, issuerCerts, localChain);
+                    if (StatusCode.IsBad(result.CertificateStatus))
                     {
-                        if (crl.NextUpdate != DateTime.MinValue &&
-                            crl.NextUpdate < nextUpdate)
-                        {
-                            nextUpdate = crl.NextUpdate;
-                        }
+                        return result;
                     }
-                    if (nextUpdate != DateTime.MaxValue)
+                    if (store == null || !store.SupportsCRLs)
                     {
-                        computedValidityTime = nextUpdate;
-                    }
-                }
-
-                using X509Certificate2 x509Cert = x509.AsX509Certificate2();
-                extraCerts = issuerCerts.AsX509Certificate2Collection();
-
-                // A certificate issued by a CA of this GDS is checked offline
-                // against the CRLs the GDS publishes in its issuer store: the
-                // GDS CA is normally not in the OS root store, so a platform
-                // chain reports UntrustedRoot for a good certificate and does
-                // not know the GDS CRLs.
-                using var chain = new X509Chain();
-                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-                chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
-                chain.ChainPolicy.ExtraStore.AddRange(extraCerts);
-                chain.Build(x509Cert);
-
-                if (store != null &&
-                    chain.ChainElements.Count > 1 &&
-                    IsKnownIssuer(issuerCerts, chain.ChainElements[chain.ChainElements.Count - 1].Certificate))
-                {
-                    StatusCode chainStatus = GetFirstChainError(chain, ignoreUntrustedRoot: true);
-                    if (StatusCode.IsBad(chainStatus))
-                    {
-                        result.CertificateStatus = chainStatus;
+                        result.CertificateStatus = StatusCodes.BadCertificateRevocationUnknown;
                         return result;
                     }
 
-                    result.CertificateStatus = await CheckRevocationWithGdsCrlsAsync(
-                        store,
-                        chain,
-                        cancellationToken).ConfigureAwait(false);
-                    if (StatusCode.IsGood(result.CertificateStatus))
+                    X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    (StatusCode status, DateTime validityTime) = CheckRevocationWithGdsCrls(localChain, crls);
+                    result.CertificateStatus = status;
+                    if (StatusCode.IsGood(status))
                     {
-                        result.ValidityTime = computedValidityTime;
+                        result.ValidityTime = validityTime;
                     }
-                    return result;
                 }
-
-                // A certificate of another CA: validate against the platform
-                // trust with online revocation (CRL distribution point / OCSP).
-                using var onlineChain = new X509Chain();
-                onlineChain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
-                onlineChain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
-                onlineChain.ChainPolicy.ExtraStore.AddRange(extraCerts);
-                if (onlineChain.Build(x509Cert))
-                {
-                    result.CertificateStatus = StatusCodes.Good;
-                    result.ValidityTime = computedValidityTime;
-                    return result;
-                }
-
-                // CertificateStatus is the first error encountered.
-                result.CertificateStatus = GetFirstChainError(onlineChain, ignoreUntrustedRoot: false);
-                if (StatusCode.IsGood(result.CertificateStatus))
+                catch (CryptographicException)
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateInvalid;
                 }
-            }
-            catch (CryptographicException)
-            {
-                result.CertificateStatus = StatusCodes.BadCertificateInvalid;
-            }
-            finally
-            {
-                if (extraCerts != null)
-                {
-                    foreach (X509Certificate2 extraCert in extraCerts)
-                    {
-                        extraCert.Dispose();
-                    }
-                }
-                x509.Dispose();
             }
 
             return result;
         }
 
+        /// <summary>
+        /// Enumerates caller-owned references from the configured local issuer store.
+        /// </summary>
         private static async Task<CertificateCollection> EnumerateCertificatesAsync(
             ICertificateStore? store,
             CancellationToken cancellationToken)
         {
             if (store == null)
             {
-                return new CertificateCollection();
+                return [];
             }
             return await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        private static bool IsKnownIssuer(CertificateCollection issuerCerts, X509Certificate2 root)
+        /// <summary>
+        /// Resolves and verifies a complete chain without consulting caller-controlled issuer URLs.
+        /// </summary>
+        private static StatusCode BuildOfflineIssuerChain(
+            Certificate certificate,
+            CertificateCollection issuerCerts,
+            CertificateCollection localChain)
         {
-            foreach (Certificate issuer in issuerCerts)
+            if (localChain.Any(existing => existing.Thumbprint == certificate.Thumbprint))
             {
-                if (string.Equals(issuer.Thumbprint, root.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                return StatusCodes.BadCertificateChainIncomplete;
+            }
+            localChain.Add(certificate);
+            bool complete = false;
+            try
+            {
+                DateTime now = DateTime.UtcNow;
+                if (certificate.NotBefore > now || certificate.NotAfter < now)
                 {
-                    return true;
+                    return localChain.Count == 1
+                        ? StatusCodes.BadCertificateTimeInvalid
+                        : StatusCodes.BadCertificateIssuerTimeInvalid;
+                }
+                HashAlgorithmName hash = certificate.HashAlgorithmName;
+                if (hash != HashAlgorithmName.SHA256 &&
+                    hash != HashAlgorithmName.SHA384 &&
+                    hash != HashAlgorithmName.SHA512)
+                {
+                    return StatusCodes.BadCertificatePolicyCheckFailed;
+                }
+                X509BasicConstraintsExtension? constraints = certificate.FindExtension<X509BasicConstraintsExtension>();
+                if (localChain.Count > 1 &&
+                    constraints is { HasPathLengthConstraint: true } &&
+                    localChain.Count - 2 > constraints.PathLengthConstraint)
+                {
+                    return StatusCodes.BadCertificateInvalid;
+                }
+                if (X509Utils.IsSelfSigned(certificate))
+                {
+                    if (localChain.Count == 1 ||
+                        !issuerCerts.Any(issuer => Utils.IsEqual(issuer.RawData, certificate.RawData)))
+                    {
+                        return StatusCodes.BadCertificateUntrusted;
+                    }
+                    if (!X509Utils.VerifySelfSigned(certificate))
+                    {
+                        return StatusCodes.BadCertificateInvalid;
+                    }
+                    StatusCode status = ValidateOfflineIssuerChain(localChain);
+                    complete = StatusCode.IsGood(status);
+                    return status;
+                }
+
+                StatusCode missingIssuerStatus = StatusCodes.BadCertificateChainIncomplete;
+                foreach (Certificate issuer in issuerCerts)
+                {
+                    if (!X509Utils.CompareDistinguishedName(certificate.IssuerName, issuer.SubjectName))
+                    {
+                        continue;
+                    }
+                    if (!X509Utils.IsIssuerAllowed(issuer) ||
+                        (X509Utils.GetKeyUsage(issuer) & X509KeyUsageFlags.KeyCertSign) == 0)
+                    {
+                        missingIssuerStatus = StatusCodes.BadCertificateIssuerUseNotAllowed;
+                        continue;
+                    }
+
+                    using X509Certificate2 issuerCertificate = issuer.AsX509Certificate2();
+                    if (!new X509Signature(certificate.RawData).Verify(issuerCertificate))
+                    {
+                        missingIssuerStatus = StatusCodes.BadCertificateInvalid;
+                        continue;
+                    }
+                    missingIssuerStatus = BuildOfflineIssuerChain(issuer, issuerCerts, localChain);
+                    if (StatusCode.IsGood(missingIssuerStatus))
+                    {
+                        complete = true;
+                        return missingIssuerStatus;
+                    }
+                }
+                return missingIssuerStatus;
+            }
+            finally
+            {
+                if (!complete)
+                {
+                    Certificate removed = localChain[^1];
+                    localChain.RemoveAt(localChain.Count - 1);
+                    removed.Dispose();
                 }
             }
-            return false;
+        }
+
+        /// <summary>
+        /// Validates path constraints without platform issuer or revocation retrieval.
+        /// </summary>
+        private static StatusCode ValidateOfflineIssuerChain(CertificateCollection localChain)
+        {
+#if NETFRAMEWORK
+            // .NET Framework has no DisableCertificateDownloads. Never give its chain engine
+            // caller certificates, even with NoCheck or a short URL timeout.
+            var parser = new Org.BouncyCastle.X509.X509CertificateParser();
+            var certificates = new List<Org.BouncyCastle.X509.X509Certificate>();
+            for (int ii = 0; ii < localChain.Count - 1; ii++)
+            {
+                certificates.Add(parser.ReadCertificate(localChain[ii].RawData));
+            }
+            var anchors = new HashSet<Org.BouncyCastle.Pkix.TrustAnchor>
+            {
+                new(
+                    parser.ReadCertificate(localChain[^1].RawData),
+                    localChain[^1].Extensions["2.5.29.30"]?.RawData)
+            };
+            var parameters = new Org.BouncyCastle.Pkix.PkixParameters(anchors)
+            {
+                IsRevocationEnabled = false
+            };
+            try
+            {
+                var validator = new Org.BouncyCastle.Pkix.PkixCertPathValidator();
+                validator.Validate(new Org.BouncyCastle.Pkix.PkixCertPath(certificates), parameters);
+                return StatusCodes.Good;
+            }
+            catch (Org.BouncyCastle.Pkix.PkixCertPathValidatorException)
+            {
+                return StatusCodes.BadCertificateInvalid;
+            }
+#else
+            using var chain = new X509Chain();
+            chain.ChainPolicy.DisableCertificateDownloads = true;
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            X509Certificate2Collection extraCerts = localChain.AsX509Certificate2Collection();
+            try
+            {
+                chain.ChainPolicy.CustomTrustStore.Add(extraCerts[^1]);
+                chain.ChainPolicy.ExtraStore.AddRange(extraCerts);
+                if (!chain.Build(extraCerts[0]))
+                {
+                    StatusCode status = GetFirstChainError(chain);
+                    return StatusCode.IsBad(status) ? status : StatusCodes.BadCertificateInvalid;
+                }
+                if (chain.ChainElements.Count != localChain.Count)
+                {
+                    return StatusCodes.BadCertificateChainIncomplete;
+                }
+                for (int ii = 0; ii < localChain.Count; ii++)
+                {
+                    if (!Utils.IsEqual(chain.ChainElements[ii].Certificate.RawData, localChain[ii].RawData))
+                    {
+                        return StatusCodes.BadCertificateUntrusted;
+                    }
+                }
+                return StatusCodes.Good;
+            }
+            finally
+            {
+                foreach (X509Certificate2 extraCert in extraCerts)
+                {
+                    extraCert.Dispose();
+                }
+            }
+#endif
         }
 
         /// <summary>
         /// Checks every certificate of the chain against the CRL of its issuer
-        /// in the GDS issuer store.
+        /// in the local GDS issuer-store snapshot.
         /// </summary>
-        private static async Task<StatusCode> CheckRevocationWithGdsCrlsAsync(
-            ICertificateStore store,
-            X509Chain chain,
-            CancellationToken cancellationToken)
+        private static (StatusCode Status, DateTime ValidityTime) CheckRevocationWithGdsCrls(
+            CertificateCollection localChain,
+            X509CRLCollection crls)
         {
-            for (int ii = 0; ii < chain.ChainElements.Count - 1; ii++)
+            DateTime now = DateTime.UtcNow;
+            DateTime validityTime = localChain.Min(certificate => certificate.NotAfter);
+            for (int ii = 0; ii < localChain.Count - 1; ii++)
             {
-                using var subject = Certificate.FromRawData(chain.ChainElements[ii].Certificate.RawData);
-                using var issuer = Certificate.FromRawData(chain.ChainElements[ii + 1].Certificate.RawData);
-                StatusCode status = await store
-                    .IsRevokedAsync(issuer, subject, cancellationToken)
-                    .ConfigureAwait(false);
-                if (status == StatusCodes.BadCertificateRevoked)
+                Certificate subject = localChain[ii];
+                Certificate issuer = localChain[ii + 1];
+                bool currentCrl = false;
+                foreach (X509CRL crl in crls)
                 {
-                    return ii == 0 ? StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked;
+                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName) ||
+                        !crl.VerifySignature(issuer, false))
+                    {
+                        continue;
+                    }
+                    if (crl.IsRevoked(subject))
+                    {
+                        return (
+                            ii == 0 ? StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked,
+                            DateTime.MinValue);
+                    }
+                    if (crl.ThisUpdate <= now &&
+                        (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= now))
+                    {
+                        currentCrl = true;
+                        if (crl.NextUpdate != DateTime.MinValue && crl.NextUpdate < validityTime)
+                        {
+                            validityTime = crl.NextUpdate;
+                        }
+                    }
                 }
-                if (StatusCode.IsBad(status))
+                if (!currentCrl)
                 {
-                    return ii == 0
-                        ? StatusCodes.BadCertificateRevocationUnknown
-                        : StatusCodes.BadCertificateIssuerRevocationUnknown;
+                    return (
+                        ii == 0
+                            ? StatusCodes.BadCertificateRevocationUnknown
+                            : StatusCodes.BadCertificateIssuerRevocationUnknown,
+                        DateTime.MinValue);
                 }
             }
-            return StatusCodes.Good;
+            return (StatusCodes.Good, validityTime);
         }
 
+#if !NETFRAMEWORK
         /// <summary>
         /// Maps the first chain error to a StatusCode, or returns Good.
         /// </summary>
-        private static StatusCode GetFirstChainError(X509Chain chain, bool ignoreUntrustedRoot)
+        private static StatusCode GetFirstChainError(X509Chain chain)
         {
             foreach (X509ChainStatus chainStatus in chain.ChainStatus)
             {
                 X509ChainStatusFlags status = chainStatus.Status;
-                if (status == X509ChainStatusFlags.NoError ||
-                    (ignoreUntrustedRoot && status == X509ChainStatusFlags.UntrustedRoot))
+                if (status == X509ChainStatusFlags.NoError)
                 {
                     continue;
                 }
@@ -1707,21 +1845,14 @@ namespace Opc.Ua.Gds.Server
             }
             return StatusCodes.Good;
         }
+#endif
 
-        private ServiceResult OnGetCertificates(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
+        private ServiceResult GetCertificatesCore(
             NodeId applicationId,
             NodeId certificateGroupId,
             ref ArrayOf<NodeId> certificateTypeIds,
             ref ArrayOf<ByteString> certificates)
         {
-            AuthorizationHelper.HasAuthorization(
-                context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
-                applicationId);
-
             var certificateTypeIdsList = new List<NodeId>();
             var certificatesList = new List<ByteString>();
 
@@ -1925,6 +2056,50 @@ namespace Opc.Ua.Gds.Server
             return [.. names];
         }
 
+        /// <summary>
+        /// Authorizes the exact onboarding relation before accepting a new private-key request.
+        /// </summary>
+        internal async ValueTask<StartNewKeyPairRequestMethodStateResult> OnStartNewKeyPairRequestAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            ArrayOf<string> domainNames,
+            string privateKeyFormat,
+            string privateKeyPassword,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+                await AuthorizeCertificateApplicationAsync(context, applicationId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                Server.ReportCertificateRequestedAuditEvent(
+                    context, objectId, method,
+                    [
+                        applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames,
+                        privateKeyFormat, Diagnostics.AuditEvents.RedactedPrivateKeyPassword
+                    ],
+                    certificateGroupId, certificateTypeId, m_logger, error);
+                throw;
+            }
+            NodeId requestId = default;
+            ServiceResult result = StartNewKeyPairRequestCore(
+                context, method, objectId, applicationId, certificateGroupId, certificateTypeId,
+                subjectName, domainNames, privateKeyFormat, privateKeyPassword, ref requestId,
+                authorizationChecked: true);
+            return new StartNewKeyPairRequestMethodStateResult { RequestId = requestId, ServiceResult = result };
+        }
+
+        /// <summary>
+        /// Retains the synchronous internal entry point for callers without asynchronous onboarding authorization.
+        /// </summary>
         internal ServiceResult OnStartNewKeyPairRequest(
             ISystemContext context,
             MethodState method,
@@ -1937,6 +2112,29 @@ namespace Opc.Ua.Gds.Server
             string privateKeyFormat,
             string privateKeyPassword,
             ref NodeId requestId)
+        {
+            return StartNewKeyPairRequestCore(
+                context, method, objectId, applicationId, certificateGroupId, certificateTypeId,
+                subjectName, domainNames, privateKeyFormat, privateKeyPassword, ref requestId,
+                authorizationChecked: false);
+        }
+
+        /// <summary>
+        /// Performs the existing synchronous request-store operation after its caller's authorization.
+        /// </summary>
+        private ServiceResult StartNewKeyPairRequestCore(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            ArrayOf<string> domainNames,
+            string privateKeyFormat,
+            string privateKeyPassword,
+            ref NodeId requestId,
+            bool authorizationChecked)
         {
             // Per OPC 10000-12 §7.6.4 / §7.9.3, CertificateRequestedAuditEvent
             // is emitted after the method outcome is known so Status reflects
@@ -1952,10 +2150,18 @@ namespace Opc.Ua.Gds.Server
                 // OPC 10000-12 §7.9.4: the private key password is an input
                 // and the private key an output, so the channel must be encrypted.
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
-                AuthorizationHelper.HasAuthorization(
-                    context,
-                    AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
-                    applicationId);
+                if (!authorizationChecked)
+                {
+                    if (DeviceRegistrarCertificateAuthorization != null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported, "Onboarding authorization requires the asynchronous handler.");
+                    }
+                    AuthorizationHelper.HasAuthorization(
+                        context,
+                        AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
+                        applicationId);
+                }
 
                 ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
 
@@ -2139,10 +2345,8 @@ namespace Opc.Ua.Gds.Server
             {
                 // OPC 10000-12 §7.9.3: shall be called from an encrypted SecureChannel.
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
-                AuthorizationHelper.HasAuthorization(
-                    context,
-                    AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
-                    applicationId);
+                await AuthorizeCertificateApplicationAsync(context, applicationId, cancellationToken)
+                    .ConfigureAwait(false);
 
                 ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
 
@@ -2303,11 +2507,47 @@ namespace Opc.Ua.Gds.Server
             // OPC 10000-12 §7.9.5: the private key is returned, so the
             // channel must be encrypted (Bad_SecurityModeInsufficient).
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
-            AuthorizationHelper.HasAuthorization(
-                context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
-                applicationId);
+            bool onboarding = await AuthorizeCertificateApplicationAsync(context, applicationId, cancellationToken)
+                .ConfigureAwait(false);
+            ICertificateRequestIssuanceStore? issuanceStore = CertificateRequestIssuanceStore;
+            if (onboarding && issuanceStore == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "Onboarding certificate completion requires an issuance store.");
+            }
+            if (issuanceStore == null)
+            {
+                return await FinishCertificateRequestCoreAsync(
+                    context, method, objectId, applicationId, requestId, null, cancellationToken).ConfigureAwait(false);
+            }
+            await m_finishRequestGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                // Authorization may have changed while another completion was publishing its receipt.
+                await AuthorizeCertificateApplicationAsync(context, applicationId, cancellationToken)
+                    .ConfigureAwait(false);
+                return await FinishCertificateRequestCoreAsync(
+                    context, method, objectId, applicationId, requestId, issuanceStore, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_finishRequestGate.Release();
+            }
+        }
 
+        /// <summary>
+        /// Completes an authorized request, retaining its exact issuance before any device privilege changes.
+        /// </summary>
+        private async ValueTask<FinishRequestMethodStateResult> FinishCertificateRequestCoreAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId applicationId,
+            NodeId requestId,
+            ICertificateRequestIssuanceStore? issuanceStore,
+            CancellationToken cancellationToken)
+        {
             var result = new FinishRequestMethodStateResult();
 
             ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
@@ -2377,138 +2617,147 @@ namespace Opc.Ua.Gds.Server
                 return result;
             }
 
-            // distinguish cert creation at approval/complete time
-            Certificate? certificate = null;
-            if (result.Certificate.IsEmpty)
+            if (issuanceStore != null)
             {
-                state = m_request.ReadRequest(
-                    applicationId,
-                    requestId,
-                    out certificateGroupId,
-                    out certificateTypeId,
-                    out ByteString certificateRequest,
-                    out string? subjectName,
-                    out string[]? domainNames,
-                    out string? privateKeyFormat,
-                    out ReadOnlySpan<char> privateKeyPassword);
-
-                result.ServiceResult = VerifyApprovedState(state)!;
-                if (result.ServiceResult != null)
+                CertificateRequestIssuance receipt = await issuanceStore.GetOrCreateAsync(
+                    applicationId, requestId,
+                    async token =>
+                    {
+                        FinishRequestMethodStateResult issued = await GenerateCertificateIssuanceAsync(
+                            application, applicationId, requestId, certificateGroup, certificateTypeNodeId,
+                            generatedCertificate, privateKey, token).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(issued.ServiceResult))
+                        {
+                            throw new ServiceResultException(issued.ServiceResult);
+                        }
+                        return new CertificateRequestIssuance(
+                            certificateGroupId!, certificateTypeId!, issued.Certificate, issued.PrivateKey,
+                            issued.IssuerCertificates);
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                if (!string.Equals(receipt.CertificateGroupId, certificateGroupId, StringComparison.Ordinal) ||
+                    !string.Equals(receipt.CertificateTypeId, certificateTypeId, StringComparison.Ordinal) ||
+                    (!generatedCertificate.IsEmpty && generatedCertificate != receipt.Certificate) ||
+                    (!privateKey.IsEmpty && privateKey != receipt.PrivateKey))
                 {
-                    return result;
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "The retained issuance does not match the approved request.");
                 }
-
-                if (!certificateRequest.IsEmpty)
-                {
-                    try
-                    {
-                        certificate = await certificateGroup.SigningRequestAsync(
-                            application,
-                            certificateTypeNodeId,
-                            GetDefaultDomainNames(application),
-                            certificateRequest,
-                            cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
-                        result.ServiceResult = CreateIssueFailureResult(
-                            e,
-                            "Certificate",
-                            applicationId,
-                            application);
-                        return result;
-                    }
-                }
-                else
-                {
-                    X509Certificate2KeyPair? newKeyPair = null;
-                    try
-                    {
-                        newKeyPair = await certificateGroup.NewKeyPairRequestAsync(
-                            application,
-                            certificateTypeNodeId,
-                            subjectName!,
-                            domainNames!,
-                            privateKeyFormat!,
-                            privateKeyPassword.ToArray(),
-                            cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
-                        result.ServiceResult = CreateIssueFailureResult(
-                            e,
-                            "New Key Pair Certificate",
-                            applicationId,
-                            application);
-                        return result;
-                    }
-
-                    certificate = newKeyPair.Certificate;
-                    result.PrivateKey = newKeyPair.PrivateKey;
-                }
-
-                result.Certificate = certificate.RawData.ToByteString();
+                result.Certificate = receipt.Certificate;
+                result.PrivateKey = receipt.PrivateKey;
+                result.IssuerCertificates = receipt.IssuerCertificates;
             }
             else
             {
-                certificate = Certificate.FromRawData(result.Certificate);
+                result = await GenerateCertificateIssuanceAsync(
+                    application, applicationId, requestId, certificateGroup, certificateTypeNodeId,
+                    generatedCertificate, privateKey, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result.ServiceResult))
+                {
+                    return result;
+                }
             }
 
-            // Per OPC 10000-12 §7.6.6 FinishRequest returns the chain of
-            // issuer certificates so the application can validate the new
-            // certificate without depending on its local issuer store. The
-            // chain is built from the in-memory CertificateGroup state to
-            // avoid contending with concurrent SigningRequestAsync /
-            // NewKeyPairRequestAsync writes against the AuthoritiesStore.
+            if (DeviceRegistrarCertificateAuthorization is { } onboarding)
+            {
+                await onboarding.RecordCertificateIssuedAsync(
+                    context, application, result.Certificate, cancellationToken).ConfigureAwait(false);
+            }
+
+            await PublishCertificateIssuanceAsync(
+                applicationId, requestId, certificateGroup, certificateTypeNodeId, result.Certificate,
+                cancellationToken).ConfigureAwait(false);
+
+            // FinishRequest has only applicationId/requestId inputs. Never place private-key output in audit.
+            ArrayOf<Variant> inputArguments = [applicationId, requestId];
+            Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
+
+            result.ServiceResult = ServiceResult.Good;
+            return result;
+        }
+
+        /// <summary>
+        /// Produces the certificate, private-key output and issuer chain without publishing device privilege.
+        /// </summary>
+        private async ValueTask<FinishRequestMethodStateResult> GenerateCertificateIssuanceAsync(
+            ApplicationRecordDataType application,
+            NodeId applicationId,
+            NodeId requestId,
+            ICertificateGroup certificateGroup,
+            NodeId certificateTypeNodeId,
+            ByteString generatedCertificate,
+            ByteString privateKey,
+            CancellationToken cancellationToken)
+        {
+            var result = new FinishRequestMethodStateResult
+            {
+                Certificate = generatedCertificate,
+                PrivateKey = privateKey
+            };
+            Certificate? certificate = null;
             try
             {
-                result.IssuerCertificates = BuildIssuerCertificateChain(
-                    certificate,
-                    certificateGroup,
-                    certificateTypeNodeId);
-
-                // store new app certificate
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                    m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath!);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore(Server.Telemetry))
+                if (generatedCertificate.IsEmpty)
                 {
-                    if (store != null)
+                    CertificateRequestState state = m_request.ReadRequest(
+                        applicationId, requestId, out _, out _,
+                        out ByteString certificateRequest, out string? subjectName,
+                        out string[]? domainNames, out string? privateKeyFormat,
+                        out ReadOnlySpan<char> privateKeyPassword);
+                    result.ServiceResult = VerifyApprovedState(state)!;
+                    if (result.ServiceResult != null)
                     {
-                        await store.AddAsync(certificate, null, cancellationToken).ConfigureAwait(false);
+                        return result;
                     }
+                    try
+                    {
+                        if (!certificateRequest.IsEmpty)
+                        {
+                            certificate = await certificateGroup.SigningRequestAsync(
+                                application, certificateTypeNodeId, GetDefaultDomainNames(application),
+                                certificateRequest, cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            char[] password = privateKeyPassword.ToArray();
+                            try
+                            {
+                                X509Certificate2KeyPair pair = await certificateGroup.NewKeyPairRequestAsync(
+                                    application, certificateTypeNodeId, subjectName!, domainNames!, privateKeyFormat!,
+                                    password, cancellationToken).ConfigureAwait(false);
+                                certificate = pair.Certificate;
+                                result.PrivateKey = pair.PrivateKey;
+                            }
+                            finally
+                            {
+                                Array.Clear(password, 0, password.Length);
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception error)
+                    {
+                        m_logger.FinishRequestIssueFailed(error, requestId, application.ApplicationUri);
+                        result.ServiceResult = CreateIssueFailureResult(
+                            error, certificateRequest.IsEmpty ? "New Key Pair Certificate" : "Certificate",
+                            applicationId, application);
+                        return result;
+                    }
+                    result.Certificate = certificate.RawData.ToByteString();
                 }
-
-                m_database.SetApplicationCertificate(
-                    applicationId,
-                    m_certTypeMap[certificateTypeNodeId],
-                    result.Certificate);
-
-                m_database.SetApplicationTrustLists(
-                    applicationId,
-                    m_certTypeMap[certificateTypeNodeId],
-                    certificateGroup.Configuration.TrustedListPath);
-
-                m_request.AcceptRequest(requestId, result.Certificate);
-
-                // Per OPC 10000-12 §7.6.6 the FinishRequest method takes
-                // only (applicationId, requestId) as input. The previous
-                // implementation included the returned PrivateKey in the audit
-                // payload, which would leak the secret. Only true input
-                // arguments are recorded; if a private key needs to be reflected
-                // in audit it must be passed via the redacted placeholder.
-                ArrayOf<Variant> inputArguments = [applicationId, requestId];
-                Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
-
-                result.ServiceResult = ServiceResult.Good;
+                else
+                {
+                    certificate = Certificate.FromRawData(generatedCertificate);
+                }
+                result.IssuerCertificates = BuildIssuerCertificateChain(
+                    certificate, certificateGroup, certificateTypeNodeId);
                 return result;
             }
             finally
             {
-                // Dispose the local owning handle even if any of the store /
-                // database / audit operations above throw (the certificate's
-                // raw data was already copied into result.Certificate).
                 certificate?.Dispose();
             }
         }
@@ -2552,11 +2801,27 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId,
             ref NodeId trustListId)
         {
+            if (DeviceRegistrarCertificateAuthorization != null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Onboarding authorization requires the asynchronous handler.");
+            }
             AuthorizationHelper.HasAuthorization(
                 context,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
+            return GetTrustListCore(applicationId, certificateGroupId, ref trustListId);
+        }
+
+        /// <summary>
+        /// Resolves the group TrustList after the caller's application-specific authorization.
+        /// </summary>
+        private ServiceResult GetTrustListCore(
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            ref NodeId trustListId)
+        {
             ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
 
             if (application == null)
@@ -2688,7 +2953,7 @@ namespace Opc.Ua.Gds.Server
             {
                 // Guarantee a valid, non-null output even for a detached Method
                 // node: a null array cannot round-trip through the Method call.
-                userTokenPolicies = ArrayOf<UserTokenPolicy>.Empty;
+                userTokenPolicies = [];
             }
 
             return ServiceResult.Good;
@@ -2714,7 +2979,7 @@ namespace Opc.Ua.Gds.Server
                 return serverConfiguration.UserTokenPolicies;
             }
 
-            return ArrayOf<UserTokenPolicy>.Empty;
+            return [];
         }
 
         /// <summary>
@@ -3215,29 +3480,65 @@ namespace Opc.Ua.Gds.Server
         /// (events, simulation, monitored sources) are torn down by the base
         /// class.
         /// </remarks>
-        protected override void Dispose(bool disposing)
+        public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            if (disposing)
-            {
-                DisposeAliasNameAggregation();
+            await StopAliasNameAggregationAsync().ConfigureAwait(false);
+            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+        }
 
-                // Every group this manager created is in the owning list, so
-                // a startup that failed before Configure could bind and index
-                // the groups still releases them.
-                foreach (ICertificateGroup certificateGroup in m_ownedCertificateGroups)
+        /// <inheritdoc/>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            var failures = new List<Exception>();
+            try
+            {
+                await StopAliasNameAggregationAsync().ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            try
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            try
+            {
+                m_finishRequestGate.Dispose();
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            foreach (ICertificateGroup certificateGroup in m_ownedCertificateGroups)
+            {
+                try
                 {
-                    // The TrustList handler holds its store instances open
-                    // for reuse across operations; the node manager owns the
-                    // node and therefore the handler's lifetime.
                     (certificateGroup.DefaultTrustList?.Handle as IDisposable)?.Dispose();
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    failures.Add(error);
+                }
+                try
+                {
                     certificateGroup.Dispose();
                 }
-
-                m_ownedCertificateGroups.Clear();
-                m_certificateGroups.Clear();
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    failures.Add(error);
+                }
             }
-
-            base.Dispose(disposing);
+            m_ownedCertificateGroups.Clear();
+            m_certificateGroups.Clear();
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("GDS resource disposal failed.", failures);
+            }
         }
 
         private readonly bool m_autoApprove;
@@ -3259,6 +3560,7 @@ namespace Opc.Ua.Gds.Server
         private readonly Dictionary<NodeId, ICertificateGroup> m_certificateGroups;
         private Dictionary<NodeId, string> m_certTypeMap = [];
         private IKeyCredentialRequestStore? m_keyCredentialStore;
+        private static readonly Dictionary<NodeId, string> s_certificateTypeMap = CreateCertificateTypeMap();
 
         /// <summary>
         /// Gets or sets the key-credential request store used by
@@ -3288,7 +3590,7 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 1, Level = LogLevel.Information,
             Message = "Server Found at {DiscoveryUrl}")]
-        public static partial void ServerFound(this ILogger logger, string? discoveryUrl);
+        public static partial void ServerFound(this ILogger logger, [NetworkAddress] string? discoveryUrl);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 2, Level = LogLevel.Error,
             Message = "Could not connect to the Database!")]
@@ -3311,12 +3613,15 @@ namespace Opc.Ua.Gds.Server
         public static partial void UnexpectedErrorRevokingCertificate(
             this ILogger logger,
             Exception e,
-            string subject,
+            [ApplicationIdentity] string subject,
             NodeId certificateGroupId);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 7, Level = LogLevel.Warning,
             Message = "Failed to build issuer chain for {Subject}; falling back to the immediate issuing CA.")]
-        public static partial void FailedToBuildIssuerChain(this ILogger logger, Exception ex, string subject);
+        public static partial void FailedToBuildIssuerChain(
+            this ILogger logger,
+            Exception ex,
+            [ApplicationIdentity] string subject);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 8, Level = LogLevel.Error,
             Message = "Unexpected error initializing certificateGroup: {CertificateGroupId}")]
@@ -3327,22 +3632,29 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 9, Level = LogLevel.Information,
             Message = "QueryServers: {ApplicationUri} {ApplicationName}")]
-        public static partial void QueryServers(this ILogger logger, string applicationUri, string applicationName);
+        public static partial void QueryServers(
+            this ILogger logger,
+            [ApplicationIdentity] string applicationUri,
+            string applicationName);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 10, Level = LogLevel.Information,
             Message = "QueryApplications: {ApplicationUri} {ApplicationName}")]
         public static partial void QueryApplications(
             this ILogger logger,
-            string applicationUri,
+            [ApplicationIdentity] string applicationUri,
             string applicationName);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 11, Level = LogLevel.Information,
             Message = "OnRegisterApplication: {ApplicationUri}")]
-        public static partial void OnRegisterApplication(this ILogger logger, string? applicationUri);
+        public static partial void OnRegisterApplication(
+            this ILogger logger,
+            [ApplicationIdentity] string? applicationUri);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 12, Level = LogLevel.Information,
             Message = "OnUpdateApplication: {ApplicationUri}")]
-        public static partial void OnUpdateApplication(this ILogger logger, string? applicationUri);
+        public static partial void OnUpdateApplication(
+            this ILogger logger,
+            [ApplicationIdentity] string? applicationUri);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 13, Level = LogLevel.Information,
             Message = "OnUnregisterApplication: {ApplicationId}")]
@@ -3354,7 +3666,9 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 15, Level = LogLevel.Information,
             Message = "OnFindApplications: {ApplicationUri}")]
-        public static partial void OnFindApplications(this ILogger logger, string applicationUri);
+        public static partial void OnFindApplications(
+            this ILogger logger,
+            [ApplicationIdentity] string applicationUri);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 16, Level = LogLevel.Information,
             Message = "OnGetApplication: {ApplicationId}")]
@@ -3366,7 +3680,9 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 18, Level = LogLevel.Information,
             Message = "OnKeyCredentialStartRequest: {ApplicationUri}")]
-        public static partial void OnKeyCredentialStartRequest(this ILogger logger, string applicationUri);
+        public static partial void OnKeyCredentialStartRequest(
+            this ILogger logger,
+            [ApplicationIdentity] string applicationUri);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 19, Level = LogLevel.Information,
             Message = "OnKeyCredentialFinishRequest: {RequestId}")]
@@ -3382,6 +3698,6 @@ namespace Opc.Ua.Gds.Server
             this ILogger logger,
             Exception exception,
             NodeId requestId,
-            string? applicationUri);
+            [ApplicationIdentity] string? applicationUri);
     }
 }

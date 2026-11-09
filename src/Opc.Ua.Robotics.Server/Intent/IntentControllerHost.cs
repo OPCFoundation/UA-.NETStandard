@@ -2552,6 +2552,12 @@ namespace Opc.Ua.RobotIntent.Server
             SetValue(node.MissionId, entry.MissionId);
             SetValue(node.Progress, -1.0);
             SetValue(node.QueuePosition, (uint)0);
+            // The model declares Result and CurrentPose without a Value, so they
+            // start out null; publish empty structures until the executor
+            // reports a pose and the intent reaches a terminal result, so
+            // clients always read a value of the declared DataType.
+            SetValue(node.CurrentPose, new Pose3DDataType());
+            SetValue(node.Result, new IntentResultDataType());
             SetValue(node.Deletable, true);
             SetValue(node.AutoDelete, false);
             SetValue(node.RecycleCount, 0);

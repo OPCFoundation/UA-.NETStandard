@@ -12,16 +12,28 @@ exactly as it did before the provider model existed.
 
 - [The short version](#the-short-version)
 - [Holding a private key in a device](#holding-a-private-key-in-a-device)
+  - [Using a PKCS#11 token](#using-a-pkcs11-token)
+  - [Why not `CopyWithPrivateKey`?](#why-not-copywithprivatekey)
+  - [Lifetime](#lifetime)
 - [Selecting a provider per purpose and per policy](#selecting-a-provider-per-purpose-and-per-policy)
+  - [Where resolution happens](#where-resolution-happens)
 - [Generating a key inside a device](#generating-a-key-inside-a-device)
 - [Certificate renewal with a device held key](#certificate-renewal-with-a-device-held-key)
 - [Validation status, compliance and audit](#validation-status-compliance-and-audit)
 - [What can and cannot be claimed about FIPS](#what-can-and-cannot-be-claimed-about-fips)
+  - [What `FipsOnly` actually enforces at startup](#what-fipsonly-actually-enforces-at-startup)
+  - [Output a provider did not produce is refused](#output-a-provider-did-not-produce-is-refused)
 - [Substituting the symmetric primitives](#substituting-the-symmetric-primitives)
+  - [What it costs when you do not use it](#what-it-costs-when-you-do-not-use-it)
+  - [A provider that cannot do what it was bound to](#a-provider-that-cannot-do-what-it-was-bound-to)
 - [Using a key served over a network](#using-a-key-served-over-a-network)
 - [PubSub](#pubsub)
+  - [What device custody can and cannot mean here](#what-device-custody-can-and-cannot-mean-here)
 - [Contributing a security policy](#contributing-a-security-policy)
+  - [Resolving the policy set](#resolving-the-policy-set)
+  - [Reaching the secure channel and the session](#reaching-the-secure-channel-and-the-session)
 - [Limitations](#limitations)
+- [Related](#related)
 
 ## The short version
 
@@ -30,7 +42,7 @@ private-key operation through them. Implementations backed by hardware and cloud
 `RSACng` over a TPM key storage provider, `Pkcs11Interop`, Azure's `RSAKeyVault`. The stack therefore does
 **not** define its own signing interface, because doing so would make all of those unusable.
 
-What the provider model adds is the part the platform does not express:
+The provider model covers concerns the platform does not express:
 
 | Concern | Type |
 |---|---|
@@ -124,8 +136,9 @@ Exporting such a certificate as PKCS#12 throws rather than silently producing a 
 Real deployments mix sources. Selection is therefore a resolution over three discriminators — purpose,
 security policy and certificate type — with the most specific registration winning:
 
-```
-(purpose, policy) → purpose → registered default → platform
+```mermaid
+flowchart LR
+    exact["(purpose, policy)"] --> purpose["purpose"] --> registered["registered default"] --> platform["platform"]
 ```
 
 ```csharp
@@ -216,7 +229,7 @@ Every provider declares what may be said about the module behind it:
 |---|---|
 | `Permissive` (default) | Existing behaviour. Nothing is filtered and nothing is warned about |
 | `WarnOnUncertified` | Every provider carrying no validation is reported |
-| `FipsOnly` | Providers carrying no validation are refused and the server does not start |
+| `FipsOnly` | Providers declared `Uncertified` or `Unknown` are refused; the auditor also checks algorithm coverage for the offered security policies |
 
 ```csharp
 using var auditor = new CryptoProviderAuditor(registry, telemetry, CryptoCompliancePolicy.FipsOnly);
@@ -224,8 +237,8 @@ auditor.Report();              // writes the effective configuration to the log
 auditor.ThrowIfNotCompliant(); // refuses to continue if anything is uncertified
 ```
 
-Metrics are published regardless of policy, because they are pull-based and cost nothing when nobody reads
-them:
+Metrics are registered regardless of policy. Their measurement callbacks run
+when an observer collects them:
 
 | Instrument | Meaning |
 |---|---|
@@ -238,10 +251,10 @@ them:
 the operating system supplies — CNG on Windows, OpenSSL on Linux, CoreCrypto on macOS. Whether that module
 is running in a validated mode is a property of how the machine is configured, not of this stack.
 
-What can honestly be said: *with `FipsOnly`, the stack performs no cryptography outside the platform
-modules, and those modules are validated when the operating system is configured for it.*
-
-What cannot be said: that the stack itself is validated.
+`FipsOnly` admits only providers declared `FipsValidated` or
+`FipsCapablePlatform` and checks their algorithm coverage. It does not validate
+the stack; verify each selected module, version and operating mode against its
+validation certificate.
 
 These algorithms are **not** FIPS-approved and are enabled by default:
 
@@ -256,14 +269,14 @@ These algorithms are **not** FIPS-approved and are enabled by default:
 certificate building, for the raw ECDH agreement of the ECC security policies and for the AES-GCM and
 ChaCha20-Poly1305 ciphers of the AEAD policies. Because those steps bypass the provider registry,
 `FipsOnly` withholds every ECC policy and every AEAD policy on `net48`, including the NIST curves and
-`RSA_DH_AesGcm`. That package is **not** validated — the validated Bouncy Castle product is a
-separate, commercially licensed distribution — so **that target framework cannot make a FIPS claim at
-all**.
+`RSA_DH_AesGcm`. That package is **not** the separately validated Bouncy Castle
+product, so a `net48` deployment cannot rely on this package for a FIPS claim.
 
 ### What `FipsOnly` actually enforces at startup
 
-`CryptoProviderAuditor.ThrowIfNotCompliant()` refuses to start when a provider bound to an operation
-would not perform it. Carrying the facet is necessary but not sufficient: `Supports(algorithm)` is
+When the application calls `CryptoProviderAuditor.ThrowIfNotCompliant()` at startup,
+the auditor throws if a provider bound to an operation would not perform it.
+Carrying the facet is necessary but not sufficient: `Supports(algorithm)` is
 consulted again at the point of use, and a provider that answers `false` there is bypassed in favour of
 the platform *for that algorithm alone*. So the audit checks the algorithms of every policy the
 application actually offers, and names what would fall through:
@@ -354,15 +367,17 @@ not, because it would otherwise redirect nonce generation for every other policy
 
 ### What it costs when you do not use it
 
-Nothing, by construction. `CryptoProviderFacets` returns `null` both when no registry is configured and
-when resolution lands on the platform provider, because the platform facets perform exactly the code the
-channel would otherwise run inline. A `null` facet tells the channel to take its existing path, so the
-per-message code has no interface dispatch at all unless a provider was registered.
+When no custom provider facet is selected, the channel uses its existing
+cryptographic path without provider-interface dispatch per message.
+`CryptoProviderFacets` returns `null` when no registry is configured or when
+resolution selects the platform provider. A `null` facet tells the channel
+to take that existing path.
 
 Resolution happens once, in `CalculateSymmetricKeySizes`, and the result is held for the life of the
-channel. `SymmetricChannelCryptoBenchmarks` measures both paths — `EncryptSignThenDecryptVerify` is the
-baseline and `EncryptSignThenDecryptVerifyThroughProvider` is the same work through the seam — so the
-cost of the indirection is measured rather than assumed.
+channel. Use `SymmetricChannelCryptoBenchmarks` to compare the paths on the
+target runtime: `EncryptSignThenDecryptVerify` runs the baseline and
+`EncryptSignThenDecryptVerifyThroughProvider` runs the same work through the
+provider interface.
 
 ### A provider that cannot do what it was bound to
 
@@ -436,8 +451,8 @@ supplied through the constructor, so implementations of that interface outside
 this stack are unaffected.
 
 The wrapper resolver selects the bundle it wraps with from the registered
-policies rather than from a static default, which is what makes the registration
-above take effect. Outside the container, `PubSubApplicationBuilder` does the
+policies rather than from a static default, so the registration
+above takes effect. Outside the container, `PubSubApplicationBuilder` does the
 same with the policies it holds, and `WithSecurityPolicySelector` overrides the
 choice per connection:
 
@@ -576,15 +591,15 @@ they open, including channels recreated during reconnect.
 
 The registry a container builds is **its own**. A policy registered by one application is not visible to
 another hosted in the same process, and it is not visible to `SecurityPolicies.Default`. That
-fallback carries exactly the built-in set and is what the paths that run before any container exists —
-configuration loading, most obviously — resolve their policies through:
+fallback carries exactly the built-in set. Paths that run before any container exists —
+such as configuration loading — resolve their policies through it:
 
 ```csharp
 string? uri = SecurityPolicies.Default.GetUri("Basic256Sha256");
 ```
 
-Construct a registry directly when you want an isolated set, which is also what makes the policy set
-testable without touching process-wide state:
+Construct a registry directly when you want an isolated set. You can then test the policy set
+without touching process-wide state:
 
 ```csharp
 using var policies = new SecurityPolicies(telemetry);
@@ -594,10 +609,10 @@ using IDisposable registration = policies.Register(customPolicy);
 The registry creates its logger from the `ITelemetryContext` it is given, which is why `Encrypt`,
 `Decrypt` and the signature helpers take no `ILogger` argument.
 
-`PlatformSupport` is what decides whether the policy is offered on the machine it is running on, so a
+`PlatformSupport` decides whether the policy is offered on the machine it is running on, so a
 policy whose algorithms are unavailable is filtered out the same way the built-in ones are. The
 `ECC_curve25519` and `ECC_curve448` profiles are the worked example: they ship in the tree but are not
-advertised, and a consumer can light them up from outside without rebuilding the stack — which is what
+advertised, and a consumer can light them up from outside without rebuilding the stack — as
 `RegisterLightsUpCurvePoliciesFromOutsideCore` asserts.
 
 Registering a policy makes it **advertised and resolvable**, but does not

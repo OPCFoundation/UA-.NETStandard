@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Vision.Client;
 using Opc.Ua.Vision.Intent.Tests.Infrastructure;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Intent.Tests
 {
@@ -77,8 +78,8 @@ namespace Opc.Ua.Vision.Intent.Tests
                 .ConfigureAwait(false);
             VisionPipelineClient pipeline = context.Vision.Pipeline(pipelineNodeId);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await pipeline.RunInferenceAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await pipeline.RunInferenceAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
                 "An off-server pipeline must refuse RunInference with Bad_NotSupported.");
         }
@@ -97,7 +98,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                 "An off-server pipeline must expose the Feedback object per §4.4.");
 
             VisionDetectionDataType detection = BuildValidDetection("TestCube", 1u);
-            var detections = new[] { detection }.ToArrayOf();
+            ArrayOf<VisionDetectionDataType> detections = new[] { detection }.ToArrayOf();
             var frameReference = new VisionImageReferenceDataType
             {
                 Uri = "urn:test:off-server:frames:1",
@@ -112,7 +113,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                 frameReference,
                 ByteString.Empty).ConfigureAwait(false);
 
-            List<VisionNodeEntry> results = new();
+            List<VisionNodeEntry> results = [];
             await foreach (VisionNodeEntry entry in pipeline.EnumerateResultsAsync())
             {
                 results.Add(entry);
@@ -152,20 +153,20 @@ namespace Opc.Ua.Vision.Intent.Tests
                 "The Server must advertise Vision facets in ServerCapabilities.ServerProfileArray.");
             Assert.That(
                 profileNames.Any(p => p.Contains("Inference-OffServer",
-                    System.StringComparison.OrdinalIgnoreCase)),
+                    StringComparison.OrdinalIgnoreCase)),
                 Is.True,
                 FormattableString.Invariant($"An off-server pipeline must advertise VIS-Inference-OffServer. Advertised: {advertised}."));
             Assert.That(
                 profileNames.Any(p => p.Contains("Inference-OnServer",
-                    System.StringComparison.OrdinalIgnoreCase)),
+                    StringComparison.OrdinalIgnoreCase)),
                 Is.False,
                 FormattableString.Invariant($"An off-server pipeline must NOT advertise VIS-Inference-OnServer. Advertised: {advertised}."));
         }
 
         private static async Task<List<string>> ReadServerProfileArrayAsync(
-            Opc.Ua.Client.ISession session)
+            Ua.Client.ISession session)
         {
-            NodeId profileArrayNodeId = global::Opc.Ua.VariableIds
+            NodeId profileArrayNodeId = VariableIds
                 .Server_ServerCapabilities_ServerProfileArray;
             ArrayOf<ReadValueId> toRead = new ReadValueId[]
             {
@@ -225,7 +226,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                     FrameId = TestVisionCell.CameraFrameId,
                     Position = s_doubleValues1.ToArrayOf(),
                     Orientation = s_doubleValues2.ToArrayOf(),
-                    Covariance = ArrayOf<double>.Empty
+                    Covariance = []
                 },
                 TrackId = classLabel
             };

@@ -369,8 +369,8 @@ namespace Opc.Ua.Client.Tests.StateMachines
                 failRead = true;
                 move = enumerator.MoveNextAsync().AsTask();
                 (parentFails ? parentChanges : childChanges).Writer.TryWrite(default);
-                ServiceResultException actual = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await move.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
+                ServiceResultException actual = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await move.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)))!;
 
                 Assert.That(actual, Is.SameAs(failure));
                 Assert.That(await (parentFails ? childStopped : parentStopped).Task.ConfigureAwait(false), Is.True);

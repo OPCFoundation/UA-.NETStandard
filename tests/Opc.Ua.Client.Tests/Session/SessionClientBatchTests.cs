@@ -100,7 +100,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ActivateSessionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task ActivateSessionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             var clientSignature = new SignatureData();
@@ -123,7 +123,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
@@ -137,7 +137,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ActivateSessionAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task ActivateSessionAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             var clientSignature = new SignatureData();
@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void AddNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task AddNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var nodesToAdd = Enumerable.Repeat(new AddNodesItem(), 15).ToArrayOf();
@@ -233,7 +233,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.AddNodesAsync(
                     requestHeader,
                     nodesToAdd,
@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void AddNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task AddNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<AddNodesItem> nodesToAdd = [];
@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.AddNodesAsync(
                     requestHeader,
                     nodesToAdd,
@@ -303,7 +303,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void AddNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task AddNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             ArrayOf<AddNodesItem> nodesToAdd = [];
@@ -317,7 +317,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.AddNodesAsync(requestHeader,
                 nodesToAdd, ct).ConfigureAwait(false));
 
@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void AddReferencesAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task AddReferencesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var referencesToAdd = Enumerable.Repeat(new AddReferencesItem(), 15).ToArrayOf();
@@ -419,7 +419,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.AddReferencesAsync(
                     requestHeader,
                     referencesToAdd,
@@ -459,7 +459,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void AddReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task AddReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<AddReferencesItem> referencesToAdd = [];
@@ -479,7 +479,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.AddReferencesAsync(
                     requestHeader,
                     referencesToAdd,
@@ -489,7 +489,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void AddReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task AddReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             ArrayOf<AddReferencesItem> referencesToAdd = [];
@@ -503,7 +503,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.AddReferencesAsync(
                     requestHeader,
                     referencesToAdd,
@@ -589,7 +589,7 @@ namespace Opc.Ua.Client.Tests
         /// completed batches are released before the error propagates (L3-2).
         /// </summary>
         [Test]
-        public void BrowseAsyncReleasesContinuationPointsOfCompletedBatchesOnFailure()
+        public async Task BrowseAsyncReleasesContinuationPointsOfCompletedBatchesOnFailure()
         {
             var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             using var sessionMock = SessionMock.Create();
@@ -620,7 +620,7 @@ namespace Opc.Ua.Client.Tests
                     });
                 });
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.BrowseAsync(
                     null,
                     new ViewDescription(),
@@ -640,7 +640,7 @@ namespace Opc.Ua.Client.Tests
         /// batch fails (L3-2).
         /// </summary>
         [Test]
-        public void CreateMonitoredItemsAsyncDeletesItemsOfCompletedBatchesOnFailure()
+        public async Task CreateMonitoredItemsAsyncDeletesItemsOfCompletedBatchesOnFailure()
         {
             var itemsToCreate = Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToArrayOf();
             using var sessionMock = SessionMock.Create();
@@ -676,7 +676,7 @@ namespace Opc.Ua.Client.Tests
                     });
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.CreateMonitoredItemsAsync(
                     null,
                     42,
@@ -848,7 +848,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void BrowseAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task BrowseAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var view = new ViewDescription();
@@ -877,7 +877,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.BrowseAsync(
                     requestHeader,
                     view,
@@ -1398,7 +1398,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void BrowseAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task BrowseAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             var view = new ViewDescription();
@@ -1420,7 +1420,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.BrowseAsync(
                     requestHeader,
                     view,
@@ -1432,7 +1432,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void BrowseAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task BrowseAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             var view = new ViewDescription();
@@ -1448,7 +1448,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.BrowseAsync(
                     requestHeader,
                     view,
@@ -1536,7 +1536,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void BrowseNextAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task BrowseNextAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             const bool releaseContinuationPoints = true;
@@ -1566,7 +1566,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.BrowseNextAsync(
                     requestHeader,
                     releaseContinuationPoints,
@@ -1609,7 +1609,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void BrowseNextAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task BrowseNextAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const bool releaseContinuationPoints = true;
@@ -1631,7 +1631,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.BrowseNextAsync(
                     requestHeader,
                     releaseContinuationPoints,
@@ -1642,7 +1642,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void BrowseNextAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task BrowseNextAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const bool releaseContinuationPoints = true;
@@ -1658,7 +1658,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.BrowseNextAsync(
                     requestHeader,
                     releaseContinuationPoints,
@@ -1739,7 +1739,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CallAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task CallAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var methodsToCall = Enumerable.Repeat(new CallMethodRequest(), 15).ToArrayOf();
@@ -1765,7 +1765,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.CallAsync(
                     requestHeader,
                     methodsToCall,
@@ -1805,7 +1805,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CallAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task CallAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<CallMethodRequest> methodsToCall = [];
@@ -1825,7 +1825,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.CallAsync(
                     requestHeader,
                     methodsToCall,
@@ -1835,7 +1835,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CallAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task CallAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             ArrayOf<CallMethodRequest> methodsToCall = [];
@@ -1849,7 +1849,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.CallAsync(
                     requestHeader,
                     methodsToCall,
@@ -1915,7 +1915,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CancelAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task CancelAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const uint requestHandle = 1u;
@@ -1935,7 +1935,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.CancelAsync(
                     requestHeader,
                     requestHandle,
@@ -1945,7 +1945,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CancelAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task CancelAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const uint requestHandle = 1u;
@@ -1959,7 +1959,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.CancelAsync(
                     requestHeader,
                     requestHandle,
@@ -1996,7 +1996,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CloseSessionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task CloseSessionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const bool deleteSubscriptions = true;
@@ -2016,7 +2016,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.CloseSessionAsync(
                     requestHeader,
                     deleteSubscriptions,
@@ -2026,7 +2026,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CloseSessionAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task CloseSessionAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const bool deleteSubscriptions = true;
@@ -2040,7 +2040,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.CloseSessionAsync(
                     requestHeader,
                     deleteSubscriptions,
@@ -2092,7 +2092,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CreateMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task CreateMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -2121,7 +2121,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.CreateMonitoredItemsAsync(
                     requestHeader,
                     subscriptionId,
@@ -2176,7 +2176,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CreateMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task CreateMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -2198,7 +2198,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.CreateMonitoredItemsAsync(
                     requestHeader,
                     subscriptionId,
@@ -2210,7 +2210,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CreateMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task CreateMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -2226,7 +2226,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.CreateMonitoredItemsAsync(
                     requestHeader,
                     subscriptionId,
@@ -2310,7 +2310,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CreateSubscriptionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task CreateSubscriptionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const double requestedPublishingInterval = 1000.0;
@@ -2335,7 +2335,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.CreateSubscriptionAsync(
                     requestHeader,
                     requestedPublishingInterval,
@@ -2350,7 +2350,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void CreateSubscriptionAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task CreateSubscriptionAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const double requestedPublishingInterval = 1000.0;
@@ -2369,7 +2369,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.CreateSubscriptionAsync(
                     requestHeader,
                     requestedPublishingInterval,
@@ -2424,7 +2424,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task DeleteMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -2451,7 +2451,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.DeleteMonitoredItemsAsync(
                     requestHeader,
                     subscriptionId,
@@ -2496,7 +2496,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task DeleteMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -2517,7 +2517,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.DeleteMonitoredItemsAsync(
                     requestHeader,
                     subscriptionId,
@@ -2528,7 +2528,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task DeleteMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -2543,7 +2543,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.DeleteMonitoredItemsAsync(
                     requestHeader,
                     subscriptionId,
@@ -2592,7 +2592,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task DeleteNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var nodesToDelete = Enumerable.Repeat(new DeleteNodesItem(), 15).ToArrayOf();
@@ -2618,7 +2618,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.DeleteNodesAsync(
                     requestHeader,
                     nodesToDelete,
@@ -2660,7 +2660,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task DeleteNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<DeleteNodesItem> nodesToDelete = [];
@@ -2680,7 +2680,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.DeleteNodesAsync(
                     requestHeader,
                     nodesToDelete,
@@ -2690,7 +2690,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows
+        public async Task DeleteNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows
             (RequestHeader requestHeader)
         {
             ArrayOf<DeleteNodesItem> nodesToDelete = [];
@@ -2704,7 +2704,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.DeleteNodesAsync(
                     requestHeader,
                     nodesToDelete,
@@ -2782,7 +2782,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteReferencesAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task DeleteReferencesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var referencesToDelete = Enumerable.Repeat(new DeleteReferencesItem(), 15).ToArrayOf();
@@ -2808,7 +2808,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.DeleteReferencesAsync(
                     requestHeader,
                     referencesToDelete,
@@ -2850,7 +2850,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task DeleteReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<DeleteReferencesItem> referencesToDelete = [];
@@ -2870,7 +2870,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.DeleteReferencesAsync(
                     requestHeader,
                     referencesToDelete,
@@ -2880,7 +2880,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task DeleteReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             ArrayOf<DeleteReferencesItem> referencesToDelete = [];
@@ -2894,7 +2894,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.DeleteReferencesAsync(
                     requestHeader,
                     referencesToDelete,
@@ -2962,7 +2962,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteSubscriptionsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task DeleteSubscriptionsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             var subscriptionIds = new List<uint>();
@@ -2982,7 +2982,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.DeleteSubscriptionsAsync(
                     requestHeader,
                     subscriptionIds,
@@ -2992,7 +2992,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void DeleteSubscriptionsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task DeleteSubscriptionsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             var subscriptionIds = new List<uint>();
@@ -3006,7 +3006,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.DeleteSubscriptionsAsync(
                     requestHeader,
                     subscriptionIds,
@@ -3061,7 +3061,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void HistoryReadAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task HistoryReadAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var historyReadDetails = new ExtensionObject(new ReadEventDetails());
@@ -3090,7 +3090,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.HistoryReadAsync(
                     requestHeader,
                     historyReadDetails,
@@ -3137,7 +3137,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void HistoryReadAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task HistoryReadAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             var historyReadDetails = new ExtensionObject();
@@ -3160,7 +3160,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.HistoryReadAsync(
                     requestHeader,
                     historyReadDetails,
@@ -3173,7 +3173,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void HistoryReadAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task HistoryReadAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             var historyReadDetails = new ExtensionObject();
@@ -3190,7 +3190,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.HistoryReadAsync(
                     requestHeader,
                     historyReadDetails,
@@ -3329,7 +3329,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void HistoryUpdateAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task HistoryUpdateAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var historyUpdateDetails = Enumerable.Repeat(new ExtensionObject(new UpdateEventDetails()), 15).ToArrayOf();
@@ -3355,7 +3355,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.HistoryUpdateAsync(
                     requestHeader,
                     historyUpdateDetails,
@@ -3397,7 +3397,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void HistoryUpdateAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task HistoryUpdateAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<ExtensionObject> historyUpdateDetails = [];
@@ -3417,7 +3417,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.HistoryUpdateAsync(
                     requestHeader,
                     historyUpdateDetails,
@@ -3427,7 +3427,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void HistoryUpdateAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task HistoryUpdateAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             ArrayOf<ExtensionObject> historyUpdateDetails = [];
@@ -3441,7 +3441,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.HistoryUpdateAsync(
                     requestHeader,
                     historyUpdateDetails,
@@ -3523,7 +3523,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ModifyMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task ModifyMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -3551,7 +3551,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.ModifyMonitoredItemsAsync(
                     requestHeader,
                     subscriptionId,
@@ -3599,7 +3599,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ModifyMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task ModifyMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -3621,7 +3621,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.ModifyMonitoredItemsAsync(
                     requestHeader,
                     subscriptionId,
@@ -3633,7 +3633,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ModifyMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task ModifyMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -3649,7 +3649,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.ModifyMonitoredItemsAsync(
                     requestHeader,
                     subscriptionId,
@@ -3733,7 +3733,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ModifySubscriptionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task ModifySubscriptionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -3758,7 +3758,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await sessionMock.ModifySubscriptionAsync(
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await sessionMock.ModifySubscriptionAsync(
                 requestHeader,
                 subscriptionId,
                 requestedPublishingInterval,
@@ -3772,7 +3772,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ModifySubscriptionAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task ModifySubscriptionAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -3791,7 +3791,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.ModifySubscriptionAsync(
                     requestHeader,
                     subscriptionId,
@@ -3835,7 +3835,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void PublishAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task PublishAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements = [];
@@ -3855,7 +3855,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.PublishAsync(
                     requestHeader,
                     subscriptionAcknowledgements,
@@ -3865,7 +3865,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void PublishAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task PublishAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements = [];
@@ -3879,7 +3879,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.PublishAsync(
                     requestHeader,
                     subscriptionAcknowledgements,
@@ -3926,7 +3926,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void QueryFirstAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task QueryFirstAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             var view = new ViewDescription();
@@ -3950,7 +3950,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.QueryFirstAsync(
                     requestHeader,
                     view,
@@ -3964,7 +3964,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void QueryFirstAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task QueryFirstAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             var view = new ViewDescription();
@@ -3982,7 +3982,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.QueryFirstAsync(
                     requestHeader,
                     view,
@@ -4027,7 +4027,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void QueryNextAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task QueryNextAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const bool releaseContinuationPoint = true;
@@ -4048,7 +4048,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.QueryNextAsync(
                     requestHeader,
                     releaseContinuationPoint,
@@ -4059,7 +4059,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void QueryNextAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task QueryNextAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const bool releaseContinuationPoint = true;
@@ -4074,7 +4074,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.QueryNextAsync(
                     requestHeader,
                     releaseContinuationPoint,
@@ -4127,7 +4127,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ReadAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task ReadAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             const double maxAge = 1000.0;
@@ -4155,7 +4155,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await sessionMock.ReadAsync(
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await sessionMock.ReadAsync(
                 requestHeader,
                 maxAge,
                 timestampsToReturn,
@@ -4202,7 +4202,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ReadAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task ReadAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const double maxAge = 1000.0;
@@ -4224,7 +4224,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.ReadAsync(
                     requestHeader,
                     maxAge,
@@ -4236,7 +4236,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void ReadAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task ReadAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const double maxAge = 1000.0;
@@ -4252,7 +4252,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.ReadAsync(
                     requestHeader,
                     maxAge,
@@ -4336,7 +4336,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void RegisterNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task RegisterNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var nodesToRegister = Enumerable.Repeat(new NodeId(), 15).ToArrayOf();
@@ -4362,7 +4362,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.RegisterNodesAsync(
                     requestHeader,
                     nodesToRegister,
@@ -4402,7 +4402,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void RegisterNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task RegisterNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<NodeId> nodesToRegister = [];
@@ -4422,7 +4422,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.RegisterNodesAsync(
                     requestHeader,
                     nodesToRegister,
@@ -4432,7 +4432,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void RegisterNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task RegisterNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             ArrayOf<NodeId> nodesToRegister = [];
@@ -4446,7 +4446,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.RegisterNodesAsync(
                     requestHeader,
                     nodesToRegister,
@@ -4487,7 +4487,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void RepublishAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task RepublishAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -4508,7 +4508,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.RepublishAsync(
                     requestHeader,
                     subscriptionId,
@@ -4519,7 +4519,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void RepublishAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task RepublishAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -4534,7 +4534,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.RepublishAsync(
                     requestHeader,
                     subscriptionId,
@@ -4588,7 +4588,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void SetMonitoringModeAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task SetMonitoringModeAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -4616,7 +4616,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.SetMonitoringModeAsync(
                     requestHeader,
                     subscriptionId,
@@ -4664,7 +4664,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void SetMonitoringModeAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task SetMonitoringModeAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -4686,7 +4686,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.SetMonitoringModeAsync(
                     requestHeader,
                     subscriptionId,
@@ -4698,7 +4698,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void SetMonitoringModeAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task SetMonitoringModeAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -4714,7 +4714,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.SetMonitoringModeAsync(
                     requestHeader,
                     subscriptionId,
@@ -4790,7 +4790,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void SetPublishingModeAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task SetPublishingModeAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const bool publishingEnabled = true;
@@ -4811,7 +4811,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.SetPublishingModeAsync(
                     requestHeader,
                     publishingEnabled,
@@ -4822,7 +4822,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void SetPublishingModeAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task SetPublishingModeAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const bool publishingEnabled = true;
@@ -4837,7 +4837,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.SetPublishingModeAsync(
                     requestHeader,
                     publishingEnabled,
@@ -4899,7 +4899,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void SetTriggeringAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task SetTriggeringAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -4927,7 +4927,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.SetTriggeringAsync(
                     requestHeader,
                     subscriptionId,
@@ -4978,7 +4978,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void SetTriggeringAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task SetTriggeringAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -5001,7 +5001,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.SetTriggeringAsync(
                     requestHeader,
                     subscriptionId,
@@ -5014,7 +5014,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void SetTriggeringAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task SetTriggeringAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             const uint subscriptionId = 1u;
@@ -5031,7 +5031,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.SetTriggeringAsync(
                     requestHeader,
                     subscriptionId,
@@ -5114,7 +5114,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void TransferSubscriptionsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task TransferSubscriptionsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             var subscriptionIds = new List<uint>();
@@ -5135,7 +5135,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.TransferSubscriptionsAsync(
                     requestHeader,
                     subscriptionIds,
@@ -5146,7 +5146,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void TransferSubscriptionsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task TransferSubscriptionsAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             var subscriptionIds = new List<uint>();
@@ -5161,7 +5161,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.TransferSubscriptionsAsync(
                     requestHeader,
                     subscriptionIds,
@@ -5241,7 +5241,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void TranslateBrowsePathsToNodeIdsAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task TranslateBrowsePathsToNodeIdsAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var browsePaths = Enumerable.Repeat(new BrowsePath(), 15).ToArrayOf();
@@ -5267,7 +5267,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.TranslateBrowsePathsToNodeIdsAsync(
                     requestHeader,
                     browsePaths,
@@ -5364,7 +5364,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void UnregisterNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task UnregisterNodesAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var nodesToUnregister = Enumerable.Repeat(new NodeId(), 15).ToArrayOf();
@@ -5386,7 +5386,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.UnregisterNodesAsync(
                     requestHeader,
                     nodesToUnregister,
@@ -5428,7 +5428,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void UnregisterNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task UnregisterNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<NodeId> nodesToUnregister = [];
@@ -5448,7 +5448,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.UnregisterNodesAsync(
                     requestHeader,
                     nodesToUnregister,
@@ -5458,7 +5458,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void UnregisterNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task UnregisterNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             ArrayOf<NodeId> nodesToUnregister = [];
@@ -5472,7 +5472,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.UnregisterNodesAsync(
                     requestHeader,
                     nodesToUnregister,
@@ -5521,7 +5521,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void WriteAsyncShouldHandleBatchingWhenSecondOperationFails(
+        public async Task WriteAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
             var nodesToWrite = Enumerable.Repeat(new WriteValue(), 15).ToArrayOf();
@@ -5547,7 +5547,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.WriteAsync(
                     requestHeader,
                     nodesToWrite,
@@ -5587,7 +5587,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void WriteAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
+        public async Task WriteAsyncShouldThrowExceptionWhenResponseContainsBadStatusCode(
             RequestHeader requestHeader)
         {
             ArrayOf<WriteValue> nodesToWrite = [];
@@ -5607,7 +5607,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sessionMock.WriteAsync(
                     requestHeader,
                     nodesToWrite,
@@ -5617,7 +5617,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        public void WriteAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
+        public async Task WriteAsyncShouldThrowExceptionWhenSendRequestAsyncThrows(
             RequestHeader requestHeader)
         {
             ArrayOf<WriteValue> nodesToWrite = [];
@@ -5631,7 +5631,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new IOException("Test exception"))
                 .Verifiable(Times.Once);
 
-            IOException ioex = Assert.ThrowsAsync<IOException>(
+            IOException ioex = await Assert.ThrowsAsync<IOException>(
                 async () => await sessionMock.WriteAsync(
                     requestHeader,
                     nodesToWrite,

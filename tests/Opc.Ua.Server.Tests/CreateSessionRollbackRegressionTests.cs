@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests
                 var channel = new SecureChannelContext(
                     "cancelled-create", endpoint, RequestEncoding.Binary, null, null);
 
-                Exception error = Assert.CatchAsync<Exception>(async () =>
+                Exception error = await Assert.CatchAsync<Exception>(async () =>
                     await server.CreateSessionAsync(
                         channel, new RequestHeader(), null, null, null, "cancelled-create",
                         default, default, 60000, 0, lifetime).ConfigureAwait(false));

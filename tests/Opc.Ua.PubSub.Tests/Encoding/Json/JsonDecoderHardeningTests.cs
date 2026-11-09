@@ -54,11 +54,11 @@ namespace OpcUaPubSubJsonTests
         [TestCase("{\"MessageType\":\"ua-data\",\"Messages\":[{\"Status\":{\"Code\":\"x\"}}]}")]
         [TestCase("{\"MessageType\":\"ua-status\",\"WriterConfiguration\":{}," +
             "\"DataSetWriterIds\":[\"x\"]}")]
-        public void DecodeNonNumericHeaderValuesDoesNotThrow(string json)
+        public async Task DecodeNonNumericHeaderValuesDoesNotThrow(string json)
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
 
-            Assert.DoesNotThrowAsync(async () => await DecodeAsync(json, ctx).ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await DecodeAsync(json, ctx).ConfigureAwait(false));
         }
 
         [Test]

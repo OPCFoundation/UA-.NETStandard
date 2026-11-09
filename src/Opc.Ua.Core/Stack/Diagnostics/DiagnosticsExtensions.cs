@@ -47,7 +47,7 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IDependencyInjectionBuilder AddLogging(
             this IDependencyInjectionBuilder builder)
         {
-            builder.Services.AddLogging();
+            builder.Services.AddLogging(logging => logging.EnableOpcUaRedaction());
             return builder;
         }
 
@@ -60,7 +60,11 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IDependencyInjectionBuilder AddLogging(
             this IDependencyInjectionBuilder builder, Action<ILoggingBuilder> configure)
         {
-            builder.Services.AddLogging(configure);
+            builder.Services.AddLogging(logging =>
+            {
+                logging.EnableOpcUaRedaction();
+                configure(logging);
+            });
             return builder;
         }
 

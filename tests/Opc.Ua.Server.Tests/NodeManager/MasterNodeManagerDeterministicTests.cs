@@ -29,12 +29,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -64,6 +64,8 @@ namespace Opc.Ua.Server.Tests
         public async Task OneTimeSetUpAsync()
         {
             m_fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            await m_fixture.LoadConfigurationAsync().ConfigureAwait(false);
+            m_fixture.Config.ServerConfiguration!.MaxBrowseContinuationPoints = 1;
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
         }
 
@@ -150,11 +152,87 @@ namespace Opc.Ua.Server.Tests
             Assert.That(sut.NodeManagers, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Cleanup callbacks after routing withdrawal must see an unresolved node rather than index a missing core.
+        /// </summary>
+        [TestCase(false, (ushort)0)]
+        [TestCase(true, (ushort)0)]
+        [TestCase(false, ushort.MaxValue)]
+        [TestCase(true, ushort.MaxValue)]
+        public async Task HandleResolutionAfterRoutingWithdrawalReturnsUnresolvedAsync(bool synchronous, ushort ns)
+        {
+            MasterNodeManager manager = CreateMasterNodeManager();
+            await manager.DisposeAsync().ConfigureAwait(false);
+            var nodeId = new NodeId(1, ns);
+            if (synchronous)
+            {
+                object? handle = manager.GetManagerHandle(nodeId, out INodeManager? owner);
+                Assert.That(handle, Is.Null);
+                Assert.That(owner, Is.Null);
+            }
+            else
+            {
+                (object? handle, IAsyncNodeManager? owner) = await manager.GetManagerHandleAsync(nodeId)
+                    .ConfigureAwait(false);
+                Assert.That(handle, Is.Null);
+                Assert.That(owner, Is.Null);
+            }
+        }
+
+        [Test]
+        public void IsolatedDispatchersPreserveRunningServerPublicationOwnership()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            IMasterNodeManager originalManager = server.NodeManager;
+            TypeTable originalTypes = server.TypeTree;
+            IEncodeableFactory originalFactory = server.Factory;
+            using (MasterNodeManager first = CreateMasterNodeManager())
+            using (MasterNodeManager second = CreateMasterNodeManager())
+            {
+                ServerSystemContext firstContext = ((CoreNodeManager)first.CoreNodeManager!).SystemContext;
+                ServerSystemContext secondContext = ((CoreNodeManager)second.CoreNodeManager!).SystemContext;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(firstContext.TypeTable, Is.Not.SameAs(originalTypes));
+                    Assert.That(secondContext.TypeTable, Is.Not.SameAs(firstContext.TypeTable));
+                    Assert.That(firstContext.EncodeableFactory, Is.Not.SameAs(originalFactory));
+                    Assert.That(secondContext.EncodeableFactory, Is.Not.SameAs(firstContext.EncodeableFactory));
+                    Assert.That(firstContext.Server.NodeManager, Is.SameAs(first));
+                    Assert.That(secondContext.Server.NodeManager, Is.SameAs(second));
+                    Assert.That(firstContext.Server.MessageContext.Factory, Is.SameAs(firstContext.EncodeableFactory));
+                    Assert.That(firstContext.Server.MessageContext.MaxMessageSize,
+                        Is.EqualTo(server.MessageContext.MaxMessageSize));
+                    Assert.That(firstContext.Server.MessageContext.MaxStringLength,
+                        Is.EqualTo(server.MessageContext.MaxStringLength));
+                    Assert.That(firstContext.Server.MessageContext.MaxArrayLength,
+                        Is.EqualTo(server.MessageContext.MaxArrayLength));
+                    Assert.That(firstContext.Server.MessageContext.MaxByteStringLength,
+                        Is.EqualTo(server.MessageContext.MaxByteStringLength));
+                    Assert.That(firstContext.Server.MessageContext.MaxEncodingNestingLevels,
+                        Is.EqualTo(server.MessageContext.MaxEncodingNestingLevels));
+                    Assert.That(firstContext.Server.MessageContext.MaxDecoderRecoveries,
+                        Is.EqualTo(server.MessageContext.MaxDecoderRecoveries));
+                    Assert.That(firstContext.TypeTable.FindSuperType(ObjectTypeIds.FolderType),
+                        Is.EqualTo(ObjectTypeIds.BaseObjectType));
+                });
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(server.NodeManager, Is.SameAs(originalManager));
+                Assert.That(server.TypeTree, Is.SameAs(originalTypes));
+                Assert.That(server.Factory, Is.SameAs(originalFactory));
+                Assert.That(originalTypes.FindSuperType(ObjectTypeIds.FolderType),
+                    Is.EqualTo(ObjectTypeIds.BaseObjectType));
+                Assert.That(originalTypes.CaptureSnapshot(out _, out _), Is.Not.SameAs(originalTypes));
+            });
+        }
+
         [Test]
         public void RegisterNodes_UnknownNodeIds_ReturnsInputNodeIds()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             ArrayOf<NodeId> input = new NodeId[]
             {
@@ -189,7 +267,7 @@ namespace Opc.Ua.Server.Tests
         public void BrowseAsync_UnknownViewId_ThrowsBadViewIdUnknown()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var view = new ViewDescription { ViewId = new NodeId(99999u) };
 
@@ -213,7 +291,7 @@ namespace Opc.Ua.Server.Tests
             bool setVersion)
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             // OPC 10000-4 Table 178: a timestamp/version for the entire AddressSpace
             // is not available, which is not the same as an unknown View.
@@ -242,7 +320,7 @@ namespace Opc.Ua.Server.Tests
         public async Task BrowseAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
                 ctx,
@@ -258,7 +336,7 @@ namespace Opc.Ua.Server.Tests
         public async Task BrowseAsync_UnknownNode_ReturnsBadNodeIdUnknownAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var nodeToBrowse = new BrowseDescription
             {
@@ -282,7 +360,7 @@ namespace Opc.Ua.Server.Tests
         public async Task BrowseAsyncCompletedBrowseReturnsNullContinuationPointAsync()
         {
             IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var nodeToBrowse = new BrowseDescription
             {
@@ -309,7 +387,7 @@ namespace Opc.Ua.Server.Tests
         public async Task BrowseAsync_UnknownReferenceType_ReturnsBadReferenceTypeIdInvalidAsync()
         {
             IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var nodeToBrowse = new BrowseDescription
             {
@@ -332,7 +410,7 @@ namespace Opc.Ua.Server.Tests
         public async Task BrowseAsync_KnownNonReferenceType_ReturnsBadReferenceTypeIdInvalidAsync()
         {
             IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var nodeToBrowse = new BrowseDescription
             {
@@ -355,7 +433,7 @@ namespace Opc.Ua.Server.Tests
         public async Task BrowseAsync_InvalidBrowseDirection_ReturnsBadBrowseDirectionInvalidAsync()
         {
             IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var nodeToBrowse = new BrowseDescription
             {
@@ -378,40 +456,31 @@ namespace Opc.Ua.Server.Tests
         {
             var sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             using OperationContext ctx = CreateContextWithContinuationStore();
-            uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
+            Assert.That(sut.MaxContinuationPointsPerBrowse, Is.EqualTo(1u));
 
-            try
+            var nodeToBrowse = new BrowseDescription
             {
-                SetMaxBrowseContinuationPointsPerBrowse(sut, 1u);
+                NodeId = ObjectIds.RootFolder,
+                BrowseDirection = BrowseDirection.Forward
+            };
 
-                var nodeToBrowse = new BrowseDescription
-                {
-                    NodeId = ObjectIds.RootFolder,
-                    BrowseDirection = BrowseDirection.Forward
-                };
+            (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
+                ctx,
+                new ViewDescription(),
+                1u,
+                [nodeToBrowse, nodeToBrowse],
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
-                (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
-                    ctx,
-                    new ViewDescription(),
-                    1u,
-                    [nodeToBrowse, nodeToBrowse],
-                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            Assert.That(results.Count, Is.EqualTo(2));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].References, Has.Count.EqualTo(1));
+            Assert.That(results[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            Assert.That(results[1].ContinuationPoint.IsEmpty, Is.True);
 
-                Assert.That(results.Count, Is.EqualTo(2));
-                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(results[0].References, Has.Count.EqualTo(1));
-                Assert.That(results[0].ContinuationPoint.IsEmpty, Is.False);
-                Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
-                Assert.That(results[1].ContinuationPoint.IsEmpty, Is.True);
-
-                (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
-                    ctx, true, [results[0].ContinuationPoint]).ConfigureAwait(false);
-                Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            }
-            finally
-            {
-                SetMaxBrowseContinuationPointsPerBrowse(sut, originalLimit);
-            }
+            (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
+                ctx, true, [results[0].ContinuationPoint]).ConfigureAwait(false);
+            Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -433,7 +502,7 @@ namespace Opc.Ua.Server.Tests
         public async Task BrowseNextAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<BrowseResult> results, _) = await sut.BrowseNextAsync(
                 ctx,
@@ -448,7 +517,7 @@ namespace Opc.Ua.Server.Tests
         public async Task BrowseNextAsync_InvalidContinuationPoint_ReturnsBadContinuationPointInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             ArrayOf<ByteString> continuationPoints = new ByteString[]
             {
@@ -470,7 +539,7 @@ namespace Opc.Ua.Server.Tests
         public async Task BrowseNextAsync_ReleaseInvalidContinuationPoint_ReturnsGoodAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             ArrayOf<ByteString> continuationPoints = new ByteString[]
             {
@@ -493,62 +562,56 @@ namespace Opc.Ua.Server.Tests
         {
             var sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             using OperationContext ctx = CreateContextWithContinuationStore();
-            uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
-
-            try
+            Assert.That(sut.MaxContinuationPointsPerBrowse, Is.EqualTo(1u));
+            var nodeToBrowse = new BrowseDescription
             {
-                SetMaxBrowseContinuationPointsPerBrowse(sut, 2u);
-                var nodeToBrowse = new BrowseDescription
-                {
-                    NodeId = ObjectIds.RootFolder,
-                    BrowseDirection = BrowseDirection.Forward
-                };
+                NodeId = ObjectIds.RootFolder,
+                BrowseDirection = BrowseDirection.Forward
+            };
 
-                (ArrayOf<BrowseResult> firstResults, _) = await sut.BrowseAsync(
+            var firstResults = new List<BrowseResult>();
+            for (int ii = 0; ii < 2; ii++)
+            {
+                (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
                     ctx,
                     new ViewDescription(),
                     1u,
-                    [nodeToBrowse, nodeToBrowse],
+                    [nodeToBrowse],
                     cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-                Assert.That(firstResults.Count, Is.EqualTo(2));
-                foreach (BrowseResult result in firstResults)
-                {
-                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-                    Assert.That(result.References, Has.Count.EqualTo(1));
-                    Assert.That(result.ContinuationPoint.IsEmpty, Is.False);
-                }
-
-                SetMaxBrowseContinuationPointsPerBrowse(sut, 1u);
-
-                (ArrayOf<BrowseResult> finalResults, _) = await sut.BrowseNextAsync(
-                    ctx,
-                    false,
-                    [firstResults[0].ContinuationPoint, firstResults[1].ContinuationPoint],
-                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-                Assert.That(finalResults.Count, Is.EqualTo(2));
-                Assert.That(finalResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(finalResults[0].References, Has.Count.EqualTo(1));
-                Assert.That(finalResults[0].ContinuationPoint.IsEmpty, Is.False);
-                Assert.That(finalResults[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
-                Assert.That(finalResults[1].ContinuationPoint.IsEmpty, Is.True);
-
-                (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
-                    ctx, true, [finalResults[0].ContinuationPoint]).ConfigureAwait(false);
-                Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                firstResults.AddRange(results.ToList());
             }
-            finally
+
+            Assert.That(firstResults, Has.Count.EqualTo(2));
+            foreach (BrowseResult result in firstResults)
             {
-                SetMaxBrowseContinuationPointsPerBrowse(sut, originalLimit);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(result.References, Has.Count.EqualTo(1));
+                Assert.That(result.ContinuationPoint.IsEmpty, Is.False);
             }
+
+            (ArrayOf<BrowseResult> finalResults, _) = await sut.BrowseNextAsync(
+                ctx,
+                false,
+                [firstResults[0].ContinuationPoint, firstResults[1].ContinuationPoint],
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(finalResults.Count, Is.EqualTo(2));
+            Assert.That(finalResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(finalResults[0].References, Has.Count.EqualTo(1));
+            Assert.That(finalResults[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(finalResults[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            Assert.That(finalResults[1].ContinuationPoint.IsEmpty, Is.True);
+
+            (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
+                ctx, true, [finalResults[0].ContinuationPoint]).ConfigureAwait(false);
+            Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
         public async Task TranslateBrowsePathsToNodeIdsAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<BrowsePathResult> results, _) = await sut.TranslateBrowsePathsToNodeIdsAsync(
                 ctx,
@@ -562,7 +625,7 @@ namespace Opc.Ua.Server.Tests
         public async Task TranslateBrowsePathsToNodeIdsAsync_UnknownStartingNode_ReturnsBadNodeIdUnknownAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var browsePath = new BrowsePath
             {
@@ -588,7 +651,7 @@ namespace Opc.Ua.Server.Tests
         public async Task TranslateBrowsePathsToNodeIdsAsync_EmptyRelativePath_ReturnsBadNothingToDoAsync()
         {
             IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var browsePath = new BrowsePath
             {
@@ -608,7 +671,7 @@ namespace Opc.Ua.Server.Tests
         public async Task TranslateBrowsePathsToNodeIdsAsync_NullTargetName_ReturnsBadBrowseNameInvalidAsync()
         {
             IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var browsePath = new BrowsePath
             {
@@ -634,7 +697,7 @@ namespace Opc.Ua.Server.Tests
         public void ReadAsync_NegativeMaxAge_ThrowsBadMaxAgeInvalid()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             Assert.That(
                 async () => await sut.ReadAsync(
@@ -652,7 +715,7 @@ namespace Opc.Ua.Server.Tests
         public void ReadAsync_InvalidTimestampsToReturn_ThrowsBadTimestampsToReturnInvalid()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             Assert.That(
                 async () => await sut.ReadAsync(
@@ -670,7 +733,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ReadAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<DataValue> values, _) = await sut.ReadAsync(
                 ctx,
@@ -686,7 +749,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ReadAsync_NullNodeId_ReturnsBadNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<DataValue> values, _) = await sut.ReadAsync(
                 ctx,
@@ -702,7 +765,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ReadAsync_InvalidAttributeId_ReturnsBadAttributeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var readValueId = new ReadValueId { NodeId = ObjectIds.Server, AttributeId = 0 };
 
@@ -720,7 +783,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ReadAsync_UnknownNode_ReturnsBadNodeIdUnknownAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var readValueId = new ReadValueId { NodeId = new NodeId(99999u), AttributeId = Attributes.Value };
 
@@ -752,7 +815,7 @@ namespace Opc.Ua.Server.Tests
         public async Task WriteAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<StatusCode> results, _) = await sut.WriteAsync(
                 ctx,
@@ -766,7 +829,7 @@ namespace Opc.Ua.Server.Tests
         public async Task WriteAsync_NullNodeId_ReturnsBadNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<StatusCode> results, _) = await sut.WriteAsync(
                 ctx,
@@ -780,7 +843,7 @@ namespace Opc.Ua.Server.Tests
         public async Task WriteAsync_UnknownNode_ReturnsBadNodeIdUnknownAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var writeValue = new WriteValue
             {
@@ -801,7 +864,7 @@ namespace Opc.Ua.Server.Tests
         public void HistoryReadAsync_NullDetails_ThrowsBadHistoryOperationInvalid()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             Assert.That(
                 async () => await sut.HistoryReadAsync(
@@ -820,7 +883,7 @@ namespace Opc.Ua.Server.Tests
         public async Task HistoryReadAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<HistoryReadResult> results, _) = await sut.HistoryReadAsync(
                 ctx,
@@ -837,7 +900,7 @@ namespace Opc.Ua.Server.Tests
         public async Task HistoryReadAsync_NullNodeId_ReturnsBadNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<HistoryReadResult> results, _) = await sut.HistoryReadAsync(
                 ctx,
@@ -854,7 +917,7 @@ namespace Opc.Ua.Server.Tests
         public async Task HistoryReadAsync_UnknownNode_ReturnsBadNodeIdUnknownAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var historyReadValueId = new HistoryReadValueId { NodeId = new NodeId(99999u) };
 
@@ -873,7 +936,7 @@ namespace Opc.Ua.Server.Tests
         public async Task HistoryUpdateAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<HistoryUpdateResult> results, _) = await sut.HistoryUpdateAsync(
                 ctx,
@@ -887,7 +950,7 @@ namespace Opc.Ua.Server.Tests
         public async Task HistoryUpdateAsync_NullNodeId_ReturnsBadNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var details = new ExtensionObject(new UpdateDataDetails
             {
@@ -906,7 +969,7 @@ namespace Opc.Ua.Server.Tests
         public async Task HistoryUpdateAsync_UnknownNode_ReturnsBadNodeIdUnknownAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var details = new ExtensionObject(new UpdateDataDetails
             {
@@ -940,7 +1003,7 @@ namespace Opc.Ua.Server.Tests
         public async Task CallAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<CallMethodResult> results, _) = await sut.CallAsync(
                 ctx,
@@ -954,7 +1017,7 @@ namespace Opc.Ua.Server.Tests
         public async Task CallAsync_NullObjectId_ReturnsBadNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<CallMethodResult> results, _) = await sut.CallAsync(
                 ctx,
@@ -968,7 +1031,7 @@ namespace Opc.Ua.Server.Tests
         public async Task CallAsync_NullMethodId_ReturnsBadMethodInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var request = new CallMethodRequest { ObjectId = ObjectIds.Server };
 
@@ -984,7 +1047,7 @@ namespace Opc.Ua.Server.Tests
         public async Task CallAsync_UnknownObject_ReturnsBadNodeIdUnknownAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var request = new CallMethodRequest
             {
@@ -1025,7 +1088,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateMonitoredItemsAsync_NullErrors_ThrowsArgumentNullException()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             Assert.That(
                 async () => await sut.CreateMonitoredItemsAsync(
@@ -1047,7 +1110,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateMonitoredItemsAsync_NullMonitoredItems_ThrowsArgumentNullException()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             Assert.That(
                 async () => await sut.CreateMonitoredItemsAsync(
@@ -1069,7 +1132,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateMonitoredItemsAsync_NegativePublishingInterval_ThrowsArgumentOutOfRangeException()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             Assert.That(
                 async () => await sut.CreateMonitoredItemsAsync(
@@ -1091,7 +1154,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateMonitoredItemsAsync_InvalidTimestampsToReturn_ThrowsBadTimestampsToReturnInvalid()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             Assert.That(
                 async () => await sut.CreateMonitoredItemsAsync(
@@ -1132,7 +1195,7 @@ namespace Opc.Ua.Server.Tests
         public void ModifyMonitoredItemsAsync_InvalidTimestampsToReturn_ThrowsBadTimestampsToReturnInvalid()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             Assert.That(
                 async () => await sut.ModifyMonitoredItemsAsync(
@@ -1168,7 +1231,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteMonitoredItemsAsync_UnknownItem_ReturnsBadMonitoredItemIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             IMonitoredItem item = new Mock<IMonitoredItem>().Object;
             var itemsToDelete = new List<IMonitoredItem> { item };
@@ -1192,8 +1255,9 @@ namespace Opc.Ua.Server.Tests
             var itemsToDelete = new List<IMonitoredItem> { item };
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
+            using OperationContext context = CreateContext();
             await sut.DeleteMonitoredItemsAsync(
-                CreateContext(),
+                context,
                 1u,
                 itemsToDelete,
                 errors,
@@ -1203,25 +1267,29 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task ModifyMonitoredItemsAsyncDetachedItemReturnsBadNodeIdUnknownAsync()
+        public async Task ModifyMonitoredItemsAsyncDetachedItemUpdatesParametersAndKeepsBadDataAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
             using MonitoredItem item = CreateDetachedMonitoredItem();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
+            Assert.That(item.IsReadyToPublish, Is.True);
             var request = new MonitoredItemModifyRequest
             {
+                MonitoredItemId = item.Id,
                 RequestedParameters = new MonitoringParameters
                 {
-                    ClientHandle = item.ClientHandle,
-                    SamplingInterval = item.SamplingInterval,
-                    QueueSize = item.QueueSize,
+                    ClientHandle = 43,
+                    SamplingInterval = 2000,
+                    QueueSize = 4,
                     DiscardOldest = true
                 }
             };
             var errors = new List<ServiceResult> { ServiceResult.Good };
             var filterResults = new List<MonitoringFilterResult> { null! };
 
+            using OperationContext context = CreateContext();
             await sut.ModifyMonitoredItemsAsync(
-                CreateContext(),
+                context,
                 TimestampsToReturn.Both,
                 [item],
                 new[] { request }.ToArrayOf(),
@@ -1229,8 +1297,92 @@ namespace Opc.Ua.Server.Tests
                 filterResults,
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-            Assert.That(request.Processed, Is.True);
+            Queue<MonitoredItemNotification> notifications = Publish(item);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+                Assert.That(request.Processed, Is.True);
+                Assert.That(item.ClientHandle, Is.EqualTo(43U));
+                Assert.That(item.SamplingInterval, Is.EqualTo(2000));
+                Assert.That(item.QueueSize, Is.EqualTo(4U));
+                Assert.That(((IMonitoredItemGenerationBinding)item).IsSourceUnavailable, Is.True);
+                Assert.That(notifications, Has.Count.EqualTo(1));
+            });
+            Assert.That(notifications.Peek().ClientHandle, Is.EqualTo(43U));
+            Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public async Task ModifyMonitoredItemsAsyncDetachedItemNegativeIntervalUsesPublishingIntervalAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            using MonitoredItem item = CreateDetachedMonitoredItem();
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(value => value.PublishingInterval).Returns(750);
+            item.SubscriptionCallback = subscription.Object;
+            var request = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 43,
+                    SamplingInterval = -1,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+            var filterResults = new List<MonitoringFilterResult> { null! };
+
+            using OperationContext context = CreateContext();
+            await sut.ModifyMonitoredItemsAsync(
+                context,
+                TimestampsToReturn.Both,
+                [item],
+                new[] { request }.ToArrayOf(),
+                errors,
+                filterResults,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(item.SamplingInterval, Is.EqualTo(750));
+        }
+
+        [Test]
+        public async Task ModifyMonitoredItemsAsyncDetachedItemWithFilterReportsUnsupportedFilterAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            using MonitoredItem item = CreateDetachedMonitoredItem();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
+            var request = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 44,
+                    SamplingInterval = 2000,
+                    QueueSize = 4,
+                    Filter = new ExtensionObject(new DataChangeFilter())
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+            var filterResults = new List<MonitoringFilterResult> { null! };
+
+            using OperationContext context = CreateContext();
+            await sut.ModifyMonitoredItemsAsync(
+                context,
+                TimestampsToReturn.Both,
+                [item],
+                new[] { request }.ToArrayOf(),
+                errors,
+                filterResults,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemFilterUnsupported));
+                Assert.That(item.ClientHandle, Is.Not.EqualTo(44U));
+            });
         }
 
         [Test]
@@ -1253,7 +1405,7 @@ namespace Opc.Ua.Server.Tests
         public async Task SetMonitoringModeAsync_UnknownItem_ReturnsBadMonitoredItemIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             IMonitoredItem item = new Mock<IMonitoredItem>().Object;
             var itemsToModify = new List<IMonitoredItem> { item };
@@ -1269,15 +1421,23 @@ namespace Opc.Ua.Server.Tests
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
 
-        [Test]
-        public async Task SetMonitoringModeAsyncDetachedItemUpdatesLocallyAndQueuesBadAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SetMonitoringModeAsyncUnboundItemReportsOnlyConfirmedNodeLossAsync(bool lost)
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
             using MonitoredItem item = CreateDetachedMonitoredItem(MonitoringMode.Disabled);
+            var binding = (IMonitoredItemGenerationBinding)item;
+            if (lost)
+            {
+                binding.Invalidate(terminal: false);
+            }
+            long revision = binding.SourceRevision;
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
+            using OperationContext context = CreateContext();
             await sut.SetMonitoringModeAsync(
-                CreateContext(),
+                context,
                 MonitoringMode.Reporting,
                 [item],
                 errors,
@@ -1285,7 +1445,15 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(item.MonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
-            Assert.That(Publish(item).Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Queue<MonitoredItemNotification> notifications = Publish(item);
+            Assert.That(notifications, Has.Count.EqualTo(lost ? 1 : 0));
+            Assert.That(binding.IsDeleted, Is.EqualTo(lost));
+            Assert.That(binding.SourceRevision, Is.EqualTo(revision));
+            Assert.That(item.NodeManager, Is.Null);
+            if (lost)
+            {
+                Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
         }
 
         [Test]
@@ -1309,7 +1477,7 @@ namespace Opc.Ua.Server.Tests
         public async Task TransferMonitoredItemsAsync_NullMonitoredItem_ReturnsBadMonitoredItemIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var monitoredItems = new List<IMonitoredItem> { null! };
             var errors = new List<ServiceResult> { ServiceResult.Good };
@@ -1325,15 +1493,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
 
-        [Test]
-        public async Task TransferMonitoredItemsAsyncDetachedItemSucceedsAndQueuesBadAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TransferMonitoredItemsAsyncUnboundItemReportsOnlyConfirmedNodeLossAsync(bool lost)
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
             using MonitoredItem item = CreateDetachedMonitoredItem();
+            var binding = (IMonitoredItemGenerationBinding)item;
+            if (lost)
+            {
+                binding.Invalidate(terminal: false);
+                Assert.That(Publish(item), Has.Count.EqualTo(1));
+            }
+            long revision = binding.SourceRevision;
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
+            using OperationContext context = CreateContext();
             await sut.TransferMonitoredItemsAsync(
-                CreateContext(),
+                context,
                 true,
                 [item],
                 errors,
@@ -1341,7 +1518,15 @@ namespace Opc.Ua.Server.Tests
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(Publish(item).Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Queue<MonitoredItemNotification> notifications = Publish(item);
+            Assert.That(notifications, Has.Count.EqualTo(lost ? 1 : 0));
+            Assert.That(binding.IsDeleted, Is.EqualTo(lost));
+            Assert.That(binding.SourceRevision, Is.EqualTo(revision));
+            Assert.That(item.NodeManager, Is.Null);
+            if (lost)
+            {
+                Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
         }
 
         [Test]
@@ -1430,18 +1615,17 @@ namespace Opc.Ua.Server.Tests
                     })
                 .Returns(default(ValueTask));
 
-            using var sut = new MasterNodeManager(
+            using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
                 m_server.CurrentInstance,
                 m_fixture.Config,
-                null,
-                owner.Object,
-                laterOwner.Object);
+                additionalAsyncManagers: [owner.Object, laterOwner.Object]);
             using MonitoredItem item = CreateMonitoredItem(owner.Object, sourceSession.Object, 2, 3, 42);
             using MonitoredItem laterItem = CreateMonitoredItem(laterOwner.Object, sourceSession.Object, 4, 5, 84);
 
             var failedErrors = new List<ServiceResult> { null!, null! };
+            using var failedContext = new OperationContext(destinationSession.Object, DiagnosticsMasks.None);
             await sut.TransferMonitoredItemsAsync(
-                new OperationContext(destinationSession.Object, DiagnosticsMasks.None),
+                failedContext,
                 true,
                 [item, laterItem],
                 failedErrors,
@@ -1462,8 +1646,9 @@ namespace Opc.Ua.Server.Tests
             _ = Publish(item);
 
             var retryErrors = new List<ServiceResult> { null!, null! };
+            using var retryContext = new OperationContext(destinationSession.Object, DiagnosticsMasks.None);
             await sut.TransferMonitoredItemsAsync(
-                new OperationContext(destinationSession.Object, DiagnosticsMasks.None),
+                retryContext,
                 false,
                 [item, laterItem],
                 retryErrors,
@@ -1554,12 +1739,10 @@ namespace Opc.Ua.Server.Tests
                     })
                 .Returns(default(ValueTask));
 
-            using var sut = new MasterNodeManager(
+            using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
                 m_server.CurrentInstance,
                 m_fixture.Config,
-                null,
-                firstOwner.Object,
-                secondOwner.Object);
+                additionalAsyncManagers: [firstOwner.Object, secondOwner.Object]);
             using MonitoredItem firstItem = CreateMonitoredItem(firstOwner.Object, sourceSession.Object, 6, 7, 126);
             using MonitoredItem secondItem = CreateMonitoredItem(secondOwner.Object, sourceSession.Object, 8, 9, 168);
             var errors = new List<ServiceResult> { null!, null! };
@@ -1590,11 +1773,8 @@ namespace Opc.Ua.Server.Tests
 
         private MasterNodeManager CreateMasterNodeManager()
         {
-            return new MasterNodeManager(
-                m_server.CurrentInstance,
-                m_fixture.Config,
-                null,
-                Array.Empty<INodeManager>());
+            return DeterministicServerMock.CreateIsolatedMasterNodeManager(
+                m_server.CurrentInstance, m_fixture.Config);
         }
 
         private MonitoredItem CreateDetachedMonitoredItem(
@@ -1622,7 +1802,7 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 1,
                 discardOldest: true,
                 sourceSamplingInterval: 1000);
-            ((IDetachableMonitoredItem)monitoredItem).Detach(m_server.CurrentInstance);
+            ((IMonitoredItemGenerationBinding)monitoredItem).ReleaseSource();
             return monitoredItem;
         }
 
@@ -1667,8 +1847,9 @@ namespace Opc.Ua.Server.Tests
         {
             var notifications = new Queue<MonitoredItemNotification>();
             var diagnostics = new Queue<DiagnosticInfo>();
+            using var context = new OperationContext(item);
             item.Publish(
-                new OperationContext(item),
+                context,
                 notifications,
                 diagnostics,
                 10,
@@ -1704,24 +1885,5 @@ namespace Opc.Ua.Server.Tests
                 new RequestHeader(), null!, RequestType.Read, RequestLifetime.None, session.Object);
         }
 
-        private static void SetMaxBrowseContinuationPointsPerBrowse(MasterNodeManager sut, uint value)
-        {
-            FieldInfo? field = typeof(MasterNodeManager).GetField(
-                "m_maxContinuationPointsPerBrowse",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.That(field, Is.Not.Null);
-            field!.SetValue(sut, value);
-        }
-
-        private static uint GetMaxBrowseContinuationPointsPerBrowse(MasterNodeManager sut)
-        {
-            FieldInfo? field = typeof(MasterNodeManager).GetField(
-                "m_maxContinuationPointsPerBrowse",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.That(field, Is.Not.Null);
-            return (uint)field!.GetValue(sut)!;
-        }
     }
 }

@@ -39,6 +39,7 @@ using Opc.Ua.Pcap.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Pcap.DependencyInjection
 {
@@ -261,7 +262,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
         public static partial void StandAloneOpcUaKeyLoggingEnabled(
             this ILogger logger,
             string envVar,
-            string keyLogFilePath);
+            [FilePath] string keyLogFilePath);
 
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapEnvironmentAutoStartHostedService + 2,
             Level = LogLevel.Warning,
@@ -277,7 +278,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
         public static partial void OpcUaPcapAutoCaptureEnabled(
             this ILogger logger,
             string pcapEnvVar,
-            string pcapFilePath);
+            [FilePath] string pcapFilePath);
 
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapEnvironmentAutoStartHostedService + 4,
             Level = LogLevel.Warning,
@@ -286,9 +287,9 @@ namespace Opc.Ua.Pcap.DependencyInjection
         public static partial void OpcUaPcapAutoCaptureAndKeyLogEnabled(
             this ILogger logger,
             string pcapEnvVar,
-            string pcapFilePath,
+            [FilePath] string pcapFilePath,
             string keyLogEnvVar,
-            string keyLogFilePath);
+            [FilePath] string keyLogFilePath);
     }
 
 }

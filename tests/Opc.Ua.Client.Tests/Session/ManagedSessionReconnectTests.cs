@@ -634,7 +634,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             await WaitForPhaseAsync(recovery, "channel recovery while an identity update holds the lock")
                 .ConfigureAwait(false);
             Assert.That(harness.Lease.State, Is.EqualTo(ChannelState.Ready));
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await update.WaitAsync(PhaseTimeout).ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
             Assert.That(harness.Session.InnerSession.Reconnecting, Is.False);
@@ -675,7 +675,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(harness.Lease.State, Is.EqualTo(ChannelState.Ready));
             foreach (Task update in new[] { holding, queued })
             {
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await update.WaitAsync(PhaseTimeout).ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
             }
@@ -937,9 +937,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Where(record => record.EventId.Name == "ChannelReconnectDeadlineExpired")];
             Assert.That(expirations, Has.Length.EqualTo(1));
             Assert.That(expirations[0].Properties.TryGetValue("Duration", out object? duration), Is.True);
-            Assert.That(duration, Is.EqualTo(s_recoveryTimeout));
+            // The generated log state holds the value or, on .NET Framework, its invariant text.
+            Assert.That(
+                Convert.ToString(duration, CultureInfo.InvariantCulture),
+                Is.EqualTo(s_recoveryTimeout.ToString("c", CultureInfo.InvariantCulture)));
             Assert.That(expirations[0].Properties.TryGetValue("Elapsed", out object? elapsed), Is.True);
-            Assert.That(elapsed, Is.EqualTo(s_recoveryTimeout));
+            Assert.That(
+                Convert.ToString(elapsed, CultureInfo.InvariantCulture),
+                Is.EqualTo(s_recoveryTimeout.ToString("c", CultureInfo.InvariantCulture)));
         }
 
         private static async Task<WirePublish> AssertRecreatedSubscriptionAsync(

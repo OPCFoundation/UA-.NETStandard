@@ -12,9 +12,15 @@ package org.opcfoundation.interop.milo;
 import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.ubyte;
 import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyFactory;
 import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
 import java.util.UUID;
 import org.eclipse.milo.opcua.sdk.client.DiscoveryClient;
 import org.eclipse.milo.opcua.sdk.client.SessionActivityListener;
@@ -1242,15 +1248,34 @@ final class ClientChecks {
     throw new IllegalStateException("a session with a wrong password was activated");
   }
 
-  /** A second session with an X509 user identity token (self-signed) reads the server state. */
+  /**
+   * A second session with an X509 user identity token reads the server state. The user certificate
+   * is the one the harness trusts on the server (--x509-user-cert-der with --x509-user-key-pem,
+   * PKCS#8); without those options a new self-signed one.
+   */
   private static void x509UserToken(ClientChecks c) throws Exception {
-    KeyPair keyPair = SelfSignedCertificateGenerator.generateRsaKeyPair(2048);
-    X509Certificate certificate =
-        new SelfSignedCertificateBuilder(keyPair)
-            .setCommonName("InteropUser")
-            .setOrganization("OPC Foundation")
-            .build();
-    OpcUaClient other = c.newClient(new X509IdentityProvider(certificate, keyPair.getPrivate()));
+    String certPath = c.options.get("x509-user-cert-der");
+    String keyPath = c.options.get("x509-user-key-pem");
+    X509Certificate certificate;
+    PrivateKey privateKey;
+    if (certPath != null && keyPath != null) {
+      try (var in = Files.newInputStream(Path.of(certPath))) {
+        certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(in);
+      }
+      String pem = Files.readString(Path.of(keyPath));
+      byte[] der = Base64.getMimeDecoder().decode(
+          pem.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", ""));
+      privateKey = KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(der));
+    } else {
+      KeyPair keyPair = SelfSignedCertificateGenerator.generateRsaKeyPair(2048);
+      certificate =
+          new SelfSignedCertificateBuilder(keyPair)
+              .setCommonName("InteropUser")
+              .setOrganization("OPC Foundation")
+              .build();
+      privateKey = keyPair.getPrivate();
+    }
+    OpcUaClient other = c.newClient(new X509IdentityProvider(certificate, privateKey));
     try {
       other.connect();
       DataValue state = other.readValue(0.0, TimestampsToReturn.Neither, NodeIds.Server_ServerStatus_State);

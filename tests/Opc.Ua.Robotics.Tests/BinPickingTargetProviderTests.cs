@@ -29,8 +29,7 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Vision.BinPickingCell;
 
 namespace Opc.Ua.Robotics.Tests
@@ -42,7 +41,7 @@ namespace Opc.Ua.Robotics.Tests
         public void OnServerStaleTargetFallsBackToCurrentWorldState()
         {
             var worldState = new BinPickingWorldState();
-            var provider = CreateProvider(worldState, BinPickingInferenceLocation.OnServer);
+            BinPickingTargetProvider provider = CreateProvider(worldState, BinPickingInferenceLocation.OnServer);
             provider.PublishWorldState(
                 "old-result",
                 DateTimeUtc.From(DateTime.UtcNow - TimeSpan.FromMinutes(1)),
@@ -64,7 +63,7 @@ namespace Opc.Ua.Robotics.Tests
         public void OffServerStaleTargetIsNotReplacedWithSimulationTruth()
         {
             var worldState = new BinPickingWorldState();
-            var provider = CreateProvider(worldState, BinPickingInferenceLocation.EdgeOffServer);
+            BinPickingTargetProvider provider = CreateProvider(worldState, BinPickingInferenceLocation.EdgeOffServer);
             provider.PublishWorldState(
                 "old-result",
                 DateTimeUtc.From(DateTime.UtcNow - TimeSpan.FromMinutes(1)),
@@ -77,7 +76,7 @@ namespace Opc.Ua.Robotics.Tests
         public void OffServerDetectionComposesCameraPoseAndPreservesProvenance()
         {
             var worldState = new BinPickingWorldState();
-            var provider = CreateProvider(worldState, BinPickingInferenceLocation.EdgeOffServer);
+            BinPickingTargetProvider provider = CreateProvider(worldState, BinPickingInferenceLocation.EdgeOffServer);
             BinPickingPart red = BinPickingPartsCatalog.TryGet("RedCube")!;
             VisionDetectionDataType detection = Detection(
                 red.ClassLabel,
@@ -109,7 +108,7 @@ namespace Opc.Ua.Robotics.Tests
         public void OffServerDetectionRejectsAnUncalibratedSourceFrame()
         {
             var worldState = new BinPickingWorldState();
-            var provider = CreateProvider(worldState, BinPickingInferenceLocation.EdgeOffServer);
+            BinPickingTargetProvider provider = CreateProvider(worldState, BinPickingInferenceLocation.EdgeOffServer);
             BinPickingPart red = BinPickingPartsCatalog.TryGet("RedCube")!;
             VisionDetectionDataType detection = Detection(
                 red.ClassLabel,
@@ -128,7 +127,7 @@ namespace Opc.Ua.Robotics.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(exception!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(provider.TryResolve(red.ClassLabel, out _), Is.False);
             });
         }
@@ -137,7 +136,7 @@ namespace Opc.Ua.Robotics.Tests
         public void OffServerDetectionBatchRejectsResidualWithoutPublishingEarlierTargets()
         {
             var worldState = new BinPickingWorldState();
-            var provider = CreateProvider(worldState, BinPickingInferenceLocation.EdgeOffServer);
+            BinPickingTargetProvider provider = CreateProvider(worldState, BinPickingInferenceLocation.EdgeOffServer);
             BinPickingPart red = BinPickingPartsCatalog.TryGet("RedCube")!;
             BinPickingPart green = BinPickingPartsCatalog.TryGet("GreenCylinder")!;
             VisionDetectionDataType[] detections =

@@ -14,10 +14,12 @@ than as isolated image-processing calls.
 
 | Sample | Role |
 |---|---|
+| [MachineVisionServer](MachineVisionServer) | Released OPC 40100-1/-2 models in Machinery, with a shared deterministic engine for the Perception pipeline. |
+| [MachineVisionClient](MachineVisionClient) | Secure typed discovery, recipe upload/preparation, job execution, results, and asset reads. |
 | [VisualInspectionCell](VisualInspectionCell) | Server hosting Vision, AI Model Management, ISA-95 Job Control V2, and Alarms & Conditions for a machined-bracket inspection cell. |
 | [VisualInspectionAgent](VisualInspectionAgent) | External deterministic orchestrator that connects with typed clients, measures fixture images, applies the recipe, routes jobs, and records operator ground truth. |
 
-The pair demonstrates a safety pattern that is deliberately stronger than
+The VisualInspection pair demonstrates a safety pattern that is deliberately stronger than
 "ask a model whether the part is good": the model path can produce measured
 characteristics and confidence, but deterministic recipe code owns the quality
 verdict. A photographed image therefore cannot become a free-form instruction to
@@ -66,7 +68,7 @@ routes the ISA-95 order according to the deterministic verdict.
 Use `--mode live-ai --ai-endpoint <uri>` only when a real model endpoint is
 configured. `live-ai` fails before creating any job when no endpoint is named;
 it never silently falls back to the deterministic analyser, because a sample
-that quietly degrades appears to work while demonstrating nothing.
+that uses the fallback would not test the model endpoint.
 
 ## See also
 

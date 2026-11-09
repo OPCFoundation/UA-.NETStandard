@@ -387,6 +387,39 @@ namespace Opc.Ua.Machinery.Server.Builders
         }
 
         /// <summary>
+        /// Binds a companion-declared process value and its existing typed analog signal.
+        /// </summary>
+        internal static ProcessValueBuilder Adopt(MachineryBuildScope scope, ProcessValueState processValue)
+        {
+            NodeId processType = NodeId.Create(
+                Opc.Ua.Machinery.ProcessValues.ObjectTypes.ProcessValueType,
+                Opc.Ua.Machinery.ProcessValues.Namespaces.MachineryProcessValues,
+                scope.Context.NamespaceUris);
+            NodeId signalType = NodeId.Create(
+                Opc.Ua.Machinery.ProcessValues.VariableTypes.ProcessValueVariableType,
+                Opc.Ua.Machinery.ProcessValues.Namespaces.MachineryProcessValues,
+                scope.Context.NamespaceUris);
+            ushort padimIndex = MachineryBuilderUtilities.NamespaceIndex(
+                scope.Context,
+                Opc.Ua.PADIM.Namespaces.PADIM);
+            if (!scope.Context.TypeTable.IsTypeOf(processValue.TypeDefinitionId, processType) ||
+                processValue.AnalogSignal is not ProcessValueVariableState signal ||
+                !scope.Context.TypeTable.IsTypeOf(signal.TypeDefinitionId, signalType) ||
+                signal.BrowseName != new QualifiedName(PadimBrowseNames.AnalogSignal, padimIndex) ||
+                !ReferenceEquals(signal.Parent, processValue) ||
+                processValue.SignalTag == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "An adopted process value requires its declared SignalTag and a PADIM-qualified " +
+                    "AnalogSignal using ProcessValueVariableType or a subtype.");
+            }
+            ApplyDefaultSignalTag(processValue);
+            scope.RecordFacet(MachineryFacet.ProcessValues);
+            return new ProcessValueBuilder(scope, processValue, signal);
+        }
+
+        /// <summary>
         /// Applies the default <c>SignalTag</c> value.
         /// </summary>
         /// <remarks>
@@ -412,6 +445,12 @@ namespace Opc.Ua.Machinery.Server.Builders
             m_scope = scope;
             State = state;
             Signal = signal;
+            m_timeProvider = scope.BuildContext.GetService<TimeProvider>() ?? TimeProvider.System;
+            m_reading = new DataValue(signal.WrappedValue, signal.StatusCode, signal.Timestamp);
+            if (TryGetNumericReading(signal.WrappedValue, out double initialValue))
+            {
+                m_value = initialValue;
+            }
         }
 
         public ProcessValueState State { get; }
@@ -654,7 +693,12 @@ namespace Opc.Ua.Machinery.Server.Builders
         {
             m_scope.EnsureMutable();
             m_value = value;
+            m_reading = new DataValue(
+                Variant.From(value),
+                Signal.StatusCode,
+                m_timeProvider.GetUtcNow().UtcDateTime);
             Signal.WrappedValue = Variant.From(Reported);
+            Signal.Timestamp = m_reading.SourceTimestamp;
             UpdatePercentage();
             return this;
         }
@@ -779,8 +823,36 @@ namespace Opc.Ua.Machinery.Server.Builders
             double value,
             CancellationToken cancellationToken = default)
         {
-            _ = cancellationToken;
-            m_value = value;
+            var reading = new DataValue(
+                Variant.From(value),
+                StatusCodes.Good,
+                m_timeProvider.GetUtcNow().UtcDateTime);
+            return SetValueAsync(reading, cancellationToken);
+        }
+
+        /// <summary>
+        /// Publishes the original numeric sample after validating it without changing prior state.
+        /// </summary>
+        internal ValueTask SetValueAsync(in DataValue value, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (value.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "A process-value sample must be initialized.");
+            }
+            if (TryGetNumericReading(value.WrappedValue, out double numericValue))
+            {
+                m_value = numericValue;
+            }
+            else if (!value.WrappedValue.IsNull || !StatusCode.IsBad(value.StatusCode))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "A process-value sample requires a numeric scalar, or a null value with bad quality.");
+            }
+            m_reading = value;
             PublishReading(m_scope.Context);
             return default;
         }
@@ -789,7 +861,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             double setpoint,
             CancellationToken cancellationToken = default)
         {
-            _ = cancellationToken;
+            cancellationToken.ThrowIfCancellationRequested();
             if (State.ProcessValueSetpoint == null)
             {
                 throw ServiceResultException.Create(
@@ -809,7 +881,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             ushort status,
             CancellationToken cancellationToken = default)
         {
-            _ = cancellationToken;
+            cancellationToken.ThrowIfCancellationRequested();
             if (State.Status == null)
             {
                 throw ServiceResultException.Create(
@@ -827,7 +899,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             double? simulationValue = null,
             CancellationToken cancellationToken = default)
         {
-            _ = cancellationToken;
+            cancellationToken.ThrowIfCancellationRequested();
             if (Signal.SimulationState == null)
             {
                 throw ServiceResultException.Create(
@@ -860,19 +932,25 @@ namespace Opc.Ua.Machinery.Server.Builders
         /// </remarks>
         private void PublishReading(ISystemContext context)
         {
+            DataValue reading = m_reading;
             if (Signal.ActualValue != null)
             {
-                Signal.ActualValue.WrappedValue = Variant.From(m_value);
-                Signal.ActualValue.Timestamp = DateTime.UtcNow;
+                Signal.ActualValue.WrappedValue = reading.WrappedValue;
+                Signal.ActualValue.StatusCode = reading.StatusCode;
+                Signal.ActualValue.Timestamp = reading.SourceTimestamp;
             }
 
-            Signal.WrappedValue = Variant.From(Reported);
-            Signal.Timestamp = DateTime.UtcNow;
+            Signal.WrappedValue = m_simulating ? Variant.From(m_simulationValue) : reading.WrappedValue;
+            Signal.StatusCode = reading.StatusCode;
+            Signal.Timestamp = m_simulating ? m_timeProvider.GetUtcNow().UtcDateTime : reading.SourceTimestamp;
             UpdatePercentage();
             Signal.ClearChangeMasks(context, includeChildren: true);
 
-            m_limitAlarm?.Evaluate(context, Reported);
-            EvaluateDeviation(context);
+            if (!Signal.WrappedValue.IsNull && !StatusCode.IsBad(Signal.StatusCode))
+            {
+                m_limitAlarm?.Evaluate(context, Reported);
+                EvaluateDeviation(context);
+            }
         }
 
         /// <summary>
@@ -883,7 +961,8 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         private void EvaluateDeviation(ISystemContext context)
         {
-            if (m_deviationAlarm == null || !m_setpoint.HasValue)
+            if (m_deviationAlarm == null || !m_setpoint.HasValue ||
+                Signal.WrappedValue.IsNull || StatusCode.IsBad(Signal.StatusCode))
             {
                 return;
             }
@@ -897,14 +976,37 @@ namespace Opc.Ua.Machinery.Server.Builders
         /// </summary>
         private void UpdatePercentage()
         {
-            if (Signal.PercentageValue == null ||
-                Signal.EURange?.Value is not Opc.Ua.Range range ||
-                range.High <= range.Low)
+            if (Signal.PercentageValue == null)
+            {
+                return;
+            }
+            Signal.PercentageValue.StatusCode = Signal.StatusCode;
+            Signal.PercentageValue.Timestamp = Signal.Timestamp;
+            if (Signal.WrappedValue.IsNull || StatusCode.IsBad(Signal.StatusCode))
+            {
+                Signal.PercentageValue.WrappedValue = Variant.Null;
+                return;
+            }
+            if (Signal.EURange?.Value is not Opc.Ua.Range range || range.High <= range.Low)
             {
                 return;
             }
             double percentage = (Reported - range.Low) / (range.High - range.Low) * 100.0;
             Signal.PercentageValue.WrappedValue = Variant.From(percentage);
+        }
+
+        /// <summary>
+        /// Converts numeric scalars for calculations while leaving the published Variant unchanged.
+        /// </summary>
+        private static bool TryGetNumericReading(in Variant value, out double numericValue)
+        {
+            if (value.TypeInfo.ValueRank == ValueRanks.Scalar &&
+                value.TypeInfo.BuiltInType is >= BuiltInType.SByte and <= BuiltInType.Double)
+            {
+                return value.ConvertToDouble().TryGetValue(out numericValue);
+            }
+            numericValue = default;
+            return false;
         }
 
         /// <summary>
@@ -930,6 +1032,8 @@ namespace Opc.Ua.Machinery.Server.Builders
         private bool m_simulating;
         private double m_simulationValue;
         private readonly MachineryBuildScope m_scope;
+        private readonly TimeProvider m_timeProvider;
+        private DataValue m_reading;
         private NodeId m_zeroPointEventTypeId = NodeId.Null;
         private MachineryProcessValueAlarm? m_limitAlarm;
         private MachineryProcessValueAlarm? m_deviationAlarm;

@@ -132,12 +132,12 @@ namespace Opc.Ua.Sessions.Tests
 
         [Description("Cancel - server returns service result Bad_NothingToDo. ")]
         [Test]
-        public void CancelWithInjectedBadNothingToDoAsync()
+        public async Task CancelWithInjectedBadNothingToDoAsync()
         {
             using IDisposable expectation = MockController.ExpectNextResponse<CancelResponse>(
                 r => r.ResponseHeader.ServiceResult = StatusCodes.BadNothingToDo);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.CancelAsync(
                     requestHeader: null,
                     requestHandle: 0,
@@ -163,7 +163,7 @@ namespace Opc.Ua.Sessions.Tests
 
         [Description("Cancel - server returns Bad_NothingToDo and decrements the actual CancelCount by 1. ")]
         [Test]
-        public void CancelWithInjectedDecrementedCancelCountAsync()
+        public async Task CancelWithInjectedDecrementedCancelCountAsync()
         {
             using IDisposable expectation = MockController.ExpectNextResponse<CancelResponse>(
                 r =>
@@ -175,7 +175,7 @@ namespace Opc.Ua.Sessions.Tests
                     r.ResponseHeader.ServiceResult = StatusCodes.BadNothingToDo;
                 });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.CancelAsync(
                     requestHeader: null,
                     requestHandle: 0,

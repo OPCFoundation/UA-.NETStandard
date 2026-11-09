@@ -383,7 +383,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                     .ConfigureAwait(false);
 
                 Assert.That(completed, Is.SameAs(executeTask));
-                InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+                InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await executeTask.ConfigureAwait(false));
                 Assert.That(ex.Message, Is.EqualTo("startup task failed"));
             }
@@ -480,11 +480,14 @@ namespace Opc.Ua.Gds.Tests.Hosting
             return services;
         }
 
+        /// <summary>
+        /// Creates a unique root with room for certificate filenames on .NET Framework.
+        /// </summary>
         private static string CreateTestRoot()
         {
             string testRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                nameof(GdsServerHostedServiceTests),
+                "gds",
                 Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(testRoot);
             return testRoot;

@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
+using Opc.Ua.Redaction;
 using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.Server.RuntimeNodeSet
@@ -71,8 +72,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     /// </para>
     /// </remarks>
     public sealed class RuntimeNodeSetNodeManagerFactory :
-        IAsyncNodeManagerFactory,
-        IRequestCallbackSafeNodeManagerFactory
+        IAsyncNodeManagerFactory
     {
         /// <summary>
         /// Initializes the factory from the supplied
@@ -108,7 +108,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             m_defaultNamespaceUri = options.DefaultNamespaceUri;
             m_configure = options.Configure;
             m_configureAsync = options.ConfigureAsync;
-            AllowLifecycleFromRequestCallback = options.AllowLifecycleFromRequestCallback;
             NamespacesUris = BuildNamespacesUris(m_sources);
 
             if (!string.IsNullOrEmpty(m_defaultNamespaceUri) &&
@@ -122,9 +121,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
 
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris { get; }
-
-        /// <inheritdoc/>
-        public bool AllowLifecycleFromRequestCallback { get; }
 
         /// <inheritdoc/>
         public async ValueTask<IAsyncNodeManager> CreateAsync(
@@ -167,8 +163,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 sorted,
                 defaultNs,
                 m_configure,
-                m_configureAsync,
-                AllowLifecycleFromRequestCallback);
+                m_configureAsync);
 #pragma warning restore CA2000
         }
 
@@ -637,6 +632,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.RuntimeNodeSetNodeManagerFactory + 0, Level = LogLevel.Information,
             Message = "RuntimeNodeSet: parsing source '{Source}'.")]
-        public static partial void RuntimeNodeSetParsingSourceSource(this ILogger logger, string? source);
+        public static partial void RuntimeNodeSetParsingSourceSource(
+            this ILogger logger,
+            [FilePath] string? source);
     }
 }

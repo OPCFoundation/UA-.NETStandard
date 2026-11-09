@@ -28,9 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Pumps.Server;
 using Opc.Ua.Pumps.Server.Hosting;
@@ -51,8 +54,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <remarks>
         /// The manager owns the Device Integration namespace, so this cannot
         /// be combined with <c>AddOpcUaDi</c> or any other DI-owning
-        /// registration on the same server. A server that needs both should
-        /// load the Pumps model into its existing manager instead.
+        /// registration on the same server. Use <c>AddPumpsToMachinery</c> to reuse
+        /// the stock Machinery owner and the same <see cref="PumpsRuntime"/>.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Configures the Pumps options.</param>
@@ -73,7 +76,10 @@ namespace Microsoft.Extensions.DependencyInjection
             configure?.Invoke(options);
             options.Validate();
 
-            ClaimDiAddressSpace(builder.Services);
+            builder.Services.ClaimDiAddressSpace(
+                nameof(AddPumps),
+                "Load the Pumps model into the existing manager with nodes.AddOpcUaPumps(context) " +
+                "and configure it with ConfigureDevicesFor<TNodeManager>().");
 
             // The post-setup runner is registered by ConfigureDevicesFor /
             // ConfigurePumps, which is the only thing that needs it. Doing it
@@ -86,7 +92,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 builder.Services.Configure(configure);
             }
 
-            return builder.AddNodeManager<PumpsNodeManagerFactory>();
+            builder.Services.AddSingleton(static services => new PumpsNodeManagerFactory(
+                services.GetService<IDiPostSetupRunner>(),
+                services.GetService<IOptions<PumpsServerOptions>>(),
+                services.GetServices<IDiModelProvider>().ToArray()));
+            builder.Services.AddSingleton(static services => new OpcUaServerNodeManagerRegistration(
+                services.GetRequiredService<PumpsNodeManagerFactory>()));
+            return builder;
         }
 
         /// <summary>
@@ -142,37 +154,39 @@ namespace Microsoft.Extensions.DependencyInjection
             });
         }
 
-        private static void ClaimDiAddressSpace(IServiceCollection services)
-        {
-            foreach (ServiceDescriptor descriptor in services)
-            {
-                if (descriptor.ServiceType == typeof(DiAddressSpaceOwnership))
-                {
-                    string ownerName =
-                        (descriptor.ImplementationInstance as DiAddressSpaceOwnership)?.OwnerName ??
-                        "another DI-aware hosting registration";
-                    throw new InvalidOperationException(
-                        $"The OPC UA DI namespace and address space are already owned by '{ownerName}'. AddPumps cannot register a second DI-owning manager. Load the Pumps model into the existing manager with nodes.AddOpcUaPumps(context) and configure it with ConfigureDevicesFor<TNodeManager>().");
-                }
-            }
-
-            services.AddSingleton(new DiAddressSpaceOwnership(nameof(AddPumps)));
-        }
-
+        /// <summary>
+        /// Exposes the standalone Pumps owner through the shared DI setup context.
+        /// </summary>
         private sealed class PumpsSetupContext : IPumpsSetupContext
         {
+            /// <summary>
+            /// Creates a Pumps context backed by the owner's DI context.
+            /// </summary>
             public PumpsSetupContext(PumpsNodeManager manager, IDiPostSetupContext context)
             {
                 Manager = manager;
                 DiContext = context;
             }
 
+            /// <summary>
+            /// Gets the standalone Pumps owner.
+            /// </summary>
             public PumpsNodeManager Manager { get; }
 
+            /// <summary>
+            /// Gets the shared context used for DI configuration.
+            /// </summary>
             public IDiPostSetupContext DiContext { get; }
 
+            /// <summary>
+            /// Gets the owner's setup cancellation token.
+            /// </summary>
             public CancellationToken CancellationToken => DiContext.CancellationToken;
 
+            /// <summary>
+            /// Resolves a required service from the owner's context.
+            /// </summary>
+            /// <typeparam name="T">The required service type.</typeparam>
             public T GetRequiredService<T>() where T : notnull
             {
                 return DiContext.GetRequiredService<T>();

@@ -66,7 +66,20 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public int MaxDepth { get; set; } = 8;
 
+        /// <summary>
+        /// Gets or sets the lifecycle wait limit. Active provider operations and their reservations remain
+        /// owned after this limit; a subsequent disposal can observe their eventual cleanup outcome.
+        /// </summary>
+        public TimeSpan CloseTimeout
+        {
+            get => m_closeTimeout;
+            set => m_closeTimeout = FileHandle.ValidateCloseTimeout(value);
+        }
+
         internal const int DefaultMaxEntries = 1024;
+
+        /// <summary>Bounds lifecycle waiting without shortening provider operation ownership.</summary>
+        private TimeSpan m_closeTimeout = TimeSpan.FromSeconds(10);
     }
 
     /// <summary>
@@ -95,6 +108,11 @@ namespace Opc.Ua.Server.FileSystem
     /// <summary>
     /// Creates bindings that back existing FileDirectoryType nodes with file-system providers.
     /// </summary>
+    /// <remarks>
+    /// With a ServerSystemContext, bindings observe the server session lifecycle and release the closing
+    /// session's file handles, including pending opens. The application owns the binding's lifetime and
+    /// must dispose it when its directory is removed or the node manager shuts down.
+    /// </remarks>
     public interface IFileDirectoryBinder
     {
         /// <summary>
@@ -248,7 +266,49 @@ namespace Opc.Ua.Server.FileSystem
             /// </summary>
             public async ValueTask DisposeAsync()
             {
-                if (!TryTrackOperation())
+                Task cleanup;
+                FileHandle[] handles = [];
+                TaskCompletionSource<bool>? completion = null;
+                lock (m_lock)
+                {
+                    if (m_disposal == null)
+                    {
+                        completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                        m_disposal = completion.Task;
+                        handles = [.. m_handles.Values];
+                    }
+                    cleanup = m_disposal;
+                }
+                if (completion != null)
+                {
+                    foreach (FileHandle handle in handles)
+                    {
+                        _ = handle.RequestShutdown();
+                    }
+                    _ = CompleteDisposalAsync(completion);
+                }
+                if (await Task.WhenAny(cleanup, Task.Delay(m_options.CloseTimeout)).ConfigureAwait(false) == cleanup)
+                {
+                    await cleanup.ConfigureAwait(false);
+                }
+            }
+
+            private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
+            {
+                try
+                {
+                    await DisposeCoreAsync().ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            }
+
+            private async ValueTask DisposeCoreAsync()
+            {
+                if (!TryTrackOperation(disposing: true))
                 {
                     return;
                 }
@@ -271,16 +331,32 @@ namespace Opc.Ua.Server.FileSystem
                         m_handles.Values.CopyTo(handles, 0);
                         m_handles.Clear();
                     }
+                    DetachSessionLifecycle();
                     DetachDirectoryCallbacks(Directory);
                     foreach (MaterializedNode entry in m_nodesByPath.Values)
                     {
                         DetachCallbacks(entry.Node);
                     }
+                    List<Task> cleanup = [];
                     foreach (FileHandle handle in handles)
                     {
-                        handle.Dispose();
+                        cleanup.Add(handle.RequestShutdown());
+                    }
+                    Task all = Task.WhenAll(cleanup);
+                    Exception? cleanupError = null;
+                    try
+                    {
+                        await all.ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        cleanupError = all.Exception ?? new AggregateException("File cleanup failed.");
                     }
                     await RemoveStaleNodesAsync([], CancellationToken.None).ConfigureAwait(false);
+                    if (cleanupError != null)
+                    {
+                        throw cleanupError;
+                    }
                 }
                 finally
                 {
@@ -331,10 +407,11 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return null;
                 }
+                EnsureSessionLifecycle();
                 string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
                 lock (m_lock)
                 {
-                    if (m_disposed)
+                    if (m_disposed || m_disposal != null)
                     {
                         return null;
                     }
@@ -343,7 +420,10 @@ namespace Opc.Ua.Server.FileSystem
                         return handle;
                     }
 
-                    handle = new FileHandle(Provider, providerPath);
+                    handle = new FileHandle(Provider, providerPath, IsSessionTerminated)
+                    {
+                        CloseTimeout = m_options.CloseTimeout
+                    };
                     FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                     m_handles.Add(identity, handle);
                     return handle;
@@ -356,7 +436,8 @@ namespace Opc.Ua.Server.FileSystem
                 string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
                 lock (m_lock)
                 {
-                    return !m_disposed && m_handles.TryGetValue(identity, out FileHandle? handle) ? handle : null;
+                    return !m_disposed && m_disposal == null &&
+                        m_handles.TryGetValue(identity, out FileHandle? handle) ? handle : null;
                 }
             }
 
@@ -512,11 +593,89 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            private bool TryTrackOperation()
+            /// <summary>
+            /// Attaches lazily because address-space setup can precede creation of the server session manager.
+            /// </summary>
+            private void EnsureSessionLifecycle()
+            {
+                // SessionManager raises callbacks under its own event gate. Never hold m_lock while
+                // subscribing or unsubscribing: the callback itself needs m_lock to snapshot the handles.
+                lock (m_sessionLifecycleLock)
+                {
+                    if (!m_disposed && m_sessions == null &&
+                        m_context is ServerSystemContext { Server.SessionManager: { } sessions })
+                    {
+                        m_sessions = sessions;
+                        sessions.SessionClosing += OnSessionClosing;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Removes lifecycle callbacks after admission has been stopped by binding disposal.
+            /// </summary>
+            private void DetachSessionLifecycle()
+            {
+                lock (m_sessionLifecycleLock)
+                {
+                    if (m_sessions != null)
+                    {
+                        m_sessions.SessionClosing -= OnSessionClosing;
+                        m_sessions = null;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Checks the live session registry instead of retaining an unbounded set of terminated identifiers.
+            /// </summary>
+            private bool IsSessionTerminated(NodeId sessionId)
+            {
+                ISessionManager? sessions = Volatile.Read(ref m_sessions);
+                if (sessions == null)
+                {
+                    return false;
+                }
+                foreach (ISession session in sessions.GetSessions())
+                {
+                    if (session.Id == sessionId)
+                    {
+                        return SessionTermination.IsClosingOrClaimed(session) || session.HasExpired;
+                    }
+                }
+                return true;
+            }
+
+            /// <summary>
+            /// Releases only the closing session, without waiting for a provider open or the reconciliation gate.
+            /// </summary>
+            private void OnSessionClosing(ISession session, SessionEventReason reason)
+            {
+                FileHandle[] handles;
+                lock (m_lock)
+                {
+                    handles = [.. m_handles.Values];
+                }
+                foreach (FileHandle handle in handles)
+                {
+                    try
+                    {
+                        handle.CloseSession(session.Id);
+                    }
+                    finally
+                    {
+                        ReleaseHandle(handle);
+                    }
+                }
+            }
+
+            private Task? m_disposal;
+
+            private bool TryTrackOperation(bool disposing = false)
             {
                 lock (m_lock)
                 {
-                    if (m_disposed)
+                    if (m_disposed || (!disposing && m_disposal != null))
                     {
                         return false;
                     }
@@ -922,6 +1081,13 @@ namespace Opc.Ua.Server.FileSystem
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_registerNode;
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_deregisterNode;
             private readonly Lock m_lock = new();
+
+            /// <summary>Serializes lifecycle attachment without holding the handle dictionary gate.</summary>
+            private readonly Lock m_sessionLifecycleLock = new();
+
+            /// <summary>The lifecycle source, attached on the first open and removed on disposal.</summary>
+            private ISessionManager? m_sessions;
+
             private readonly string m_nodeIdPrefix;
             private Dictionary<NodeId, MaterializedNode> m_lookupById = [];
             private bool m_disposed;

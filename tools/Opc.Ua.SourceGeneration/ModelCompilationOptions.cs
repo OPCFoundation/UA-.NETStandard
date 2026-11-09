@@ -71,6 +71,12 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitObjectTypeProxies { get; set; }
 
         /// <summary>
+        /// Emits typed WithStatusAsync proxy variants when the
+        /// ModelSourceGeneratorObjectTypeProxyMethodsWithStatus MSBuild property is true.
+        /// </summary>
+        public bool ObjectTypeProxyMethodsWithStatus { get; set; }
+
+        /// <summary>
         /// Optional override for the C# namespace used by classes emitted
         /// by the <see cref="ObjectTypeProxyGenerator"/>. By default
         /// proxies are emitted into the model's own namespace (i.e. the
@@ -94,6 +100,15 @@ namespace Opc.Ua.SourceGeneration
         /// <c>ModelSourceGeneratorUseTypeDefinitionModellingRules</c> property.
         /// </summary>
         public bool UseTypeDefinitionModellingRules { get; set; }
+
+        /// <summary>
+        /// When set to <c>true</c>, the predefined nodes generated for a
+        /// NodeSet2 input are exactly the nodes of the NodeSet2. See
+        /// <c>GeneratorOptions.EmitNodeSetNodesOnly</c>.
+        /// Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorEmitNodeSetNodesOnly</c> property.
+        /// </summary>
+        public bool EmitNodeSetNodesOnly { get; set; }
 
         /// <summary>
         /// Override for whether the generator emits the
@@ -161,6 +176,26 @@ namespace Opc.Ua.SourceGeneration
         public bool FluentAccessorsOnly { get; set; }
 
         /// <summary>
+        /// Opts into client accessor-only generation over a referenced model's existing proxies.
+        /// </summary>
+        public bool ClientAccessorsOnly { get; set; }
+
+        /// <summary>
+        /// Keeps generated client accessor classes internal to their consuming assembly.
+        /// </summary>
+        public bool ClientAccessorsInternal { get; set; }
+
+        /// <summary>
+        /// Overrides the namespace of the generated client accessor extensions.
+        /// </summary>
+        public string ClientAccessorNamespace { get; set; }
+
+        /// <summary>
+        /// Overrides the generated partial extension class name.
+        /// </summary>
+        public string ClientAccessorClassName { get; set; }
+
+        /// <summary>
         /// Suppresses event-record generation.
         /// </summary>
         public bool OmitEventRecords { get; set; }
@@ -192,16 +227,28 @@ namespace Opc.Ua.SourceGeneration
                 UseAllowSubtypes = provider.GlobalOptions.GetBool(nameof(UseAllowSubtypes)),
                 OmitObjectTypeProxies = provider.GlobalOptions.GetBool(
                     nameof(OmitObjectTypeProxies)),
+                ObjectTypeProxyMethodsWithStatus = provider.GlobalOptions.GetBool(
+                    nameof(ObjectTypeProxyMethodsWithStatus)),
                 ObjectTypeProxyNamespace = provider.GlobalOptions.GetString(
                     nameof(ObjectTypeProxyNamespace)),
                 UseTypeDefinitionModellingRules = provider.GlobalOptions.GetBool(
                     nameof(UseTypeDefinitionModellingRules)),
+                EmitNodeSetNodesOnly = provider.GlobalOptions.GetBool(
+                    nameof(EmitNodeSetNodesOnly)),
                 EmitDependencyMetadata = ParseEmitMode(provider.GlobalOptions.GetString(
                     nameof(EmitDependencyMetadata))),
                 OmitFluentApi = provider.GlobalOptions.GetBool(
                     nameof(OmitFluentApi)),
                 FluentAccessorsOnly = provider.GlobalOptions.GetBool(
                     nameof(FluentAccessorsOnly)),
+                ClientAccessorsOnly = provider.GlobalOptions.GetBool(
+                    nameof(ClientAccessorsOnly)),
+                ClientAccessorsInternal = provider.GlobalOptions.GetBool(
+                    nameof(ClientAccessorsInternal)),
+                ClientAccessorNamespace = provider.GlobalOptions.GetString(
+                    nameof(ClientAccessorNamespace)),
+                ClientAccessorClassName = provider.GlobalOptions.GetString(
+                    nameof(ClientAccessorClassName)),
                 OmitEventRecords = provider.GlobalOptions.GetBool(
                     nameof(OmitEventRecords))
             };

@@ -211,6 +211,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Managed browsing using browser
         /// </summary>
+        /// <remarks>
+        /// Per-node failures are returned in the service results. Request failures and
+        /// cancellation propagate to the caller instead of returning partial results
+        /// as a successful browse. An already-cancelled token is checked before
+        /// accessing the session or sending a request.
+        /// </remarks>
         public static async Task<(
             ArrayOf<ArrayOf<ReferenceDescription>>,
             ArrayOf<ServiceResult>
@@ -226,6 +232,7 @@ namespace Opc.Ua.Client
                 uint nodeClassMask,
                 CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
             var browser = new Browser(session, new BrowserOptions
             {
                 RequestHeader = requestHeader,

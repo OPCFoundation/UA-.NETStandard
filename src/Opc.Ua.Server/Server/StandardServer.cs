@@ -33,11 +33,14 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
@@ -52,13 +55,48 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider,
-        IRequestParkingPolicySource
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
+        IRequestParkingPolicySource, IServerApplicationCertificateActivator
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
             : this(telemetry, null)
         {
+        }
+
+        /// <summary>
+        /// Starts discovery registration after the initial NodeManager readiness callbacks have completed.
+        /// </summary>
+        private void StartRegistrationAfterReadiness()
+        {
+            lock (m_registrationLock)
+            {
+                if (m_registrationInfo is null)
+                {
+                    throw new InvalidOperationException("Server registration information is not initialized.");
+                }
+                if (m_registrationShutdownRequested)
+                {
+                    return;
+                }
+
+                m_registrationInfo.IsOnline = true;
+                if (m_maxRegistrationInterval <= 0)
+                {
+                    return;
+                }
+
+                m_registrationTimer?.Dispose();
+                m_registrationTimer = null;
+                m_registrationStopped = false;
+                m_registrationCts = new CancellationTokenSource();
+                m_logger.ServerRegistrationTimerStarted();
+                m_registrationTimer = TimeProvider.CreateTimer(
+                    OnRegisterServer,
+                    ++m_registrationGeneration,
+                    TimeSpan.FromMilliseconds(m_minRegistrationInterval),
+                    Timeout.InfiniteTimeSpan);
+            }
         }
 
         /// <summary>
@@ -71,10 +109,41 @@ namespace Opc.Ua.Server
         /// time / duration calculations performed by the server, or
         /// <c>null</c> to use <see cref="TimeProvider.System"/>.</param>
         public StandardServer(ITelemetryContext telemetry, TimeProvider? timeProvider)
+            : this(telemetry, timeProvider, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the server with an optional discovery-registration worker factory.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="timeProvider">The server time provider.</param>
+        /// <param name="registrationWorkerFactory">The worker factory, or null for normal registration.</param>
+        internal StandardServer(
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider,
+            Func<CancellationToken, Task>? registrationWorkerFactory)
+            : this(telemetry, timeProvider, registrationWorkerFactory, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the server with construction-bound registration and lifecycle writer factories.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="timeProvider">The server time provider.</param>
+        /// <param name="registrationWorkerFactory">The worker factory, or null for normal registration.</param>
+        /// <param name="lifecycleWriterFactory">The writer factory, or null for the server-owned default.</param>
+        internal StandardServer(
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider,
+            Func<CancellationToken, Task>? registrationWorkerFactory,
+            Func<Func<bool>, LifecycleWriter>? lifecycleWriterFactory)
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
-            NodeManagerLifecycle = new NodeManagerLifecycle(this);
+            m_registrationWorkerFactory = registrationWorkerFactory;
+            m_nodeManagerLifecycle = new NodeManagerLifecycle(this, TimeProvider, lifecycleWriterFactory);
             m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
         }
@@ -91,7 +160,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the provider used to add, reload, and remove NodeManagers at runtime.
         /// </summary>
-        public INodeManagerLifecycle NodeManagerLifecycle { get; }
+        public INodeManagerLifecycle NodeManagerLifecycle => m_nodeManagerLifecycle;
 
         /// <summary>
         /// Gets or sets the factory that every <see cref="AsyncCustomNodeManager"/>
@@ -145,6 +214,54 @@ namespace Opc.Ua.Server
         /// time / duration calculations and timer scheduling.
         /// </summary>
         protected TimeProvider TimeProvider { get; }
+
+        /// <inheritdoc/>
+        public ValueTask ActivateAsync(
+            NodeId certificateType,
+            string expectedThumbprint,
+            CancellationToken cancellationToken = default)
+        {
+            ActivateCertificate(certificateType, expectedThumbprint, cancellationToken);
+            return default;
+        }
+
+        /// <summary>
+        /// Applies the current certificate-manager entry to listeners before releasing its registry lease.
+        /// </summary>
+        private void ActivateCertificate(
+            NodeId certificateType,
+            string expectedThumbprint,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (certificateType.IsNull || string.IsNullOrWhiteSpace(expectedThumbprint))
+            {
+                throw new ArgumentException("A certificate type and thumbprint are required.");
+            }
+
+            if (CertificateManager is not ICertificateRegistry registry ||
+                CertificateManager is not ICertificateValidatorEx validator)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The server certificate manager cannot activate application certificates.");
+            }
+
+            using CertificateEntry? entry = registry.AcquireApplicationCertificateByType(certificateType);
+            if (entry == null ||
+                !string.Equals(entry.Certificate.Thumbprint, expectedThumbprint, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The requested application certificate is not the active certificate-manager entry.");
+            }
+
+            // Unlike the observer notification path, this explicit activation path propagates listener
+            // failures to its caller. The listener contract is synchronous: a completed call has applied
+            // the new registry reference and endpoint certificate before this method returns.
+            RefreshCertificateReferences(validator, registry);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
 
         /// <summary>
         /// Gets or sets the optional redundant server-set provider consulted by
@@ -261,8 +378,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Asynchronously shuts down and disposes this server. The orderly shutdown runs once;
-        /// concurrent and repeat callers await the same disposal.
+        /// Asynchronously shuts down and disposes this server. Concurrent callers await the same attempt;
+        /// successful disposal is retained and failed shutdown can be retried.
         /// </summary>
         /// <returns>A task that completes after all owned server resources have been released.</returns>
         protected virtual ValueTask DisposeAsyncCore()
@@ -270,7 +387,10 @@ namespace Opc.Ua.Server
             Task dispose;
             lock (m_shutdownStateLock)
             {
-                m_disposeTask ??= DisposeCoreAsync();
+                if (m_disposeTask is null || m_disposeTask.IsFaulted || m_disposeTask.IsCanceled)
+                {
+                    m_disposeTask = DisposeCoreAsync();
+                }
                 dispose = m_disposeTask;
             }
             return new ValueTask(dispose);
@@ -281,35 +401,69 @@ namespace Opc.Ua.Server
         /// </summary>
         private async Task DisposeCoreAsync()
         {
-            // Run the orderly server shutdown (idempotent) before releasing base resources,
-            // so no request is still dispatching to the address space when it is torn down.
-            // The cached m_disposeTask makes this method run exactly once.
-            await StopAsync(CancellationToken.None).ConfigureAwait(false);
+            var failures = new List<Exception>();
+            await RunShutdownStageAsync(failures, () => new ValueTask(LifecycleWaitDiagnostics.WaitAsync(
+                StopAsync(CancellationToken.None).AsTask(),
+                TimeProvider,
+                LifecycleWaitDiagnostics.WarningThreshold,
+                elapsed => m_logger.LifecycleWaitExceeded(
+                    "server StopAsync during disposal",
+                    elapsed,
+                    "Server resources remain owned until orderly shutdown completes."))))
+                .ConfigureAwait(false);
 
-            // halt any outstanding timer and configuration watcher.
-            await StopRegistrationAsync().ConfigureAwait(false);
+            ServerInternalData? serverInternal = m_serverInternal;
+            bool internalsDisposed = serverInternal is null;
+
+            RequestRegistrationShutdown();
+            await RunShutdownStageAsync(failures, StopRegistrationAsync).ConfigureAwait(false);
+            RunShutdownStage(failures, DisposeConfigurationWatcher);
+            RunShutdownStage(failures, DisposeCertificateManagerSubscription);
+
+            if (internalsDisposed)
+            {
+                RunShutdownStage(failures, () => m_nodeManagerLifecycle.Dispose());
+                RunShutdownStage(failures, DisposeOwnedRateLimiterProvider);
+                RunShutdownStage(failures, DisposeBaseResources);
+                try
+                {
+                    ResetOwnedResourceIsolation();
+                    ResourceIsolationProvider = null;
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    failures.Add(ex);
+                }
+                RunShutdownStage(failures, m_semaphoreSlim.Dispose);
+            }
+
+            ThrowShutdownFailures(failures);
+        }
+
+        private void DisposeConfigurationWatcher()
+        {
             m_configurationWatcher?.Dispose();
             m_configurationWatcher = null;
+        }
 
-            (NodeManagerLifecycle as IDisposable)?.Dispose();
+        private void DisposeCertificateManagerSubscription()
+        {
+            m_certManagerSubscription?.Dispose();
+            m_certManagerSubscription = null;
+        }
 
-            // dispose a rate-limiter provider the server created; caller-supplied providers
-            // are owned by the caller.
+        private void DisposeOwnedRateLimiterProvider()
+        {
             if (m_ownsRateLimiterProvider)
             {
                 m_rateLimiterProvider?.Dispose();
             }
             m_rateLimiterProvider = null;
-            ResetOwnedResourceIsolation();
-            ResourceIsolationProvider = null;
+        }
 
-            m_certManagerSubscription?.Dispose();
-            m_certManagerSubscription = null;
-
-            // releases listeners, hosts, the request queue and an owned certificate manager.
+        private void DisposeBaseResources()
+        {
             base.Dispose(true);
-
-            m_semaphoreSlim.Dispose();
         }
 
         /// <summary>
@@ -1269,44 +1423,8 @@ namespace Opc.Ua.Server
 
             try
             {
-                // activate the session.
-                (bool identityChanged, serverNonce, ServiceResult activationStatus) = await ServerInternal.SessionManager.ActivateSessionAsync(
-                        context,
-                        requestHeader.AuthenticationToken,
-                        clientSignature,
-                        userIdentityToken,
-                        userTokenSignature,
-                        localeIds,
-                        requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
-
-                // The activation has committed and the session now expects the next
-                // request to be signed over serverNonce, which only this response
-                // carries (Part 4 5.7.3.1). The steps below are therefore best-effort:
-                // turning their failure into a fault would leave the client with a
-                // nonce the server no longer accepts. Only a session that was closed
-                // concurrently still fails the request with Bad_SessionClosed; its
-                // nonce is moot. The activation gate is already released, so a close
-                // can also start during the steps below; it is checked again after
-                // them.
+                (serverNonce, ServiceResult activationStatus) = await ActivateAndNotifyAsync().ConfigureAwait(false);
                 ISession session = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
-
-                if (identityChanged)
-                {
-                    try
-                    {
-                        // post-commit: not bound to the request token, a cancellation
-                        // could only abort the work while the client still gets Good.
-                        await ServerInternal.NodeManager.SessionActivatedAsync(
-                            context,
-                            session.Id,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.ActivateSessionPostCommitStepFailed(e, session.Id);
-                    }
-                }
 
                 AdditionalParametersType? parameters = null;
                 try
@@ -1406,6 +1524,33 @@ namespace Opc.Ua.Server
             finally
             {
                 OnRequestComplete(context);
+            }
+
+            async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> ActivateAndNotifyAsync()
+            {
+                (bool identityChanged, ByteString nonce, ServiceResult status) =
+                    await ServerInternal.SessionManager.ActivateSessionAsync(
+                        context,
+                        requestHeader.AuthenticationToken,
+                        clientSignature,
+                        userIdentityToken,
+                        userTokenSignature,
+                        localeIds,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                ISession activatedSession = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
+                if (identityChanged)
+                {
+                    try
+                    {
+                        await ServerInternal.NodeManager.SessionActivatedAsync(
+                            context, activatedSession.Id, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.ActivateSessionPostCommitStepFailed(e, activatedSession.Id);
+                    }
+                }
+                return (nonce, status);
             }
         }
 
@@ -1523,21 +1668,13 @@ namespace Opc.Ua.Server
                     m_logger,
                     "Session/CloseSession");
 
-                return new CloseSessionResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                };
+                var response = new CloseSessionResponse();
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
                 throw TranslateException(context, e);
             }
             finally
@@ -1568,21 +1705,13 @@ namespace Opc.Ua.Server
 
                 response = new CancelResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     CancelCount = cancelCount
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1621,24 +1750,17 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new BrowseResponse
+                var response = new BrowseResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1674,24 +1796,17 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new BrowseNextResponse
+                var response = new BrowseNextResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1732,23 +1847,17 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new AddNodesResponse
+                var response = new AddNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditAddNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1796,23 +1905,17 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new DeleteNodesResponse
+                var response = new DeleteNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditDeleteNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1860,23 +1963,17 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new AddReferencesResponse
+                var response = new AddReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditAddReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1924,23 +2021,17 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new DeleteReferencesResponse
+                var response = new DeleteReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditDeleteReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -2017,21 +2108,13 @@ namespace Opc.Ua.Server
 
                 response = new RegisterNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     RegisteredNodeIds = registeredNodeIds
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2064,22 +2147,12 @@ namespace Opc.Ua.Server
 
                 ServerInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
 
-                response = new UnregisterNodesResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                };
+                response = new UnregisterNodesResponse();
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2118,24 +2191,17 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new TranslateBrowsePathsToNodeIdsResponse
+                var response = new TranslateBrowsePathsToNodeIdsResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2172,24 +2238,17 @@ namespace Opc.Ua.Server
                         nodesToRead,
                         requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                return new ReadResponse
+                var response = new ReadResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
 
@@ -2242,24 +2301,17 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new HistoryReadResponse
+                var response = new HistoryReadResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
@@ -2293,24 +2345,17 @@ namespace Opc.Ua.Server
                         .WriteAsync(context, nodesToWrite, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
-                return new WriteResponse
+                var response = new WriteResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2344,24 +2389,17 @@ namespace Opc.Ua.Server
                         historyUpdateDetails,
                         requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                return new HistoryUpdateResponse
+                var response = new HistoryUpdateResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2447,21 +2485,13 @@ namespace Opc.Ua.Server
                     priority,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2495,21 +2525,13 @@ namespace Opc.Ua.Server
                     sendInitialValues,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2541,21 +2563,13 @@ namespace Opc.Ua.Server
                     subscriptionIds,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2591,21 +2605,13 @@ namespace Opc.Ua.Server
                     requestLifetime.ParkSink,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2638,21 +2644,13 @@ namespace Opc.Ua.Server
 
                 response = new RepublishResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     NotificationMessage = notificationMessage
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2700,21 +2698,13 @@ namespace Opc.Ua.Server
                 {
                     RevisedPublishingInterval = revisedPublishingInterval,
                     RevisedLifetimeCount = revisedLifetimeCount,
-                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2754,21 +2744,13 @@ namespace Opc.Ua.Server
                 response = new SetPublishingModeResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2825,21 +2807,13 @@ namespace Opc.Ua.Server
                     AddResults = addResults,
                     AddDiagnosticInfos = addDiagnosticInfos,
                     RemoveResults = removeResults,
-                    RemoveDiagnosticInfos = removeDiagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    RemoveDiagnosticInfos = removeDiagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2877,21 +2851,13 @@ namespace Opc.Ua.Server
                     itemsToCreate,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                result.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                result.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return result;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2928,21 +2894,13 @@ namespace Opc.Ua.Server
                     itemsToModify,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2976,21 +2934,13 @@ namespace Opc.Ua.Server
                     monitoredItemIds,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3034,24 +2984,17 @@ namespace Opc.Ua.Server
                     requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new SetMonitoringModeResponse
+                var response = new SetMonitoringModeResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3082,24 +3025,17 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
-                return new CallResponse
+                var response = new CallResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3308,7 +3244,9 @@ namespace Opc.Ua.Server
                 }
                 m_registrationTimer?.Dispose();
                 m_registrationTimer = null;
-                m_registrationTask = RegisterServerIterationAsync(generation, m_registrationCts!.Token);
+                m_registrationTask = m_registrationWorkerFactory is { } factory
+                    ? factory(m_registrationCts!.Token)
+                    : RegisterServerIterationAsync(generation, m_registrationCts!.Token);
             }
         }
 
@@ -3377,17 +3315,42 @@ namespace Opc.Ua.Server
                 m_registrationCts = null;
                 registration = m_registrationTask;
             }
+
+            var failures = new List<Exception>();
             try
             {
-                cancellation?.Cancel();
+                await RunShutdownStageAsync(failures, () =>
+                {
+                    cancellation?.Cancel();
+                    return default;
+                }).ConfigureAwait(false);
                 if (registration != null)
                 {
-                    await registration.ConfigureAwait(false);
+                    await RunShutdownStageAsync(failures, () => new ValueTask(registration)).ConfigureAwait(false);
                 }
             }
             finally
             {
                 cancellation?.Dispose();
+                lock (m_registrationLock)
+                {
+                    if (ReferenceEquals(m_registrationTask, registration))
+                    {
+                        m_registrationTask = null;
+                    }
+                }
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Discovery registration shutdown failed.", failures);
+            }
+        }
+
+        private void RequestRegistrationShutdown()
+        {
+            lock (m_registrationLock)
+            {
+                m_registrationShutdownRequested = true;
             }
         }
 
@@ -3404,6 +3367,48 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected IServerInternal ServerInternal =>
             m_serverInternal ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
+
+        /// <summary>
+        /// Creates the response header with the diagnostic strings of the request.
+        /// </summary>
+        /// <remarks>
+        /// A request that wrote no diagnostic strings, which is nearly every request, has
+        /// no string table of its own (see <see cref="OperationContext.StringTable"/>); an
+        /// empty table of the thread stands in for it, so the response still carries an
+        /// empty string table. The table is taken from the thread for the call and given
+        /// back only if it is still empty when the call returns: an override of
+        /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable)"/> that adds
+        /// strings to it, or throws, keeps it, and a response created during the call
+        /// (re-entrantly) gets a table of its own.
+        /// A service that just constructed its response passes the response's default
+        /// header as <paramref name="responseHeaderToFill"/>; the base implementation fills
+        /// it instead of allocating another header (see
+        /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable, ResponseHeader)"/>).
+        /// </remarks>
+        internal ResponseHeader CreateResponse(
+            RequestHeader? requestHeader,
+            OperationContext context,
+            ResponseHeader? responseHeaderToFill = null)
+        {
+            StringTable? strings = context.CreatedStringTable;
+            if (strings != null)
+            {
+                return CreateResponse(requestHeader!, strings, responseHeaderToFill);
+            }
+
+            strings = t_noStrings ?? new StringTable();
+            t_noStrings = null;
+            ResponseHeader responseHeader = CreateResponse(requestHeader!, strings, responseHeaderToFill);
+            if (strings.Count == 0)
+            {
+                t_noStrings = strings;
+            }
+
+            return responseHeader;
+        }
+
+        [ThreadStatic]
+        private static StringTable? t_noStrings;
 
         /// <summary>
         /// Verifies that the request header is valid.
@@ -3423,7 +3428,8 @@ namespace Opc.Ua.Server
             // check server state.
             ServerInternalData? serverInternal = m_serverInternal;
 
-            if (serverInternal == null || !serverInternal.IsRunning)
+            if (serverInternal == null ||
+                (!serverInternal.IsRunning && !NodeManagerReadinessScope.Allows(serverInternal)))
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
@@ -3511,38 +3517,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Dispatches an incoming request and marks the calling flow as serving that request.
-        /// <para>
-        /// The mark has to be applied here rather than while the request is being validated. An
-        /// <see cref="AsyncLocal{T}"/> written inside an <c>async</c> method is visible only to
-        /// that method and to the methods it calls, never to the caller that awaited it, so a mark
-        /// applied by <see cref="ValidateRequestAsync"/> would never reach the service handler.
-        /// Applied here it covers the handler and every NodeManager callback beneath it, which is
-        /// what lets a NodeManager lifecycle drain exclude the request that started the operation
-        /// instead of deadlocking on its own request.
-        /// </para>
-        /// </summary>
-        /// <param name="request">The request.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        protected override async Task ProcessRequestAsync(
-            IEndpointIncomingRequest request,
-            CancellationToken cancellationToken = default)
-        {
-            // The request manager is published part-way through startup, so a request that
-            // arrives while the server is still starting has nothing to enrol with yet. Such a
-            // request is rejected by request validation instead of being dispatched.
-            RequestManager? requestManager = m_serverInternal?.RequestManager;
-            if (requestManager == null)
-            {
-                await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            using IDisposable dispatchScope = requestManager.EnterServiceDispatchScope();
-            await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Verifies that the request header is valid.
         /// <para>
         /// This is not virtual, because a subclass that rejected a request after the request had
@@ -3567,16 +3541,13 @@ namespace Opc.Ua.Server
             base.ValidateRequest(requestHeader);
 
             ServerInternalData? serverInternal = m_serverInternal;
-            if (serverInternal == null || !serverInternal.IsRunning)
+            if (serverInternal == null ||
+                (!serverInternal.IsRunning && !NodeManagerReadinessScope.Allows(serverInternal)))
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
 
             RequestManager requestManager = serverInternal.RequestManager;
-
-            // The validation scope covers the window before the request exists, so a NodeManager
-            // cannot be retired between resolving the Session and starting to execute the request.
-            using IDisposable validationScope = requestManager.EnterValidationScope();
 
             OperationContext context;
             try
@@ -3619,13 +3590,13 @@ namespace Opc.Ua.Server
 
             // Hand the validated request over to its execution scope. The context owns the scope
             // from here, so disposing the context completes the request.
-            context.AttachRequestScope(requestManager.EnterRequestScope(context));
+            requestManager.AttachRequestScope(context);
 
             // A close that started after the Session admitted this request, but before the
             // request was registered, did not see it when it aborted the Session's outstanding
             // requests (OPC 10000-4 5.7.2.1). The close marks the Session closing before it
             // sweeps the registered requests under the request manager lock, and registration
-            // takes the same lock, so a request the sweep missed sees the mark here.
+            // ends with a full fence, so a request the sweep missed sees the mark here.
             if (context.Session is ISession admittedSession &&
                 SessionTermination.IsClosingOrClaimed(admittedSession))
             {
@@ -3652,6 +3623,10 @@ namespace Opc.Ua.Server
 
             try
             {
+                if (requestType != RequestType.Publish && serverInternal.NodeManager is IRequestRouting routing)
+                {
+                    routing.PinRequest(context);
+                }
                 await OnRequestValidatedAsync(context).ConfigureAwait(false);
             }
             catch (ServiceResultException e)
@@ -3667,6 +3642,23 @@ namespace Opc.Ua.Server
             }
 
             return context;
+        }
+
+        /// <summary>
+        /// Counts a request that a service rejected after admission. A method of its own, so
+        /// that the service method allocates the closure only when it rejects a request.
+        /// </summary>
+        private void CountRejectedServiceRequest(StatusCode statusCode)
+        {
+            ServerInternal.UpdateServerDiagnostics(diagnostics =>
+            {
+                diagnostics.RejectedRequestsCount++;
+
+                if (IsSecurityError(statusCode))
+                {
+                    diagnostics.SecurityRejectedRequestsCount++;
+                }
+            });
         }
 
         /// <summary>
@@ -3947,6 +3939,10 @@ namespace Opc.Ua.Server
             m_semaphoreSlim.Wait();
             try
             {
+                lock (m_registrationLock)
+                {
+                    m_registrationShutdownRequested = false;
+                }
                 base.OnServerStarting(configuration);
                 InitializeResourceIsolation(configuration, MessageContext.Telemetry);
 
@@ -4065,19 +4061,19 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.HasSession(string secureChannelId)
+        bool IServerSessionBindingProvider.HasSession(string secureChannelId)
         {
-            return (m_serverInternal?.SessionManager as ISessionBindingProvider)?
-                .HasSession(secureChannelId) ?? false;
+            return (m_serverInternal?.SessionManager as IServerSessionBindingProvider)?.HasSession(secureChannelId)
+                ?? false;
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.TryGetSessionContext(
+        bool IServerSessionBindingProvider.TryGetSessionContext(
             NodeId authenticationToken,
             SecureChannelContext channelContext,
             [NotNullWhen(true)] out SessionBindingContext? context)
         {
-            if (m_serverInternal?.SessionManager is ISessionBindingProvider provider)
+            if (m_serverInternal?.SessionManager is IServerSessionBindingProvider provider)
             {
                 return provider.TryGetSessionContext(authenticationToken, channelContext, out context);
             }
@@ -4436,13 +4432,16 @@ namespace Opc.Ua.Server
         {
             await base.StartApplicationAsync(configuration, cancellationToken)
                 .ConfigureAwait(false);
-            if (NodeManagerLifecycle is NodeManagerLifecycle lifecycle)
-            {
-                lifecycle.PrepareForStartup();
-            }
+            m_nodeManagerLifecycle.PrepareForStartup();
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            // The managers belong to the datastore once registered with it; until then a
+            // failed startup must release them itself.
+            ISessionManager? unregisteredSessionManager = null;
+            ISubscriptionManager? unregisteredSubscriptionManager = null;
+            NodeManagerLifecycle.InitialPublication? initialPublication = null;
             try
             {
+                m_nodeManagerLifecycle.BeginStartup();
                 m_logger.ServerStartApplicationApplicationName(configuration.ApplicationName);
 
                 // Setup the minimum nonce length
@@ -4504,6 +4503,11 @@ namespace Opc.Ua.Server
                     m_serverInternal.SetUserManagement(userManagement);
                 }
 
+                if (m_serverInternal.Factory is not EncodeableFactory)
+                {
+                    throw new NotSupportedException("The server factory does not support prepared publication.");
+                }
+
                 // create the manager responsible for providing localized string resources.
                 m_logger.ServerCreateResourceManager();
                 ResourceManager resourceManager = CreateResourceManager(
@@ -4515,7 +4519,6 @@ namespace Opc.Ua.Server
                 RequestManager requestManager = CreateRequestManager(
                     m_serverInternal,
                     configuration);
-                requestManager.RegisterLifecycleExtension();
 
                 //create the main node manager factory
                 IMainNodeManagerFactory mainNodeManagerFactory = CreateMainNodeManagerFactory(m_serverInternal, configuration);
@@ -4530,10 +4533,25 @@ namespace Opc.Ua.Server
 
                 // add the node manager to the datastore.
                 m_serverInternal.SetNodeManager(masterNodeManager);
+                if (masterNodeManager is IDynamicNodeManagerHost startupHost)
+                {
+                    m_nodeManagerLifecycle.InitializeSystemSlots(m_serverInternal, startupHost);
+                    startupHost.SetLifetimeOwner(
+                        base.StopAsync,
+                        () => !m_nodeManagerLifecycle.HasPendingShutdownCleanup);
+                    startupHost.ValidateStartupFactories();
+                }
 
                 // put the node manager into a state that allows it to be used by other objects.
                 await masterNodeManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
+                if (masterNodeManager is IDynamicNodeManagerHost initialHost)
+                {
+                    initialPublication = await m_nodeManagerLifecycle
+                        .BeginInitialPublicationAsync(
+                            m_serverInternal, initialHost.InitialFactories, cancellationToken)
+                        .ConfigureAwait(false);
+                }
 
                 // create the manager responsible for handling events.
                 m_logger.ServerCreateEventManager();
@@ -4580,6 +4598,7 @@ namespace Opc.Ua.Server
                 ISessionManager sessionManager = CreateSessionManager(
                     m_serverInternal,
                     configuration);
+                unregisteredSessionManager = sessionManager;
                 await sessionManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
@@ -4621,11 +4640,14 @@ namespace Opc.Ua.Server
                 ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
                     m_serverInternal,
                     configuration);
+                unregisteredSubscriptionManager = subscriptionManager;
                 await subscriptionManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
                 // add the session manager to the datastore.
                 m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
+                unregisteredSessionManager = null;
+                unregisteredSubscriptionManager = null;
 
                 // every subsystem is bound; refuse any further binding so nothing can
                 // rewire a running server.
@@ -4650,7 +4672,7 @@ namespace Opc.Ua.Server
                     m_registrationInfo.ProductUri = serverDescription.ProductUri;
                     m_registrationInfo.ServerType = serverDescription.ApplicationType;
                     m_registrationInfo.GatewayServerUri = null;
-                    m_registrationInfo.IsOnline = true;
+                    m_registrationInfo.IsOnline = false;
                     m_registrationInfo.SemaphoreFilePath = null;
 
                     // add all discovery urls.
@@ -4700,48 +4722,94 @@ namespace Opc.Ua.Server
                     m_minRegistrationInterval = 1000;
                     m_lastRegistrationInterval = m_minRegistrationInterval;
 
-                    // start registration timer.
-                    m_registrationTimer?.Dispose();
-                    m_registrationTimer = null;
-
-                    if (m_maxRegistrationInterval > 0)
-                    {
-                        m_registrationStopped = false;
-                        m_registrationCts = new CancellationTokenSource();
-                        m_logger.ServerRegistrationTimerStarted();
-                        m_registrationTimer = TimeProvider.CreateTimer(
-                            OnRegisterServer,
-                            ++m_registrationGeneration,
-                            TimeSpan.FromMilliseconds(m_minRegistrationInterval),
-                            Timeout.InfiniteTimeSpan);
-                    }
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException cancellation)
                 when (cancellationToken.IsCancellationRequested)
             {
-                m_serverInternal?.Dispose();
-                m_serverInternal = null;
+                Exception? publicationFailure = await CleanupFailedStartupAsync(
+                    initialPublication,
+                    unregisteredSessionManager,
+                    unregisteredSubscriptionManager).ConfigureAwait(false);
+                if (publicationFailure is not null)
+                {
+                    throw new AggregateException(
+                        "Startup cancellation and initial-publication cleanup failed.", cancellation, publicationFailure);
+                }
                 throw;
             }
             catch (Exception e)
             {
                 const string message = "Unexpected error starting application";
                 m_logger.Message(e, message);
-                m_serverInternal?.Dispose();
-                m_serverInternal = null;
-                var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
-                ServerError = error;
-                throw new ServiceResultException(error);
+                Exception? publicationFailure = await CleanupFailedStartupAsync(
+                    initialPublication,
+                    unregisteredSessionManager,
+                    unregisteredSubscriptionManager).ConfigureAwait(false);
+                Exception failure = publicationFailure is null
+                    ? e
+                    : new AggregateException("Startup and initial-publication cleanup failed.", e, publicationFailure);
+                var error = new ServiceResultException(
+                    failure is ServiceResultException serviceFailure
+                        ? serviceFailure.StatusCode
+                        : StatusCodes.BadInternalError,
+                    message,
+                    failure);
+                ServerError = error.Result;
+                throw error;
             }
             finally
             {
                 m_semaphoreSlim.Release();
             }
 
-            // set the server status as running, or NoConfiguration while the
-            // application is in the application setup state (OPC 10000-12 G.2).
-            SetServerState(StartupServerState);
+            try
+            {
+                if (initialPublication is not null)
+                {
+                    await initialPublication.CompleteAsync().ConfigureAwait(false);
+                }
+                // Application setup servers enter NoConfiguration (OPC 10000-12 G.2).
+                SetServerState(StartupServerState);
+                StartRegistrationAfterReadiness();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger.Message(ex, "A NodeManager failed during startup readiness.");
+                Exception? cleanupFailure = initialPublication is null
+                    ? null
+                    : await initialPublication.AbortAsync().ConfigureAwait(false);
+                if (ReferenceEquals(cleanupFailure, ex))
+                {
+                    cleanupFailure = null;
+                }
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(ServerError))
+                    {
+                        Exception failure = new ServiceResultException(ServerError);
+                        cleanupFailure = cleanupFailure is null
+                            ? failure
+                            : new AggregateException(cleanupFailure, failure);
+                    }
+                }
+                catch (Exception cleanupException) when (cleanupException is not OutOfMemoryException)
+                {
+                    cleanupFailure = cleanupFailure is null
+                        ? cleanupException
+                        : new AggregateException(cleanupFailure, cleanupException);
+                }
+                if (cleanupFailure is not null)
+                {
+                    var failure = new AggregateException(
+                        "NodeManager startup readiness and server cleanup failed.", ex, cleanupFailure);
+                    ServerError = new ServiceResult(failure);
+                    throw failure;
+                }
+                ServerError = new ServiceResult(ex);
+                throw;
+            }
 
             // all initialization is complete.
             m_logger.ServerStarted();
@@ -4757,6 +4825,9 @@ namespace Opc.Ua.Server
             // reject deleting a certificate still referenced by an
             // EndpointDescription (OPC UA Part 12 §7.10.7).
             m_serverInternal.SetServerEndpoints(GetEndpoints());
+
+            // Endpoint-dependent contributors cannot advertise security profiles during the earlier address-space pass.
+            await m_serverInternal.ConformanceUnitsManager.PublishAsync(cancellationToken).ConfigureAwait(false);
 
             OnServerStarted(m_serverInternal);
 
@@ -4788,6 +4859,100 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Releases the session and subscription managers that a failed startup
+        /// created but did not register with the datastore. The session manager
+        /// is shut down so its monitor stops; the subscription manager is only
+        /// disposed, so nothing is stored.
+        /// </summary>
+        private async ValueTask DisposeUnregisteredManagersAsync(
+            ISessionManager? sessionManager,
+            ISubscriptionManager? subscriptionManager,
+            List<Exception> failures)
+        {
+            if (sessionManager is not null)
+            {
+                try
+                {
+                    await sessionManager.ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is not OutOfMemoryException)
+                {
+                    m_logger.ReleasingManagerOfFailedStartupFailed(e);
+                    failures.Add(e);
+                }
+                try
+                {
+                    sessionManager.Dispose();
+                }
+                catch (Exception e) when (e is not OutOfMemoryException)
+                {
+                    m_logger.ReleasingManagerOfFailedStartupFailed(e);
+                    failures.Add(e);
+                }
+            }
+
+            try
+            {
+                if (subscriptionManager is IAsyncDisposable asyncSubscriptionManager)
+                {
+                    await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    subscriptionManager?.Dispose();
+                }
+            }
+            catch (Exception e) when (e is not OutOfMemoryException)
+            {
+                m_logger.ReleasingManagerOfFailedStartupFailed(e);
+                failures.Add(e);
+            }
+        }
+
+        /// <summary>
+        /// Joins the initial commit before reclaiming a partially initialized address space.
+        /// </summary>
+        /// <returns>The cleanup failures to surface together with the original startup failure.</returns>
+        private async ValueTask<Exception?> CleanupFailedStartupAsync(
+            NodeManagerLifecycle.InitialPublication? initialPublication,
+            ISessionManager? sessionManager,
+            ISubscriptionManager? subscriptionManager)
+        {
+            var failures = new List<Exception>();
+            if (initialPublication is not null &&
+                await initialPublication.AbortAsync().ConfigureAwait(false) is { } publicationFailure)
+            {
+                failures.Add(publicationFailure);
+            }
+            await DisposeUnregisteredManagersAsync(sessionManager, subscriptionManager, failures).ConfigureAwait(false);
+            ServerInternalData? serverInternal = m_serverInternal;
+            if (serverInternal is not null)
+            {
+                await RunShutdownStageAsync(failures, serverInternal.DrainRoleStateBindingAsync).ConfigureAwait(false);
+                if (serverInternal.NodeManager is not null)
+                {
+                    await RunShutdownStageAsync(
+                        failures,
+                        () => m_nodeManagerLifecycle
+                            .BeginShutdownAsync(serverInternal, CancellationToken.None)).ConfigureAwait(false);
+                    await CompleteNodeManagerShutdownAsync(serverInternal, failures).ConfigureAwait(false);
+                }
+                if (!m_nodeManagerLifecycle.HasPendingShutdownCleanup)
+                {
+                    await RunShutdownStageAsync(failures, serverInternal.DisposeAsync).ConfigureAwait(false);
+                    m_serverInternal = null;
+                }
+            }
+            return failures.Count == 0
+                ? null
+                : new AggregateException("Failed startup address-space cleanup failed.", failures);
+        }
+
+        /// <summary>
+        /// Registers a user-token authenticator immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="authenticator">The provider that authenticates user tokens.</param>
         internal void RegisterIdentityAuthenticator(IUserTokenAuthenticator authenticator)
         {
             if (authenticator == null)
@@ -4804,6 +4969,10 @@ namespace Opc.Ua.Server
             m_preStartAuthenticators.Add(authenticator);
         }
 
+        /// <summary>
+        /// Registers an identity augmenter immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="augmenter">The provider that augments authenticated identities.</param>
         internal void RegisterIdentityAugmenter(IIdentityAugmenter augmenter)
         {
             if (augmenter == null)
@@ -4821,139 +4990,266 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask OnServerStartedAsync(
-            CancellationToken cancellationToken = default)
-        {
-            await base.OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
-            if (NodeManagerLifecycle is NodeManagerLifecycle lifecycle)
-            {
-                await lifecycle
-                    .AdoptStartupNodeManagersAsync(
-                        CurrentInstance,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
-        }
-
-        /// <inheritdoc/>
         protected override async ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
         {
             m_logger.ServerStopping();
-
-            // give connected clients time to observe the shutdown state and disconnect
-            // while the server is still serving requests.
-            ShutDownDelay();
-
-            // halt the registration timer.
-            await StopRegistrationAsync().ConfigureAwait(false);
-
-            // StartAsync creates a new watcher and certificate subscription, so release these
-            // to keep a stopped server from reacting and a restart from duplicating handlers.
-            m_configurationWatcher?.Dispose();
-            m_configurationWatcher = null;
-            m_certManagerSubscription?.Dispose();
-            m_certManagerSubscription = null;
-
-            if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
-            {
-                // unregister from Discovery Server if registered before
-                m_registrationInfo!.IsOnline = false;
-                await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
-            }
-
             ServerInternalData? serverInternal = m_serverInternal;
-            if (serverInternal is null)
+            ShutdownProgress progress = serverInternal is null
+                ? new ShutdownProgress()
+                : m_shutdownProgress.GetValue(serverInternal, static _ => new ShutdownProgress());
+            var failures = new List<Exception>();
+            RequestRegistrationShutdown();
+            await RunShutdownStageOnceAsync(
+                progress, ShutdownStage.Delay, failures, () => WaitForShutdownDelayAsync(cancellationToken))
+                .ConfigureAwait(false);
+            await RunShutdownStageOnceAsync(
+                progress, ShutdownStage.Registration, failures, StopRegistrationAsync).ConfigureAwait(false);
+            await RunShutdownStageOnceAsync(progress, ShutdownStage.ConfigurationWatcher, failures, () =>
             {
-                return;
+                m_configurationWatcher?.Dispose();
+                m_configurationWatcher = null;
+                return default;
+            }).ConfigureAwait(false);
+            await RunShutdownStageOnceAsync(progress, ShutdownStage.CertificateSubscription, failures, () =>
+            {
+                m_certManagerSubscription?.Dispose();
+                m_certManagerSubscription = null;
+                return default;
+            }).ConfigureAwait(false);
+            if ((progress.CompletedStages & ShutdownStage.Registration) != 0)
+            {
+                await RunShutdownStageOnceAsync(progress, ShutdownStage.Discovery, failures, async () =>
+                {
+                    if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
+                    {
+                        m_registrationInfo!.IsOnline = false;
+                        await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
             }
 
-            await TearDownServerInternalAsync(serverInternal, cancellationToken)
-                .ConfigureAwait(false);
-
-            // clear the reference once the internals are torn down, guarding against a
-            // concurrent restart that may already have published a new instance.
-            await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-            try
+            if (serverInternal is not null)
             {
-                if (ReferenceEquals(m_serverInternal, serverInternal))
+                await TearDownServerInternalAsync(serverInternal, progress, failures, cancellationToken)
+                    .ConfigureAwait(false);
+                if ((progress.CompletedStages & ShutdownStage.Internals) != 0)
                 {
-                    m_serverInternal = null;
+                    await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
+                    {
+                        if (ReferenceEquals(m_serverInternal, serverInternal))
+                        {
+                            m_serverInternal = null;
+                        }
+                    }
+                    finally
+                    {
+                        m_semaphoreSlim.Release();
+                    }
                 }
             }
-            finally
+            if (failures.Count != 0)
             {
-                m_semaphoreSlim.Release();
+                throw new AggregateException("One or more server shutdown stages failed.", failures);
             }
         }
 
         /// <summary>
-        /// Tears down the server internals in order once request processing has stopped.
+        /// Stops consumers before retiring their address-space dependencies.
         /// </summary>
         /// <remarks>
-        /// The request queue is disposed first so that in-flight requests drain and no request
-        /// is still dispatching to a NodeManager when the subscription, session and node
-        /// managers are stopped and the server internals are disposed. A subsequent
+        /// Request admission stops and executing requests drain before subscription and session shutdown.
+        /// Failed consumer drains retain the address space; independent registration failures do not skip
+        /// application cleanup. Successful stages are retained for a later stop attempt. A subsequent
         /// <see cref="ServerBase.StartAsync(ApplicationConfiguration, CancellationToken, System.Uri[])"/>
         /// re-creates the request queue and server internals.
         /// </remarks>
-        /// <exception cref="AggregateException"></exception>
+        /// <param name="serverInternal">The server instance being stopped.</param>
+        /// <param name="progress">The completed shutdown stages for this server instance.</param>
+        /// <param name="failures">The failures to report after independent stages have been attempted.</param>
+        /// <param name="cancellationToken">The token used to cancel consumer drains.</param>
         private async Task TearDownServerInternalAsync(
             ServerInternalData serverInternal,
+            ShutdownProgress progress,
+            List<Exception> failures,
             CancellationToken cancellationToken)
         {
-            var lifecycle = NodeManagerLifecycle as NodeManagerLifecycle;
-            var failures = new List<Exception>();
-
-            // Drain in-flight requests by disposing the request queue before the address space
-            // is torn down.
-            await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
-
-            // Sessions still open are terminated by the server; SessionManager.ShutdownAsync
-            // audits each of them once its close completed (OPC 10000-5 6.4.7).
-            await RunShutdownStageAsync(
-                    failures,
+            await RunShutdownStageOnceAsync(
+                    progress, ShutdownStage.RequestQueue, failures,
+                    () => StopRequestQueueAsync(cancellationToken))
+                .ConfigureAwait(false);
+            if ((progress.CompletedStages & ShutdownStage.RequestQueue) == 0)
+            {
+                // An executing request may still use the address space, so do not retire any of its dependencies.
+                return;
+            }
+            await RunShutdownStageOnceAsync(
+                    progress, ShutdownStage.RoleBinding, failures,
                     serverInternal.DrainRoleStateBindingAsync)
                 .ConfigureAwait(false);
+            await RunShutdownStageOnceAsync(
+                    progress, ShutdownStage.LifecyclePreparation, failures,
+                    () => m_nodeManagerLifecycle.BeginShutdownAsync(serverInternal, cancellationToken))
+                .ConfigureAwait(false);
 
-            if (lifecycle is not null)
+            await RunShutdownStageOnceAsync(progress, ShutdownStage.Subscriptions, failures, async () =>
+            {
+                if (serverInternal.SubscriptionManager is { } subscriptionManager)
+                {
+                    await subscriptionManager.ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }).ConfigureAwait(false);
+            await RunShutdownStageOnceAsync(progress, ShutdownStage.Sessions, failures, async () =>
+            {
+                if (serverInternal.SessionManager is { } sessionManager)
+                {
+                    sessionManager.SessionChannelKeepAlive -= SessionChannelKeepAliveEvent;
+                    await sessionManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }).ConfigureAwait(false);
+
+            const ShutdownStage consumers = ShutdownStage.RequestQueue | ShutdownStage.RoleBinding |
+                ShutdownStage.LifecyclePreparation | ShutdownStage.Subscriptions | ShutdownStage.Sessions |
+                ShutdownStage.ConfigurationWatcher | ShutdownStage.CertificateSubscription;
+            if ((progress.CompletedStages & consumers) != consumers)
+            {
+                // Application registrations do not depend on session or subscription teardown; system managers,
+                // the core and sessions stay in place until the retry completes the consumer stages.
+                if ((progress.CompletedStages & ShutdownStage.LifecyclePreparation) != 0)
+                {
+                    await RunShutdownStageOnceAsync(
+                        progress, ShutdownStage.ApplicationManagers, failures,
+                        () => m_nodeManagerLifecycle.CompleteShutdownAsync(
+                            serverInternal, retireSystems: false, CancellationToken.None))
+                        .ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                if ((progress.CompletedStages & ShutdownStage.NodeManagers) == 0)
+                {
+                    int previousFailures = failures.Count;
+                    await CompleteNodeManagerShutdownAsync(serverInternal, failures).ConfigureAwait(false);
+                    if (failures.Count == previousFailures && !m_nodeManagerLifecycle.HasPendingShutdownCleanup)
+                    {
+                        progress.CompletedStages |= ShutdownStage.NodeManagers;
+                    }
+                }
+                const ShutdownStage internals = ShutdownStage.NodeManagers | ShutdownStage.Registration |
+                    ShutdownStage.Discovery;
+                if ((progress.CompletedStages & internals) == internals)
+                {
+                    await RunShutdownStageOnceAsync(
+                        progress, ShutdownStage.Internals, failures, serverInternal.DisposeAsync).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retries unfinished shutdown stages without replaying successful cleanup.
+        /// </summary>
+        /// <param name="progress">The shutdown stages completed for the current server internals.</param>
+        /// <param name="stage">The stage to run if it has not completed.</param>
+        /// <param name="failures">The failures to report after independent stages have been attempted.</param>
+        /// <param name="shutdown">The cleanup operation.</param>
+        /// <returns>A task completed after the stage succeeds or its failure is recorded.</returns>
+        private static async Task RunShutdownStageOnceAsync(
+            ShutdownProgress progress,
+            ShutdownStage stage,
+            List<Exception> failures,
+            Func<ValueTask> shutdown)
+        {
+            if ((progress.CompletedStages & stage) != 0)
+            {
+                return;
+            }
+            int previousFailures = failures.Count;
+            await RunShutdownStageAsync(failures, shutdown).ConfigureAwait(false);
+            if (failures.Count == previousFailures)
+            {
+                progress.CompletedStages |= stage;
+            }
+        }
+
+        /// <summary>
+        /// Records successful shutdown work for one server instance.
+        /// </summary>
+        private sealed class ShutdownProgress
+        {
+            /// <summary>
+            /// Gets or sets the stages that completed without failure.
+            /// </summary>
+            internal ShutdownStage CompletedStages { get; set; }
+        }
+
+        /// <summary>
+        /// Identifies shutdown stages whose successful completion is retained for retries.
+        /// </summary>
+        [Flags]
+        private enum ShutdownStage
+        {
+            /// <summary>No shutdown stage has completed.</summary>
+            None = 0,
+
+            /// <summary>The connected-client shutdown delay.</summary>
+            Delay = 1,
+
+            /// <summary>The discovery registration worker.</summary>
+            Registration = 2,
+
+            /// <summary>The configuration watcher.</summary>
+            ConfigurationWatcher = 4,
+
+            /// <summary>The certificate change subscription.</summary>
+            CertificateSubscription = 8,
+
+            /// <summary>The discovery-server unregistration.</summary>
+            Discovery = 16,
+
+            /// <summary>The request queue drain.</summary>
+            RequestQueue = 32,
+
+            /// <summary>The role-state binding drain.</summary>
+            RoleBinding = 64,
+
+            /// <summary>The accepted NodeManager work drain and shutdown preparation.</summary>
+            LifecyclePreparation = 128,
+
+            /// <summary>The subscription workers and subscription cleanup.</summary>
+            Subscriptions = 256,
+
+            /// <summary>The session worker and remaining session cleanup.</summary>
+            Sessions = 512,
+
+            /// <summary>The application and system NodeManager cleanup.</summary>
+            NodeManagers = 1024,
+
+            /// <summary>The server internals disposal.</summary>
+            Internals = 2048,
+
+            /// <summary>The application-only NodeManager cleanup performed while consumers are still failing.</summary>
+            ApplicationManagers = 4096
+        }
+
+        /// <summary>
+        /// Reclaims the address space through the same ownership path during shutdown and failed startup.
+        /// </summary>
+        private async ValueTask CompleteNodeManagerShutdownAsync(
+            ServerInternalData serverInternal,
+            List<Exception> failures)
+        {
+            await RunShutdownStageAsync(
+                failures,
+                () => m_nodeManagerLifecycle
+                    .CompleteShutdownAsync(serverInternal, retireSystems: true, CancellationToken.None))
+                .ConfigureAwait(false);
+            if (!m_nodeManagerLifecycle.HasPendingShutdownCleanup &&
+                serverInternal.NodeManager is { } master &&
+                master is not IDynamicNodeManagerHost)
             {
                 await RunShutdownStageAsync(
-                        failures,
-                        () => lifecycle.BeginShutdownAsync(serverInternal, cancellationToken))
-                    .ConfigureAwait(false);
-            }
-
-            await RunShutdownStageAsync(
                     failures,
-                    () => serverInternal.SubscriptionManager.ShutdownAsync(CancellationToken.None))
-                .ConfigureAwait(false);
-
-            serverInternal.SessionManager.SessionChannelKeepAlive -= SessionChannelKeepAliveEvent;
-            await RunShutdownStageAsync(
-                    failures,
-                    () => serverInternal.SessionManager.ShutdownAsync(cancellationToken))
-                .ConfigureAwait(false);
-
-            await RunShutdownStageAsync(
-                    failures,
-                    () => serverInternal.NodeManager.ShutdownAsync(CancellationToken.None))
-                .ConfigureAwait(false);
-
-            if (lifecycle is not null)
-            {
-                await RunShutdownStageAsync(
-                        failures,
-                        () => lifecycle.CompleteShutdownAsync(serverInternal, CancellationToken.None))
-                    .ConfigureAwait(false);
-            }
-
-            serverInternal.Dispose();
-
-            if (failures.Count > 0)
-            {
-                throw new AggregateException(
-                    "One or more server shutdown stages failed.",
-                    failures);
+                    () => master.ShutdownAsync(CancellationToken.None)).ConfigureAwait(false);
             }
         }
 
@@ -4965,9 +5261,33 @@ namespace Opc.Ua.Server
             {
                 await stage().ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 failures.Add(ex);
+            }
+        }
+
+        private static void RunShutdownStage(List<Exception> failures, Action stage)
+        {
+            try
+            {
+                stage();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        private static void ThrowShutdownFailures(List<Exception> failures)
+        {
+            if (failures.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException("One or more server disposal stages failed.", failures);
             }
         }
 
@@ -5001,62 +5321,93 @@ namespace Opc.Ua.Server
         {
             try
             {
-                // check for connected clients.
-                IList<ISession> currentessions = ServerInternal.SessionManager.GetSessions();
-
-                if (currentessions.Count > 0)
+                IServerInternal server = ServerInternal;
+                if (!BeginShutdownCountdown(server))
                 {
-                    // provide some time for the connected clients to detect the shutdown state.
-                    ServerInternal.UpdateServerStatus(
-                        (status) =>
-                        {
-                            // set the shutdown reason and state.
-                            status.Value.ShutdownReason = new LocalizedText(
-                                "en-US",
-                                "Application is shutting down.");
-                            ServerStatusState statusVariable = status!.Variable!;
-                            statusVariable.ShutdownReason!.Value = new LocalizedText(
-                                "en-US",
-                                "Application is shutting down.");
-                            status.Value.State = ServerState.Shutdown;
-                            statusVariable.State!.Value = ServerState.Shutdown;
-                            statusVariable
-                                .ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
-                        });
-
-                    // The "Session/Terminated" audit is reported when the sessions that are
-                    // still open after the delay are actually terminated, not here: a client
-                    // that closes its session during the delay audits its own close.
-                    for (int timeTillShutdown = Configuration!.ServerConfiguration!.ShutdownDelay;
-                        timeTillShutdown > 0;
-                        timeTillShutdown--)
+                    return;
+                }
+                for (int timeTillShutdown = Configuration!.ServerConfiguration!.ShutdownDelay;
+                    timeTillShutdown > 0;
+                    timeTillShutdown--)
+                {
+                    if (!UpdateShutdownCountdown(server, timeTillShutdown))
                     {
-                        ServerInternal.UpdateServerStatus(
-                            (status) =>
-                            {
-                                status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
-                                status!.Variable!.SecondsTillShutdown!.Value = (uint)timeTillShutdown;
-                                status.Variable
-                                    .ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
-                            });
-
-                        // exit if all client connections are closed.
-                        int sessionCount = ServerInternal.SessionManager.GetSessions().Count;
-                        if (sessionCount == 0)
-                        {
-                            break;
-                        }
-
-                        m_logger.SessionCountActiveSessionsSecondsUntilShutdown(sessionCount, timeTillShutdown);
-
-                        Thread.Sleep(1000);
+                        break;
                     }
+                    Thread.Sleep(1000);
                 }
             }
             catch
             {
                 // ignore error during shutdown procedure.
             }
+        }
+
+        /// <summary>
+        /// Lets connected clients observe shutdown without blocking the server's asynchronous stop operation.
+        /// </summary>
+        /// <param name="cancellationToken">The token used to cancel the countdown.</param>
+        /// <returns>A task completed when the countdown expires or all clients disconnect.</returns>
+        private async ValueTask WaitForShutdownDelayAsync(CancellationToken cancellationToken)
+        {
+            if (m_serverInternal is not { } server || !BeginShutdownCountdown(server))
+            {
+                return;
+            }
+            for (int remaining = Configuration!.ServerConfiguration!.ShutdownDelay; remaining > 0; remaining--)
+            {
+                if (!UpdateShutdownCountdown(server, remaining))
+                {
+                    break;
+                }
+                await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Announces shutdown to connected clients before their sessions are terminated.
+        /// </summary>
+        /// <param name="server">The server whose connected clients should observe shutdown.</param>
+        /// <returns>True when connected clients need the configured countdown.</returns>
+        private static bool BeginShutdownCountdown(IServerInternal server)
+        {
+            if (server.SessionManager.GetSessions().Count == 0)
+            {
+                return false;
+            }
+            server.UpdateServerStatus(status =>
+            {
+                status.Value.ShutdownReason = new LocalizedText("en-US", "Application is shutting down.");
+                ServerStatusState variable = status!.Variable!;
+                variable.ShutdownReason!.Value = new LocalizedText("en-US", "Application is shutting down.");
+                status.Value.State = ServerState.Shutdown;
+                variable.State!.Value = ServerState.Shutdown;
+                variable.ClearChangeMasks(server.DefaultSystemContext, true);
+            });
+            return true;
+        }
+
+        /// <summary>
+        /// Publishes the countdown while clients remain connected.
+        /// </summary>
+        /// <param name="server">The server being stopped.</param>
+        /// <param name="remaining">The seconds remaining before session termination.</param>
+        /// <returns>True when at least one session is still connected.</returns>
+        private bool UpdateShutdownCountdown(IServerInternal server, int remaining)
+        {
+            server.UpdateServerStatus(status =>
+            {
+                status.Value.SecondsTillShutdown = (uint)remaining;
+                status!.Variable!.SecondsTillShutdown!.Value = (uint)remaining;
+                status.Variable.ClearChangeMasks(server.DefaultSystemContext, true);
+            });
+            int sessionCount = server.SessionManager.GetSessions().Count;
+            if (sessionCount == 0)
+            {
+                return false;
+            }
+            m_logger.SessionCountActiveSessionsSecondsUntilShutdown(sessionCount, remaining);
+            return true;
         }
 
         /// <summary>
@@ -5392,6 +5743,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets registered factories in their initial address-space creation order.
+        /// </summary>
+        /// <returns>The asynchronous factories followed by adapted synchronous factories.</returns>
+        protected ArrayOf<IAsyncNodeManagerFactory> GetInitialNodeManagerFactories()
+        {
+            return
+            [
+                .. m_asyncNodeManagerFactories,
+                .. m_nodeManagerFactories.Select(
+                    static factory => new NodeManagerLifecycleExtensions.SyncFactoryAdapter(factory))
+            ];
+        }
+
+        /// <summary>
         /// Creates the master node manager for the server (async).
         /// </summary>
         /// <param name="server">The server.</param>
@@ -5402,29 +5767,28 @@ namespace Opc.Ua.Server
         /// Subclasses that need to plug in custom async node-manager factories should
         /// override this method. The default implementation awaits each registered
         /// <see cref="IAsyncNodeManagerFactory"/> and delegates the synchronous
-        /// factories to <see cref="CreateMasterNodeManager"/>.
+        /// factories to the same initial Add pipeline after the system address spaces are initialized.
         /// </remarks>
         protected virtual async ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
-            var nodeManagers = new List<INodeManager>();
-
-            foreach (INodeManagerFactory nodeManagerFactory in m_nodeManagerFactories)
+            cancellationToken.ThrowIfCancellationRequested();
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories = GetInitialNodeManagerFactories();
+            MasterNodeManager? master = null;
+            try
             {
-                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
+                master = new MasterNodeManager(server, configuration, null, initialFactories);
+                IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master)
+                    .ConfigureAwait(false);
+                master = null;
+                return result;
             }
-
-            var asyncNodeManagers = new List<IAsyncNodeManager>();
-
-            foreach (IAsyncNodeManagerFactory nodeManagerFactory in m_asyncNodeManagerFactories)
+            finally
             {
-                asyncNodeManagers.Add(await nodeManagerFactory.CreateAsync(server, configuration, cancellationToken)
-                    .ConfigureAwait(false));
+                master?.Dispose();
             }
-
-            return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
 
         /// <summary>
@@ -5466,8 +5830,15 @@ namespace Opc.Ua.Server
             return new EventManager(
                 server,
                 (uint)configuration.ServerConfiguration!.MaxEventQueueSize,
-                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
+                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize,
+                EventIdentityAdmissionOptions);
         }
+
+        /// <summary>
+        /// Gets or sets the bounded event identity policy used when creating the
+        /// server's event manager. Set before startup, or register the options in DI.
+        /// </summary>
+        public EventIdentityAdmissionOptions EventIdentityAdmissionOptions { get; set; } = new();
 
         /// <summary>
         /// An optional factory used to build the server's session manager. When
@@ -5644,9 +6015,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loads custom data types and refreshes the schema resolver when complex-type loading is enabled.
         /// </summary>
-        internal async ValueTask RefreshComplexTypesAsync(
+        /// <param name="server">The server whose custom data types are loaded.</param>
+        /// <param name="additionalNodeManager">An additional NodeManager to read types from, if any.</param>
+        /// <param name="publishResolver">Whether to publish the resolver on the server.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The refreshed resolver, or null when complex-type loading is disabled.</returns>
+        internal async ValueTask<IDataTypeDefinitionResolver?> RefreshComplexTypesAsync(
             IServerInternal server,
             IAsyncNodeManager? additionalNodeManager = null,
+            bool publishResolver = true,
             CancellationToken cancellationToken = default)
         {
             if (LoadComplexTypes)
@@ -5670,8 +6047,13 @@ namespace Opc.Ua.Server
                             additionalNodeManager,
                             cancellationToken)
                         .ConfigureAwait(false);
-                ComplexTypeResolverHolder?.SetResolver(resolver);
+                if (publishResolver)
+                {
+                    ComplexTypeResolverHolder?.SetResolver(resolver);
+                }
+                return resolver;
             }
+            return null;
         }
 
         /// <inheritdoc/>
@@ -5796,6 +6178,12 @@ namespace Opc.Ua.Server
             Justification = "Disposed by OnServerStoppingAsync while the server is stopped.")]
         private ServerInternalData? m_serverInternal;
 
+        /// <summary>Retains successful shutdown stages without extending a stopped server's lifetime.</summary>
+        private readonly ConditionalWeakTable<ServerInternalData, ShutdownProgress> m_shutdownProgress = new();
+
+        /// <summary>The canonical lifecycle owned by this server and exposed through its public provider.</summary>
+        private readonly NodeManagerLifecycle m_nodeManagerLifecycle;
+
         private Task? m_disposeTask;
 
         /// <summary>
@@ -5818,6 +6206,11 @@ namespace Opc.Ua.Server
         private ITimer? m_registrationTimer;
 
         /// <summary>
+        /// Creates discovery-registration workers when supplied at construction.
+        /// </summary>
+        private readonly Func<CancellationToken, Task>? m_registrationWorkerFactory;
+
+        /// <summary>
         /// Cancels the currently owned discovery-registration attempt during shutdown.
         /// </summary>
         private CancellationTokenSource? m_registrationCts;
@@ -5831,6 +6224,11 @@ namespace Opc.Ua.Server
         /// Distinguishes current registration callbacks from callbacks belonging to a retired timer.
         /// </summary>
         private long m_registrationGeneration;
+
+        /// <summary>
+        /// Prevents startup readiness from rearming registration after the shutdown stage has run.
+        /// </summary>
+        private bool m_registrationShutdownRequested;
 
         /// <summary>
         /// Prevents discovery-registration callbacks from starting or rearming after shutdown.
@@ -5931,7 +6329,7 @@ namespace Opc.Ua.Server
                 "Server hostnames.")]
         public static partial void ServerClientConnectsWithAnEndpointUrlEndpointUrl(
             this ILogger logger,
-            string? endpointUrl);
+            [NetworkAddress] string? endpointUrl);
 
         /// <summary>
         /// Logs successful session creation and the assigned session identifier.
@@ -5945,7 +6343,9 @@ namespace Opc.Ua.Server
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 2, Level = LogLevel.Error,
             Message = "Server - SESSION CREATE failed. {ErrorMessage}")]
-        public static partial void ServerSESSIONCREATEFailedErrorMessage(this ILogger logger, string? errorMessage);
+        public static partial void ServerSESSIONCREATEFailedErrorMessage(
+            this ILogger logger,
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs successful activation of a session.
@@ -5962,7 +6362,7 @@ namespace Opc.Ua.Server
         public static partial void ServerSESSIONACTIVATEFailedErrorMessage(
             this ILogger logger,
             NodeId? sessionId,
-            string? errorMessage);
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs receipt of a Publish request with its request handle, session, and timestamp.
@@ -5983,15 +6383,17 @@ namespace Opc.Ua.Server
         public static partial void RegisterServerApiFailedForEndpointUrlException(
             this ILogger logger,
             string? api,
-            Uri? endpointUrl,
-            string? errorMessage);
+            [NetworkAddress] Uri? endpointUrl,
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs a failure to close the local discovery server connection cleanly.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 7, Level = LogLevel.Warning,
             Message = "Could not cleanly close connection with LDS. Exception={ErrorMessage}")]
-        public static partial void NotCleanlyCloseConnectionWithLDSException(this ILogger logger, string? errorMessage);
+        public static partial void NotCleanlyCloseConnectionWithLDSException(
+            this ILogger logger,
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs successful discovery registration and the interval until the next registration.
@@ -6047,7 +6449,7 @@ namespace Opc.Ua.Server
         public static partial void NotLoadUpdatedConfigurationFileFromFilePath(
             this ILogger logger,
             Exception ex,
-            string? filePath);
+            [FilePath] string? filePath);
 
         /// <summary>
         /// Logs a failure to apply an application configuration update.
@@ -6202,7 +6604,7 @@ namespace Opc.Ua.Server
         public static partial void ServerShutdownResourceDisposalFailed(
             this ILogger logger,
             Exception ex,
-            string? errorMessage);
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs a failure to audit or count a rejected CreateSession.
@@ -6220,5 +6622,12 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             NodeId sessionId);
+
+        /// <summary>
+        /// Logs a failure to release a manager created by a failed startup.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 39, Level = LogLevel.Warning,
+            Message = "Server - releasing a manager created by the failed startup failed.")]
+        public static partial void ReleasingManagerOfFailedStartupFailed(this ILogger logger, Exception ex);
     }
 }

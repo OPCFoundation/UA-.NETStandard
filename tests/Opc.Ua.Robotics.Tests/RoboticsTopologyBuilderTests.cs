@@ -67,6 +67,144 @@ namespace Opc.Ua.Robotics.Server.Tests
         }
 
         [Test]
+        public async Task SuppliedSystemFactoryPreservesDerivedWireIdentityAsync()
+        {
+            IRoboticsBuildContext context = m_fixture.CreateBuildContext();
+            var type = new BaseObjectTypeState
+            {
+                NodeId = new NodeId(NextName("CompanionSystemType"), context.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName("CompanionSystemType", context.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText("Companion system"),
+                SuperTypeId = NodeId.Create(
+                    Robotics.ObjectTypes.MotionDeviceSystemType,
+                    Robotics.Namespaces.Robotics,
+                    context.Context.NamespaceUris),
+                IsAbstract = false,
+                IsPartOfTypeHierarchy = true
+            };
+            await context.Manager.AddPredefinedNodeAsync(type).ConfigureAwait(false);
+            MotionDeviceSystemState? created = null;
+
+            IMotionDeviceSystemBuilder system = await context.AddMotionDeviceSystemAsync(
+                new QualifiedName(NextName("Derived"), context.InstanceNamespaceIndex),
+                (systemContext, parent, browseName) =>
+                {
+                    created = systemContext.CreateInstanceOfMotionDeviceSystemType(parent, browseName);
+                    created.TypeDefinitionId = type.NodeId;
+                    return created;
+                },
+                builder => ConfigureValidGraph(builder)).ConfigureAwait(false);
+
+            Assert.That(system.State, Is.SameAs(created));
+            Assert.That(system.State.TypeDefinitionId, Is.EqualTo(type.NodeId));
+            Assert.That(system.State.Parent, Is.SameAs(context.DeviceSet));
+            AssertTreeRegisteredAndUnique(system.State);
+        }
+
+        [Test]
+        public async Task SuppliedDeviceAxisAndMotorFactoriesPreserveDerivedWireIdentitiesAsync()
+        {
+            IRoboticsBuildContext context = m_fixture.CreateBuildContext();
+            NodeId motionType = await RegisterCompanionTypeAsync(Robotics.ObjectTypes.MotionDeviceType)
+                .ConfigureAwait(false);
+            NodeId axisType = await RegisterCompanionTypeAsync(Robotics.ObjectTypes.AxisType)
+                .ConfigureAwait(false);
+            NodeId motorType = await RegisterCompanionTypeAsync(Robotics.ObjectTypes.MotorType)
+                .ConfigureAwait(false);
+            MotionDeviceState? createdMotion = null;
+            AxisState? createdAxis = null;
+            MotorState? createdMotor = null;
+
+            IMotionDeviceSystemBuilder system = await context.AddMotionDeviceSystemAsync(
+                NextName("DerivedChildren"),
+                root =>
+                {
+                    IMotionDeviceBuilder motion = root.AddMotionDevice(
+                        new QualifiedName("Device", context.InstanceNamespaceIndex),
+                        (systemContext, parent, name) =>
+                        {
+                            createdMotion = systemContext.CreateInstanceOfMotionDeviceType(parent, name);
+                            createdMotion.TypeDefinitionId = motionType;
+                            return createdMotion;
+                        });
+                    IAxisBuilder axis = motion.AddAxis(
+                        new QualifiedName("Axis", context.InstanceNamespaceIndex),
+                        (systemContext, parent, name) =>
+                        {
+                            createdAxis = systemContext.CreateInstanceOfAxisType(parent, name);
+                            createdAxis.TypeDefinitionId = axisType;
+                            return createdAxis;
+                        });
+                    IPowerTrainBuilder train = motion.AddPowerTrain("PowerTrain");
+                    IMotorBuilder motor = train.AddMotor(
+                        new QualifiedName("Motor", context.InstanceNamespaceIndex),
+                        (systemContext, parent, name) =>
+                        {
+                            createdMotor = systemContext.CreateInstanceOfMotorType(parent, name);
+                            createdMotor.TypeDefinitionId = motorType;
+                            return createdMotor;
+                        });
+                    motor.WithMotorTemperature(25);
+                    axis.WithActualPosition(12).Requires(train);
+                    train.Moves(axis);
+                    root.AddSafetyState("Safety", safety => safety.WithEmergencyStop(false)
+                        .WithProtectiveStop(false));
+                    IControllerBuilder controller = root.AddController("Controller");
+                    controller.AddSoftware("Software");
+                    controller.AddTaskControl("Task");
+                    controller.Controls(motion);
+                }).ConfigureAwait(false);
+
+            Assert.That(createdMotion!.TypeDefinitionId, Is.EqualTo(motionType));
+            Assert.That(createdAxis!.TypeDefinitionId, Is.EqualTo(axisType));
+            Assert.That(createdMotor!.TypeDefinitionId, Is.EqualTo(motorType));
+            Assert.That(context.Manager.FindPredefinedNode(createdMotion.NodeId), Is.SameAs(createdMotion));
+            Assert.That(context.Manager.FindPredefinedNode(createdAxis.NodeId), Is.SameAs(createdAxis));
+            Assert.That(context.Manager.FindPredefinedNode(createdMotor.NodeId), Is.SameAs(createdMotor));
+            AssertTreeRegisteredAndUnique(system.State);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task IncompatibleCompanionFactoryReleasesItsStagedAllocationsAsync(bool invalidRoot)
+        {
+            await using var fixture = new RoboticsServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            IRoboticsBuildContext context = fixture.CreateBuildContext();
+            var browseName = new QualifiedName("Retryable", context.InstanceNamespaceIndex);
+
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await context.AddMotionDeviceSystemAsync(
+                    browseName,
+                    (systemContext, parent, name) =>
+                    {
+                        MotionDeviceSystemState root = systemContext.CreateInstanceOfMotionDeviceSystemType(
+                            parent,
+                            name);
+                        if (invalidRoot)
+                        {
+                            root.TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType;
+                        }
+                        return root;
+                    },
+                    root => root.AddMotionDevice(
+                        new QualifiedName("InvalidDevice", context.InstanceNamespaceIndex),
+                        (systemContext, parent, name) =>
+                        {
+                            MotionDeviceState device = systemContext.CreateInstanceOfMotionDeviceType(parent, name);
+                            device.TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType;
+                            return device;
+                        })).ConfigureAwait(false)))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTypeDefinitionInvalid));
+            Assert.That(fixture.Manager.ReservedNodeIdCount, Is.Zero);
+            await context.AddMotionDeviceSystemAsync(browseName, root => ConfigureValidGraph(root))
+                .ConfigureAwait(false);
+            await context.SealAsync().ConfigureAwait(false);
+            Assert.That(fixture.Manager.ReservedNodeIdCount, Is.Zero);
+        }
+
+        [Test]
         public async Task FullGraphRegistersTypedTopologyAndSemantics()
         {
             var graph = new FullGraph();
@@ -733,7 +871,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             const string browseName = "RetryAfterFailedBuild";
             for (int ii = 0; ii < 3; ii++)
             {
-                _ = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await context.AddMotionDeviceSystemAsync(
                         browseName,
                         system =>
@@ -746,20 +884,20 @@ namespace Opc.Ua.Robotics.Server.Tests
                 Assert.That(fixture.Manager.ReservedNodeIdCount, Is.Zero);
 
                 ServiceResultException validationException =
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await context.AddMotionDeviceSystemAsync(
                             browseName,
                             system => ConfigureValidGraph(
                                 system,
                                 new GraphOptions { IncludeController = false }))
-                            .ConfigureAwait(false))!;
+                            .ConfigureAwait(false)))!;
                 Assert.That(
                     validationException.StatusCode,
                     Is.EqualTo(StatusCodes.BadConfigurationError));
                 Assert.That(fixture.Manager.ReservedNodeIdCount, Is.Zero);
 
                 ServiceResultException nodeIdException =
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await context.AddMotionDeviceSystemAsync(
                             browseName,
                             system =>
@@ -768,7 +906,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                                 system.Configure((state, _) =>
                                     state.NodeId = NodeId.Null);
                             })
-                            .ConfigureAwait(false))!;
+                            .ConfigureAwait(false)))!;
                 Assert.That(
                     nodeIdException.StatusCode,
                     Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -778,7 +916,7 @@ namespace Opc.Ua.Robotics.Server.Tests
 
             using var cancellationSource = new CancellationTokenSource();
             cancellationSource.Cancel();
-            _ = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await context.AddMotionDeviceSystemAsync(
                     browseName,
                     system => ConfigureValidGraph(system),
@@ -856,7 +994,7 @@ namespace Opc.Ua.Robotics.Server.Tests
 
             await context.SealAsync().ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await context.SealAsync().ConfigureAwait(false),
                 "A redundant seal must be ignored, not rejected.");
         }
@@ -896,8 +1034,8 @@ namespace Opc.Ua.Robotics.Server.Tests
                         .WaitAsync(TimeSpan.FromSeconds(30))
                         .ConfigureAwait(false);
                     ServiceResultException exception =
-                        Assert.ThrowsAsync<ServiceResultException>(
-                            async () => await context.SealAsync().ConfigureAwait(false))!;
+                        (await Assert.ThrowsAsync<ServiceResultException>(
+                            async () => await context.SealAsync().ConfigureAwait(false)))!;
                     Assert.That(
                         exception.StatusCode,
                         Is.EqualTo(StatusCodes.BadInvalidState));
@@ -965,7 +1103,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                 await context.SealAsync().ConfigureAwait(false);
 
                 ServiceResultException exception =
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await context.AddMotionDeviceSystemAsync(
                             "RejectedAfterSeal",
                             system =>
@@ -973,7 +1111,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                                 configureCalls++;
                                 ConfigureValidGraph(system);
                             })
-                            .ConfigureAwait(false))!;
+                            .ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(configureCalls, Is.Zero);
@@ -1166,14 +1304,14 @@ namespace Opc.Ua.Robotics.Server.Tests
                 .ConfigureAwait(false);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_fixture.CreateBuildContext()
                         .AddMotionDeviceSystemAsync(NextName("ScopeB"), system =>
                         {
                             GraphParts second = ConfigureValidGraph(system);
                             second.Controller.Controls(first.MotionDevice);
                         })
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(exception.Message, Does.Contain("same MotionDeviceSystem"));
@@ -1762,6 +1900,26 @@ namespace Opc.Ua.Robotics.Server.Tests
             Assert.That(gear.State.Pitch!.Value, Is.EqualTo(12.5));
         }
 
+        private async ValueTask<NodeId> RegisterCompanionTypeAsync(uint baseTypeIdentifier)
+        {
+            IRoboticsBuildContext context = m_fixture.CreateBuildContext();
+            string name = NextName("CompanionType");
+            var type = new BaseObjectTypeState
+            {
+                NodeId = new NodeId(name, context.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName(name, context.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText(name),
+                SuperTypeId = NodeId.Create(
+                    baseTypeIdentifier,
+                    Robotics.Namespaces.Robotics,
+                    context.Context.NamespaceUris),
+                IsAbstract = false,
+                IsPartOfTypeHierarchy = true
+            };
+            await context.Manager.AddPredefinedNodeAsync(type).ConfigureAwait(false);
+            return type.NodeId;
+        }
+
         private ValueTask<GraphParts> AddValidGraphAsync(
             string browseName,
             GraphOptions? options = null)
@@ -1880,12 +2038,12 @@ namespace Opc.Ua.Robotics.Server.Tests
             Action<IMotionDeviceSystemBuilder> configure)
         {
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_fixture.CreateBuildContext()
                         .AddMotionDeviceSystemAsync(
                             NextName("Invalid"),
                             configure)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -2079,7 +2237,7 @@ namespace Opc.Ua.Robotics.Server.Tests
 
         private sealed class CustomRoboticsNodeManager :
             DiNodeManager,
-            IRoboticsNodeIdFactory
+            ICompanionNodeIdFactory
         {
             public const string InstanceNamespaceUri =
                 "urn:tests:robotics:custom-manager:instances";

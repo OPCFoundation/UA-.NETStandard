@@ -219,7 +219,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public void DiscoverAllRepresentationsThrowsWhenTheSemanticIdMatchesMoreThanOneVariable()
+        public async Task DiscoverAllRepresentationsThrowsWhenTheSemanticIdMatchesMoreThanOneVariable()
         {
             NodeId machine = m_space.AddObject(Opc.Ua.ObjectIds.Server, "Machine");
             NodeId first = m_space.AddVariable(machine, "SpeedA", new Variant(1.0));
@@ -230,7 +230,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             m_space.AddVariable(binding, "SourceSemanticId", new Variant("SEM-SPEED"));
             OpenUsdConnector connector = Connector();
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => connector.DiscoverAllRepresentationsAsync(CancellationToken.None));
 
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyMatches));
@@ -367,11 +367,11 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public void StartThrowsWhenNoRepresentationIsDiscovered()
+        public async Task StartThrowsWhenNoRepresentationIsDiscovered()
         {
             OpenUsdConnector connector = Connector();
 
-            Assert.ThrowsAsync<System.InvalidOperationException>(
+            await Assert.ThrowsAsync<System.InvalidOperationException>(
                 () => connector.StartAsync(CancellationToken.None));
         }
 

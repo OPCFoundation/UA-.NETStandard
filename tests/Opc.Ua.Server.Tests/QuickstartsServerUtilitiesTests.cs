@@ -103,6 +103,43 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// CTT mode shortens the alarm simulation step of the shared alarm factory and leaves the other
+        /// factories alone.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public void ConfigureCttModeNodeManagersShortensAlarmSimulationInterval()
+        {
+            ArrayOf<IAsyncNodeManagerFactory> asyncFactories =
+                Quickstarts.Servers.Utils.AsyncNodeManagerFactories;
+            var alarmFactory = (global::Alarms.AlarmNodeManagerFactory)asyncFactories[1];
+            int original = alarmFactory.SimulationInterval;
+            try
+            {
+                Assert.That(
+                    original,
+                    Is.EqualTo(global::Alarms.AlarmNodeManager.DefaultSimulationInterval));
+
+                Quickstarts.Servers.Utils.ConfigureCttModeNodeManagers();
+
+                Assert.That(
+                    alarmFactory.SimulationInterval,
+                    Is.EqualTo(Quickstarts.Servers.Utils.CttAlarmSimulationInterval));
+                Assert.That(
+                    Quickstarts.Servers.Utils.CttAlarmSimulationInterval,
+                    Is.LessThan(global::Alarms.AlarmNodeManager.DefaultSimulationInterval));
+                ArrayOf<IAsyncNodeManagerFactory> after = Quickstarts.Servers.Utils.AsyncNodeManagerFactories;
+                Assert.That(after, Has.Count.EqualTo(2));
+                Assert.That(after[0], Is.SameAs(asyncFactories[0]));
+                Assert.That(after[1], Is.SameAs(alarmFactory));
+            }
+            finally
+            {
+                alarmFactory.SimulationInterval = original;
+            }
+        }
+
+        /// <summary>
         /// Enables the optional Reference Server behaviors without starting the server.
         /// </summary>
         [Test]

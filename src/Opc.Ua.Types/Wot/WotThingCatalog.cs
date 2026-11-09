@@ -47,12 +47,22 @@ namespace Opc.Ua.Wot
         /// </param>
         public void Add(string reference, string? nodeId)
         {
-            if (!m_entries.TryGetValue(reference, out Queue<string?>? entries))
+            AddTarget(reference, nodeId is null ? null : new WotResolvedNode(nodeId, WotExpectedNodeClass.Any));
+        }
+
+        /// <summary>
+        /// Adds the resolved target of a reference.
+        /// </summary>
+        /// <param name="target">The WoT resolved node.</param>
+        /// <param name="reference">The reference text that identifies the target.</param>
+        public void AddTarget(string reference, WotResolvedNode? target)
+        {
+            if (!m_entries.TryGetValue(reference, out Queue<WotResolvedNode?>? entries))
             {
-                entries = new Queue<string?>();
+                entries = new Queue<WotResolvedNode?>();
                 m_entries.Add(reference, entries);
             }
-            entries.Enqueue(nodeId);
+            entries.Enqueue(target);
         }
 
         /// <summary>
@@ -63,16 +73,32 @@ namespace Opc.Ua.Wot
         /// <returns><c>true</c> when a catalogued entry was available.</returns>
         public bool TryTake(string reference, out string? nodeId)
         {
-            if (m_entries.TryGetValue(reference, out Queue<string?>? entries) &&
+            if (m_entries.TryGetValue(reference, out Queue<WotResolvedNode?>? entries) &&
                 entries.Count > 0)
             {
-                nodeId = entries.Dequeue();
+                nodeId = entries.Dequeue()?.NodeId;
                 return true;
             }
             nodeId = null;
             return false;
         }
 
-        private readonly Dictionary<string, Queue<string?>> m_entries = new(System.StringComparer.Ordinal);
+        /// <summary>
+        /// Attempts to peek the resolved target of a reference without consuming it.
+        /// </summary>
+        /// <param name="target">The WoT resolved node.</param>
+        /// <param name="reference">The reference text that identifies the target.</param>
+        public bool TryPeekTarget(string reference, out WotResolvedNode? target)
+        {
+            if (m_entries.TryGetValue(reference, out Queue<WotResolvedNode?>? entries) && entries.Count > 0)
+            {
+                target = entries.Peek();
+                return true;
+            }
+            target = null;
+            return false;
+        }
+
+        private readonly Dictionary<string, Queue<WotResolvedNode?>> m_entries = new(System.StringComparer.Ordinal);
     }
 }

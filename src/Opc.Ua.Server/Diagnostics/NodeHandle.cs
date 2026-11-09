@@ -107,5 +107,11 @@ namespace Opc.Ua.Server
         /// An object that can be used to manage the items which are monitoring the node.
         /// </summary>
         public MonitoredNode2 MonitoredNode { get; set; } = null!;
+
+        /// <summary>
+        /// The node manager that returned this resolved handle while a Read request was
+        /// validated; it reads the node through this handle instead of resolving it again.
+        /// </summary>
+        internal AsyncCustomNodeManager? RoutedBy { get; set; }
     }
 }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -127,9 +128,9 @@ namespace Opc.Ua.Robotics.Client.Tests
         }
 
         [Test]
-        public void DiscoverMotionDeviceSystemsNullSessionThrows()
+        public async Task DiscoverMotionDeviceSystemsNullSessionThrows()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 () => RoboticsClient.DiscoverMotionDeviceSystemsAsync(null!, NodeId.Null, CancellationToken.None));
         }
 

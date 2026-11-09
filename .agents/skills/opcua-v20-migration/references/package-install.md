@@ -17,8 +17,8 @@ not in place of it):
 - The package is public on nuget.org; no custom package source or
   authentication is required.
 - `Version="2.0.0-preview.*"` floats to the latest published
-  `2.0.0-preview.N` release,
-  which is what you want during the migration window. Pin to a specific
+  `2.0.0-preview.N` release
+  during the migration window. Pin to a specific
   version such as `"2.0.0-preview.3"` once you have a stable target.
 - `PrivateAssets="all"` ensures the package does not flow as a transitive
   dependency to downstream consumers of your library — it is a build-only
@@ -27,8 +27,9 @@ not in place of it):
 
 ## Centralized variant (recommended for multi-project solutions)
 
-Put it in `Directory.Build.targets` at the solution root so every csproj picks
-it up without an edit:
+For projects using `PackageReference`, put it in `Directory.Build.targets` at
+the solution root to share the reference. Verify that each intended project
+restores the package and loads the analyzer:
 
 ```xml
 <Project>
@@ -45,11 +46,8 @@ The `Condition` lets individual projects opt out by setting
 PropertyGroup — useful for the test or AOT-validation projects that you don't
 want the analyzer running against.
 
-> **Legacy `.NET Framework` caveat.** Projects that use the pre-SDK MSBuild XML
-> format (`<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">`)
-> silently ignore `Directory.Build.targets` PackageReference injection. For
-> those, add the `<PackageReference>` inline to the existing `<ItemGroup>` in
-> the csproj.
+> **Legacy `.NET Framework` caveat.** Follow the installation checks in
+> [`known-gaps.md` G1](known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml).
 
 ## Bump the OPC UA package versions
 

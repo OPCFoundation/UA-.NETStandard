@@ -123,9 +123,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                 new(WoTDocumentKindEnum.ThingModel, "mixed", "tm", Content("tm"))
             }.ToArrayOf();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.LoadDocumentsAsync(documents, refresh: false)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }

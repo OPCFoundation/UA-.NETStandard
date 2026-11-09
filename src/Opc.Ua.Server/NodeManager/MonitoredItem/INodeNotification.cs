@@ -36,7 +36,17 @@ namespace Opc.Ua.Server
     /// </summary>
     internal interface INodeNotification
     {
+        /// <summary>
+        /// Gets the system context captured for processing the notification.
+        /// </summary>
         ISystemContext Context { get; }
+
+        /// <summary>
+        /// Gets the source-emission admission owned by this notification snapshot.
+        /// The consumer releases it exactly once after processing; batching transfers ownership
+        /// for each dequeued snapshot to the batch processor.
+        /// </summary>
+        MasterNodeManager.SourceEmissionAdmission? SourceEmission { get; }
     }
 
     /// <summary>
@@ -44,25 +54,138 @@ namespace Opc.Ua.Server
     /// </summary>
     internal class DataChangeSnapshot : INodeNotification
     {
+        /// <inheritdoc cref="INodeNotification.Context"/>
         public ISystemContext Context { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the source emission for <c>DataChangeSnapshot</c>.
+        /// </summary>
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission { get; set; }
+
+        /// <summary>
+        /// Gets or sets the identifier of the node whose changes were captured.
+        /// </summary>
         public NodeId NodeId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the monitored items that were subscribed when the changes were admitted.
+        /// </summary>
+        public KeyValuePair<uint, IDataChangeMonitoredItem2>[] MonitoredItems { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the node-state changes represented by this snapshot.
+        /// </summary>
         public NodeStateChangeMasks Changes { get; set; }
 
         /// <summary>
-        /// Pre-read raw <see cref="DataValue"/>s keyed by attribute id, captured without
-        /// any index range or data encoding applied. Each consumer (monitored item) applies
-        /// its own <see cref="IDataChangeMonitoredItem2.IndexRange"/> and
+        /// Gets or sets whether <see cref="ValueSnapshot"/> holds the Value attribute read for
+        /// this change.
+        /// </summary>
+        public bool HasValueSnapshot { get; set; }
+
+        /// <summary>
+        /// The pre-read raw Value attribute, captured without any index range or data encoding
+        /// applied. Each consumer (monitored item) applies its own
+        /// <see cref="IDataChangeMonitoredItem2.IndexRange"/> and
         /// <see cref="IDataChangeMonitoredItem2.DataEncoding"/> at queue time.
         /// </summary>
-        public Dictionary<uint, DataValue> AttributeSnapshots { get; set; } = [];
+        public DataValue ValueSnapshot { get; set; }
+
+        /// <summary>
+        /// Pre-read raw <see cref="DataValue"/>s of the other attributes keyed by attribute id,
+        /// captured like <see cref="ValueSnapshot"/>; <c>null</c> when only the Value attribute
+        /// was read.
+        /// </summary>
+        public Dictionary<uint, DataValue>? AttributeSnapshots { get; set; }
+
+        /// <summary>
+        /// Gets the raw value captured for an attribute.
+        /// </summary>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="value">The captured value.</param>
+        /// <returns><c>true</c> when the attribute was read for this change.</returns>
+        public bool TryGetAttributeSnapshot(uint attributeId, out DataValue value)
+        {
+            if (attributeId == Attributes.Value)
+            {
+                value = ValueSnapshot;
+                return HasValueSnapshot;
+            }
+            if (AttributeSnapshots != null)
+            {
+                return AttributeSnapshots.TryGetValue(attributeId, out value);
+            }
+            value = default;
+            return false;
+        }
 
         /// <summary>
         /// Value snapshots read at enqueue time in the context of each Value monitored item's
         /// subscriber, keyed by monitored item id. Only captured when the reporter was denied
-        /// reading a value whose user access level depends on the user, so a subscriber that may
-        /// read it receives the value of this change rather than a later one.
+        /// reading a value with subscriber-dependent user access or a registered asynchronous read policy,
+        /// so a subscriber that may read it receives the value of this change rather than a later one.
+        /// Session and identity attribution prevent a later attachment or transfer from inheriting
+        /// a value captured for a different owner.
         /// </summary>
-        public Dictionary<uint, DataValue>? SubscriberValueSnapshots { get; set; }
+        public Dictionary<uint, (DataValue Value, ISession? Session, IUserIdentity? Identity)>?
+            SubscriberValueSnapshots
+        { get; set; }
+    }
+
+    /// <summary>
+    /// Requests one current value sample for a monitored item after a semantic change.
+    /// </summary>
+    internal sealed class SemanticResample : INodeNotification
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SemanticResample"/> class.
+        /// </summary>
+        /// <param name="context">The source system context.</param>
+        /// <param name="source">The exact source node being sampled.</param>
+        /// <param name="item">The monitored item which requested the resample.</param>
+        public SemanticResample(ISystemContext context, NodeState source, IDataChangeMonitoredItem2 item)
+        {
+            Context = context;
+            Source = source;
+            Item = item;
+        }
+
+        /// <inheritdoc/>
+        public ISystemContext Context { get; }
+
+        /// <inheritdoc/>
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission => null;
+
+        /// <summary>
+        /// Gets the exact source node that was admitted.
+        /// </summary>
+        public NodeState Source { get; }
+
+        /// <summary>
+        /// Gets the monitored item that was admitted.
+        /// </summary>
+        public IDataChangeMonitoredItem2 Item { get; }
+    }
+
+    /// <summary>
+    /// Wakes the monitored-node consumer to inspect its lifecycle-owned semantic-resample queue.
+    /// </summary>
+    internal sealed class SemanticResampleSignal : INodeNotification
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SemanticResampleSignal"/> class.
+        /// </summary>
+        /// <param name="context">The server context.</param>
+        public SemanticResampleSignal(ISystemContext context)
+        {
+            Context = context;
+        }
+
+        /// <inheritdoc/>
+        public ISystemContext Context { get; }
+
+        /// <inheritdoc/>
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission => null;
     }
 
     /// <summary>
@@ -70,7 +193,23 @@ namespace Opc.Ua.Server
     /// </summary>
     internal class EventSnapshot : INodeNotification
     {
+        /// <inheritdoc cref="INodeNotification.Context"/>
         public ISystemContext Context { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the source emission for <c>EventSnapshot</c>.
+        /// </summary>
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission { get; set; }
+
+        /// <summary>
+        /// Gets or sets the captured event fields used when evaluating event filters.
+        /// </summary>
         public IFilterTarget EventTargetSnapshot { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the monitored items that were subscribed when the event was admitted.
+        /// </summary>
+        public IEventMonitoredItem[] MonitoredItems { get; set; } = [];
     }
+
 }

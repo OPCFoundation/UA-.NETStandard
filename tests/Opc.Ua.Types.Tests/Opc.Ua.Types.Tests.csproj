@@ -48,12 +48,9 @@
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The WoT Binding specification's worked examples, used as conformance
-         fixtures. Two of them are golden pairs: a projection document and the
-         resolved view the specification says it resolves to. They are vendored
-         byte-for-byte and pinned by spec-examples.manifest.json, which records
-         the source repository, branch, commit and per-file SHA-256 so a
-         specification change cannot reach them unreviewed. -->
+    <!-- Local WoT regression fixtures, not authoritative specification
+         examples or conformance evidence. Their hashes and the separate
+         official baseline coordinates are recorded in the manifest. -->
     <EmbeddedResource Include="Wot\Assets\*.jsonld" />
     <EmbeddedResource Include="Wot\Assets\spec-examples.manifest.json" />
     <EmbeddedResource Include="Wot\Assets\wot-binding-traceability.json" />

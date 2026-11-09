@@ -1927,6 +1927,66 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
         }
 
+        /// <summary>
+        /// The inherited NodeState async core rejects bound Value writes before ordinary synchronous validation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BoundNodeStateAsyncValueWriteRejectsWithoutVariableDispatchAsync(bool serverTimestamp)
+        {
+            BaseObjectState node = CreateObjectNode();
+            var value = new DataValue(new Variant(2.0));
+            if (serverTimestamp)
+            {
+                value = value.WithServerTimestamp(new DateTimeUtc(2026, 1, 1, 0, 0, 1));
+            }
+            StatusCode ordinaryStatus = serverTimestamp
+                ? StatusCodes.BadWriteNotSupported
+                : StatusCodes.BadAttributeIdInvalid;
+            ServiceResult unbound = await node.WriteAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, value).ConfigureAwait(false);
+            Assert.That(unbound.StatusCode, Is.EqualTo(ordinaryStatus));
+
+            int synchronousAdmissions = 0;
+            int asynchronousAdmissions = 0;
+            node.BindWriteOperationExecutor(new NodeWriteOperationExecutor(
+                operation =>
+                {
+                    synchronousAdmissions++;
+                    return operation();
+                },
+                (operation, cancellationToken) =>
+                {
+                    asynchronousAdmissions++;
+                    return operation(cancellationToken);
+                }));
+            LocalizedText originalName = node.DisplayName;
+
+            ServiceResult rejected = await node.WriteAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, value).ConfigureAwait(false);
+
+            Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(asynchronousAdmissions, Is.EqualTo(1));
+            Assert.That(synchronousAdmissions, Is.Zero);
+            Assert.That(node.DisplayName, Is.EqualTo(originalName));
+
+            ServiceResult synchronous = node.WriteAttribute(
+                m_context, Attributes.Value, NumericRange.Null, value);
+            Assert.That(synchronous.StatusCode, Is.EqualTo(ordinaryStatus));
+            Assert.That(synchronousAdmissions, Is.EqualTo(1));
+
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            ServiceResult nonValue = await node.WriteAttributeAsync(
+                m_context,
+                Attributes.DisplayName,
+                NumericRange.Null,
+                new DataValue(new Variant(new LocalizedText("Updated")))).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(nonValue), Is.True);
+            Assert.That(node.DisplayName.Text, Is.EqualTo("Updated"));
+            Assert.That(asynchronousAdmissions, Is.EqualTo(1));
+            Assert.That(synchronousAdmissions, Is.EqualTo(1));
+        }
+
         [Test]
         public void ReadAttributesReturnsMultipleValues()
         {

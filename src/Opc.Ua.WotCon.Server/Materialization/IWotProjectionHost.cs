@@ -42,16 +42,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
     public enum WotProjectionRetirementPolicy
     {
         /// <summary>
-        /// Keep the previous generation alive until its monitored items and
-        /// requests drain.
+        /// Migrate compatible monitored items to the replacement generation.
         /// </summary>
-        Graceful,
+        Migrate,
+
+        /// <summary>
+        /// Compatibility alias for <see cref="Migrate"/>.
+        /// </summary>
+        [Obsolete("Use Migrate. Retained generations are no longer supported.")]
+        Graceful = Migrate,
 
         /// <summary>
         /// Invalidate its monitored items with BadNodeIdUnknown and dispose the
-        /// previous generation without waiting for drain.
+        /// previous generation.
         /// </summary>
-        Immediate
+        Invalidate,
+
+        /// <summary>
+        /// Compatibility alias for <see cref="Invalidate"/>.
+        /// </summary>
+        [Obsolete("Use Invalidate.")]
+        Immediate = Invalidate
     }
 
     /// <summary>
@@ -138,6 +149,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// did not prepare any bindings (for example a dry run).
         /// </summary>
         public ArrayOf<WotBindingPlan> BindingPlans { get; }
+
+        /// <summary>
+        /// Gets the converter-resolved owning namespace for fluent configuration.
+        /// </summary>
+        internal string? DefaultNamespaceUri { get; init; }
     }
 
     /// <summary>

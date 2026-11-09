@@ -103,10 +103,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.Throws<PubSubConfigurationException>(result.ThrowIfInvalid)!;
             Assert.That(
                 ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0901"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0901"));
             Assert.That(
                 ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0902"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0902"));
         }
 
         [Test]

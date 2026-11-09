@@ -31,8 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -48,11 +48,11 @@ namespace Opc.Ua.Vision.Tests
         public async Task EnumerateClipEndpointsYieldsFromClipEndpointsFolder()
         {
             var harness = new VisionSessionHarness();
-            harness.AddChild(harness.MediaNodeId, BrowseNames.ClipEndpoints,
+            harness.AddChild(harness.MediaNodeId, Perception.BrowseNames.ClipEndpoints,
                 harness.ClipEndpointsFolderId);
             harness.AddBrowse(harness.ClipEndpointsFolderId,
                 [harness.Ref(harness.ClipEndpointNodeId, "ClipA",
-                    ObjectTypes.ClipEndpointType)]);
+                    Perception.ObjectTypes.ClipEndpointType)]);
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
             var entries = new List<VisionNodeEntry>();
@@ -69,11 +69,11 @@ namespace Opc.Ua.Vision.Tests
         public async Task EnumerateStreamEndpointsYieldsFromStreamEndpointsFolder()
         {
             var harness = new VisionSessionHarness();
-            harness.AddChild(harness.MediaNodeId, BrowseNames.StreamEndpoints,
+            harness.AddChild(harness.MediaNodeId, Perception.BrowseNames.StreamEndpoints,
                 harness.StreamEndpointsFolderId);
             harness.AddBrowse(harness.StreamEndpointsFolderId,
                 [harness.Ref(harness.StreamEndpointNodeId, "StreamA",
-                    ObjectTypes.StreamEndpointType)]);
+                    Perception.ObjectTypes.StreamEndpointType)]);
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
             var entries = new List<VisionNodeEntry>();
@@ -131,12 +131,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ConfigureStreamEndpointRejectsNullEndpointNodeId()
+        public async Task ConfigureStreamEndpointRejectsNullEndpointNodeId()
         {
             var harness = new VisionSessionHarness();
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await media.ConfigureStreamEndpointAsync(
                     NodeId.Null,
                     VisionVideoCodecEnum.H264,
@@ -146,12 +146,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void GetStreamEndpointRejectsNullProfileName()
+        public async Task GetStreamEndpointRejectsNullProfileName()
         {
             var harness = new VisionSessionHarness();
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            var ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException? ex = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await media.GetStreamEndpointAsync(
                     harness.StreamEndpointNodeId,
                     null!,
@@ -168,7 +168,7 @@ namespace Opc.Ua.Vision.Tests
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await media.ConfigureStreamEndpointAsync(
                     harness.StreamEndpointNodeId,
                     VisionVideoCodecEnum.H264,
@@ -184,7 +184,7 @@ namespace Opc.Ua.Vision.Tests
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await media.ReleaseStreamEndpointAsync(
                     ByteString.Empty).ConfigureAwait(false));
             await Task.CompletedTask.ConfigureAwait(false);
@@ -198,7 +198,7 @@ namespace Opc.Ua.Vision.Tests
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await media.SelectEndpointAsync(
                     harness.StreamEndpointNodeId,
                     harness.ClipEndpointNodeId).ConfigureAwait(false));
@@ -206,12 +206,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ReadLatestClipRejectsNullEndpointNodeId()
+        public async Task ReadLatestClipRejectsNullEndpointNodeId()
         {
             var harness = new VisionSessionHarness();
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await media.ReadLatestClipAsync(NodeId.Null).ConfigureAwait(false));
 
             Assert.That(ex!.ParamName, Is.EqualTo("clipEndpointNodeId"));
@@ -221,7 +221,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadLatestClipReturnsAvailableWhenStatusGood()
         {
             var harness = new VisionSessionHarness();
-            harness.AddValueChild(harness.ClipEndpointNodeId, BrowseNames.LatestClip,
+            harness.AddValueChild(harness.ClipEndpointNodeId, Perception.BrowseNames.LatestClip,
                 new(2400u, 3), new Variant(new ByteString(new byte[] { 1, 2, 3 })));
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
@@ -235,7 +235,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadLatestClipReturnsNotYetAvailableForBadNoDataAvailable()
         {
             var harness = new VisionSessionHarness();
-            harness.AddChild(harness.ClipEndpointNodeId, BrowseNames.LatestClip,
+            harness.AddChild(harness.ClipEndpointNodeId, Perception.BrowseNames.LatestClip,
                 new NodeId(2400u, 3));
             harness.AddValueStatus(new NodeId(2400u, 3),
                 StatusCodes.BadNoDataAvailable);
@@ -251,7 +251,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadLatestClipReturnsInlineDisabledForBadNotSupported()
         {
             var harness = new VisionSessionHarness();
-            harness.AddChild(harness.ClipEndpointNodeId, BrowseNames.LatestClip,
+            harness.AddChild(harness.ClipEndpointNodeId, Perception.BrowseNames.LatestClip,
                 new NodeId(2400u, 3));
             harness.AddValueStatus(new NodeId(2400u, 3),
                 StatusCodes.BadNotSupported);
@@ -267,7 +267,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadLatestClipReturnsOverflowForBadEncodingLimitsExceeded()
         {
             var harness = new VisionSessionHarness();
-            harness.AddChild(harness.ClipEndpointNodeId, BrowseNames.LatestClip,
+            harness.AddChild(harness.ClipEndpointNodeId, Perception.BrowseNames.LatestClip,
                 new NodeId(2400u, 3));
             harness.AddValueStatus(new NodeId(2400u, 3),
                 StatusCodes.BadEncodingLimitsExceeded);
@@ -283,7 +283,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadLatestClipReturnsFaultedForOtherBadStatuses()
         {
             var harness = new VisionSessionHarness();
-            harness.AddChild(harness.ClipEndpointNodeId, BrowseNames.LatestClip,
+            harness.AddChild(harness.ClipEndpointNodeId, Perception.BrowseNames.LatestClip,
                 new NodeId(2400u, 3));
             harness.AddValueStatus(new NodeId(2400u, 3),
                 StatusCodes.BadDeviceFailure);
@@ -296,12 +296,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ReadLatestClipMetadataRejectsNullEndpointNodeId()
+        public async Task ReadLatestClipMetadataRejectsNullEndpointNodeId()
         {
             var harness = new VisionSessionHarness();
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await media.ReadLatestClipMetadataAsync(NodeId.Null)
                     .ConfigureAwait(false));
 

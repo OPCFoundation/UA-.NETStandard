@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,9 +41,17 @@ using Opc.Ua.WotCon.Bindings.Planners;
 
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
+    /// <summary>
+    /// Tests preservation of condition invocation arguments.
+    /// </summary>
     [TestFixture]
     public sealed class WotConditionInvocationTests
     {
+        /// <summary>
+        /// Verifies that omitted optional comment is sent as the second null localized text.
+        /// </summary>
+        /// <param name="action">The condition action under test.</param>
+        /// <param name="contextual">The contextual flag for this test case.</param>
         [TestCase("Acknowledge", false)]
         [TestCase("Acknowledge", true)]
         [TestCase("Confirm", false)]
@@ -84,7 +94,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 });
             var channel = new OpcUaWotBindingChannel(
                 session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
-            await using var owner = channel.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
 
             WotInvokeResult result = contextual
                 ? await channel.InvokeAsync(new WotInvokeRequest([new Variant(eventId)], context))
@@ -97,6 +107,136 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a derived Condition receiver is admitted only through
+        /// its ObjectType-owned Acknowledge Method while preserving Condition arguments.
+        /// </summary>
+        [Test]
+        public async Task DerivedConditionReceiverMustProveObjectTypeMethodOwnership()
+        {
+            WotCompiledForm form = Compile("Acknowledge", commentRequired: false, captureReceiver: true);
+            Assert.That(form.ConditionInvocation, Is.Not.Null);
+            Assert.That(form.Addressing.Metadata["callObjectId"], Is.EqualTo("nsu=urn:source;s=Alarm"));
+            Assert.That(form.Addressing.Metadata.ContainsKey("sourceCallReceiver"), Is.True);
+            ServiceMessageContext context = Context();
+            ushort sourceNamespace = (ushort)context.NamespaceUris.GetIndex("urn:source");
+            NodeId receiver = new("Alarm", sourceNamespace);
+            NodeId method = MethodId("Acknowledge");
+            NodeId conditionType = Ua.ObjectTypeIds.AcknowledgeableConditionType;
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.MessageContext).Returns(context);
+            session.SetupGet(value => value.OperationLimits).Returns(new OperationLimits());
+            session.SetupGet(value => value.NamespaceUris).Returns(context.NamespaceUris);
+            session.SetupGet(value => value.ServerUris).Returns(context.ServerUris);
+            session.SetupGet(value => value.Factory).Returns(context.Factory);
+            session.SetupGet(value => value.SessionId).Returns(new NodeId("condition-session", 0));
+            session.SetupGet(value => value.ConfiguredEndpoint).Returns(new ConfiguredEndpoint(
+                null,
+                new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://source:4840",
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None
+                },
+                null));
+            session.Setup(value => value.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    It.Is<ArrayOf<ReadValueId>>(nodes =>
+                        nodes.Count == 2 &&
+                        nodes[0].NodeId == receiver &&
+                        nodes[0].AttributeId == Attributes.NodeClass &&
+                        nodes[1].NodeId == method &&
+                        nodes[1].AttributeId == Attributes.NodeClass),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(new Variant((int)NodeClass.Object)),
+                        new DataValue(new Variant((int)NodeClass.Method))
+                    ]
+                });
+            var browses = new List<BrowseDescription>();
+            session.Setup(value => value.BrowseAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ViewDescription>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                    (_, _, _, requests, _) =>
+                    {
+                        BrowseDescription request = requests[0];
+                        browses.Add(request);
+                        ArrayOf<ReferenceDescription> references =
+                            request.NodeId == receiver &&
+                            request.ReferenceTypeId == Types.ReferenceTypeIds.HasTypeDefinition
+                                ? [new ReferenceDescription
+                                {
+                                    NodeId = NodeId.ToExpandedNodeId(conditionType, context.NamespaceUris)
+                                }]
+                                : request.NodeId == conditionType &&
+                                    request.ReferenceTypeId == Types.ReferenceTypeIds.HasComponent
+                                ? [new ReferenceDescription
+                                {
+                                    NodeId = NodeId.ToExpandedNodeId(method, context.NamespaceUris)
+                                }]
+                                : [];
+                        return new ValueTask<BrowseResponse>(new BrowseResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = [new BrowseResult { References = references }]
+                        });
+                    });
+            ByteString eventId = new(new byte[] { 1, 2, 3, 4 });
+            int callCount = 0;
+            session.Setup(value => value.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>((_, requests, _) =>
+                {
+                    callCount++;
+                    Assert.That(requests, Has.Count.EqualTo(1));
+                    Assert.That(requests[0].ObjectId, Is.EqualTo(receiver));
+                    Assert.That(requests[0].MethodId, Is.EqualTo(method));
+                    Assert.That(requests[0].InputArguments, Has.Count.EqualTo(2));
+                    Assert.That(requests[0].InputArguments[0].TryGetValue(out ByteString actual), Is.True);
+                    Assert.That(actual, Is.EqualTo(eventId));
+                    Assert.That(requests[0].InputArguments[1].TryGetValue(out LocalizedText comment), Is.True);
+                    Assert.That(comment.IsNull, Is.True);
+                    return new ValueTask<CallResponse>(new CallResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                    });
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([new Variant(eventId)]).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.Good), result.Error);
+                Assert.That(callCount, Is.EqualTo(1));
+                Assert.That(browses, Has.Count.EqualTo(3));
+                Assert.That(browses[0].NodeId, Is.EqualTo(receiver));
+                Assert.That(browses[0].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasComponent));
+                Assert.That(browses[1].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasTypeDefinition));
+                Assert.That(browses[2].NodeId, Is.EqualTo(conditionType));
+                Assert.That(browses[2].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasComponent));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that required comments and ordinary actions are not defaulted.
+        /// </summary>
+        /// <param name="action">The action under test.</param>
+        /// <param name="required">The required flag for this test case.</param>
         [TestCase("Acknowledge", true)]
         [TestCase("Ordinary", false)]
         public async Task RequiredCommentsAndOrdinaryActionsAreNotDefaulted(string action, bool required)
@@ -118,7 +258,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 });
             var channel = new OpcUaWotBindingChannel(
                 session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
-            await using var owner = channel.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
 
             WotInvokeResult result = await channel.InvokeAsync(
                 [new Variant(new ByteString(new byte[] { 1 }))]).ConfigureAwait(false);
@@ -126,6 +266,69 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Status, Is.EqualTo(StatusCodes.BadArgumentsMissing));
         }
 
+        /// <summary>
+        /// Verifies that omitted required comment is rejected before native invocation.
+        /// </summary>
+        [Test]
+        public async Task OmittedRequiredCommentIsRejectedBeforeNativeInvocation()
+        {
+            WotCompiledForm form = Compile("Acknowledge", commentRequired: true);
+            ServiceMessageContext context = Context();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(context.NamespaceUris);
+            session.Setup(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync(
+                [new Variant(new ByteString(new byte[] { 1 }))]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that ordinary required arguments are rejected before native invocation.
+        /// </summary>
+        [Test]
+        public async Task OrdinaryRequiredArgumentsAreRejectedBeforeNativeInvocation()
+        {
+            WotCompiledForm form = Compile("Ordinary", commentRequired: true);
+            ServiceMessageContext context = Context();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(context.NamespaceUris);
+            session.Setup(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync(
+                [new Variant(new ByteString(new byte[] { 1 }))]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that supplied comment and malformed argument counts are preserved.
+        /// </summary>
         [Test]
         public void SuppliedCommentAndMalformedArgumentCountsArePreserved()
         {
@@ -145,20 +348,37 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
         private static ServiceMessageContext Context()
         {
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(
+            var context = ServiceMessageContext.CreateEmpty(
                 TelemetryExtensions.InternalOnly__TelemetryHook());
             context.NamespaceUris.Append("urn:source");
             return context;
         }
 
-        private static WotCompiledForm Compile(string action, bool commentRequired)
+        private static WotCompiledForm Compile(
+            string action,
+            bool commentRequired,
+            bool captureReceiver = false)
         {
             string annotation = action == "Ordinary"
                 ? string.Empty : "\"uav:conditionAction\":\"" + action + "\",";
             string required = commentRequired ? """["EventId","Comment"]""" : """["EventId"]""";
             string methodId = MethodId(action).ToString();
+            string sourceRoot = captureReceiver
+                ? """
+                    "@context": [
+                      "https://www.w3.org/2022/wot/td/v1.1",
+                      { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+                    ],
+                    "@type": ["Thing", "uav:object"],
+                    "uav:id": "nsu=urn:source;s=Alarm",
+                    "base": "opc.tcp://source:4840",
+                  """
+                : string.Empty;
+            string receiverFields = "\"uav:id\":\"" + methodId + "\"" +
+                (captureReceiver ? string.Empty : ",\"uav:callObjectId\":\"nsu=urn:source;s=Alarm\"");
             string document = $$"""
                 {
+                  {{sourceRoot}}
                   "securityDefinitions": { "none": { "scheme": "nosec" } },
                   "security": ["none"],
                   "actions": {
@@ -179,7 +399,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                       "forms": [{
                         "href": "opc.tcp://source:4840", "op": "invokeaction",
                         "contentType": "application/octet-stream",
-                        "uav:id": "{{methodId}}", "uav:componentOf": "nsu=urn:source;s=Alarm"
+                        {{receiverFields}}
                       }]
                     }
                   }

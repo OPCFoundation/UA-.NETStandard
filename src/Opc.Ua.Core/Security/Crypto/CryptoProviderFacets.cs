@@ -43,8 +43,8 @@ namespace Opc.Ua
     /// perform exactly the operations the caller would otherwise perform inline,
     /// so returning <c>null</c> tells the caller to take its existing path and
     /// keeps the default configuration free of any interface dispatch on the per
-    /// message path. Registering a provider is what makes the seam cost anything,
-    /// and only then for the deployment that asked for it.
+    /// message path. This avoids per-message provider-interface dispatch;
+    /// it does not establish zero configuration or setup overhead.
     /// </para>
     /// <para>
     /// Resolve where something is bound — when a channel token is computed, when a

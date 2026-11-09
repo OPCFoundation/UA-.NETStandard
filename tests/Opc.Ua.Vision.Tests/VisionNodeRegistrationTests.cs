@@ -27,12 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
-using Opc.Ua.Vision.Server.Builders;
 
 namespace Opc.Ua.Vision.Tests
 {

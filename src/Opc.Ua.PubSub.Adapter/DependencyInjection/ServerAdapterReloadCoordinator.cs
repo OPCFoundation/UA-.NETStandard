@@ -233,7 +233,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
 
             foreach (PublisherBindingState publisher in publishers)
             {
-                await publisher.DisposeAsync(m_sources).ConfigureAwait(false);
+                await publisher.DisposeAsync(m_sources, m_runtime).ConfigureAwait(false);
             }
             foreach (SubscriberBindingState subscriber in subscribers)
             {
@@ -447,11 +447,14 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                 return;
             }
 
-            if (state.Session is null || !state.Connection.Equals(options.Connection))
+            if (state.Session is null ||
+                !state.Connection.Equals(options.Connection) ||
+                state.ReadMode != options.ReadMode)
             {
-                await state.DisposeAsync(m_sources).ConfigureAwait(false);
+                await state.DisposeAsync(m_sources, m_runtime).ConfigureAwait(false);
                 state.Session = m_runtime.AcquireSession(options.Connection, m_telemetry);
                 state.Connection = CloneConnectionOptions(options.Connection);
+                state.ReadMode = options.ReadMode;
                 state.Cyclic = new CyclicReadStrategy(state.Session.Session, m_telemetry, m_metrics);
             }
 
@@ -472,7 +475,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
 
                 if (state.Items.TryGetValue(dataSetName, out PublisherItemState? oldItem))
                 {
-                    oldItem.Dispose();
+                    await oldItem.DisposeAsync().ConfigureAwait(false);
                 }
 
                 // Ownership is transferred into PublisherItemState, which disposes the builder when the source is
@@ -483,19 +486,20 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                 var source = new ServerPublishedDataSetSource(
                     dataSet, state.Cyclic!, metaDataBuilder, m_telemetry);
                 m_sources.Register(dataSetName, source);
-                state.Items[dataSetName] = new PublisherItemState(dataSet, source, metaDataBuilder);
+                state.Items[dataSetName] = new PublisherItemState(
+                    (PublishedDataSetDataType)dataSet.Clone(), source, metaDataBuilder);
             }
 
             foreach (string removed in GetRemovedKeys(state.Items.Keys, desired))
             {
                 m_sources.Remove(removed);
-                state.Items[removed].Dispose();
+                await state.Items[removed].DisposeAsync().ConfigureAwait(false);
                 state.Items.Remove(removed);
             }
 
             if (state.Items.Count == 0)
             {
-                await state.DisposeAsync(m_sources).ConfigureAwait(false);
+                await state.DisposeAsync(m_sources, m_runtime).ConfigureAwait(false);
             }
         }
 
@@ -509,48 +513,65 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
             HashSet<string> referenced = CollectWriterDataSetNames(configuration);
             if (referenced.Count == 0)
             {
-                await state.DisposeAsync(m_sources).ConfigureAwait(false);
+                await state.DisposeAsync(m_sources, m_runtime).ConfigureAwait(false);
                 return;
             }
 
+            PubSubConfigurationDataType subscriptionConfiguration = CreateSubscriptionConfiguration(
+                configuration, dataSets, referenced);
+            if (subscriptionConfiguration.PublishedDataSets.Count == 0)
+            {
+                await state.DisposeAsync(m_sources, m_runtime).ConfigureAwait(false);
+                return;
+            }
             bool recreate = state.Session is null ||
                 !state.Connection.Equals(options.Connection) ||
                 state.ReadMode != options.ReadMode ||
                 state.Affinity != options.Affinity ||
-                !SetEquals(state.ReferencedDataSets, referenced);
+                !SetEquals(state.ReferencedDataSets, referenced) ||
+                !Utils.IsEqual(state.SubscriptionConfiguration, subscriptionConfiguration);
             if (!recreate)
             {
                 return;
             }
 
-            await state.DisposeAsync(m_sources).ConfigureAwait(false);
+            await state.DisposeAsync(m_sources, m_runtime).ConfigureAwait(false);
             state.Session = m_runtime.AcquireSession(options.Connection, m_telemetry);
             state.Connection = CloneConnectionOptions(options.Connection);
             state.ReadMode = options.ReadMode;
             state.Affinity = options.Affinity;
             state.ReferencedDataSets = referenced;
-            state.Coordinator = new SubscriptionCoordinator(
-                configuration, state.Session.Session, options.Affinity, m_telemetry);
-            await m_runtime.AddCoordinatorAsync(state.Coordinator, cancellationToken).ConfigureAwait(false);
-
-            foreach (PublishedDataSetDataType dataSet in dataSets)
+            try
             {
-                string dataSetName = dataSet.Name ?? string.Empty;
-                if (dataSetName.Length == 0 || !referenced.Contains(dataSetName))
-                {
-                    continue;
-                }
+                state.Coordinator = new SubscriptionCoordinator(
+                    subscriptionConfiguration, state.Session.Session, options.Affinity, m_telemetry);
+                await m_runtime.AddCoordinatorAsync(state.Coordinator, cancellationToken).ConfigureAwait(false);
 
-                IReadStrategy strategy = state.Coordinator.GetReadStrategy(dataSetName);
-                // Ownership is transferred into PublisherItemState, which disposes the builder when the source is
-                // removed. TODO: expose a disposable source wrapper so CA2000 can follow the ownership transfer.
+                foreach (PublishedDataSetDataType dataSet in subscriptionConfiguration.PublishedDataSets)
+                {
+                    string dataSetName = dataSet.Name ?? string.Empty;
+                    if (dataSetName.Length == 0 || !referenced.Contains(dataSetName))
+                    {
+                        continue;
+                    }
+
+                    IReadStrategy strategy = state.Coordinator.GetReadStrategy(dataSetName);
+                    // Ownership is transferred into PublisherItemState, which disposes the builder when the source is
+                    // removed. TODO: expose a disposable source wrapper so CA2000 can follow the ownership transfer.
 #pragma warning disable CA2000
-                DataSetMetaDataBuilder metaDataBuilder = CreateMetaDataBuilder(dataSet, state.Session.Session);
+                    DataSetMetaDataBuilder metaDataBuilder = CreateMetaDataBuilder(dataSet, state.Session.Session);
 #pragma warning restore CA2000
-                var source = new ServerPublishedDataSetSource(
-                    dataSet, strategy, metaDataBuilder, m_telemetry);
-                m_sources.Register(dataSetName, source);
-                state.Items[dataSetName] = new PublisherItemState(dataSet, source, metaDataBuilder);
+                    var source = new ServerPublishedDataSetSource(
+                        dataSet, strategy, metaDataBuilder, m_telemetry);
+                    m_sources.Register(dataSetName, source);
+                    state.Items[dataSetName] = new PublisherItemState(dataSet, source, metaDataBuilder);
+                }
+                state.SubscriptionConfiguration = subscriptionConfiguration;
+            }
+            catch
+            {
+                await state.DisposeAsync(m_sources, m_runtime).ConfigureAwait(false);
+                throw;
             }
         }
 
@@ -685,8 +706,10 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
             if (options.ReadMode == ReadMode.Subscription)
             {
                 state.ReferencedDataSets = referenced;
+                state.SubscriptionConfiguration = CreateSubscriptionConfiguration(configuration, dataSets, referenced);
+                dataSets = EnumeratePublishedDataSets(state.SubscriptionConfiguration);
                 state.Coordinator = new SubscriptionCoordinator(
-                    configuration, state.Session.Session, options.Affinity, m_telemetry);
+                    state.SubscriptionConfiguration, state.Session.Session, options.Affinity, m_telemetry);
                 m_runtime.AddCoordinator(state.Coordinator);
             }
             else
@@ -724,7 +747,8 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                 var source = new ServerPublishedDataSetSource(
                     dataSet, strategy, metaDataBuilder, m_telemetry);
                 m_sources.Register(dataSetName, source);
-                state.Items[dataSetName] = new PublisherItemState(dataSet, source, metaDataBuilder);
+                state.Items[dataSetName] = new PublisherItemState(
+                    (PublishedDataSetDataType)dataSet.Clone(), source, metaDataBuilder);
             }
         }
 
@@ -821,6 +845,46 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                 }
             }
             return dataSets;
+        }
+
+        /// <summary>
+        /// Captures the complete published definitions and writer topology used by subscription sampling.
+        /// Reader-only changes do not require replacing publisher bindings.
+        /// </summary>
+        private static PubSubConfigurationDataType CreateSubscriptionConfiguration(
+            PubSubConfigurationDataType configuration,
+            List<PublishedDataSetDataType> dataSets,
+            HashSet<string> referenced)
+        {
+            var published = new List<PublishedDataSetDataType>();
+            foreach (PublishedDataSetDataType dataSet in dataSets)
+            {
+                if (dataSet.Name is { } name && referenced.Contains(name))
+                {
+                    published.Add((PublishedDataSetDataType)dataSet.Clone());
+                }
+            }
+            var connections = new List<PubSubConnectionDataType>();
+            if (!configuration.Connections.IsNull)
+            {
+                foreach (PubSubConnectionDataType connection in configuration.Connections)
+                {
+                    if (connection is not null && !connection.WriterGroups.IsNull)
+                    {
+                        var writerConnection = new PubSubConnectionDataType
+                        {
+                            Name = connection.Name,
+                            WriterGroups = connection.WriterGroups
+                        };
+                        connections.Add((PubSubConnectionDataType)writerConnection.Clone());
+                    }
+                }
+            }
+            return new PubSubConfigurationDataType
+            {
+                PublishedDataSets = published.ToArrayOf(),
+                Connections = connections.ToArrayOf()
+            };
         }
 
         private static List<DataSetReaderDataType> EnumerateDataSetReaders(
@@ -984,19 +1048,33 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
 
             public HashSet<string> ReferencedDataSets { get; set; } = new(StringComparer.Ordinal);
 
+            /// <summary>
+            /// Immutable comparison snapshot for all subscription-relevant definitions.
+            /// </summary>
+            public PubSubConfigurationDataType? SubscriptionConfiguration { get; set; }
+
             public Dictionary<string, PublisherItemState> Items { get; } = new(StringComparer.Ordinal);
 
-            public async ValueTask DisposeAsync(MutableDataSetSourceProvider sources)
+            /// <summary>
+            /// Withdraws every source before draining metadata, subscription caches, and the session lease.
+            /// </summary>
+            public async ValueTask DisposeAsync(
+                MutableDataSetSourceProvider sources,
+                ServerAdapterRuntime runtime)
             {
                 foreach (string name in Items.Keys)
                 {
                     sources.Remove(name);
-                    Items[name].Dispose();
+                    Items[name].Source.Retire();
+                }
+                foreach (PublisherItemState item in Items.Values)
+                {
+                    await item.DisposeAsync().ConfigureAwait(false);
                 }
                 Items.Clear();
                 if (Coordinator is not null)
                 {
-                    await Coordinator.DisposeAsync().ConfigureAwait(false);
+                    await runtime.RemoveCoordinatorAsync(Coordinator).ConfigureAwait(false);
                     Coordinator = null;
                 }
                 if (Session is not null)
@@ -1005,17 +1083,20 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                     Session = null;
                 }
                 Cyclic = null;
+                SubscriptionConfiguration = null;
             }
         }
 
         private sealed record PublisherItemState(
             PublishedDataSetDataType Configuration,
-            IPublishedDataSetSource Source,
-            DataSetMetaDataBuilder MetaDataBuilder) : IDisposable
+            ServerPublishedDataSetSource Source,
+            DataSetMetaDataBuilder MetaDataBuilder) : IAsyncDisposable
         {
-            public void Dispose()
+            /// <inheritdoc/>
+            public async ValueTask DisposeAsync()
             {
-                MetaDataBuilder.Dispose();
+                Source.Retire();
+                await MetaDataBuilder.DisposeAsync().ConfigureAwait(false);
             }
         }
 

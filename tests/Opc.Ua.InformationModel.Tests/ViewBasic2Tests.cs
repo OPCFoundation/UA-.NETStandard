@@ -149,47 +149,47 @@ namespace Opc.Ua.InformationModel.Tests
         // ===========================================================
 
         [Test]
-        public void Err001Variant01ViewIdUnknown()
+        public async Task Err001Variant01ViewIdUnknown()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadViewIdUnknown);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadViewIdUnknown);
         }
 
         [Test]
-        public void Err001Variant02ViewTimestampInvalid()
+        public async Task Err001Variant02ViewTimestampInvalid()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadViewTimestampInvalid);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadViewTimestampInvalid);
         }
 
         [Test]
-        public void Err001Variant03ViewParameterMismatch()
+        public async Task Err001Variant03ViewParameterMismatch()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadViewParameterMismatch);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadViewParameterMismatch);
         }
 
         [Test]
-        public void Err001Variant04ViewVersionInvalid()
+        public async Task Err001Variant04ViewVersionInvalid()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadViewVersionInvalid);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadViewVersionInvalid);
         }
 
         [Test]
-        public void Err001Variant05NothingToDo()
+        public async Task Err001Variant05NothingToDo()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadNothingToDo);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadNothingToDo);
         }
 
         [Test]
-        public void Err001Variant06TooManyOperations()
+        public async Task Err001Variant06TooManyOperations()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadTooManyOperations);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadTooManyOperations);
         }
 
-        private void AssertBrowseInjectsServiceResult(StatusCode injected)
+        private async Task AssertBrowseInjectsServiceResult(StatusCode injected)
         {
             using IDisposable expectation = MockController.ExpectNextResponse<BrowseResponse>(
                 r => r.ResponseHeader.ServiceResult = injected);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.BrowseAsync(
                     null, null, 0,
                     new BrowseDescription[]
@@ -348,7 +348,7 @@ namespace Opc.Ua.InformationModel.Tests
 
         [Description("Browse with a non-empty ViewDescription whose ViewId references a node that does not exist. The server returns the service-level error Bad_ViewIdUnknown, which surfaces as a ServiceResultException on the client.")]
         [Test]
-        public void Err004ViewIdUnknown()
+        public async Task Err004ViewIdUnknown()
         {
             var view = new ViewDescription
             {
@@ -357,7 +357,7 @@ namespace Opc.Ua.InformationModel.Tests
                 ViewVersion = 0
             };
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.BrowseAsync(
                     null, view, 0,
                     new BrowseDescription[]
@@ -686,44 +686,44 @@ namespace Opc.Ua.InformationModel.Tests
 
         [Description("Injects ServiceResult Bad_ViewIdUnknown into the Browse response. ")]
         [Test]
-        public void Err001Variant01ServiceResultBadViewIdUnknown()
+        public async Task Err001Variant01ServiceResultBadViewIdUnknown()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadViewIdUnknown);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadViewIdUnknown);
         }
 
         [Description("Injects ServiceResult Bad_ViewTimestampInvalid into the Browse response.")]
         [Test]
-        public void Err001Variant02ServiceResultBadViewTimestampInvalid()
+        public async Task Err001Variant02ServiceResultBadViewTimestampInvalid()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadViewTimestampInvalid);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadViewTimestampInvalid);
         }
 
         [Description("Injects ServiceResult Bad_ViewParameterMismatch into the Browse response.")]
         [Test]
-        public void Err001Variant03ServiceResultBadViewParameterMismatch()
+        public async Task Err001Variant03ServiceResultBadViewParameterMismatch()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadViewParameterMismatch);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadViewParameterMismatch);
         }
 
         [Description("Injects ServiceResult Bad_ViewVersionInvalid into the Browse response.")]
         [Test]
-        public void Err001Variant04ServiceResultBadViewVersionInvalid()
+        public async Task Err001Variant04ServiceResultBadViewVersionInvalid()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadViewVersionInvalid);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadViewVersionInvalid);
         }
 
         [Description("Injects ServiceResult Bad_NothingToDo into the Browse response.")]
         [Test]
-        public void Err001Variant05ServiceResultBadNothingToDo()
+        public async Task Err001Variant05ServiceResultBadNothingToDo()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadNothingToDo);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadNothingToDo);
         }
 
         [Description("Injects ServiceResult Bad_TooManyOperations into the Browse response.")]
         [Test]
-        public void Err001Variant06ServiceResultBadTooManyOperations()
+        public async Task Err001Variant06ServiceResultBadTooManyOperations()
         {
-            AssertBrowseInjectsServiceResult(StatusCodes.BadTooManyOperations);
+            await AssertBrowseInjectsServiceResult(StatusCodes.BadTooManyOperations);
         }
 
         [Description("Operation result Bad_NodeIdInvalid for a syntactically invalid NodeId.")]
@@ -881,12 +881,12 @@ namespace Opc.Ua.InformationModel.Tests
             return AssertBrowseNextInjectsServiceResultAsync(StatusCodes.BadBrowseDirectionInvalid);
         }
 
-        private Task AssertBrowseNextInjectsServiceResultAsync(StatusCode injected)
+        private async Task AssertBrowseNextInjectsServiceResultAsync(StatusCode injected)
         {
             using IDisposable expectation = MockController.ExpectNextResponse<BrowseNextResponse>(
                 r => r.ResponseHeader.ServiceResult = injected);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.BrowseNextAsync(
                     null,
                     releaseContinuationPoints: false,
@@ -894,7 +894,6 @@ namespace Opc.Ua.InformationModel.Tests
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(injected));
-            return Task.CompletedTask;
         }
     }
 }

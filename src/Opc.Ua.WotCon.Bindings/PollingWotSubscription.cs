@@ -64,7 +64,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// An optional handler invoked when a single poll iteration faults with a
         /// non-cancellation exception. A transient poll or callback fault is
         /// reported here and the loop keeps polling; it never permanently faults
-        /// the subscription. A <c>null</c> handler silently continues.
+        /// the subscription. With no handler, the fault is logged through telemetry.
         /// </param>
         /// <param name="retryPolicy">
         /// The backoff applied after consecutive unhealthy polls. Defaults to
@@ -81,6 +81,28 @@ namespace Opc.Ua.WotCon.Bindings
             Action<Exception>? onError = null,
             IChannelReconnectPolicy? retryPolicy = null,
             ITelemetryContext? telemetry = null)
+            : this(form, pollAsync, interval, default, onError, retryPolicy, telemetry)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a polling subscription whose lifetime also follows the supplied cancellation token.
+        /// </summary>
+        /// <param name="form">The form used to initialize the instance.</param>
+        /// <param name="pollAsync">The poll async used to initialize the instance.</param>
+        /// <param name="interval">The interval used to initialize the instance.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        /// <param name="onError">The on error used to initialize the instance.</param>
+        /// <param name="retryPolicy">The retry policy used to initialize the instance.</param>
+        /// <param name="telemetry">The telemetry used to initialize the instance.</param>
+        public PollingWotSubscription(
+            WotCompiledForm form,
+            Func<CancellationToken, ValueTask<bool>> pollAsync,
+            TimeSpan interval,
+            CancellationToken cancellationToken,
+            Action<Exception>? onError = null,
+            IChannelReconnectPolicy? retryPolicy = null,
+            ITelemetryContext? telemetry = null)
         {
             Form = form ?? throw new ArgumentNullException(nameof(form));
             m_pollAsync = pollAsync ?? throw new ArgumentNullException(nameof(pollAsync));
@@ -88,6 +110,7 @@ namespace Opc.Ua.WotCon.Bindings
             m_onError = onError;
             m_retryPolicy = retryPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
             m_logger = telemetry.CreateLogger<PollingWotSubscription>();
+            m_cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, default);
             m_loop = RunAsync(m_cts.Token);
         }
 
@@ -99,16 +122,30 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         public int ConsecutiveFailures => Volatile.Read(ref m_consecutiveFailures);
 
+        /// <summary>
+        /// Gets the completion for <c>PollingWotSubscription</c>.
+        /// </summary>
+        internal Task Completion => m_loop;
+
+        /// <summary>
+        /// Gets whether disposal of the polling subscription has begun.
+        /// </summary>
+        internal bool IsDisposed => Volatile.Read(ref m_disposed) != 0;
+
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            bool first = Interlocked.Exchange(ref m_disposed, 1) == 0;
             // Dispose the cancellation source in a finally so a faulted loop can
             // never leak it. The loop is designed not to fault (transient errors
             // are handled per iteration), but awaiting it is still guarded so a
             // residual exception is never rethrown from DisposeAsync.
             try
             {
-                m_cts.Cancel();
+                if (first)
+                {
+                    m_cts.Cancel();
+                }
                 try
                 {
                     await m_loop.ConfigureAwait(false);
@@ -124,12 +161,17 @@ namespace Opc.Ua.WotCon.Bindings
             }
             finally
             {
-                m_cts.Dispose();
+                if (first)
+                {
+                    m_cts.Dispose();
+                }
             }
         }
 
         private async Task RunAsync(CancellationToken cancellationToken)
         {
+            // Owners must be able to register the subscription before its first callback.
+            await Task.Yield();
             while (!cancellationToken.IsCancellationRequested)
             {
                 bool healthy;
@@ -143,7 +185,7 @@ namespace Opc.Ua.WotCon.Bindings
                     // stop the loop cleanly.
                     return;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     // A transient poll or callback fault must not permanently
                     // fault the loop: report it and back off before the next
@@ -162,8 +204,8 @@ namespace Opc.Ua.WotCon.Bindings
                 }
                 else
                 {
-int attempt = Interlocked.Increment(ref m_consecutiveFailures);
-delay = m_retryPolicy.GetDelay(attempt);
+                    int attempt = Interlocked.Increment(ref m_consecutiveFailures);
+                    delay = m_retryPolicy.GetDelay(attempt);
                     if (delay < TimeSpan.Zero)
                     {
                         // The policy has given up. Stop polling rather than spin;
@@ -190,13 +232,18 @@ delay = m_retryPolicy.GetDelay(attempt);
 
         private void ReportError(Exception ex)
         {
+            if (m_onError is null)
+            {
+                m_logger.PollingFailed(ex);
+                return;
+            }
             try
             {
-                m_onError?.Invoke(ex);
+                m_onError(ex);
             }
-            catch
+            catch (Exception callbackError) when (callbackError is not OutOfMemoryException)
             {
-                // An error handler must never take down the poll loop.
+                m_logger.ErrorCallbackFailed(callbackError);
             }
         }
 
@@ -205,18 +252,49 @@ delay = m_retryPolicy.GetDelay(attempt);
         private readonly Action<Exception>? m_onError;
         private readonly IChannelReconnectPolicy m_retryPolicy;
         private readonly ILogger m_logger;
-        private readonly CancellationTokenSource m_cts = new();
+        private readonly CancellationTokenSource m_cts;
         private readonly Task m_loop;
         private int m_consecutiveFailures;
+        private int m_disposed;
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for polling WoT subscription.
+    /// </summary>
     internal static partial class PollingWotSubscriptionLog
     {
+        /// <summary>
+        /// Logs a residual polling-loop exception ignored during subscription disposal.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
         [LoggerMessage(
             EventId = WotConBindingsEventIds.PollingWotSubscription + 0,
             Level = LogLevel.Warning,
             Message = "Ignoring residual polling loop exception during disposal.")]
         public static partial void IgnoringResidualLoopExceptionDuringDispose(
             this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Writes the log event: <c>Polling failed without a registered error callback.</c>.
+        /// </summary>
+        /// <param name="logger">The logger receiving this event.</param>
+        /// <param name="exception">The exception attached to the event.</param>
+        [LoggerMessage(
+            EventId = WotConBindingsEventIds.PollingWotSubscription + 1,
+            Level = LogLevel.Warning,
+            Message = "Polling failed without a registered error callback.")]
+        public static partial void PollingFailed(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Writes the log event: <c>The polling error callback failed.</c>.
+        /// </summary>
+        /// <param name="logger">The logger receiving this event.</param>
+        /// <param name="exception">The exception attached to the event.</param>
+        [LoggerMessage(
+            EventId = WotConBindingsEventIds.PollingWotSubscription + 2,
+            Level = LogLevel.Warning,
+            Message = "The polling error callback failed.")]
+        public static partial void ErrorCallbackFailed(this ILogger logger, Exception exception);
     }
 }

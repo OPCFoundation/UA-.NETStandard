@@ -56,4 +56,20 @@ namespace Opc.Ua.WotCon.Bindings
         ValueTask<IWotBindingChannel> OpenChannelAsync(
             WotCompiledForm form, CancellationToken cancellationToken = default);
     }
+
+    /// <summary>
+    /// Optional factory capability for consumers whose local value factories are
+    /// available only after materialization. Existing channel factories remain compatible.
+    /// </summary>
+    public interface IWotContextualBindingChannelFactory : IWotBindingChannelFactory
+    {
+        /// <summary>
+        /// Opens a channel with the consumer's resolved namespace and DataType context.
+        /// </summary>
+        /// <param name="form">The WoT compiled form.</param>
+        /// <param name="context">The service message context.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        ValueTask<IWotBindingChannel> OpenChannelAsync(
+            WotCompiledForm form, IServiceMessageContext context, CancellationToken cancellationToken = default);
+    }
 }

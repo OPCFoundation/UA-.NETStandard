@@ -126,6 +126,35 @@ namespace Opc.Ua.Client
         public int? ConnectRateLimiterMaxConcurrency { get; init; }
 
         /// <summary>
+        /// Optional source of reverse connect connections. The session
+        /// awaits it for the initial connect, unless an initial connection
+        /// is passed, and once per recovery attempt. Default: <c>null</c>
+        /// (no reverse connections, unless a
+        /// <see cref="ReverseConnectManager"/> is passed to the session).
+        /// </summary>
+        /// <remarks>
+        /// A recovery attempt waits at most for the remaining time of the
+        /// reconnect policy's <see cref="ReconnectPolicyOptions.MaxTotalReconnectTime"/>.
+        /// The session closes a connection it received but did not use.
+        /// Setting this option and passing a <see cref="ReverseConnectManager"/>
+        /// to the session is rejected.
+        /// </remarks>
+        public IReverseConnectionSource? ReverseConnectionSource { get; init; }
+
+        /// <summary>
+        /// Optional validator for the endpoint a reconnect rediscovers from
+        /// the server's discovery endpoint. It is installed on the
+        /// <see cref="ManagedSession"/> before the session connects, so that
+        /// every reconnect is covered; see
+        /// <see cref="ManagedSession.ValidateRediscoveredEndpoint"/>. When not
+        /// set, the dependency-injection path uses a
+        /// <see cref="RediscoveredEndpointValidator"/> registered in the
+        /// service collection. Default: <c>null</c> (only the security mode
+        /// and policy of the rediscovered endpoint are checked).
+        /// </summary>
+        public RediscoveredEndpointValidator? ValidateRediscoveredEndpoint { get; init; }
+
+        /// <summary>
         /// When set, server-side redundancy failover is enabled using a
         /// default <see cref="DefaultServerRedundancyHandler"/>. To use a
         /// custom handler, pass it explicitly to
@@ -162,6 +191,28 @@ namespace Opc.Ua.Client
         /// each peer lookup; raise them on a high-latency link.
         /// </summary>
         public ServerRedundancyOptions ServerRedundancy { get; init; } = new();
+
+        /// <summary>
+        /// When the session acknowledges the notifications it receives. With
+        /// <see cref="AcknowledgementMode.AfterConfirmation"/>, a notification is only
+        /// acknowledged after the application confirmed it through
+        /// <see cref="ISessionAcknowledgements.Confirm"/>. Cannot be combined with
+        /// <see cref="AcknowledgementProvider"/>. Default:
+        /// <see cref="AcknowledgementMode.Immediate"/>.
+        /// </summary>
+        public AcknowledgementMode AcknowledgementMode { get; init; }
+
+        /// <summary>
+        /// Optional provider that decides which acknowledgements are sent and which are
+        /// deferred. Replaces the obsolete
+        /// <see cref="ISession.PublishSequenceNumbersToAcknowledge"/> event.
+        /// </summary>
+        public ISubscriptionAcknowledgementProvider? AcknowledgementProvider { get; init; }
+
+        /// <summary>
+        /// Optional observer that is told how every acknowledgement ended, exactly once.
+        /// </summary>
+        public ISubscriptionAcknowledgementObserver? AcknowledgementObserver { get; init; }
 
         /// <summary>
         /// Optional subscription engine factory. When null, defaults to the
@@ -217,6 +268,26 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// <para>
+        /// Decode the notifications of a Publish response right before they
+        /// are dispatched instead of when the response arrives. Under load,
+        /// responses wait for their subscription; as raw bytes they do not
+        /// cost the garbage collector anything while they wait.
+        /// </para>
+        /// <para>
+        /// A notification body that cannot be decoded is logged and not
+        /// delivered, instead of failing the whole Publish response.
+        /// Default: <c>true</c>.
+        /// </para>
+        /// <para>
+        /// Has no effect when the classic subscription engine is in
+        /// use; this option only applies to the V2
+        /// <see cref="Subscriptions.ISubscriptionManager"/>.
+        /// </para>
+        /// </summary>
+        public bool DeferNotificationDecoding { get; init; } = true;
+
+        /// <summary>
+        /// <para>
         /// When <c>true</c>, the <see cref="ManagedSession"/> automatically
         /// enables address-space model change tracking once connected.
         /// It subscribes to <c>GeneralModelChangeEventType</c> on the
@@ -245,6 +316,26 @@ namespace Opc.Ua.Client
         /// </para>
         /// </summary>
         public bool LoadComplexTypes { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// The server session to take over when the session connects, as returned by
+        /// <see cref="ManagedSession.RetireAsync"/> of its previous owner. The session then
+        /// activates the saved server session on a new secure channel instead of creating a new
+        /// one and keeps the subscriptions of the handoff, without any subscription service call.
+        /// </para>
+        /// <para>
+        /// When <see cref="Endpoint"/> is null the endpoint of the handoff is used. Taking over
+        /// requires the default subscription engine. After the session connected it recovers like
+        /// any other session.
+        /// </para>
+        /// </summary>
+        public SessionHandoff? TakeoverFrom { get; init; }
+
+        /// <summary>
+        /// How the session takes over <see cref="TakeoverFrom"/>; ignored without a handoff.
+        /// </summary>
+        public SessionTakeoverOptions? Takeover { get; init; }
 
         /// <summary>
         /// Checks whether a timeout selects automatic recovery, opts out,

@@ -21,6 +21,8 @@ directly when you need:
 - Encoding / decoding without a full server or client
   (`BinaryEncoder`, `BinaryDecoder`, `JsonEncoder`, `XmlDecoder`).
 - The fluent DI surface (`services.AddOpcUa()`).
+- Part 10 Program state/control mappings and the generated SDK Program model,
+  including concrete transition/audit events and its typed Create proxy.
 
 ## Getting started
 

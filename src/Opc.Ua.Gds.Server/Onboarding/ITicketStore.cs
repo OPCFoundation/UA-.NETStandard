@@ -48,7 +48,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// <c>CompositeIdentityTicketType</c> proxies in
     /// <c>Opc.Ua.Onboarding</c> remain the wire-level encoding. The store
     /// persists the bytes carried by the specification's
-    /// <c>EncodedTicket</c> ByteString subtype.
+    /// <c>EncodedTicket</c> String subtype, encoded as UTF-8 for storage.
     /// </para>
     /// <para>
     /// All implementations must be safe for concurrent calls.
@@ -68,7 +68,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </param>
         /// <param name="encodedTicket">
         /// Encoded ticket bytes carried on the wire as the
-        /// <c>EncodedTicket</c> ByteString subtype.
+        /// <c>EncodedTicket</c> String subtype, encoded as UTF-8 for storage.
         /// </param>
         /// <param name="metadata">
         /// Application-supplied metadata for the ticket (kind,

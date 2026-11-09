@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests.Historian
             };
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await HistorianDispatcher.DispatchRawReadAsync(
                         systemContext,
                         provider.Object,
@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         details,
                         TimestampsToReturn.Source,
                         new HistoryReadResult(),
-                        CancellationToken.None).ConfigureAwait(false))!;
+                        CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(
                 exception.StatusCode,
                 Is.EqualTo(StatusCodes.BadCommunicationError));
@@ -218,7 +218,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 ContinuationPoint = firstResult.ContinuationPoint
             };
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await HistorianDispatcher.DispatchRawReadAsync(
                     systemContext,
                     provider.Object,
@@ -313,7 +313,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 ContinuationPoint = firstResult.ContinuationPoint
             };
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await HistorianDispatcher.DispatchAnnotationReadAsync(
                     systemContext,
                     provider.Object,
@@ -355,6 +355,8 @@ namespace Opc.Ua.Server.Tests.Historian
             ServerSystemContext systemContext = CreateSystemContext(
                 continuationPoints);
             var nodeId = new NodeId("event-retry", 1);
+            HistoricalEventAuthorizationTestHelper.RegisterUnrestrictedEventNodes(
+                systemContext, [ObjectTypeIds.BaseEventType, nodeId]);
             NodeState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             provider
@@ -439,7 +441,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 Filter = incomingFilter
             };
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await HistorianDispatcher.DispatchEventReadAsync(
                     systemContext,
                     provider.Object,
@@ -528,7 +530,7 @@ namespace Opc.Ua.Server.Tests.Historian
             };
             ReadProcessedDetails details = CreateProcessedDetails();
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await HistorianDispatcher.DispatchProcessedReadAsync(
                     systemContext,
                     provider.Object,
@@ -787,7 +789,7 @@ namespace Opc.Ua.Server.Tests.Historian
         /// Verifies that failed durable restoration falls back to the local continuation state.
         /// </summary>
         [Test]
-        public Task DurableRestorationFailureFallsBackToLocalStateAsync()
+        public async Task DurableRestorationFailureFallsBackToLocalStateAsync()
         {
             var continuationPoints = new TestContinuationPoints();
             ServerSystemContext systemContext = CreateSystemContext(
@@ -837,7 +839,7 @@ namespace Opc.Ua.Server.Tests.Historian
             };
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await HistorianDispatcher.DispatchRawReadAsync(
                         systemContext,
                         provider.Object,
@@ -846,7 +848,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         new ReadRawModifiedDetails(),
                         TimestampsToReturn.Source,
                         new HistoryReadResult(),
-                        CancellationToken.None).ConfigureAwait(false))!;
+                        CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -864,7 +866,6 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(
                 continuationPoints.Peek(oldId),
                 Is.SameAs(originalState));
-            return Task.CompletedTask;
         }
 
         /// <summary>

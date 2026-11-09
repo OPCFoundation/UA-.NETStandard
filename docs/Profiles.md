@@ -4,34 +4,81 @@ This document describes which [OPC UA Profiles and Facets](https://profiles.opcf
 
 ## Overview
 
-The OPC UA .NET Standard Stack is a reference implementation that targets
-**OPC UA specification version 1.05.07**. The stack has been certified for
-compliance through an OPC Foundation Certification Test Lab and is
-continuously tested for compliance using the latest Compliance Test Tool (CTT).
+The OPC UA .NET Standard Stack implements core OPC UA services and selected
+companion specifications, with **OPC UA 1.05.07** as its core implementation
+target. The individual parts have different latest published versions. The
+[published specification support matrix](#published-specification-support-matrix)
+at the end lists every specification in the
+[OPC Foundation online reference](https://reference.opcfoundation.org/), its
+latest listed version, and the SDK's support level.
 
-The stack ships server- and client-side support for:
+The SDK provides full or partial support for these core areas:
 
-- Part 9 (Alarms & Conditions)
-- Part 11 (Historical Access) and Part 13 (Aggregates)
-- Part 16 (State Machines)
-- Part 17 (Alias Names)
-- Part 18 (Role Management)
-- Part 20 (File Transfer)
-- Part 100 (Device Integration / Software Update)
-- OPC 10100-1 (WoT Connectivity)
-- OPC 40001-1 (Industrial Automation)
-- OPC 40010-1 (Robotics)
-- The Local Discovery Server
+- Parts 1-3 and 5-6: concepts, security, address-space and information models,
+  encodings and transport mappings.
+- Part 4: discovery, sessions, browsing, attributes, methods, node management
+  and subscriptions. Query client APIs exist, but the default server does not
+  implement the Query service set.
+- Part 7: the server, client, transport and security profiles described below;
+  coverage is a selection of the profile catalogue.
+- Parts 8-11 and 13: Data Access, Alarms and Conditions,
+  [Programs](Programs.md), [Historical Access](HistoricalAccess.md) and
+  [Aggregates](Aggregates.md).
+- Part 12: LDS/LDS-ME, GDS registration, certificate management, authorization
+  and key credentials, with the [documented GDS gaps](GDS.md#remaining-optional--unsupported-part-12-items).
+- Part 14: [PubSub](PubSub.md), including UADP/JSON, broker and datagram
+  transports, with platform-dependent DTLS profile limits.
+- Parts 16-20 and 23: state machines, aliases, roles, dictionary references,
+  file transfer and common reference types.
+- Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
+  with retained device credentials, security reset, managed Client provisioning,
+  provider-backed Server/ClientAndServer push and a Part 22 `Resources` parent reference.
+  FDO protocols and credential installation remain external; the GDS guide
+  describes the remaining recovery and `ConfigurationFile` gaps.
+- Part 22: [Base Network Model](BaseNetworkModel.md) runtime, typed clients and
+  an in-memory simulator, including defined optional capabilities when supplied
+  by the provider; applications supply production network providers.
+- Parts 25 and 26: generated Object Serialization and
+  LogObject declarations, without complete runtime services for those models.
+
+The [companion and extension catalogue](#companion-and-extension-models)
+describes the supported Devices, Asset Management Basics, Industrial Automation,
+Positioning, ISA-95, WoT, AutoID, PackML, PA-DIM, LADS, Energy Consumption
+Management, Machinery, Robotics, Cranes and Hoists, plastics/rubber, extrusion,
+Machine Vision, weighing, measurement, Pumps and MachineTool families.
+Weighing includes registered catchweigher and price-labeler observations,
+completed hopper fills, piece-count registration and product totals, and opt-in
+recipe condition waits; equipment operation and recipe-file parsing remain
+application responsibilities.
+Scales provides native async service writes for product targets/tolerances,
+recipe condition settings and notification category/ID enums with
+`ValueAsText`. Custom synchronous-only handlers must provide native async behavior.
+Source-generation tooling also implements selected modelling checks relevant
+to OPC 11030.
+
+LADS supports optional cooperative Hold/Unhold, Suspend/Unsuspend, Reset and
+ToComplete operations when an acknowledging executor or hardware provider is
+configured. Its optional store restores templates, results, file bytes,
+maintenance records and counters without resuming interrupted physical
+execution; the default lifecycle still stops automatically. Opted-in AMB
+configuration adds configurable asset identification and selected asset
+building blocks without changing legacy device identities. Optional DI Locking
+enforces session ownership across UA writes and method calls throughout the
+device subtree, including generated AMB and FileType handlers.
+
+Support describes SDK functionality, not certification of every current
+feature, companion model or application. Historical reference-server
+certification applies only to its tested product version and profile scope.
+Applications still need the required providers, configuration and equipment.
 
 See
 [What's New in 2.0](WhatsNewIn2.0.md) for the broader change narrative.
 
-The canonical list of all OPC UA profile and facet URIs is maintained by the
-OPC Foundation at <https://profiles.opcfoundation.org/>. Where this document
-hyperlinks a URI, that URI is the same string the reference server
-advertises in `ServerProfileArray`; URIs not yet present in a shipping
-config are referred to *by name* and the reader should consult the OPC
-Foundation registry for the canonical URI form.
+The canonical list of OPC UA profile and facet URIs is maintained by the
+OPC Foundation at <https://profiles.opcfoundation.org/>. Listing an interface
+or URI here does not mean every reference-server configuration advertises it.
+Inspect the actual endpoint descriptions, `ServerProfileArray` and contributed
+conformance units. Do not derive a profile URI from a package or feature name.
 
 ## Contents
 
@@ -41,6 +88,7 @@ Foundation registry for the canonical URI form.
   - [Functional Facets](#functional-facets)
   - [Local Discovery Server (LDS) Profile](#local-discovery-server-lds-profile)
   - [Additional facets supported by the implementation (beyond the default advertised set)](#additional-facets-supported-by-the-implementation-beyond-the-default-advertised-set)
+- [Companion and extension models](#companion-and-extension-models)
 - [Client Profiles](#client-profiles)
 - [Transport Profiles](#transport-profiles)
   - [Client and server transports](#client-and-server-transports)
@@ -63,10 +111,12 @@ Foundation registry for the canonical URI form.
 - [Specification Compliance](#specification-compliance)
 - [Configuration](#configuration)
   - [Server profile configuration](#server-profile-configuration)
+  - [Contributed profiles and conformance units](#contributed-profiles-and-conformance-units)
   - [Security policy configuration](#security-policy-configuration)
 - [Related Documentation](#related-documentation)
   - [Core and companion spec related documentation](#core-and-companion-spec-related-documentation)
 - [References](#references)
+- [Published specification support matrix](#published-specification-support-matrix)
 
 ## Server Profiles
 
@@ -83,7 +133,9 @@ following profiles in its `ServerProfileArray`:
   - MonitoredItem services
   - View services (Browse, BrowseNext, TranslateBrowsePathsToNodeIds)
   - Attribute services (Read, Write, HistoryRead, HistoryUpdate)
-  - Query services
+
+  Query request/response types and client calls are available, but the default
+  server returns `BadServiceUnsupported` for `QueryFirst` and `QueryNext`.
 
 ### Functional Facets
 
@@ -121,7 +173,7 @@ advertises the **[Local Discovery Server 2017 Facet](http://opcfoundation.org/UA
 
 ### Additional facets supported by the implementation (beyond the default advertised set)
 
-Beyond the seven facets advertised by default in the reference server's
+Beyond the default profiles advertised in the reference server's
 `ServerProfileArray`, the master branch implements the following facets in
 the SDK. They can be enabled per-application by registering the
 corresponding NodeManager and, where applicable, adding the matching URI to
@@ -138,11 +190,13 @@ canonical URI string before claiming a facet):
   `src/Opc.Ua.Server/StateMachines/`. The reference server's
   `BoilerStateMachineState` is an end-to-end sample. See
   [State Machines](StateMachines.md).
-- **File Access** (Part 20) — Server-side `FileSystemNodeManager` +
+- **File Access** (Part 20, partial) — Server-side `FileSystemNodeManager` +
   `IFileSystemProvider` in `src/Opc.Ua.Server/FileSystem/`. The
   reference server enables it via the `EnableFileSystemNodeManager`
   option. The matching System.IO-style client lives in
-  [`FileSystemClient`](FileSystemClient.md).
+  [`FileSystemClient`](FileSystemClient.md). The shared file handler rejects
+  combined Read + Write opens. A conflicting write-only open on a writable file
+  can return `Bad_InvalidState` where Part 20 requires `Bad_NotWritable`.
 - **Node Management** (Part 4 service set) —
   `INodeManagementAsyncNodeManager` opt-in plus a per-NodeManager
   `AllowNodeManagement` gate for `AddNodes` / `DeleteNodes` /
@@ -154,10 +208,17 @@ canonical URI string before claiming a facet):
   / `LastChange`. The reference server wires the standard Aliases and
   Topics nodes via `ConfigureAliasNameStore`. See
   [Alias Names](AliasNames.md).
+- **Base Network Model** (Part 22) — `AddNetworkModel` binds application-owned
+  providers to standard Resources entry points, interfaces, priority mappings,
+  TSN streams and LLDP, including defined optional capabilities when supplied.
+  The reference provider simulates state; it does not configure host interfaces
+  or reserve TSN bandwidth. No profile URI is synthesized from the
+  specification's conformance-unit names. See
+  [Base Network Model](BaseNetworkModel.md).
 - **WoT Connectivity** (OPC 10100-1) — `Opc.Ua.WotCon` /
   `Opc.Ua.WotCon.Server` / `Opc.Ua.WotCon.Client` library trio for
   surfacing OPC UA servers as Web-of-Things Thing Descriptions. See
-  [WoT Connectivity](WoTConnectivity.md).
+  [WoT Connectivity](WotCon.md).
 - **Device Integration** (Part 100) — `Opc.Ua.Di` / `Opc.Ua.Di.Server` /
   `Opc.Ua.Di.Client` library trio, including the lock service and the
   software-update package store. See [Device Integration](DeviceIntegration.md)
@@ -168,7 +229,30 @@ canonical URI string before claiming a facet):
   including RSL spatial lists and model changes plus the GPOS GlobalPosition,
   GlobalLocation, and Zones conformance units. See
   [Positioning](Positioning.md).
-- **Robotics** (OPC 40010-1) over **Industrial Automation** (OPC 40001-1) —
+- **Industrial Automation** (OPC 10000-200), **Full** — shared `Opc.Ua.IA`
+  model with `Opc.Ua.IA.Server` provider bindings for stacklights, statistics
+  and calibration-target information, and `Opc.Ua.IA.Client` generated-proxy
+  access, discovery and feature inspection. Statistics copy exact
+  `EnumValueType` and `Argument` bodies field by field and accept
+  application-defined structures as encoded `ExtensionObject` values. Providers
+  encode custom structures before publication, and clients with the matching
+  model can decode them. Physical procedures and storage remain
+  application-owned. See
+  [Industrial Automation](IndustrialAutomation.md).
+- **PA-DIM** (OPC 30081), **Full** — `Opc.Ua.PADIM.Server` publishes
+  provider-backed devices under the Device Integration `DeviceSet`, and
+  `Opc.Ua.PADIM.Client` discovers them and accesses their methods through
+  generated proxies. The runtime supports configured signal and analyser
+  families; applications select optional capabilities per device and supply
+  acquisition or operation providers. See [PA-DIM](PADIM.md).
+- **Energy Consumption Management** (OPC 34100), **Full** — `Opc.Ua.ECM`,
+  `Opc.Ua.ECM.Server` and `Opc.Ua.ECM.Client` provide provider-backed
+  measurement, standby and WOL bindings with typed client access.
+  `EcmConformanceContributor` reports configured capabilities and their
+  required profiles. Physical equipment and wake transport remain
+  application-owned. See
+  [Energy Consumption Management](ECM.md).
+- **Robotics** (OPC 40010-1) over **Industrial Automation** (OPC 10000-200) —
   `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
   library trio implementing the released Robotics 1.02 model over IA and
   Device Integration, with validated fluent topology builders for motion
@@ -194,6 +278,14 @@ canonical URI string before claiming a facet):
 - **Async server NodeManagers** — TAP-based `AsyncCustomNodeManager` is the
   recommended base for new NodeManagers, and every NodeManager shipped with
   the stack has migrated to it. See [Async Server Support](AsyncServerSupport.md).
+- **Session-less invocation** (Part 4 §6.3) - opt-in invocation of the permitted
+  service sets through the existing identity/authorization pipeline; this does
+  not enable session-less subscriptions. See [Session-less invocation](SessionlessInvocation.md).
+- **Final-value publication before node removal** - a node manager can await
+  inclusion of final values in server Publish responses before retiring dynamic
+  nodes. This is an SDK lifecycle facility, not a separately certified profile
+  or transport-acknowledgment guarantee. See
+  [Node managers](NodeManagers.md#final-value-publication-before-node-removal).
 - **Server redundancy (Part 4 §6.6)** — `AddServerRedundancy(...)` publishes
   the `Server.ServerRedundancy` object, drives `Server.ServiceLevel`, and
   supports every `RedundancySupport` mode (None / Cold / Warm / Hot /
@@ -205,6 +297,57 @@ canonical URI string before claiming a facet):
   shared store, plus a Kubernetes deployment — is provided by the
   `Opc.Ua.Redundancy`, `.Server`, `.Client`, and `.Kubernetes` packages. See
   [High Availability](HighAvailability.md).
+
+## Companion and extension models
+
+This catalogue lists only implemented families. Full and Partial use the
+[support definitions](#published-specification-support-matrix) below.
+Generated declarations, runtime behavior, advertised conformance units and
+external certification are separate evidence. A provider requirement is an
+application integration boundary; a missing protocol or withheld facet is a
+support gap.
+
+| Model or family | Support | Implemented behavior and limits |
+| --- | --- | --- |
+| [Base Network Model](BaseNetworkModel.md), OPC 10000-22 | Full | Provider-backed Resources model, typed clients and simulator, with defined optional interface, mapping, TSN and LLDP capabilities when supplied; applications supply production network providers |
+| [Device Integration](DeviceIntegration.md), OPC 10000-100 | Partial | Device composition, locking and software updates; offline/online representations, some loading modes and `UpdateStatus` remain incomplete |
+| [Asset Management Basics](AMB.md), OPC 10000-110 | Full | Identity, health, maintenance, documentation, locations, dictionary classification, opt-in Part 11 history and explicit cross-server sub-asset traversal; applications provide history providers and remote-session resolution policy |
+| [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | Full | Stacklights, statistics and calibration targets with provider bindings, typed clients and a sample; physical drivers and calibration remain application-owned |
+| [Machinery](Machinery.md), OPC 40001-1/-2/-3/-4/-101 | Full | Building blocks, process values, jobs, energy and result transfer; select capabilities and supply equipment/storage providers |
+| [MachineTool and WMTP](MachineTool.md), OPC 40501-1 and OPC 40505 | Full | Monitoring, tools, production, jobs, files, peripheral measurements/configuration/records and typed clients; physical CNC/Bluetooth behavior belongs to providers |
+| [GMS](GMS.md), OPC 40210 | Partial | Systems, sensors, calibration observations, jobs/parts and results; Production facet withheld because upstream leaves `GMS_ProductionStatisticsType` undefined |
+| [Cranes and Hoists](CranesHoists.md), OPC 40020-1 | Full | Robotics-derived topology, load/protection observations and authorized limit requests; not a motion or safety controller |
+| [Pumps](Pumps.md), OPC 40223 | Full | Fluent builders, typed identity writes, retained identification, DI NE107/limit conditions, event notification, shared raw/aggregate/event history and files; profile advertisement follows configured inherited facets; Table 155's Base dependency uses the Table 153 Pump Base URI while the CAS Base link remains a publication discrepancy; no physical pump executor |
+| [AutoID Devices](AutoID.md), OPC 30010 | Full | Reader hosting, RuntimeParameters/ScanActive, diagnostic formatting, typed clients, RFID/RTLS operations, verifier scans, provider-published image files and application-defined IOData composition. Devices expose configured capabilities; Full Server Facet is available for qualifying readers. Undefined optional RTLS GetUnits is omitted; mandatory unit properties remain available |
+| [Scales](Scales.md), OPC 40200 | Partial | Weighing, products, registered catchweigher/price-labeler items, completed hopper fills, piece-count registration and opt-in product totals, recipes, PackML, per-vehicle signed/absolute totals, typed clients and opt-in analog/edge waits over registered local sources. Without PackML, recipe starts require explicit application release or an allowing callback. Notification metadata, statistical equations and immediate GiveAway refresh after nominal writes are implemented. Ordinary notification reentry permits writes from overlapping callbacks. Existing mixed-category reporting and measured-only totals are preserved; Weighed does not represent fixed category participation. Physical equipment operation remains application-owned |
+| [ISA-95](ISA95.md), OPC 10030 and OPC 10031-4 | Full | Common resources and Job Control V1/V2 server/client interfaces; providers supply execution, catalogues and persistence |
+| [Positioning](Positioning.md), OPC 10000-210/-211 | Full | RSL/GPOS models, spatial lists, model changes, positions, locations, zones and transforms; hardware observations require providers |
+| [Robotics](Robotics.md), OPC 40010-1 | Full | Released motion-device topology and controller/program interfaces; physical motion and safety behavior remain equipment responsibilities |
+| [Machine Vision](Vision.md), OPC 40100-1/-2 | Full | Control, configuration, recipes, results, asset/condition monitoring and clients; providers supply acquisition, separate from the Perception draft |
+| [WoT Connectivity](WotCon.md), OPC 10100-1 | Full | Published 1.02 asset-connection API, server and client; additive registry extensions have separate scope |
+| [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
+| [PackML](Scales.md), OPC 30050 | Partial | Generated model and Scales recipe/state integration; not a standalone implementation of every PackML unit mode |
+| [PA-DIM](PADIM.md), OPC 30081 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
+| [Energy Consumption Management](ECM.md), OPC 34100 | Full | All defined measurement, standby and WOL capabilities with provider-backed server bindings, typed clients and fluent DI composition; equipment behavior remains application-owned |
+| [LADS](LADS.md), OPC 30500-1 | Full | Devices, functions, programs, results, maintenance, cooperative running operations, stored-data restoration, opt-in AMB building blocks and optional DI subtree locking. BaseServer configurable identification requires a stable URI and persistent AMB store; physical execution requires application providers |
+| [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
+| [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
+| [Extrusion](Extrusion.md), OPC 40084-1/-2/-3/-4/-5/-7/-8/-9/-10/-11/-12 | Full | General types and concrete device/line runtimes, jobs, datasets, events and clients; equipment authority remains with explicit providers |
+| [Extrusion Filter](Extrusion.md#filter-profile-discrepancy), OPC 40084-6 | Partial | Filter model/runtime implemented; profile withheld pending clarification of the published requirement for the Part 5 Melt Pump conformance unit |
+
+Implemented draft extensions are separate from the published-specification
+matrix:
+
+| Extension | Implemented behavior and limits |
+| --- | --- |
+| [Perception](Vision.md#perception-model) and [Robot Intent](Robotics.md#robot-intent) | Perception/media/inference/feedback and robot task-intent interfaces; provisional identifiers and provider-dependent behavior |
+| [AI](AI.md), [xRegistry](XRegistry.md), [OpenUSD](OpenUsd.md) | Model/deployment/inference services, registry/version/federation and scene/address-space integration; draft models with backend-specific limits |
+
+Package preview status is governed by [the release policy](ReleaseProcess.md#terms),
+not by a specification's publication date. The MachineTool/GMS and released
+Vision package families follow the root version; CranesHoists remains
+preview-only. Draft identifiers are not promoted to standard identifiers by
+shipping a package.
 
 ## Client Profiles
 
@@ -220,6 +363,10 @@ through two coexisting paths:
 
 Client-side feature coverage:
 
+- **Base Network Model** (Part 22) — `AddNetworkModelClient` provides typed
+  discovery, reads, observations and mapping methods. Mapping calls preserve
+  operation and argument results without replaying commands. See
+  [Base Network Model](BaseNetworkModel.md#discover-and-use-the-typed-client).
 - **Subscriptions and monitored items** — Both the classic publish
   engine and the V2 subscription engine (`ISubscriptionManager` /
   `DefaultSubscriptionEngine`) are supported and selectable per session.
@@ -231,7 +378,7 @@ Client-side feature coverage:
   (`ManagedSession.DefaultStreaming`, `TakeUntilAsync` /
   `WithTimeoutAsync` helpers). See
   [Subscriptions and Monitored Items](Subscriptions.md).
-- **Transfer Subscriptions** — Subscription transfer between servers;
+- **Transfer Subscriptions** — Transfer existing subscriptions between sessions;
   see [Transfer Subscriptions](TransferSubscription.md). An opt-in
   `SubscriptionRecoveryPolicy` lets the client tolerate
   `Good_SubscriptionTransferred` notifications from the server.
@@ -242,8 +389,8 @@ Client-side feature coverage:
   [Model Change Tracking](ModelChangeTracking.md).
 - **File System Operations** — Async, `System.IO`-style client over OPC
   UA file methods; see [FileSystemClient](FileSystemClient.md).
-- **Alarms and Conditions** — Typed `AlarmClient` event records, fluent
-  `AlarmEventFilterBuilder`, and `IAsyncEnumerable` alarm streaming via
+- **Alarms and Conditions** — Typed `AlarmClient` event records, generated
+  `{Type}Record.EventFilters.Build()` event filters, and `IAsyncEnumerable` alarm streaming via
   `AlarmStreamExtensions`; see
   [Alarms and Conditions](AlarmsAndConditions.md).
 - **Historical Access** — `HistoryClient` (`session.Historian()`) for
@@ -261,6 +408,16 @@ Client-side feature coverage:
   signatures; see [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers).
 - **Complex types** — Decode and consume server-defined structures and
   enumerations on the client; see [Complex Types](ComplexTypes.md).
+- **Generation-bound session clients** - capture a transport/session generation
+  and namespace mappings; invalidated bindings reject requests instead of
+  retargeting them after reconnect. This is an additive SDK capability, not a
+  separate conformance profile. See [Session bindings](SessionBindings.md).
+- **Typed companion workflows** - the model families above include their
+  documented discovery, read, operation and observation helpers. Companion
+  and general stack workflows are also exposed through bounded
+  [MCP profiles](McpServer.md), with separate host grants for privileged/live
+  execution. MCP catalogue selection is neither an execution grant nor an
+  OPC UA Client conformance profile.
 
 ## Transport Profiles
 
@@ -320,6 +477,13 @@ machinery and conformance unit semantics are defined by
 - **[PubSub Ethernet UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-eth-uadp)** — Ethernet (Layer 2) transport with UADP message encoding (see [PubSub transports](PubSub.md#transports)).
 - **[PubSub MQTT UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp)** — MQTT transport with UADP message encoding.
 - **[PubSub MQTT JSON](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json)** — MQTT transport with JSON message encoding.
+- **[PubSub Kafka UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-kafka-uadp)**
+  and **[PubSub Kafka JSON](http://opcfoundation.org/UA-Profile/Transport/pubsub-kafka-json)** -
+  Part 14 Annex B.2 broker mapping through `Opc.Ua.PubSub.Kafka`; see
+  [Kafka transport and backend limits](PubSub.md#apache-kafka).
+- **DTLS over UDP** - supported registered profiles use the UDP transport's
+  platform/cryptographic capabilities; Curve25519/Curve448 DTLS profiles are
+  not registered. See [PubSub security limits](PubSub.md#security).
 - **Datagram-v2 connection profile** —
   [`DatagramConnectionTransport2DataType`](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.1.4)
   (Part 14 §6.4.1.4) is honoured for UDP transports. The
@@ -489,6 +653,34 @@ OPC UA Part 12 areas:
 - **[KeyCredentialService](KeyCredentialService.md)** (OPC 10000-12 §8) —
   Credential issuance for non-OPC UA services such as MQTT brokers and
   REST APIs, backed by `IKeyCredentialRequestStore` / `ISecretStore`.
+- **Device registrar components** (OPC 10000-21) -
+  Validated ticket administration, ticket signing, composite-aware identity
+  selection, ticket-scoped identity trust, registrar authorization and shared
+  certificate issuance, typed pull/push workflows, and a singleton device host
+  with retained factory credentials and security reset. Providers own software
+  approval and state retention; restart durability depends on selecting a
+  durable provider. The bounded push scheduler accepts work in process and does
+  not persist the queue. Registrar push provisions managed Client
+  applications and supports managed Server/ClientAndServer applications when
+  the host supplies authoritative discovery URLs, installed certificates,
+  endpoints, user identities and explicit client trust. The default managed-
+  application verifier supports UA-TCP and HTTPS with independently validated
+  TLS and application identities. The sample can be configured for
+  one managed Server or ClientAndServer application after DCA proof. The
+  provisionable-device factory adds a Part 22 `Resources` parent reference, but
+  shared Resources manager integration is not implemented. Registrar push uses
+  the configured certificate type by default and permits a host-selected type
+  for each managed application; the selected type must be advertised by its
+  certificate group. Per-entry remote `ConfigurationFile`
+  update/confirm and restart recovery use optional application-scoped Part 12
+  providers. The originally selected certificate type is retained during recovery.
+  The optional external-authentication handoff uses an injectable provider for
+  dedicated CA trust and configured product/DCA approval; typed external pull
+  and registrar push reuse the existing lifecycle. FDO protocols and credential
+  installation remain external.
+  Connected recovery fixtures are present; their execution status is tracked
+  separately. See
+  [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
 
 See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
 features, partial support, and hosting integration. This is not a claim that every
@@ -509,7 +701,7 @@ The stack supports the following message encoding formats:
 - **UADP** — UA Data Protocol for PubSub.
 
 The 2.0 release ships a new JSON decoder / encoder, array / matrix
-abstractions, and a first-class `ByteString` type. See the
+abstractions, and a `ByteString` type. See the
 [2.0 migration guide — Encoders and Complex Types](migrate/2.0.x/encoders.md#encoders-and-decoders)
 for the encoder/decoder migration details and
 [Complex Types](ComplexTypes.md) for client-side decode of
@@ -524,6 +716,10 @@ server-defined types.
 - **Testing:** Automated repository tests provide implementation evidence, not a
   substitute for certification. The [GDS conformance matrix](GDS.md)
   explicitly distinguishes its test evidence from CTT results.
+- **Companions and extensions:** The catalogue above records implemented
+  interfaces and explicit gaps, not automatic whole-specification conformance.
+  Selected instances, providers, endpoint security and actual advertised CUs
+  determine an application's claim; package channel is a separate policy.
 - **Redundancy (Part 4 §6.6):** Server and client redundancy are implemented
   (opt-in) — `RedundancySupport`, `Server.ServiceLevel`, non-transparent
   (`ServerUriArray` / `RedundantServerArray`) and transparent (`CurrentServerId`)
@@ -555,7 +751,7 @@ To advertise additional facets (Historical Access, Aggregates, Alarms &
 Conditions, File Access, Auditing, NodeManagement, State Machine, etc.)
 look up the canonical URI for the facet on
 <https://profiles.opcfoundation.org/> and add it to `ServerProfileArray`.
-Only advertise a facet that the application genuinely implements — the
+Only advertise a facet that the application implements — the
 Compliance Test Tool will exercise every claimed facet. Bringing the
 reference-server and CTT configs in line with the facets the stack
 actually implements is tracked in
@@ -568,6 +764,9 @@ companion node managers, contribute the facets and conformance units they
 actually wire. At startup the server registers them with the
 `ConformanceUnitsManager` and publishes the aggregate to
 `Server/ServerCapabilities/ConformanceUnits` and `ServerProfileArray`.
+The startup lifecycle republishes after the actual endpoint descriptions are
+installed, so security-dependent companion claims are evaluated against real
+endpoint policies rather than a placeholder registry.
 
 The manager keeps the registered contributors and reads them again on every
 `PublishAsync`, because the ServerCapabilities describe the current
@@ -628,22 +827,232 @@ for the variant selected by `--ctt`.
 - [Aggregates](Aggregates.md) (Part 13)
 - [State Machines](StateMachines.md) (Part 16)
 - [Alias Names](AliasNames.md) (Part 17)
+- [Base Network Model](BaseNetworkModel.md) (Part 22, provider and simulation boundaries)
 - [Role-Based User Management](RoleBasedUserManagement.md) (Part 18)
 - [Identity Providers](IdentityProviders.md)
 - [Authorization Service](AuthorizationService.md) (Part 12 §9)
 - [Key Credential Service](KeyCredentialService.md) (Part 12 §8)
-- [GDS Developer Guide](GDS.md) (Part 12 full compliance)
+- [GDS Developer Guide](GDS.md) (Part 12 implemented, partial and provider-gated areas)
 - [File System Client](FileSystemClient.md) (Part 20)
 - [Device Integration](DeviceIntegration.md) (Part 100)
 - [Relative Spatial Location and Global Positioning](Positioning.md)
   (Parts 210 and 211)
-- [Robotics](Robotics.md) (OPC 40010-1 over OPC 40001-1)
+- [Industrial Automation](IndustrialAutomation.md) (OPC 10000-200)
+- [Robotics](Robotics.md) (OPC 40010-1 over OPC 10000-200)
 - [Software Update](SoftwareUpdate.md)
-- [WoT Connectivity](WoTConnectivity.md) (OPC 10100-1)
+- [WoT Connectivity](WotCon.md) (OPC 10100-1)
 - [Node Management](NodeManagement.md) (Part 4)
+- [Asset Management Basics](AMB.md) (OPC 10000-110)
+- [Machinery](Machinery.md) (OPC 40001 series, PA-DIM and ECM)
+- [Energy Consumption Management](ECM.md) (OPC 34100)
+- [PA-DIM](PADIM.md) (OPC 30081)
+- [Pumps](Pumps.md) (OPC 40223)
+- [AutoID Devices](AutoID.md) (OPC 30010)
+- [Scales](Scales.md) (OPC 40200 and PackML)
+- [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4)
+- [MachineTool and WMTP](MachineTool.md) (OPC 40501-1 and OPC 40505)
+- [Geometric Measurement Systems](GMS.md) (OPC 40210)
+- [Cranes and Hoists](CranesHoists.md) (OPC 40020-1; preview packages)
+- [Machine Vision and Perception](Vision.md) (released OPC 40100-1/-2 and a distinct draft model)
+- [AI Model Management](AI.md), [xRegistry](XRegistry.md) and [OpenUSD](OpenUsd.md) (draft extensions)
+- [Session-less invocation](SessionlessInvocation.md) (Part 4 §6.3)
+- [Generation-bound session clients](SessionBindings.md)
+- [PubSub](PubSub.md) (Part 14 transports and platform limits)
+- [WoT Binding](WotBindings.md) (OPC 10101 published consumer mode and gaps)
+- [Laboratory and Analytical Devices](LADS.md) (OPC 30500-1)
+- [Plastics and rubber common capabilities](PlasticsRubber.md)
+  (OPC 40083 and OPC 40082-6 granulate drying)
+- [Extrusion](Extrusion.md) (OPC 40084 parts 1-12)
 
 ## References
 
 - [OPC Foundation Profile Reporting](https://profiles.opcfoundation.org/) — canonical profile and facet URI registry.
-- [OPC UA Specification](https://reference.opcfoundation.org/) — online reference for the OPC 10000 series.
+- [OPC UA Online Reference](https://reference.opcfoundation.org/) — published core and companion specifications and their latest listed versions.
 - [OPC UA Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) — official conformance test tool.
+
+## Published specification support matrix
+
+This table includes all **149 specifications** listed on the
+[OPC Foundation online reference index](https://reference.opcfoundation.org/)
+when checked on **2026-11-02**. Versions reproduce the index's latest listed
+version for each document, including its original number formatting; they are
+not NuGet package versions or a statement that every shipped model has that
+exact revision. Specification names are shortened where needed. Each part of a
+multipart specification has its own row.
+
+Support describes the implementation in this repository:
+
+- **Full**: the specification's applicable SDK model and protocol behavior
+  are implemented, with no known functional gap identified in the linked guide.
+  Applications must still select optional capabilities and supply the required
+  equipment, execution and persistence providers.
+- **Partial**: some model, protocol or tooling support exists, but an identified
+  runtime, facet or validation gap remains. Generated declarations alone count
+  as Partial, not a complete runtime implementation.
+- **No**: no specification-specific implementation is shipped. Generic OPC UA
+  browsing, NodeSet import or source generation can help an application implement
+  the specification, but do not change this rating.
+
+These are implementation ratings, not OPC Foundation certification results,
+not a promise that every optional facet is enabled, and not an application's
+`ServerProfileArray`. For concepts and guidance documents, the rating refers
+to their application in the SDK rather than a separately executable protocol.
+The [catalogue](#companion-and-extension-models) and linked guides identify
+implementation evidence and provider boundaries. The final column records
+specific gaps for Partial entries and implementation boundaries where they
+clarify Full support; it does not repeat ordinary provider requirements.
+The model-only core entries refer to declarations in the shipped
+[core NodeSet](../src/Opc.Ua.Core/Schema/Opc.Ua.NodeSet.xml); their presence
+does not establish executable management, serialization or logging methods.
+
+| Specification | Latest version | Support | Implementation detail or partial gap |
+| --- | --- | --- | --- |
+| [OPC 10000-1: Overview and Concepts](https://reference.opcfoundation.org/specs/OPC-10000-1) | 1.05.06 | Full | - |
+| [OPC 10000-2: Security Model](https://reference.opcfoundation.org/specs/OPC-10000-2) | 1.05.06 | Full | - |
+| [OPC 10000-3: Address Space Model](https://reference.opcfoundation.org/specs/OPC-10000-3) | 1.05.06 | Full | - |
+| [OPC 10000-4: Services](https://reference.opcfoundation.org/specs/OPC-10000-4) | 1.05.07 | Partial | Query client APIs exist; default server has no Query service implementation |
+| [OPC 10000-5: Information Model](https://reference.opcfoundation.org/specs/OPC-10000-5) | 1.05.06 | Full | - |
+| [OPC 10000-6: Mappings](https://reference.opcfoundation.org/specs/OPC-10000-6) | 1.05.07 | Full | - |
+| [OPC 10000-7: Profiles](https://reference.opcfoundation.org/specs/OPC-10000-7) | 1.05.02 | Partial | Selected server/client/transport/security profiles, not the entire catalogue |
+| [OPC 10000-8: Data Access](https://reference.opcfoundation.org/specs/OPC-10000-8) | 1.05.07 | Full | - |
+| [OPC 10000-9: Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9) | 1.05.06 | Full | - |
+| [OPC 10000-10: Programs](https://reference.opcfoundation.org/specs/OPC-10000-10) | 1.05.00 | Full | - |
+| [OPC 10000-11: Historical Access](https://reference.opcfoundation.org/specs/OPC-10000-11) | 1.05.04 | Full | - |
+| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | `ConfigurationFile` transfer and open-handle behavior are incomplete. Shorter replacement semantics are unresolved, and `AuthorizationServices` is absent. [Details](GDS.md#remaining-optional--unsupported-part-12-items) |
+| [OPC 10000-13: Aggregates](https://reference.opcfoundation.org/specs/OPC-10000-13) | 1.05.07 | Full | - |
+| [OPC 10000-14: PubSub](https://reference.opcfoundation.org/specs/OPC-10000-14) | 1.05.06 | Partial | Curve25519/Curve448 DTLS profiles unavailable; other DTLS profiles depend on platform probes |
+| [OPC 10000-15: Safety](https://reference.opcfoundation.org/specs/OPC-10000-15) | 1.05.04 | No | - |
+| [OPC 10000-16: State Machines](https://reference.opcfoundation.org/specs/OPC-10000-16) | 1.05.04 | Full | - |
+| [OPC 10000-17: Alias Names](https://reference.opcfoundation.org/specs/OPC-10000-17) | 1.05.07 | Full | - |
+| [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
+| [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
+| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens are rejected. A conflicting write open can return `Bad_InvalidState` instead of `Bad_NotWritable`. |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Initial pull cannot request a new key pair, and §7.2 recovery after a lost accepted response is incomplete. Managed-application updates and restart recovery depend on host providers. The Part 22 `Resources` integration is absent, and `ConfigurationFile` transfer is partial. Push acceptance is process-local. Hosts must reconcile registrar and device state before retrying after a restart or interruption. [Details](GDS.md#opc-10000-21-onboardingclient) |
+| [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | Defined optional interface, mapping, TSN and LLDP capabilities are provider-backed; production adapters remain application-supplied |
+| [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
+| [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |
+| [OPC 10000-25: Object Serialization](https://reference.opcfoundation.org/specs/OPC-10000-25) | 1.05.06 | Partial | Generated serialization declarations; no complete ConfigureSerialization runtime |
+| [OPC 10000-26: LogObject Model](https://reference.opcfoundation.org/specs/OPC-10000-26) | 1.05.07 | Partial | Generated LogObject/LogRecord declarations; no complete LogObject service runtime |
+| [OPC 10000-80: UAFX Overview and Concepts](https://reference.opcfoundation.org/specs/OPC-10000-80) | 1.00.03 | No | - |
+| [OPC 10000-81: UAFX Connecting Devices and Information Model](https://reference.opcfoundation.org/specs/OPC-10000-81) | 1.00.04 | No | - |
+| [OPC 10000-82: UAFX Networking](https://reference.opcfoundation.org/specs/OPC-10000-82) | 1.00.03 | No | - |
+| [OPC 10000-83: UAFX Offline Engineering](https://reference.opcfoundation.org/specs/OPC-10000-83) | 1.00.03 | No | - |
+| [OPC 10000-84: UAFX Profiles](https://reference.opcfoundation.org/specs/OPC-10000-84) | 1.00.04 | No | - |
+| [OPC 10000-100: Devices](https://reference.opcfoundation.org/specs/OPC-10000-100) | 1.05.0 | Partial | DI Offline, some software-loading modes and UpdateStatus missing |
+| [OPC 10000-110: Asset Management Basics](https://reference.opcfoundation.org/specs/OPC-10000-110) | 1.01.1 | Full | - |
+| [OPC 10000-120: OPC UA and XML Data Type Mapping](https://reference.opcfoundation.org/specs/OPC-10000-120) | 1.00 | No | - |
+| [OPC 10000-200: Industrial Automation](https://reference.opcfoundation.org/specs/OPC-10000-200) | 1.01.4 | Full | - |
+| [OPC 10000-210: Relative Spatial Location](https://reference.opcfoundation.org/specs/OPC-10000-210) | 1.00.1 | Full | - |
+| [OPC 10000-211: Global Positioning](https://reference.opcfoundation.org/specs/OPC-10000-211) | 1.0.0 | Full | - |
+| [OPC 10030: ISA-95 Common Object Model](https://reference.opcfoundation.org/specs/OPC-10030) | 1.00 | Full | - |
+| [OPC 10031-4: ISA-95 Job Control](https://reference.opcfoundation.org/specs/OPC-10031-4) | 2.00.0 | Full | - |
+| [OPC 10100-1: WoT Connectivity API Definition](https://reference.opcfoundation.org/specs/OPC-10100-1) | 1.02 | Full | - |
+| [OPC 10101: WoT Binding](https://reference.opcfoundation.org/specs/OPC-10101) | 1.00 | Partial | General UA Binary payload codec and complete TD/TM/Binding-result schema validation missing |
+| [OPC 11030: UA Modelling Best Practices](https://reference.opcfoundation.org/specs/OPC-11030) | 1.03.03 | Partial | Selected model-authoring/generator checks; no complete best-practices validator |
+| [OPC 30000: PLCs based on IEC 61131-3](https://reference.opcfoundation.org/specs/OPC-30000) | 1.02 | No | - |
+| [OPC 30001: Client Function Blocks for IEC 61131-3](https://reference.opcfoundation.org/specs/OPC-30001) | 1.02 | No | - |
+| [OPC 30010: AutoID Devices](https://reference.opcfoundation.org/specs/OPC-30010) | 1.01 | Full | Defined mandatory and optional SDK capabilities, including acquired image files and application-defined IOData composition. Undefined optional RTLS GetUnits is omitted; four mandatory unit properties are available. Verifier Scan follows the published prose with a documented metadata correction; Full Server Facet is available for qualifying readers. See [contract limits](AutoID.md#support-scope-and-published-contract-limits) |
+| [OPC 30020: MDIS](https://reference.opcfoundation.org/specs/OPC-30020) | 1.3 | No | - |
+| [OPC 30030: BACnet](https://reference.opcfoundation.org/specs/OPC-30030) | 2.00.1 | No | - |
+| [OPC 30040: AutomationML](https://reference.opcfoundation.org/specs/OPC-30040) | 1.00 | No | - |
+| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Partial | Generated model and Scales integration; not a standalone all-unit-mode runtime |
+| [OPC 30060: Tobacco Machine Communication](https://reference.opcfoundation.org/specs/OPC-30060) | 2.00.1 | No | - |
+| [OPC 30081: PA-DIM](https://reference.opcfoundation.org/specs/OPC-30081) | 1.02.0 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
+| [OPC 30090: Field Device Tool (FDT)](https://reference.opcfoundation.org/specs/OPC-30090) | 1.01 | No | - |
+| [OPC 30100: SERCOS Devices](https://reference.opcfoundation.org/specs/OPC-30100) | 1.2 | No | - |
+| [OPC 30110: POWERLINK](https://reference.opcfoundation.org/specs/OPC-30110) | 1.00 | No | - |
+| [OPC 30120: IO-Link Devices and Masters](https://reference.opcfoundation.org/specs/OPC-30120) | 1.0 | No | - |
+| [OPC 30130: Control and Communication System Profile for Machine](https://reference.opcfoundation.org/specs/OPC-30130) | 1.00 | No | - |
+| [OPC 30140: PROFINET](https://reference.opcfoundation.org/specs/OPC-30140) | 1.00.1 | No | - |
+| [OPC 30141: PROFIenergy](https://reference.opcfoundation.org/specs/OPC-30141) | 1.00 | No | - |
+| [OPC 30142: PROFINET Remote IO](https://reference.opcfoundation.org/specs/OPC-30142) | 1.00.1 | No | - |
+| [OPC 30143: PROFINET Encoder](https://reference.opcfoundation.org/specs/OPC-30143) | 1.00 | No | - |
+| [OPC 30144: PROFINET GSD Generic Model](https://reference.opcfoundation.org/specs/OPC-30144) | 1.00 | No | - |
+| [OPC 30145: PROFINET Drives](https://reference.opcfoundation.org/specs/OPC-30145) | 1.0.0 | No | - |
+| [OPC 30200: Commercial Kitchen Equipment](https://reference.opcfoundation.org/specs/OPC-30200) | 1.00 | No | - |
+| [OPC 30210-1: Unattended Retail and Coffee Solutions - Core Components](https://reference.opcfoundation.org/specs/OPC-30210-1) | 1.0.0 | No | - |
+| [OPC 30250: DEXPI](https://reference.opcfoundation.org/specs/OPC-30250) | 1.0 | No | - |
+| [OPC 30260: OPEN-SCS](https://reference.opcfoundation.org/specs/OPC-30260) | 1.02.03 | No | - |
+| [OPC 30270: Asset Administration Shell (AAS)](https://reference.opcfoundation.org/specs/OPC-30270) | 1.00 | No | - |
+| [OPC 30300: Generic Trust Anchor API Profile for OPC UA](https://reference.opcfoundation.org/specs/OPC-30300) | 1.00.0 | No | - |
+| [OPC 30400-1: Cloud Library - Architecture and Use Cases](https://reference.opcfoundation.org/specs/OPC-30400-1) | 1.00.1 | No | - |
+| [OPC 30400-2: Cloud Library - API Definition](https://reference.opcfoundation.org/specs/OPC-30400-2) | 1.00.0 | No | - |
+| [OPC 30450-1: Digital Product Passport - Information Model](https://reference.opcfoundation.org/specs/OPC-30450-1) | 1.0.0 | No | - |
+| [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Full | - |
+| [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Full | - |
+| [OPC 40001-1: Machinery - Basic Building Blocks](https://reference.opcfoundation.org/specs/OPC-40001-1) | 1.04.2 | Full | - |
+| [OPC 40001-2: Machinery - Process Values](https://reference.opcfoundation.org/specs/OPC-40001-2) | 1.00 | Full | - |
+| [OPC 40001-3: Machinery - Job Management](https://reference.opcfoundation.org/specs/OPC-40001-3) | 1.0.1 | Full | - |
+| [OPC 40001-4: Machinery - Energy Management](https://reference.opcfoundation.org/specs/OPC-40001-4) | 1.00 | Full | - |
+| [OPC 40001-101: Machinery - Result Transfer](https://reference.opcfoundation.org/specs/OPC-40001-101) | 1.01.0 | Full | - |
+| [OPC 40010-1: Robotics - Vertical Integration](https://reference.opcfoundation.org/specs/OPC-40010-1) | 1.02 | Full | - |
+| [OPC 40020-1: Cranes and Hoists - Base Model Motion Devices System](https://reference.opcfoundation.org/specs/OPC-40020-1) | 1.00 | Full | - |
+| [OPC 40077: Injection Moulding Machines and MES](https://reference.opcfoundation.org/specs/OPC-40077) | 1.01 | No | - |
+| [OPC 40082-1: Plastics/Rubber Peripheral Devices - Temperature Control](https://reference.opcfoundation.org/specs/OPC-40082-1) | 1.01 | No | - |
+| [OPC 40082-2: Plastics/Rubber Peripheral Devices - Hot Runner](https://reference.opcfoundation.org/specs/OPC-40082-2) | 1.00 | No | - |
+| [OPC 40082-3: Plastics/Rubber Peripheral Devices - LSR Dosing](https://reference.opcfoundation.org/specs/OPC-40082-3) | 1.02.0 | No | - |
+| [OPC 40082-4: Plastics/Rubber Peripheral Devices - Dosing Systems](https://reference.opcfoundation.org/specs/OPC-40082-4) | 1.0.1 | No | - |
+| [OPC 40082-6: Plastics/Rubber Peripheral Devices - Granulate Drying](https://reference.opcfoundation.org/specs/OPC-40082-6) | 1.0.0 | Full | - |
+| [OPC 40083: Plastics and Rubber Machinery - General Type Definitions](https://reference.opcfoundation.org/specs/OPC-40083) | 1.03 | Full | - |
+| [OPC 40084-1: Extrusion - General Type Definitions](https://reference.opcfoundation.org/specs/OPC-40084-1) | 2.00 | Full | - |
+| [OPC 40084-2: Extrusion - Extrusion Line](https://reference.opcfoundation.org/specs/OPC-40084-2) | 2.00 | Full | - |
+| [OPC 40084-3: Extrusion - Extruder](https://reference.opcfoundation.org/specs/OPC-40084-3) | 2.00 | Full | - |
+| [OPC 40084-4: Extrusion - Haul-off](https://reference.opcfoundation.org/specs/OPC-40084-4) | 2.00 | Full | - |
+| [OPC 40084-5: Extrusion - Melt Pump](https://reference.opcfoundation.org/specs/OPC-40084-5) | 2.00 | Full | - |
+| [OPC 40084-6: Extrusion - Filter](https://reference.opcfoundation.org/specs/OPC-40084-6) | 2.00 | Partial | Filter profile withheld pending clarification of the published requirement for the Part 5 Melt Pump conformance unit |
+| [OPC 40084-7: Extrusion - Die](https://reference.opcfoundation.org/specs/OPC-40084-7) | 2.00 | Full | - |
+| [OPC 40084-8: Extrusion - Pelletizer](https://reference.opcfoundation.org/specs/OPC-40084-8) | 2.00 | Full | - |
+| [OPC 40084-9: Extrusion - Cutter](https://reference.opcfoundation.org/specs/OPC-40084-9) | 2.00 | Full | - |
+| [OPC 40084-10: Extrusion - Calibrator](https://reference.opcfoundation.org/specs/OPC-40084-10) | 2.00 | Full | - |
+| [OPC 40084-11: Extrusion - Corrugator](https://reference.opcfoundation.org/specs/OPC-40084-11) | 2.00 | Full | - |
+| [OPC 40084-12: Extrusion - Calender](https://reference.opcfoundation.org/specs/OPC-40084-12) | 2.00 | Full | - |
+| [OPC 40092-1: Flexible PUR Foam - Cutting Machines](https://reference.opcfoundation.org/specs/OPC-40092-1) | 1.0.0 | No | - |
+| [OPC 40100-1: Machine Vision - Control, Configuration, Recipe and Result Management](https://reference.opcfoundation.org/specs/OPC-40100-1) | 1.0 | Full | - |
+| [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
+| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Notification metadata, statistical equations and immediate GiveAway refresh after nominal writes are implemented. Ordinary notification reentry permits writes from overlapping callbacks. Existing mixed-category reporting and measured-only totals are preserved; Weighed does not represent fixed category participation |
+| [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
+| [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Full | Pump Base and Advanced profiles follow verified configured capabilities; Table 155's dependency uses the Table 153 Pump Base URI, while the CAS Base link remains a publication discrepancy |
+| [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |
+| [OPC 40301: Flat Glass Processing](https://reference.opcfoundation.org/specs/OPC-40301) | 2.0 | No | - |
+| [OPC 40400-1: Powertrain - Asset Management](https://reference.opcfoundation.org/specs/OPC-40400-1) | 1.0 | No | - |
+| [OPC 40444: Textile Testing Devices](https://reference.opcfoundation.org/specs/OPC-40444) | 1.0.0 | No | - |
+| [OPC 40450-1: Joining Systems - Base](https://reference.opcfoundation.org/specs/OPC-40450-1) | 1.01.0 | No | - |
+| [OPC 40451-1: Tightening Systems - General](https://reference.opcfoundation.org/specs/OPC-40451-1) | 2.00.1 | No | - |
+| [OPC 40501-1: Machine Tools - Machine Monitoring and Job Management](https://reference.opcfoundation.org/specs/OPC-40501-1) | 1.02.0 | Full | - |
+| [OPC 40502: Computerized Numerical Control (CNC) Systems](https://reference.opcfoundation.org/specs/OPC-40502) | 1.0 | No | - |
+| [OPC 40503-1: Metal Forming - General](https://reference.opcfoundation.org/specs/OPC-40503-1) | 1.0.0 | No | - |
+| [OPC 40504-1: Cutting Tools - Manufacturing](https://reference.opcfoundation.org/specs/OPC-40504-1) | 1.0.0 | No | - |
+| [OPC 40505: Wireless Machine Tool Peripherals](https://reference.opcfoundation.org/specs/OPC-40505) | 1.0.0 | Full | - |
+| [OPC 40530: Laser Systems](https://reference.opcfoundation.org/specs/OPC-40530) | 1.0.0 | No | - |
+| [OPC 40540: Additive Manufacturing](https://reference.opcfoundation.org/specs/OPC-40540) | 1.0.0 | No | - |
+| [OPC 40550-1: Woodworking Machines - Vertical Interface](https://reference.opcfoundation.org/specs/OPC-40550-1) | 1.02.0 | No | - |
+| [OPC 40560: Mining - General](https://reference.opcfoundation.org/specs/OPC-40560) | 1.01.0 | No | - |
+| [OPC 40561-1: Mining - Extraction General](https://reference.opcfoundation.org/specs/OPC-40561-1) | 1.0 | No | - |
+| [OPC 40561-2: Mining - Shearer Loader](https://reference.opcfoundation.org/specs/OPC-40561-2) | 1.0 | No | - |
+| [OPC 40562-1: Mining - Loading General](https://reference.opcfoundation.org/specs/OPC-40562-1) | 1.0 | No | - |
+| [OPC 40562-2: Mining - Hydraulic Excavator](https://reference.opcfoundation.org/specs/OPC-40562-2) | 1.0 | No | - |
+| [OPC 40563-1: Mining - Transport Dumping General](https://reference.opcfoundation.org/specs/OPC-40563-1) | 1.0 | No | - |
+| [OPC 40563-2: Mining - Armoured Face Conveyor](https://reference.opcfoundation.org/specs/OPC-40563-2) | 1.0 | No | - |
+| [OPC 40563-3: Mining - Rear Dump Truck](https://reference.opcfoundation.org/specs/OPC-40563-3) | 1.0 | No | - |
+| [OPC 40563-4: Mining - Conveying](https://reference.opcfoundation.org/specs/OPC-40563-4) | 1.0.0 | No | - |
+| [OPC 40564-1: Mining - Mineral Processing General](https://reference.opcfoundation.org/specs/OPC-40564-1) | 1.0 | No | - |
+| [OPC 40564-2: Mining - Rock Crusher](https://reference.opcfoundation.org/specs/OPC-40564-2) | 1.0 | No | - |
+| [OPC 40565-1: Mining - Development Support General](https://reference.opcfoundation.org/specs/OPC-40565-1) | 1.0 | No | - |
+| [OPC 40565-2: Mining - Roof Support](https://reference.opcfoundation.org/specs/OPC-40565-2) | 1.0 | No | - |
+| [OPC 40565-3: Mining - Dozer](https://reference.opcfoundation.org/specs/OPC-40565-3) | 1.0 | No | - |
+| [OPC 40566-1: Mining - Monitoring and Supervision General](https://reference.opcfoundation.org/specs/OPC-40566-1) | 1.0 | No | - |
+| [OPC 40567-1: Mining - PELO Services General](https://reference.opcfoundation.org/specs/OPC-40567-1) | 1.0 | No | - |
+| [OPC 40567-2: Mining - Face Alignment System](https://reference.opcfoundation.org/specs/OPC-40567-2) | 1.0 | No | - |
+| [OPC 40568-1: Mining - External Standards, IREDES](https://reference.opcfoundation.org/specs/OPC-40568-1) | 1.0.0 | No | - |
+| [OPC 40569-1: Mining - Longwall Operation](https://reference.opcfoundation.org/specs/OPC-40569-1) | 1.0 | No | - |
+| [OPC 40569-2: Mining - Discontinuous Loading](https://reference.opcfoundation.org/specs/OPC-40569-2) | 1.0 | No | - |
+| [OPC 40569-3: Mining - Discontinuous Unloading](https://reference.opcfoundation.org/specs/OPC-40569-3) | 1.0 | No | - |
+| [OPC 40569-4: Mining - Dozing](https://reference.opcfoundation.org/specs/OPC-40569-4) | 1.0 | No | - |
+| [OPC 40570: Wire Harness Manufacturing](https://reference.opcfoundation.org/specs/OPC-40570) | 1.0.0 | No | - |
+| [OPC 40600: Weihenstephan Standards](https://reference.opcfoundation.org/specs/OPC-40600) | 1.00.0 | No | - |
+| [OPC 40700: Surface Technology - General Types](https://reference.opcfoundation.org/specs/OPC-40700) | 1.0 | No | - |
+| [OPC 40701: Surface Technology - Cleaning and Pretreatment](https://reference.opcfoundation.org/specs/OPC-40701) | 1.0.0 | No | - |
+| [OPC 40702: Surface Technology - Organic Coating Material Supply](https://reference.opcfoundation.org/specs/OPC-40702) | 1.0.0 | No | - |
+| [OPC 40718: Surface Technology - Shot Blasting Machinery](https://reference.opcfoundation.org/specs/OPC-40718) | 1.0.0 | No | - |
+| [OPC 40719: Plasma Surface Technology](https://reference.opcfoundation.org/specs/OPC-40719) | 1.0.0 | No | - |
+| [OPC 40740: Process Air Extraction and Filtration Systems](https://reference.opcfoundation.org/specs/OPC-40740) | 1.0.1 | No | - |

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 
 namespace Opc.Ua.PubSub.Udp
 {
@@ -114,5 +115,45 @@ namespace Opc.Ua.PubSub.Udp
         /// interface.
         /// </summary>
         public string? PreferredNetworkInterface { get; set; }
+
+        /// <summary>
+        /// Gets programmatic authority for socket creation and every datagram, including DTLS replies.
+        /// No policy implementation is exposed as a bindable configuration property.
+        /// </summary>
+        public IUdpDatagramPolicy? GetDatagramPolicy()
+        {
+            return m_datagramPolicy;
+        }
+
+        /// <summary>
+        /// Gets the programmatic local bind address. Null preserves the existing automatic binding behavior.
+        /// </summary>
+        public IPAddress? GetLocalAddress()
+        {
+            return m_localAddress;
+        }
+
+        /// <summary>
+        /// Installs programmatic datagram authority, including DTLS replies, without binding an interface from data.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public UdpTransportOptions WithDatagramPolicy(IUdpDatagramPolicy policy)
+        {
+            m_datagramPolicy = policy ?? throw new ArgumentNullException(nameof(policy));
+            return this;
+        }
+
+        /// <summary>
+        /// Sets an explicit programmatic local address without exposing IPAddress to configuration source generation.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public UdpTransportOptions WithLocalAddress(IPAddress address)
+        {
+            m_localAddress = address ?? throw new ArgumentNullException(nameof(address));
+            return this;
+        }
+
+        private IUdpDatagramPolicy? m_datagramPolicy;
+        private IPAddress? m_localAddress;
     }
 }

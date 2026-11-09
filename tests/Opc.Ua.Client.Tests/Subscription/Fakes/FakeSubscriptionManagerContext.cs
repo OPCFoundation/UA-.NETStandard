@@ -43,6 +43,53 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     /// </summary>
     internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext
     {
+        /// <inheritdoc/>
+        public NodeId SessionId { get; set; } = new(1);
+
+        /// <summary>
+        /// Number of times the session was abandoned before local adoption rollback.
+        /// </summary>
+        public int AbandonServerSessionCalls { get; private set; }
+
+        /// <summary>
+        /// Optional observer for session abandonment.
+        /// </summary>
+        public Action? OnAbandonServerSession { get; set; }
+
+        /// <inheritdoc/>
+        public void AbandonServerSession()
+        {
+            AbandonServerSessionCalls++;
+            OnAbandonServerSession?.Invoke();
+        }
+
+        /// <summary>
+        /// Optional observer of recovery notifications from Publish workers.
+        /// </summary>
+        public Action<NodeId, ServiceResult>? OnRecoveryError { get; set; }
+
+        /// <summary>
+        /// Optional gate controlling whether a recovery notification is accepted.
+        /// </summary>
+        public Func<CancellationToken, ValueTask<bool>>? RecoveryAdmissionAsync { get; set; }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> OnPublishRecoveryErrorAsync(
+            NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
+        {
+            if (RecoveryAdmissionAsync != null &&
+                !await RecoveryAdmissionAsync(ct).ConfigureAwait(false))
+            {
+                return false;
+            }
+            if (isCurrent())
+            {
+                OnRecoveryError?.Invoke(sessionId, error);
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>Recorded calls to <see cref="CreateSubscription"/>.</summary>
         public IReadOnlyList<CreateSubscriptionCall> CreateSubscriptionCalls
             => Snapshot(m_createSubscriptionCalls);
@@ -75,6 +122,25 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
                 "CreateSubscriptionFactory not set on FakeSubscriptionManagerContext.");
 
         /// <summary>
+        /// Optional factory that receives the initializer of
+        /// <see cref="CreateSubscription"/> and must run it before the
+        /// subscription starts. When null, <see cref="CreateSubscriptionFactory"/>
+        /// is used and the initializer runs after it returns.
+        /// </summary>
+        public Func<ISubscriptionNotificationHandler,
+            IOptionsMonitor<SubscriptionOptions>, IMessageAckQueue,
+            Action<IManagedSubscription>?, IManagedSubscription>? CreateInitializedSubscriptionFactory
+        { get; set; }
+
+        /// <summary>
+        /// Optional session acknowledgement policy.
+        /// </summary>
+        public Func<List<SubscriptionAcknowledgement>,
+            (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)>?
+            OnPrepareAcknowledgements
+        { get; set; }
+
+        /// <summary>
         /// Optional override for <see cref="PublishAsync"/>. If null,
         /// returns a default <see cref="PublishResponse"/>.
         /// </summary>
@@ -100,11 +166,42 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options,
             IMessageAckQueue queue,
-            SubscriptionLoadState? loadState = null)
+            SubscriptionLoadState? loadState = null,
+            Action<IManagedSubscription>? initialize = null)
         {
             Record(m_createSubscriptionCalls,
                 new CreateSubscriptionCall(handler, options, queue, loadState));
-            return CreateSubscriptionFactory(handler, options, queue);
+            if (CreateInitializedSubscriptionFactory != null)
+            {
+                return CreateInitializedSubscriptionFactory(handler, options, queue, initialize);
+            }
+            IManagedSubscription subscription = CreateSubscriptionFactory(handler, options, queue);
+            initialize?.Invoke(subscription);
+            return subscription;
+        }
+
+        /// <inheritdoc/>
+        public ISubscriptionAcknowledgementProvider? AcknowledgementProvider { get; set; }
+
+        /// <inheritdoc/>
+        public ISubscriptionAcknowledgementObserver? AcknowledgementObserver { get; set; }
+
+        /// <inheritdoc/>
+        public bool HasAcknowledgementPolicy => OnPrepareAcknowledgements != null;
+
+        /// <summary>
+        /// Number of calls to <see cref="PrepareAcknowledgementsToSend"/>.
+        /// </summary>
+        public int PrepareCalls => Volatile.Read(ref m_prepareCalls);
+
+        /// <inheritdoc/>
+        public AcknowledgementSelection PrepareAcknowledgementsToSend(
+            List<SubscriptionAcknowledgement> acknowledgements)
+        {
+            Interlocked.Increment(ref m_prepareCalls);
+            (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> deferred) =
+                OnPrepareAcknowledgements?.Invoke(acknowledgements) ?? (acknowledgements, []);
+            return new AcknowledgementSelection(toSend, deferred);
         }
 
         public ValueTask<PublishResponse> PublishAsync(
@@ -170,6 +267,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         private int m_sessionDispatchCount;
+        private int m_prepareCalls;
 
         /// <summary>
         /// Appends a recorded call. Publish workers run on background
@@ -235,6 +333,6 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         private readonly List<PublishCall> m_publishCalls = [];
         private readonly List<TransferCall> m_transferCalls = [];
         private readonly List<DeleteCall> m_deleteCalls = [];
-        private readonly System.Threading.Lock m_recordLock = new();
+        private readonly Lock m_recordLock = new();
     }
 }

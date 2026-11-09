@@ -119,11 +119,11 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
-        public void IssueCommandIsFailClosedByDefault()
+        public async Task IssueCommandIsFailClosedByDefault()
         {
             var connector = new OpenUsdConnector(Session().Object, new MockUsdSink());
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 () => connector.IssueCommandAsync(1.0, CancellationToken.None));
         }
     }

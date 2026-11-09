@@ -44,5 +44,13 @@ namespace Opc.Ua.Client
         /// <see cref="RedundancySupport.None"/> when the server is not redundant.
         /// </summary>
         RedundancySupport RedundancySupport { get; }
+
+        /// <summary>
+        /// The server redundancy snapshot of the last refresh: the redundancy mode, the <c>ServiceLevel</c> of
+        /// the Server in use, the members of the redundant Server set with their resolved endpoints and
+        /// errors, and the status of each redundancy Node read. <see langword="null"/> without a redundancy
+        /// handler or before the first refresh.
+        /// </summary>
+        ServerRedundancyInfo? RedundancyInfo { get; }
     }
 }

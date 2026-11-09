@@ -117,7 +117,6 @@ namespace Opc.Ua.Server.Historian
             {
                 return;
             }
-
             try
             {
                 HistorianContinuationState restoration = state.CreateRestorationCopy();

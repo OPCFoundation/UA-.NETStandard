@@ -30,7 +30,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Client.UserManagement
 {
@@ -49,11 +48,7 @@ namespace Opc.Ua.Client.UserManagement
         /// </summary>
         public UserManagementClient(ISession session)
         {
-            if (session == null)
-            {
-                throw new ArgumentNullException(nameof(session));
-            }
-            Session = session;
+            Session = session ?? throw new ArgumentNullException(nameof(session));
             ObjectId = new NodeId(Objects.UserManagement);
             Proxy = new UserManagementTypeClient(
                 session,
@@ -90,7 +85,7 @@ namespace Opc.Ua.Client.UserManagement
                 BrowseNames.Users,
                 cancellationToken).ConfigureAwait(false);
 
-            var ids = new[]
+            ReadValueId[] ids = new[]
             {
                 new ReadValueId
                 {
@@ -128,9 +123,9 @@ namespace Opc.Ua.Client.UserManagement
                         (UserConfigurationMask)raw.UserConfiguration,
                         string.IsNullOrEmpty(raw.Description) ? null : raw.Description);
                 }
-                return ArrayOf.Wrapped(users).Slice(0, count);
+                return ArrayOf.Wrapped(users)[..count];
             }
-            return ArrayOf<UserManagementUser>.Empty;
+            return [];
         }
 
         /// <inheritdoc/>
@@ -149,12 +144,19 @@ namespace Opc.Ua.Client.UserManagement
             {
                 throw new ArgumentNullException(nameof(password));
             }
-            await Proxy.AddUserAsync(
-                userName,
-                password,
-                (uint)userConfiguration,
-                description ?? string.Empty,
-                cancellationToken).ConfigureAwait(false);
+            SessionRequestContext context =
+                await SessionRequestContext.CaptureConfidentialAsync(Session, cancellationToken).ConfigureAwait(false);
+            await using (context.ConfigureAwait(false))
+            {
+                var proxy = new UserManagementTypeClient(
+                    context.Session, ObjectId, context.Session.MessageContext.Telemetry);
+                await proxy.AddUserAsync(
+                    userName,
+                    password,
+                    (uint)userConfiguration,
+                    description ?? string.Empty,
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
@@ -172,15 +174,31 @@ namespace Opc.Ua.Client.UserManagement
             bool modifyPassword = newPassword != null;
             bool modifyConfig = userConfiguration.HasValue;
             bool modifyDescription = description != null;
-            await Proxy.ModifyUserAsync(
-                userName,
-                modifyPassword,
-                newPassword ?? string.Empty,
-                modifyConfig,
-                (uint)(userConfiguration ?? 0),
-                modifyDescription,
-                description ?? string.Empty,
-                cancellationToken).ConfigureAwait(false);
+            SessionRequestContext? context = modifyPassword
+                ? await SessionRequestContext.CaptureConfidentialAsync(Session, cancellationToken).ConfigureAwait(false)
+                : null;
+            try
+            {
+                UserManagementTypeClient proxy = context == null
+                    ? Proxy
+                    : new UserManagementTypeClient(context.Session, ObjectId, context.Session.MessageContext.Telemetry);
+                await proxy.ModifyUserAsync(
+                    userName,
+                    modifyPassword,
+                    newPassword ?? string.Empty,
+                    modifyConfig,
+                    (uint)(userConfiguration ?? 0),
+                    modifyDescription,
+                    description ?? string.Empty,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (context != null)
+                {
+                    await context.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -209,10 +227,17 @@ namespace Opc.Ua.Client.UserManagement
             {
                 throw new ArgumentNullException(nameof(newPassword));
             }
-            await Proxy.ChangePasswordAsync(
-                oldPassword,
-                newPassword,
-                cancellationToken).ConfigureAwait(false);
+            SessionRequestContext context =
+                await SessionRequestContext.CaptureConfidentialAsync(Session, cancellationToken).ConfigureAwait(false);
+            await using (context.ConfigureAwait(false))
+            {
+                var proxy = new UserManagementTypeClient(
+                    context.Session, ObjectId, context.Session.MessageContext.Telemetry);
+                await proxy.ChangePasswordAsync(
+                    oldPassword,
+                    newPassword,
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
@@ -274,7 +299,7 @@ namespace Opc.Ua.Client.UserManagement
             string browseName,
             CancellationToken cancellationToken)
         {
-            var browsePaths = new[]
+            BrowsePath[] browsePaths = new[]
             {
                 new BrowsePath
                 {
@@ -309,7 +334,7 @@ namespace Opc.Ua.Client.UserManagement
         {
             NodeId propertyId = await ResolveChildAsync(
                 ObjectId, browseName, cancellationToken).ConfigureAwait(false);
-            var ids = new[]
+            ReadValueId[] ids = new[]
             {
                 new ReadValueId
                 {

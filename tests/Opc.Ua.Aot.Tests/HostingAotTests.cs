@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -68,7 +69,7 @@ namespace Opc.Ua.Aot.Tests
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
-            ITelemetryContext telemetry = sp.GetService<ITelemetryContext>();
+            ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
             await Assert.That(telemetry).IsNotNull();
         }
 
@@ -90,7 +91,7 @@ namespace Opc.Ua.Aot.Tests
             using ServiceProvider sp = services.BuildServiceProvider();
 
             IOptions<OpcUaServerOptions> options =
-                sp.GetService<IOptions<OpcUaServerOptions>>();
+                sp.GetRequiredService<IOptions<OpcUaServerOptions>>();
             await Assert.That(options).IsNotNull();
 
             OpcUaServerOptions resolved = options.Value;
@@ -100,7 +101,7 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(resolved.AutoAcceptUntrustedCertificates).IsTrue();
 
             INodeManagerLifecycle lifecycle =
-                sp.GetService<INodeManagerLifecycle>();
+                sp.GetRequiredService<INodeManagerLifecycle>();
             await Assert.That(lifecycle).IsNotNull();
 
             // The hosted service is registered via the AOT-safe
@@ -129,26 +130,26 @@ namespace Opc.Ua.Aot.Tests
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
-            OpcUaClientOptions options = sp.GetService<OpcUaClientOptions>();
+            OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
             await Assert.That(options).IsNotNull();
             await Assert.That(options.Configuration).IsSameReferenceAs(configuration);
 
-            ISessionFactory sessionFactory = sp.GetService<ISessionFactory>();
+            ISessionFactory sessionFactory = sp.GetRequiredService<ISessionFactory>();
             await Assert.That(sessionFactory).IsNotNull();
 
-            ManagedSessionFactory managedFactory = sp.GetService<ManagedSessionFactory>();
+            ManagedSessionFactory managedFactory = sp.GetRequiredService<ManagedSessionFactory>();
             await Assert.That(managedFactory).IsNotNull();
 
             Func<CancellationToken, Task<ManagedSession>> sessionAccessor =
-                sp.GetService<Func<CancellationToken, Task<ManagedSession>>>();
+                sp.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
             await Assert.That(sessionAccessor).IsNotNull();
 
             ReverseConnectManager reverseConnectManager =
-                sp.GetService<ReverseConnectManager>();
+                sp.GetRequiredService<ReverseConnectManager>();
             await Assert.That(reverseConnectManager).IsNotNull();
 
             IReverseConnectConfigurationProvider reverseConnectProvider =
-                sp.GetService<IReverseConnectConfigurationProvider>();
+                sp.GetRequiredService<IReverseConnectConfigurationProvider>();
             await Assert.That(reverseConnectProvider).IsNotNull();
 
             int reverseConnectHostedCount = services.Count(s =>
@@ -183,7 +184,7 @@ namespace Opc.Ua.Aot.Tests
                 sp.GetRequiredService<IOptions<OpcUaServerOptions>>().Value;
             await Assert.That(serverOptions.ApplicationName).IsEqualTo(serverName);
 
-            OpcUaClientOptions clientOptions = sp.GetService<OpcUaClientOptions>();
+            OpcUaClientOptions clientOptions = sp.GetRequiredService<OpcUaClientOptions>();
             await Assert.That(clientOptions).IsNotNull();
             await Assert.That(clientOptions.Configuration)
                 .IsSameReferenceAs(clientConfiguration);
@@ -194,7 +195,7 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(hostedCount).IsEqualTo(1);
 
             Func<CancellationToken, Task<ManagedSession>> sessionAccessor =
-                sp.GetService<Func<CancellationToken, Task<ManagedSession>>>();
+                sp.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
             await Assert.That(sessionAccessor).IsNotNull();
         }
 
@@ -202,12 +203,17 @@ namespace Opc.Ua.Aot.Tests
         public async Task AddRuntimeNodeSetStreamRegistrationIsAotSafeAsync()
         {
             string namespaceUri = fixture.ServerFixture.Server.CurrentInstance
-                .NamespaceUris.GetString(1);
+                .NamespaceUris.GetString(1) ??
+                throw new InvalidOperationException("The server namespace is not registered.");
             string nodeSetXml =
                 "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                 "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
-                "<NamespaceUris><Uri>" + namespaceUri + "</Uri></NamespaceUris>" +
-                "<Models><Model ModelUri=\"" + namespaceUri + "\" /></Models>" +
+                "<NamespaceUris><Uri>" +
+                namespaceUri +
+                "</Uri></NamespaceUris>" +
+                "<Models><Model ModelUri=\"" +
+                namespaceUri +
+                "\" /></Models>" +
                 "<UAObject NodeId=\"ns=1;i=1\" BrowseName=\"1:Root\">" +
                 "<DisplayName>Root</DisplayName></UAObject>" +
                 "</UANodeSet>";
@@ -219,20 +225,17 @@ namespace Opc.Ua.Aot.Tests
                     o.ApplicationName = "AotRuntimeNodeSetServer";
                     o.AutoAcceptUntrustedCertificates = true;
                 })
-                .AddRuntimeNodeSet(options =>
-                {
-                    options.Sources =
+                .AddRuntimeNodeSet(options => options.Sources =
                     [
                         RuntimeNodeSetSource.FromStream(
                             "AOT runtime NodeSet",
                             _ => new ValueTask<Stream>(
                                 new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml))),
                             [namespaceUri])
-                    ];
-                });
+                    ]);
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            IAsyncNodeManagerFactory factory = sp.GetService<IAsyncNodeManagerFactory>();
+            IAsyncNodeManagerFactory factory = sp.GetRequiredService<IAsyncNodeManagerFactory>();
 
             await Assert.That(factory).IsNotNull();
             await Assert.That(factory.NamespacesUris.Count).IsEqualTo(1);
@@ -316,8 +319,8 @@ namespace Opc.Ua.Aot.Tests
                     observations.CertificateValidator = validator;
                     observations.AuthenticatorFactoryCalls++;
                     return new AnonymousAuthenticator();
-                });
-                builder.AddNodeManager<AotCompositionNodeManagerFactory>();
+                })
+                    .AddNodeManager<AotCompositionNodeManagerFactory>();
                 builder.AddNodeManager(new AotValueNodeManagerFactory("urn:aot:composition:instance", 23));
                 builder.AddNodeManagers((services, configuration) =>
                 {
@@ -345,12 +348,13 @@ namespace Opc.Ua.Aot.Tests
                     observations.DelegateCancellationCanBeCanceled = ct.CanBeCanceled;
                     HistoryServerCapabilitiesState history = await context
                         .FindNodeManagers<IDiagnosticsNodeManager>().Single()
-                        .GetDefaultHistoryCapabilitiesAsync(ct).ConfigureAwait(false);
-                    observations.HistoryLimitAtDelegate = history.MaxReturnDataValues.Value;
+                        .GetDefaultHistoryCapabilitiesAsync(ct).ConfigureAwait(false) ??
+                        throw new InvalidOperationException("History capabilities were not initialized.");
+                    observations.HistoryLimitAtDelegate = history.MaxReturnDataValues!.Value;
                     observations.Events.Add("delegate");
                 });
             });
-            await using var cleanup = host.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = host.ConfigureAwait(false);
 
             await Assert.That(observations.FactoryConstructions).IsEqualTo(0);
             await Assert.That(observations.AuthenticatorFactoryCalls).IsEqualTo(0);
@@ -358,8 +362,12 @@ namespace Opc.Ua.Aot.Tests
             await host.StartAsync().ConfigureAwait(false);
 
             await Assert.That(host.Context.CurrentState).IsEqualTo(ServerState.Running);
-            BuildInfo info = ReadAotCompositionValue(host.Context, VariableIds.Server_ServerStatus_BuildInfo)
-                .WrappedValue.GetStructure<BuildInfo>();
+            Variant buildInfo = ReadAotCompositionValue(
+                host.Context, VariableIds.Server_ServerStatus_BuildInfo).WrappedValue;
+            if (!buildInfo.TryGetStructure<BuildInfo>(out BuildInfo? info))
+            {
+                throw new InvalidOperationException("The composed server did not return BuildInfo.");
+            }
             await Assert.That(info.ProductName).IsEqualTo("AOT Composed Product");
             await Assert.That(info.ProductUri).IsEqualTo("urn:aot:composition:product");
             await Assert.That(info.ManufacturerName).IsEqualTo("AOT Composition");
@@ -412,16 +420,17 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(identity.Identity).IsSameReferenceAs(expectedIdentity);
             await Assert.That(observations.AuthenticatedToken).IsSameReferenceAs(token);
             await Assert.That(observations.AuthenticationCalls).IsEqualTo(1);
-            await Assert.That(observations.Configuration.ServerConfiguration.UserTokenPolicies
-                .ToArray().Select(policy => policy.TokenType).SequenceEqual([UserTokenType.Anonymous])).IsTrue();
+            await Assert.That(observations.Configuration.ServerConfiguration!.UserTokenPolicies
+                .ToList().Select(policy => policy.TokenType).SequenceEqual([UserTokenType.Anonymous])).IsTrue();
 
             AliasNameCategoryState category = host.Context
-                .FindPredefinedNode<AliasNameCategoryState>(ObjectIds.TagVariables);
+                .FindPredefinedNode<AliasNameCategoryState>(ObjectIds.TagVariables) ??
+                throw new InvalidOperationException("The composed server did not publish TagVariables.");
             await Assert.That(category.FindAliasVerbose).IsNotNull();
             await Assert.That(category.AddAliasesToCategory).IsNotNull();
             var argumentErrors = new List<ServiceResult>();
             var output = new List<Variant>();
-            ServiceResult result = await category.FindAlias.CallAsync(
+            ServiceResult result = await category.FindAlias!.CallAsync(
                 host.Context.DefaultSystemContext, category.NodeId,
                 [new Variant("Aot%"), new Variant(NodeId.Null)],
                 argumentErrors, output, CancellationToken.None).ConfigureAwait(false);
@@ -458,8 +467,8 @@ namespace Opc.Ua.Aot.Tests
                     return default;
                 });
             });
-            await using var cleanup = host.ConfigureAwait(false);
-            Exception actual = null;
+            await using ConfiguredAsyncDisposable cleanup = host.ConfigureAwait(false);
+            Exception? actual = null;
             try
             {
                 await host.StartAsync().ConfigureAwait(false);
@@ -506,7 +515,8 @@ namespace Opc.Ua.Aot.Tests
             NodeId nodeId = new("Marker", checked((ushort)namespaceIndex));
             BaseVariableState node = context.FindNodeManagers<AotValueNodeManager>()
                 .Select(manager => manager.FindPredefinedNode<BaseVariableState>(nodeId))
-                .Single(value => value != null);
+                .Single(value => value != null) ??
+                throw new InvalidOperationException("The composed manager did not publish a marker.");
             return ReadAotCompositionValue(context, node).WrappedValue.GetInt32();
         }
 
@@ -524,17 +534,21 @@ namespace Opc.Ua.Aot.Tests
             public int MarkerAtFailure { get; set; }
             public uint HistoryLimitAtDelegate { get; set; }
             public bool DelegateCancellationCanBeCanceled { get; set; }
-            public string DefaultStatusText { get; set; }
-            public IServerInternal Server { get; set; }
-            public IServerContext DelegateContext { get; set; }
-            public ApplicationConfiguration Configuration { get; set; }
-            public ICertificateValidatorEx CertificateValidator { get; set; }
-            public UserNameIdentityTokenHandler AuthenticatedToken { get; set; }
-            public AotCompositionObservations ConfigurationDependency { get; set; }
-            public AotCompositionObservations AuthenticatorDependency { get; set; }
-            public AotCompositionObservations ResourceDependency { get; set; }
-            public AotCompositionObservations DelegateDependency { get; set; }
-            public AotValueNodeManager GenericManager { get; set; }
+            public string? DefaultStatusText { get; set; }
+
+            /// <summary>
+            /// Assigned by the registered startup hooks before the post-start assertions use them.
+            /// </summary>
+            public IServerInternal Server { get; set; } = null!;
+            public IServerContext? DelegateContext { get; set; }
+            public ApplicationConfiguration Configuration { get; set; } = null!;
+            public ICertificateValidatorEx? CertificateValidator { get; set; }
+            public UserNameIdentityTokenHandler? AuthenticatedToken { get; set; }
+            public AotCompositionObservations? ConfigurationDependency { get; set; }
+            public AotCompositionObservations? AuthenticatorDependency { get; set; }
+            public AotCompositionObservations? ResourceDependency { get; set; }
+            public AotCompositionObservations? DelegateDependency { get; set; }
+            public AotValueNodeManager GenericManager { get; set; } = null!;
             public List<string> Events { get; } = [];
         }
 
@@ -563,9 +577,10 @@ namespace Opc.Ua.Aot.Tests
                 observations.StartupCalls++;
                 HistoryServerCapabilitiesState history = await server
                     .FindNodeManagers<IDiagnosticsNodeManager>().Single()
-                    .GetDefaultHistoryCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
-                history.MaxReturnDataValues.Value = 67;
-                history.MaxReturnEventValues.Value = 13;
+                    .GetDefaultHistoryCapabilitiesAsync(cancellationToken).ConfigureAwait(false) ??
+                    throw new InvalidOperationException("History capabilities were not initialized.");
+                history.MaxReturnDataValues!.Value = 67;
+                history.MaxReturnEventValues!.Value = 13;
                 observations.Events.Add("generic");
             }
         }
@@ -599,7 +614,7 @@ namespace Opc.Ua.Aot.Tests
         private sealed class AotValueNodeManagerFactory(string namespaceUri, int marker) : IAsyncNodeManagerFactory
         {
             public ArrayOf<string> NamespacesUris => [namespaceUri];
-            public AotValueNodeManager Manager { get; private set; }
+            public AotValueNodeManager? Manager { get; private set; }
 
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
@@ -692,9 +707,15 @@ namespace Opc.Ua.Aot.Tests
                 _ = HostedService;
             }
 
-            public IServerContext Context { get; private set; }
+            /// <summary>
+            /// Initialized by the startup task.
+            /// </summary>
+            public IServerContext Context { get; private set; } = null!;
             public AotCompositionListener Listener { get; } = new();
-            public Task ExecuteTask => HostedService.ExecuteTask;
+
+            public Task ExecuteTask => HostedService.ExecuteTask ??
+                throw new InvalidOperationException("The hosted service has not started.");
+
             private BackgroundService HostedService => m_provider.GetServices<IHostedService>()
                 .OfType<BackgroundService>().Single();
 
@@ -745,8 +766,10 @@ namespace Opc.Ua.Aot.Tests
 
             private readonly string m_root;
             private readonly ServiceProvider m_provider;
+
             private readonly TaskCompletionSource<bool> m_ready =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private bool m_stopped;
         }
 

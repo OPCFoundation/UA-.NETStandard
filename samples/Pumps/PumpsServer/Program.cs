@@ -27,41 +27,107 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Globalization;
+using System.IO;
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.AMB.Server.Configuration;
+using Opc.Ua.Server.FileSystem;
+using Opc.Ua.Server.Historian.InMemory;
 using PumpsSample;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
+builder.Logging.EnableOpcUaRedaction();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int configuredPort)
-    ? configuredPort
-    : 62547;
+int port = 62547;
+if (builder.Configuration["port"] is { } portOption &&
+    (!int.TryParse(portOption, NumberStyles.None, CultureInfo.InvariantCulture, out port) || port is < 1 or > 65535))
+{
+    await Console.Error.WriteLineAsync("--port must be an integer from 1 through 65535.").ConfigureAwait(false);
+    return 2;
+}
+string bindHost = builder.Configuration["host"] ?? "localhost";
+if (Uri.CheckHostName(bindHost) == UriHostNameType.Unknown)
+{
+    await Console.Error.WriteLineAsync("--host must be a host name or IP address.").ConfigureAwait(false);
+    return 2;
+}
+string? pkiRoot = builder.Configuration["pki-root"];
+if (pkiRoot is not null && !Path.IsPathFullyQualified(pkiRoot))
+{
+    await Console.Error.WriteLineAsync("--pki-root must be an absolute path.").ConfigureAwait(false);
+    return 2;
+}
+string? stateRoot = builder.Configuration["state-root"];
+if (stateRoot is not null && !Path.IsPathFullyQualified(stateRoot))
+{
+    await Console.Error.WriteLineAsync("--state-root must be an absolute path.").ConfigureAwait(false);
+    return 2;
+}
+bool autoAccept = true;
+if (builder.Configuration["autoaccept"] is { } acceptOption && !bool.TryParse(acceptOption, out autoAccept))
+{
+    await Console.Error.WriteLineAsync("--autoaccept must be true or false.").ConfigureAwait(false);
+    return 2;
+}
+int runSeconds = 0;
+if (builder.Configuration["run-seconds"] is { } runOption &&
+    (!int.TryParse(runOption, NumberStyles.None, CultureInfo.InvariantCulture, out runSeconds) ||
+        runSeconds is < 1 or > 3600))
+{
+    await Console.Error.WriteLineAsync("--run-seconds must be an integer from 1 through 3600.").ConfigureAwait(false);
+    return 2;
+}
+string endpointUrl = new UriBuilder("opc.tcp", bindHost, port, "/PumpsServer").Uri.AbsoluteUri;
 
 // The fleet creates the pumps once the address space is ready; the
 // simulation writes the live values through the handles it keeps.
 builder.Services.AddSingleton<PumpFleet>();
 builder.Services.AddHostedService<PumpSimulation>();
+builder.Services.AddSingleton<IFileTypeBinder, FileTypeBinder>();
+builder.Services.AddSingleton(_ => new InMemoryHistorianProvider(new InMemoryHistorianOptions
+{
+    RawDataRetentionPeriod = TimeSpan.FromMinutes(5),
+    MaxSamplesPerNode = 300
+}));
+if (stateRoot is not null)
+{
+    builder.Services.AddSingleton<IAssetConfigurationStore>(_ => new FileSystemAssetConfigurationStore(stateRoot));
+}
 
 builder.Services
     .AddOpcUa()
-    .AddServer(options =>
-    {
-        options.ApplicationName = "PumpsServer";
-        options.ApplicationUri = "urn:localhost:OPCFoundation:PumpsServer";
-        options.ProductUri = "uri:opcfoundation.org:PumpsServer";
-        // Sample convenience only; never auto-accept untrusted certificates in production.
-        options.AutoAcceptUntrustedCertificates = true;
-        options.EndpointUrls.Add($"opc.tcp://localhost:{port}/PumpsServer");
-    })
+    .AddServer(
+        options =>
+        {
+            options.ApplicationName = "PumpsServer";
+            options.ApplicationUri = "urn:localhost:OPCFoundation:PumpsServer";
+            options.ProductUri = "uri:opcfoundation.org:PumpsServer";
+            // Sample convenience only; never auto-accept untrusted certificates in production.
+            options.AutoAcceptUntrustedCertificates = autoAccept;
+            if (pkiRoot is not null)
+            {
+                options.PkiRoot = pkiRoot;
+            }
+            options.EndpointUrls.Add(endpointUrl);
+        })
     // AddPumps loads DI, IA, Machinery and Pumps into one node manager and
     // claims the Device Integration address space. A server that already owns
     // DI loads the model into its own manager with nodes.AddOpcUaPumps(context)
-    // instead; see samples/DI/PumpDeviceIntegrationServer.
+    // instead; see samples/Di/PumpDeviceIntegrationServer.
     .AddPumps()
     .ConfigurePumps(context => context.GetRequiredService<PumpFleet>().ConfigureAsync(context));
 
 using IHost host = builder.Build();
-await host.RunAsync().ConfigureAwait(false);
+using var runLifetime = new CancellationTokenSource();
+if (runSeconds > 0)
+{
+    runLifetime.CancelAfter(TimeSpan.FromSeconds(runSeconds));
+}
+await host.RunAsync(runLifetime.Token).ConfigureAwait(false);
+return 0;

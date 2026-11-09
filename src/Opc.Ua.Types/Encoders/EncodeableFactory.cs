@@ -58,7 +58,7 @@ namespace Opc.Ua
     /// by encoders and decoders.
     /// <br/></para>
     /// </summary>
-    public sealed class EncodeableFactory : IEncodeableFactory
+    public sealed partial class EncodeableFactory : IEncodeableFactory
     {
         /// <summary>
         /// Create an empty instance of the encodeable factory.
@@ -90,6 +90,8 @@ namespace Opc.Ua
             => m_encodeableTypes.Keys.Concat(m_enumeratedTypes.Keys);
 
         /// <inheritdoc/>
+        /// <param name="typeId">The type identifier.</param>
+        /// <param name="encodeableType">The encodeable type.</param>
         public bool TryGetEncodeableType(
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out IEncodeableType? encodeableType)
@@ -103,6 +105,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="typeId">The type identifier.</param>
+        /// <param name="enumeratedType">The enumerated type.</param>
         public bool TryGetEnumeratedType(
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out IEnumeratedType? enumeratedType)
@@ -116,6 +120,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="xmlName">The XML name.</param>
+        /// <param name="type">The registered type, when found.</param>
         public bool TryGetType(
             XmlQualifiedName xmlName,
             [NotNullWhen(true)] out IType? type)
@@ -142,7 +148,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public EncodeableFactory Fork()
         {
-            return new EncodeableFactory(this);
+            return CaptureSnapshot(out _, out _);
         }
 
         /// <summary>
@@ -166,7 +172,7 @@ namespace Opc.Ua
         /// <summary>
         /// Factory mutator
         /// </summary>
-        private sealed class EncodeableFactoryBuilder : IEncodeableFactoryBuilder
+        private sealed class EncodeableFactoryBuilder : IAdditiveEncodeableFactoryBuilder
         {
             /// <summary>
             /// Create mutator based on existing factory
@@ -350,22 +356,66 @@ namespace Opc.Ua
             }
 
             /// <summary>
-            /// Build the factory. Returns the original factory if nothing changed.
-            /// Uses a lock free algorithm to update the factory which could be
-            /// rather heavy in case of multiple threads updating the factory at
-            /// the same time. We assume this is a rare case.
+            /// Applies accumulated registrations to the factory. An empty commit does not change the image.
             /// </summary>
             /// <returns></returns>
             public void Commit()
             {
-                CompareExchange(ref m_factory.m_encodeableTypes, m_encodeableTypes);
-                CompareExchange(ref m_factory.m_enumeratedTypes, m_enumeratedTypes);
-                CompareExchange(ref m_factory.m_xmlNameToType, m_xmlNameToType);
+                CommitCore(overwriteExisting: true);
             }
 
-            internal static void CompareExchange<TKey, TValue>(
+            /// <inheritdoc/>
+            public void CommitIfAbsent()
+            {
+                CommitCore(overwriteExisting: false);
+            }
+
+            /// <summary>
+            /// Publishes staged registrations under the factory's commit gate.
+            /// </summary>
+            /// <param name="overwriteExisting">Whether existing mappings can be replaced.</param>
+            private void CommitCore(bool overwriteExisting)
+            {
+                if (m_encodeableTypes.Count == 0 && m_enumeratedTypes.Count == 0 && m_xmlNameToType.Count == 0)
+                {
+                    return;
+                }
+                lock (m_factory.m_publicationGate)
+                {
+                    m_factory.EnsureMutable();
+                    if (!overwriteExisting)
+                    {
+                        foreach (ExpandedNodeId id in m_encodeableTypes.Keys
+                            .Where(m_factory.m_enumeratedTypes.ContainsKey).ToArray())
+                        {
+                            m_encodeableTypes.Remove(id);
+                        }
+                        foreach (ExpandedNodeId id in m_enumeratedTypes.Keys
+                            .Where(id => m_factory.m_encodeableTypes.ContainsKey(id) ||
+                                m_encodeableTypes.ContainsKey(id)).ToArray())
+                        {
+                            m_enumeratedTypes.Remove(id);
+                        }
+                    }
+                    CompareExchange(ref m_factory.m_encodeableTypes, m_encodeableTypes, overwriteExisting);
+                    CompareExchange(ref m_factory.m_enumeratedTypes, m_enumeratedTypes, overwriteExisting);
+                    CompareExchange(ref m_factory.m_xmlNameToType, m_xmlNameToType, overwriteExisting);
+                    m_factory.m_revision++;
+                }
+            }
+
+            /// <summary>
+            /// Merges staged entries into a registration map and clears the staging dictionary.
+            /// </summary>
+            /// <typeparam name="TKey">The registration key type.</typeparam>
+            /// <typeparam name="TValue">The registration value type.</typeparam>
+            /// <param name="target">The published registration map.</param>
+            /// <param name="dictionary">The staged entries.</param>
+            /// <param name="overwriteExisting">Whether existing keys can be replaced.</param>
+            private static void CompareExchange<TKey, TValue>(
                 ref FrozenDictionary<TKey, TValue> target,
-                Dictionary<TKey, TValue> dictionary)
+                Dictionary<TKey, TValue> dictionary,
+                bool overwriteExisting)
                 where TKey : notnull
             {
                 if (dictionary.Count == 0)
@@ -389,7 +439,10 @@ namespace Opc.Ua
                             .ToDictionary(k => k.Key, v => v.Value);
                         foreach (KeyValuePair<TKey, TValue> item in dictionary)
                         {
-                            encodeableTypes[item.Key] = item.Value;
+                            if (overwriteExisting || !encodeableTypes.ContainsKey(item.Key))
+                            {
+                                encodeableTypes[item.Key] = item.Value;
+                            }
                         }
                         // Re-freeze
                         replacement = encodeableTypes.ToFrozenDictionary();
@@ -517,9 +570,12 @@ namespace Opc.Ua
         /// | Frozen     | 621.1 us |  0.86 |        0.94 |
         /// </para>
         /// </summary>
-        private FrozenDictionary<ExpandedNodeId, IEncodeableType> m_encodeableTypes;
-        private FrozenDictionary<ExpandedNodeId, IEnumeratedType> m_enumeratedTypes;
-        private FrozenDictionary<XmlQualifiedName, IType> m_xmlNameToType;
+        private ref FrozenDictionary<ExpandedNodeId, IEncodeableType> m_encodeableTypes
+            => ref m_storage.EncodeableTypes;
+        private ref FrozenDictionary<ExpandedNodeId, IEnumeratedType> m_enumeratedTypes
+            => ref m_storage.EnumeratedTypes;
+        private ref FrozenDictionary<XmlQualifiedName, IType> m_xmlNameToType
+            => ref m_storage.XmlNames;
     }
 
     /// <summary>

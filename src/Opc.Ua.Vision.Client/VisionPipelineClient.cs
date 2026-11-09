@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Client
 {
@@ -47,18 +48,22 @@ namespace Opc.Ua.Vision.Client
         private readonly InferencePipelineTypeClient m_proxy;
 
         internal VisionPipelineClient(
-            VisionClientOperations operations, NodeId pipelineNodeId)
+            VisionClientOperations operations,
+            NodeId pipelineNodeId)
         {
             m_operations = operations
                 ?? throw new ArgumentNullException(nameof(operations));
             if (pipelineNodeId.IsNull)
             {
                 throw new ArgumentException(
-                    "Pipeline NodeId must not be null.", nameof(pipelineNodeId));
+                    "Pipeline NodeId must not be null.",
+                    nameof(pipelineNodeId));
             }
             PipelineNodeId = pipelineNodeId;
             m_proxy = new InferencePipelineTypeClient(
-                m_operations.Session, pipelineNodeId, m_operations.Telemetry);
+                m_operations.Session,
+                pipelineNodeId,
+                m_operations.Telemetry);
         }
 
         /// <summary>
@@ -72,20 +77,25 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ServiceResultException">
+        /// A published pipeline member has a non-Good status or the wrong data type.
+        /// </exception>
         public async Task<VisionPipelineSnapshot> ReadAsync(
             CancellationToken cancellationToken = default)
         {
             string[] members =
             [
-                BrowseNames.PipelineId,
-                BrowseNames.Sensor,
-                BrowseNames.Deployment,
-                BrowseNames.State,
-                BrowseNames.Continuous,
-                BrowseNames.LearningJob
+                Perception.BrowseNames.PipelineId,
+                Perception.BrowseNames.Sensor,
+                Perception.BrowseNames.Deployment,
+                Perception.BrowseNames.State,
+                Perception.BrowseNames.Continuous,
+                Perception.BrowseNames.LearningJob
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                PipelineNodeId, members, cancellationToken).ConfigureAwait(false);
+                PipelineNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
             var toRead = new List<NodeId>();
             for (int ii = 0; ii < nodes.Count; ii++)
             {
@@ -95,41 +105,42 @@ namespace Opc.Ua.Vision.Client
                 }
             }
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                toRead, cancellationToken).ConfigureAwait(false);
+                toRead,
+                cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(values);
             int cursor = 0;
             string? pipelineId = null;
             if (!nodes[0].IsNull)
             {
-                pipelineId = VisionClientOperations.ReadString(values[cursor++]);
+                pipelineId = values[cursor++].WrappedValue.TryGetValue(out string? id) ? id :
+                    throw VisionClientOperations.InvalidMember();
             }
             NodeId sensorId = NodeId.Null;
-            if (!nodes[1].IsNull)
+            if (!nodes[1].IsNull && !values[cursor++].WrappedValue.TryGetValue(out sensorId))
             {
-                VisionClientOperations.TryReadNodeId(values[cursor++], out sensorId);
+                throw VisionClientOperations.InvalidMember();
             }
             NodeId deploymentId = NodeId.Null;
-            if (!nodes[2].IsNull)
+            if (!nodes[2].IsNull && !values[cursor++].WrappedValue.TryGetValue(out deploymentId))
             {
-                VisionClientOperations.TryReadNodeId(values[cursor++], out deploymentId);
+                throw VisionClientOperations.InvalidMember();
             }
             VisionEndpointStateEnum state = default;
-            if (!nodes[3].IsNull)
+            if (!nodes[3].IsNull && !VisionClientOperations.TryReadEnum(values[cursor++], out state))
             {
-                VisionClientOperations.TryReadEnum(values[cursor++], out state);
+                throw VisionClientOperations.InvalidMember();
             }
             bool continuous = false;
             if (!nodes[4].IsNull)
             {
                 DataValue value = values[cursor++];
-                if (value.WrappedValue.TryGetValue(out bool b))
-                {
-                    continuous = b;
-                }
+                continuous = value.WrappedValue.TryGetValue(out bool b) ? b :
+                    throw VisionClientOperations.InvalidMember();
             }
             NodeId learningJobId = NodeId.Null;
-            if (!nodes[5].IsNull)
+            if (!nodes[5].IsNull && !values[cursor++].WrappedValue.TryGetValue(out learningJobId))
             {
-                VisionClientOperations.TryReadNodeId(values[cursor++], out learningJobId);
+                throw VisionClientOperations.InvalidMember();
             }
             return new VisionPipelineSnapshot
             {
@@ -150,21 +161,29 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ServiceResultException">
+        /// The published pipeline state has a non-Good status or the wrong data type.
+        /// </exception>
         public async Task<VisionEndpointStateEnum> ReadStateAsync(
             CancellationToken cancellationToken = default)
         {
             NodeId node = await m_operations.ResolveChildAsync(
-                PipelineNodeId, BrowseNames.State, cancellationToken).ConfigureAwait(false);
+                PipelineNodeId,
+                Perception.BrowseNames.State,
+                cancellationToken).ConfigureAwait(false);
             if (node.IsNull)
             {
                 return default;
             }
             DataValue value = await m_operations.ReadValueAsync(
-                node, cancellationToken).ConfigureAwait(false);
+                node,
+                cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(value);
             return VisionClientOperations.TryReadEnum(
-                value, out VisionEndpointStateEnum result)
+                value,
+                out VisionEndpointStateEnum result)
                 ? result
-                : default;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         /// <summary>
@@ -184,7 +203,8 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             return await m_proxy.RunInferenceAsync(
-                timestamp, cancellationToken).ConfigureAwait(false);
+                timestamp,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -267,23 +287,26 @@ namespace Opc.Ua.Vision.Client
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             FolderTypeClient? folder = await m_proxy.GetResultsAsync(
-                m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
+                m_operations.Telemetry,
+                cancellationToken).ConfigureAwait(false);
             NodeId folderId = folder is null ? NodeId.Null : folder.ObjectId;
             if (folderId.IsNull)
             {
                 yield break;
             }
             NodeId resultType = m_operations.VisionNamespaceType(
-                ObjectTypes.VisionResultType);
+                Perception.ObjectTypes.VisionResultType);
             ArrayOf<ReferenceDescription> refs = await m_operations
                 .BrowseHierarchicalObjectsAsync(folderId, cancellationToken)
                 .ConfigureAwait(false);
             for (int ii = 0; ii < refs.Count; ii++)
             {
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
-                    refs[ii].NodeId, m_operations.Session.NamespaceUris);
-                NodeId typeDef = ExpandedNodeId.ToNodeId(
-                    refs[ii].TypeDefinition, m_operations.Session.NamespaceUris);
+                var nodeId = ExpandedNodeId.ToNodeId(
+                    refs[ii].NodeId,
+                    m_operations.Session.NamespaceUris);
+                var typeDef = ExpandedNodeId.ToNodeId(
+                    refs[ii].TypeDefinition,
+                    m_operations.Session.NamespaceUris);
                 if (nodeId.IsNull || typeDef.IsNull)
                 {
                     continue;
@@ -296,7 +319,10 @@ namespace Opc.Ua.Vision.Client
                     continue;
                 }
                 yield return new VisionNodeEntry(
-                    nodeId, refs[ii].BrowseName, refs[ii].DisplayName, typeDef);
+                    nodeId,
+                    refs[ii].BrowseName,
+                    refs[ii].DisplayName,
+                    typeDef);
             }
         }
 
@@ -311,7 +337,8 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             VisionFeedbackTypeClient? feedback = await m_proxy.GetFeedbackAsync(
-                m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
+                m_operations.Telemetry,
+                cancellationToken).ConfigureAwait(false);
             NodeId feedbackId = feedback is null ? NodeId.Null : feedback.ObjectId;
             return feedbackId.IsNull ? null : new VisionFeedbackClient(m_operations, feedbackId);
         }

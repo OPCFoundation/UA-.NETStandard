@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -78,7 +78,7 @@ namespace Opc.Ua.Vision.Tests
             SubmitInspectionResultMethodStateResult result = await harness.InvokeSubmitInspection(
                 resultId: "r-1",
                 evaluation: VisionResultEvaluationEnum.Ok,
-                characteristics: ArrayOf<VisionCharacteristicDataType>.Empty).ConfigureAwait(false);
+                characteristics: []).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
                 "Without a feedback sink the dispatcher must refuse the call with BadNotSupported — " +
@@ -136,7 +136,7 @@ namespace Opc.Ua.Vision.Tests
             SubmitInspectionResultMethodStateResult result = await harness.InvokeSubmitInspection(
                 resultId: "r-1",
                 evaluation: VisionResultEvaluationEnum.Ok,
-                characteristics: ArrayOf<VisionCharacteristicDataType>.Empty).ConfigureAwait(false);
+                characteristics: []).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied),
                 "The dispatcher must not rewrite a sink's own failure code; the sink is the domain owner.");
@@ -156,7 +156,7 @@ namespace Opc.Ua.Vision.Tests
             SubmitInspectionResultMethodStateResult result = await harness.InvokeSubmitInspection(
                 resultId: "r-1",
                 evaluation: VisionResultEvaluationEnum.Ok,
-                characteristics: ArrayOf<VisionCharacteristicDataType>.Empty).ConfigureAwait(false);
+                characteristics: []).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInternalError),
                 "A sink exception must be mapped to BadInternalError so the caller sees a clean failure code.");
@@ -176,7 +176,7 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(async () => await harness.InvokeSubmitInspection(
                     resultId: "r-1",
                     evaluation: VisionResultEvaluationEnum.Ok,
-                    characteristics: ArrayOf<VisionCharacteristicDataType>.Empty).ConfigureAwait(false),
+                    characteristics: []).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>(),
                 "The dispatcher must let OperationCanceledException flow through so cooperative cancellation is honoured.");
         }

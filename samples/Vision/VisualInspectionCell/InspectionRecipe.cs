@@ -29,7 +29,7 @@
 
 using System.Collections.Generic;
 using Opc.Ua;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Vision.VisualInspectionCell
 {

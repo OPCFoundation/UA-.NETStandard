@@ -2,6 +2,7 @@
 //   server --port <p> --pki <dir> [--kind interop] [--autoaccept true|false] [--init-only true]
 //   client --url <u> --pki <dir> [--policy <uri>] [--mode <m>] [--user u --password p]
 //          [--checks a,b] [--expect-connect-error A,B] [--timeout-seconds N]
+import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { createRequire } from "node:module";
@@ -545,11 +546,21 @@ const CHECKS = {
         throw new Error("a session with a wrong password was activated");
     },
     async X509UserToken(c) {
-        const privateKey = await generatePrivateKey(2048);
-        const { privPem } = await privateKeyToPEM(privateKey);
-        const { cert } = await createSelfSignedCertificate({ privateKey, subject: "/CN=InteropUser/O=OPC Foundation",
-            purpose: CertificatePurpose.ForUserAuthentication, validity: 365 });
-        const session = await c.client.createSession({ type: UserTokenType.Certificate, certificateData: convertPEMtoDER(cert), privateKey: privPem });
+        // The user certificate the harness trusts on the server (DER + PKCS#8 PEM);
+        // without those options a new self-signed one.
+        let certificateData, privPem;
+        const certPath = c.options["x509-user-cert-der"], keyPath = c.options["x509-user-key-pem"];
+        if (certPath && keyPath) {
+            certificateData = fs.readFileSync(certPath);
+            privPem = fs.readFileSync(keyPath, "utf8");
+        } else {
+            const privateKey = await generatePrivateKey(2048);
+            ({ privPem } = await privateKeyToPEM(privateKey));
+            const { cert } = await createSelfSignedCertificate({ privateKey, subject: "/CN=InteropUser/O=OPC Foundation",
+                purpose: CertificatePurpose.ForUserAuthentication, validity: 365 });
+            certificateData = convertPEMtoDER(cert);
+        }
+        const session = await c.client.createSession({ type: UserTokenType.Certificate, certificateData, privateKey: privPem });
         try {
             const state = await session.read({ nodeId: resolveNodeId("Server_ServerStatus_State"), attributeId: AttributeIds.Value });
             require_(state.statusCode.isGood(), "reading with the X509 user returned " + state.statusCode.toString());

@@ -99,27 +99,27 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void DecodeRequestRejectsMalformedBody()
+        public async Task DecodeRequestRejectsMalformedBody()
         {
             var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             byte[] junk = Encoding.UTF8.GetBytes("this is not json");
             using var stream = new MemoryStream(junk);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await JsonRequestMapper.DecodeRequestAsync(stream, context, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadDecodingError));
         }
 
         [Test]
-        public void DecodeRequestRejectsEmptyBody()
+        public async Task DecodeRequestRejectsEmptyBody()
         {
             var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             using var stream = new MemoryStream([]);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await JsonRequestMapper.DecodeRequestAsync(stream, context, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadDecodingError));
         }
 
@@ -234,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void DecodeRequestEnforcesMaxMessageSize()
+        public async Task DecodeRequestEnforcesMaxMessageSize()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var smallContext = ServiceMessageContext.Create(telemetry);
@@ -254,23 +254,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             // The body is now bounded by MaxMessageSize at read time (before
             // decode), so an oversized body is rejected with BadRequestTooLarge
             // rather than buffered in full and rejected by the decoder.
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await JsonRequestMapper
                     .DecodeRequestAsync(stream, smallContext, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTooLarge));
         }
 
         [Test]
-        public void ReadAllBoundedRejectsBodyExceedingMaxLength()
+        public async Task ReadAllBoundedRejectsBodyExceedingMaxLength()
         {
             byte[] body = new byte[1024];
             using var stream = new MemoryStream(body);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await JsonRequestMapper
                     .ReadAllBoundedAsync(stream, 256, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTooLarge));
         }
 
@@ -317,23 +317,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void DecodeRequestThrowsOnNullArguments()
+        public async Task DecodeRequestThrowsOnNullArguments()
         {
             var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             using var stream = new MemoryStream();
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await JsonRequestMapper
                     .DecodeRequestAsync(null!, context, CancellationToken.None)
                     .ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await JsonRequestMapper
                     .DecodeRequestAsync(stream, null!, CancellationToken.None)
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void DecodeRequestPropagatesCancellation()
+        public async Task DecodeRequestPropagatesCancellation()
         {
             var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             using var cts = new CancellationTokenSource();
@@ -342,7 +342,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             // A stream that always observes the cancellation token before
             // completing its read - models a network stream with no buffered bytes.
             using var stream = new CancellableStream();
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await JsonRequestMapper
                     .DecodeRequestAsync(stream, context, cts.Token)
                     .ConfigureAwait(false));

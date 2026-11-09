@@ -40,6 +40,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
@@ -73,6 +74,7 @@ namespace Opc.Ua.Server.Hosting
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
         private StandardServer? m_server;
+        private readonly Lock m_serverDisposalLock = new();
         private bool m_ownsApplication;
 
         /// <summary>
@@ -141,6 +143,7 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
+        /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             try
@@ -261,6 +264,7 @@ namespace Opc.Ua.Server.Hosting
                 m_services.GetService<ServerComplexTypeOptions>();
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
+            m_services.GetService<ServerApplicationCertificateActivator>()?.Attach(m_server);
             m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
             if (m_server is not DependencyInjectionStandardServer)
             {
@@ -282,6 +286,10 @@ namespace Opc.Ua.Server.Hosting
             }
 
             m_server.SessionManagerFactory = m_services.GetService<ISessionManagerFactory>();
+            if (m_services.GetService<EventIdentityAdmissionOptions>() is { } eventIdentityOptions)
+            {
+                m_server.EventIdentityAdmissionOptions = eventIdentityOptions;
+            }
             m_server.RedundantServerSetProvider = m_services.GetService<IRedundantServerSetProvider>();
             m_server.GetEndpointsDirector = m_services.GetService<IGetEndpointsDirector>();
             m_server.SubscriptionStore = m_services.GetService<ISubscriptionStore>();
@@ -317,7 +325,7 @@ namespace Opc.Ua.Server.Hosting
             {
                 m_server.ChunkReassemblyBudget = chunkReassemblyBudget;
             }
-            if (m_services.GetService<ISessionBindingProvider>() is { } sessionBindingProvider)
+            if (m_services.GetService<IServerSessionBindingProvider>() is { } sessionBindingProvider)
             {
                 m_server.SessionBindingProvider = sessionBindingProvider;
             }
@@ -408,6 +416,7 @@ namespace Opc.Ua.Server.Hosting
                 OpcUaServerApplicationConfigurationFeature.Configure(
                     m_application.Build(m_options.ApplicationUri, m_options.ProductUri),
                     m_options);
+            ApplyDependencyInjectedCertificateManager(certificateManager);
             ArrayOf<CertificateIdentifier> certificates =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     subject,
@@ -423,7 +432,6 @@ namespace Opc.Ua.Server.Hosting
                     m_options.MinCertificateKeySize);
             }
 
-            ApplyDependencyInjectedCertificateManager(certificateManager);
             await securityOptions.CreateAsync(ct).ConfigureAwait(false);
         }
 
@@ -680,7 +688,7 @@ namespace Opc.Ua.Server.Hosting
                 return;
             }
 
-            m_application.ApplicationConfiguration.CertificateManager = certificateManager;
+            m_application.ApplicationConfiguration.SetBorrowedCertificateManager(certificateManager);
         }
 
         private static async Task<bool> HasApplicationCertificateAsync(
@@ -798,11 +806,6 @@ namespace Opc.Ua.Server.Hosting
 
         private async ValueTask StopApplicationAsync(CancellationToken cancellationToken)
         {
-            if (m_server is not null)
-            {
-                m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
-            }
-
             IApplicationInstance? application = Interlocked.Exchange(ref m_application, null);
             if (application != null)
             {
@@ -826,24 +829,56 @@ namespace Opc.Ua.Server.Hosting
                     }
                     finally
                     {
-                        m_server?.Dispose();
-                        m_server = null;
+                        DisposeServer();
                     }
                 }
             }
         }
 
         /// <summary>
-        /// Detaches the node-manager lifecycle and disposes the server and background service.
+        /// Disposes the server before detaching its lifecycle and disposing the background service.
         /// </summary>
         public override void Dispose()
         {
-            if (m_server is not null)
+            try
             {
-                m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
+                DisposeServer();
             }
-            m_server?.Dispose();
-            base.Dispose();
+            finally
+            {
+                base.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Detaches the server lifecycle, disposes the server and releases the reference.
+        /// </summary>
+        /// <remarks>
+        /// The hosted lifecycle is detached even when disposal fails, because the server no
+        /// longer runs. The hosted-service disposal and the cancelled execution can both reach
+        /// this method, so disposal is serialized. A failed server disposal keeps its remaining
+        /// resources, so the server stays referenced until a later disposal succeeds.
+        /// </remarks>
+        private void DisposeServer()
+        {
+            lock (m_serverDisposalLock)
+            {
+                if (m_server is null)
+                {
+                    return;
+                }
+
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                try
+                {
+                    m_server.Dispose();
+                    m_server = null;
+                }
+                finally
+                {
+                    m_nodeManagerLifecycle.Detach(lifecycle);
+                }
+            }
         }
     }
 
@@ -867,7 +902,9 @@ namespace Opc.Ua.Server.Hosting
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 1, Level = LogLevel.Information,
             Message = "OPC UA server listening at {Endpoint}.")]
-        public static partial void OPCUAServerListeningAtEndpoint(this ILogger logger, string endpoint);
+        public static partial void OPCUAServerListeningAtEndpoint(
+            this ILogger logger,
+            [NetworkAddress] string endpoint);
 
         /// <summary>
         /// Logs a configured user token policy that lacks a matching identity authenticator.
@@ -899,7 +936,7 @@ namespace Opc.Ua.Server.Hosting
             Message = "Loading OPC UA server configuration from file {ConfigurationFile}.")]
         public static partial void LoadingOPCUAServerConfigurationFromFile(
             this ILogger logger,
-            string configurationFile);
+            [FilePath] string configurationFile);
 
         /// <summary>
         /// Logs loading of the OPC UA server configuration from a stream.

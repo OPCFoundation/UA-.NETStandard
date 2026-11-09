@@ -317,7 +317,7 @@ namespace Opc.Ua.Server.Tests
                 await store.AddAsync(selfSigned, ct: CancellationToken.None).ConfigureAwait(false);
             }
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
                         trustedStore,
                         issuerStore,
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
                         trustedStore,
                         issuerStore,
@@ -374,7 +374,7 @@ namespace Opc.Ua.Server.Tests
                 await store.AddAsync(ca, ct: CancellationToken.None).ConfigureAwait(false);
             }
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
                         trustedStore,
                         issuerStore,
@@ -436,7 +436,7 @@ namespace Opc.Ua.Server.Tests
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
                         trustedStore, issuerStore, scope.Name, issued, new SecurityConfiguration(),
                         s_telemetry, CancellationToken.None, manager).ConfigureAwait(false));
@@ -452,7 +452,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidateCertificateAgainstGroupTrustListAsyncRejectsACaSignedCertificateWhoseCaIsNotInstalled()
+        public async Task ValidateCertificateAgainstGroupTrustListAsyncRejectsACaSignedCertificateWhoseCaIsNotInstalled()
         {
             // OPC 10000-4 Table 100: "Build Certificate Chain ... An error
             // during the chain creation may not be suppressed." The issuer
@@ -463,7 +463,7 @@ namespace Opc.Ua.Server.Tests
             using Certificate ca = CreateCa("CN=Uninstalled CA ");
             using Certificate issued = CreateIssued(ca);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
                         trustedStore,
                         issuerStore,
@@ -478,14 +478,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidateCertificateAgainstGroupTrustListAsyncThrowsForNullTrustedStore()
+        public async Task ValidateCertificateAgainstGroupTrustListAsyncThrowsForNullTrustedStore()
         {
             using Certificate certificate = CertificateBuilder
                 .Create("CN=Guard Clause Test")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
                         null!,
                         null,

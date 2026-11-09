@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void TypeInheritanceCyclesAreRejectedBeforeRegistration()
+        public async Task TypeInheritanceCyclesAreRejectedBeforeRegistration()
         {
             string xml = $"""
                 <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
@@ -188,7 +188,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 </UANodeSet>
                 """;
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
                     CreateOptions(kSourceNamespaceUri, xml), null).ConfigureAwait(false));
 

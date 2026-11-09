@@ -151,7 +151,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(
                 endpoints.ToArray(),
                 Has.Some.Matches<EndpointDescription>(
-                    ep => string.Equals(
+                    ep => ep is not null && string.Equals(
                         ep.TransportProfileUri,
                         Profiles.UaWssTransport,
                         StringComparison.Ordinal)));
@@ -210,7 +210,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        public void UpdateBeforeConnectRejectsUntrustedDiscoveryCertificate()
+        public async Task UpdateBeforeConnectRejectsUntrustedDiscoveryCertificate()
         {
             ICertificateValidatorEx certificateManager = m_clientFixture.Config.CertificateManager;
             Func<Certificate, ServiceResult, bool>? previousAcceptError = certificateManager.AcceptError;
@@ -234,7 +234,7 @@ namespace Opc.Ua.Sessions.Tests
                 // fed by the CertificateManager) and proves the application's
                 // certificate validator is actually consulted rather than a
                 // non-certificate-aware fallback path.
-                Exception ex = Assert.CatchAsync(
+                Exception ex = await Assert.CatchAsync(
                     async () => await m_clientFixture.SessionFactory
                         .CreateAsync(
                             m_clientFixture.Config,

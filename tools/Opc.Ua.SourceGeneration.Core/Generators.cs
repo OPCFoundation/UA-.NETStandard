@@ -225,7 +225,8 @@ namespace Opc.Ua.SourceGeneration
                 // reference, exactly as in fluent-accessors-only mode.
                 bool accessorsOnly = options.FluentAccessorsOnly ||
                     (targetProvidedByReference && boundToNodeManager);
-                if (targetProvidedByReference && !accessorsOnly)
+                ValidateClientAccessorsOnly(options, targetProvidedByReference, boundToNodeManager, target?.Value);
+                if (targetProvidedByReference && !accessorsOnly && !options.ClientAccessorsOnly)
                 {
                     continue;
                 }
@@ -285,7 +286,7 @@ namespace Opc.Ua.SourceGeneration
                 // assembly, that assembly carries its event records too.
                 // Emitting them again here would duplicate every record
                 // type the reference already exports (CS0436).
-                if (!options.OmitEventRecords && !accessorsOnly)
+                if (!options.OmitEventRecords && !accessorsOnly && !options.ClientAccessorsOnly)
                 {
                     new EventRecordGenerator(context).Emit();
                 }
@@ -992,7 +993,8 @@ namespace Opc.Ua.SourceGeneration
                     totalDesigns) != null;
                 bool accessorsOnly = options.FluentAccessorsOnly ||
                     (targetProvidedByReference && boundToNodeManager);
-                if (targetProvidedByReference && !accessorsOnly)
+                ValidateClientAccessorsOnly(options, targetProvidedByReference, boundToNodeManager, modelUri);
+                if (targetProvidedByReference && !accessorsOnly && !options.ClientAccessorsOnly)
                 {
                     continue;
                 }
@@ -1003,7 +1005,7 @@ namespace Opc.Ua.SourceGeneration
                 };
                 IReadOnlyDictionary<string, Dependency.ModelDependencyV1>
                     validationDependencies = referencedDependencies;
-                if (accessorsOnly &&
+                if ((accessorsOnly || options.ClientAccessorsOnly) &&
                     referencedDependencies.ContainsKey(modelUri))
                 {
                     Dictionary<string, Dependency.ModelDependencyV1> dependenciesWithoutTarget =
@@ -1076,7 +1078,7 @@ namespace Opc.Ua.SourceGeneration
                 // assembly, that assembly carries its event records too.
                 // Emitting them again here would duplicate every record
                 // type the reference already exports (CS0436).
-                if (!options.OmitEventRecords && !accessorsOnly)
+                if (!options.OmitEventRecords && !accessorsOnly && !options.ClientAccessorsOnly)
                 {
                     new EventRecordGenerator(context).Emit();
                 }
@@ -1273,6 +1275,32 @@ namespace Opc.Ua.SourceGeneration
             }.Emit();
         }
 
+        /// <summary>
+        /// Rejects client accessor generation without its model producer or with conflicting output modes.
+        /// </summary>
+        private static void ValidateClientAccessorsOnly(
+            GeneratorOptions options,
+            bool targetProvidedByReference,
+            bool boundToNodeManager,
+            string? modelUri)
+        {
+            if (!options.ClientAccessorsOnly)
+            {
+                return;
+            }
+            if (!targetProvidedByReference)
+            {
+                throw new InvalidOperationException(
+                    $"Client accessor-only generation requires a referenced producer for model '{modelUri}' " +
+                    "with the same C# prefix.");
+            }
+            if (options.FluentAccessorsOnly || boundToNodeManager)
+            {
+                throw new InvalidOperationException(
+                    "Client accessor-only generation cannot be combined with fluent accessors or a node manager.");
+            }
+        }
+
         private static void Generate(
             GeneratorContext context,
             bool validateSchemas = false,
@@ -1285,6 +1313,12 @@ namespace Opc.Ua.SourceGeneration
             // put the check on the hot path for little gain.
             CancellationToken ct = context.Options?.Cancellation ?? default;
             ct.ThrowIfCancellationRequested();
+
+            if (context.Options?.ClientAccessorsOnly == true)
+            {
+                new ClientAccessorGenerator(context).Emit();
+                return;
+            }
 
             // The model types live in a referenced assembly: emit the
             // fluent surface over them, and the node manager when one was

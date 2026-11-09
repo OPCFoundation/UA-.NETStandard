@@ -1233,6 +1233,71 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.True);
         }
 
+        /// <summary>
+        /// A transaction controls model-change aggregation even when cleanup fails after node deletion commits.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task ScopedRuntimeDeletionPreservesTheSelectedModelChangePolicyAsync(
+            bool emitModelChange,
+            bool cleanupFails)
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("ScopedParent").ConfigureAwait(false);
+            (ServiceResult added, NodeId childId) = await h.Manager.AddNodeAsync(
+                h.OperationContext,
+                new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("ScopedChild", ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = ObjectTypeIds.BaseObjectType
+                }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(added), Is.True);
+            PropertyState<string> version = h.Manager.EnableModelChangeTrackingFor(
+                h.Manager.PredefinedNodes[parentId]);
+            string before = version.Value;
+            h.MockServer.Invocations.Clear();
+
+            if (cleanupFails)
+            {
+                h.Manager.PredefinedNodes[childId].AddReference(
+                    ReferenceTypeIds.Organizes, false, new NodeId("ExternalTarget", ns));
+                var failure = new InvalidOperationException("Injected reference cleanup failure.");
+                h.MockMasterNodeManager
+                    .Setup(m => m.RemoveReferencesAsync(
+                        It.IsAny<List<LocalReference>>(), It.IsAny<CancellationToken>()))
+                    .Throws(failure);
+
+                await Assert.ThatAsync(
+                    async () => await h.Manager.DeleteNodeAsync(
+                        h.Context, childId, emitModelChange, CancellationToken.None).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>().And.SameAs(failure)).ConfigureAwait(false);
+            }
+            else
+            {
+                bool deleted = await h.Manager.DeleteNodeAsync(
+                    h.Context, childId, emitModelChange, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(deleted, Is.True);
+            }
+
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(childId), Is.False);
+            Assert.That(version.Value != before, Is.EqualTo(emitModelChange));
+            List<ModelChangeStructureDataType> changes = GetReportedModelChanges(h);
+            Assert.That(changes, Has.Count.EqualTo(emitModelChange ? 1 : 0));
+            if (emitModelChange)
+            {
+                Assert.That(changes[0].Affected, Is.EqualTo(parentId));
+                Assert.That(changes[0].Verb, Is.EqualTo((byte)ModelChangeVerbs.ReferenceDeleted));
+            }
+            Assert.That(h.Manager.ModelChangeEmissionEnabled, Is.True,
+                "A per-call choice must not mutate the policy of concurrent operations.");
+        }
+
         [Test]
         public async Task AddNodeCreatesMandatoryInstanceDeclarationsAsync()
         {

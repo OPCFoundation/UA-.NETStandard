@@ -49,6 +49,12 @@ namespace Opc.Ua.Machinery.Client
             NodeId machineryItem,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null &&
+                !TryGetNamespaceIndex(Namespaces.Machinery, out _))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return null;
+            }
             NodeId identification = await ResolveIdentificationAsync(
                 machineryItem,
                 cancellationToken).ConfigureAwait(false);
@@ -57,9 +63,9 @@ namespace Opc.Ua.Machinery.Client
                 return null;
             }
 
-            ushort diNamespaceIndex = NamespaceIndexOf(Opc.Ua.Di.Namespaces.OpcUaDi);
+            ushort diNamespaceIndex = NamespaceIndexOf(Di.Namespaces.OpcUaDi);
             ushort machineryNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Namespaces.Machinery);
+                Namespaces.Machinery);
 
             var properties = new (string Key, QualifiedName Name)[]
             {
@@ -103,71 +109,39 @@ namespace Opc.Ua.Machinery.Client
                         machineryNamespaceIndex))
             };
 
-            var paths = new BrowsePath[properties.Length];
+            var names = new QualifiedName[properties.Length];
             for (int ii = 0; ii < properties.Length; ii++)
             {
-                paths[ii] = new BrowsePath
-                {
-                    StartingNode = identification,
-                    RelativePath = new RelativePath
-                    {
-                        Elements =
-                        [
-                            new RelativePathElement
-                            {
-                                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasProperty,
-                                IsInverse = false,
-                                IncludeSubtypes = true,
-                                TargetName = properties[ii].Name
-                            }
-                        ]
-                    }
-                };
+                names[ii] = properties[ii].Name;
             }
-
-            TranslateBrowsePathsToNodeIdsResponse translated = await Session
-                .TranslateBrowsePathsToNodeIdsAsync(null, paths.ToArrayOf(), cancellationToken)
+            ReadValueSet fields = await ReadChildValuesAsync(
+                identification, names.ToArrayOf(), ReferenceTypeIds.HasProperty, cancellationToken)
                 .ConfigureAwait(false);
-
-            var indices = new List<int>();
-            var reads = new List<ReadValueId>();
-            for (int ii = 0; ii < translated.Results.Count; ii++)
-            {
-                BrowsePathResult result = translated.Results[ii];
-                if (StatusCode.IsGood(result.StatusCode) && result.Targets.Count > 0)
-                {
-                    reads.Add(new ReadValueId
-                    {
-                        NodeId = ExpandedNodeId.ToNodeId(
-                            result.Targets[0].TargetId,
-                            Session.NamespaceUris),
-                        AttributeId = Attributes.Value
-                    });
-                    indices.Add(ii);
-                }
-            }
-
+            fields.RequirePresent(names[0]);
+            fields.RequirePresent(names[1]);
             var values = new Dictionary<string, Variant>(StringComparer.Ordinal);
-            if (reads.Count > 0)
+            for (int ii = 0; ii < properties.Length; ii++)
             {
-                ReadResponse read = await Session.ReadAsync(
-                    requestHeader: null,
-                    maxAge: 0,
-                    timestampsToReturn: TimestampsToReturn.Neither,
-                    nodesToRead: reads.ToArray().ToArrayOf(),
-                    ct: cancellationToken).ConfigureAwait(false);
-
-                for (int ii = 0; ii < read.Results.Count && ii < indices.Count; ii++)
+                if (fields.TryGetValue(names[ii], out Variant value))
                 {
-                    if (StatusCode.IsGood(read.Results[ii].StatusCode))
+                    BuiltInType type = properties[ii].Key switch
                     {
-                        values[properties[indices[ii]].Key] = read.Results[ii].WrappedValue;
-                    }
+                        nameof(MachineIdentification.Manufacturer) or
+                        nameof(MachineIdentification.Model) or
+                        nameof(MachineIdentification.ComponentName) => BuiltInType.LocalizedText,
+                        nameof(MachineIdentification.InitialOperationDate) => BuiltInType.DateTime,
+                        nameof(MachineIdentification.YearOfConstruction) => BuiltInType.UInt16,
+                        nameof(MachineIdentification.MonthOfConstruction) => BuiltInType.Byte,
+                        _ => BuiltInType.String
+                    };
+                    fields.RequireType(names[ii], HasType(value, type));
+                    values[properties[ii].Key] = value;
                 }
             }
 
             return new MachineIdentification
             {
+                Values = fields.Values,
                 Manufacturer = GetLocalizedText(values, nameof(MachineIdentification.Manufacturer)),
                 SerialNumber = GetString(values, nameof(MachineIdentification.SerialNumber)),
                 ProductInstanceUri = GetString(

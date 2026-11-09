@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 // TODO: RCS1256 — needs polyfill for net48
@@ -46,7 +47,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class SessionManager : ISessionManager, ISessionBindingProvider
+    public class SessionManager : ISessionManager, IServerSessionBindingProvider
     {
         /// <summary>
         /// Initializes the manager with its configuration.
@@ -73,6 +74,18 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             TimeProvider? timeProvider)
+            : this(server, configuration, timeProvider, sessionMonitorWorkerDecorator: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the manager with a decorator for the real session-monitor worker task.
+        /// </summary>
+        internal SessionManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            TimeProvider? timeProvider,
+            Func<Task, Task>? sessionMonitorWorkerDecorator)
         {
             if (configuration == null)
             {
@@ -84,6 +97,7 @@ namespace Opc.Ua.Server
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<SessionManager>();
+            m_sessionMonitorWorkerDecorator = sessionMonitorWorkerDecorator;
 
             m_minSessionTimeout = configuration.ServerConfiguration!.MinSessionTimeout;
             m_maxSessionTimeout = configuration.ServerConfiguration.MaxSessionTimeout;
@@ -131,6 +145,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets the cancellation token owned by the running session monitor.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The session monitor is not running.</exception>
+        internal CancellationToken SessionMonitorCancellationToken =>
+            (m_workerCts ?? throw new InvalidOperationException("The session monitor is not running.")).Token;
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -149,8 +170,13 @@ namespace Opc.Ua.Server
                 // Unsubscribe from RoleManager configuration events before
                 // tearing down sessions to avoid late-stage callbacks racing
                 // with disposal.
-                IRoleManager? subscribed = Interlocked.Exchange(ref m_subscribedRoleManager, null);
-                subscribed?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+                lock (m_roleSubscriptionLock)
+                {
+                    m_roleSubscriptionDisposed = true;
+                    IRoleManager? subscribed = m_subscribedRoleManager;
+                    m_subscribedRoleManager = null;
+                    subscribed?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+                }
 
                 CloseAllSessions();
 
@@ -185,7 +211,8 @@ namespace Opc.Ua.Server
                 m_workerCts?.Dispose();
                 m_workerCts = new CancellationTokenSource();
 
-                m_monitorWorkerTask = StartSessionMonitor(m_workerCts.Token);
+                Task worker = StartSessionMonitor(m_workerCts.Token);
+                m_monitorWorkerTask = m_sessionMonitorWorkerDecorator is { } decorate ? decorate(worker) : worker;
             }
             finally
             {
@@ -232,17 +259,36 @@ namespace Opc.Ua.Server
 
             // Cancel so the monitor's inter-cycle delay is abandoned immediately
             // instead of running to the end of its sleep cycle.
-            m_workerCts?.Cancel();
+            var failures = new List<Exception>();
+            try
+            {
+                m_workerCts?.Cancel();
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                failures.Add(failure);
+            }
 
             Task? monitorWorkerTask = m_monitorWorkerTask;
             if (monitorWorkerTask is not null)
             {
-                await monitorWorkerTask.ConfigureAwait(false);
+                try
+                {
+                    await monitorWorkerTask.ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    failures.Add(failure);
+                }
                 m_monitorWorkerTask = null;
             }
 
             m_workerCts?.Dispose();
             m_workerCts = null;
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("The session-monitor worker failed during shutdown.", failures);
+            }
 
             // Sessions still open at shutdown are closed like any other session: the Closing
             // event is raised, the SessionDiagnostics node is removed and the session count
@@ -736,6 +782,14 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityPolicyRejected);
                     }
+                    if (isNewChannel &&
+                        MonitoredReadAuthorization.IsConfidential(MonitoredReadAuthorization.GetEndpoint(session)) &&
+                        !MonitoredReadAuthorization.IsConfidential(currentEndpoint))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "The new SecureChannel does not preserve the Session's transport confidentiality.");
+                    }
                     if (!session.Activated && !session.IsSecureChannelValid(channelContext.SecureChannelId))
                     {
                         throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
@@ -894,6 +948,8 @@ namespace Opc.Ua.Server
                     var impersonated = new ImpersonatedIdentity(identity, effectiveIdentity);
 
                     // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
+                    EnsureRoleManagerSubscription();
+                    long roleGeneration = session.CaptureIdentityRefreshSnapshot().Generation;
                     effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
 
                     // Per Part 18 §5.2.8: when the authenticated user has the
@@ -918,19 +974,53 @@ namespace Opc.Ua.Server
                         activationState.IsCommitting = true;
                     }
 
+                    bool admitted = false;
+                    try
+                    {
+                        admitted = await AdmitActivationAsync(
+                            authenticationToken,
+                            session,
+                            context,
+                            activationState.RestorePending,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (!admitted)
+                        {
+                            lock (m_bindingsLock)
+                            {
+                                activationState.IsCommitting = false;
+                            }
+                        }
+                    }
+                    if (!admitted)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    }
+
                     // Set before Activate: a re-evaluation racing with it then works on the
                     // previous generation, which Activate supersedes.
                     ImpersonatedIdentity? previousImpersonated = activationState.Impersonated;
                     activationState.Impersonated = impersonated;
                     try
                     {
-                        contextChanged = session.Activate(
-                            context,
-                            newIdentity!,
-                            identity,
-                            effectiveIdentity,
-                            localeIds,
-                            serverNonceObject);
+                        if (session is Session concreteSession)
+                        {
+                            contextChanged = concreteSession.ActivateWithRoleGeneration(
+                                context, newIdentity!, identity, effectiveIdentity, localeIds,
+                                serverNonceObject, roleGeneration);
+                        }
+                        else
+                        {
+                            bool rolesChanged = roleGeneration != session.CaptureIdentityRefreshSnapshot().Generation;
+                            contextChanged = session.Activate(
+                                context, newIdentity!, identity, effectiveIdentity, localeIds, serverNonceObject);
+                            if (rolesChanged)
+                            {
+                                session.MarkIdentityStale();
+                            }
+                        }
                     }
                     catch
                     {
@@ -944,39 +1034,7 @@ namespace Opc.Ua.Server
                     serverNonceObject = null; // ownership transferred to session
                     tempIdentity = null; // ownership transferred to session
 
-                    // The first activation of a restored session consumes the restore
-                    // (e.g. a mirrored single-use nonce) only once it passed every check
-                    // and the session was activated locally, so a failed or abandoned
-                    // attempt leaves it for another one. Only the binding commit, which
-                    // fails only for a session that is being closed, follows. Until it,
-                    // the session is unbound and is discarded when the activation fails.
-                    if (activationState.RestorePending)
-                    {
-                        bool admitted = false;
-                        try
-                        {
-                            admitted = await AdmitRestoredSessionAsync(
-                                authenticationToken,
-                                session,
-                                context,
-                                CancellationToken.None).ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            if (!admitted)
-                            {
-                                lock (m_bindingsLock)
-                                {
-                                    activationState.IsCommitting = false;
-                                }
-                            }
-                        }
-                        if (!admitted)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
-                        }
-                        activationState.RestorePending = false;
-                    }
+                    activationState.RestorePending = false;
 
                     activationState.ClientUserId = clientUserId;
                     activationState.ClientUserTokenType = clientUserTokenType;
@@ -1290,15 +1348,15 @@ namespace Opc.Ua.Server
             SessionBindingContext binding;
             ByteString originalClientChannelCertificate;
 
-            // Runs at admission and again at dispatch of every request. The session index
-            // and the activation-state table are concurrent collections, so the candidate
-            // snapshot is taken without the bindings lock; the check under the lock below
-            // confirms that the binding is still the committed one before it is returned.
+            // Runs at admission and again at dispatch of every request, so it takes no
+            // server-wide lock. The session index and the activation-state table are
+            // concurrent collections and DispatchBinding is published by every writer of
+            // the binding, so the candidate snapshot is lock free; the re-check at the end
+            // confirms that it is still the committed binding before it is returned.
             if (authenticationToken.IsNull ||
                 !m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
                 !m_sessionActivationStates.TryGetValue(currentSession, out SessionActivationState? currentState) ||
-                currentState.IsCommitting ||
-                currentState.BindingContext is not SessionBindingContext currentBinding)
+                currentState.DispatchBinding is not SessionBindingContext currentBinding)
             {
                 return false;
             }
@@ -1323,18 +1381,20 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            lock (m_bindingsLock)
+            // The same binding instance with no activation committing means no commit,
+            // removal or commit in progress replaced it (a commit always creates a new
+            // instance). The token is mapped to a session object at most once and never
+            // again after it was removed, so finding it still mapped afterwards means it
+            // was mapped when the binding was read: both held at that instant, as under
+            // the lock the writers take.
+            if (!ReferenceEquals(state.DispatchBinding, binding) ||
+                !m_sessions.TryGetValue(authenticationToken, out ISession? committedSession) ||
+                !ReferenceEquals(committedSession, session))
             {
-                if (state.IsCommitting ||
-                    !ReferenceEquals(state.BindingContext, binding) ||
-                    !m_sessions.TryGetValue(authenticationToken, out ISession? committedSession) ||
-                    !ReferenceEquals(committedSession, session))
-                {
-                    return false;
-                }
-                context = binding;
-                return true;
+                return false;
             }
+            context = binding;
+            return true;
         }
 
         private void CommitSessionBinding(
@@ -1344,13 +1404,13 @@ namespace Opc.Ua.Server
         {
             lock (m_bindingsLock)
             {
-                state.IsCommitting = false;
                 // Shutdown can remove the session while authentication is awaiting a provider,
                 // and a timeout or termination can start closing it.
                 if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
                     !ReferenceEquals(current, session) ||
                     SessionTermination.IsClosingOrClaimed(session))
                 {
+                    state.IsCommitting = false;
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
@@ -1362,6 +1422,7 @@ namespace Opc.Ua.Server
                     state.ClientUserId,
                     state.SecurityPolicyUri,
                     state.SecurityMode);
+                binding.Liveness = new BindingLiveness(this, session, state, binding);
                 if (state.BindingContext?.SecureChannelId != binding.SecureChannelId)
                 {
                     RemoveSessionBinding(state);
@@ -1369,6 +1430,10 @@ namespace Opc.Ua.Server
                     m_channelSessionCounts[binding.SecureChannelId] = count + 1;
                 }
                 state.BindingContext = binding;
+                // Cleared only after the new binding is installed: clearing it first would
+                // republish the previous binding to lock-free lookups (DispatchBinding)
+                // while Session.Activate has already changed the session.
+                state.IsCommitting = false;
             }
         }
 
@@ -1480,6 +1545,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Performs admission that must succeed before a Session is changed or its channel binding commits.
+        /// </summary>
+        /// <param name="authenticationToken">The session authentication token.</param>
+        /// <param name="session">The authenticated Session.</param>
+        /// <param name="context">The operation context of the activation.</param>
+        /// <param name="isRestoredSession">Whether the Session was restored from a replica.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns><c>true</c> to proceed with activation; <c>false</c> to reject it.</returns>
+        protected virtual ValueTask<bool> AdmitActivationAsync(
+            NodeId authenticationToken,
+            ISession session,
+            OperationContext context,
+            bool isRestoredSession,
+            CancellationToken cancellationToken)
+        {
+            return isRestoredSession
+                ? AdmitRestoredSessionAsync(
+                    authenticationToken,
+                    session,
+                    context,
+                    cancellationToken)
+                : new ValueTask<bool>(true);
+        }
+
+        /// <summary>
         /// Removes a restored Session whose first activation failed, without the
         /// virtual <see cref="CloseSessionAsync"/> and therefore without deleting any
         /// mirrored state. Its diagnostics node is removed and the session disposed.
@@ -1573,6 +1663,10 @@ namespace Opc.Ua.Server
         /// associated with current thread. It also verifies that the timestamp is not too
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
+        /// <param name="requestHeader">The untrusted request header to validate.</param>
+        /// <param name="secureChannelContext">The channel carrying the request.</param>
+        /// <param name="requestType">The requested service.</param>
+        /// <param name="requestLifetime">The cancellation and lifetime of the request.</param>
         /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<OperationContext> ValidateRequestAsync(
@@ -1586,10 +1680,12 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(requestHeader));
             }
 
+            requestHeader.ReturnDiagnostics &= ~(uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
             ISession? session = null;
 
             try
             {
+                EnsureRoleManagerSubscription();
                 // check for create session request.
                 if (requestType is RequestType.CreateSession or RequestType.ActivateSession)
                 {
@@ -1626,19 +1722,18 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
-                // Lazily reconcile the RoleManager subscription. The
-                // RoleManager is bound during server startup, after
-                // SessionManager construction, so we
-                // can't subscribe at startup; the first request that flows
-                // through a fully-initialized server wires it up.
-                EnsureRoleManagerSubscription();
-
                 // Part 18 §4.4.1 — if a Role configuration change marked the
                 // session's identity stale, re-evaluate the mandatory roles
                 // (Anonymous/AuthenticatedUser/TrustedApplication + live
                 // RoleManager identity-mapping rules) before the request runs
                 // so that downstream access checks see the current grants.
                 ReevaluateIdentityIfStale(session, secureChannelContext);
+                if (session.IsIdentityStale)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUserAccessDenied,
+                        "The current role grants could not be established.");
+                }
 
                 // validate user has permissions for additional info. Decided after the
                 // re-evaluation so the privilege reflects the roles the request runs with.
@@ -2288,6 +2383,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Refreshes a background producer's grants before it retries an authorized read.
+        /// </summary>
+        internal bool TryRefreshEffectiveIdentity(ISession session, SecureChannelContext? secureChannelContext)
+        {
+            if (secureChannelContext == null)
+            {
+                return false;
+            }
+            EnsureRoleManagerSubscription();
+            ReevaluateIdentityIfStale(session, secureChannelContext);
+            return !session.IsIdentityStale;
+        }
+
+        /// <summary>
         /// Re-evaluates the session's effective identity if it has been
         /// marked stale by a Role configuration change.
         /// </summary>
@@ -2399,22 +2508,27 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void EnsureRoleManagerSubscription()
         {
-            IRoleManager? current = m_server.RoleManager;
-            IRoleManager? previous = m_subscribedRoleManager;
-            if (current == previous)
+            lock (m_roleSubscriptionLock)
             {
-                return;
-            }
+                if (m_roleSubscriptionDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(SessionManager));
+                }
+                IRoleManager? current = m_server.RoleManager;
+                IRoleManager? previous = m_subscribedRoleManager;
+                if (current == previous)
+                {
+                    return;
+                }
 
-            // CAS to claim the swap; on failure another thread already
-            // reconciled — defer to it.
-            if (Interlocked.CompareExchange(ref m_subscribedRoleManager, current, previous) != previous)
-            {
-                return;
+                previous?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+                current?.RoleConfigurationChanged += OnRoleConfigurationChanged;
+                m_subscribedRoleManager = current;
+                foreach (ISession session in GetSessions())
+                {
+                    session.MarkIdentityStale();
+                }
             }
-
-            previous?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
-            current?.RoleConfigurationChanged += OnRoleConfigurationChanged;
         }
 
         /// <summary>
@@ -2510,6 +2624,15 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void RaiseSessionEvent(ISession session, SessionEventReason reason)
         {
+            // Diagnostics changes are raised for every request; without a subscriber they
+            // must not take the server-wide event lock. Subscriptions are added under the
+            // lock, so a subscriber racing with this check misses at most this one event.
+            if (reason == SessionEventReason.DiagnosticsChanged &&
+                Volatile.Read(ref m_SessionDiagnosticsChanged) == null)
+            {
+                return;
+            }
+
             lock (m_eventLock)
             {
                 SessionEventHandler? handler = null;
@@ -2754,6 +2877,10 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
+
+        /// <summary>Decorates the real session-monitor worker task at startup.</summary>
+        private readonly Func<Task, Task>? m_sessionMonitorWorkerDecorator;
+
         private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
         private readonly Lock m_bindingsLock = new();
@@ -2805,6 +2932,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private IRoleManager? m_subscribedRoleManager;
 
+        /// <summary>Serializes role listener replacement and initial identity invalidation.</summary>
+        private readonly Lock m_roleSubscriptionLock = new();
+
+        /// <summary>Prevents a late request from attaching a listener after disposal.</summary>
+        private bool m_roleSubscriptionDisposed;
+
         /// <summary>
         /// The length of the Session nonces this Server issues in the
         /// CreateSession and ActivateSession responses.
@@ -2826,6 +2959,64 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed record ImpersonatedIdentity(IUserIdentity Identity, IUserIdentity EffectiveIdentity);
 
+        /// <summary>
+        /// Confirms a committed binding for a request that was classified with it. Runs the
+        /// checks of <see cref="TryGetSessionContext"/> whose outcome can change while the
+        /// binding and the request's channel context stay the same, without looking up the
+        /// token and the session again.
+        /// </summary>
+        /// <remarks>
+        /// Removing the session or committing another activation replaces the dispatch binding
+        /// (a commit always creates a new instance), and only a shutdown empties the token
+        /// index without that. A change of the session's client channel certificate, which
+        /// requests are validated against, does not replace the binding: it is detected
+        /// through <see cref="SessionActivationState.CertificateVersion"/>.
+        /// </remarks>
+        private sealed class BindingLiveness : ISessionBindingLiveness
+        {
+            public BindingLiveness(
+                SessionManager manager,
+                ISession session,
+                SessionActivationState state,
+                SessionBindingContext binding)
+            {
+                m_manager = manager;
+                m_session = session;
+                m_state = state;
+                m_binding = binding;
+                m_certificateVersion = state.CertificateVersion;
+            }
+
+            /// <inheritdoc/>
+            public bool IsCurrent(SecureChannelContext channelContext)
+            {
+                ISession? session = Volatile.Read(ref m_session);
+                return session != null &&
+                    ReferenceEquals(m_state.DispatchBinding, m_binding) &&
+                    m_state.CertificateVersion == m_certificateVersion &&
+                    !Volatile.Read(ref m_manager.m_stopping) &&
+                    session.Activated &&
+                    !SessionTermination.IsClosingOrClaimed(session) &&
+                    !session.HasExpired &&
+                    session.IsSecureChannelValid(channelContext.SecureChannelId);
+            }
+
+            /// <summary>
+            /// Drops the session once the binding was replaced, so the owners that still
+            /// reference the binding do not keep a closed session alive.
+            /// </summary>
+            public void Release()
+            {
+                Volatile.Write(ref m_session, null);
+            }
+
+            private readonly SessionManager m_manager;
+            private readonly SessionActivationState m_state;
+            private readonly SessionBindingContext m_binding;
+            private readonly int m_certificateVersion;
+            private ISession? m_session;
+        }
+
         private sealed class SessionActivationState
         {
             public SessionActivationState(
@@ -2846,7 +3037,25 @@ namespace Opc.Ua.Server
             /// </summary>
             public long CreationSequence { get; } = Interlocked.Increment(ref s_lastCreationSequence);
 
-            public ByteString OriginalClientChannelCertificate { get; set; }
+            public ByteString OriginalClientChannelCertificate
+            {
+                get => m_originalClientChannelCertificate;
+                set
+                {
+                    m_originalClientChannelCertificate = value;
+                    Interlocked.Increment(ref m_certificateVersion);
+                }
+            }
+
+            /// <summary>
+            /// Incremented whenever <see cref="OriginalClientChannelCertificate"/> is set. A
+            /// binding liveness check detects through it that the certificate requests are
+            /// validated against changed after the binding was committed.
+            /// </summary>
+            public int CertificateVersion => Volatile.Read(ref m_certificateVersion);
+
+            private ByteString m_originalClientChannelCertificate;
+            private int m_certificateVersion;
 
             public string SecurityPolicyUri { get; set; }
 
@@ -2868,9 +3077,56 @@ namespace Opc.Ua.Server
 
             public long ActivationSequence { get; set; }
 
-            public SessionBindingContext? BindingContext { get; set; }
+            /// <summary>
+            /// The committed binding; written under the bindings lock.
+            /// </summary>
+            public SessionBindingContext? BindingContext
+            {
+                get => m_bindingContext;
+                set
+                {
+                    SessionBindingContext? previous = m_bindingContext;
+                    m_bindingContext = value;
+                    PublishDispatchBinding();
+                    // A replaced binding is never dispatched again: let it release the session.
+                    if (!ReferenceEquals(previous, value))
+                    {
+                        (previous?.Liveness as BindingLiveness)?.Release();
+                    }
+                }
+            }
 
-            public bool IsCommitting { get; set; }
+            /// <summary>
+            /// An activation is between Session.Activate and the binding commit; written
+            /// under the bindings lock.
+            /// </summary>
+            public bool IsCommitting
+            {
+                get => m_isCommitting;
+                set
+                {
+                    m_isCommitting = value;
+                    PublishDispatchBinding();
+                }
+            }
+
+            /// <summary>
+            /// The binding requests may be dispatched under: <see cref="BindingContext"/>
+            /// while no activation is committing, otherwise <c>null</c>. Republished by
+            /// every writer of the two, so a single read gives a consistent pair without
+            /// the bindings lock. A commit always creates a new binding instance, so an
+            /// unchanged reference means the binding was not replaced.
+            /// </summary>
+            public SessionBindingContext? DispatchBinding => Volatile.Read(ref m_dispatchBinding);
+
+            private void PublishDispatchBinding()
+            {
+                Volatile.Write(ref m_dispatchBinding, m_isCommitting ? null : m_bindingContext);
+            }
+
+            private SessionBindingContext? m_bindingContext;
+            private bool m_isCommitting;
+            private SessionBindingContext? m_dispatchBinding;
 
             /// <summary>
             /// An ActivateSession holds the activation gate and was admitted; set and read
@@ -3215,7 +3471,7 @@ namespace Opc.Ua.Server
             Message = "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.")]
         public static partial void ClientClientKeyIsLockedOutRemainingLockout(
             this ILogger logger,
-            string? clientKey,
+            [SensitiveText] string? clientKey,
             long remainingSeconds);
 
         [LoggerMessage(EventId = ServerEventIds.SessionManager + 1, Level = LogLevel.Debug,
@@ -3254,7 +3510,7 @@ namespace Opc.Ua.Server
                 "attempts. Lockout expires in {RemainingSeconds} seconds.")]
         public static partial void ClientClientKeyHasBeenLockedOutAfter(
             this ILogger logger,
-            string? clientKey,
+            [SensitiveText] string? clientKey,
             int failedAttempts,
             long remainingSeconds);
 

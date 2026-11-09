@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -45,7 +46,7 @@ namespace Opc.Ua.Client
     /// publish pipeline as a drop-in replacement for the
     /// classic fire-and-forget engine.
     /// </summary>
-    public sealed class DefaultSubscriptionEngine : ISubscriptionEngine
+    public sealed class DefaultSubscriptionEngine : ISubscriptionEngine, IAsyncDisposable
     {
         /// <summary>
         /// Initializes a new instance of the
@@ -187,6 +188,16 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (!m_disposed)
+            {
+                await m_manager.DisposeAsync().ConfigureAwait(false);
+                m_disposed = true;
+            }
+        }
+
         private void ThrowIfDisposed()
         {
 #if NET8_0_OR_GREATER
@@ -206,7 +217,9 @@ namespace Opc.Ua.Client
         /// <see cref="SubscriptionManager"/> can operate against
         /// a classic session.
         /// </summary>
-        private sealed class EngineContextAdapter : ISubscriptionManagerContext
+        private sealed class EngineContextAdapter :
+            ISubscriptionManagerContext,
+            ISessionTakeoverContext
         {
             public EngineContextAdapter(
                 ISubscriptionEngineContext context,
@@ -214,6 +227,20 @@ namespace Opc.Ua.Client
             {
                 m_context = context;
                 m_timeProvider = timeProvider;
+            }
+
+            /// <inheritdoc/>
+            public NodeId SessionId => m_context.SessionId;
+
+            /// <inheritdoc/>
+            public void AbandonServerSession()
+            {
+                if (m_context is not ISessionTakeoverContext takeoverContext)
+                {
+                    throw new InvalidOperationException(
+                        "The subscription engine context cannot abandon a server session.");
+                }
+                takeoverContext.AbandonServerSession();
             }
 
             /// <inheritdoc/>
@@ -242,13 +269,71 @@ namespace Opc.Ua.Client
                 ISubscriptionNotificationHandler handler,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 IMessageAckQueue queue,
-                SubscriptionLoadState? loadState = null)
+                SubscriptionLoadState? loadState = null,
+                Action<IManagedSubscription>? initialize = null)
             {
                 var subscriptionContext =
                     new SubscriptionContextAdapter(m_context);
                 return new DefaultSubscription(
                     subscriptionContext, handler, queue,
-                    options, m_context.Telemetry, loadState, m_timeProvider);
+                    options, m_context.Telemetry, loadState, m_timeProvider, initialize);
+            }
+
+            /// <inheritdoc/>
+            public ISubscriptionAcknowledgementProvider? AcknowledgementProvider =>
+                (m_context as IAcknowledgementPolicyCapability)?.Acknowledgements?.Provider;
+
+            /// <inheritdoc/>
+            public ISubscriptionAcknowledgementObserver? AcknowledgementObserver =>
+                (m_context as IAcknowledgementPolicyCapability)?.Acknowledgements?.Observer;
+
+            /// <inheritdoc/>
+            public bool HasAcknowledgementPolicy =>
+                m_context is not IAcknowledgementPolicyCapability capability ||
+                capability.HasAcknowledgementPolicy;
+
+            /// <inheritdoc/>
+            public AcknowledgementSelection PrepareAcknowledgementsToSend(
+                List<SubscriptionAcknowledgement> acknowledgements)
+            {
+                (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> deferred) =
+                    m_context.PrepareAcknowledgementsToSend(acknowledgements);
+                return new AcknowledgementSelection(toSend, deferred);
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask<bool> OnPublishRecoveryErrorAsync(
+                NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
+            {
+                SemaphoreSlim reconnect = m_context.ReconnectLock;
+                try
+                {
+                    await reconnect.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return false;
+                }
+                try
+                {
+                    if (ct.IsCancellationRequested ||
+                        m_context.Disposed ||
+                        m_context.Closing ||
+                        m_context.Reconnecting ||
+                        !m_context.Connected ||
+                        sessionId != m_context.SessionId ||
+                        !isCurrent())
+                    {
+                        return false;
+                    }
+
+                    m_context.OnKeepAliveError(error);
+                    return true;
+                }
+                finally
+                {
+                    reconnect.Release();
+                }
             }
 
             /// <inheritdoc/>
@@ -589,9 +674,10 @@ namespace Opc.Ua.Client
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 ITelemetryContext telemetry,
                 SubscriptionLoadState? loadState = null,
-                TimeProvider? timeProvider = null)
+                TimeProvider? timeProvider = null,
+                Action<IManagedSubscription>? initialize = null)
                 : base(context, handler, completion,
-                       options, telemetry, loadState, timeProvider)
+                       options, telemetry, loadState, timeProvider, initialize)
             {
             }
 
@@ -602,12 +688,28 @@ namespace Opc.Ua.Client
                 IMonitoredItemContext context,
                 ITelemetryContext telemetry)
             {
+                // One logger for all items of the subscription instead of
+                // one per item; the logger is stateless.
+                ItemLogger? itemLogger = Volatile.Read(ref m_itemLogger);
+                if (itemLogger == null ||
+                    !ReferenceEquals(itemLogger.Telemetry, telemetry))
+                {
+                    itemLogger = new ItemLogger(telemetry,
+                        telemetry.LoggerFactory.CreateLogger<DefaultMonitoredItem>());
+                    Volatile.Write(ref m_itemLogger, itemLogger);
+                }
                 return new DefaultMonitoredItem(
                     context,
                     name,
                     options,
-                    telemetry.LoggerFactory.CreateLogger<DefaultMonitoredItem>());
+                    itemLogger.Logger);
             }
+
+            private sealed record class ItemLogger(
+                ITelemetryContext Telemetry,
+                ILogger Logger);
+
+            private ItemLogger? m_itemLogger;
         }
 
         /// <summary>

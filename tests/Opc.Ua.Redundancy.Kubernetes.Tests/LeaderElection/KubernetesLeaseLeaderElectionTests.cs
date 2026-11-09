@@ -304,7 +304,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         }
 
         [Test]
-        public Task DisposeIgnoresReleaseFailureAsync()
+        public async Task DisposeIgnoresReleaseFailureAsync()
         {
             Mock<IKubernetesApiClient> api = NewApi();
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
@@ -312,8 +312,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
 
             var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), new FakeTimeProvider());
 
-            Assert.DoesNotThrowAsync(async () => await election.DisposeAsync().AsTask().ConfigureAwait(false));
-            return Task.CompletedTask;
+            await Assert.DoesNotThrowAsync(async () => await election.DisposeAsync().AsTask().ConfigureAwait(false));
         }
 
         [Test]

@@ -28,11 +28,13 @@ compliant:
 | `GetRetainState` for latched alarms | §5.5.2 | did not include LatchedState | latched alarms are retained while `LatchedState.Id = true` |
 | `EffectiveDisplayName` composition | §5.8.2 | Active + Suppressed + Shelved + Acked + Confirmed | additionally includes OutOfService and Latched |
 
-**Migration:** If you have alarms with `LatchedState`,
-`SilenceState`, or `OutOfServiceState` populated and you relied on
-the prior behavior, the spec-compliant behavior is what your
-operators expected anyway. To restore the old behavior, do not
-populate those optional state nodes (leave them `null`).
+**Migration:** If your alarms populate `LatchedState`, `SilenceState` or
+`OutOfServiceState`, review application logic and tests that depended on the
+previous behavior. Preserve optional states your application needs; omit a
+state only when its associated capability is not required.
+Leaving `LatchedState`, `SilenceState` and `OutOfServiceState` unpopulated
+(`null`) reproduces the previous behavior for the transitions and state
+computations listed above.
 
 The quickstart reference server (`samples/Quickstarts.Servers/
 Alarms/AlarmHolders/AlarmConditionTypeHolder.cs`) now creates the

@@ -72,6 +72,7 @@ namespace Opc.Ua.OpenUsd.Server.Tests
         public static (SystemContext Context, ushort Namespace) NewContext()
         {
             var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend(Opc.Ua.XRegistry.Namespaces.xRegistry);
             var ns = (ushort)namespaces.GetIndexOrAppend(Namespaces.OpenUSD);
             var instanceNs = (ushort)namespaces.GetIndexOrAppend(InstanceNamespaceUri);
 
@@ -107,7 +108,7 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             FolderState stages = root.Stages!;
             OpenUsdStageState stage = context.CreateInstanceOfOpenUsdStageType(
                 stages, new QualifiedName(name, ns));
-            stage.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            stage.ReferenceTypeId = ReferenceTypeIds.Organizes;
             stages.AddChild(stage);
             stage.NodeId = context.NodeIdFactory.New(context, stage);
             return stage;

@@ -88,7 +88,6 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(60_000)]
         public async Task BuilderCreatesManagedSessionWithV2Engine(
             CancellationToken ct)
@@ -128,8 +127,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(BuilderCreatesManagedSessionWithV2Engine), AllowFailure = true)]
         public async Task BuilderAddSubscriptionCreatesServerSubscription(
             CancellationToken ct)
         {
@@ -191,8 +190,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(250)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(BuilderAddSubscriptionCreatesServerSubscription), AllowFailure = true)]
         public async Task SubscriptionWithMonitoredItemDeliversDataChanges(
             CancellationToken ct)
         {
@@ -281,8 +280,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(300)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SubscriptionWithMonitoredItemDeliversDataChanges), AllowFailure = true)]
         public async Task ClassicEngineDoesNotExposeSubscriptionManager(
             CancellationToken ct)
         {

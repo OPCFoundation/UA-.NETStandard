@@ -268,11 +268,11 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public Task CreateMonitoredItemWithInvalidSubscriptionIdReturnsBadSubscriptionIdInvalid()
+        public async Task CreateMonitoredItemWithInvalidSubscriptionIdReturnsBadSubscriptionIdInvalid()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await Session.CreateMonitoredItemsAsync(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await Session.CreateMonitoredItemsAsync(
                     null,
                     999999u,
                     TimestampsToReturn.Both,
@@ -280,7 +280,6 @@ namespace Opc.Ua.Subscriptions.Tests
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
-            return Task.CompletedTask;
         }
 
         [Test]

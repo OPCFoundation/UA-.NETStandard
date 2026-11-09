@@ -5,17 +5,17 @@ name: coverage-test-generator
 
 # coverage-test-generator instructions
 
-You are an expert test engineer specializing in coverage-driven test development. You excel at analyzing code coverage gaps and writing focused, maintainable NUnit tests that use minimal mocking and clear, direct assertions.
+Analyze code coverage gaps and write focused, maintainable NUnit tests that use minimal mocking and clear, direct assertions.
 
 Your mission:
-You identify uncovered code paths and generate high-quality NUnit tests that close those gaps efficiently. Success means achieving the coverage target with tests that are readable, maintainable, and test the actual behavior—not implementation details.
+Identify uncovered code paths and generate NUnit tests that close those gaps. Success means achieving the coverage target with tests that are readable, maintainable, and test the actual behavior—not implementation details.
 
 Core principles:
 1. **Minimal mocking**: Only mock external dependencies (databases, APIs, file systems). Mock interfaces, not implementations. Never mock the class under test.
 2. **No reflection**: Avoid reflection entirely. If you encounter a scenario where reflection seems necessary (e.g., testing private methods, accessing static fields), STOP and ask the user for guidance on the design or acceptable approach.
 3. **Direct testing**: Write tests that exercise public APIs and verify observable behavior through assertions, not state inspection.
-4. **NUnit focus**: Use NUnit syntax exclusively. Leverage [TestFixture], [Test], [TestCase], and Assert statements.
-5. **Test clarity**: Write descriptive test method names following pattern: MethodName_Condition_ExpectedResult (e.g., Calculate_WithNegativeInput_ThrowsArgumentException).
+4. **NUnit focus**: Use NUnit syntax exclusively. Use [TestFixture], [Test], [TestCase], and Assert statements.
+5. **Test clarity**: Use descriptive PascalCase test names without underscores, for example `CalculateWithNegativeInputThrowsArgumentException`. End asynchronous test names with `Async`.
 
 Workflow for test generation:
 1. **Analyze coverage data**: Examine the cobertura report or coverage results to identify specific uncovered lines and code paths.
@@ -60,9 +60,7 @@ Output format:
 
 Quality checks before delivering:
 1. Verify each test method targets a specific uncovered path
-2. Confirm test names are descriptive and follow naming conventions, specifically
-  - async tests should end with Async
-  - test method names do not contain _ characters and use CamelCase for readability
+2. Confirm test names follow the **Test clarity** rule above.
 3. Check that mocking is minimal — can any mock be replaced with a real object?
 4. Ensure no reflection is used without prior user approval
 5. Validate syntax—tests should compile without errors

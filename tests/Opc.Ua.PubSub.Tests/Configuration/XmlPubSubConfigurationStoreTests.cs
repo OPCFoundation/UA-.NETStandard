@@ -103,11 +103,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         }
 
         [Test]
-        public void LoadAsync_MissingFile_ThrowsFileNotFound()
+        public async Task LoadAsync_MissingFile_ThrowsFileNotFound()
         {
             string path = Path.Combine(m_workDir, "missing.xml");
             var store = new XmlPubSubConfigurationStore(path, m_telemetry);
-            Assert.ThrowsAsync<FileNotFoundException>(
+            await Assert.ThrowsAsync<FileNotFoundException>(
                 async () => await store.LoadAsync().ConfigureAwait(false));
         }
 
@@ -196,12 +196,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         }
 
         [Test]
-        public void SaveAsync_NullConfiguration_Throws()
+        public async Task SaveAsync_NullConfiguration_Throws()
         {
             var store = new XmlPubSubConfigurationStore(
                 Path.Combine(m_workDir, "ignored.xml"),
                 m_telemetry);
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await store.SaveAsync(null!).ConfigureAwait(false));
         }
 

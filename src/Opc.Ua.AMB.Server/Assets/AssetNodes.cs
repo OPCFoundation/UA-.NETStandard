@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Di;
 
 namespace Opc.Ua.AMB.Server.Assets
@@ -137,6 +139,28 @@ namespace Opc.Ua.AMB.Server.Assets
             var snapshot = new InstanceStateSnapshot();
             snapshot.Initialize(context, condition);
             condition.ReportEvent(context, snapshot);
+        }
+
+        /// <summary>
+        /// Awaits condition notifications before snapshotting and reporting the current state as a new event.
+        /// Dispatch is noncancellable, as it is for the synchronous companion.
+        /// </summary>
+        public static async ValueTask ReportEventAsync(
+            ISystemContext context,
+            ConditionState condition)
+        {
+            if (condition.EnabledState?.Id?.Value != true)
+            {
+                return;
+            }
+            condition.EventId!.Value = Uuid.NewUuid().ToByteString();
+            condition.Time!.Value = DateTimeUtc.Now;
+            condition.ReceiveTime!.Value = condition.Time.Value;
+            await condition.ClearChangeMasksAsync(context, true, CancellationToken.None).ConfigureAwait(false);
+
+            var snapshot = new InstanceStateSnapshot();
+            snapshot.Initialize(context, condition);
+            await condition.ReportEventAsync(context, snapshot, CancellationToken.None).ConfigureAwait(false);
         }
     }
 }

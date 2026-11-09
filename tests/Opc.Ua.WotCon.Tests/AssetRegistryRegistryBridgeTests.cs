@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,8 +53,9 @@ namespace Opc.Ua.WotCon.Tests
     [Category("WotCon")]
     public sealed class AssetRegistryRegistryBridgeTests
     {
-        private string m_tempFolder = null!;
-
+        /// <summary>
+        /// Creates an isolated storage directory for the registry tests.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -63,6 +65,9 @@ namespace Opc.Ua.WotCon.Tests
             Directory.CreateDirectory(m_tempFolder);
         }
 
+        /// <summary>
+        /// Removes the isolated registry storage directory after the test.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {
@@ -81,6 +86,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that rebuilding an asset mirrors its newly created Thing Description into the registry.
+        /// </summary>
         [Test]
         public async Task RebuildMirrorsCreatedThingDescriptionToRegistry()
         {
@@ -101,6 +109,9 @@ namespace Opc.Ua.WotCon.Tests
             AssertUpsertRequest(requests[0], WotRegistryGroups.ThingDescriptions, "asset-001", td);
         }
 
+        /// <summary>
+        /// Verifies that rebuilding an asset mirrors an updated Thing Description into the registry.
+        /// </summary>
         [Test]
         public async Task RebuildMirrorsUpdatedThingDescriptionToRegistry()
         {
@@ -129,6 +140,9 @@ namespace Opc.Ua.WotCon.Tests
             AssertUpsertRequest(requests[1], WotRegistryGroups.ThingDescriptions, "asset-001", updated);
         }
 
+        /// <summary>
+        /// Verifies that deleting an asset removes its mirrored Thing Description from the registry.
+        /// </summary>
         [Test]
         public async Task DeleteRemovesMirroredThingDescriptionFromRegistry()
         {
@@ -156,6 +170,432 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "asset-001"), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that rejected backing delete keeps the legacy asset and reports failure.
+        /// </summary>
+        [Test]
+        public async Task RejectedBackingDeleteKeepsTheLegacyAssetAndReportsFailure()
+        {
+            await VerifyRefusedDeleteAsync(WoTOutcomeEnum.Rejected).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that failed backing delete keeps the legacy asset and reports failure.
+        /// </summary>
+        [Test]
+        public async Task FailedBackingDeleteKeepsTheLegacyAssetAndReportsFailure()
+        {
+            await VerifyRefusedDeleteAsync(WoTOutcomeEnum.Failed).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that noncommitted backing failure preserves the asset and permits retry.
+        /// </summary>
+        /// <param name="explicitNoncommit">The explicit-noncommit flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NoncommittedBackingFailurePreservesTheAssetAndPermitsRetry(bool explicitNoncommit)
+        {
+            var store = new ControlledRegistryStore();
+            using var registry = new WotRegistryService(store);
+            using var harness = new ManagerHarness(m_tempFolder, registry);
+            await harness.StartAsync().ConfigureAwait(false);
+            Mock<IWotAssetProvider> provider = TrackProvider(harness);
+            AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
+            WotRegistrySnapshot previous = registry.Current;
+            byte[] persisted = File.ReadAllBytes(Path.Combine(m_tempFolder, "Pump01.jsonld"));
+            store.BeforeCommit = (snapshot, _) =>
+            {
+                if (explicitNoncommit)
+                {
+                    throw new WotRegistryCommitNotCommittedException(snapshot, new IOException("private-store-location"));
+                }
+                throw new IOException("private-store-location");
+            };
+
+            ServiceResult result = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+            Assert.That(result.ToString(), Does.Not.Contain("private-store-location"));
+            AssertRetainedAsset(harness, entry, provider, persisted);
+            Assert.That(registry.Current, Is.SameAs(previous));
+            Assert.That(store.Current, Is.SameAs(previous));
+
+            store.BeforeCommit = null;
+            ServiceResult retried = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            AssertDeletedAsset(harness, entry, provider, registry, retried);
+        }
+
+        /// <summary>
+        /// Verifies that committed backing warning finishes deletion and reports the warning.
+        /// </summary>
+        /// <param name="durabilityFailure">The durability-failure flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CommittedBackingWarningFinishesDeletionAndReportsTheWarning(bool durabilityFailure)
+        {
+            var store = new ControlledRegistryStore();
+            using var registry = new WotRegistryService(store);
+            using var harness = new ManagerHarness(m_tempFolder, registry);
+            await harness.StartAsync().ConfigureAwait(false);
+            Mock<IWotAssetProvider> provider = TrackProvider(harness);
+            AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
+            if (durabilityFailure)
+            {
+                store.AfterCommit = (snapshot, _) => throw new WotRegistryCommitDurabilityUncertainException(
+                    snapshot, new IOException("private-store-location"));
+            }
+            else
+            {
+                registry.Changed += (_, _) => throw new InvalidOperationException("private-observer-detail");
+            }
+
+            ServiceResult result = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.GoodResultsMayBeIncomplete));
+            Assert.That(result.ToString(), Does.Not.Contain("private-"));
+            AssertDeletedAsset(harness, entry, provider, registry, result);
+            using var restarted = new WotRegistryService(store);
+            await restarted.InitializeAsync().ConfigureAwait(false);
+            Assert.That(restarted.Current.AllResources(), Is.Empty);
+            using var restartedAssets = new ManagerHarness(m_tempFolder, restarted);
+            await restartedAssets.StartAsync().ConfigureAwait(false);
+            Assert.That(restartedAssets.Registry.AssetNames, Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies that cancellation at the backing decision preserves or completes deletion.
+        /// </summary>
+        /// <param name="committed">The committed flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CancellationAtTheBackingDecisionPreservesOrCompletesDeletion(bool committed)
+        {
+            var store = new ControlledRegistryStore();
+            using var registry = new WotRegistryService(store);
+            using var harness = new ManagerHarness(m_tempFolder, registry);
+            await harness.StartAsync().ConfigureAwait(false);
+            Mock<IWotAssetProvider> provider = TrackProvider(harness);
+            AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
+            byte[] persisted = File.ReadAllBytes(Path.Combine(m_tempFolder, "Pump01.jsonld"));
+            using var cancellation = new CancellationTokenSource();
+            if (committed)
+            {
+                store.AfterCommit = (_, _) => cancellation.Cancel();
+                ServiceResult result = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, cancellation.Token)
+                    .ConfigureAwait(false);
+                AssertDeletedAsset(harness, entry, provider, registry, result);
+            }
+            else
+            {
+                store.BeforeCommit = (_, token) =>
+                {
+                    cancellation.Cancel();
+                    token.ThrowIfCancellationRequested();
+                };
+                await Assert.ThatAsync(async () => await harness.Registry.DeleteAssetAsync(
+                    entry.Asset.NodeId, cancellation.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                AssertRetainedAsset(harness, entry, provider, persisted);
+                Assert.That(registry.Current.AllResources().Count(), Is.EqualTo(1));
+                store.BeforeCommit = null;
+                ServiceResult retried = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                    .ConfigureAwait(false);
+                AssertDeletedAsset(harness, entry, provider, registry, retried);
+            }
+            Assert.That(cancellation.IsCancellationRequested, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that indeterminate backing delete waits for authoritative recovery.
+        /// </summary>
+        /// <param name="committed">The committed flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task IndeterminateBackingDeleteWaitsForAuthoritativeRecovery(bool committed)
+        {
+            var store = new ControlledRegistryStore();
+            using var registry = new WotRegistryService(store);
+            using var harness = new ManagerHarness(m_tempFolder, registry);
+            await harness.StartAsync().ConfigureAwait(false);
+            Mock<IWotAssetProvider> provider = TrackProvider(harness);
+            AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
+            WotRegistrySnapshot previous = registry.Current;
+            byte[] persisted = File.ReadAllBytes(Path.Combine(m_tempFolder, "Pump01.jsonld"));
+            static void Fail(WotRegistrySnapshot snapshot, CancellationToken _)
+            {
+                throw new WotRegistryCommitIndeterminateException(snapshot,
+                    new IOException("private-store-location"), new IOException("private-validation-detail"));
+            }
+            if (committed)
+            {
+                store.AfterCommit = Fail;
+            }
+            else
+            {
+                store.BeforeCommit = Fail;
+            }
+
+            ServiceResult result = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.ToString(), Does.Not.Contain("private-"));
+            AssertRetainedAsset(harness, entry, provider, persisted);
+            Assert.That(registry.Current, Is.SameAs(previous));
+            ServiceResult replacement = await harness.Registry.RebuildAsync(
+                entry, CreateThingDescription("Pump01", "sim://opcua.test/replacement"),
+                persistOnSuccess: true, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(replacement.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            AssertRetainedAsset(harness, entry, provider, persisted);
+            int commits = store.CommitCount;
+            ServiceResult blocked = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsBad(blocked), Is.True);
+            Assert.That(store.CommitCount, Is.EqualTo(commits));
+            AssertRetainedAsset(harness, entry, provider, persisted);
+
+            store.BeforeCommit = null;
+            store.AfterCommit = null;
+            await registry.InitializeAsync().ConfigureAwait(false);
+            ServiceResult retried = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            AssertDeletedAsset(harness, entry, provider, registry, retried);
+            Assert.That(store.CommitCount, Is.EqualTo(commits + (committed ? 0 : 1)));
+        }
+
+        /// <summary>
+        /// Verifies that a committed warning result does not become plain success.
+        /// </summary>
+        [Test]
+        public async Task ACommittedWarningResultDoesNotBecomePlainSuccess()
+        {
+            using var registry = new WotRegistryService();
+            var requests = new List<WotUpsertResourceRequest>();
+            Mock<IWotRegistryService> bridge = CreateRecordingBridge(registry, requests);
+            using var harness = new ManagerHarness(m_tempFolder, bridge.Object);
+            await harness.StartAsync().ConfigureAwait(false);
+            Mock<IWotAssetProvider> provider = TrackProvider(harness);
+            AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
+            bridge.Setup(value => value.DeleteResourceAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long?>(),
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()))
+                .Returns(async (
+                    string groupId, string resourceId, long? epoch, IOperationContext? callerContext,
+                    CancellationToken token) =>
+                {
+                    WotRegistryMutationResult deleted = await registry.DeleteResourceAsync(
+                        groupId, resourceId, epoch, callerContext, token).ConfigureAwait(false);
+                    return new WotRegistryMutationResult(
+                        WoTOutcomeEnum.Warning, deleted.Resource, deleted.Generation, [], "Committed with a warning.");
+                });
+
+            ServiceResult result = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.GoodResultsMayBeIncomplete));
+            AssertDeletedAsset(harness, entry, provider, registry, result);
+        }
+
+        /// <summary>
+        /// Verifies that local document cleanup retry does not repeat the committed backing delete.
+        /// </summary>
+        [Test]
+        [Platform("Win")]
+        public async Task LocalDocumentCleanupRetryDoesNotRepeatTheCommittedBackingDelete()
+        {
+            var store = new ControlledRegistryStore();
+            using var registry = new WotRegistryService(store);
+            using var harness = new ManagerHarness(m_tempFolder, registry);
+            await harness.StartAsync().ConfigureAwait(false);
+            Mock<IWotAssetProvider> provider = TrackProvider(harness);
+            AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
+            int commits = store.CommitCount;
+            using (var retained = new FileStream(
+                Path.Combine(m_tempFolder, "Pump01.jsonld"), FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                ServiceResult incomplete = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(incomplete.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                Assert.That(harness.Registry.FindByNodeId(entry.Asset.NodeId), Is.SameAs(entry));
+                Assert.That(registry.Current.AllResources(), Is.Empty);
+                Assert.That(store.CommitCount, Is.EqualTo(commits + 1));
+                provider.Verify(value => value.DisposeAsync(), Times.Never);
+                ServiceResult replacement = await harness.Registry.RebuildAsync(
+                    entry, CreateThingDescription("Pump01", "sim://opcua.test/replacement"),
+                    persistOnSuccess: true, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(replacement.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(retained.Length, Is.GreaterThan(0));
+            }
+
+            ServiceResult retried = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            AssertDeletedAsset(harness, entry, provider, registry, retried);
+            Assert.That(store.CommitCount, Is.EqualTo(commits + 1));
+        }
+
+        /// <summary>
+        /// Verifies that restarted indeterminate deletion never remirrors or reactivates the asset.
+        /// </summary>
+        /// <param name="initializeBeforeStart">The initialize-before-start flag for this test case.</param>
+        /// <param name="committed">The committed flag for this test case.</param>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task RestartedIndeterminateDeletionNeverRemirrorsOrReactivatesTheAsset(
+            bool committed, bool initializeBeforeStart)
+        {
+            var store = new ControlledRegistryStore();
+            NodeId assetId;
+            byte[] content;
+            using (var registry = new WotRegistryService(store))
+            {
+                using var harness = new ManagerHarness(m_tempFolder, registry);
+                await harness.StartAsync().ConfigureAwait(false);
+                TrackProvider(harness);
+                AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
+                assetId = entry.Asset.NodeId;
+                content = File.ReadAllBytes(Path.Combine(m_tempFolder, "Pump01.jsonld"));
+                static void Fail(WotRegistrySnapshot snapshot, CancellationToken _)
+                {
+                    throw new WotRegistryCommitIndeterminateException(
+                        snapshot, new IOException("decision interrupted"), new IOException("decision not yet validated"));
+                }
+                if (committed)
+                {
+                    store.AfterCommit = Fail;
+                }
+                else
+                {
+                    store.BeforeCommit = Fail;
+                }
+                ServiceResult result = await harness.Registry.DeleteAssetAsync(assetId, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            }
+            store.BeforeCommit = null;
+            store.AfterCommit = null;
+            WotRegistrySnapshot durable = store.Current;
+            int commits = store.CommitCount;
+            using var reopened = new WotRegistryService(store);
+            if (initializeBeforeStart)
+            {
+                await reopened.InitializeAsync().ConfigureAwait(false);
+            }
+            using var restarted = new ManagerHarness(m_tempFolder, reopened);
+            Mock<IWotAssetProvider> unusedProvider = TrackProvider(restarted);
+
+            await restarted.StartAsync().ConfigureAwait(false);
+
+            Assert.That(store.Current, Is.SameAs(durable), "Restart must not remirror an unresolved deletion.");
+            Assert.That(store.CommitCount, Is.EqualTo(commits));
+            AssetEntry? pending = restarted.Registry.FindByNodeId(assetId);
+            Assert.That(pending, Is.Not.Null);
+            Assert.That(pending!.Provider, Is.Null, "Unresolved deletion must not reconnect the old provider.");
+            Assert.That(pending.Properties, Is.Empty);
+            Assert.That(pending.FileManager!.CurrentContent, Is.EqualTo(content));
+            if (!initializeBeforeStart)
+            {
+                ServiceResult blocked = await restarted.Registry.DeleteAssetAsync(assetId, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsBad(blocked), Is.True,
+                    "An uninitialized empty registry is not authoritative evidence of committed deletion.");
+                Assert.That(restarted.Registry.FindByNodeId(assetId), Is.SameAs(pending));
+                await reopened.InitializeAsync().ConfigureAwait(false);
+            }
+            ServiceResult completed = await restarted.Registry.DeleteAssetAsync(assetId, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(completed), Is.True);
+            Assert.That(store.CommitCount, Is.EqualTo(commits + (committed ? 0 : 1)));
+            Assert.That(reopened.Current.AllResources(), Is.Empty);
+            Assert.That(restarted.Registry.FindByNodeId(assetId), Is.Null);
+            Assert.That(File.Exists(Path.Combine(m_tempFolder, "Pump01.jsonld")), Is.False);
+            unusedProvider.Verify(value => value.DisposeAsync(), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that invalid pending deletion records fail startup without activating an asset.
+        /// </summary>
+        /// <param name="oversized">The oversized flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InvalidPendingDeletionRecordsFailStartupWithoutActivatingAnAsset(bool oversized)
+        {
+            using var registry = new WotRegistryService();
+            using var harness = new ManagerHarness(m_tempFolder, registry);
+            string path = Path.Combine(m_tempFolder, "Pump01.jsonld.delete-pending");
+            string content = oversized ? new string(' ', 16385) : "{";
+            File.WriteAllText(path, content);
+
+            await Assert.ThatAsync(harness.StartAsync,
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadConfigurationError)).ConfigureAwait(false);
+
+            Assert.That(harness.Registry.AssetNames, Is.Empty);
+            Assert.That(registry.Current.AllResources(), Is.Empty);
+            Assert.That(File.ReadAllText(path), Is.EqualTo(content));
+        }
+
+        /// <summary>
+        /// Verifies that pending deletion cannot fall back to an unbridged asset after restart.
+        /// </summary>
+        [Test]
+        public async Task PendingDeletionCannotFallBackToAnUnbridgedAssetAfterRestart()
+        {
+            using var harness = new ManagerHarness(m_tempFolder, registryBridge: null);
+            string path = Path.Combine(m_tempFolder, "Pump01.jsonld.delete-pending");
+            File.WriteAllText(path, """
+                {"groupId":"thingdescriptions","resourceId":"pump01","generation":1}
+                """);
+
+            await Assert.ThatAsync(harness.StartAsync,
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadConfigurationError)).ConfigureAwait(false);
+
+            Assert.That(harness.Registry.AssetNames, Is.Empty);
+            Assert.That(File.Exists(path), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that failed deletion intent persistence does not reach the backing decision.
+        /// </summary>
+        [Test]
+        [Platform("Win")]
+        public async Task FailedDeletionIntentPersistenceDoesNotReachTheBackingDecision()
+        {
+            var store = new ControlledRegistryStore();
+            using var registry = new WotRegistryService(store);
+            using var harness = new ManagerHarness(m_tempFolder, registry);
+            await harness.StartAsync().ConfigureAwait(false);
+            Mock<IWotAssetProvider> provider = TrackProvider(harness);
+            AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
+            int commits = store.CommitCount;
+            byte[] content = File.ReadAllBytes(Path.Combine(m_tempFolder, "Pump01.jsonld"));
+            using (var retained = new FileStream(Path.Combine(m_tempFolder, "Pump01.jsonld.delete-pending"),
+                FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read))
+            {
+                ServiceResult refused = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsBad(refused), Is.True);
+                Assert.That(store.CommitCount, Is.EqualTo(commits));
+                AssertRetainedAsset(harness, entry, provider, content);
+                Assert.That(retained.Length, Is.Zero);
+            }
+
+            ServiceResult retried = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            AssertDeletedAsset(harness, entry, provider, registry, retried);
+            Assert.That(store.CommitCount, Is.EqualTo(commits + 1));
+        }
+
+        /// <summary>
+        /// Verifies that rebuilding without persistence still mirrors the Thing Description into the registry.
+        /// </summary>
         [Test]
         public async Task NonPersistedRebuildMirrorsThingDescriptionToRegistry()
         {
@@ -176,6 +616,9 @@ namespace Opc.Ua.WotCon.Tests
             AssertUpsertRequest(requests[0], WotRegistryGroups.ThingDescriptions, "asset-001", td);
         }
 
+        /// <summary>
+        /// Verifies that <see langword="null"/> registry bridge performs no registry calls.
+        /// </summary>
         [Test]
         public async Task NullRegistryBridgePerformsNoRegistryCalls()
         {
@@ -196,6 +639,9 @@ namespace Opc.Ua.WotCon.Tests
             bridge.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that registry rejection does not fail asset rebuild.
+        /// </summary>
         [Test]
         public async Task RegistryRejectionDoesNotFailAssetRebuild()
         {
@@ -227,6 +673,9 @@ namespace Opc.Ua.WotCon.Tests
             bridge.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that registry exception does not fail asset rebuild.
+        /// </summary>
         [Test]
         public async Task RegistryExceptionDoesNotFailAssetRebuild()
         {
@@ -252,6 +701,55 @@ namespace Opc.Ua.WotCon.Tests
             bridge.VerifyNoOtherCalls();
         }
 
+        private async Task VerifyRefusedDeleteAsync(WoTOutcomeEnum outcome)
+        {
+            using var registry = new WotRegistryService();
+            var requests = new List<WotUpsertResourceRequest>();
+            Mock<IWotRegistryService> bridge = CreateRecordingBridge(registry, requests);
+            using var harness = new ManagerHarness(m_tempFolder, bridge.Object);
+            await harness.StartAsync().ConfigureAwait(false);
+            Mock<IWotAssetProvider> provider = TrackProvider(harness);
+            AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
+            WotResource assigned = registry.Current.AllResources().Single();
+            WotAssetFileManager file = entry.FileManager!;
+            BaseDataVariableState property = entry.Properties.Single().Value.Variable;
+            byte[] persisted = File.ReadAllBytes(Path.Combine(m_tempFolder, "Pump01.jsonld"));
+            bridge.Setup(value => value.DeleteResourceAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long?>(),
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<WotRegistryMutationResult>(new WotRegistryMutationResult(
+                    outcome, null, registry.Current.Generation, [], "The backing delete was refused.")
+                {
+                    StatusCode = StatusCodes.BadUserAccessDenied
+                }));
+
+            ServiceResult result = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsBad(result), Is.True,
+                "A rejected backing mutation must not be reported as a successful legacy deletion.");
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            AssertRetainedAsset(harness, entry, provider, persisted);
+            Assert.That(entry.FileManager, Is.SameAs(file));
+            Assert.That(entry.Properties.Single().Value.Variable, Is.SameAs(property));
+            Assert.That(registry.Current.AllResources().Single(), Is.SameAs(assigned));
+            bridge.Verify(value => value.DeleteResourceAsync(
+                assigned.GroupId, assigned.ResourceId, null,
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()), Times.Once);
+
+            bridge.Setup(value => value.DeleteResourceAsync(
+                assigned.GroupId, assigned.ResourceId, It.IsAny<long?>(),
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()))
+                .Returns((
+                    string group, string resource, long? epoch, IOperationContext? callerContext,
+                    CancellationToken token) =>
+                    registry.DeleteResourceAsync(group, resource, epoch, callerContext, token));
+            ServiceResult retried = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            AssertDeletedAsset(harness, entry, provider, registry, retried);
+            Assert.That(requests, Has.Count.EqualTo(1));
+        }
+
         private static async Task<AssetEntry> CreateAssetEntryAsync(ManagerHarness harness, string assetName)
         {
             (ServiceResult status, NodeId assetId) = await harness.Registry
@@ -262,12 +760,68 @@ namespace Opc.Ua.WotCon.Tests
             return entry!;
         }
 
+        private static Mock<IWotAssetProvider> TrackProvider(ManagerHarness harness)
+        {
+            var provider = new Mock<IWotAssetProvider>(MockBehavior.Strict);
+            provider.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            var factory = new Mock<IWotAssetProviderFactory>(MockBehavior.Strict);
+            factory.SetupGet(value => value.SupportedBindings).Returns(Array.Empty<string>());
+            factory.Setup(value => value.CanHandle(It.IsAny<ThingDescription>())).Returns(true);
+            factory.Setup(value => value.ConnectAsync(It.IsAny<ThingDescription>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IWotAssetProvider>(provider.Object));
+            harness.Options.Bindings.Clear();
+            harness.Options.Bindings.Add(factory.Object);
+            return provider;
+        }
+
+        private static async Task<AssetEntry> CreatePopulatedAssetAsync(ManagerHarness harness)
+        {
+            AssetEntry entry = await CreateAssetEntryAsync(harness, "Pump01").ConfigureAwait(false);
+            ThingDescription description = CreateThingDescription("Pump01", "sim://opcua.test/wot/Pump01");
+            description.Properties = new Dictionary<string, WotProperty>
+            {
+                ["Speed"] = new WotProperty { Type = "number" }
+            };
+            ServiceResult result = await harness.Registry.RebuildAsync(
+                entry, description, persistOnSuccess: true, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(entry.Properties, Has.Count.EqualTo(1));
+            Assert.That(entry.RegistryMirror, Is.Not.Null);
+            return entry;
+        }
+
+        private void AssertRetainedAsset(
+            ManagerHarness harness, AssetEntry entry, Mock<IWotAssetProvider> provider, byte[] persisted)
+        {
+            Assert.That(harness.Registry.FindByNodeId(entry.Asset.NodeId), Is.SameAs(entry));
+            Assert.That(harness.Registry.AssetNames, Has.Member("Pump01"));
+            Assert.That(entry.Provider, Is.SameAs(provider.Object));
+            provider.Verify(value => value.DisposeAsync(), Times.Never);
+            Assert.That(entry.Properties, Has.Count.EqualTo(1));
+            Assert.That(harness.Manager.FindPredefinedNode<NodeState>(entry.Asset.NodeId), Is.SameAs(entry.Asset));
+            Assert.That(File.ReadAllBytes(Path.Combine(m_tempFolder, "Pump01.jsonld")), Is.EqualTo(persisted));
+        }
+
+        private void AssertDeletedAsset(
+            ManagerHarness harness, AssetEntry entry, Mock<IWotAssetProvider> provider,
+            WotRegistryService registry, ServiceResult result)
+        {
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(harness.Registry.FindByNodeId(entry.Asset.NodeId), Is.Null);
+            Assert.That(harness.Registry.AssetNames, Is.Empty);
+            Assert.That(harness.Manager.FindPredefinedNode<NodeState>(entry.Asset.NodeId), Is.Null);
+            Assert.That(File.Exists(Path.Combine(m_tempFolder, "Pump01.jsonld")), Is.False);
+            Assert.That(registry.Current.AllResources(), Is.Empty);
+            provider.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
         private static Mock<IWotRegistryService> CreateRecordingBridge(
             WotRegistryService registry,
             List<WotUpsertResourceRequest> requests,
             List<(string GroupId, string ResourceId)>? deletes = null)
         {
             var bridge = new Mock<IWotRegistryService>(MockBehavior.Strict);
+            bridge.SetupGet(value => value.Current).Returns(() => registry.Current);
             bridge.Setup(r => r.UpsertResourceAsync(
                     It.IsAny<WotUpsertResourceRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -278,11 +832,15 @@ namespace Opc.Ua.WotCon.Tests
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<long?>(),
+                    It.IsAny<IOperationContext?>(),
                     It.IsAny<CancellationToken>()))
-                .Callback<string, string, long?, CancellationToken>((groupId, resourceId, _, _) =>
+                .Callback<string, string, long?, IOperationContext?, CancellationToken>(
+                    (groupId, resourceId, _, _, _) =>
                     deletes?.Add((groupId, resourceId)))
-                .Returns((string groupId, string resourceId, long? expectedEpoch, CancellationToken ct) =>
-                    registry.DeleteResourceAsync(groupId, resourceId, expectedEpoch, ct));
+                .Returns((
+                    string groupId, string resourceId, long? expectedEpoch, IOperationContext? callerContext,
+                    CancellationToken ct) =>
+                    registry.DeleteResourceAsync(groupId, resourceId, expectedEpoch, callerContext, ct));
             return bridge;
         }
 
@@ -313,6 +871,8 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(roundtrip.Base, Is.EqualTo(expected.Base));
             Assert.That(roundtrip.Properties, Is.EqualTo(expected.Properties));
         }
+
+        private string m_tempFolder = null!;
 
         private sealed class ManagerHarness : IDisposable
         {
@@ -456,6 +1016,51 @@ namespace Opc.Ua.WotCon.Tests
             private readonly ApplicationConfiguration m_configuration;
             private readonly ServerSystemContext m_serverSystemContext;
             private readonly MonitoredItemQueueFactory m_monitoredItemQueueFactory;
+        }
+
+        private sealed class ControlledRegistryStore : IWotRegistryStore
+        {
+            /// <summary>
+            /// Gets or sets the current for <c>ControlledRegistryStore</c>.
+            /// </summary>
+            public WotRegistrySnapshot Current { get; private set; } = WotRegistrySnapshot.Empty;
+
+            /// <summary>
+            /// Gets or sets the before commit for <c>ControlledRegistryStore</c>.
+            /// </summary>
+            public Action<WotRegistrySnapshot, CancellationToken>? BeforeCommit { get; set; }
+
+            /// <summary>
+            /// Gets or sets the after commit for <c>ControlledRegistryStore</c>.
+            /// </summary>
+            public Action<WotRegistrySnapshot, CancellationToken>? AfterCommit { get; set; }
+
+            /// <summary>
+            /// Gets or sets the commit count for <c>ControlledRegistryStore</c>.
+            /// </summary>
+            public int CommitCount { get; private set; }
+
+            /// <inheritdoc/>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+            public ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotRegistrySnapshot>(Current);
+            }
+
+            /// <inheritdoc/>
+            /// <param name="snapshot">The WoT registry snapshot.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+            public ValueTask CommitAsync(
+                WotRegistrySnapshot snapshot, CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                CommitCount++;
+                BeforeCommit?.Invoke(snapshot, cancellationToken);
+                Current = snapshot;
+                AfterCommit?.Invoke(snapshot, cancellationToken);
+                return default;
+            }
         }
     }
 }

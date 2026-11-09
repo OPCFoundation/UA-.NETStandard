@@ -75,7 +75,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Config(UadpProfile), new SingleTransportFactory(new DatagramHarnessTransport(UadpProfile), UadpProfile),
                 NoEncoders(), NoDecoders(), new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await connection.RequestDiscoveryAsync(null!, TimeSpan.Zero).ConfigureAwait(false));
         }
 
@@ -86,7 +86,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Config(UadpProfile), new SingleTransportFactory(new DatagramHarnessTransport(UadpProfile), UadpProfile),
                 NoEncoders(), NoDecoders(), new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await connection.RequestDiscoveryAsync(
                     new PubSubDiscoveryRequest { DiscoveryType = UadpDiscoveryType.ApplicationInformation },
                     TimeSpan.FromMilliseconds(-1)).ConfigureAwait(false));
@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Config(UadpProfile), new SingleTransportFactory(new DatagramHarnessTransport(UadpProfile), UadpProfile),
                 NoEncoders(), NoDecoders(), new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await connection.RequestDiscoveryAsync(
                     new PubSubDiscoveryRequest { DiscoveryType = UadpDiscoveryType.ApplicationInformation },
                     TimeSpan.Zero).ConfigureAwait(false));
@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Config(UadpProfile), new SingleTransportFactory(new DatagramHarnessTransport(UadpProfile), UadpProfile),
                 NoEncoders(), NoDecoders(), new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await connection.InvokeActionAsync(null!, TimeSpan.Zero).ConfigureAwait(false));
         }
 
@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Config(UadpProfile), new SingleTransportFactory(new DatagramHarnessTransport(UadpProfile), UadpProfile),
                 NoEncoders(), NoDecoders(), new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await connection.InvokeActionAsync(
                     new PubSubActionRequest
                     {
@@ -140,7 +140,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Config(UadpProfile), new SingleTransportFactory(new DatagramHarnessTransport(UadpProfile), UadpProfile),
                 NoEncoders(), NoDecoders(), new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await connection.InvokeActionAsync(
                     new PubSubActionRequest
                     {
@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Config(UadpProfile), new ThrowingCreateTransportFactory(),
                 NoEncoders(), NoDecoders(), new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await connection.EnableAsync().ConfigureAwait(false));
             Assert.Multiple(() =>
             {
@@ -197,7 +197,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Config(UadpProfile), new SingleTransportFactory(transport, UadpProfile),
                 NoEncoders(), NoDecoders(), new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await connection.EnableAsync().ConfigureAwait(false));
             Assert.Multiple(() =>
             {

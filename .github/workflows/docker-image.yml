@@ -47,10 +47,12 @@ env:
       {"image": "calcserver", "project": "samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj", "dockerfile": "./samples/MinimalApi/MinimalCalcServer/Dockerfile"},
       {"image": "mcpserver", "project": "tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj", "dockerfile": "./tools/Opc.Ua.Mcp/Dockerfile"},
       {"image": "redundantserver", "project": "samples/Redundancy/RedundantServer/RedundantServer.csproj", "dockerfile": "./samples/Redundancy/RedundantServer/Dockerfile"},
-      {"image": "pumpserver", "project": "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj", "dockerfile": "./samples/DI/PumpDeviceIntegrationServer/Dockerfile"},
+      {"image": "pumpserver", "project": "samples/Di/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj", "dockerfile": "./samples/Di/PumpDeviceIntegrationServer/Dockerfile"},
       {"image": "redundantclient", "project": "samples/Redundancy/RedundantClient/RedundantClient.csproj", "dockerfile": "./samples/Redundancy/RedundantClient/Dockerfile"},
       {"image": "redundantpubsub", "project": "samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj", "dockerfile": "./samples/Redundancy/RedundantPubSub/Dockerfile"},
-      {"image": "pubsubclient", "project": "samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj", "dockerfile": "./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile"}
+      {"image": "pubsubclient", "project": "samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj", "dockerfile": "./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile"},
+      {"image": "recyclingserver", "project": "samples/Recycling/RecyclingServer/RecyclingServer.csproj", "dockerfile": "./samples/Recycling/RecyclingServer/Dockerfile"},
+      {"image": "recyclingclient", "project": "samples/Recycling/RecyclingOperatorConsole/RecyclingOperatorConsole.csproj", "dockerfile": "./samples/Recycling/RecyclingOperatorConsole/Dockerfile"}
     ]
 
 jobs:
@@ -147,7 +149,7 @@ jobs:
     - name: Set up .NET 10
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.401'
+        global-json-file: global.json
 
     - name: Set Version
       shell: pwsh
@@ -217,7 +219,7 @@ jobs:
     - name: Set up .NET 10
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.401'
+        global-json-file: global.json
 
     - name: Set Version
       shell: pwsh

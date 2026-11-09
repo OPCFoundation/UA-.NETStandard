@@ -1418,16 +1418,31 @@ static const char *checkWrongPasswordRejected(void) {
 }
 
 static const char *checkX509UserToken(void) {
-    UA_String subject[2] = {UA_STRING_STATIC("CN=InteropUser"), UA_STRING_STATIC("O=OPC Foundation")};
-    UA_String san[1] = {UA_STRING_STATIC("DNS:localhost")};
-    UA_KeyValueMap *params = UA_KeyValueMap_new();
-    UA_UInt16 bits = 2048;
-    UA_KeyValueMap_setScalar(params, UA_QUALIFIEDNAME(0, "key-size-bits"), &bits, &UA_TYPES[UA_TYPES_UINT16]);
+    /* The user certificate the harness trusts on the server (DER + PKCS#8 PEM);
+     * without those options a new self-signed one. */
     UA_ByteString certificate = UA_BYTESTRING_NULL, key = UA_BYTESTRING_NULL;
-    UA_StatusCode res = UA_CreateCertificate(&s_logger, subject, 2, san, 1, UA_CERTIFICATEFORMAT_DER, params, &key,
-                                             &certificate);
-    UA_KeyValueMap_delete(params);
-    REQUIRE(res == UA_STATUSCODE_GOOD, "creating the user certificate returned %s", UA_StatusCode_name(res));
+    UA_StatusCode res;
+    const char *certPath = opt("x509-user-cert-der", NULL), *keyPath = opt("x509-user-key-pem", NULL);
+    if(certPath && keyPath) {
+        certificate = readFile(certPath);
+        key = readFile(keyPath);
+        if(certificate.length == 0 || key.length == 0) {
+            UA_ByteString_clear(&certificate);
+            UA_ByteString_clear(&key);
+            snprintf(c_msg, sizeof(c_msg), "reading the user certificate %s or key %s failed", certPath, keyPath);
+            return c_msg;
+        }
+    } else {
+        UA_String subject[2] = {UA_STRING_STATIC("CN=InteropUser"), UA_STRING_STATIC("O=OPC Foundation")};
+        UA_String san[1] = {UA_STRING_STATIC("DNS:localhost")};
+        UA_KeyValueMap *params = UA_KeyValueMap_new();
+        UA_UInt16 bits = 2048;
+        UA_KeyValueMap_setScalar(params, UA_QUALIFIEDNAME(0, "key-size-bits"), &bits, &UA_TYPES[UA_TYPES_UINT16]);
+        res = UA_CreateCertificate(&s_logger, subject, 2, san, 1, UA_CERTIFICATEFORMAT_DER, params, &key,
+                                   &certificate);
+        UA_KeyValueMap_delete(params);
+        REQUIRE(res == UA_STATUSCODE_GOOD, "creating the user certificate returned %s", UA_StatusCode_name(res));
+    }
     UA_Client *client = newClient(&certificate, &key);
     res = UA_Client_connect(client, c_url);
     const char *failure = NULL;

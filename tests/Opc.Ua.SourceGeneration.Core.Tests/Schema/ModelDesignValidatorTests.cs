@@ -440,6 +440,163 @@ namespace Opc.Ua.Schema.Model.Tests
             return new ModelDesignValidator(fileSystem, startId, exclusions!, telemetry, version);
         }
 
+        /// <summary>
+        /// Deferred dependency validation must not defer policy expansion into the consuming dictionary.
+        /// </summary>
+        [TestCase(false, false, "Mandatory")]
+        [TestCase(false, false, "Optional")]
+        [TestCase(true, false, "Mandatory")]
+        [TestCase(true, false, "Optional")]
+        [TestCase(false, true, "Mandatory")]
+        [TestCase(true, true, "Mandatory")]
+        [Category("SecurityRegression")]
+        public void SecurityR11NamedPermissionsResolveInOwningModelBeforeHierarchyCopy(
+            bool useDefault,
+            bool localOverride,
+            string modellingRule)
+        {
+            const string producerPath = "memory://NamedProducer.xml";
+            const string consumerPath = "memory://NamedConsumer.xml";
+            string attribute = useDefault ? "DefaultRolePermissions" : "RolePermissions";
+            string producer = NamedPolicyDesign("Producer", "i=15704",
+                $"""
+                <opc:ObjectType SymbolicName="ProtectedType" BaseType="ua:BaseObjectType">
+                  <opc:Children>
+                    <opc:Variable SymbolicName="Protected" DataType="ua:Int32" ModellingRule="{modellingRule}">
+                      <opc:{attribute} Name="Shared" />
+                    </opc:Variable>
+                  </opc:Children>
+                </opc:ObjectType>
+                """);
+            string local = localOverride
+                ? """
+                  <opc:Children>
+                    <opc:Variable SymbolicName="dep:Protected" DataType="ua:Int32">
+                      <opc:RolePermissions Name="Shared" />
+                    </opc:Variable>
+                  </opc:Children>
+                  """
+                : string.Empty;
+            string consumer = NamedPolicyDesign("Consumer", "i=15644",
+                $"""
+                <opc:Object SymbolicName="Device" TypeDefinition="dep:ProtectedType">
+                  {local}
+                </opc:Object>
+                """);
+            m_fileSystem.Add(producerPath, Encoding.UTF8.GetBytes(producer));
+            m_fileSystem.Add(consumerPath, Encoding.UTF8.GetBytes(consumer));
+            ModelDesignValidator validator = CreateValidator();
+
+            validator.Validate([consumerPath], [producerPath], null!);
+
+            NodeDesign root = validator.GetNodeDesigns().Single(node => node.SymbolicName.Name == "Device");
+            NodeDesign child = root.Hierarchy.Nodes["Protected"].Instance!;
+            RolePermissionSet policy = child.RolePermissions ?? child.DefaultRolePermissions;
+            Assert.Multiple(() =>
+            {
+                Assert.That(policy.Name, Is.Null.Or.Empty);
+                Assert.That(policy.RolePermission, Has.Length.EqualTo(1));
+                Assert.That(policy.RolePermission.Single().RoleId, Is.EqualTo(localOverride ? "i=15644" : "i=15704"));
+                Assert.That(policy.RolePermission.Single().Permission, Is.EqualTo(new[] { Permissions.Read }));
+            });
+        }
+
+        /// <summary>
+        /// Builds independent dictionaries with deliberately colliding policy-set names.
+        /// </summary>
+        private static string NamedPolicyDesign(string name, string roleId, string nodes)
+        {
+            string dependency = name == "Producer" ? string.Empty :
+                """<opc:Namespace Name="Producer" Prefix="Producer">urn:test:Producer</opc:Namespace>""";
+            return $"""
+                <opc:ModelDesign xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                    xmlns:ua="http://opcfoundation.org/UA/" xmlns:dep="urn:test:Producer"
+                    xmlns="urn:test:{name}" TargetNamespace="urn:test:{name}">
+                  <opc:Namespaces>
+                    <opc:Namespace Name="{name}" Prefix="{name}">urn:test:{name}</opc:Namespace>
+                    {dependency}
+                    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                        XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                        >http://opcfoundation.org/UA/</opc:Namespace>
+                  </opc:Namespaces>
+                  <opc:PermissionSets>
+                    <opc:PermissionSet Name="Shared">
+                      <opc:RolePermission RoleId="{roleId}"><opc:Permission>Read</opc:Permission></opc:RolePermission>
+                    </opc:PermissionSet>
+                  </opc:PermissionSets>
+                  {nodes}
+                </opc:ModelDesign>
+                """;
+        }
+
+        /// <summary>
+        /// Restriction-only declarations must create metadata without manufacturing absent policy.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        [Category("SecurityRegression")]
+        public void SecurityR43RestrictionOnlyDeclarationsCaptureIndependentPresence(bool local, bool defaults)
+        {
+            var declaration = new VariableDesign
+            {
+                AccessRestrictions = AccessRestrictions.None,
+                AccessRestrictionsSpecified = local,
+                DefaultAccessRestrictions = AccessRestrictions.EncryptionRequired,
+                DefaultAccessRestrictionsSpecified = defaults
+            };
+
+            DependencySecurity? security = DependencySecurity.FromNode(declaration, CreateValidator());
+
+            if (!local && !defaults)
+            {
+                Assert.That(security, Is.Null);
+                return;
+            }
+            Assert.That(security, Is.Not.Null);
+            var reconstructed = new VariableDesign();
+            security!.ApplyTo(reconstructed);
+            Assert.Multiple(() =>
+            {
+                Assert.That(reconstructed.AccessRestrictionsSpecified, Is.EqualTo(local));
+                Assert.That(reconstructed.DefaultAccessRestrictionsSpecified, Is.EqualTo(defaults));
+                Assert.That(reconstructed.AccessRestrictions,
+                    Is.EqualTo(local ? AccessRestrictions.None : default));
+                Assert.That(reconstructed.DefaultAccessRestrictions,
+                    Is.EqualTo(defaults ? AccessRestrictions.EncryptionRequired : default));
+                Assert.That(reconstructed.RolePermissions, Is.Null);
+            });
+        }
+
+        /// <summary>
+        /// Missing policy in a deferred dependency must fail before an instance hierarchy is published.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityR11UnresolvedDependencyNamedPermissionFailsValidation()
+        {
+            const string producerPath = "memory://MissingPolicyProducer.xml";
+            const string consumerPath = "memory://MissingPolicyConsumer.xml";
+            m_fileSystem.Add(producerPath, Encoding.UTF8.GetBytes(NamedPolicyDesign("Producer", "i=15704",
+                """
+                <opc:ObjectType SymbolicName="ProtectedType" BaseType="ua:BaseObjectType">
+                  <opc:Children>
+                    <opc:Variable SymbolicName="Protected" DataType="ua:Int32">
+                      <opc:RolePermissions Name="Missing" />
+                    </opc:Variable>
+                  </opc:Children>
+                </opc:ObjectType>
+                """)));
+            m_fileSystem.Add(consumerPath, Encoding.UTF8.GetBytes(NamedPolicyDesign("Consumer", "i=15644",
+                """<opc:Object SymbolicName="Device" TypeDefinition="dep:ProtectedType" />""")));
+            ModelDesignValidator validator = CreateValidator();
+
+            Exception failure = Assert.Catch(() => validator.Validate([consumerPath], [producerPath], null!));
+
+            Assert.That(failure.ToString(), Does.Contain("RolePermissions").And.Contain("Missing"));
+        }
+
         private ModelDesignValidator CreateValidatedValidator()
         {
             ModelDesignValidator validator = CreateValidator();

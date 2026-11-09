@@ -75,7 +75,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultServerRedundancyHandler"/> class.
         /// </summary>
-        /// <param name="endpointResolver">Resolves a peer URI to an endpoint.</param>
+        /// <param name="endpointResolver">
+        /// Resolves a peer URI to an endpoint. Defaults to a
+        /// <see cref="ReverseConnectRedundantServerEndpointResolver"/> when
+        /// <see cref="ServerRedundancyOptions.MemberConnections"/> is set and to a
+        /// <see cref="DefaultRedundantServerEndpointResolver"/> otherwise.
+        /// </param>
         /// <param name="timeProvider">Clock used for the discovery bound.</param>
         /// <param name="options">
         /// Bounds applied to peer discovery. Defaults to
@@ -86,11 +91,24 @@ namespace Opc.Ua.Client
             TimeProvider? timeProvider = null,
             ServerRedundancyOptions? options = null)
         {
-            m_endpointResolver = endpointResolver ?? new DefaultRedundantServerEndpointResolver();
-            m_timeProvider = timeProvider ?? TimeProvider.System;
             ServerRedundancyOptions effective = options ?? new ServerRedundancyOptions();
             effective.Validate();
+            m_endpointResolver = endpointResolver ?? CreateEndpointResolver(effective, null);
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_peerDiscoveryTimeout = effective.PeerDiscoveryTimeout;
+        }
+
+        /// <summary>
+        /// Creates the endpoint resolver that matches how the members of the
+        /// set are reached.
+        /// </summary>
+        internal static IRedundantServerEndpointResolver CreateEndpointResolver(
+            ServerRedundancyOptions? options,
+            ITelemetryContext? telemetry)
+        {
+            return options?.MemberConnections is IReverseConnectionAvailability connections
+                ? new ReverseConnectRedundantServerEndpointResolver(connections, telemetry)
+                : new DefaultRedundantServerEndpointResolver(telemetry);
         }
 
         /// <inheritdoc/>
@@ -135,6 +153,12 @@ namespace Opc.Ua.Client
                 await session.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
 
+            var readStatuses = new Dictionary<NodeId, StatusCode>(nodeIds.Count + 1);
+            for (int ii = 0; ii < nodeIds.Count; ii++)
+            {
+                readStatuses[nodeIds[ii]] = GetReadStatus(values[ii], errors[ii]);
+            }
+
             RedundancySupport mode = RedundancySupport.None;
             if (StatusCode.IsGood(errors[0].StatusCode))
             {
@@ -165,7 +189,7 @@ namespace Opc.Ua.Client
                     values[3],
                     errors[3]);
                 currentServerId = mode == RedundancySupport.Transparent
-                    ? await ReadCurrentServerIdAsync(session, ct).ConfigureAwait(false)
+                    ? await ReadCurrentServerIdAsync(session, readStatuses, ct).ConfigureAwait(false)
                     : string.Empty;
                 redundantServers = redundantServers.ConvertAll(server => WithEndpoint(
                     server, m_resolvedEndpoints.TryGetValue(
@@ -184,7 +208,8 @@ namespace Opc.Ua.Client
                 ServiceLevelSubrange = ServiceLevels.GetSubrange(serviceLevel),
                 EstimatedReturnTime = estimatedReturnTime,
                 CurrentServerId = currentServerId,
-                RedundantServers = redundantServers
+                RedundantServers = redundantServers,
+                ReadStatuses = readStatuses
             };
         }
 
@@ -285,10 +310,11 @@ namespace Opc.Ua.Client
         async ValueTask<ServerRedundancyInfo> IServerRedundancyEndpointCache.ResolveCachedEndpointsAsync(
             ServerRedundancyInfo snapshot,
             ConfiguredEndpoint currentEndpoint,
-            CancellationToken ct)
+            CancellationToken ct,
+            ConfiguredEndpoint? initialEndpoint)
         {
             ArrayOf<RedundantServer> servers = await ResolveEndpointsAsync(
-                snapshot.RedundantServers, currentEndpoint, ct).ConfigureAwait(false);
+                snapshot.RedundantServers, currentEndpoint, initialEndpoint, ct).ConfigureAwait(false);
             return new ServerRedundancyInfo
             {
                 Mode = snapshot.Mode,
@@ -297,7 +323,8 @@ namespace Opc.Ua.Client
                 ServiceLevelAccessible = snapshot.ServiceLevelAccessible,
                 ServiceLevelSubrange = snapshot.ServiceLevelSubrange,
                 EstimatedReturnTime = snapshot.EstimatedReturnTime,
-                CurrentServerId = snapshot.CurrentServerId
+                CurrentServerId = snapshot.CurrentServerId,
+                ReadStatuses = snapshot.ReadStatuses
             };
         }
 
@@ -318,12 +345,20 @@ namespace Opc.Ua.Client
         private async ValueTask<ArrayOf<RedundantServer>> ResolveEndpointsAsync(
             ArrayOf<RedundantServer> redundantServers,
             ConfiguredEndpoint currentEndpoint,
+            ConfiguredEndpoint? initialEndpoint,
             CancellationToken ct)
         {
             var tasks = new Task<RedundantServer>[redundantServers.Count];
+            string? initialUri = initialEndpoint?.ReverseConnect?.ServerUri ??
+                initialEndpoint?.Description?.Server?.ApplicationUri;
             for (int ii = 0; ii < redundantServers.Count; ii++)
             {
-                tasks[ii] = ResolveServerAsync(redundantServers[ii], currentEndpoint, ct);
+                ct.ThrowIfCancellationRequested();
+                RedundantServer server = redundantServers[ii];
+                tasks[ii] = !string.IsNullOrEmpty(initialUri) &&
+                    string.Equals(server.ServerUri, initialUri, StringComparison.Ordinal)
+                    ? Task.FromResult(WithEndpoint(server, initialEndpoint))
+                    : ResolveServerAsync(server, currentEndpoint, ct);
             }
 
             return await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -336,6 +371,7 @@ namespace Opc.Ua.Client
         {
             ct.ThrowIfCancellationRequested();
             ConfiguredEndpoint? endpoint = null;
+            ServiceResult? error = null;
             if (!string.IsNullOrEmpty(server.ServerUri))
             {
                 using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
@@ -348,6 +384,13 @@ namespace Opc.Ua.Client
                     // below would unhook it from the caller's token and leave the discovery running.
                     endpoint = await ResolveEndpointAsync(server.ServerUri, currentEndpoint, linked.Token)
                         .WaitAsync(m_peerDiscoveryTimeout, m_timeProvider, linked.Token).ConfigureAwait(false);
+                    if (endpoint == null)
+                    {
+                        error = new ServiceResult(
+                            StatusCodes.BadNotFound,
+                            new LocalizedText(
+                                "No endpoint of the Server matches the security and transport of the endpoint in use."));
+                    }
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -358,6 +401,7 @@ namespace Opc.Ua.Client
                 {
                     ct.ThrowIfCancellationRequested();
                     m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
+                    error = ToServiceResult(exception);
                 }
                 finally
                 {
@@ -365,10 +409,13 @@ namespace Opc.Ua.Client
                     await linked.CancelAsync().ConfigureAwait(false);
                 }
             }
-            return WithEndpoint(server, endpoint);
+            return WithEndpoint(server, endpoint, error);
         }
 
-        private static RedundantServer WithEndpoint(RedundantServer server, ConfiguredEndpoint? endpoint)
+        private static RedundantServer WithEndpoint(
+            RedundantServer server,
+            ConfiguredEndpoint? endpoint,
+            ServiceResult? resolutionError = null)
         {
             return new RedundantServer
             {
@@ -376,8 +423,25 @@ namespace Opc.Ua.Client
                 ServiceLevel = server.ServiceLevel,
                 ServiceLevelKnown = server.ServiceLevelKnown,
                 ServerState = server.ServerState,
-                Endpoint = endpoint
+                Endpoint = endpoint,
+                ResolutionError = resolutionError
             };
+        }
+
+        private static ServiceResult ToServiceResult(Exception exception)
+        {
+            return exception switch
+            {
+                ServiceResultException sre => sre.Result,
+                TimeoutException or OperationCanceledException => new ServiceResult(
+                    StatusCodes.BadTimeout, new LocalizedText(exception.Message)),
+                _ => new ServiceResult(exception)
+            };
+        }
+
+        private static StatusCode GetReadStatus(DataValue value, ServiceResult error)
+        {
+            return StatusCode.IsBad(error.StatusCode) ? error.StatusCode : value.StatusCode;
         }
 
         private async Task<ConfiguredEndpoint?> ResolveEndpointAsync(
@@ -419,8 +483,22 @@ namespace Opc.Ua.Client
         {
             try
             {
-                ConfiguredEndpoint? endpoint = await m_endpointResolver
-                    .ResolveAsync(key.ServerUri, currentEndpoint, ct).ConfigureAwait(false);
+                ConfiguredEndpoint? endpoint;
+                if (m_endpointResolver is DefaultRedundantServerEndpointResolver resolver)
+                {
+                    (endpoint, ServiceResult? discoveryError) = await resolver
+                        .ResolveWithDiscoveryErrorAsync(key.ServerUri, currentEndpoint, ct).ConfigureAwait(false);
+                    if (endpoint == null && discoveryError != null)
+                    {
+                        // A failed discovery is reported as such, not as a missing endpoint.
+                        throw new ServiceResultException(discoveryError);
+                    }
+                }
+                else
+                {
+                    endpoint = await m_endpointResolver
+                        .ResolveAsync(key.ServerUri, currentEndpoint, ct).ConfigureAwait(false);
+                }
                 ct.ThrowIfCancellationRequested();
                 if (endpoint != null)
                 {
@@ -533,6 +611,7 @@ namespace Opc.Ua.Client
 
         private static async Task<string> ReadCurrentServerIdAsync(
             ISession session,
+            Dictionary<NodeId, StatusCode> readStatuses,
             CancellationToken ct)
         {
             try
@@ -540,6 +619,7 @@ namespace Opc.Ua.Client
                 DataValue dataValue = await session.ReadValueAsync(
                     VariableIds.Server_ServerRedundancy_CurrentServerId,
                     ct).ConfigureAwait(false);
+                readStatuses[VariableIds.Server_ServerRedundancy_CurrentServerId] = dataValue.StatusCode;
 
                 if (StatusCode.IsGood(dataValue.StatusCode) &&
                     dataValue.WrappedValue.TryGetValue(out string currentServerId))
@@ -547,9 +627,10 @@ namespace Opc.Ua.Client
                     return currentServerId;
                 }
             }
-            catch (ServiceResultException)
+            catch (ServiceResultException sre)
             {
-                // Node may not exist; return empty string.
+                // The node may not exist; the status reports why the identifier is empty.
+                readStatuses[VariableIds.Server_ServerRedundancy_CurrentServerId] = sre.StatusCode;
             }
 
             return string.Empty;

@@ -30,6 +30,7 @@
 using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -152,11 +153,11 @@ namespace Opc.Ua.Vision.Tests
                 "ClassifyInlineState",
                 BindingFlags.NonPublic | BindingFlags.Static,
                 binder: null,
-                types: new[] { typeof(StatusCode) },
+                types: [typeof(StatusCode)],
                 modifiers: null);
             Assert.That(method, Is.Not.Null,
                 "VisionMediaClient.ClassifyInlineState must exist and take a StatusCode. If this reflection lookup fails the mapping cannot be enforced.");
-            return (VisionInlineClipState)method!.Invoke(null, new object[] { statusCode })!;
+            return (VisionInlineClipState)method!.Invoke(null, [statusCode])!;
         }
     }
 }

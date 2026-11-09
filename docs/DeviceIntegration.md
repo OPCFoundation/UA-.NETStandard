@@ -17,13 +17,53 @@ plugs it together.
 
 - [Library layout](#library-layout)
 - [Quick start](#quick-start)
+  - [Plain Device Integration (DI) server](#plain-device-integration-di-server)
+  - [Companion-spec server (Pumps + Device Integration)](#companion-spec-server-pumps--device-integration)
+  - [Client](#client)
 - [Device builder](#device-builder)
+  - [Entry points](#entry-points)
+  - [Fluent surface](#fluent-surface)
+  - [Subclass support](#subclass-support)
 - [Device sub-type extensions](#device-sub-type-extensions)
+  - [Software / Block / ConfigurableObject (§5.4 advanced sub-types)](#software--block--configurableobject-54-advanced-sub-types)
+  - [Lifetime indication (§10.6)](#lifetime-indication-106)
+  - [Support info (§5.15)](#support-info-515)
 - [Hosting integration](#hosting-integration)
+  - [Server-side surface](#server-side-surface)
+  - [Composing companion models](#composing-companion-models)
+  - [Companion runtime ownership and placement](#companion-runtime-ownership-and-placement)
+  - [Placement by specification](#placement-by-specification)
+  - [Context surface](#context-surface)
+  - [Architecture](#architecture)
+  - [Runtime conformance advertisement](#runtime-conformance-advertisement)
+  - [Client-side surface](#client-side-surface)
 - [Lock service](#lock-service)
+  - [Components](#components)
+  - [Status codes](#status-codes)
+  - [Default lock service](#default-lock-service)
+  - [Binding to a `LockingServicesState`](#binding-to-a-lockingservicesstate)
+  - [End-to-end flow](#end-to-end-flow)
+  - [Hosting](#hosting)
 - [Software update](#software-update)
+  - [Server-side: package store](#server-side-package-store)
+  - [Hosting](#hosting-1)
+  - [Client-side software update](#client-side-software-update)
 - [Client helpers](#client-helpers)
+  - [DiLockClient](#dilockclient)
+  - [DiTopologyClient](#ditopologyclient)
+  - [Hosting registration](#hosting-registration)
 - [What is supported (OPC 10000-100)](#what-is-supported-opc-10000-100)
+  - [Foundation — nameplates and topology elements](#foundation--nameplates-and-topology-elements)
+  - [Device tree](#device-tree)
+  - [Topology references](#topology-references-1)
+  - [Topology containers](#topology-containers)
+  - [Functional groups (§5.7)](#functional-groups-57)
+  - [Lock service (§10.5)](#lock-service-105)
+  - [Software update (§10.3)](#software-update-103)
+  - [Support info & lifetime indication](#support-info--lifetime-indication)
+  - [NAMUR alarms (§10.2)](#namur-alarms-102)
+  - [DataTypes & VariableTypes](#datatypes--variabletypes)
+  - [Not yet implemented](#not-yet-implemented)
 - [See also](#see-also)
 
 ## Library layout
@@ -34,14 +74,14 @@ plugs it together.
 | `Opc.Ua.Di.Server` | Server: `DiNodeManager`, fluent topology/device builders, locking service, software-update package store, hosting integration. |
 | `Opc.Ua.Di.Client` | Client: `DiDeviceClient`, `DiDiscoveryClient`, `DiTopologyClient`, `DiLockClient`, `SoftwareUpdateClient`, hosting integration. |
 
-The running example is `samples/DI/PumpDeviceIntegrationServer`, a
+The running example is `samples/Di/PumpDeviceIntegrationServer`, a
 companion-spec server that exposes a configurable number of fully
 simulated `PumpType` instances. The sample uses the hand-written fluent
 node-manager style for the common pump model and simulation wiring, then
 uses `ConfigureDevicesFor` with the topology-element builder to add an
 ad-hoc Diagnostics functional group to each pump. The simulated asset is
 specified by its own product datasheet,
-[`samples/DI/PumpDeviceIntegrationServer/DATASHEET.md`](../samples/DI/PumpDeviceIntegrationServer/DATASHEET.md),
+[`samples/Di/PumpDeviceIntegrationServer/DATASHEET.md`](../samples/Di/PumpDeviceIntegrationServer/DATASHEET.md),
 which maps every nameplate field, engineering range and alarm trip point
 to its OPC UA browse path.
 
@@ -461,10 +501,18 @@ Device Integration library to the unified `AddOpcUa()`
 ### Server-side surface
 
 `Microsoft.Extensions.DependencyInjection.OpcUaServerDiBuilderExtensions`
-adds three methods on `IOpcUaServerBuilder`:
+provides model registration and configuration methods on `IOpcUaServerBuilder`:
 
 ```csharp
 IOpcUaServerBuilder AddOpcUaDi();
+
+IOpcUaServerBuilder AddDiModel<TProvider>()
+    where TProvider : class, IDiModelProvider;
+
+IOpcUaServerBuilder AddDiModel<TProvider, TNodeManager>(
+    Func<IDiPostSetupContext, ValueTask> configure)
+    where TProvider : class, IDiModelProvider
+    where TNodeManager : DiNodeManager;
 
 IOpcUaServerBuilder ConfigureDevicesFor<TNodeManager>(
     Action<IDiPostSetupContext> configure)
@@ -497,15 +545,18 @@ on its second invocation to surface the misuse early.
 #### `ConfigureDevicesFor<TNodeManager>(action)`
 
 Registers a post-setup configurator targeted at a specific manager
-type. The runner invokes each matching delegate **after**:
+type. The runner invokes each matching delegate after:
 
-- the manager's `LoadPredefinedNodesAsync` has populated
-  `PredefinedNodes`;
-- the manager's `CreateAddressSpaceAsync` base has wired up the type
-  tree and root notifiers;
-- (for `FluentNodeManagerBase` subclasses) the user's
-  `ConfigureAsync(builder, ct)` / `Configure(builder)` wiring and the
-  subsequent `await builder.SealAsync(ct)` are complete.
+- predefined-node loading through `LoadPredefinedNodesAsync`;
+- the manager's `ConfigureAsync(builder, ct)` wiring;
+- authored-node registration through `RegisterAuthoredNodesAsync`;
+- `CompleteConfigureAsync`.
+
+The readiness callback runs after the initial application managers have been published, so services
+supplied by peer managers are available. When the callback returns successfully, the lifecycle runs
+the configurators and seals the builder before releasing readiness. A manager can call
+`CompletePublishedConfigurationAsync` from its callback when later callback work depends on those
+services. Private preparation does not invoke callbacks that resolve shared serving services.
 
 Configurator-type matching follows `Type.IsAssignableFrom`. A
 delegate targeting `DiNodeManager` runs against every Device Integration-derived
@@ -514,8 +565,157 @@ manager (including `PumpNodeManager`); a delegate targeting
 
 Multiple `ConfigureDevicesFor<T>` calls accumulate and run in
 registration order. **Exception semantics are fail-fast**: any
-exception thrown by a configurator aborts hosted-server startup with
-a diagnostic that identifies the failing index and target type.
+exception thrown by a configurator fails hosted-server startup with
+a diagnostic that identifies the failing index and target type. A runtime readiness failure
+retains the committed generation for recovery or removal; it does not roll back publication.
+Configurators that fail after performing side effects must support a subsequent readiness retry.
+
+### Composing companion models
+
+A server has one owner of the Device Integration namespace. Add companion models
+to that owner instead of registering another standalone owner, which would create
+a second, unbrowsable `DeviceSet`.
+
+#### Who owns the address space?
+
+Exactly one node manager serves the DI namespace. `AddOpcUaDi`, `AddMachinery`,
+`AddRobotics`, `AddAutoId`, `AddPumps` and `AddScales` each claim it with
+`ClaimDiAddressSpace`. A second claim, by the same or a different owner, fails
+during service registration with an exception that names the current owner.
+Vision claims DI only when configured with Machine Vision assets. Composition
+methods such as `AddPumpsToMachinery` contribute to an existing owner instead
+of claiming DI again.
+
+#### How does a companion contribute its model?
+
+A companion implements `IDiModelProvider` and registers it with `AddDiModel<T>`.
+The provider declares its namespaces and loads its predefined nodes. A plain
+`DiNodeManager` loads DI first, then registered providers in ascending `Order`,
+then provider type name, with registration order breaking remaining ties.
+A provider must tolerate dependencies that are already loaded. Provider namespaces
+are registered by both the factory and the manager.
+
+The family interfaces `IMachineryModelProvider`, `IRoboticsModelProvider`,
+`IRobotIntentModelProvider` and `IVisionModelProvider` derive from
+`IDiModelProvider`. Machinery, Robotics and Vision with Assets merge neutral
+providers into their DI-owning managers, deduplicating shared instances;
+Machinery and Robotics keep their built-in dependencies first. Register a provider
+through either `AddDiModel` or the family's `Add*Model`, not both.
+
+Vision loads its built-in model first, then `IVisionDependencyModelProvider`
+registrations, then other providers. The Machine Vision Assets dependency provider
+loads DI and Machinery before neutral providers, even when a neutral provider uses
+`Order = int.MinValue`. Priority and type-name ordering apply within each group.
+
+Use `AddDiModel<TProvider, TNodeManager>(configure)` to register the model and
+a configuration callback together. It accepts a synchronous action or an
+awaited `ValueTask` delegate. Repeated calls register the provider once but retain
+each callback. The model is available to every DI owner; the callback targets
+`TNodeManager` and its subclasses, like `ConfigureDevicesFor<TNodeManager>`.
+
+For example, AutoID readers can join a Machinery owner without a registration-only
+integration package:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
+using Opc.Ua.AutoID.Server;
+using Opc.Ua.Machinery.Server;
+
+services.AddOpcUa()
+    .AddServer(options => { /* application name, endpoints, PKI */ })
+    .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
+    .ConfigureMachinery(async (machines, ct) =>
+    {
+        await machines.AddMachine(new QualifiedName("Press1", machines.InstanceNamespaceIndex))
+            .WithIdentification(id =>
+            {
+                id.Manufacturer = new LocalizedText("Acme");
+                id.SerialNumber = "PR-1";
+                id.ProductInstanceUri = "urn:acme:press:1";
+            })
+            .BuildAsync(ct);
+    })
+    .AddDiModel<AutoIdModelProvider, MachineryNodeManager>(async context =>
+    {
+        AutoIdRuntime readers = context.Manager.CreateAutoIdRuntime();
+        await readers.Reader(
+                new QualifiedName("Infeed", readers.InstanceNamespaceIndex), hardware)
+            .BuildAsync(context.CancellationToken);
+    });
+```
+
+The helper lives in `Opc.Ua.Di.Server` and does not depend on either companion
+server. Use the same call with another provider and DI-derived owner. AutoID also
+offers `AddAutoIdModel(options)` followed by `ConfigureAutoIdFor<TNodeManager>`
+when its typed context or options are needed. Its server package references only
+the Machinery model for component identification.
+
+#### In what order is configuration applied?
+
+`ConfigureDevicesFor<T>`, `ConfigureAutoIdFor<T>` and the combined generic helper
+run in the DI post-setup pipeline after model loading and the owner's initial
+configuration. Matching callbacks run in registration order and asynchronous
+callbacks are awaited. Register `ConfigureMachineryFor<T>` before dependent
+AutoID callbacks so machines exist when readers attach to them. Model `Order`
+controls model loading, not callback execution. Exceptions abort startup.
+
+Robot Intent and Vision without Assets do not own DI and load only their family
+providers; neutral registrations remain with the actual DI owner. Vision and
+Robot Intent retain their own runtime configuration contracts; the shared provider
+interface does not make their managers `DiNodeManager` subclasses.
+
+### Companion runtime ownership and placement
+
+Runtimes use these public `DiNodeManager` members:
+
+- `RegisterResource` transfers an `IAsyncDisposable` to the manager. Disposal
+  releases resources newest first, continues after failures, and throws those
+  failures together as an `AggregateException`. Registering the same instance
+  twice retains it once. `DisposeResourcesAsync` drains the current batch;
+  subsequent disposal does not release that batch again. Overlapping drains
+  await pending cleanup and share its failures. Final shutdown closes registration
+  atomically with its last batch; later registrations throw `ObjectDisposedException`.
+  An ordinary explicit drain leaves registration open for new batches. The Machinery-named
+  registration and disposal extensions forward to these neutral members.
+- `RegisterRootNotifierAsync` registers an event source and attaches existing
+  event subscriptions.
+- `TryOrganizeUnder` adds both directions of an `Organizes` reference and
+  returns `false` when the folder is not owned. Resolve
+  `Machinery.ObjectIds.Machines` through the namespace table; a matching BrowseName
+  alone does not identify that folder.
+- `CompanionInstanceNamespaceIndex` identifies the namespace a companion uses
+  for its instances. A family owner overrides it to select its own namespace.
+
+Runtime registration, including `CreateDeviceAsync`, keeps DI components
+reachable from `DeviceSet`. If no hierarchical path exists, the manager adds an
+`Organizes` reference to the outermost DI component in the hierarchical parent
+chain rather than each nested device. Deleting that component removes its link.
+Initial predefined instances and type declarations are not reorganized automatically.
+
+`IsReachableFrom(root, target)` traverses forward hierarchical references and
+children within the owner. Inverse, non-hierarchical and remote references do not
+establish reachability; cycles terminate. `TryEnsureDeviceSetReachability(device)`
+applies the placement rule explicitly, returns `false` if the owner has no
+DeviceSet, and does not duplicate references on repeated calls.
+
+### Placement by specification
+
+DeviceSet reachability and Machinery placement are separate requirements.
+DI requires every `ComponentType` instance to be reachable, with only the root
+of a composed device directly referenced. Machinery requires machines under
+`Machines`; it does not make every DI device a machine.
+
+| Family | Placement | Basis |
+| --- | --- | --- |
+| DI devices, AutoID readers, Robotics devices | DeviceSet, directly or through a composed root | OPC 10000-100 1.05.0 §4.9; AutoID devices derive from DI DeviceType |
+| Machinery machines, Extrusion machines, GranulateDrying machines, Machine Vision assets | Machines; also reachable from DeviceSet if the instance is a DI ComponentType subtype | OPC 40001-1 1.04.2 §9.2; the domain model determines the machine type |
+| Pumps and Scales | DeviceSet; also Machines when `OrganizeIntoMachinesFolder` is enabled | DI §4.9 and the families' Machinery composition options |
+| AutoID reader attached with `AsComponentOf(machine)` | The machine's Components add-in; DeviceSet reaches the reader independently if necessary | OPC 40001-1 §§8.3, 11.1–11.2 and DI §4.9 |
+
+Readers are not added to Machines. `AsComponentOf` requires the machine's
+Components add-in and supplies the component Identification add-in; see
+[AutoID placement](AutoID.md#placement).
 
 ### Context surface
 
@@ -557,14 +757,16 @@ and lifetime traps).
 | `DiNodeManager` / `PumpNodeManager` | Per-server startup (factory passes runner) | app |
 
 The runner is injected into the manager via the factory. The base
-`DiNodeManager` auto-invokes it at the end of its own
-`CreateAddressSpaceAsync` for every concrete subclass:
+`DiNodeManager` auto-invokes it during published readiness for every concrete subclass:
 
 - The base `DiNodeManager.CreateAddressSpaceAsync` calls
   `LoadPredefinedNodesAsync` → `CreateFluentBuilder(...)` →
   `ConfigureAsync(builder, ct)` → `RegisterAuthoredNodesAsync` →
-  `CompleteConfigureAsync` → `PostSetupRunner.RunAsync(this, ct)` →
-  `SealConfigurationAsync(builder, ct)` in that order. Sealing comes last because the
+  `CompleteConfigureAsync`. With an injected runner it retains the open builder until
+  its `INodeManagerReadinessNotification` callback invokes `PostSetupRunner.RunAsync(this, ct)` and then
+  `SealConfigurationAsync(builder, ct)`. Without a runner or other deferred shared-service steps,
+  it seals during address-space creation.
+  Sealing comes last because the
   fluent registries (simulations, event sources) are owned by the manager,
   not by a single builder, and sealing starts them — a post-setup
   configurator must still be able to register a simulation loop.
@@ -573,9 +775,18 @@ The runner is injected into the manager via the factory. The base
   hook to materialise instances and drive the fluent
   `INodeManagerBuilder`. Because the hook is awaited, asynchronous
   setup and synchronous wiring live in one method; the base class owns
-  node registration and sealing. The runner fires automatically once
-  the builder is sealed — subclasses do not need to call
+  node registration and sealing. The runner fires automatically before
+  `SealConfigurationAsync` — subclasses do not need to call
   `PostSetupRunner.RunAsync` themselves.
+
+Subclasses that require published shared services can register ordered steps with
+`DeferConfigurationUntilReady`. All steps must use the same original builder and be registered
+before readiness starts. `DeferPublishedAuthoringUntilReady` supplies a separate attached builder
+when a step also authors nodes. It resolves the prepared default namespace by URI after publication,
+registers the new roots and external references, and closes that pass's graph authoring.
+Manager-wide behavior activation waits until every step, including hosting post-setup, succeeds.
+Completed steps, roots and external-reference source groups are not replayed after a failure;
+an interrupted callback, subtree or source group must support idempotent retry.
 
 ```mermaid
 sequenceDiagram
@@ -598,6 +809,12 @@ sequenceDiagram
     Base->>Base: await RegisterAuthoredNodesAsync(builder, ct)
     Base->>Base: await CompleteConfigureAsync(externalReferences, ct)
 
+    Base-->>Host: private preparation complete
+    Note over Host: publish the initial application managers
+    Host->>Base: OnServerReadyAsync(ct)
+    Base-->>Host: readiness callback returns
+    Host->>Base: complete deferred shared-service authoring
+    Note over Sub: register published additions and references;<br/>do not activate manager-wide behaviors yet
     Base->>Run: await RunAsync(this, ct)
     Note over Run: configurators still register simulation<br/>loops and event sources here
 
@@ -610,6 +827,13 @@ the manager rather than to one builder, and sealing starts them. Sealing
 before `RunAsync` would leave the post-setup configurators unable to
 register a simulation loop of their own.
 
+A completed post-setup is not repeated when readiness is notified again or a later seal is retried.
+The manager owns its attached builders throughout preparation, readiness and shutdown, including
+when startup stops before post-setup runs. Custom standalone hosts that use deferred shared-service steps must call
+`INodeManagerReadinessNotification.OnServerReadyAsync` after publication and before accepting clients.
+DI post-setup and AMB setup callbacks run in manager registration order, so both observe the
+published peer managers without constructing or mutating peers during private preparation.
+
 ### Runtime conformance advertisement
 
 `DiNodeManager` implements `IConformanceContributor`, so the hosted
@@ -618,6 +842,14 @@ wired at startup. The server merges these contributions into
 `Server/ServerCapabilities/ServerProfileArray` and
 `Server/ServerCapabilities/ConformanceUnits` alongside the base server
 profiles.
+
+Companions composed into the same manager can call
+`RegisterConformanceContributor(IConformanceContributor)` instead of creating
+a subclass solely to append units. The registration is idempotent by contributor
+instance, preserves the DI units, and reevaluates the contributor on each publication.
+Contributors must not refer back to their owning manager. The
+[Machine Vision integration](Vision.md) uses this path for Machinery-hosted
+released models; it does not invent profile URIs.
 
 The conformance units follow what is built:
 
@@ -651,7 +883,7 @@ adds a single extension method on `IOpcUaClientBuilder`:
 IOpcUaClientBuilder AddOpcUaDi();
 ```
 
-This registers four .NET-DI-friendly services that wrap the lazy
+This registers the following services and client factories over the lazy
 `ManagedSession` accessor produced by `AddClient(...)`:
 
 - `IDiDiscoveryService` — recursive device discovery from the
@@ -667,6 +899,8 @@ This registers four .NET-DI-friendly services that wrap the lazy
   topology browser for the Device Integration well-known folders.
 - `Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>` —
   software-version reader for a SoftwareUpdate instance.
+- `Func<NodeId, CancellationToken, ValueTask<DiTransferClient>>` —
+  client wrapper for `TransferServicesType`.
 
 Requires `AddClient(...)` to be called first — the extension throws
 `InvalidOperationException` if the managed-session accessor is
@@ -674,11 +908,12 @@ missing when one of the factories is resolved.
 
 ## Lock service
 
-The lock service implements the OPC 10000-100 §10.5 locking facet.
-It tracks ownership of every `TopologyElementType.Lock` instance in
-the address space, enforces configurable timeouts, releases locks
-automatically when the owning session closes, and exposes the four
-spec-defined methods through the typed `LockingServicesState` proxy.
+The lock service implements [OPC 10000-100 §7](https://reference.opcfoundation.org/specs/OPC-10000-100/v1.05.0/7).
+Applications opt each topology element into request admission with
+`DiNodeManager.RegisterLockableElementAsync`. The registration binds its `Lock`
+child and checks UA writes and method calls throughout the owned subtree,
+including children added after registration. Other sessions receive `BadLocked`;
+ordinary value reads and browsing remain available.
 
 ### Components
 
@@ -687,22 +922,24 @@ spec-defined methods through the typed `LockingServicesState` proxy.
 | `ILockService` | Application-facing facade: `InitLock`, `RenewLock`, `ExitLock`, `BreakLock`, `GetState`. Thread-safe. |
 | `LockState` | Snapshot record (Locked, LockingClient, LockingUser, RemainingLockTimeSeconds). |
 | `LockStatus` | OPC 10000-100 status-code constants. |
-| `DefaultLockService` | Default in-memory implementation backed by a `ConcurrentDictionary`. |
-| `LockingServicesExtensions.BindToLockService` | Wires the four generated `*MethodState.OnCall` handlers on a `LockingServicesState` instance through an `ILockService`. |
+| `ILockActivityService` | Extends `ILockService` with atomic request admission, activity completion and session cleanup. |
+| `DefaultLockService` | In-memory session ownership and activity accounting under one private synchronization gate. |
+| `LockingServicesExtensions.BindToLockService` | Binds the four method handlers and live reads of the Lock properties. Does not itself admit subtree requests. |
+| `DiNodeManager.RegisterLockableElementAsync` | Registers subtree admission, publishes `MaxInactiveLockTime` and retains the session-close subscription until registration disposal. |
 
 Namespaces: `Opc.Ua.Di.Server.Locking`.
 
 ### Status codes
 
-Following OPC 10000-100 §10.5:
+The method output is an integer status, separate from the UA service status:
 
 | Constant | Value | Returned from |
 |----------|-------|---------------|
 | `LockStatus.Ok` | 0 | All methods (success) |
-| `LockStatus.AlreadyLocked` | 1 | `InitLock` only |
-| `LockStatus.CouldNotLock` | 2 | `InitLock` only |
-| `LockStatus.NotLocked` | 1 | `RenewLock` / `ExitLock` / `BreakLock` |
-| `LockStatus.WrongClient` | 2 | `RenewLock` / `ExitLock` |
+| `LockStatus.AlreadyLocked` | -1 | `InitLock` only |
+| `LockStatus.CouldNotLock` | -2 | `InitLock` only |
+| `LockStatus.NotLocked` | -1 | `RenewLock` / `ExitLock` / `BreakLock` |
+| `LockStatus.WrongClient` | -2 | `RenewLock` / `ExitLock` |
 
 ### Default lock service
 
@@ -711,22 +948,38 @@ var lockService = new DefaultLockService(
     lockDuration: TimeSpan.FromMinutes(5),   // optional, defaults to 5 min
     timeProvider: TimeProvider.System);       // optional, for tests
 
-// Hook session-close so locks held by a disconnecting session are
-// released automatically.
-lockService.AttachToSessionManager(server.SessionManager);
+IDisposable registration = await nodeManager.RegisterLockableElementAsync(
+    device, lockService, cancellationToken);
 ```
 
-Lock ownership is keyed by `ServerSystemContext.SessionId`. When the
-service is invoked from a test (`SystemContext` rather than
-`ServerSystemContext`), it falls back to a synthetic session id
-derived from `ISystemContext.UserId` so unit tests can still
-distinguish callers.
+The application retains the registration until the element's operations and
+cleanup finish, then disposes it. Registration requires a materialized `Lock`
+child. All registered elements must use the same advertised inactivity duration;
+a conflicting duration rejects registration with `BadConfigurationError`.
+
+Ownership uses `ISessionSystemContext.SessionId`, so two sessions with the same
+application and user do not share ownership. `LockingClient` reports the client's
+application URI. A direct, non-session context retains the legacy user-derived
+identity and uses the supplied context string; it is not a substitute for a UA
+session identity.
+
+An admitted owner request retains ownership until completion, including an
+asynchronous provider call. The inactivity period starts again when the last
+owner activity finishes. Owner reads, browsing and path translation also renew
+that period; another session's reads do not. `MaxInactiveLockTime` and
+`RemainingLockTime` use milliseconds on the wire, while the `LockState` snapshot
+retains its existing seconds-based property.
+
+If an unowned element already has an admitted mutation from another session,
+`InitLock` returns `CouldNotLock`. Closing a session releases idle ownership
+immediately, or after its admitted requests finish. `ExitLock` and an authorized
+`BreakLock` remove ownership without cancelling work already admitted; conflicting
+acquisition remains rejected until that work finishes.
 
 ### Binding to a `LockingServicesState`
 
-The Device Integration spec defines a `Lock` child on every `TopologyElementType`
-that implements four method invocations. Wire them through your
-service:
+Applications with their own request-admission path can bind only the generated
+methods and property reads:
 
 ```csharp
 LockingServicesState lockNode = device.Lock!;
@@ -736,26 +989,23 @@ lockNode.BindToLockService(elementId: device.NodeId, service: lockService);
 `BindToLockService` reads `lockNode.InitLock`, `RenewLock`,
 `ExitLock`, `BreakLock` and replaces their `OnCall` handlers with
 delegates that route into the `ILockService`. The `elementId`
-argument keys the service's internal dictionary — typically the
-topology element's own NodeId so two different devices can hold
-independent locks.
+argument keys the service's internal dictionary, normally by the topology
+element's NodeId. Different elements retain independent ownership. This helper
+does not check writes or calls elsewhere in the subtree.
 
-### End-to-end flow
+### Authorization and scope
 
-1. Client calls `InitLock(context: "tag")` on a device's Lock.
-2. The method's `OnCall` runs the bound `ILockService.InitLock`,
-   which checks the per-device record:
-   - If unlocked / expired → record `(SessionId, "tag", UserId,
-     now + duration)`, return `Ok` (0).
-   - If already locked by another session → return `AlreadyLocked` (1).
-3. `RenewLock` (same session) extends the expiry timestamp; from a
-   different session it returns `WrongClient` (2).
-4. `ExitLock` removes the record (subject to ownership check).
-5. `BreakLock` removes the record regardless of ownership; intended
-   for administrative recovery.
-6. If the owning session closes (server-emitted `SessionClosing`
-   event), the `DefaultLockService` walks its records and releases
-   anything that was held by that session.
+The registered element's own lock methods remain callable so a client can renew
+or release ownership. An ancestor's lock still applies to a nested element.
+Unless the application supplies explicit role permissions, registration permits
+`BreakLock` only to `SecurityAdmin` and `ConfigureAdmin`. Method output codes do
+not replace the server's role and user-access checks.
+
+Direct application handles and provider notifications remain trusted. Registration
+does not fence physical equipment, stop a launched program, or distribute
+ownership between servers. FileType methods, including Open, Read and Close,
+use method admission; another session cannot invoke them while the element is
+locked. Merely keeping a file handle open does not count as continuous activity.
 
 ### Hosting
 
@@ -763,28 +1013,13 @@ Register the service as a singleton through standard
 `Microsoft.Extensions.DependencyInjection`:
 
 ```csharp
-services.AddSingleton<ILockService, DefaultLockService>();
+services.AddSingleton<ILockActivityService, DefaultLockService>();
 ```
 
-Then attach the session-close hook from inside a
-`ConfigureDevicesFor<TNodeManager>` configurator once the server's
-`SessionManager` is available:
-
-```csharp
-.ConfigureDevicesFor<DiNodeManager>(ctx =>
-{
-    ILockService svc = ctx.GetRequiredService<ILockService>();
-    if (svc is DefaultLockService defaultSvc)
-    {
-        defaultSvc.AttachToSessionManager(ctx.Manager.Server.SessionManager);
-    }
-    foreach (DeviceState device in ctx.Manager.PredefinedNodes
-        .Values.OfType<DeviceState>())
-    {
-        device.Lock?.BindToLockService(device.NodeId, svc);
-    }
-});
-```
+Resolve it during device configuration and retain each returned registration
+with its element. Consumers that use only `ILockService`, without subtree
+registration, can call `DefaultLockService.AttachToSessionManager` for session
+cleanup, but must provide their own request admission and activity accounting.
 
 ## Software update
 

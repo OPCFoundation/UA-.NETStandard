@@ -19,6 +19,16 @@ registered only when a host opts in, using the same
 `Pcap:EnableDiagnosticsTools` / `OPCUA_PCAP_ENABLE_DIAGNOSTICS` gate as
 `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics`.
 
+`pubsub_decode_pcap`, `pubsub_dissect_capture`, `pubsub_load_keylog` and
+`pubsub_write_pcap` confine caller paths to the capture root. Root precedence is
+`OpcUaMcpOptions.PcapBaseFolder`, then `PcapOptions.BaseFolder`, then the
+platform's per-user diagnostics directory. No caller argument can read or write
+outside it. Key-log output contains live symmetric keys; protect it as secret
+material and remove it when no longer needed.
+
+See the [capture/dissection tool catalogue](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#pubsub-tools)
+for what each tool does.
+
 ## Usage
 
 ```csharp

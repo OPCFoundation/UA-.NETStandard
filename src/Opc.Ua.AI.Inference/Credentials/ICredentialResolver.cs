@@ -159,14 +159,11 @@ namespace Opc.Ua.AI.Inference
     /// which is where a token is projected and not what it is.
     /// </para>
     /// <para>
-    /// Every platform that implements workload identity projects the token as a
-    /// file: Kubernetes mounts a projected service-account volume, and the cloud
-    /// providers layered on it reach that path in their own way — Azure and AWS
-    /// each name it in an environment variable, while Google names a JSON
-    /// configuration that in turn carries the path. Reading the file is therefore
-    /// the whole mechanism, and doing it directly keeps this assembly free of any
-    /// cloud SDK - which matters here, because a Server that only runs against one
-    /// vendor's identity service is not demonstrating a platform-independent one.
+    /// The built-in acquisition path reads a projected token file when the deployment
+    /// provides one. It supports the configured path, the Azure and AWS token-file
+    /// environment variables, Google's external-account file configuration, and the
+    /// Kubernetes service-account path. It does not perform token exchange or
+    /// metadata-service acquisition. The endpoint must accept the returned token.
     /// </para>
     /// <para>
     /// A host that wants a vendor SDK in the loop - to exchange the projected token
@@ -309,9 +306,8 @@ namespace Opc.Ua.AI.Inference
         }
 
         /// <summary>
-        /// The path Kubernetes mounts a projected service-account token at, which is
-        /// the mechanism every cloud workload identity is layered on. Used only when
-        /// no platform variable names one.
+        /// The Kubernetes service-account token path, used as a fallback when no
+        /// configured path or supported platform configuration identifies a token file.
         /// </summary>
         private const string KubernetesProjectedTokenPath =
             "/var/run/secrets/kubernetes.io/serviceaccount/token";

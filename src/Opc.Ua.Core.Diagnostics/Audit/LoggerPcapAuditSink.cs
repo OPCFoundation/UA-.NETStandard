@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Pcap.Audit
 {
@@ -110,8 +111,8 @@ namespace Opc.Ua.Pcap.Audit
             this ILogger logger,
             PcapAuditEventKind kind,
             string? sessionId,
-            string? resourcePath,
-            string? remoteEndpoint);
+            [FilePath] string? resourcePath,
+            [NetworkAddress] string? remoteEndpoint);
     }
 
 }

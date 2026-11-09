@@ -187,7 +187,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        public void ManagedSessionOverWssOpenApiBearerRejectedWhenNoBearerAuthRegistered()
+        public async Task ManagedSessionOverWssOpenApiBearerRejectedWhenNoBearerAuthRegistered()
         {
             // The server fail-closed rejects the WSS
             // opcua+openapi+<accesstoken> upgrade when no bearer auth
@@ -203,7 +203,7 @@ namespace Opc.Ua.Sessions.Tests
 
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await new ManagedSessionBuilder(appConfig, m_telemetry)
                     .UseWssOpenApiEndpoint(m_baseAddress.ToString())
                     .WithWebApiAuthentication(opts =>

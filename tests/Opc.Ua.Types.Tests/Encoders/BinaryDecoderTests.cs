@@ -3,8 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -127,7 +129,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ConstructorWithStreamThrowsOnNonSeekableStream()
+        public void ConstructorWithStreamSupportsNonSeekableStream()
         {
             // Arrange
             var mockStream = new Mock<Stream>();
@@ -136,9 +138,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            // Act & Assert
-            ArgumentException ex = Assert.Throws<ArgumentException>(() => new BinaryDecoder(mockStream.Object, messageContext));
-            Assert.That(ex.Message, Does.Contain("seekable"));
+            using var decoder = new BinaryDecoder(mockStream.Object, messageContext);
+            Assert.That(decoder.BaseStream.CanSeek, Is.False);
+            Assert.That(decoder.Position, Is.Zero);
         }
 
         [Test]
@@ -351,6 +353,59 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(baseStream, Is.Not.Null);
             Assert.That(baseStream, Is.InstanceOf<MemoryStream>());
+        }
+
+        [Test]
+        public void BaseStreamOfABufferDecoderFollowsTheDecodedPosition()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = [0xFF, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0];
+            using var decoder = new BinaryDecoder(buffer, 1, 12, messageContext);
+
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(1));
+            Assert.That(decoder.Position, Is.EqualTo(4));
+
+            // the stream created on first access starts where decoding is.
+            Stream stream = decoder.BaseStream;
+            Assert.That(stream.Position, Is.EqualTo(4));
+            Assert.That(decoder.Position, Is.EqualTo(4));
+            Assert.That(stream.Length, Is.EqualTo(12));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
+            Assert.That(stream.Position, Is.EqualTo(8));
+
+            // reads through the stream move the decoder.
+            stream.Position = 4;
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(3));
+            Assert.That(decoder.BaseStream, Is.SameAs(stream));
+        }
+
+        [Test]
+        public void BufferDecoderWithoutStreamClosesAndDisposes()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var decoder = new BinaryDecoder([7, 0, 0, 0], messageContext);
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(7));
+            Assert.That(decoder.Close, Throws.Nothing);
+            Assert.That(decoder.Dispose, Throws.Nothing);
+        }
+
+        [Test]
+        public void BufferDecoderRejectsARangeOutsideTheBuffer()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = new byte[4];
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryDecoder(buffer, -1, 2, messageContext));
+                Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryDecoder(buffer, 0, -1, messageContext));
+                Assert.That(
+                    () => new BinaryDecoder(buffer, 3, 2, messageContext),
+                    Throws.TypeOf<ArgumentException>());
+            });
         }
 
         [Test]
@@ -712,6 +767,33 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Zero-length arrays, such as the empty StringTable of every response
+        /// header, decode as empty, not null, and allocate nothing.
+        /// </summary>
+        [Test]
+        public void ReadZeroLengthArraysReturnsEmptyWithoutAllocating()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = [0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            ArrayOf<string?> strings = decoder.ReadStringArray(null);
+            ArrayOf<int> integers = decoder.ReadInt32Array(null);
+            ArrayOf<string?> nullStrings = decoder.ReadStringArray(null);
+
+            Assert.That(strings.IsNull, Is.False);
+            Assert.That(strings.Count, Is.Zero);
+            Assert.That(MemoryMarshal.TryGetArray(strings.Memory, out ArraySegment<string?> stringArray), Is.True);
+            Assert.That(stringArray.Array, Is.SameAs(Array.Empty<string?>()));
+            Assert.That(integers.IsNull, Is.False);
+            Assert.That(integers.Count, Is.Zero);
+            Assert.That(MemoryMarshal.TryGetArray(integers.Memory, out ArraySegment<int> integerArray), Is.True);
+            Assert.That(integerArray.Array, Is.SameAs(Array.Empty<int>()));
+            Assert.That(nullStrings.IsNull, Is.True);
         }
 
         [Test]
@@ -2133,6 +2215,80 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.EqualTo(testString));
+        }
+
+        [Test]
+        public void ReadStringDecodesShortAndLongStringsLikeUtf8GetString()
+        {
+            // Arrange: distinct values that share a cache slot sooner or later, both sides
+            // of the cached length limit, multi-byte characters and invalid UTF-8.
+            var values = new List<byte[]>();
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                values.Add(System.Text.Encoding.UTF8.GetBytes("Value" + ii.ToString(CultureInfo.InvariantCulture)));
+            }
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('a', 32)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('a', 33)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('ä', 16)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('ä', 17)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes("中文\U0001F600"));
+            values.Add([0x41, 0xC3, 0x28, 0xFF, 0x42]);
+            values.Add([0xE4, 0xB8]);
+            values.Add(System.Text.Encoding.UTF8.GetBytes("Value1"));
+            values.Add([0x41, 0x00, 0x00]);
+            byte[] buffer = EncodeStrings(values);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act / Assert
+            foreach (byte[] value in values)
+            {
+                int length = value.Length;
+                while (length > 0 && value[length - 1] == 0)
+                {
+                    length--;
+                }
+                string expected = System.Text.Encoding.UTF8.GetString(value, 0, length);
+                Assert.That(decoder.ReadString(null), Is.EqualTo(expected));
+            }
+        }
+
+#if NET6_0_OR_GREATER
+        [Test]
+        public void ReadStringReusesInstanceOfRepeatedShortString()
+        {
+            // Arrange
+            byte[] source = System.Text.Encoding.UTF8.GetBytes("Server");
+            byte[] longValue = System.Text.Encoding.UTF8.GetBytes(new string('x', 40));
+            byte[] buffer = EncodeStrings([source, source, longValue, longValue]);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            string first = decoder.ReadString(null)!;
+            string second = decoder.ReadString(null)!;
+            string firstLong = decoder.ReadString(null)!;
+            string secondLong = decoder.ReadString(null)!;
+
+            // Assert: short strings share one instance, long ones are decoded separately.
+            Assert.That(second, Is.SameAs(first));
+            Assert.That(first, Is.EqualTo("Server"));
+            Assert.That(secondLong, Is.EqualTo(firstLong));
+            Assert.That(secondLong, Is.Not.SameAs(firstLong));
+        }
+#endif
+
+        private static byte[] EncodeStrings(IEnumerable<byte[]> values)
+        {
+            using var stream = new MemoryStream();
+            foreach (byte[] value in values)
+            {
+                stream.Write(BitConverter.GetBytes(value.Length), 0, 4);
+                stream.Write(value, 0, value.Length);
+            }
+            return stream.ToArray();
         }
 
         [Test]
@@ -4690,8 +4846,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(id, Is.EqualTo(100u));
         }
 
-        [Test]
-        public void ReadExtensionObjectRoundTrips()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadExtensionObjectRoundTrips(bool forwardOnly)
         {
             // Arrange
             ServiceMessageContext messageContext = SetupContextForDecodeMessage();
@@ -4703,7 +4860,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteExtensionObject(null, extensionObject);
             byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer!, messageContext);
+            using Stream input = forwardOnly ? new ForwardOnlyStream(buffer) : new MemoryStream(buffer);
+            using var decoder = new BinaryDecoder(input, messageContext);
 
             // Act
             ExtensionObject result = decoder.ReadExtensionObject(null);
@@ -4712,6 +4870,129 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.TypeId, Is.EqualTo(testEncodeable.BinaryEncodingId));
             Assert.That(result.TryGetValue(out TestEncodeable? _), Is.True);
+        }
+
+        /// <summary>
+        /// A known structure's body is not itself a ByteString.
+        /// </summary>
+        [TestCase(false, 0)]
+        [TestCase(true, 0)]
+        [TestCase(false, 4)]
+        [TestCase(true, 4)]
+        [TestCase(false, 5)]
+        [TestCase(true, 5)]
+        public void ReadKnownExtensionObjectAllowsBodyBeyondByteStringLimit(bool forwardOnly, int messageLimit)
+        {
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            context.Factory.AddEncodeableType(typeof(TestEncodeableWithData));
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteExtensionObject(null, new ExtensionObject(new TestEncodeableWithData(42)));
+            byte[] bytes = encoder.CloseAndReturnBuffer()!;
+            context.MaxByteStringLength = 1;
+            context.MaxMessageSize = messageLimit;
+            using Stream input = forwardOnly ? new ForwardOnlyStream(bytes) : new MemoryStream(bytes);
+            using var decoder = new BinaryDecoder(input, context);
+
+            ExtensionObject result = decoder.ReadExtensionObject(null);
+
+            Assert.That(result.TryGetValue(out TestEncodeableWithData? value), Is.True);
+            Assert.That(value!.Value, Is.EqualTo(42));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
+        }
+
+        /// <summary>
+        /// Forward-only replay cannot allocate a known body beyond the message quota.
+        /// </summary>
+        [Test]
+        public void ReadKnownExtensionObjectBoundsForwardOnlyReplayByMessageLimit()
+        {
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            context.Factory.AddEncodeableType(typeof(TestEncodeableWithData));
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteExtensionObject(null, new ExtensionObject(new TestEncodeableWithData(42)));
+            byte[] bytes = encoder.CloseAndReturnBuffer()!;
+            context.MaxByteStringLength = 1;
+            context.MaxMessageSize = 3;
+            using var input = new ForwardOnlyStream(bytes);
+            using var decoder = new BinaryDecoder(input, context);
+
+            ServiceResultException error = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadExtensionObject(null));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(error.Message, Does.Contain("MaxMessageSize"));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length - sizeof(int)));
+        }
+
+        /// <summary>
+        /// Recovering a known body as opaque bytes still enforces the ByteString quota.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadKnownExtensionObjectRecoveryEnforcesByteStringLimit(bool forwardOnly)
+        {
+            var context = new ServiceMessageContext(NUnitTelemetryContext.Create(), new EncodeableFactory())
+            {
+                MaxByteStringLength = 1,
+                MaxMessageSize = 64,
+                MaxDecoderRecoveries = 1
+            };
+            context.NamespaceUris.Append("urn:test");
+            context.Factory.AddEncodeableType(typeof(TestEncodeableNs1));
+            byte[] bytes =
+            [
+                0x01, 0x01, 0x39, 0x30,
+                (byte)ExtensionObjectEncoding.Binary,
+                0x02, 0x00, 0x00, 0x00,
+                0xAA, 0xBB
+            ];
+            using Stream input = forwardOnly ? new ForwardOnlyStream(bytes) : new MemoryStream(bytes);
+            using var decoder = new BinaryDecoder(input, context);
+
+            ServiceResultException error = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadExtensionObject(null));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(error.Message, Does.Contain("MaxByteStringLength"));
+        }
+
+        /// <summary>
+        /// Known-body replay must retain field quotas without recovering an over-limit field.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadKnownExtensionObjectEnforcesByteStringFieldLimit(bool forwardOnly)
+        {
+            var instance = new Mock<IEncodeable>();
+            instance.Setup(e => e.Decode(It.IsAny<IDecoder>()))
+                .Callback<IDecoder>(d => d.ReadByteString(null));
+            var activator = new Mock<IEncodeableType>();
+            activator.Setup(a => a.CreateInstance()).Returns(instance.Object);
+            IEncodeableType type = activator.Object;
+            var factory = new Mock<IEncodeableFactory>();
+            factory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!)).Returns(true);
+            var context = new ServiceMessageContext(NUnitTelemetryContext.Create(), factory.Object)
+            {
+                MaxByteStringLength = 1,
+                MaxMessageSize = 64,
+                MaxDecoderRecoveries = 1
+            };
+            context.NamespaceUris.Append("urn:test");
+            byte[] bytes =
+            [
+                0x01, 0x01, 0x39, 0x30,
+                (byte)ExtensionObjectEncoding.Binary,
+                0x06, 0x00, 0x00, 0x00,
+                0x02, 0x00, 0x00, 0x00, 0xAA, 0xBB
+            ];
+            using Stream input = forwardOnly ? new ForwardOnlyStream(bytes) : new MemoryStream(bytes);
+            using var decoder = new BinaryDecoder(input, context);
+
+            ServiceResultException error = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadExtensionObject(null));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            instance.Verify(e => e.Decode(It.IsAny<IDecoder>()), Times.Once);
         }
 
         [Test]
@@ -4788,8 +5069,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(x.IsEmpty, Is.False);
         }
 
-        [Test]
-        public void ReadExtensionObjectThrowsWhenKnownTypeLengthMismatchInNamespaceZero()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadExtensionObjectThrowsWhenKnownTypeLengthMismatchInNamespaceZero(bool forwardOnly)
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4803,7 +5085,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 (byte)ExtensionObjectEncoding.Binary,
                 0x01, 0x00, 0x00, 0x00
             ];
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using Stream input = forwardOnly ? new ForwardOnlyStream(buffer) : new MemoryStream(buffer);
+            using var decoder = new BinaryDecoder(input, messageContext);
 
             // Act
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadExtensionObject(null));
@@ -4812,8 +5095,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
-        [Test]
-        public void ReadExtensionObjectRecoversWhenKnownTypeLengthMismatchInNonZeroNamespace()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadExtensionObjectRecoversWhenKnownTypeLengthMismatchInNonZeroNamespace(bool forwardOnly)
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4836,7 +5120,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 0x01, 0x00, 0x00, 0x00,
                 0xAA
             ];
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using Stream input = forwardOnly ? new ForwardOnlyStream(buffer) : new MemoryStream(buffer);
+            using var decoder = new BinaryDecoder(input, messageContext);
 
             // Act
             ExtensionObject result = decoder.ReadExtensionObject(null);
@@ -6254,8 +6539,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
-        [Test]
-        public void ReadExtensionObjectThrowsWhenUnknownTypeExceedsMaxByteStringLength()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadExtensionObjectThrowsWhenUnknownTypeExceedsMaxByteStringLength(bool forwardOnly)
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -6269,7 +6555,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 0x01, // Binary encoding
                 0x02, 0x00, 0x00, 0x00 // length = 2
             ];
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using Stream input = forwardOnly ? new ForwardOnlyStream(buffer) : new MemoryStream(buffer);
+            using var decoder = new BinaryDecoder(input, messageContext);
 
             // Act
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadExtensionObject(null));
@@ -6372,6 +6659,43 @@ namespace Opc.Ua.Types.Tests.Encoders
                 get => (long)int.MaxValue + 1;
                 set => base.Position = value;
             }
+        }
+
+        /// <summary>
+        /// True forward-only input which short-reads and throws on position and length queries.
+        /// </summary>
+        private sealed class ForwardOnlyStream(byte[] bytes) : Stream
+        {
+            public override bool CanRead => m_inner.CanRead;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                return m_inner.Read(buffer, offset, Math.Min(count, 3));
+            }
+
+            public override void Flush() => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    m_inner.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            private readonly MemoryStream m_inner = new(bytes);
         }
 
         private sealed class TestEncodeable : IEncodeable

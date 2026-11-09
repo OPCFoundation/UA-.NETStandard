@@ -49,11 +49,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [TestFixture]
     [Category("WotCon")]
     [Parallelizable(ParallelScope.All)]
-    public sealed class WotResourceFileManagerTests
+    public sealed partial class WotResourceFileManagerTests
     {
         private const byte ModeRead = WotResourceFileManager.ReadMode;
         private const byte ModeWriteErase = WotResourceFileManager.WriteEraseMode;
 
+        /// <summary>
+        /// Verifies that an unsupported FileType open mode returns BadNotSupported.
+        /// </summary>
+        /// <param name="mode">The operating mode selected by the test case.</param>
         [TestCase((byte)0)]
         [TestCase((byte)2)]
         [TestCase((byte)3)]
@@ -72,6 +76,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(handle, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a FileType handle can be opened for reading.
+        /// </summary>
         [Test]
         public void OpenWithReadModeSucceeds()
         {
@@ -84,6 +91,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
+        /// <summary>
+        /// Verifies that a FileType handle can be opened for writing with content erasure.
+        /// </summary>
         [Test]
         public void OpenWithWriteEraseModeSucceeds()
         {
@@ -95,6 +105,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(handle, Is.GreaterThan(0u));
         }
 
+        /// <summary>
+        /// Verifies that opening a write handle invokes write authorization.
+        /// </summary>
         [Test]
         public void OpenWriteModeCallsAuthorizeWrite()
         {
@@ -110,6 +123,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(called, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that opening a write handle propagates write authorization failure.
+        /// </summary>
         [Test]
         public void OpenWriteModeWhenAuthorizeFailsReturnsBadResult()
         {
@@ -122,6 +138,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(handle, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that opening a read handle does not invoke write authorization.
+        /// </summary>
         [Test]
         public void OpenReadModeDoesNotCallAuthorizeWrite()
         {
@@ -137,6 +156,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(called, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a second writer is rejected while the first write handle remains open.
+        /// </summary>
         [Test]
         public void OpenSecondWriterWhileFirstOpenReturnsBadNotWritable()
         {
@@ -150,6 +172,33 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(second, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that reader excludes direct and forwarded writers.
+        /// </summary>
+        /// <param name="forwarded">The forwarded flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReaderExcludesDirectAndForwardedWriters(bool forwarded)
+        {
+            using var harness = new Harness();
+            uint reader = 0;
+            Assert.That(harness.Open(ModeRead, ref reader).StatusCode, Is.EqualTo(StatusCodes.Good));
+            uint writer = 0;
+
+            ServiceResult result = forwarded
+                ? harness.ForwardOpen(ModeWriteErase, ref writer)
+                : harness.Open(ModeWriteErase, ref writer);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                Assert.That(writer, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that opening beyond the FileType handle bound returns BadTooManyOperations.
+        /// </summary>
         [Test]
         public void OpenBeyondMaxHandlesReturnsBadTooManyOperations()
         {
@@ -164,6 +213,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
         }
 
+        /// <summary>
+        /// Verifies that the FileType open count tracks handle creation and closure.
+        /// </summary>
         [Test]
         public async Task OpenCountIncreasesAndDecreasesWithHandles()
         {
@@ -180,6 +232,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(harness.File.OpenCount.Value, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a valid read handle returns the stored file content.
+        /// </summary>
         [Test]
         public async Task ReadOnValidReadHandleReturnsContent()
         {
@@ -197,21 +252,210 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(data.Span.ToArray(), Is.EqualTo(content));
         }
 
-        [Test]
-        public async Task ReadWithLengthZeroReturnsEmptyAndSuccess()
+        /// <summary>
+        /// Verifies that read with nonpositive length is rejected without moving the cursor.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(-1)]
+        public async Task ReadWithNonpositiveLengthIsRejectedWithoutMovingTheCursor(int length)
         {
             using var harness = new Harness();
             harness.Manager.UpdatePersistedContent(new byte[] { 1, 2, 3 }, null);
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
-            (ServiceResult result, ByteString data) = await harness.ReadAsync(handle, 0)
+            (ServiceResult result, _) = await harness.ReadAsync(handle, length)
+                .ConfigureAwait(false);
+            (ServiceResult recovered, ByteString data) = await harness.ReadAsync(handle, 3)
                 .ConfigureAwait(false);
             await harness.CloseAsync(handle).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(data.IsNull || data.Span.Length == 0, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(recovered.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(data, Is.EqualTo(ByteString.From([1, 2, 3])));
+            });
         }
 
+        /// <summary>
+        /// Verifies that concurrent failed read retains every unread byte.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentFailedReadRetainsEveryUnreadByte()
+        {
+            var store = new InMemoryResourceStore();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int reads = 0;
+            using var harness = new Harness(readContent: async (key, offset, count, ct) =>
+            {
+                if (Interlocked.Increment(ref reads) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                    throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
+                }
+                return await store.ReadAsync(key, offset, count, ct).ConfigureAwait(false);
+            });
+            byte[] document = [1, 2, 3, 4, 5, 6, 7, 8];
+            harness.Manager.UpdatePersistedContent(document, null);
+            await store.ReplaceAsync(harness.Manager.CurrentContentKey, ByteString.From(document))
+                .ConfigureAwait(false);
+            uint handle = 0;
+            harness.Open(ModeRead, ref handle);
+
+            Task<(ServiceResult Status, ByteString Data)> first = harness.ReadAsync(handle, 4).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Task<(ServiceResult Status, ByteString Data)> second = harness.ReadAsync(handle, 4).AsTask();
+            release.TrySetResult(true);
+            Assert.That(() => first, Throws.TypeOf<ServiceResultException>());
+            (ServiceResult recoveredStatus, ByteString recovered) = await second.ConfigureAwait(false);
+            (ServiceResult remainderStatus, ByteString remainder) = await harness.ReadAsync(handle, 4)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(recoveredStatus.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(recovered, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
+                Assert.That(remainderStatus.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(remainder, Is.EqualTo(ByteString.From([5, 6, 7, 8])));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that missing stored version cannot masquerade as end of file.
+        /// </summary>
+        /// <param name="empty">The empty flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MissingStoredVersionCannotMasqueradeAsEndOfFile(bool empty)
+        {
+            var store = new InMemoryResourceStore();
+            bool unavailable = false;
+            using var harness = new Harness(readContent: (key, offset, count, ct) =>
+                unavailable
+                    ? new ValueTask<ByteString>(default(ByteString))
+                    : store.ReadAsync(key, offset, count, ct));
+            byte[] document = empty ? [] : [1, 2, 3];
+            harness.Manager.UpdatePersistedContent(document, null);
+            await store.ReplaceAsync(harness.Manager.CurrentContentKey, ByteString.From(document))
+                .ConfigureAwait(false);
+            uint handle = 0;
+            harness.Open(ModeRead, ref handle);
+            unavailable = true;
+
+            (ServiceResult missing, _) = await harness.ReadAsync(handle, 16).ConfigureAwait(false);
+            ulong position = 0;
+            harness.GetPosition(handle, ref position);
+            unavailable = false;
+            (ServiceResult recovered, ByteString data) = await harness.ReadAsync(handle, 16).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+                Assert.That(position, Is.Zero);
+                Assert.That(recovered.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(data.Span.ToArray(), Is.EqualTo(document));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that explicit seek during a short read retains the new cursor.
+        /// </summary>
+        [Test]
+        public async Task ExplicitSeekDuringAShortReadRetainsTheNewCursor()
+        {
+            var store = new InMemoryResourceStore();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int reads = 0;
+            using var harness = new Harness(readContent: async (key, offset, count, ct) =>
+            {
+                if (Interlocked.Increment(ref reads) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                }
+                return await store.ReadAsync(key, offset, Math.Min(count, 2), ct).ConfigureAwait(false);
+            });
+            byte[] document = [1, 2, 3, 4, 5, 6, 7, 8];
+            harness.Manager.UpdatePersistedContent(document, null);
+            await store.ReplaceAsync(harness.Manager.CurrentContentKey, ByteString.From(document))
+                .ConfigureAwait(false);
+            uint handle = 0;
+            harness.Open(ModeRead, ref handle);
+
+            Task<(ServiceResult Status, ByteString Data)> reading = harness.ReadAsync(handle, 8).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            ServiceResult sought = harness.SetPosition(handle, 4);
+            release.TrySetResult(true);
+            (_, ByteString first) = await reading.ConfigureAwait(false);
+            ulong position = 0;
+            harness.GetPosition(handle, ref position);
+            (_, ByteString afterSeek) = await harness.ReadAsync(handle, 8).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sought.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(first, Is.EqualTo(ByteString.From([1, 2])));
+                Assert.That(position, Is.EqualTo(4UL));
+                Assert.That(afterSeek, Is.EqualTo(ByteString.From([5, 6])));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that cancelling a queued read leaves the next range unread.
+        /// </summary>
+        [Test]
+        public async Task CancellingAQueuedReadLeavesTheNextRangeUnread()
+        {
+            var store = new InMemoryResourceStore();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int reads = 0;
+            using var harness = new Harness(readContent: async (key, offset, count, ct) =>
+            {
+                if (Interlocked.Increment(ref reads) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                }
+                return await store.ReadAsync(key, offset, count, ct).ConfigureAwait(false);
+            });
+            byte[] document = [1, 2, 3, 4, 5, 6, 7, 8];
+            harness.Manager.UpdatePersistedContent(document, null);
+            await store.ReplaceAsync(harness.Manager.CurrentContentKey, ByteString.From(document))
+                .ConfigureAwait(false);
+            uint handle = 0;
+            harness.Open(ModeRead, ref handle);
+            using var cancellation = new CancellationTokenSource();
+
+            Task<(ServiceResult Status, ByteString Data)> first = harness.ReadAsync(handle, 4).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Task<(ServiceResult Status, ByteString Data)> cancelled = harness
+                .ReadAsync(handle, 4, cancellationToken: cancellation.Token).AsTask();
+            try
+            {
+                cancellation.Cancel();
+                Assert.That(() => cancelled, Throws.InstanceOf<OperationCanceledException>());
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            (_, ByteString beginning) = await first.ConfigureAwait(false);
+            (_, ByteString remainder) = await harness.ReadAsync(handle, 4).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(beginning, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
+                Assert.That(remainder, Is.EqualTo(ByteString.From([5, 6, 7, 8])));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that reading past the end of a file succeeds with no bytes.
+        /// </summary>
         [Test]
         public async Task ReadPastEndOfFileReturnsEmptyAndSuccess()
         {
@@ -228,6 +472,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(data.IsNull || data.Span.Length == 0, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that reading through a write-only handle returns BadInvalidState.
+        /// </summary>
         [Test]
         public async Task ReadOnWriteHandleReturnsBadInvalidState()
         {
@@ -240,6 +487,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
+        /// <summary>
+        /// Verifies that reading through an unknown handle returns BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task ReadWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -249,6 +499,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that writing through a valid write handle succeeds.
+        /// </summary>
         [Test]
         public async Task WriteOnValidWriteHandleSucceeds()
         {
@@ -261,6 +514,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that writing through a read-only handle returns BadInvalidState.
+        /// </summary>
         [Test]
         public async Task WriteOnReadHandleReturnsBadInvalidState()
         {
@@ -273,6 +529,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
+        /// <summary>
+        /// Verifies that writing through an unknown handle returns BadInvalidArgument.
+        /// </summary>
         [Test]
         public void WriteWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -282,6 +541,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that a write exceeding the file size bound returns BadOutOfMemory.
+        /// </summary>
         [Test]
         public async Task WriteBeyondMaxSizeReturnsBadOutOfMemory()
         {
@@ -305,6 +567,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that seeking backward permits in-place writes even when the file is at its size bound.
+        /// </summary>
         [Test]
         public async Task WriteAfterSeekingBackOverwritesInPlaceAtMaxSize()
         {
@@ -333,6 +598,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that write empty byte string is no-op.
+        /// </summary>
         [Test]
         public async Task WriteEmptyByteStringIsNoOp()
         {
@@ -354,6 +622,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that byte identical close does not invoke commit.
+        /// </summary>
         [Test]
         public async Task ByteIdenticalCloseDoesNotInvokeCommit()
         {
@@ -378,6 +649,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that write when authorize fails returns bad result.
+        /// </summary>
         [Test]
         public async Task WriteWhenAuthorizeFailsReturnsBadResult()
         {
@@ -398,6 +672,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that get position on read handle returns zero initially.
+        /// </summary>
         [Test]
         public async Task GetPositionOnReadHandleReturnsZeroInitially()
         {
@@ -413,6 +690,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(position, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that get position with invalid handle returns bad invalid argument.
+        /// </summary>
         [Test]
         public void GetPositionWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -423,6 +703,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that the reported file position advances with the current read offset.
+        /// </summary>
         [Test]
         public async Task GetPositionReflectsCurrentReadOffset()
         {
@@ -439,6 +722,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(position, Is.EqualTo(3ul));
         }
 
+        /// <summary>
+        /// Verifies that set position on read handle within bounds succeeds.
+        /// </summary>
         [Test]
         public async Task SetPositionOnReadHandleWithinBoundsSucceeds()
         {
@@ -455,19 +741,41 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(pos, Is.EqualTo(3ul));
         }
 
-        [Test]
-        public async Task SetPositionBeyondLengthReturnsBadInvalidArgument()
+        /// <summary>
+        /// Verifies that set position beyond length clamps to eof and can rewind.
+        /// </summary>
+        /// <param name="forwarded">The forwarded flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SetPositionBeyondLengthClampsToEofAndCanRewind(bool forwarded)
         {
             using var harness = new Harness();
             harness.Manager.UpdatePersistedContent(new byte[] { 1, 2, 3 }, null);
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
-            ServiceResult result = harness.SetPosition(handle, 100);
+            ServiceResult result = forwarded
+                ? harness.ForwardSetPosition(handle, ulong.MaxValue)
+                : harness.SetPosition(handle, ulong.MaxValue);
+            ulong position = 0;
+            harness.GetPosition(handle, ref position);
+            (ServiceResult endResult, ByteString end) = await harness.ReadAsync(handle, 3).ConfigureAwait(false);
+            harness.SetPosition(handle, 0);
+            (_, ByteString beginning) = await harness.ReadAsync(handle, 1).ConfigureAwait(false);
             await harness.CloseAsync(handle).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(position, Is.EqualTo(3UL));
+                Assert.That(endResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(end, Is.EqualTo(ByteString.Empty));
+                Assert.That(beginning, Is.EqualTo(ByteString.From([1])));
+            });
         }
 
+        /// <summary>
+        /// Verifies that set position with invalid handle returns bad invalid argument.
+        /// </summary>
         [Test]
         public void SetPositionWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -477,6 +785,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that seeking a write handle invokes write authorization.
+        /// </summary>
         [Test]
         public async Task SetPositionOnWriteHandleCallsAuthorizeWrite()
         {
@@ -499,6 +810,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(setPosAuthCalled, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that set position on write handle when authorize fails returns bad result.
+        /// </summary>
         [Test]
         public async Task SetPositionOnWriteHandleWhenAuthorizeFailsReturnsBadResult()
         {
@@ -520,6 +834,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that close read handle succeeds without commit.
+        /// </summary>
         [Test]
         public async Task CloseReadHandleSucceedsWithoutCommit()
         {
@@ -537,6 +854,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(commitCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that closing a write handle with changed content invokes the commit callback.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleWithContentInvokesCommitCallback()
         {
@@ -556,6 +876,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(committed, Is.EqualTo(payload));
         }
 
+        /// <summary>
+        /// Verifies that closing a write handle waits for its asynchronous commit callback.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleAwaitsCommitCallbackAsync()
         {
@@ -583,6 +906,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that closing a write handle without content does not commit a version.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleWithoutContentIsNoOp()
         {
@@ -600,6 +926,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(commitCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that closing an unknown handle returns BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task CloseWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -609,6 +938,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that closing a write handle propagates commit failure.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleWhenCommitFailsReturnsBadResult()
         {
@@ -623,6 +955,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that closing authorization failure still removes the write handle.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleWhenCloseAuthorizeFailsRemovesHandle()
         {
@@ -649,6 +984,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "Handle must be removed even when close-authorize fails.");
         }
 
+        /// <summary>
+        /// Verifies that a direct request to open a write handle succeeds.
+        /// </summary>
         [Test]
         public void TryOpenWriteHandleSucceeds()
         {
@@ -660,6 +998,205 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
+        /// <summary>
+        /// Verifies that unscoped context cannot consume a session owned create handle.
+        /// </summary>
+        [Test]
+        public async Task UnscopedContextCannotConsumeASessionOwnedCreateHandle()
+        {
+            var owner = new NodeId("owner-session", 1);
+            using var harness = new Harness(sessionId: owner);
+            ServiceResult opened = harness.Manager.TryOpenWriteHandle(owner, out uint handle);
+            var unscoped = new SystemContext(null!);
+
+            ServiceResult foreignWrite = harness.Write(handle, ByteString.From([9]), unscoped);
+            ServiceResult foreignClose = await harness.CloseAsync(handle, unscoped).ConfigureAwait(false);
+            ServiceResult ownerWrite = harness.Write(handle, ByteString.From([1, 2, 3]));
+            ServiceResult ownerClose = await harness.CloseAsync(handle).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(opened.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(foreignWrite.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(foreignClose.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(ownerWrite.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(ownerClose.StatusCode, Is.EqualTo(StatusCodes.Good));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that session cleanup discards an uncommitted writer without changing the document.
+        /// </summary>
+        [Test]
+        public async Task SessionCleanupDiscardsAnUncommittedWriterWithoutChangingTheDocument()
+        {
+            var owner = new NodeId("closing-session", 1);
+            using var harness = new Harness(sessionId: owner);
+            harness.Manager.UpdatePersistedContent([1, 2, 3], null);
+            uint writer = 0;
+            harness.Open(ModeWriteErase, ref writer);
+            harness.Write(writer, ByteString.From([9, 8]));
+
+            harness.Manager.CloseSession(owner);
+            var other = new SessionSystemContext(null!) { SessionId = new NodeId("other-session", 1) };
+            uint reader = 0;
+            ServiceResult opened = harness.Open(ModeRead, ref reader, other);
+            (ServiceResult read, ByteString document) = await harness.ReadAsync(reader, 3, other)
+                .ConfigureAwait(false);
+            ServiceResult abandoned = await harness.CloseAsync(writer).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(opened.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(document, Is.EqualTo(ByteString.From([1, 2, 3])));
+                Assert.That(harness.File.Size!.Value, Is.EqualTo(3UL));
+                Assert.That(abandoned.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that session cleanup retains other sessions readers.
+        /// </summary>
+        [Test]
+        public async Task SessionCleanupRetainsOtherSessionsReaders()
+        {
+            var owner = new NodeId("closing-session", 1);
+            using var harness = new Harness(sessionId: owner);
+            harness.Manager.UpdatePersistedContent([1, 2, 3], null);
+            var other = new SessionSystemContext(null!) { SessionId = new NodeId("other-session", 1) };
+            uint abandoned = 0;
+            uint survivor = 0;
+            harness.Open(ModeRead, ref abandoned);
+            harness.Open(ModeRead, ref survivor, other);
+
+            harness.Manager.CloseSession(owner);
+            (ServiceResult removed, _) = await harness.ReadAsync(abandoned, 3).ConfigureAwait(false);
+            (ServiceResult retained, ByteString document) = await harness.ReadAsync(survivor, 3, other)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(removed.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(retained.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(document, Is.EqualTo(ByteString.From([1, 2, 3])));
+                Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that session cleanup releases the slot while an old read is still completing.
+        /// </summary>
+        [Test]
+        public async Task SessionCleanupReleasesTheSlotWhileAnOldReadIsStillCompleting()
+        {
+            var owner = new NodeId("closing-session", 1);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var harness = new Harness(
+                maxOpenHandles: 1,
+                sessionId: owner,
+                readContent: async (_, _, _, ct) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                    return ByteString.From([1, 2, 3]);
+                });
+            harness.Manager.UpdatePersistedContent([1, 2, 3], null);
+            uint abandoned = 0;
+            harness.Open(ModeRead, ref abandoned);
+            Task<(ServiceResult Status, ByteString Data)> reading = harness.ReadAsync(abandoned, 3).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            harness.Manager.CloseSession(owner);
+            var other = new SessionSystemContext(null!) { SessionId = new NodeId("other-session", 1) };
+            uint survivor = 0;
+            ServiceResult reopened = harness.Open(ModeRead, ref survivor, other);
+            release.TrySetResult(true);
+            (ServiceResult removed, _) = await reading.ConfigureAwait(false);
+            (ServiceResult retained, ByteString document) = await harness.ReadAsync(survivor, 3, other)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reopened.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(removed.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(retained.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(document, Is.EqualTo(ByteString.From([1, 2, 3])));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that session cleanup does not release an explicit close that is still committing.
+        /// </summary>
+        [Test]
+        public async Task SessionCleanupDoesNotReleaseAnExplicitCloseThatIsStillCommitting()
+        {
+            var owner = new NodeId("closing-session", 1);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var harness = new Harness(sessionId: owner, onCommit: async (_, _, ct) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                return ServiceResult.Good;
+            });
+            uint handle = 0;
+            harness.Open(ModeWriteErase, ref handle);
+            harness.Write(handle, ByteString.From([1, 2, 3]));
+            Task<ServiceResult> closing = harness.CloseAsync(handle).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            try
+            {
+                harness.Manager.CloseSession(owner);
+                var other = new SessionSystemContext(null!) { SessionId = new NodeId("other-session", 1) };
+                uint reader = 0;
+                uint writer = 0;
+                ServiceResult readOpen = harness.Open(ModeRead, ref reader, other);
+                ServiceResult writeOpen = harness.Open(ModeWriteErase, ref writer, other);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(readOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
+                    Assert.That(writeOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await closing.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that create handles cannot bypass an existing reader.
+        /// </summary>
+        /// <param name="contentless">The contentless flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateHandlesCannotBypassAnExistingReader(bool contentless)
+        {
+            using var harness = new Harness();
+            uint reader = 0;
+            harness.Open(ModeRead, ref reader);
+            uint writer;
+            ServiceResult blocked = contentless
+                ? harness.Manager.TryOpenContentlessWriteHandle(NodeId.Null, out writer)
+                : harness.Manager.TryOpenWriteHandle(NodeId.Null, out writer);
+            await harness.CloseAsync(reader).ConfigureAwait(false);
+            ServiceResult reopened = harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint available);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                Assert.That(writer, Is.Zero);
+                Assert.That(reopened.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(available, Is.GreaterThan(0u));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that direct write-handle creation enforces the concurrent handle bound.
+        /// </summary>
         [Test]
         public void TryOpenWriteHandleWhenMaxHandlesExceededReturnsBadTooManyOperations()
         {
@@ -673,6 +1210,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(fileHandle, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that direct write-handle creation rejects a competing writer.
+        /// </summary>
         [Test]
         public void TryOpenWriteHandleWhenWriterAlreadyOpenReturnsBadNotWritable()
         {
@@ -685,6 +1225,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(fileHandle, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that update persisted content sets the content key and file size.
+        /// </summary>
         [Test]
         public void UpdatePersistedContentSetsTheContentKeyAndFileSize()
         {
@@ -701,6 +1244,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(harness.File.Size!.Value, Is.EqualTo((ulong)3));
         }
 
+        /// <summary>
+        /// Verifies that write then read round trips content.
+        /// </summary>
         [Test]
         public async Task WriteThenReadRoundTripsContent()
         {
@@ -721,6 +1267,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(data.Span.ToArray(), Is.EqualTo(payload));
         }
 
+        /// <summary>
+        /// Verifies that write handle passes stable baseline incarnation to commit.
+        /// </summary>
         [Test]
         public async Task WriteHandlePassesStableBaselineIncarnationToCommit()
         {
@@ -767,6 +1316,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that second writer immediately uses committed content and incarnation.
+        /// </summary>
         [Test]
         public async Task SecondWriterImmediatelyUsesCommittedContentAndIncarnation()
         {
@@ -824,6 +1376,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that disposing the file manager closes handles and resets its open count.
+        /// </summary>
         [Test]
         public async Task DisposeClosesAllOpenHandlesAndResetsState()
         {
@@ -853,6 +1408,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             harness.Dispose();
         }
 
+        /// <summary>
+        /// Verifies that disposing the file manager twice has no additional effect.
+        /// </summary>
         [Test]
         public void SecondDisposeIsIdempotent()
         {
@@ -862,6 +1420,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(() => harness.Dispose(), Throws.Nothing);
         }
 
+        /// <summary>
+        /// Verifies that operations on unknown FileType handles return BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task OperationsOnUnknownHandleReturnBadInvalidArgument()
         {
@@ -907,6 +1468,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(forwarded, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that direct open conflicts with forwarded writer on same manager.
+        /// </summary>
         [Test]
         public void DirectOpenConflictsWithForwardedWriterOnSameManager()
         {
@@ -922,6 +1486,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(direct, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that forwarded write then forwarded close commits and direct read sees it.
+        /// </summary>
         [Test]
         public async Task ForwardedWriteThenForwardedCloseCommitsAndDirectReadSeesIt()
         {
@@ -961,6 +1528,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(data.Span.ToArray(), Is.EqualTo(content));
         }
 
+        /// <summary>
+        /// Verifies that forwarded read returns same content as direct read.
+        /// </summary>
         [Test]
         public async Task ForwardedReadReturnsSameContentAsDirectRead()
         {
@@ -981,6 +1551,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(data.Span.ToArray(), Is.EqualTo(content));
         }
 
+        /// <summary>
+        /// Verifies that forwarded get position and set position operate on shared handle state.
+        /// </summary>
         [Test]
         public void ForwardedGetPositionAndSetPositionOperateOnSharedHandleState()
         {
@@ -1000,8 +1573,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
         private sealed class Harness : IDisposable
         {
-            private readonly NodeId m_objectId;
-
+            /// <summary>
+            /// Initializes a new <c>Harness</c> instance.
+            /// </summary>
+            /// <param name="maxOpenHandles">The max open handles used to initialize the instance.</param>
+            /// <param name="maxDocumentSize">The max document size used to initialize the instance.</param>
+            /// <param name="authorizeWrite">The authorize write used to initialize the instance.</param>
+            /// <param name="onCommit">The on commit used to initialize the instance.</param>
+            /// <param name="onVersionCommit">The on version commit used to initialize the instance.</param>
+            /// <param name="readContent">The read content used to initialize the instance.</param>
+            /// <param name="sessionId">The session ID used to initialize the instance.</param>
+            /// <param name="acquireVersionLease">The acquire version lease used to initialize the instance.</param>
             public Harness(
                 int maxOpenHandles = 8,
                 int maxDocumentSize = 1024 * 1024,
@@ -1013,10 +1595,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     Guid?,
                     NodeId,
                     CancellationToken,
-                    ValueTask<WotResourceCommitResult>>? onVersionCommit = null)
+                    ValueTask<WotResourceCommitResult>>? onVersionCommit = null,
+                Func<string, long, int, CancellationToken, ValueTask<ByteString>>? readContent = null,
+                NodeId sessionId = default,
+                Func<WotResourceVersion, CancellationToken, ValueTask<IWotRegistryVersionLease>>?
+                    acquireVersionLease = null)
             {
-                Context = new SystemContext(null!)
+                Context = new SessionSystemContext(null!)
                 {
+                    SessionId = sessionId,
                     NamespaceUris = new NamespaceTable(),
                     EncodeableFactory = EncodeableFactory.Create()
                 };
@@ -1027,63 +1614,113 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     parent: null!,
                     browseName: new QualifiedName("ResourceFile", 1));
 
-                Manager = onVersionCommit is null
-                    ? new WotResourceFileManager(
+                if (onVersionCommit is not null || acquireVersionLease is not null)
+                {
+                    Manager = new WotResourceFileManager(
+                        File,
+                        maxOpenHandles,
+                        maxDocumentSize,
+                        authorizeWrite ?? ((_, _) => ServiceResult.Good),
+                        readContent ?? ReadEmptyAsync,
+                        onVersionCommit ?? ((_, _, _, _, _) => new ValueTask<WotResourceCommitResult>(
+                            new WotResourceCommitResult(ServiceResult.Good, null))),
+                        acquireVersionLease: acquireVersionLease);
+                }
+                else if (readContent is not null)
+                {
+                    Manager = new WotResourceFileManager(
+                        File,
+                        maxOpenHandles,
+                        maxDocumentSize,
+                        authorizeWrite ?? ((_, _) => ServiceResult.Good),
+                        readContent,
+                        onCommit ?? ((_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good)));
+                }
+                else
+                {
+                    Manager = new WotResourceFileManager(
                         File,
                         maxOpenHandles,
                         maxDocumentSize,
                         authorizeWrite ?? ((_, _) => ServiceResult.Good),
                         onCommit ?? ((_, _, _) =>
-                            new ValueTask<ServiceResult>(ServiceResult.Good)))
-                    : new WotResourceFileManager(
-                        File,
-                        maxOpenHandles,
-                        maxDocumentSize,
-                        authorizeWrite ?? ((_, _) => ServiceResult.Good),
-                        ReadEmptyAsync,
-                        onVersionCommit);
+                            new ValueTask<ServiceResult>(ServiceResult.Good)));
+                }
 
                 m_objectId = File.NodeId;
             }
 
-            public SystemContext Context { get; }
+            /// <summary>
+            /// Gets the session system context for <c>Harness</c>.
+            /// </summary>
+            public SessionSystemContext Context { get; }
 
             public ThingDescriptionFileState File { get; }
 
             public WotResourceFileManager Manager { get; }
 
-            public ServiceResult Open(byte mode, ref uint fileHandle)
-                => File.Open!.OnCall!.Invoke(Context, File.Open, m_objectId, mode, ref fileHandle);
+            /// <summary>
+            /// Calls the file Open method with the supplied mode.
+            /// </summary>
+            /// <param name="mode">The file open mode.</param>
+            /// <param name="fileHandle">The file handle.</param>
+            /// <param name="context">The system context.</param>
+            public ServiceResult Open(byte mode, ref uint fileHandle, ISystemContext? context = null)
+                => File.Open!.OnCall!.Invoke(context ?? Context, File.Open, m_objectId, mode, ref fileHandle);
 
-            public async ValueTask<ServiceResult> CloseAsync(uint fileHandle)
+            /// <summary>
+            /// Calls the file Close method asynchronously for the file handle.
+            /// </summary>
+            /// <param name="fileHandle">The file handle.</param>
+            /// <param name="context">The system context.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+            public async ValueTask<ServiceResult> CloseAsync(
+                uint fileHandle,
+                ISystemContext? context = null,
+                CancellationToken cancellationToken = default)
             {
                 CloseMethodStateResult result = await File.Close!.OnCallAsync!(
-                        Context,
+                        context ?? Context,
                         File.Close,
                         m_objectId,
                         fileHandle,
-                        CancellationToken.None)
+                        cancellationToken)
                     .ConfigureAwait(false);
                 return result.ServiceResult;
             }
 
+            /// <summary>
+            /// Calls the file Read method and returns the status and the data read.
+            /// </summary>
+            /// <param name="fileHandle">The file handle.</param>
+            /// <param name="length">The maximum number of bytes to read.</param>
+            /// <param name="context">The system context.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<(ServiceResult Status, ByteString Data)> ReadAsync(
                 uint fileHandle,
-                int length)
+                int length,
+                ISystemContext? context = null,
+                CancellationToken cancellationToken = default)
             {
                 ReadMethodStateResult result = await File.Read!.OnCallAsync!(
-                        Context,
+                        context ?? Context,
                         File.Read,
                         m_objectId,
                         fileHandle,
                         length,
-                        CancellationToken.None)
+                        cancellationToken)
                     .ConfigureAwait(false);
                 return (result.ServiceResult, result.Data);
             }
 
-            public ServiceResult Write(uint fileHandle, ByteString data)
-                => File.Write!.OnCall!.Invoke(Context, File.Write, m_objectId, fileHandle, data);
+            /// <summary>
+            /// Calls the file Write method with the supplied data.
+            /// </summary>
+            /// <param name="fileHandle">The file handle.</param>
+            /// <param name="data">The byte string.</param>
+            /// <param name="context">The system context.</param>
+            public ServiceResult Write(uint fileHandle, ByteString data, ISystemContext? context = null)
+                => File.Write!.OnCall!.Invoke(context ?? Context, File.Write, m_objectId, fileHandle, data);
 
             private static ValueTask<ByteString> ReadEmptyAsync(
                 string key,
@@ -1137,6 +1774,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             public void Dispose()
                 => Manager.Dispose();
+
+            private readonly NodeId m_objectId;
         }
     }
 }

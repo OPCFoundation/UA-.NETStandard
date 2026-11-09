@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>CompanionSuite</AssemblyName>
+    <RootNamespace>CompanionSuite</RootNamespace>
+    <Description>Bounded simulated multi-companion workcell on one DI and Machinery namespace owner.</Description>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineTool.Server\Opc.Ua.MachineTool.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineTool.Client\Opc.Ua.MachineTool.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.GMS.Server\Opc.Ua.GMS.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.GMS.Client\Opc.Ua.GMS.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.CranesHoists.Server\Opc.Ua.CranesHoists.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.CranesHoists.Client\Opc.Ua.CranesHoists.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Server\Opc.Ua.MachineVision.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Client\Opc.Ua.MachineVision.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+  </ItemGroup>
+</Project>

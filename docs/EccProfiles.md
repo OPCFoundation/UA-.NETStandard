@@ -6,13 +6,14 @@ how to configure both certificate types.
 
 ## Contents
 
-- [Previous client and server configuration (RSA only)](#previous-client-and-server-application-configuration-supports-only-rsa-certificates)
-- [Previous server configuration (RSA only)](#previous-server-application-configuration-supports-only-rsa-certificates)
-- [New client and server configuration (RSA and ECC)](#new-client-and-server-application-configuration-support-both-rsa-and-ecc-certificates)
-- [New server configuration for ECC](#new-server-application-configuration-related-to-ecc-certificates)
-- [Old and new configuration compatibility](#old-client-and-server-application-configuration-format-vs-new-client-and-server-application-configuration-format)
-- [Configure GDS for ECC](#configure-gds-for-use-with-ecc-certificates)
-- [Known limitations](#known-limitations)
+- [Support for Elliptic Curve Cryptography (ECC) Certificates in Server and Client Applications](#support-for-elliptic-curve-cryptography-ecc-certificates-in-server-and-client-applications)
+  - [Previous Client and Server application configuration supports only RSA certificates](#previous-client-and-server-application-configuration-supports-only-rsa-certificates)
+  - [Previous Server application configuration supports only RSA certificates](#previous-server-application-configuration-supports-only-rsa-certificates)
+  - [New Client and Server application configuration support both RSA and ECC certificates](#new-client-and-server-application-configuration-support-both-rsa-and-ecc-certificates)
+  - [New Server application configuration related to ECC certificates](#new-server-application-configuration-related-to-ecc-certificates)
+  - ["Old" Client and Server application configuration format VS "New" Client and Server application configuration format](#old-client-and-server-application-configuration-format-vs-new-client-and-server-application-configuration-format)
+  - [Configure GDS for use with ECC Certificates](#configure-gds-for-use-with-ecc-certificates)
+  - [Known Limitations](#known-limitations)
 
 The [previous configuration](#previous-client-and-server-application-configuration-supports-only-rsa-certificates)
 supports RSA certificates. The

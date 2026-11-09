@@ -155,6 +155,10 @@ namespace Opc.Ua.Schema.Model
             // A NodeSet without nodes deserializes with a null Items array;
             // treat it as empty so every pass below imports nothing.
             m_nodeset.Items ??= [];
+            if (m_nodeset.Items.Any(node => node is UAMethod))
+            {
+                ReadUserExecutableConfiguration(filePath);
+            }
 
             foreach (UANode node in m_nodeset.Items)
             {
@@ -634,6 +638,8 @@ namespace Opc.Ua.Schema.Model
                 Description = ImportLocalizedText(input.Description),
                 DisplayName = ImportLocalizedText(input.DisplayName),
                 WriteAccess = input.WriteMask,
+                UserWriteAccess = input.UserWriteMask,
+                UserWriteAccessSpecified = input.UserWriteMask != 0,
                 IsAbstract = input.IsAbstract,
                 InverseName = ImportLocalizedText(input.InverseName),
                 Symmetric = input.Symmetric,
@@ -772,6 +778,7 @@ namespace Opc.Ua.Schema.Model
             UpdateTypeDesign(input, output);
 
             output.DefaultValue = input.Value;
+            output.NodeSetValueIsNull = input.Value == null;
             output.ValueRankSpecified = true;
             output.ValueRank = ImportValueRank(input.ValueRank);
             output.ValueRankSpecified = true;
@@ -1118,6 +1125,7 @@ namespace Opc.Ua.Schema.Model
             UpdateInstanceDesign(input, output);
 
             output.DefaultValue = input.Value;
+            output.NodeSetValueIsNull = input.Value == null;
             output.ValueRank = ImportValueRank(input.ValueRank);
             output.ValueRankSpecified = true;
             output.ArrayDimensions = ImportArrayDimensions(input.ValueRank, input.ArrayDimensions);
@@ -1141,7 +1149,7 @@ namespace Opc.Ua.Schema.Model
             // AccessLevel by code generation, matching the runtime importer.
             output.RawUserAccessLevel = input.UserAccessLevelSpecified
                 ? input.UserAccessLevel
-                : (uint?)null;
+                : null;
 
             if (input.Value != null)
             {
@@ -1355,6 +1363,9 @@ namespace Opc.Ua.Schema.Model
 
             output.NonExecutable = !input.Executable;
             output.NonExecutableSpecified = !input.Executable;
+            output.UserExecutable = input.UserExecutable;
+            output.UserExecutableSpecified =
+                !input.UserExecutable || m_userExecutableSpecified.Contains(input.NodeId!);
 
             if (input.MethodDeclarationId != null)
             {
@@ -1363,6 +1374,78 @@ namespace Opc.Ua.Schema.Model
             }
 
             UpdateMethodArguments(input, output);
+        }
+
+        /// <summary>
+        /// The NodeSet serializer defaults UserExecutable to true without retaining attribute presence.
+        /// Keep that presence so an unset override cannot erase an inherited explicit denial.
+        /// </summary>
+        private void ReadUserExecutableConfiguration(string filePath)
+        {
+            using Stream stream = m_fileSystem.OpenRead(filePath);
+            using var reader = XmlReader.Create(stream, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Ignore,
+                XmlResolver = null
+            });
+            while (reader.Read())
+            {
+                if (reader.NodeType == XmlNodeType.Element &&
+                    reader.Depth == 1 &&
+                    reader.LocalName == "UAMethod" &&
+                    reader.NamespaceURI == "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" &&
+                    reader.GetAttribute("UserExecutable") != null &&
+                    reader.GetAttribute("NodeId") is string nodeId)
+                {
+                    m_userExecutableSpecified.Add(nodeId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolves explicit method declarations after parents are linked. Dependency payloads can carry
+        /// a method's signature and CLR state identity without its instance NodeId; the NodeSet's explicit
+        /// declaration identifier supplies that wire identity without changing the dependency model.
+        /// </summary>
+        private void ResolveInheritedMethodDeclarations()
+        {
+            foreach (UAMethod input in m_nodeset.Items!.OfType<UAMethod>())
+            {
+                if (string.IsNullOrEmpty(input.MethodDeclarationId) ||
+                    !m_settings.NodesById.TryGetValue(ImportNodeId(input.NodeId), out NodeDesign? node) ||
+                    node is not MethodDesign method ||
+                    method.MethodDeclarationNode != null)
+                {
+                    continue;
+                }
+                NodeId declarationId = ImportNodeId(input.MethodDeclarationId);
+                if (declarationId.IsNull)
+                {
+                    continue;
+                }
+                string? declarationNamespace = m_settings.NamespaceUris.GetString(declarationId.NamespaceIndex);
+                TypeDesign? parentType = method.Parent switch
+                {
+                    TypeDesign type => type,
+                    InstanceDesign instance => instance.TypeDefinitionNode,
+                    _ => null
+                };
+                for (TypeDesign? type = parentType; type != null; type = type.BaseTypeNode)
+                {
+                    MethodDesign? inherited = type.Children?.Items?.OfType<MethodDesign>().FirstOrDefault(candidate =>
+                        candidate.SymbolicName == method.SymbolicName &&
+                        candidate.SymbolicId.Namespace == declarationNamespace);
+                    if (inherited == null)
+                    {
+                        continue;
+                    }
+                    var declaration = (MethodDesign)inherited.Copy();
+                    declaration.SetIdentifier(ImportIdentifier(declarationId));
+                    method.MethodDeclarationNode = declaration;
+                    m_settings.NodesById[declarationId] = declaration;
+                    break;
+                }
+            }
         }
 
         private void UpdateMethodArguments(UAMethod input, MethodDesign output)
@@ -1468,7 +1551,7 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-            NodeDesign? referenceType = null;
+
             bool nonHierarchical = false;
 
             UANode parentNode = FindNode(parentId) ??
@@ -1486,7 +1569,7 @@ namespace Opc.Ua.Schema.Model
             // non-hierarchical one. Taking the parent's non-hierarchical
             // reference first would shadow a perfectly good inverse HasComponent
             // on the child and drop the node out of the parent's Children.
-            referenceType =
+            NodeDesign? referenceType =
                 FindHierarchicalReference(parentNode.References!, input.NodeId!, forward: true) ??
                 FindHierarchicalReference(input.References!, input.ParentNodeId!, forward: false);
 
@@ -1639,6 +1722,8 @@ namespace Opc.Ua.Schema.Model
             output.Description = ImportLocalizedText(input.Description);
             output.DisplayName = ImportLocalizedText(input.DisplayName);
             output.WriteAccess = input.WriteMask;
+            output.UserWriteAccess = input.UserWriteMask;
+            output.UserWriteAccessSpecified = input.UserWriteMask != 0;
             output.ReleaseStatus = ImportReleaseStatus(input.ReleaseStatus);
             output.Category = ImportCategories(input.Category);
 
@@ -1828,7 +1913,7 @@ namespace Opc.Ua.Schema.Model
                             continue;
                         }
 
-                        NodeId targetId = ExpandedNodeId.ToNodeId(
+                        var targetId = ExpandedNodeId.ToNodeId(
                             reference.TargetId,
                             m_settings.NamespaceUris);
                         if (!targetId.IsNull)
@@ -1888,7 +1973,8 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
                     NodeId targetId = ImportNodeId(ii.Value);
-                    NodeDesign? target = FindNode<NodeDesign>(targetId);
+                    NodeDesign? target = FindNode<NodeDesign>(targetId) ??
+                        FindOrCreateExternalTarget(targetId, nodeId);
 
                     if (target == null)
                     {
@@ -1942,6 +2028,59 @@ namespace Opc.Ua.Schema.Model
                 existing.HasReferences = true;
                 existing.References = [.. references];
             }
+        }
+
+        /// <summary>
+        /// Returns a stand-in for the target of a reference into another
+        /// namespace whose node is not part of any loaded design, for example
+        /// the DeviceSet of DI organizing a device when DI is supplied by a
+        /// referenced assembly. The dependency metadata of a referenced
+        /// assembly carries types only, so such a target cannot be resolved
+        /// and the reference used to be dropped. The stand-in carries only
+        /// the NodeId the generated reference needs and is not generated.
+        /// </summary>
+        private ObjectDesign? FindOrCreateExternalTarget(NodeId targetId, NodeId sourceId)
+        {
+            if (targetId.IsNull ||
+                targetId.NamespaceIndex == 0 ||
+                targetId.NamespaceIndex == sourceId.NamespaceIndex)
+            {
+                return null;
+            }
+
+            string? namespaceUri = m_settings.NamespaceUris.GetString(targetId.NamespaceIndex);
+            object? identifier = ImportIdentifier(targetId);
+
+            if (string.IsNullOrEmpty(namespaceUri) || identifier == null)
+            {
+                return null;
+            }
+
+            // The identifier alone does not make a unique name: the identifier
+            // type is dropped and punctuation is replaced (i=5001 and s=5001,
+            // or s=A.B and s=A/B, give the same name). FindNode already
+            // returns the stand-in of a NodeId seen before, so a name taken
+            // here always belongs to another node and gets a numeric suffix.
+            string baseName = "ExternalNode_" + GetCollisionSuffix(targetId.ToString());
+            var symbolicId = new XmlQualifiedName(baseName, namespaceUri);
+            for (int suffix = 2; m_settings.NodesByQName!.ContainsKey(symbolicId); suffix++)
+            {
+                symbolicId = new XmlQualifiedName(
+                    baseName + "_" + suffix.ToString(CultureInfo.InvariantCulture),
+                    namespaceUri);
+            }
+
+            var target = new ObjectDesign
+            {
+                SymbolicId = symbolicId,
+                SymbolicName = symbolicId,
+                BrowseName = symbolicId.Name
+            };
+            target.SetIdentifier(identifier);
+
+            m_settings.NodesByQName![symbolicId] = target;
+            m_settings.NodesById[targetId] = target;
+            return target;
         }
 
         private static Permissions[] ToPermissions(PermissionType input)
@@ -2047,25 +2186,20 @@ namespace Opc.Ua.Schema.Model
             foreach (Export.RolePermission ii in input)
             {
                 NodeId roleId = ImportNodeId(ii.Value);
-                NodeDesign? role = FindNode<NodeDesign>(roleId);
-
-                if (role == null)
-
+                string? namespaceUri = m_settings.NamespaceUris.GetString(roleId.NamespaceIndex);
+                if (roleId.IsNull || string.IsNullOrEmpty(namespaceUri))
                 {
-                    continue;
+                    throw new InvalidDataException($"RolePermissions contains an invalid RoleId '{ii.Value}'.");
                 }
+                NodeDesign? role = FindNode<NodeDesign>(roleId);
                 permissions.Add(new RolePermission
                 {
-                    Role = role.SymbolicId,
+                    Role = role?.SymbolicId!,
+                    RoleId = ((ExpandedNodeId)roleId).WithNamespaceUri(namespaceUri).FormatRoleId(),
                     Permission = ToPermissions((PermissionType)ii.Permissions)
                 });
             }
 
-            if (permissions.Count == 0)
-
-            {
-                return null;
-            }
             return new RolePermissionSet
             {
                 RolePermission = [.. permissions]
@@ -2074,10 +2208,8 @@ namespace Opc.Ua.Schema.Model
 
         /// <summary>
         /// Maps a NodeSet AccessRestrictions bit mask onto the design schema's
-        /// enumeration. Returns <c>null</c> when the mask carries no restriction
-        /// the schema can express - notably the empty mask (which means "no
-        /// restrictions", not "encryption required") and a mask that only sets
-        /// ApplyRestrictionsToBrowse.
+        /// enumeration, retaining explicit unrestricted overrides independently
+        /// from an omitted attribute.
         /// </summary>
         private static AccessRestrictions? ToAccessRestrictions(AccessRestrictionType input)
         {
@@ -2088,6 +2220,10 @@ namespace Opc.Ua.Schema.Model
 
             switch (input)
             {
+                case AccessRestrictionType.None:
+                    return AccessRestrictions.None;
+                case AccessRestrictionType.ApplyRestrictionsToBrowse:
+                    return AccessRestrictions.ApplyToBrowse;
                 case AccessRestrictionType.SigningRequired:
                     return AccessRestrictions.SigningRequired;
                 case AccessRestrictionType.EncryptionRequired:
@@ -2123,17 +2259,9 @@ namespace Opc.Ua.Schema.Model
             // alongside a bit the schema does know. Stay fail-closed: a bit this
             // mapping cannot name is still a restriction the NodeSet asked for,
             // and dropping it would publish the node with no protection at all.
-            // Only a mask that demands nothing - empty, or nothing beyond
-            // ApplyRestrictionsToBrowse, which restricts nothing on its own -
-            // maps to "unspecified".
-            if ((input & ~AccessRestrictionType.ApplyRestrictionsToBrowse) != 0)
-            {
-                return (input & AccessRestrictionType.ApplyRestrictionsToBrowse) != 0
-                    ? AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired
-                    : AccessRestrictions.SessionWithEncryptionRequired;
-            }
-
-            return null;
+            return (input & AccessRestrictionType.ApplyRestrictionsToBrowse) != 0
+                ? AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired
+                : AccessRestrictions.SessionWithEncryptionRequired;
         }
 
         private void ImportPermissions(UANode input)
@@ -2145,11 +2273,15 @@ namespace Opc.Ua.Schema.Model
                 return;
             }
 
-            existing.RolePermissions = ToPermissionSet(input.RolePermissions);
+            ModelTableEntry? model = m_nodeset.Models?.FirstOrDefault(entry =>
+                entry.ModelUri == m_settings.NamespaceUris.GetString(nodeId.NamespaceIndex));
+            existing.RolePermissions = ToPermissionSet(input.RolePermissions ?? model?.RolePermissions);
 
             AccessRestrictions? restrictions = input.AccessRestrictionsSpecified
                 ? ToAccessRestrictions((AccessRestrictionType)input.AccessRestrictions)
-                : null;
+                : model?.AccessRestrictions is > 0
+                    ? ToAccessRestrictions((AccessRestrictionType)model.AccessRestrictions)
+                    : null;
             existing.AccessRestrictions = restrictions ?? default;
             existing.AccessRestrictionsSpecified = restrictions.HasValue;
         }
@@ -2269,6 +2401,8 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
+            ResolveInheritedMethodDeclarations();
+
             foreach (UANode node in m_nodeset.Items)
             {
                 ImportReferences(node);
@@ -2336,7 +2470,8 @@ namespace Opc.Ua.Schema.Model
 
                         foreach (InstanceDesign child in type.Children.Items)
                         {
-                            if (child.BrowseName == type.ClassName)
+                            if (child.BrowseName == type.ClassName ||
+                                child.SymbolicName.Name == type.ClassName + "State")
                             {
                                 type.ClassName = className +
                                     (type is VariableTypeDesign ? "Variable" : "Object");
@@ -2875,9 +3010,11 @@ namespace Opc.Ua.Schema.Model
             }
             sourceNamespaceUris = namespaceUris;
 
-            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
-            messageContext.NamespaceUris = mapNamespaces ? m_settings.NamespaceUris : namespaceUris;
-            messageContext.ServerUris = m_serverUris;
+            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory)
+            {
+                NamespaceUris = mapNamespaces ? m_settings.NamespaceUris : namespaceUris,
+                ServerUris = m_serverUris
+            };
 
             var decoder = new XmlDecoder((XmlElement)source, messageContext)
             {
@@ -3316,7 +3453,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private int ImportMinimumSamplingInterval(double input, string browseName)
         {
-            if (input == 0 || input == -1)
+            if (input is 0 or -1)
             {
                 return (int)input;
             }
@@ -3478,6 +3615,7 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
         private readonly HashSet<string> m_digitPreservingNames = [];
         private readonly HashSet<string> m_collisionSuffixed = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_userExecutableSpecified = new(StringComparer.Ordinal);
         private Dictionary<NodeId, List<UAVariable>>? m_variablesByParent;
         private Dictionary<NodeId, UANode>? m_dataTypesByEncoding;
     }

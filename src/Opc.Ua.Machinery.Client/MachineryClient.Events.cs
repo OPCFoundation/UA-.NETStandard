@@ -146,8 +146,8 @@ namespace Opc.Ua.Machinery.Client
             EventFilter filter = ResultReadyEventTypeRecord.EventFilters.Build(
                 Session.NamespaceUris,
                 registry);
-            NodeId declaredType = ExpandedNodeId.ToNodeId(
-                Opc.Ua.Machinery.Result.ObjectTypeIds.ResultReadyEventType,
+            var declaredType = ExpandedNodeId.ToNodeId(
+                Result.ObjectTypeIds.ResultReadyEventType,
                 Session.NamespaceUris);
 
             await foreach (EventNotification notification in
@@ -155,12 +155,12 @@ namespace Opc.Ua.Machinery.Client
                     .SubscribeEventsAsync(management, filter, options, cancellationToken)
                     .ConfigureAwait(false))
             {
-                ResultReadyEventTypeRecord? record = await DecodeAsync(
+                var record = await DecodeAsync(
                     registry,
                     notification,
                     declaredType,
-                    cancellationToken).ConfigureAwait(false)
-                    as ResultReadyEventTypeRecord;
+                    cancellationToken).ConfigureAwait(false) as
+                    ResultReadyEventTypeRecord;
                 if (record != null)
                 {
                     yield return record;
@@ -197,8 +197,8 @@ namespace Opc.Ua.Machinery.Client
             EventFilter filter = ZeroPointAdjustmentEventTypeRecord.EventFilters.Build(
                 Session.NamespaceUris,
                 registry);
-            NodeId declaredType = ExpandedNodeId.ToNodeId(
-                Opc.Ua.Machinery.ProcessValues.ObjectTypeIds.ZeroPointAdjustmentEventType,
+            var declaredType = ExpandedNodeId.ToNodeId(
+                ProcessValues.ObjectTypeIds.ZeroPointAdjustmentEventType,
                 Session.NamespaceUris);
 
             await foreach (EventNotification notification in
@@ -206,12 +206,12 @@ namespace Opc.Ua.Machinery.Client
                     .SubscribeEventsAsync(processValue, filter, options, cancellationToken)
                     .ConfigureAwait(false))
             {
-                ZeroPointAdjustmentEventTypeRecord? record = await DecodeAsync(
+                var record = await DecodeAsync(
                     registry,
                     notification,
                     declaredType,
-                    cancellationToken).ConfigureAwait(false)
-                    as ZeroPointAdjustmentEventTypeRecord;
+                    cancellationToken).ConfigureAwait(false) as
+                    ZeroPointAdjustmentEventTypeRecord;
                 if (record != null)
                 {
                     yield return record;
@@ -230,6 +230,18 @@ namespace Opc.Ua.Machinery.Client
             NodeId machine,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            if (m_options is not null)
+            {
+                await foreach (MachineryResultSnapshot snapshot in ReadPublishedResultSnapshotsAsync(
+                    machine, cancellationToken).ConfigureAwait(false))
+                {
+                    if (snapshot.Result is not null)
+                    {
+                        yield return snapshot.Result;
+                    }
+                }
+                yield break;
+            }
             NodeId management = await ResolveResultManagementAsync(machine, cancellationToken)
                 .ConfigureAwait(false);
             if (management.IsNull)
@@ -237,7 +249,7 @@ namespace Opc.Ua.Machinery.Client
                 yield break;
             }
             ushort resultNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Result.Namespaces.MachineryResult);
+                Result.Namespaces.MachineryResult);
             NodeId folder = await ResolveChildAsync(
                 management,
                 new QualifiedName(ResultBrowseNames.Results, resultNamespaceIndex),
@@ -259,10 +271,10 @@ namespace Opc.Ua.Machinery.Client
                 yield break;
             }
 
-            Dictionary<QualifiedName, Variant> values = await ReadChildValuesAsync(
+            ReadValueSet values = await ReadChildValuesAsync(
                 folder,
-                names,
-                Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                names.ToArrayOf(),
+                ReferenceTypeIds.HierarchicalReferences,
                 cancellationToken).ConfigureAwait(false);
             foreach (QualifiedName name in names)
             {
@@ -275,6 +287,114 @@ namespace Opc.Ua.Machinery.Client
                     yield return result!;
                 }
             }
+        }
+
+        /// <summary>
+        /// Enumerates published result variable identities without reading or
+        /// downloading their contents. Strict clients use bounded discovery.
+        /// </summary>
+        /// <param name="machine">The selected machine.</param>
+        /// <param name="cancellationToken">Cancels discovery.</param>
+        public async IAsyncEnumerable<MachineEntry> EnumeratePublishedResultsAsync(
+            NodeId machine,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            NodeId management = await ResolveResultManagementAsync(machine, cancellationToken).ConfigureAwait(false);
+            if (management.IsNull)
+            {
+                yield break;
+            }
+            NodeId folder = await ResolveChildAsync(
+                management,
+                new QualifiedName(
+                    ResultBrowseNames.Results, NamespaceIndexOf(Result.Namespaces.MachineryResult)),
+                cancellationToken).ConfigureAwait(false);
+            await foreach (MachineEntry entry in EnumerateChildVariablesAsync(folder, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                yield return entry;
+            }
+        }
+
+        /// <summary>
+        /// Strictly reads one selected result variable with source evidence.
+        /// This is a Value read, not a file download or a result-URI request.
+        /// </summary>
+        /// <param name="resultVariable">The local published result variable.</param>
+        /// <param name="cancellationToken">Cancels the read.</param>
+        public async ValueTask<MachineryResultSnapshot> ReadPublishedResultAsync(
+            NodeId resultVariable,
+            CancellationToken cancellationToken = default)
+        {
+            ArrayOf<MachineryReadValue> fields = await ReadStrictSourcesAsync(
+                [
+                    new MachineryReadValue(
+                        resultVariable, resultVariable, [], DataValue.FromStatusCode(StatusCodes.Good))
+                ],
+                cancellationToken).ConfigureAwait(false);
+            return CreateResultSnapshot(fields[0], cancellationToken);
+        }
+
+        /// <summary>
+        /// Strictly reads a bounded published-results folder, one variable per
+        /// iteration. A present Good-null variable still yields an evidenced snapshot.
+        /// </summary>
+        /// <param name="machine">The selected machine.</param>
+        /// <param name="cancellationToken">Cancels discovery and reading.</param>
+        public async IAsyncEnumerable<MachineryResultSnapshot> ReadPublishedResultSnapshotsAsync(
+            NodeId machine,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!TryGetNamespaceIndex(Result.Namespaces.MachineryResult, out ushort namespaceIndex))
+            {
+                yield break;
+            }
+            NodeId folder = await ResolveStrictPathAsync(
+                machine,
+                [
+                    new QualifiedName(ResultBrowseNames.ResultManagement, namespaceIndex),
+                    new QualifiedName(ResultBrowseNames.Results, namespaceIndex)
+                ],
+                cancellationToken).ConfigureAwait(false);
+            ArrayOf<MachineEntry> variables = await BrowseBoundedAsync(
+                folder, NodeClass.Variable, ReferenceTypeIds.HierarchicalReferences,
+                new BrowseBudget(m_options ?? s_defaultReadOptions), cancellationToken).ConfigureAwait(false);
+            for (int ii = 0; ii < variables.Count; ii++)
+            {
+                MachineEntry variable = variables[ii];
+                ArrayOf<MachineryReadValue> fields = await ReadStrictSourcesAsync(
+                    [
+                        new MachineryReadValue(
+                            variable.NodeId, folder, [variable.BrowseName], DataValue.FromStatusCode(StatusCodes.Good))
+                    ],
+                    cancellationToken).ConfigureAwait(false);
+                yield return CreateResultSnapshot(fields[0], cancellationToken);
+            }
+        }
+
+        private MachineryResultSnapshot CreateResultSnapshot(
+            MachineryReadValue field,
+            CancellationToken cancellationToken)
+        {
+            ResultDataType? result = DecodeStructure<ResultDataType>(field.Value.WrappedValue, field);
+            if (result is not null)
+            {
+                if (string.IsNullOrEmpty(result.ResultMetaData?.ResultId))
+                {
+                    throw ReadFailure(
+                        StatusCodes.BadDecodingError, field, "A published result must identify its result.");
+                }
+                var budget = new ReadArrayBudget(m_options ?? s_defaultReadOptions, field);
+                budget.Add(result.ResultContent.Count);
+                budget.Add(result.ResultMetaData.ResultUri.Count);
+                budget.Add(result.ResultMetaData.FileFormat.Count);
+                foreach (Variant content in result.ResultContent)
+                {
+                    ValidateVariantArrays(content, budget, cancellationToken);
+                }
+            }
+            return new MachineryResultSnapshot(result, [field]);
         }
 
         /// <summary>
@@ -315,7 +435,7 @@ namespace Opc.Ua.Machinery.Client
                 if (path.Length > 0 &&
                     string.Equals(
                         path[^1].Name,
-                        Opc.Ua.BrowseNames.EventType,
+                        Ua.BrowseNames.EventType,
                         System.StringComparison.Ordinal) &&
                     fields[ii].TryGetValue(out eventType) &&
                     !eventType.IsNull)

@@ -113,6 +113,18 @@ namespace Opc.Ua.Server
             out bool moreNotifications);
 
         /// <summary>
+        /// Returns all available notifications together with a reference on the returned
+        /// message that the caller releases once the message was sent (see
+        /// <see cref="LeasedPublishResponse"/>). The message is shared with the
+        /// retransmission queue and must not be modified.
+        /// </summary>
+        NotificationMessage? Publish(
+            OperationContext context,
+            out ArrayOf<uint> availableSequenceNumbers,
+            out bool moreNotifications,
+            out NotificationMessageLease? lease);
+
+        /// <summary>
         /// Reserves the subscription for transfer while it is still owned by the expected source session.
         /// </summary>
         /// <param name="sourceSession">The session that currently owns the subscription.</param>

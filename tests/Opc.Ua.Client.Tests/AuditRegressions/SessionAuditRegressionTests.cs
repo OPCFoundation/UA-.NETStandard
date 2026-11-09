@@ -40,6 +40,8 @@ using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Tests;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Client.Tests.AuditRegressions
 {
     /// <summary>
@@ -323,7 +325,7 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
                 Task<Opc.Ua.Client.ManagedSession> connect = pool.GetOrConnectAsync("k", endpoint, caller.Token);
                 await factory.Started.Task.ConfigureAwait(false);
                 caller.Cancel();
-                Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), () => connect);
+                await Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), () => connect);
 
                 Task<bool> remove = pool.RemoveAsync("k", CancellationToken.None).AsTask();
                 Task completed = await Task
@@ -381,7 +383,7 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
                 // Let the first connect finish unwinding; awaiting its faulted
                 // task guarantees its eviction has already run.
                 factory.ReleaseFirstFailure();
-                Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), () => first);
+                await Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), () => first);
                 await remove.ConfigureAwait(false);
 
                 // The replacement must still be the pool's entry for the key.

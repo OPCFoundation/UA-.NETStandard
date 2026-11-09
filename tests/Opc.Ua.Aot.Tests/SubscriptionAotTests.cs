@@ -28,6 +28,8 @@
  * ======================================================================*/
 using Opc.Ua.Client;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
@@ -296,7 +298,7 @@ namespace Opc.Ua.Aot.Tests
                             SamplingInterval = TimeSpan.FromMilliseconds(500),
                             Affinity = "aot_group"
                         }),
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem affinityItem);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? affinityItem);
                 await Assert.That(affinityAdded).IsTrue();
                 await Assert.That(affinityItem).IsNotNull();
 

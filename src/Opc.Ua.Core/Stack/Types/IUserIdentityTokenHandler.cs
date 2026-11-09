@@ -142,8 +142,8 @@ namespace Opc.Ua
     {
         /// <summary>
         /// Wraps the raw token inside a token handler to operate on it.
-        /// Dispose the returned handler when done. When storing it for
-        /// later use clone it and then dispose the original when done.
+        /// The returned handler is not disposable. Clone it before storing
+        /// it for later use.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         /// <param name="token">The token to wrap.</param>

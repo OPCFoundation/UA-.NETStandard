@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A subtype that refines the DataType of an inherited property to a subtype
+  of the structure the supertype declares, as OPC 30010 (AutoID) does for the
+  ScanResult and AccessResult properties of its event types. Only the type
+  argument of the generic PropertyState class changes, so the subtype has to
+  hold the property in a field of its own.
+-->
+<opc:ModelDesign
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns="http://test.org/UA/StructurePropertyOverride/"
+  TargetNamespace="http://test.org/UA/StructurePropertyOverride/"
+  TargetXmlNamespace="http://test.org/UA/StructurePropertyOverride/Types.xsd"
+  TargetVersion="1.0.0"
+  TargetPublicationDate="2026-10-17T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace
+      Name="StructurePropertyOverride"
+      Prefix="StructurePropertyOverride"
+      XmlNamespace="http://test.org/UA/StructurePropertyOverride/Types.xsd"
+      XmlPrefix="StructurePropertyOverride">http://test.org/UA/StructurePropertyOverride/</opc:Namespace>
+    <opc:Namespace
+      Name="OpcUa"
+      Prefix="Opc.Ua"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:DataType SymbolicName="ReadResult" BaseType="ua:Structure" IsAbstract="true">
+    <opc:Fields>
+      <opc:Field Name="Code" DataType="ua:String" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="RfidReadResult" BaseType="ReadResult">
+    <opc:Fields>
+      <opc:Field Name="Strength" DataType="ua:Int32" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="VerifiedReadResult" BaseType="RfidReadResult">
+    <opc:Fields>
+      <opc:Field Name="Grade" DataType="ua:String" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:ObjectType SymbolicName="ReaderType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Property SymbolicName="Results" DataType="ReadResult" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="LastResult" DataType="ReadResult" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="RfidReaderType" BaseType="ReaderType">
+    <opc:Children>
+      <opc:Property SymbolicName="Results" DataType="RfidReadResult" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="LastResult" DataType="RfidReadResult" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="VerifyingReaderType" BaseType="RfidReaderType">
+    <opc:Children>
+      <opc:Property SymbolicName="Results" DataType="VerifiedReadResult" ValueRank="Array" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+</opc:ModelDesign>

@@ -41,5 +41,8 @@ namespace Opc.Ua.Mcp
     internal static class McpServerEventIds
     {
         public const int OpcUaSessionManager = 0;
+        public const int McpExecutionPolicy = 30;
+        public const int McpRuntimeRegistry = 40;
+        public const int McpSecretReferences = 60;
     }
 }

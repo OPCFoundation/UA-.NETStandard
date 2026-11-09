@@ -129,7 +129,8 @@ namespace Quickstarts.Servers
         }
 
         /// <summary>
-        /// Restores subscriptions from the local store and removes the successfully read subscription file.
+        /// Restores subscriptions from the local store. The subscription file is kept until
+        /// <see cref="OnSubscriptionRestoreCompleteAsync"/> confirms that the server recreated them.
         /// </summary>
         public ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
             CancellationToken cancellationToken = default)
@@ -164,9 +165,13 @@ namespace Quickstarts.Servers
                         }
                     }
 
-                    File.Delete(filePath);
+                    // The file is deleted by OnSubscriptionRestoreCompleteAsync once the
+                    // server has recreated the subscriptions; a failed restore keeps it.
                     return new RestoreSubscriptionResult(true, result);
                 }
+
+                // Nothing was stored: a successful restore of no subscriptions.
+                return new RestoreSubscriptionResult(true, []);
             }
             catch (Exception ex)
             {

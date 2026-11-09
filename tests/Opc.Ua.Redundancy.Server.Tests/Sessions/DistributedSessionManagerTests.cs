@@ -32,6 +32,7 @@
 #pragma warning disable CA2007
 
 using System;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 using System.Threading;
@@ -39,6 +40,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Identity;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Security.Certificates;
@@ -58,6 +60,338 @@ namespace Opc.Ua.Server.Tests.Redundancy
     [Parallelizable(ParallelScope.All)]
     public class DistributedSessionManagerTests
     {
+        /// <summary>
+        /// Captured RSA username proof cannot restore a consumed nonce while its replacement mirror is suspended.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR27OrdinaryActivationConsumesNonceBeforeReplicaReplayAsync()
+        {
+            await using var harness = new ActivationReplayHarness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            ByteString previousNonce = harness.CurrentNonce;
+            (SignatureData signature, ExtensionObject token) = await harness.ProofAsync(previousNonce)
+                .ConfigureAwait(false);
+            harness.BlockMirror = true;
+            Task<ByteString> ordinary = harness.ActivateAsync(harness.First, "replica-A", signature, token);
+            try
+            {
+                await harness.MirrorEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await harness.ActivateAsync(harness.Second, "replica-B", signature, token).ConfigureAwait(false))
+                    ?? throw new AssertionException("Expected replay rejection.");
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+                Assert.That(harness.Second.GetSession(harness.Created.AuthenticationToken), Is.Null);
+                Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
+            }
+            finally
+            {
+                harness.ReleaseMirror.TrySetResult(true);
+                await ordinary.ConfigureAwait(false);
+            }
+            Assert.That(harness.Created.Session.SecureChannelId, Is.EqualTo("replica-A"));
+            Assert.That(harness.CurrentNonce, Is.Not.EqualTo(previousNonce));
+        }
+
+        /// <summary>
+        /// A freshly mirrored proof remains usable once on the other replica and issues a new nonce.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR27FreshMirroredActivationWorksOnceAndRotatesNonceAsync()
+        {
+            await using var harness = new ActivationReplayHarness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            ByteString previousNonce = harness.CurrentNonce;
+            (SignatureData signature, ExtensionObject token) = await harness.ProofAsync(previousNonce)
+                .ConfigureAwait(false);
+            ByteString replacement = await harness.ActivateAsync(
+                harness.Second, "replica-B", signature, token).ConfigureAwait(false);
+            Assert.That(replacement.IsEmpty, Is.False);
+            Assert.That(replacement, Is.Not.EqualTo(previousNonce));
+            Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
+            Assert.That(harness.Second.GetSession(harness.Created.AuthenticationToken)!.EffectiveIdentity.DisplayName,
+                Is.EqualTo("victim"));
+            (signature, token) = await harness.ProofAsync(replacement).ConfigureAwait(false);
+            ByteString next = await harness.ActivateAsync(
+                harness.Second, "replica-B", signature, token).ConfigureAwait(false);
+            Assert.That(next, Is.Not.EqualTo(replacement));
+            Assert.That(harness.Claims(replacement), Is.EqualTo(1));
+            Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Invalid proof does not consume the valid nonce and an unavailable registry cannot move the local binding.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR27FailedProofDoesNotConsumeNonceAndRegistryFailureCannotCommitAsync()
+        {
+            await using var harness = new ActivationReplayHarness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            ByteString previousNonce = harness.CurrentNonce;
+            (SignatureData signature, ExtensionObject token) = await harness.ProofAsync(previousNonce)
+                .ConfigureAwait(false);
+            var invalid = new SignatureData { Algorithm = signature.Algorithm, Signature = ByteString.From([1, 2, 3]) };
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.ActivateAsync(harness.First, "replica-A", invalid, token).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected signature rejection.");
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
+            Assert.That(harness.Claims(previousNonce), Is.Zero);
+            harness.RegistryUnavailable = true;
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await harness.ActivateAsync(harness.First, "replica-A", signature, token).ConfigureAwait(false));
+            Assert.That(harness.CurrentNonce, Is.EqualTo(previousNonce));
+            Assert.That(harness.Created.Session.SecureChannelId, Is.EqualTo("replica-A"));
+            Assert.That(harness.Claims(previousNonce), Is.Zero);
+            harness.RegistryUnavailable = false;
+            ByteString next = await harness.ActivateAsync(harness.First, "replica-A", signature, token)
+                .ConfigureAwait(false);
+            Assert.That(next, Is.Not.EqualTo(previousNonce));
+            Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Models transparent replicas sharing a server key and strong nonce registry but lagging session publication.
+        /// </summary>
+        private sealed class ActivationReplayHarness : IAsyncDisposable
+        {
+            /// <summary>
+            /// Creates independent session managers and shared in-memory stores.
+            /// </summary>
+            public ActivationReplayHarness()
+            {
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                m_context = ServiceMessageContext.CreateEmpty(telemetry);
+                var store = new SharedKeyValueSessionStore(m_sessions, m_context);
+                var registry = new SharedSingleUseNonceRegistry(m_nonces);
+                var countedRegistry = new Mock<ISingleUseNonceRegistry>();
+                countedRegistry.Setup(value => value.TryConsumeAsync(
+                        It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (ByteString nonce, CancellationToken ct) =>
+                    {
+                        if (RegistryUnavailable)
+                        {
+                            throw new InvalidOperationException("Required nonce registry is unavailable.");
+                        }
+                        bool consumed = await registry.TryConsumeAsync(nonce, ct).ConfigureAwait(false);
+                        if (consumed)
+                        {
+                            m_claims.AddOrUpdate(nonce, 1, static (_, count) => count + 1);
+                        }
+                        return consumed;
+                    });
+                var lagging = new Mock<ISharedSessionStore>();
+                lagging.Setup(value => value.PutAsync(It.IsAny<SharedSessionEntry>(), It.IsAny<CancellationToken>()))
+                    .Returns((SharedSessionEntry entry, CancellationToken ct) => store.PutAsync(entry, ct));
+                lagging.Setup(value => value.TryGetAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                    .Returns((NodeId token, CancellationToken ct) => store.TryGetAsync(token, ct));
+                lagging.Setup(value => value.TryReplaceAsync(
+                        It.IsAny<SharedSessionEntry>(), It.IsAny<SharedSessionEntry>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (SharedSessionEntry current, SharedSessionEntry replacement, CancellationToken ct) =>
+                    {
+                        if (BlockMirror && current.ServerNonce != replacement.ServerNonce)
+                        {
+                            MirrorEntered.TrySetResult(true);
+                            await ReleaseMirror.Task.WaitAsync(ct).ConfigureAwait(false);
+                        }
+                        return await store.TryReplaceAsync(current, replacement, ct).ConfigureAwait(false);
+                    });
+                lagging.Setup(value => value.RemoveAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                    .Returns((NodeId token, CancellationToken ct) => store.RemoveAsync(token, ct));
+                lagging.Setup(value => value.TryRemoveAsync(
+                        It.IsAny<SharedSessionEntry>(), It.IsAny<CancellationToken>()))
+                    .Returns((SharedSessionEntry entry, CancellationToken ct) => store.TryRemoveAsync(entry, ct));
+                lagging.Setup(value => value.EnumerateAsync(It.IsAny<CancellationToken>()))
+                    .Returns((CancellationToken ct) => store.EnumerateAsync(ct));
+                First = CreateManager(countedRegistry.Object, lagging.Object, CreateServer().Object,
+                    _ => m_serverCertificate.AddRef());
+                Second = CreateManager(countedRegistry.Object, store, CreateServer().Object,
+                    _ => m_serverCertificate.AddRef());
+            }
+
+            /// <summary>
+            /// Gets the first replica.
+            /// </summary>
+            public DistributedSessionManager First { get; }
+
+            /// <summary>
+            /// Gets the independent standby replica.
+            /// </summary>
+            public DistributedSessionManager Second { get; }
+
+            /// <summary>
+            /// Gets the original real session.
+            /// </summary>
+            public CreateSessionResult Created { get; private set; } = null!;
+
+            /// <summary>
+            /// Gets the latest nonce returned to the client by the first replica.
+            /// </summary>
+            public ByteString CurrentNonce { get; private set; }
+
+            /// <summary>
+            /// Gets or sets whether replacement-nonce publication is suspended.
+            /// </summary>
+            public bool BlockMirror { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the required shared registry fails.
+            /// </summary>
+            public bool RegistryUnavailable { get; set; }
+
+            /// <summary>
+            /// Signals entry into post-commit publication.
+            /// </summary>
+            public TaskCompletionSource<bool> MirrorEntered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Releases post-commit publication.
+            /// </summary>
+            public TaskCompletionSource<bool> ReleaseMirror { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Creates and initially activates a username session with real encrypted password proof.
+            /// </summary>
+            public async Task InitializeAsync()
+            {
+                using OperationContext context = Context("replica-A");
+                Created = await First.CreateSessionAsync(context, m_serverCertificate, "victim",
+                    ByteString.From(CreateBytes(32, 61)),
+                    new ApplicationDescription { ApplicationUri = "urn:shared-app" },
+                    context.ChannelContext!.EndpointDescription!.EndpointUrl, m_clientCertificate.AddRef(),
+                    [], 60_000, 65_536).ConfigureAwait(false);
+                CurrentNonce = Created.ServerNonce;
+                (SignatureData signature, ExtensionObject token) = await ProofAsync(CurrentNonce).ConfigureAwait(false);
+                await ActivateAsync(First, "replica-A", signature, token).ConfigureAwait(false);
+                Assert.That(Created.Session.EffectiveIdentity.DisplayName, Is.EqualTo("victim"));
+            }
+
+            /// <summary>
+            /// Captures the real application signature and RSA-encrypted username token bound to one server nonce.
+            /// </summary>
+            public async Task<(SignatureData Signature, ExtensionObject Token)> ProofAsync(ByteString nonce)
+            {
+                SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(PolicyA)!;
+                byte[] signed = policy.GetClientSignatureData(null, nonce.ToArray(),
+                    m_serverCertificate.RawData, null, null, []);
+                SignatureData signature = await SecurityPolicies.Default.CreateSignatureDataAsync(
+                    policy, m_clientCertificate, signed, CancellationToken.None).ConfigureAwait(false);
+                var handler = new UserNameIdentityTokenHandler("victim", m_password);
+                handler.UpdatePolicy(new UserTokenPolicy { PolicyId = "username", TokenType = UserTokenType.UserName });
+                await handler.EncryptAsync(m_serverCertificate, nonce.ToArray(), PolicyA, m_context)
+                    .ConfigureAwait(false);
+                return (signature, new ExtensionObject(handler.Token));
+            }
+
+            /// <summary>
+            /// Replays the exact captured credential fields on an independently identified SecureChannel.
+            /// </summary>
+            public async Task<ByteString> ActivateAsync(
+                DistributedSessionManager manager, string channel, SignatureData signature, ExtensionObject token)
+            {
+                using OperationContext context = Context(channel);
+                (_, ByteString nonce, ServiceResult status) = await manager.ActivateSessionAsync(
+                    context, Created.AuthenticationToken, signature, token, new SignatureData(), [])
+                    .ConfigureAwait(false);
+                Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.Good));
+                if (ReferenceEquals(manager, First))
+                {
+                    CurrentNonce = nonce;
+                }
+                return nonce;
+            }
+
+            /// <summary>
+            /// Returns successful atomic claims for exactly one nonce.
+            /// </summary>
+            public int Claims(ByteString nonce)
+            {
+                return m_claims.TryGetValue(nonce, out int count) ? count : 0;
+            }
+
+            /// <summary>
+            /// Releases gates and session resources before their stores and certificate keys.
+            /// </summary>
+            public async ValueTask DisposeAsync()
+            {
+                ReleaseMirror.TrySetResult(true);
+                foreach (DistributedSessionManager manager in new[] { First, Second })
+                {
+                    foreach (ISession session in manager.GetSessions())
+                    {
+                        await manager.CloseSessionAsync(session.Id).ConfigureAwait(false);
+                    }
+                    manager.Dispose();
+                }
+                m_serverCertificate.Dispose();
+                m_clientCertificate.Dispose();
+                m_sessions.Dispose();
+                m_nonces.Dispose();
+            }
+
+            /// <summary>
+            /// Creates compatible authenticators that validate the decrypted password, not just the username.
+            /// </summary>
+            private Mock<IServerInternal> CreateServer()
+            {
+                Mock<IServerInternal> server = CreateRestoreServerMock(true);
+                server.SetupGet(value => value.MessageContext).Returns(m_context);
+                server.SetupGet(value => value.IdentityRegistry).Returns(new ServerIdentityRegistry(
+                    new UserNamePasswordAuthenticator((handler, _) =>
+                    {
+                        if (handler.UserName != "victim" ||
+                            !handler.DecryptedPassword.AsSpan().SequenceEqual(m_password))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                        }
+                        return new ValueTask<IUserIdentity>(new UserIdentity(handler));
+                    })));
+                return server;
+            }
+
+            /// <summary>
+            /// Models the observable non-enhanced Sign channel with the original shared application certificate.
+            /// </summary>
+            private OperationContext Context(string channel)
+            {
+                var endpoint = new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://localhost/security-r27",
+                    SecurityPolicyUri = PolicyA, SecurityMode = MessageSecurityMode.Sign,
+                    ServerCertificate = m_serverCertificate.RawData.ToByteString(),
+                    UserIdentityTokens =
+                    [
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "username", TokenType = UserTokenType.UserName, SecurityPolicyUri = PolicyA
+                        }
+                    ]
+                };
+                return new OperationContext(new RequestHeader(),
+                    new SecureChannelContext(channel, endpoint, RequestEncoding.Binary, m_clientCertificate.RawData),
+                    RequestType.ActivateSession, RequestLifetime.None);
+            }
+
+            /// <summary>The independently generated test server key shared by transparent replicas.</summary>
+            private readonly Certificate m_serverCertificate = CreateCertificate("CN=R27 Shared Server");
+            /// <summary>The application identity shared by the victim and the replaying application.</summary>
+            private readonly Certificate m_clientCertificate = CreateCertificate("CN=R27 Shared Application");
+            /// <summary>The password available only to the authenticator and proof-creation control.</summary>
+            private readonly byte[] m_password = Nonce.CreateRandomNonceData(32);
+            /// <summary>The shared session-record backend.</summary>
+            private readonly InMemorySharedKeyValueStore m_sessions = new();
+            /// <summary>The strongly consistent nonce-registry backend.</summary>
+            private readonly InMemorySharedKeyValueStore m_nonces = new();
+            /// <summary>The session serialization context.</summary>
+            private readonly IServiceMessageContext m_context;
+            /// <summary>The count of successful atomic claims per nonce.</summary>
+            private readonly ConcurrentDictionary<ByteString, int> m_claims = new();
+        }
+
         private const string PolicyA = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256";
         private const string PolicyB = "http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss";
         private static readonly ByteString s_clientChannelCertificate =

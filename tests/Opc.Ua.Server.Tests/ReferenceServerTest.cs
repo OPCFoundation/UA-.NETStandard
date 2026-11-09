@@ -140,6 +140,20 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// The configured reference model retains its historical startup namespace index.
+        /// </summary>
+        [Test]
+        public void ReferenceNamespaceRetainsConfiguredStartupIndex()
+        {
+            NamespaceTable namespaces = m_server.CurrentInstance.NamespaceUris;
+            Assert.That(namespaces.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer), Is.EqualTo(2),
+                string.Join(" | ", namespaces.GetSnapshot(out _).ToArray()!));
+            ReferenceNodeManager manager = m_server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .ToList().OfType<ReferenceNodeManager>().Single();
+            Assert.That(manager.NamespaceIndex, Is.EqualTo(2));
+        }
+
+        /// <summary>
         /// Set up a Reference Server a session
         /// </summary>
         [GlobalSetup]
@@ -169,6 +183,7 @@ namespace Opc.Ua.Server.Tests
         /// Test for expected exceptions.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task NoInvalidTimestampExceptionAsync()
         {
             // test that the server accepts an invalid timestamp
@@ -181,6 +196,7 @@ namespace Opc.Ua.Server.Tests
         /// Get Endpoints.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public void GetEndpoints()
         {
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
@@ -191,7 +207,6 @@ namespace Opc.Ua.Server.Tests
         /// Get Operation limits.
         /// </summary>
         [Test]
-        [Order(100)]
         public async Task GetOperationLimitsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -300,6 +315,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [Test]
         [Benchmark]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReadAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -327,9 +343,113 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A response carries an empty string table when the request asked for no
+        /// diagnostics, the diagnostic strings when it did, and an empty one again for the
+        /// next request without diagnostics.
+        /// </summary>
+        [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
+        public async Task ResponseStringTableHoldsOnlyTheRequestsDiagnosticsAsync()
+        {
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = new NodeId("Scalar_Simulation_Int32", 2), AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = new NodeId("DoesNotExist", 2), AttributeId = Attributes.Value }
+            ];
+
+            var plain = (RequestHeader)m_requestHeader.Clone();
+            plain.ReturnDiagnostics = (uint)DiagnosticsMasks.None;
+            ReadResponse response = await m_server.ReadAsync(
+                m_secureChannelContext, plain, 0, TimestampsToReturn.Both, nodesToRead, RequestLifetime.None)
+                .ConfigureAwait(false);
+            Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(response.ResponseHeader.StringTable.IsNull, Is.False);
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.Zero);
+
+            var diagnostics = (RequestHeader)m_requestHeader.Clone();
+            diagnostics.ReturnDiagnostics = (uint)DiagnosticsMasks.All;
+            response = await m_server.ReadAsync(
+                m_secureChannelContext, diagnostics, 0, TimestampsToReturn.Both, nodesToRead, RequestLifetime.None)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.GreaterThan(0));
+
+            response = await m_server.ReadAsync(
+                m_secureChannelContext, plain, 0, TimestampsToReturn.Both, nodesToRead, RequestLifetime.None)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.StringTable.IsNull, Is.False);
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// The response headers of Read, Write and Browse carry the timestamp, the request
+        /// handle, a good service result, no service diagnostics and an empty string table,
+        /// and every response gets a header of its own.
+        /// </summary>
+        [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
+        public async Task ResponseHeadersKeepEveryFieldAsync()
+        {
+            var nodeId = new NodeId("Scalar_Simulation_Int32", 2);
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.RequestHandle = 4711;
+            DateTimeUtc before = DateTimeUtc.Now;
+
+            ReadResponse read1 = await m_server.ReadAsync(
+                m_secureChannelContext, requestHeader, 0, TimestampsToReturn.Both,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }],
+                RequestLifetime.None).ConfigureAwait(false);
+            ReadResponse read2 = await m_server.ReadAsync(
+                m_secureChannelContext, requestHeader, 0, TimestampsToReturn.Both,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }],
+                RequestLifetime.None).ConfigureAwait(false);
+            WriteResponse write = await m_server.WriteAsync(
+                m_secureChannelContext, requestHeader,
+                [new WriteValue { NodeId = nodeId, AttributeId = Attributes.Value, Value = read1.Results[0] }],
+                RequestLifetime.None).ConfigureAwait(false);
+            BrowseResponse browse = await m_server.BrowseAsync(
+                m_secureChannelContext, requestHeader, null!, 0,
+                [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder, BrowseDirection = BrowseDirection.Forward }],
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(read2.ResponseHeader, Is.Not.SameAs(read1.ResponseHeader));
+            foreach (ResponseHeader header in new[]
+                { read1.ResponseHeader, read2.ResponseHeader, write.ResponseHeader, browse.ResponseHeader })
+            {
+                Assert.That(header.RequestHandle, Is.EqualTo(4711u));
+                Assert.That(header.Timestamp, Is.GreaterThanOrEqualTo(before));
+                Assert.That(header.Timestamp, Is.LessThanOrEqualTo(DateTimeUtc.Now));
+                Assert.That(header.ServiceResult, Is.EqualTo(StatusCodes.Good));
+                Assert.That(header.ServiceDiagnostics, Is.Null);
+                Assert.That(header.StringTable.IsNull, Is.False);
+                Assert.That(header.StringTable.Count, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// A service that fails reports its status through the exception the transport turns
+        /// into a service fault, not through a half-filled response header.
+        /// </summary>
+        [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
+        public async Task FailedReadThrowsTheServiceResult()
+        {
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.ReturnDiagnostics = (uint)DiagnosticsMasks.All;
+
+            ServiceResultException? e = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_server.ReadAsync(
+                    m_secureChannelContext, requestHeader, -1, TimestampsToReturn.Both,
+                    [new ReadValueId { NodeId = new NodeId("Scalar_Simulation_Int32", 2), AttributeId = Attributes.Value }],
+                    RequestLifetime.None).ConfigureAwait(false));
+
+            Assert.That(e!.StatusCode, Is.EqualTo(StatusCodes.BadMaxAgeInvalid));
+        }
+
+        /// <summary>
         /// Read all nodes.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReadAllNodesAsync()
         {
             var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
@@ -381,6 +501,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [Test]
         [Benchmark]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task WriteAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -414,7 +535,7 @@ namespace Opc.Ua.Server.Tests
         /// Test that ReferenceNodeManager variables update their SourceTimestamp on read.
         /// </summary>
         [Test]
-        [Order(340)]
+        [DependsOnTest(nameof(GetOperationLimitsAsync), AllowFailure = true)]
         public async Task ReferenceNodeManagerVariablesUpdateTimestampOnReadAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -499,6 +620,7 @@ namespace Opc.Ua.Server.Tests
         /// value.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReferenceNodeManagerSelectionListVariableAsync()
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -607,6 +729,7 @@ namespace Opc.Ua.Server.Tests
         /// materialized at runtime by the source generator.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReferenceNodeManagerDiscreteSeedValuesAsync()
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -696,6 +819,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase("Scalar_Static_NonatomicReadWrite")]
         [TestCase("AccessRights_AccessAll_NonatomicReadWrite")]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReferenceNodeManagerNonatomicAccessLevelsAreConsistentAsync(string identifier)
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -748,6 +872,7 @@ namespace Opc.Ua.Server.Tests
         /// PercentDeadband test cases do not skip the nodes.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReferenceNodeManagerDataAccessUnitsAndRangesAreConfiguredAsync()
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -818,6 +943,7 @@ namespace Opc.Ua.Server.Tests
         /// IndexRange test cases (for example "0,2:4") can use it.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReferenceNodeManagerStaticMatricesAreFiveByFiveAsync()
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -869,6 +995,7 @@ namespace Opc.Ua.Server.Tests
         /// (CTT Base Info Server Capabilities 2 002.js).
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReferenceNodeManagerDataItemHasNoMinimumSamplingIntervalAsync()
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -942,6 +1069,7 @@ namespace Opc.Ua.Server.Tests
         /// CTT Historical Access Read Raw Err-025.js).
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task HistoryReadNonHistorizingNodeIsUnsupportedAsync()
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -1003,6 +1131,7 @@ namespace Opc.Ua.Server.Tests
         /// (View Basic 2 005/015/016/020, View Minimum Continuation Point 01 010/011).
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ServerObjectHasReferencesOfATypeAndItsSubtypeAsync()
         {
             var requestHeader = (RequestHeader)m_requestHeader.Clone();
@@ -1041,6 +1170,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         [TestCase("Methods_Void", NodeClass.Method)]
         [TestCase("Views_Operations", NodeClass.View)]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task NodeClassSampleNodesReferenceTheirOwnNodeClassAsync(string identifier, NodeClass nodeClass)
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -1084,6 +1214,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase("Views_Operations")]
         [TestCase("Views_Engineering")]
         [TestCase("Views_Maintenance")]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task SampleViewsHaveNoNonHierarchicalReferencesAsync(string identifier)
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -1121,6 +1252,7 @@ namespace Opc.Ua.Server.Tests
         /// and its CurrencyUnit property.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReferenceNodeManagerCurrencyVariableAsync()
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -1182,6 +1314,7 @@ namespace Opc.Ua.Server.Tests
         /// Test that ReferenceNodeManager array variables update their SourceTimestamp on read.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReferenceNodeManagerArrayVariablesUpdateTimestampOnReadAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1265,7 +1398,7 @@ namespace Opc.Ua.Server.Tests
         /// Update static Nodes, read modify write.
         /// </summary>
         [Test]
-        [Order(350)]
+        [DependsOnTest(nameof(ReferenceNodeManagerVariablesUpdateTimestampOnReadAsync), AllowFailure = true)]
         public async Task ReadWriteUpdateNodesAsync()
         {
             // Nodes
@@ -1283,8 +1416,8 @@ namespace Opc.Ua.Server.Tests
         /// Browse full address space.
         /// </summary>
         [Test]
-        [Order(400)]
         [Benchmark]
+        [DependsOnTest(nameof(ReadWriteUpdateNodesAsync), AllowFailure = true)]
         public async Task BrowseFullAddressSpaceAsync()
         {
             var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
@@ -1302,8 +1435,8 @@ namespace Opc.Ua.Server.Tests
         /// Translate references.
         /// </summary>
         [Test]
-        [Order(500)]
         [Benchmark]
+        [DependsOnTest(nameof(BrowseFullAddressSpaceAsync), AllowFailure = true)]
         public async Task TranslateBrowsePathAsync()
         {
             var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
@@ -1331,6 +1464,7 @@ namespace Opc.Ua.Server.Tests
         /// Delete the monitored item and subscription.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task SubscriptionAsync()
         {
             var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
@@ -1342,6 +1476,7 @@ namespace Opc.Ua.Server.Tests
         /// Validates all the event fields are properly received.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ServerEventSubscribeTestAsync()
         {
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -1470,6 +1605,7 @@ namespace Opc.Ua.Server.Tests
         /// handles parallel access correctly (fix for issue #3612).
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task DeleteAbandonedSubscriptionsConcurrentlyAsync()
         {
             const int sessionCount = 5;
@@ -1549,6 +1685,7 @@ namespace Opc.Ua.Server.Tests
         /// Transfer subscription from closed session to the other.
         /// </summary>
         [Theory]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task TransferSubscriptionSessionClosedAsync(bool sendInitialData, bool useSecurity)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1583,12 +1720,13 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 subscriptionIds,
                 sendInitialData,
-                !useSecurity).ConfigureAwait(false);
+                !useSecurity,
+                expectAuthorizationInvalidation: useSecurity).ConfigureAwait(false);
 
             if (useSecurity)
             {
                 // subscription was deleted, expect 'BadNoSubscription'
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     m_requestHeader.Timestamp = DateTimeUtc.Now;
                     await CommonTestWorkers.VerifySubscriptionTransferredAsync(
@@ -1609,6 +1747,7 @@ namespace Opc.Ua.Server.Tests
         /// Transfer subscription with a monitored item from one session to the other.
         /// </summary>
         [Theory]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task TransferSubscriptionAsync(bool sendInitialData, bool useSecurity)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1660,6 +1799,7 @@ namespace Opc.Ua.Server.Tests
         /// Session with a different client ApplicationUri.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task TransferAnonymousSubscriptionWithDifferentApplicationUriDeniedAsync()
         {
             var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
@@ -1714,6 +1854,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(false, kQueueSize)]
         [TestCase(true, 0U)]
         [TestCase(false, 0U)]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ResendDataAsync(bool updateValues, uint queueSize)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2058,6 +2199,7 @@ namespace Opc.Ua.Server.Tests
         /// SemanticsChanged.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task SemanticChangeNotificationTestAsync()
         {
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -2244,6 +2386,7 @@ namespace Opc.Ua.Server.Tests
         /// historical notifier rather than inferred on the Server object.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task HistoricalEventNotifierBitsAreNodeSpecificAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2349,6 +2492,7 @@ namespace Opc.Ua.Server.Tests
         /// Verify that ServerStatus children have matching SourceTimestamp and ServerTimestamp.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ServerStatusTimestampsMatchAsync()
         {
             ILogger<ReferenceServerTests> logger = m_telemetry.CreateLogger<ReferenceServerTests>();
@@ -2397,6 +2541,7 @@ namespace Opc.Ua.Server.Tests
         /// but history read operations returned BadHistoryOperationUnsupported.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task HistoryReadInt32ValueNodeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2528,6 +2673,7 @@ namespace Opc.Ua.Server.Tests
         /// server must return BadUserAccessDenied instead of the historical data.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task HistoryReadUserAccessDeniedNodeAsync()
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -2617,6 +2763,7 @@ namespace Opc.Ua.Server.Tests
         /// Test provisioning mode - server should start with limited namespace.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ProvisioningModeTestAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2675,6 +2822,7 @@ namespace Opc.Ua.Server.Tests
         /// Test that ArrayItemType sub-type nodes are accessible and readable.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ArrayItemTypeNodesExistAndReadableAsync()
         {
             var nodeIds = new Dictionary<string, NodeId>
@@ -2725,6 +2873,7 @@ namespace Opc.Ua.Server.Tests
         /// and that writing to them fires a BaseEvent.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task TriggerNodesFiringEventsOnWriteAsync()
         {
             var triggerNode01 = new NodeId("NodeIds_Events_TriggerNode01", 2);
@@ -2837,6 +2986,7 @@ namespace Opc.Ua.Server.Tests
         /// Test that the Variant arrays (1D and 2D) are accessible with proper NodeIds.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task VariantArrayNodesExistAndReadableAsync()
         {
             var nodeIds = new Dictionary<string, NodeId>
@@ -2872,6 +3022,7 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that the Variant matrix can be encoded with neighboring results in a batched Read.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task VariantMatrixDoesNotPoisonBatchedReadEncodingAsync()
         {
             ArrayOf<ReadValueId> nodesToRead =
@@ -2944,6 +3095,7 @@ namespace Opc.Ua.Server.Tests
         /// Verifies whole-matrix writes and valid multi-dimensional NumericRange reads and writes.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task MatrixReadWriteAndNumericRangeAsync()
         {
             var nodeId = new NodeId("Scalar_Static_Arrays2D_Int32", 2);
@@ -3081,6 +3233,7 @@ namespace Opc.Ua.Server.Tests
         /// Test that Enumeration and Image type scalar nodes are accessible.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ScalarStaticEnumerationAndImageNodesExistAsync()
         {
             var nodeIds = new Dictionary<string, NodeId>
@@ -3123,6 +3276,7 @@ namespace Opc.Ua.Server.Tests
         /// Test that the HasReferenceTypeAndSubType node exists and has the expected references.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReferencesHasReferenceTypeAndSubTypePreservesBrowseReferencesAsync()
         {
             int namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(
@@ -3255,6 +3409,7 @@ namespace Opc.Ua.Server.Tests
         /// The fixture has no TCP or HTTPS endpoint, or the selected endpoint has no Username token policy.
         /// </exception>
         [Test]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task PermissionsRevalidatedAfterTransferSubscriptionsAndReactivationAsync()
         {
             // The ReferenceServer registers its nodes under namespace index 2.

@@ -154,6 +154,124 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void EmitStatusVariantsAreDisabledByDefault()
+        {
+            ObjectTypeDesign objectType = CreateObjectType("FooType", CreateMethod("Reset"));
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            using var stream = new MemoryStream();
+            m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>())).Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+
+            Assert.That(content, Does.Contain("ValueTask ResetAsync("));
+            Assert.That(content, Does.Not.Contain("WithStatusAsync"));
+            Assert.That(content, Does.Not.Contain("CallMethodWithStatusAsync"));
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void EmitStatusVariantsPreserveTypedOutputsAndOriginalMethods(int outputCount)
+        {
+            Parameter[] outputs = outputCount switch
+            {
+                0 => [],
+                1 => [CreateParameter("returnCode", BasicDataType.UInt32)],
+                _ => [
+                    CreateParameter("returnCode", BasicDataType.UInt32),
+                    CreateParameter("message", BasicDataType.String)
+                ]
+            };
+            MethodDesign method = CreateMethod(
+                "Execute", inputs: [CreateParameter("request", BasicDataType.Int32)], outputs: outputs);
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            using var stream = new MemoryStream();
+            m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>())).Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext(new GeneratorOptions
+            {
+                ObjectTypeProxyMethodsWithStatus = true
+            })).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+            string statusType = outputCount switch
+            {
+                0 => "<global::Opc.Ua.StatusCode>",
+                1 => "<(global::Opc.Ua.StatusCode CallStatus, uint returnCode)>",
+                _ => "<(global::Opc.Ua.StatusCode CallStatus, uint returnCode, string message)>"
+            };
+
+            Assert.That(content, Does.Contain($"ValueTask{statusType} ExecuteWithStatusAsync("));
+            Assert.That(content, Does.Contain(" ExecuteAsync("));
+            Assert.That(content, Does.Contain("int request,"));
+            Assert.That(content, Does.Contain("Variant.From(request)"));
+            Assert.That(content, Does.Contain("await CallMethodWithStatusAsync("));
+            Assert.That(content, Does.Contain("await CallMethodAsync("));
+            Assert.That(content, Does.Contain($"global::{kTestNamespacePrefix}.MethodIds.FooType_Execute"));
+            Assert.That(content, Does.Contain($"\"{kTestNamespaceUri}\","));
+            Assert.That(content, Does.Contain("\"Execute\","));
+            Assert.That(content, Does.Contain(outputCount switch
+            {
+                0 => "return _callStatus;",
+                1 => "return (_callStatus, _returnCode);",
+                _ => "return (_callStatus, _returnCode, _message);"
+            }));
+            if (outputCount > 0)
+            {
+                Assert.That(content, Does.Contain("_outputArguments[0].TryGetValue(out _returnCode"));
+            }
+        }
+
+        [Test]
+        public void EmitStatusVariantsAvoidStatusNameCollisionsWithoutRenamingLegacyArguments()
+        {
+            MethodDesign method = CreateMethod("Execute",
+                inputs: [CreateParameter("_callStatus", BasicDataType.Int32)],
+                outputs: [CreateParameter("CallStatus", BasicDataType.UInt32)]);
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            using var stream = new MemoryStream();
+            m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>())).Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext(new GeneratorOptions
+            {
+                ObjectTypeProxyMethodsWithStatus = true
+            })).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+
+            Assert.That(content, Does.Contain("ValueTask<uint> ExecuteAsync("));
+            Assert.That(content, Does.Contain("StatusCode CallStatus, uint callStatusOut)> ExecuteWithStatusAsync("));
+            Assert.That(content, Does.Contain("int _callStatus,"));
+            Assert.That(content, Does.Contain("var (_callStatus_, _outputArguments)"));
+            Assert.That(content, Does.Contain("return (_callStatus_, _callStatusOut);"));
+        }
+
+        [Test]
+        public void EmitStatusVariantsRejectNullRequiredPrimitiveOutputsWithoutChangingLegacyNullBehavior()
+        {
+            ObjectTypeDesign objectType = CreateObjectType("FooType",
+                CreateMethod("Execute", outputs: [CreateParameter("returnCode", BasicDataType.Byte)]));
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            using var stream = new MemoryStream();
+            m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>())).Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext(new GeneratorOptions
+            {
+                ObjectTypeProxyMethodsWithStatus = true
+            })).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+            int statusStart = content.IndexOf(" ExecuteWithStatusAsync(", StringComparison.Ordinal);
+            string legacy = content[..statusStart];
+            string withStatus = content[statusStart..];
+
+            Assert.That(legacy, Does.Contain("_returnCode = default!;"));
+            Assert.That(withStatus, Does.Match(
+                @"if \(_outputArguments\[0\]\.IsNull\)\s*\{\s*" +
+                @"throw new global::Opc\.Ua\.ServiceResultException\("));
+        }
+
+        [Test]
         public void Emit_ObjectTypeWithMethod_CreatesExpectedFile()
         {
             MethodDesign method = CreateMethod(
@@ -417,18 +535,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "public partial class FooTypeClient : global::" + kTestNamespacePrefix + ".FooBaseTypeClient"));
         }
 
-        [Test]
-        public void Emit_MethodNameShadowsAncestor_EmitsNewModifier()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void MethodEmitsNewOnlyWhenItsInputSignatureMatchesAncestor(bool matchingSignature)
         {
-            // Both base and derived declare a method called DoIt; the
-            // generator must emit `public new async ... DoItAsync(...)` on
-            // the derived proxy so that it hides (not overrides) the base
-            // implementation.
-            MethodDesign baseDoIt = CreateMethod("DoIt");
+            MethodDesign baseDoIt = CreateMethod(
+                "DoIt",
+                inputs: [CreateParameter("requestId", BasicDataType.Int32)]);
             ObjectTypeDesign baseType = CreateObjectType("FooBaseType", baseDoIt);
             MethodDesign derivedDoIt = CreateMethod(
                 "DoIt",
-                inputs: [CreateParameter("requestId", BasicDataType.Int32)]);
+                inputs: [CreateParameter(
+                    "requestId",
+                    matchingSignature ? BasicDataType.Int32 : BasicDataType.String)]);
             ObjectTypeDesign derived = CreateObjectType("FooType", derivedDoIt);
             derived.BaseTypeNode = baseType;
             m_mockModelDesign
@@ -443,9 +562,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
-            // The derived class section contains the `new` modifier on the
-            // shadowed method.
-            Assert.That(content, Does.Contain("public new async"));
+            Assert.That(
+                content.Contains("public new async", StringComparison.Ordinal),
+                Is.EqualTo(matchingSignature));
         }
 
         [Test]
@@ -773,6 +892,40 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(content, Does.Not.Contain("? count"));
                 Assert.That(content, Does.Contain("global::Opc.Ua.Variant.From(count)"));
             });
+        }
+
+        [TestCase(BasicDataType.BaseDataType, ValueRank.Scalar)]
+        [TestCase(BasicDataType.Number, ValueRank.Scalar)]
+        [TestCase(BasicDataType.Integer, ValueRank.Scalar)]
+        [TestCase(BasicDataType.UInteger, ValueRank.Scalar)]
+        [TestCase(BasicDataType.BaseDataType, ValueRank.Any)]
+        [TestCase(BasicDataType.BaseDataType, ValueRank.ScalarOrArray)]
+        [TestCase(BasicDataType.BaseDataType, ValueRank.ScalarOrOneDimension)]
+        [TestCase(BasicDataType.Double, ValueRank.Any)]
+        [TestCase(BasicDataType.Double, ValueRank.ScalarOrArray)]
+        [TestCase(BasicDataType.Double, ValueRank.ScalarOrOneDimension)]
+        [TestCase(BasicDataType.UserDefined, ValueRank.Any)]
+        [TestCase(BasicDataType.UserDefined, ValueRank.ScalarOrArray)]
+        [TestCase(BasicDataType.UserDefined, ValueRank.ScalarOrOneDimension)]
+        public void VariantBackedMethodArgumentsKeepTheirOriginalWrapper(
+            BasicDataType dataType,
+            ValueRank rank)
+        {
+            MethodDesign method = CreateMethod(
+                "Report",
+                inputs: [CreateParameter("request", dataType, valueRank: rank)],
+                outputs: [CreateParameter("result", dataType, valueRank: rank)]);
+            ObjectTypeDesign objectType = CreateObjectType("RecordsType", method);
+            m_mockModelDesign.Setup(model => model.GetNodeDesigns()).Returns([objectType]);
+
+            string content = EmitToString();
+
+            Assert.That(content, Does.Contain("ValueTask<global::Opc.Ua.Variant> ReportAsync("));
+            Assert.That(content, Does.Contain("global::Opc.Ua.Variant request,"));
+            Assert.That(content, Does.Contain("global::Opc.Ua.Variant _result = _outputArguments[0];"));
+            Assert.That(content, Does.Not.Contain("TryGetValue(out _result"));
+            Assert.That(content, Does.Not.Contain("Variant.From(request)"));
+            Assert.That(content, Does.Not.Contain("Variant.FromStructure(request)"));
         }
 
         private string EmitToString(

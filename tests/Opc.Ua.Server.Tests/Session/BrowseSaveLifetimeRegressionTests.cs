@@ -100,8 +100,8 @@ namespace Opc.Ua.Server.Tests
             {
                 release.Set();
             }
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await saving.ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await saving.ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(stored, Is.Empty);
             Assert.That(holder.RestoreBrowse(ByteString.From(point.Id.ToByteArray())), Is.Null);

@@ -135,10 +135,10 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void OpenVersionForUnknownThrowsFileNotFound()
+        public async Task OpenVersionForUnknownThrowsFileNotFound()
         {
             var folder = new MemorySoftwareFolder(ElementId);
-            Assert.ThrowsAsync<FileNotFoundException>(
+            await Assert.ThrowsAsync<FileNotFoundException>(
                 async () => await folder.OpenVersionAsync("never").ConfigureAwait(false));
         }
 
@@ -168,10 +168,10 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void SetCurrentVersionUnknownThrowsArgumentException()
+        public async Task SetCurrentVersionUnknownThrowsArgumentException()
         {
             var folder = new MemorySoftwareFolder(ElementId);
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await folder.SetCurrentVersionAsync("missing").ConfigureAwait(false));
         }
 

@@ -123,12 +123,12 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                         TokenType = UserTokenType.Anonymous
                     });
                 })
-                .ConfigureRoles(options => options.Roles.Add(new Opc.Ua.Server.RoleDefinitionOptions
+                .ConfigureRoles(options => options.Roles.Add(new Ua.Server.RoleDefinitionOptions
                 {
                     Name = "Operator",
                     Identities =
                     {
-                        new Opc.Ua.Server.RoleIdentityMappingOptions
+                        new Ua.Server.RoleIdentityMappingOptions
                         {
                             CriteriaType = IdentityCriteriaType.Anonymous
                         }
@@ -137,7 +137,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 .AddVision(options =>
                     options.InstanceNamespaceUri =
                         "urn:opcfoundation:vision-intent-tests:instances")
-                .ConfigureVision((context, ct) => Cell.ConfigureAsync(context, ct));
+                .ConfigureVision(Cell.ConfigureAsync);
 
             if (m_options.IncludeRobotIntent)
             {
@@ -188,7 +188,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 preferredLocales: default,
                 ct: CancellationToken.None).ConfigureAwait(false);
             if (!session.TryGetSubscriptionManager(
-                out Opc.Ua.Client.Subscriptions.ISubscriptionManager? manager))
+                out Ua.Client.Subscriptions.ISubscriptionManager? manager))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
@@ -305,7 +305,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
         private async ValueTask WaitForEndpointAsync()
         {
             Exception? lastException = null;
-            var deadline = DateTime.UtcNow.AddSeconds(30);
+            DateTime deadline = DateTime.UtcNow.AddSeconds(30);
             while (DateTime.UtcNow < deadline)
             {
                 try

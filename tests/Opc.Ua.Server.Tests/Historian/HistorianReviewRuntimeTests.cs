@@ -253,7 +253,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 handle = token.WaitHandle;
                 Task disposing = capture.DisposeAsync().AsTask();
                 clock.Advance(TimeSpan.FromSeconds(5));
-                Assert.ThrowsAsync<TimeoutException>(async () => await disposing.ConfigureAwait(false));
+                await Assert.ThrowsAsync<TimeoutException>(async () => await disposing.ConfigureAwait(false));
                 Assert.That(token.IsCancellationRequested, Is.True);
                 Assert.That(handle.SafeWaitHandle.IsClosed, Is.False,
                     "An in-flight provider still owns access to the cancellation token's resources.");
@@ -309,6 +309,8 @@ namespace Opc.Ua.Server.Tests.Historian
             using var provider = new InMemoryHistorianProvider();
             ServerSystemContext systemContext = CreateSystemContext();
             var notifier = new BaseObjectState(null) { NodeId = new NodeId("conditions", 1) };
+            HistoricalEventAuthorizationTestHelper.RegisterUnrestrictedEventNodes(
+                systemContext, [ObjectTypeIds.AlarmConditionType, notifier.NodeId]);
             provider.Register(notifier.NodeId, HistorianNodeCapabilities.EventReadWrite);
             var conditionId = new NodeId("actual-condition", 1);
             var operand = new SimpleAttributeOperand

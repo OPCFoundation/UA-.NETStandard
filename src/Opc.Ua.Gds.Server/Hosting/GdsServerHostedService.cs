@@ -41,7 +41,9 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
@@ -282,6 +284,14 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_configurationStore,
                 m_options.AutoApprove,
                 m_enableBuiltInApplicationSelfAdminProvider);
+            GdsDeviceRegistrarRegistration? registrar =
+                m_services.GetService<GdsDeviceRegistrarRegistration>();
+            m_server.DeviceRegistrarCertificateAuthorization = registrar?.CertificateAuthorization;
+            m_server.CertificateRequestIssuanceStore = m_services.GetService<ICertificateRequestIssuanceStore>();
+            m_server.DeviceRegistrarPushEnrollments =
+                m_services.GetService<SecretStoreDeviceRegistrarPushEnrollmentProvider>();
+            m_server.DeviceRegistrarFactory = registrar?.Factory;
+            m_server.ManagedApplicationPushProvider = m_services.GetService<IManagedApplicationPushProvider>();
 
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
@@ -637,7 +647,6 @@ namespace Opc.Ua.Gds.Server.Hosting
                 {
                     EndpointUrl = c.EndpointUrl,
                     Timeout = c.Timeout,
-                    MaxSessionCount = c.MaxSessionCount,
                     Enabled = c.Enabled
                 };
             }
@@ -707,6 +716,31 @@ namespace Opc.Ua.Gds.Server.Hosting
             public IRoleManager? ConfiguredRoleManager { get; set; }
 
             /// <summary>
+            /// Gets or sets the registrar's optional argument-specific certificate authorization.
+            /// </summary>
+            public IDeviceRegistrarCertificateAuthorization? DeviceRegistrarCertificateAuthorization { get; set; }
+
+            /// <summary>
+            /// Gets or sets the independent application runtimes exposed through standard push management.
+            /// </summary>
+            public IManagedApplicationPushProvider? ManagedApplicationPushProvider { get; set; }
+
+            /// <summary>
+            /// Gets or sets the host-owned secret issuance store used for completion retries.
+            /// </summary>
+            public ICertificateRequestIssuanceStore? CertificateRequestIssuanceStore { get; set; }
+
+            /// <summary>
+            /// Gets or sets the enrollment journal bound only to this GDS's actual application node manager.
+            /// </summary>
+            public SecretStoreDeviceRegistrarPushEnrollmentProvider? DeviceRegistrarPushEnrollments { get; set; }
+
+            /// <summary>
+            /// Gets or sets the standard registrar namespace factory configured by AddDeviceRegistrar.
+            /// </summary>
+            public DeviceRegistrarNodeManagerFactory? DeviceRegistrarFactory { get; set; }
+
+            /// <summary>
             /// Stages the dependency-injected identity registrations, which
             /// <see cref="OnServerStarted"/> registers after the built-ins.
             /// </summary>
@@ -749,43 +783,101 @@ namespace Opc.Ua.Gds.Server.Hosting
                 return ConfiguredRoleManager ?? base.CreateRoleManager(server, configuration);
             }
 
-            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+            protected override async ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
             {
-                var applications = new ApplicationsNodeManager(
-                    server,
-                    configuration,
-                    m_database,
-                    m_request,
-                    m_certificateGroup,
-                    m_autoApprove);
-
-                if (m_accessTokenProvider != null)
+                cancellationToken.ThrowIfCancellationRequested();
+                var factories = new List<IAsyncNodeManagerFactory>
                 {
-                    applications.AccessTokenProvider = m_accessTokenProvider;
+                    new ApplicationsStartupFactory(
+                        m_database, m_request, m_certificateGroup, m_autoApprove,
+                        m_accessTokenProvider, m_keyCredentialStore,
+                        applications =>
+                        {
+                            applications.DeviceRegistrarCertificateAuthorization =
+                                DeviceRegistrarCertificateAuthorization;
+                            applications.CertificateRequestIssuanceStore = CertificateRequestIssuanceStore;
+                            DeviceRegistrarPushEnrollments?.Bind(applications);
+                        })
+                };
+                if (DeviceRegistrarFactory != null)
+                {
+                    factories.Add(DeviceRegistrarFactory);
+                }
+                if (ManagedApplicationPushProvider != null)
+                {
+                    factories.Add(new ManagedApplicationsStartupFactory(ManagedApplicationPushProvider));
+                }
+                else if (m_configurationStore != null)
+                {
+                    factories.Add(new ManagedApplicationsStartupFactory(m_configurationStore));
+                }
+                factories.AddRange(GetInitialNodeManagerFactories().ToList());
+
+                MasterNodeManager? master = null;
+                try
+                {
+                    master = new MasterNodeManager(server, configuration, null, factories.ToArrayOf());
+                    IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master).ConfigureAwait(false);
+                    master = null;
+                    return result;
+                }
+                finally
+                {
+                    master?.Dispose();
+                }
+            }
+
+            /// <summary>
+            /// Creates managed-application nodes privately with the selected host provider.
+            /// </summary>
+            private sealed class ManagedApplicationsStartupFactory : IAsyncNodeManagerFactory
+            {
+                public ManagedApplicationsStartupFactory(IConfigurationDataStore store)
+                {
+                    m_store = store ?? throw new ArgumentNullException(nameof(store));
                 }
 
-                if (m_keyCredentialStore != null)
+                public ManagedApplicationsStartupFactory(IManagedApplicationPushProvider provider)
                 {
-                    applications.KeyCredentialRequestStore = m_keyCredentialStore;
+                    m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
                 }
 
-                var nodeManagers = new List<IAsyncNodeManager> { applications };
+                /// <inheritdoc/>
+                public ArrayOf<string> NamespacesUris =>
+                    [DefaultManagedApplicationsNodeManager.ManagedApplicationsNamespaceUri];
 
-                if (m_configurationStore != null)
+                /// <inheritdoc/>
+                public async ValueTask<IAsyncNodeManager> CreateAsync(
+                    IServerInternal server,
+                    ApplicationConfiguration configuration,
+                    CancellationToken cancellationToken = default)
                 {
-                    nodeManagers.Add(new DefaultManagedApplicationsNodeManager(
-                        server,
-                        configuration,
-                        m_configurationStore));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    DefaultManagedApplicationsNodeManager? manager = null;
+                    try
+                    {
+                        manager = m_provider is not null
+                            ? new DefaultManagedApplicationsNodeManager(server, configuration, m_provider)
+                            : new DefaultManagedApplicationsNodeManager(
+                                server,
+                                configuration,
+                                m_store ?? throw new InvalidOperationException(
+                                    "The configuration data store was not configured."));
+                        IAsyncNodeManager result = await new ValueTask<IAsyncNodeManager>(manager).ConfigureAwait(false);
+                        manager = null;
+                        return result;
+                    }
+                    finally
+                    {
+                        manager?.Dispose();
+                    }
                 }
 
-#pragma warning disable CA2000 // ownership of MasterNodeManager transfers to the caller via the returned ValueTask<IMasterNodeManager>
-                return new ValueTask<IMasterNodeManager>(
-                    new MasterNodeManager(server, configuration, null, nodeManagers, null));
-#pragma warning restore CA2000
+                private readonly IConfigurationDataStore? m_store;
+                private readonly IManagedApplicationPushProvider? m_provider;
             }
         }
     }
@@ -794,7 +886,7 @@ namespace Opc.Ua.Gds.Server.Hosting
     {
         [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 0, Level = LogLevel.Information,
             Message = "GDS server listening at {Endpoint}.")]
-        public static partial void GdsServerListening(this ILogger logger, string endpoint);
+        public static partial void GdsServerListening(this ILogger logger, [NetworkAddress] string endpoint);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 1, Level = LogLevel.Information,
             Message = "Stopping GDS server...")]

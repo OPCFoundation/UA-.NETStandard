@@ -1,6 +1,15 @@
+**/artifacts
+# CI image builds consume only these prebuilt application payloads.
+!artifacts/
+artifacts/*
+!artifacts/docker/
+artifacts/docker/*
+!artifacts/docker/publish/
+!artifacts/docker/publish/**
 **/.classpath
 **/.dockerignore
 **/.env
+**/.recycling
 **/.git
 **/.gitignore
 **/.project
@@ -12,6 +21,7 @@
 **/*.dbmdl
 **/*.jfm
 **/bin
+**/TestResults
 **/charts
 **/docker-compose*
 **/compose*

@@ -231,7 +231,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(result, Is.SameAs(builder));
             Assert.That(
                 services,
-                Has.Some.Matches<ServiceDescriptor>(d => d.ServiceType == typeof(TestIdentityHandler)));
+                Has.Some.Matches<ServiceDescriptor>(d => d is not null && d.ServiceType == typeof(TestIdentityHandler)));
             Assert.That(
                 CountRegistrations<Ua.Server.Hosting.OpcUaServerIdentityAuthenticatorRegistration>(services),
                 Is.GreaterThan(before));
@@ -250,7 +250,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(result, Is.SameAs(builder));
             Assert.That(
                 services,
-                Has.Some.Matches<ServiceDescriptor>(d => d.ServiceType == typeof(TestIdentityHandler)));
+                Has.Some.Matches<ServiceDescriptor>(d => d is not null && d.ServiceType == typeof(TestIdentityHandler)));
             Assert.That(
                 CountRegistrations<Ua.Server.Hosting.OpcUaServerIdentityAugmenterRegistration>(services),
                 Is.GreaterThan(before));
@@ -380,7 +380,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(d =>
-                    d.ServiceType == typeof(Ua.Server.IRoleManager)));
+                    d is not null && d.ServiceType == typeof(Ua.Server.IRoleManager)));
             Assert.That(
                 () => OpcUaGdsServerBuilderExtensions.ConfigureRoles(null!, configuration),
                 Throws.ArgumentNullException);

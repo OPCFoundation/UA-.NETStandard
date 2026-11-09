@@ -64,9 +64,9 @@ namespace Opc.Ua.Gds.Tests
             return new ConfiguredEndpoint(null, description, EndpointConfiguration.Create());
         }
 
-        private static void AssertThrowsEndpointNull(Func<Task> code)
+        private static async Task AssertThrowsEndpointNull(Func<Task> code)
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(code);
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(code);
             Assert.That(exception.ParamName, Is.EqualTo("endpoint"));
         }
 
@@ -231,84 +231,84 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void CreateAsyncWithNullSessionFactoryThrows()
+        public async Task CreateAsyncWithNullSessionFactoryThrows()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => GlobalDiscoveryServerClient.CreateAsync(
                     (ISessionFactory)null!, new ApplicationConfiguration(), CreateEndpoint()));
             Assert.That(exception.ParamName, Is.EqualTo("sessionFactory"));
         }
 
         [Test]
-        public void CreateAsyncWithNullConfigurationThrows()
+        public async Task CreateAsyncWithNullConfigurationThrows()
         {
             ISessionFactory sessionFactory = new Mock<ISessionFactory>().Object;
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => GlobalDiscoveryServerClient.CreateAsync(sessionFactory, null!, CreateEndpoint()));
             Assert.That(exception.ParamName, Is.EqualTo("configuration"));
         }
 
         [Test]
-        public void CreateAsyncWithNullEndpointThrows()
+        public async Task CreateAsyncWithNullEndpointThrows()
         {
             ISessionFactory sessionFactory = new Mock<ISessionFactory>().Object;
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => GlobalDiscoveryServerClient.CreateAsync(
                     sessionFactory, new ApplicationConfiguration(), null!));
             Assert.That(exception.ParamName, Is.EqualTo("endpoint"));
         }
 
         [Test]
-        public void CreateAsyncWithNullChannelManagerThrows()
+        public async Task CreateAsyncWithNullChannelManagerThrows()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => GlobalDiscoveryServerClient.CreateAsync(
                     (IClientChannelManager)null!, new ApplicationConfiguration(), CreateEndpoint()));
             Assert.That(exception.ParamName, Is.EqualTo("manager"));
         }
 
         [Test]
-        public void CreateAsyncWithChannelManagerNullConfigurationThrows()
+        public async Task CreateAsyncWithChannelManagerNullConfigurationThrows()
         {
             IClientChannelManager manager = new Mock<IClientChannelManager>().Object;
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => GlobalDiscoveryServerClient.CreateAsync(manager, null!, CreateEndpoint()));
             Assert.That(exception.ParamName, Is.EqualTo("configuration"));
         }
 
         [Test]
-        public void CreateAsyncWithChannelManagerNullEndpointThrows()
+        public async Task CreateAsyncWithChannelManagerNullEndpointThrows()
         {
             IClientChannelManager manager = new Mock<IClientChannelManager>().Object;
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => GlobalDiscoveryServerClient.CreateAsync(
                     manager, new ApplicationConfiguration(), null!));
             Assert.That(exception.ParamName, Is.EqualTo("endpoint"));
         }
 
         [Test]
-        public void ConnectAsyncWithNullEndpointUrlThrows()
+        public async Task ConnectAsyncWithNullEndpointUrlThrows()
         {
             using GlobalDiscoveryServerClient client = CreateClient();
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => client.ConnectAsync((string)null!).AsTask());
             Assert.That(exception.ParamName, Is.EqualTo("endpointUrl"));
         }
 
         [Test]
-        public void ConnectAsyncWithEmptyEndpointUrlThrows()
+        public async Task ConnectAsyncWithEmptyEndpointUrlThrows()
         {
             using GlobalDiscoveryServerClient client = CreateClient();
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => client.ConnectAsync(string.Empty).AsTask());
             Assert.That(exception.ParamName, Is.EqualTo("endpointUrl"));
         }
 
         [Test]
-        public void ConnectAsyncWithMalformedEndpointUrlThrows()
+        public async Task ConnectAsyncWithMalformedEndpointUrlThrows()
         {
             using GlobalDiscoveryServerClient client = CreateClient();
-            ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException exception = await Assert.ThrowsAsync<ArgumentException>(
                 () => client.ConnectAsync("not a valid url").AsTask());
             Assert.Multiple(() =>
             {
@@ -318,49 +318,49 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void ConnectAsyncWithoutEndpointThrows()
+        public async Task ConnectAsyncWithoutEndpointThrows()
         {
             using GlobalDiscoveryServerClient client = CreateClient();
             ConfiguredEndpoint nullEndpoint = null!;
-            AssertThrowsEndpointNull(() => client.ConnectAsync(nullEndpoint).AsTask());
+            await AssertThrowsEndpointNull(() => client.ConnectAsync(nullEndpoint).AsTask());
         }
 
         [Test]
-        public void ConnectAsyncWithCancellationTokenAndNoEndpointThrows()
+        public async Task ConnectAsyncWithCancellationTokenAndNoEndpointThrows()
         {
             using GlobalDiscoveryServerClient client = CreateClient();
-            AssertThrowsEndpointNull(() => client.ConnectAsync().AsTask());
+            await AssertThrowsEndpointNull(() => client.ConnectAsync().AsTask());
         }
 
         [Test]
-        public void DirectoryOperationsWithoutEndpointThrow()
+        public async Task DirectoryOperationsWithoutEndpointThrow()
         {
             using GlobalDiscoveryServerClient client = CreateClient();
-            AssertThrowsEndpointNull(() => client.FindApplicationAsync(string.Empty).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(() => client.FindApplicationAsync(string.Empty).AsTask());
+            await AssertThrowsEndpointNull(
                 () => client.QueryServersAsync(0u, string.Empty, string.Empty, string.Empty, default).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(
                 () => client.QueryServersAsync(
                     0u, 0u, string.Empty, string.Empty, string.Empty, default).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(
                 () => client.QueryApplicationsAsync(
                     0u, 0u, string.Empty, string.Empty, 0u, string.Empty, default).AsTask());
-            AssertThrowsEndpointNull(() => client.GetApplicationAsync(NodeId.Null).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(() => client.GetApplicationAsync(NodeId.Null).AsTask());
+            await AssertThrowsEndpointNull(
                 () => client.RegisterApplicationAsync(null!).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(
                 () => client.UpdateApplicationAsync(null!).AsTask());
-            AssertThrowsEndpointNull(() => client.UnregisterApplicationAsync(NodeId.Null).AsTask());
+            await AssertThrowsEndpointNull(() => client.UnregisterApplicationAsync(NodeId.Null).AsTask());
         }
 
         [Test]
-        public void CertificateDirectoryOperationsWithoutEndpointThrow()
+        public async Task CertificateDirectoryOperationsWithoutEndpointThrow()
         {
             using GlobalDiscoveryServerClient client = CreateClient();
-            AssertThrowsEndpointNull(() => client.GetCertificatesAsync(NodeId.Null, NodeId.Null).AsTask());
-            AssertThrowsEndpointNull(() => client.CheckRevocationStatusAsync(default).AsTask());
-            AssertThrowsEndpointNull(() => client.RevokeCertificateAsync(NodeId.Null, default).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(() => client.GetCertificatesAsync(NodeId.Null, NodeId.Null).AsTask());
+            await AssertThrowsEndpointNull(() => client.CheckRevocationStatusAsync(default).AsTask());
+            await AssertThrowsEndpointNull(() => client.RevokeCertificateAsync(NodeId.Null, default).AsTask());
+            await AssertThrowsEndpointNull(
                 () => client.StartNewKeyPairRequestAsync(
                     NodeId.Null,
                     NodeId.Null,
@@ -369,16 +369,16 @@ namespace Opc.Ua.Gds.Tests
                     default,
                     string.Empty,
                     []).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(
                 () => client.StartSigningRequestAsync(
                     NodeId.Null, NodeId.Null, NodeId.Null, default).AsTask());
-            AssertThrowsEndpointNull(() => client.FinishRequestAsync(NodeId.Null, NodeId.Null).AsTask());
-            AssertThrowsEndpointNull(() => client.GetCertificateGroupsAsync(NodeId.Null).AsTask());
-            AssertThrowsEndpointNull(() => client.GetTrustListAsync(NodeId.Null, NodeId.Null).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(() => client.FinishRequestAsync(NodeId.Null, NodeId.Null).AsTask());
+            await AssertThrowsEndpointNull(() => client.GetCertificateGroupsAsync(NodeId.Null).AsTask());
+            await AssertThrowsEndpointNull(() => client.GetTrustListAsync(NodeId.Null, NodeId.Null).AsTask());
+            await AssertThrowsEndpointNull(
                 () => client.GetCertificateStatusAsync(NodeId.Null, NodeId.Null, NodeId.Null).AsTask());
-            AssertThrowsEndpointNull(() => client.ReadTrustListAsync(NodeId.Null).AsTask());
-            AssertThrowsEndpointNull(() => client.ReadTrustListAsync(NodeId.Null, 0L).AsTask());
+            await AssertThrowsEndpointNull(() => client.ReadTrustListAsync(NodeId.Null).AsTask());
+            await AssertThrowsEndpointNull(() => client.ReadTrustListAsync(NodeId.Null, 0L).AsTask());
         }
 
         [Test]
@@ -413,7 +413,7 @@ namespace Opc.Ua.Gds.Tests
         /// Client is not connected to the Server"), not Bad_NotConnected.
         /// </summary>
         [Test]
-        public void CallWithoutDirectoryProxiesThrowsBadServerNotConnected()
+        public async Task CallWithoutDirectoryProxiesThrowsBadServerNotConnected()
         {
             var session = new Mock<ISession>();
             session.SetupGet(s => s.Connected).Returns(true);
@@ -422,10 +422,10 @@ namespace Opc.Ua.Gds.Tests
                 .GetProperty(nameof(GlobalDiscoveryServerClient.Session))!
                 .SetValue(client, session.Object);
 
-            ServiceResultException directory = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException directory = await Assert.ThrowsAsync<ServiceResultException>(
                 () => client.FindApplicationAsync("urn:test").AsTask());
             Assert.That(directory.StatusCode, Is.EqualTo(StatusCodes.BadServerNotConnected));
-            ServiceResultException certificateDirectory = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException certificateDirectory = await Assert.ThrowsAsync<ServiceResultException>(
                 () => client.GetCertificateGroupsAsync(new NodeId(1)).AsTask());
             Assert.That(certificateDirectory.StatusCode, Is.EqualTo(StatusCodes.BadServerNotConnected));
         }

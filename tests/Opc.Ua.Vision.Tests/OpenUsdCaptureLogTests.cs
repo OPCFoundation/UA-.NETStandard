@@ -132,10 +132,15 @@ namespace Opc.Ua.Vision.Tests
         {
             public List<(LogLevel Level, EventId Id, string Message)> Entries { get; } = [];
 
-            public IDisposable BeginScope<TState>(TState state) where TState : notnull =>
-                NullScope.Instance;
+            public IDisposable BeginScope<TState>(TState state) where TState : notnull
+            {
+                return NullScope.Instance;
+            }
 
-            public bool IsEnabled(LogLevel logLevel) => true;
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
 
             public void Log<TState>(
                 LogLevel logLevel,

@@ -13,22 +13,24 @@ without any other context.
 
 ## Contents
 
-- [Terms](#terms)
-- [Common preflight](#common-preflight)
-- [Which procedure do I need?](#which-procedure-do-i-need)
-- [Branch and channel model](#branch-and-channel-model)
-- [First stable release](#first-stable-release)
-- [Patch release](#patch-release)
-- [Minor release](#minor-release)
-- [Routine backport](#routine-backport)
-- [Emergency hotfix](#emergency-hotfix)
-- [Candidate and dry run](#candidate-and-dry-run)
-- [Approved promotion](#approved-promotion)
-- [Failed or partial release](#failed-or-partial-release)
-- [Post-release verification](#post-release-verification)
-- [Release handoff template](#release-handoff-template)
-- [Historical `release/2.0.0` branch](#historical-release200-branch)
-- [Maintaining this document](#maintaining-this-document)
+- [Release process](#release-process)
+  - [Terms](#terms)
+  - [Common preflight](#common-preflight)
+  - [Which procedure do I need?](#which-procedure-do-i-need)
+  - [Branch and channel model](#branch-and-channel-model)
+  - [First stable release](#first-stable-release)
+  - [Patch release](#patch-release)
+  - [Minor release](#minor-release)
+  - [Routine backport](#routine-backport)
+  - [Emergency hotfix](#emergency-hotfix)
+  - [Candidate and dry run](#candidate-and-dry-run)
+  - [Approved promotion](#approved-promotion)
+  - [Preview release](#preview-release)
+  - [Failed or partial release](#failed-or-partial-release)
+  - [Post-release verification](#post-release-verification)
+  - [Release handoff template](#release-handoff-template)
+  - [Historical `release/2.0.0` branch](#historical-release200-branch)
+  - [Maintaining this document](#maintaining-this-document)
 
 ## Terms
 
@@ -36,15 +38,19 @@ without any other context.
   `version.json` for the commit being built (see
   [Versioning](DeveloperGuide.md#versioning)). Every package in the solution
   shares the same root version except the **preview-only families**.
-- **Preview-only families** - the XRegistry, WoT Connectivity, Vision,
-  Robotics, Redundancy, Positioning, OpenUSD, and AI package
-  families, the Robotics/Vision MCP extensions, and the OpenUSD connector
+- **Preview-only families** - the XRegistry, WoT Connectivity,
+  Robotics, CranesHoists, Redundancy, Positioning, OpenUSD, and AI package
+  families, the Vision.OpenUsd renderer, the Robotics and CranesHoists MCP extensions, and the OpenUSD connector
   tools. `version.targets` keeps these on a `-preview.N` suffix even when the
   root version is an exact stable release. The full, single source of truth
   for which package IDs this covers is `_IsPreviewPackage` in
   `version.targets` (build-time) and `Test-PreviewPackageId` in
   `.azurepipelines/package-version-policy.ps1` (validation-time) - both must
   always list the same families.
+  Debug variants of these families follow the same preview-only classification.
+  The Vision, MachineVision, MachineTool (including bundled WMTP), and GMS
+  model/client/server packages and the Vision, MachineTool and GMS MCP packages
+  follow the root version instead. WMTP has no separate package or profile.
 - **Channel** - `stable` when the root version has no prerelease label or
   build metadata (e.g. `2.0.0`); `preview` otherwise (e.g. `2.0.0-preview.6`,
   `2.0.1-preview.4+gabc123`). `validate-nuget-package-set.ps1` writes this as
@@ -64,6 +70,10 @@ without any other context.
 - **Candidate** - a signed, validated package set produced by a
   `nuget-publish.yml` run, retained as its `opcua-packages-<run id>` GitHub
   Actions artifact.
+- **Debug packages** - Debug-configuration packages use the `.Debug` suffix,
+  or `.Debug.<rid>` for a platform-specific tool payload. The shared
+  `Test-DebugPackageId` policy recognizes both forms. They are retained on
+  GitHub Packages and excluded from nuget.org publication and verification.
 
 ## Common preflight
 
@@ -734,7 +744,7 @@ or [Approved promotion](#approved-promotion).
    | Symptom | Cause and safe next action |
    | --- | --- |
    | `assert-published-packages-match.ps1` reports a feed that "already serves ... with different content" | A different build permanently claimed this candidate's immutable version. NuGet versions cannot be overwritten, so this candidate can never be published under it. Do **not** bypass the gate. Move to step 4 and release a new version. |
-   | The script throws while downloading a package for comparison (any non-`404` error status) | It fails closed: it cannot decide whether the version is taken, so it refuses to push. Confirm feed reachability and the token, then re-run. A genuinely unpublished version returns `404`, which the script treats as "nothing to prove" and allows. |
+   | The script throws while downloading a package for comparison (any non-`404` error status) | It fails closed: it cannot decide whether the version is taken, so it refuses to push. Confirm feed reachability and the token, then re-run. An unpublished version returns `404`, which the script treats as "nothing to prove" and allows. |
 
 4. **If the version needs to change entirely** (e.g. the approved candidate
    turned out to be wrong before any push happened): do not reuse the

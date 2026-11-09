@@ -83,7 +83,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Validate HiResClock defaults, platform dependant.
         /// </summary>
         [Test]
-        [Order(100)]
         public void HiResParameters()
         {
             Assert.That(HiResClock.TicksPerMillisecond, Is.GreaterThanOrEqualTo(1.0));
@@ -105,7 +104,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Validate tick counts forward only and has at least one tick per millisecond resolution.
         /// </summary>
         [Theory]
-        [Order(200)]
+        [DependsOnTest(nameof(HiResParameters), AllowFailure = true)]
         public void HiResClockTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;
@@ -154,7 +153,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Validate DateTime.UtcNow counts forward and has a high resolution.
         /// </summary>
         [Theory]
-        [Order(300)]
+        [DependsOnTest(nameof(HiResClockTickCount), AllowFailure = true)]
         public void HiResUtcNowTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;

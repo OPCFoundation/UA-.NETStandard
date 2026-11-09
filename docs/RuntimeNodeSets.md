@@ -14,9 +14,10 @@ signature, retaining the declared Property NodeIds, argument order, and values.
 ## Contents
 
 - [When to use the runtime NodeSet path](#when-to-use-the-runtime-nodeset-path)
+- [Imported security policy](#imported-security-policy)
 - [Startup and live lifecycle semantics](#startup-and-live-lifecycle-semantics)
-  - [Shadow reload](#shadow-reload)
-  - [Immediate reload](#immediate-reload)
+  - [Migrate monitored items during replacement](#migrate-monitored-items-during-replacement)
+  - [Invalidate monitored items during replacement](#invalidate-monitored-items-during-replacement)
 - [Quick-start examples](#quick-start-examples)
   - [Single file](#single-file)
   - [Single file with a fluent callback](#single-file-with-a-fluent-callback)
@@ -41,6 +42,23 @@ Use `AddRuntimeNodeSet` when:
 
 Use the [source-generated path](NodeManagers.md#source-generated-node-managers) when you want compile-time safety, strong typing, and AOT-safe named constants for every node in your model. The runtime path gives you generic `NodeState` objects and untyped browse-path wiring.
 
+## Imported security policy
+
+Runtime import retains node-local `RolePermissions` and `AccessRestrictions`.
+When a node omits either attribute, import applies the corresponding default
+from its owning `Models/Model` entry. Ownership follows the node's namespace
+URI, not its BrowseName, the order of model entries, or the server's namespace
+index. Defaults are materialized before the nodes enter the address space, so
+ordinary Read, Write, Call and subscription authorization use the same policy.
+
+An explicit empty node ACL or `AccessRestrictions="0"` remains an explicit
+local override; it does not inherit the model setting. An omitted model
+restriction has the NodeSet schema's default of zero and does not manufacture
+a node-local restriction. Normal namespace defaults and application permission
+callbacks still apply. Type-hierarchy visibility exemptions are enforced by the
+server, not by removing imported policy: metadata remains available for
+operations that require authorization.
+
 ## Startup and live lifecycle semantics
 
 `AddRuntimeNodeSet` on `IOpcUaServerBuilder` remains the startup path: its factory is created before the server starts and its NodeSet is imported during `CreateAddressSpaceAsync`. After startup, the resulting generation-1 registration is available from `INodeManagerLifecycle.Registrations`, so a model composed at startup can use the same reload and removal APIs as one added while the server is already running.
@@ -51,99 +69,116 @@ For example, a startup task can locate the registration by an owned model namesp
 public sealed class ModelRegistration(INodeManagerLifecycle lifecycle)
     : IServerStartupTask
 {
-    public NodeManagerRegistration? Registration { get; private set; }
+    public NodeManagerSlot? Slot { get; private set; }
 
     public ValueTask OnServerStartedAsync(
         IServerContext server,
         CancellationToken ct)
     {
-        Registration = lifecycle.Registrations.Find(registration =>
-            registration.NamespaceUris.Contains("urn:example:MyMachine"));
+        NodeManagerRegistration? registration = lifecycle.Registrations.Find(item =>
+            item.NamespaceUris.Contains("urn:example:MyMachine"));
+        Slot = registration?.Slot ??
+            throw new InvalidOperationException("The startup NodeSet registration was not found.");
         return default;
     }
 }
 ```
 
-Running servers also expose `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted server, or use `StandardServer.NodeManagerLifecycle` when constructing the server directly. The lifecycle provider can add, reload, shadow-reload, and remove runtime NodeSets without restarting the server.
+Running servers expose `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted
+server, or use `StandardServer.NodeManagerLifecycle` when constructing the server directly.
+Use `LifecycleChange` with `RuntimeNodeSetNodeManagerFactory` to add, replace, or remove a model
+without restarting the server. Use explicit preparation when publication must follow a durable
+application decision.
 
 ```csharp
 public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 {
-    private NodeManagerRegistration? m_registration;
-
-    public async ValueTask LoadAsync(CancellationToken ct)
+    public async ValueTask<LifecycleResult> LoadAsync(CancellationToken ct)
     {
-        m_registration = await lifecycle.AddRuntimeNodeSetAsync(
-            new RuntimeNodeSetOptions
-            {
-                Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
-            },
-            callerContext: null,
-            ct);
+        var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+        {
+            Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
+        });
+        LifecycleResult result = await lifecycle.ApplyAsync([LifecycleChange.Add(factory)], ct);
+        m_slot = result.Registrations[0].Slot;
+        return result;
     }
 
-    public async ValueTask ReloadAsync(CancellationToken ct)
+    public ValueTask<LifecycleResult> ReloadAsync(CancellationToken ct)
     {
-        m_registration = await lifecycle.ReloadRuntimeNodeSetAsync(
-            m_registration!,
-            new RuntimeNodeSetOptions
-            {
-                Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
-            },
-            callerContext: null,
-            ct);
+        NodeManagerSlot slot = m_slot ?? throw new InvalidOperationException("No model is loaded.");
+        var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+        {
+            Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
+        });
+        return lifecycle.ApplyAsync([LifecycleChange.Replace(slot, factory)], ct);
     }
 
-    public ValueTask RemoveAsync(CancellationToken ct)
+    public async ValueTask<LifecycleResult> RemoveAsync(CancellationToken ct)
     {
-        return lifecycle.RemoveAsync(m_registration!, callerContext: null, ct);
+        NodeManagerSlot slot = m_slot ?? throw new InvalidOperationException("No model is loaded.");
+        LifecycleResult result = await lifecycle.ApplyAsync([LifecycleChange.Remove(slot)], ct);
+        m_slot = null;
+        return result;
     }
+
+    private NodeManagerSlot? m_slot;
 }
 ```
 
-Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
+An addition returns a registration snapshot; retain its stable `Slot` for later changes.
+Replacement publishes the next generation in that slot, so the slot remains the lifecycle target.
+The result is authoritative after publication even when reconciliation reports issues. Inspect
+`Issues` and call `RetryReconciliationAsync` for unfinished callbacks; do not replay the change.
 
 A registration obtained from `Registrations` for an `AddRuntimeNodeSet` model is already the first
-live generation; pass it directly to `ReloadRuntimeNodeSetAsync`,
-`ShadowReloadRuntimeNodeSetAsync`, `ImmediateReloadRuntimeNodeSetAsync`, or `RemoveAsync`.
+live generation; retain its `Slot` and use `LifecycleChange.Replace` or `LifecycleChange.Remove`.
 
-`AddRuntimeNodeSetAsync`, `ReloadRuntimeNodeSetAsync`, and `RemoveAsync` take the operation the caller is running under. Pass `context.GetOperationContext()` when calling from a NodeManager or Method callback: a lifecycle operation drains the requests that are in flight, so one started from inside a request would wait for itself and is rejected with an `InvalidOperationException`. A control-plane caller such as the `ModelLoader` above is not serving a request and passes `null`. See [Registering NodeManagers](NodeManagers.md#runtime-registration).
+Preparation is context-free, including inside a NodeManager or Method callback; ordinary factories
+require no callback-specific opt-in. Applying a change awaits reconciliation and readiness but not
+the retiring generation's drain. Await the result's `Retired` task only outside callbacks or requests
+whose admissions must drain.
+See [Registering NodeManagers](NodeManagers.md#runtime-registration).
 
 The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagers.md#registering-node-managers). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
 
-### Shadow reload
+<a id="shadow-reload"></a>
+<a id="migrating-replacement"></a>
 
-`ShadowReloadRuntimeNodeSetAsync` permits replacing a generation that still owns
-active monitored items. Those items stay on the retired generation and continue
-to be served there until they are deleted or otherwise released; new requests use
-the replacement generation. Normal reload instead migrates compatible monitored items.
+### Migrate monitored items during replacement
+
+The default `Migrate` transition replaces a generation that still owns active monitored items.
+Compatible items move to the replacement and retain their identities; incompatible nodes become
+unresolved. The old generation is not retained for existing subscriptions or continuation points.
 
 ```csharp
-public async ValueTask ShadowReloadAsync(CancellationToken ct)
+public ValueTask<LifecycleResult> ReplaceAsync(CancellationToken ct)
 {
-    m_registration = await lifecycle.ShadowReloadRuntimeNodeSetAsync(
-        m_registration!,
-        new RuntimeNodeSetOptions
-        {
-            Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
-        },
-        ct);
+    NodeManagerSlot slot = m_slot ?? throw new InvalidOperationException("No model is loaded.");
+    var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+    {
+        Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
+    });
+    return lifecycle.ApplyAsync(
+        [LifecycleChange.Replace(slot, factory, NodeManagerMonitoredItemTransitionMode.Migrate)], ct);
 }
 ```
 
-The returned registration replaces the old handle for lifecycle operations.
-Choose shadow reload only when retaining the old model for existing subscriptions
-is intentional; its resources remain allocated until those subscriptions drain.
+The slot remains the target for later changes. The retired generation releases its resources after
+admitted work on that generation drains.
 
-### Immediate reload
+<a id="immediate-reload"></a>
 
-`ImmediateReloadRuntimeNodeSetAsync` does not migrate existing monitored items.
+### Invalidate monitored items during replacement
+
+`LifecycleChange.Replace(..., NodeManagerMonitoredItemTransitionMode.Invalidate)`
+does not migrate existing monitored items.
 Affected data-change items receive `BadNodeIdUnknown`, and clients may recreate
 items against the replacement model.
 
 The [node-manager reload matrix](NodeManagers.md#reload-modes) is authoritative for
-all three modes, including request draining, continuation points, and generation
-cleanup. Runtime NodeSet reload methods use those same lifecycle operations.
+both transitions, including request lifetimes, continuation points, and generation cleanup.
+Runtime NodeSet transactions use the same lifecycle pipeline.
 
 ## Quick-start examples
 

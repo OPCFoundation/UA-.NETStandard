@@ -713,7 +713,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 ContinuationPoint = firstResult.ContinuationPoint
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<
+            ServiceResultException exception = await Assert.ThrowsAsync<
                 ServiceResultException>(
                 async () => await HistorianDispatcher.DispatchProcessedReadAsync(
                     h.SystemContext,

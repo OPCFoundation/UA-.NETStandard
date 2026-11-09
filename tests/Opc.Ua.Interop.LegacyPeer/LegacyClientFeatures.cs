@@ -35,6 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Interop.LegacyPeer
 {
     /// <summary>
@@ -572,10 +574,15 @@ namespace Opc.Ua.Interop.LegacyPeer
         /// </summary>
         private static async Task X509UserTokenAsync(ClientContext c)
         {
-            X509Certificate2 user = CertificateFactory
-                .CreateCertificate("CN=InteropUser, O=OPC Foundation")
-                .SetRSAKeySize(2048)
-                .CreateForRSA();
+            string certificatePath = c.Options.Get("x509-user-cert", string.Empty);
+            using X509Certificate2 user = string.IsNullOrEmpty(certificatePath)
+                ? CertificateFactory
+                    .CreateCertificate("CN=InteropUser, O=OPC Foundation")
+                    .SetRSAKeySize(2048)
+                    .CreateForRSA()
+                : new X509Certificate2(
+                    certificatePath,
+                    string.Empty);
             ISession session = await c.NewSessionAsync(new UserIdentity(user)).ConfigureAwait(false);
             try
             {

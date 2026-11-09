@@ -45,6 +45,7 @@
     <Compile Include="..\IntentEnabledRobot\Simulation\SimulatedCollisionModel.cs" Link="Simulation\SimulatedCollisionModel.cs" />
     <Compile Include="..\IntentEnabledRobot\Kinematics\ISimulatedArmKinematics.cs" Link="Kinematics\ISimulatedArmKinematics.cs" />
     <Compile Include="..\IntentEnabledRobot\Kinematics\SimulatedArmKinematics.cs" Link="Kinematics\SimulatedArmKinematics.cs" />
+    <Compile Include="..\IntentEnabledRobot\CompanionModelProviders.cs" Link="CompanionModelProviders.cs" />
   </ItemGroup>
   <ItemGroup>
     <!-- The cell stage, palletizer and gripper are embedded and extracted to a

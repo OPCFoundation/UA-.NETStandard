@@ -62,6 +62,37 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string NestedId = "nsu=http://example.com/demo/pump;s=Pump07.Motor";
 
         /// <summary>
+        /// Verifies that every relative path element must be portable.
+        /// </summary>
+        /// <param name="portable">The portable flag for this test case.</param>
+        [TestCase("pump:Root/1:Speed", false)]
+        [TestCase("pump:Root/pump:Motor/2:Speed", false)]
+        [TestCase("pump:Root/pump:Motor/pump:Speed", true)]
+        public void EveryRelativePathElementMustBePortable(string path, bool portable)
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@context": { "pump": "http://example.com/demo/pump" },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=http://example.com/demo/pump;i=1",
+                  "properties": {
+                    "Speed": { "type": "number", "uav:browsePath": "{{path}}" }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(WotPortableIdentity.IsResolvableBrowsePath(path, true), Is.EqualTo(portable));
+                Assert.That(result.Success, Is.EqualTo(portable), Reasons(result));
+            });
+        }
+
+        /// <summary>
         /// The published anchored-paths example states the same value twice -
         /// once as the identity of the Node it describes and once as the anchor
         /// its relative paths resolve against. The identity alone is what

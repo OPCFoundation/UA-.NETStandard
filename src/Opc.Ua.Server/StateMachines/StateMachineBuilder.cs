@@ -829,6 +829,60 @@ namespace Opc.Ua.Server.StateMachines
                 true,
                 parentStateNode.NodeId);
 
+            return BindSubStateMachineCore(
+                parentStateId, childBuilder, subHolder.InitialStateId ?? 0, preserveOnReentry);
+        }
+
+        /// <summary>
+        /// Binds an already modelled child machine to a state of a generated or standard parent machine.
+        /// </summary>
+        /// <typeparam name="TChild">The generated or declarative child state-machine type.</typeparam>
+        /// <remarks>
+        /// The information model must declare HasSubStateMachine on the parent state.
+        /// This method attaches execution behavior without modifying shared type definitions.
+        /// Preserve on reentry is appropriate for a Program's suspend/resume path.
+        /// </remarks>
+        public StateMachineBuilder<TState> BindSubStateMachine<TChild>(
+            uint parentStateId,
+            StateMachineBuilder<TChild> child,
+            uint initialChildStateId,
+            bool preserveOnReentry = false)
+            where TChild : FiniteStateMachineState
+        {
+            if (child is null)
+            {
+                throw new ArgumentNullException(nameof(child));
+            }
+            FreezeDefinition();
+            if (!ReferenceEquals(child.StateMachine.Parent, m_stateMachine))
+            {
+                throw new ArgumentException("The nested machine must be a child of this parent.", nameof(child));
+            }
+            if (!m_stateMachine.IsKnownState(parentStateId))
+            {
+                throw new ArgumentOutOfRangeException(nameof(parentStateId));
+            }
+            if (!child.StateMachine.IsKnownState(initialChildStateId))
+            {
+                throw new ArgumentOutOfRangeException(nameof(initialChildStateId));
+            }
+            return BindSubStateMachineCore(parentStateId, child, initialChildStateId, preserveOnReentry);
+        }
+
+        private StateMachineBuilder<TState> BindSubStateMachineCore<TChild>(
+            uint parentStateId,
+            StateMachineBuilder<TChild> childBuilder,
+            uint initialChildStateId,
+            bool preserveOnReentry)
+            where TChild : FiniteStateMachineState
+        {
+            TChild materializedChild = childBuilder.StateMachine;
+            int resetOnNextActivation = 0;
+            m_stateMachine.SubStateResetting += () =>
+            {
+                Interlocked.Exchange(ref resetOnNextActivation, 1);
+                materializedChild.ResetSubStates();
+            };
             // One rule brings the sub-SM in line with the parent's
             // state, shared by all three activation paths: attach time
             // (covering WithInitialState BEFORE this call), the
@@ -838,8 +892,6 @@ namespace Opc.Ua.Server.StateMachines
             // preserveOnReentry child keeps its state across
             // re-activations but is still seeded the first time it
             // activates with no state at all.
-            uint initialChildStateId = subHolder.InitialStateId ?? 0;
-
             void SyncChildToParentState(ISystemContext ctx, uint parentCurrentStateId)
             {
                 bool attached = parentCurrentStateId == parentStateId;
@@ -854,18 +906,19 @@ namespace Opc.Ua.Server.StateMachines
                         materializedChild.SetState(ctx, 0);
                     }
                     childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
-                    materializedChild.SetSuspended(ctx, true);
+                    SetChildActive(ctx, false);
                     return;
                 }
 
-                materializedChild.SetSuspended(ctx, false);
+                SetChildActive(ctx, true);
                 if (initialChildStateId == 0)
                 {
                     return;
                 }
                 bool childHasState =
                     !(materializedChild.CurrentState?.Value.IsNullOrEmpty ?? true);
-                if (!preserveOnReentry || !childHasState)
+                if (Interlocked.Exchange(ref resetOnNextActivation, 0) != 0 ||
+                    !preserveOnReentry || !childHasState)
                 {
                     materializedChild.SetState(ctx, initialChildStateId);
                     materializedChild.ClearChangeMasks(ctx, true);
@@ -879,6 +932,7 @@ namespace Opc.Ua.Server.StateMachines
 
             SyncChildToParentState(m_context, ExtractCurrentStateId(m_stateMachine));
             m_dispatcher.AddInitialStateSynchronizer(SyncChildToParentState);
+            m_stateMachine.InitialStateSynchronization += SyncChildToParentState;
 
             void ScheduleChildSynchronization(ISystemContext ctx, TState parent)
             {
@@ -892,7 +946,7 @@ namespace Opc.Ua.Server.StateMachines
                     else
                     {
                         childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
-                        materializedChild.SetSuspended(ctx, true);
+                        SetChildActive(ctx, false);
                     }
                 });
             }
@@ -906,6 +960,18 @@ namespace Opc.Ua.Server.StateMachines
             });
 
             return this;
+
+            void SetChildActive(ISystemContext context, bool active)
+            {
+                if (materializedChild is FluentFiniteStateMachineState fluent)
+                {
+                    fluent.SetSuspended(context, !active);
+                }
+                else
+                {
+                    materializedChild.SetActive(context, active);
+                }
+            }
         }
 
         private static NodeId ComposeChildNodeId(NodeId parentNodeId, QualifiedName browseName)

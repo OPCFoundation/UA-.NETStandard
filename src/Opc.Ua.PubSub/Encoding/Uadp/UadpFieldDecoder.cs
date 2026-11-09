@@ -204,6 +204,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     return new DataSetField
                     {
                         Name = name,
+                        DataSetFieldId = fmd is null ? Uuid.Empty : fmd.DataSetFieldId,
                         Value = value,
                         Encoding = PubSubFieldEncoding.Variant
                     };
@@ -221,6 +222,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     return new DataSetField
                     {
                         Name = name,
+                        DataSetFieldId = fmd is null ? Uuid.Empty : fmd.DataSetFieldId,
                         Value = dv.WrappedValue,
                         StatusCode = dv.StatusCode,
                         SourceTimestamp = dv.SourceTimestamp,
@@ -252,6 +254,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     return new DataSetField
                     {
                         Name = name,
+                        DataSetFieldId = fmd.DataSetFieldId,
                         Value = value,
                         Encoding = PubSubFieldEncoding.RawData
                     };

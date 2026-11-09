@@ -28,12 +28,11 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Vision.Client;
 using Opc.Ua.Vision.Intent.Tests.Infrastructure;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Intent.Tests
 {
@@ -82,12 +81,12 @@ namespace Opc.Ua.Vision.Intent.Tests
             VisionDetectionDataType detection = BuildBaseline();
             detection.ClassLabel = "NotAPart";
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
                     new[] { detection }.ToArrayOf(),
                     BuildFrameReference(),
-                    ByteString.Empty).ConfigureAwait(false))!;
+                    ByteString.Empty).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "An unknown class label must be refused with Bad_InvalidArgument.");
         }
@@ -102,12 +101,12 @@ namespace Opc.Ua.Vision.Intent.Tests
             VisionDetectionDataType detection = BuildBaseline();
             detection.Confidence = 1.5;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
                     new[] { detection }.ToArrayOf(),
                     BuildFrameReference(),
-                    ByteString.Empty).ConfigureAwait(false))!;
+                    ByteString.Empty).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "A confidence outside [0, 1] must be refused with Bad_InvalidArgument.");
         }
@@ -129,12 +128,12 @@ namespace Opc.Ua.Vision.Intent.Tests
                 Rotation = 0.0
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
                     new[] { detection }.ToArrayOf(),
                     BuildFrameReference(),
-                    ByteString.Empty).ConfigureAwait(false))!;
+                    ByteString.Empty).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "A bounding box entirely outside the image must be refused with Bad_InvalidArgument.");
         }
@@ -152,15 +151,15 @@ namespace Opc.Ua.Vision.Intent.Tests
                 FrameId = TestVisionCell.CameraFrameId,
                 Position = s_doubleValues1.ToArrayOf(),
                 Orientation = s_doubleValues2.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
                     new[] { detection }.ToArrayOf(),
                     BuildFrameReference(),
-                    ByteString.Empty).ConfigureAwait(false))!;
+                    ByteString.Empty).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "A zero-norm quaternion must be refused with Bad_InvalidArgument.");
         }
@@ -174,15 +173,15 @@ namespace Opc.Ua.Vision.Intent.Tests
             VisionPipelineClient pipeline = context.Vision.Pipeline(pipelineNodeId);
             VisionFeedbackClient feedback = (await pipeline.OpenFeedbackAsync().ConfigureAwait(false))!;
 
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
-                    ArrayOf<VisionDetectionDataType>.Empty,
+                    [],
                     BuildFrameReference(),
                     ByteString.Empty,
                     sceneIsEmpty: true).ConfigureAwait(false),
                 "An empty detection set must be accepted: an emptied bin is a correct answer.");
-            List<VisionNodeEntry> results = new();
+            List<VisionNodeEntry> results = [];
             await foreach (VisionNodeEntry entry in pipeline.EnumerateResultsAsync())
             {
                 results.Add(entry);
@@ -213,7 +212,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                 new[] { BuildBaseline() }.ToArrayOf(),
                 BuildFrameReference(),
                 ByteString.Empty).ConfigureAwait(false);
-            List<VisionNodeEntry> results = new();
+            List<VisionNodeEntry> results = [];
             await foreach (VisionNodeEntry entry in pipeline.EnumerateResultsAsync())
             {
                 results.Add(entry);
@@ -222,12 +221,12 @@ namespace Opc.Ua.Vision.Intent.Tests
             VisionDetectionResultSnapshot published = await context.Vision
                 .Result(results[0].NodeId).ReadDetectionAsync().ConfigureAwait(false);
             Assert.That(published.ResultId, Is.Not.Null.And.Not.Empty);
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await feedback.SubmitCorrectionAsync(
                     published.ResultId!,
                     VisionFeedbackPurposeEnum.Reconciliation,
-                    ArrayOf<VisionDetectionDataType>.Empty,
-                    ArrayOf<VisionCharacteristicDataType>.Empty,
+                    [],
+                    [],
                     LocalizedText.From("The previously published detection was a false positive."),
                     ByteString.Empty,
                     retractAll: true).ConfigureAwait(false),
@@ -259,7 +258,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                     FrameId = TestVisionCell.CameraFrameId,
                     Position = s_doubleValues1.ToArrayOf(),
                     Orientation = s_doubleValues3.ToArrayOf(),
-                    Covariance = ArrayOf<double>.Empty
+                    Covariance = []
                 },
                 TrackId = "TestCube"
             };

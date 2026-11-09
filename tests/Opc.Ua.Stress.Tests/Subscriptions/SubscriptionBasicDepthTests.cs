@@ -131,7 +131,7 @@ namespace Opc.Ua.Stress.Tests.Subscriptions
             try
             {
                 ServiceResultException ex =
-                    Assert.ThrowsAsync<ServiceResultException>(async () => await freshSession.PublishWithTimeoutAsync().ConfigureAwait(false));
+                    await Assert.ThrowsAsync<ServiceResultException>(async () => await freshSession.PublishWithTimeoutAsync().ConfigureAwait(false));
                 Assert.That(ex.StatusCode,
                     Is.EqualTo(StatusCodes.BadNoSubscription));
             }
@@ -155,7 +155,7 @@ namespace Opc.Ua.Stress.Tests.Subscriptions
             await Task.Delay(200).ConfigureAwait(false);
 
             ServiceResultException ex =
-                Assert.ThrowsAsync<ServiceResultException>(PublishAsync);
+                await Assert.ThrowsAsync<ServiceResultException>(PublishAsync);
             Assert.That(ex.StatusCode,
                 Is.EqualTo(StatusCodes.BadNoSubscription));
         }
@@ -169,7 +169,7 @@ namespace Opc.Ua.Stress.Tests.Subscriptions
             try
             {
                 ServiceResultException ex =
-                    Assert.ThrowsAsync<ServiceResultException>(async () => await freshSession.PublishWithTimeoutAsync().ConfigureAwait(false));
+                    await Assert.ThrowsAsync<ServiceResultException>(async () => await freshSession.PublishWithTimeoutAsync().ConfigureAwait(false));
                 Assert.That(ex.StatusCode,
                     Is.EqualTo(StatusCodes.BadNoSubscription));
             }
@@ -1078,7 +1078,7 @@ namespace Opc.Ua.Stress.Tests.Subscriptions
             await PublishAsync().ConfigureAwait(false);
 
             ServiceResultException ex =
-                Assert.ThrowsAsync<ServiceResultException>(async () => await Session.RepublishAsync(
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await Session.RepublishAsync(
                         null, id, 999999u,
                         CancellationToken.None).ConfigureAwait(false));
 
@@ -1374,16 +1374,15 @@ namespace Opc.Ua.Stress.Tests.Subscriptions
         }
 
         [Test]
-        public Task ModifyNonExistentSubscriptionReturnsBad()
+        public async Task ModifyNonExistentSubscriptionReturnsBad()
         {
             ServiceResultException ex =
-                Assert.ThrowsAsync<ServiceResultException>(async () => await Session.ModifySubscriptionAsync(
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await Session.ModifySubscriptionAsync(
                         null, 999999u, 500, 100, 10, 0, 0,
                         CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode,
                 Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
-            return Task.CompletedTask;
         }
 
         private async Task<CreateSubscriptionResponse> CreateSubAsync(

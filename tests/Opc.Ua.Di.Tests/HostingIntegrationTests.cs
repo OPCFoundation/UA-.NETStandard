@@ -221,9 +221,9 @@ namespace Opc.Ua.Di.Tests
                     Configurator(typeof(DiNodeManager), _ =>
                         throw new InvalidOperationException("boom")));
 
-                InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+                InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await runner.RunAsync(
-                        fixture.Manager, CancellationToken.None).ConfigureAwait(false))!;
+                        fixture.Manager, CancellationToken.None).ConfigureAwait(false)))!;
 
                 Assert.That(ex.Message, Does.Contain("DI post-setup configurator"));
                 Assert.That(ex.InnerException, Is.Not.Null);

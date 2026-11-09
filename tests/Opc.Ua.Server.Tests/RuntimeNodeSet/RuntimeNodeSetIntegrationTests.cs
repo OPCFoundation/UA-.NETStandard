@@ -115,7 +115,6 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// by <see cref="MasterNodeManager"/>.
         /// </summary>
         [Test]
-        [Order(100)]
         public void NamespaceUriRegisteredAfterServerStart()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -132,7 +131,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// nodes without a <c>ParentNodeId</c> are registered as predefined nodes.
         /// </summary>
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(NamespaceUriRegisteredAfterServerStart), AllowFailure = true)]
         public async Task RootNodeIsInAddressSpaceAfterServerStartAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -157,7 +156,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// <c>ComplexTypesTestData</c> but are also directly indexed.
         /// </summary>
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(RootNodeIsInAddressSpaceAfterServerStartAsync), AllowFailure = true)]
         public async Task ChildVariablesAreInAddressSpaceAfterServerStartAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -191,7 +190,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// wired on the <c>ColorValue</c> variable.
         /// </summary>
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(ChildVariablesAreInAddressSpaceAfterServerStartAsync), AllowFailure = true)]
         public async Task FluentConfigureCallbackWiresOnReadOnColorValueAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -230,7 +229,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// for the hand-written <c>ServerComplexTypesTestNodeManager</c>.
         /// </summary>
         [Test]
-        [Order(500)]
+        [DependsOnTest(nameof(FluentConfigureCallbackWiresOnReadOnColorValueAsync), AllowFailure = true)]
         public void ComplexTypesLoadedViaDefaultServerPath()
         {
             IServerInternal server = m_server.CurrentInstance;

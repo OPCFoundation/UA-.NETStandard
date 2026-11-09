@@ -47,7 +47,7 @@ namespace Opc.Ua.Robotics.Tests
     public class RobotIntentAuthorityNoOwnerTests
     {
         [Test]
-        public void RequireAuthorityThrowsNoOwnerMessageWhenRefusedWithoutOwner()
+        public async Task RequireAuthorityThrowsNoOwnerMessageWhenRefusedWithoutOwner()
         {
             var transport = new Mock<IRobotIntentTransport>(MockBehavior.Strict);
             transport.SetupGet(static item => item.Logger).Returns(NullLogger.Instance);
@@ -71,8 +71,8 @@ namespace Opc.Ua.Robotics.Tests
                 .Returns((ArrayOf<NodeId> _, CancellationToken ct) => EmptyDataChangesAsync(ct));
             var controller = new RobotIntentControllerClient(transport.Object);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await controller.RequireAuthorityAsync())!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await controller.RequireAuthorityAsync()))!;
 
             Assert.Multiple(() =>
             {
