@@ -153,6 +153,15 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Concurrent readers share the same copy for every template beyond the previous cache bound.
         /// </summary>
+        [Test]
+        public void ConcurrentLargeTemplateSetKeepsOneCopyPerTemplate()
+        {
+            ConcurrentLargeTemplateSetKeepsOneCopyPerTemplate(false);
+        }
+
+        /// <summary>
+        /// Concurrent readers share the same copy for every template beyond the previous cache bound.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void ConcurrentLargeTemplateSetKeepsOneCopyPerTemplate(bool pinRouting)

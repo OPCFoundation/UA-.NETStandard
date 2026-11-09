@@ -149,6 +149,15 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Explicit candidate scopes override bindings retained by fluent historization.
+        /// </summary>
+        [Test]
+        public void ExplicitCandidateRegistrationsOverrideRetainedHistorizationBindings()
+        {
+            ExplicitCandidateRegistrationsOverrideRetainedHistorizationBindings(false, false);
+        }
+
+        /// <summary>
         /// Explicit candidate scopes override borrowed and retained bindings in either registration order.
         /// </summary>
         [TestCase(false, false)]
