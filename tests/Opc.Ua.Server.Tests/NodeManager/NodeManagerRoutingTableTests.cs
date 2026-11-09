@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -317,29 +318,60 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Ordinary request-owned dispatch allocates no cohort or per-service ownership token.
         /// </summary>
+        /// <remarks>
+        /// The runtime can allocate a few bytes on this thread once, for example when on-stack
+        /// replacement moves a Tier0 loop to optimized code, which made a single exact-zero round
+        /// flaky (64 bytes locally, 3264 bytes on macOS CI). The measured loop therefore runs in a
+        /// separate method that is warmed up first, and the test measures several rounds: every
+        /// round must stay below one byte per call, which any per-call allocation exceeds, and at
+        /// least one round must allocate nothing at all, so an allocation on a rare path still fails.
+        /// </remarks>
         [Test]
         public void RequestOwnedRoutingCaptureAddsNoManagedAllocations()
         {
+            const int iterations = 10000;
+            const int rounds = 5;
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
             context.PinRouting(table);
-            for (int ii = 0; ii < 128; ii++)
+            for (int ii = 0; ii < 3; ii++)
             {
-                context.CaptureRouting(table).Dispose();
+                MeasureRequestOwnedCaptures(context, table, iterations, out _);
             }
-            long before = GC.GetAllocatedBytesForCurrentThread();
-            long started = Stopwatch.GetTimestamp();
-            for (int ii = 0; ii < 10000; ii++)
+            long[] allocated = new long[rounds];
+            long elapsed = 0;
+            for (int ii = 0; ii < rounds; ii++)
             {
-                context.CaptureRouting(table).Dispose();
+                allocated[ii] = MeasureRequestOwnedCaptures(context, table, iterations, out long roundElapsed);
+                elapsed += roundElapsed;
             }
-            long elapsed = Stopwatch.GetTimestamp() - started;
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-            Assert.That(allocated, Is.Zero);
+            string perRound = string.Join(", ", allocated);
+            Assert.That(allocated, Has.All.LessThan(iterations), $"Bytes per round: {perRound}");
+            Assert.That(allocated, Has.Some.Zero, $"Bytes per round: {perRound}");
             Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
             TestContext.Out.WriteLine(
-                $"Request-owned capture microcheck: 10000 scopes, {allocated} bytes, " +
+                $"Request-owned capture microcheck: {rounds} x {iterations} scopes, bytes per round [{perRound}], " +
                 $"{elapsed} stopwatch ticks ({Stopwatch.Frequency} ticks/s); not a load benchmark.");
+        }
+
+        /// <summary>
+        /// Captures and disposes request-owned routing scopes and returns the bytes this thread allocated.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static long MeasureRequestOwnedCaptures(
+            OperationContext context,
+            NodeManagerRoutingTable table,
+            int iterations,
+            out long elapsed)
+        {
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            long started = Stopwatch.GetTimestamp();
+            for (int ii = 0; ii < iterations; ii++)
+            {
+                context.CaptureRouting(table).Dispose();
+            }
+            elapsed = Stopwatch.GetTimestamp() - started;
+            return GC.GetAllocatedBytesForCurrentThread() - before;
         }
 
         /// <summary>
