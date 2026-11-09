@@ -32,6 +32,7 @@ using System.IO;
 using System.Linq;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
 
 namespace Opc.Ua.Aot.Tests
