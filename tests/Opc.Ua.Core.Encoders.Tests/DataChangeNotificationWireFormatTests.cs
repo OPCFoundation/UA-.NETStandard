@@ -48,7 +48,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         public void BinaryEncodingIsUnchanged()
         {
             byte[] encoded = BinaryEncoder.EncodeMessage(CreateMessage(), CreateContext());
-            Assert.That(Convert.ToHexString(encoded), Is.EqualTo(kExpectedBinary));
+            Assert.That(CoreUtils.ToHexString(encoded), Is.EqualTo(kExpectedBinary));
         }
 
         [Test]
@@ -83,6 +83,23 @@ namespace Opc.Ua.Core.Encoders.Tests
             byte[] encoded = BinaryEncoder.EncodeMessage(message, context);
 
             NotificationMessage decoded = BinaryDecoder.DecodeMessage<NotificationMessage>(encoded, context);
+
+            Assert.That(decoded.NotificationData[0].TryGetValue(out DataChangeNotification? notification), Is.True);
+            Assert.That(message.NotificationData[0].TryGetValue(out DataChangeNotification? original), Is.True);
+            Assert.That(notification!.MonitoredItems, Is.EqualTo(original!.MonitoredItems));
+            Assert.That(notification.DiagnosticInfos.Count, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void JsonRoundTripKeepsEveryItem([Values] bool compact)
+        {
+            ServiceMessageContext context = CreateContext();
+            NotificationMessage message = CreateMessage();
+            string json = EncodeJson(compact ? JsonEncoderOptions.Compact : JsonEncoderOptions.Verbose);
+
+            // the decoder must fill each value type item in place, not a copy of it.
+            using var decoder = new JsonDecoder(json, context);
+            NotificationMessage decoded = decoder.ReadEncodeable<NotificationMessage>("Message");
 
             Assert.That(decoded.NotificationData[0].TryGetValue(out DataChangeNotification? notification), Is.True);
             Assert.That(message.NotificationData[0].TryGetValue(out DataChangeNotification? original), Is.True);
