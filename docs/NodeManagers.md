@@ -1438,10 +1438,11 @@ subscriptions:
 | `LifecycleChange.Reload(..., Migrate)` | Compatible items move to the replacement and keep their ids; removed or incompatible items get one `BadNodeIdUnknown`. | A compatible model update where Clients should keep their subscriptions. The default. |
 | `LifecycleChange.Reload(..., Invalidate)` | Every old item gets `BadNodeIdUnknown`; none are migrated. | Destructive or security-sensitive changes where Clients must resubscribe. |
 
-Neither transition retains a generation for existing items or future continuation requests.
+Neither transition keeps the old generation serving existing items for their subscription lifetime.
 Requests already pinned to the old routing view may finish under ordinary request lifetime
 management. The built-in Session store rejects continuation resumes after their generation's gate
-closes (see [Continuation points](#continuation-points)).
+closes (see [Continuation points](#continuation-points)). Failed source cleanup can delay disposal of
+the old generation; see [MonitoredItems](#monitoreditems).
 
 #### MonitoredItems
 
@@ -1850,9 +1851,10 @@ The 2.0.1 `RuntimeNodeSetLifecycleExtensions` methods
 `ShadowReloadRuntimeNodeSetAsync` and `ImmediateReloadRuntimeNodeSetAsync` remain
 available but are obsolete. The add and reload overloads accepting
 `callerContext` ignore it. `ShadowReloadRuntimeNodeSetAsync` uses the `Migrate`
-transition; it does not retain the previous generation for existing
-MonitoredItems. Use `LifecycleChange` with `RuntimeNodeSetNodeManagerFactory`
-for new code; see [Runtime NodeSets](RuntimeNodeSets.md#startup-and-live-lifecycle-semantics).
+transition instead of keeping the previous generation serving existing
+MonitoredItems for their subscription lifetime. Use `LifecycleChange` with
+`RuntimeNodeSetNodeManagerFactory` for new code; see
+[Runtime NodeSets](RuntimeNodeSets.md#startup-and-live-lifecycle-semantics).
 
 `RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback` and
 `RuntimeNodeSetNodeManagerFactory.AllowLifecycleFromRequestCallback` were
