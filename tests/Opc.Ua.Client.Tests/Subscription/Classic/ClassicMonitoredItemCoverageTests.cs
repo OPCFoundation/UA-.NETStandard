@@ -1051,6 +1051,60 @@ namespace Opc.Ua.Client.Tests
 #endif
 
         /// <summary>
+        /// The first data change is cached even when the server sends
+        /// timestamps from the future; the check only logs them.
+        /// </summary>
+        [Test]
+        public void FirstDataChangeWithFutureTimestampsIsCached()
+        {
+            MonitoredItem item = CreateItem();
+            DateTime future = DateTime.UtcNow.AddDays(1);
+
+            item.SaveValueInCache(new MonitoredItemNotification
+            {
+                ClientHandle = item.ClientHandle,
+                Value = new DataValue(new Variant(3), StatusCodes.Good, future, future)
+            });
+
+            Assert.That(item.LastValue, Is.InstanceOf<MonitoredItemNotification>());
+            Assert.That(
+                ((MonitoredItemNotification)item.LastValue!).Value.WrappedValue,
+                Is.EqualTo(new Variant(3)));
+        }
+
+        /// <summary>
+        /// A throwing Notification handler must not escape from either
+        /// SaveValueInCache overload.
+        /// </summary>
+        [Test]
+        public void ThrowingNotificationHandlerIsContained()
+        {
+            MonitoredItem dataItem = CreateItem();
+            dataItem.Notification += (_, _) => throw new InvalidOperationException("handler");
+            MonitoredItem eventItem = CreateItem();
+            eventItem.NodeClass = NodeClass.Object;
+            eventItem.Notification += (_, _) => throw new InvalidOperationException("handler");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => dataItem.SaveValueInCache(new MonitoredItemNotification
+                    {
+                        ClientHandle = dataItem.ClientHandle,
+                        Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow)
+                    }),
+                    Throws.Nothing);
+                Assert.That(
+                    () => eventItem.SaveValueInCache(new EventFieldList
+                    {
+                        ClientHandle = eventItem.ClientHandle,
+                        EventFields = [new Variant(1)]
+                    }),
+                    Throws.Nothing);
+            });
+        }
+
+        /// <summary>
         /// A notification of the other kind for the item's client handle
         /// (buggy server or handle clash) must not make LastMessage throw.
         /// </summary>
