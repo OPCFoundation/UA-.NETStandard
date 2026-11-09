@@ -292,6 +292,81 @@ namespace Opc.Ua.Gds.Tests
                 Is.EqualTo(CertificateRequestState.Approved));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BoundCertificateRequestFinishesWithItsInitiatingClientCertificate(bool newKeyPair)
+        {
+            var database = new LinqApplicationsDatabase();
+            NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:bound", "Bound"));
+            ByteString fingerprint = CreateFingerprint(1);
+            NodeId request = StartBoundRequest(database, application, newKeyPair, fingerprint);
+            database.ApproveRequest(request, false);
+
+            Assert.That(
+                () => database.FinishRequest(application, request, out _, out _, out _, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                database.FinishBoundRequest(
+                    application, request, fingerprint, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BoundCertificateRequestRejectsDifferentClientCertificate(bool newKeyPair)
+        {
+            var database = new LinqApplicationsDatabase();
+            NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:bound", "Bound"));
+            ByteString initiatingFingerprint = CreateFingerprint(1);
+            NodeId request = StartBoundRequest(database, application, newKeyPair, initiatingFingerprint);
+            database.ApproveRequest(request, false);
+
+            Assert.That(
+                () => database.FinishBoundRequest(
+                    application, request, CreateFingerprint(2), out _, out _, out _, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                database.FinishBoundRequest(
+                    application, request, initiatingFingerprint, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BoundCertificateRequestBindingSurvivesJsonDatabaseReload(bool newKeyPair)
+        {
+            string fileName = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:bound", "Bound"));
+                ByteString fingerprint = CreateFingerprint(1);
+                NodeId request = StartBoundRequest(database, application, newKeyPair, fingerprint);
+                database.ApproveRequest(request, false);
+
+                database = JsonApplicationsDatabase.Load(fileName);
+
+                Assert.That(
+                    database.FinishBoundRequest(
+                        application, request, fingerprint, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Approved));
+                Assert.That(
+                    () => database.FinishBoundRequest(
+                        application, request, CreateFingerprint(2), out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
         /// <summary>
         /// Pending signing requests retain recovery evidence without publishing issued credentials.
         /// </summary>
@@ -643,6 +718,37 @@ namespace Opc.Ua.Gds.Tests
                 DiscoveryUrls = [$"opc.tcp://localhost:4840/{name}"],
                 ServerCapabilities = ["LDS"]
             };
+        }
+
+        private static NodeId StartBoundRequest(
+            LinqApplicationsDatabase database,
+            NodeId application,
+            bool newKeyPair,
+            ByteString fingerprint)
+        {
+            return newKeyPair
+                ? database.StartBoundNewKeyPairRequest(
+                    application,
+                    "DefaultApplicationGroup",
+                    "RsaSha256ApplicationCertificateType",
+                    "CN=Bound",
+                    ["localhost"],
+                    "PFX",
+                    default,
+                    fingerprint,
+                    "admin")
+                : database.StartBoundSigningRequest(
+                    application,
+                    "DefaultApplicationGroup",
+                    "RsaSha256ApplicationCertificateType",
+                    ByteString.From([1, 2, 3]),
+                    fingerprint,
+                    "admin");
+        }
+
+        private static ByteString CreateFingerprint(byte value)
+        {
+            return ByteString.From(Enumerable.Repeat(value, 32).ToArray());
         }
     }
 }

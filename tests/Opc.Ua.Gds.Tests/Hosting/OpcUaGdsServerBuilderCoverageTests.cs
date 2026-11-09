@@ -128,6 +128,9 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(
                 provider.GetRequiredService<ICertificateRequest>(),
                 Is.InstanceOf<LinqApplicationsDatabase>());
+            Assert.That(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                Is.InstanceOf<LinqApplicationsDatabase>());
         }
 
         [Test]

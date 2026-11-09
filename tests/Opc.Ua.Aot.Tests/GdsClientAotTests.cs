@@ -27,8 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.IO;
+using System.Linq;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Gds.Server.Database.Linq;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -236,6 +240,51 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
 
             await Assert.That(results.Count).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task BoundCertificateRequestPersistsThroughJsonReloadAsync()
+        {
+            string fileName = Path.Combine(
+                Path.GetTempPath(),
+                $"{Guid.NewGuid():N}.json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId applicationId = database.RegisterApplication(CreateTestAppRecord(
+                    "urn:localhost:OPCFoundation:AotTest:BoundRequest"));
+                ByteString fingerprint = ByteString.From(Enumerable.Repeat((byte)7, 32).ToArray());
+                NodeId requestId = database.StartBoundSigningRequest(
+                    applicationId,
+                    "DefaultApplicationGroup",
+                    "RsaSha256ApplicationCertificateType",
+                    ByteString.From([1, 2, 3]),
+                    fingerprint,
+                    "aot-test");
+                database.ApproveRequest(requestId, false);
+
+                database = JsonApplicationsDatabase.Load(fileName);
+
+                ServiceResultException error = await Assert.That(
+                    () => database.FinishBoundRequest(
+                        applicationId,
+                        requestId,
+                        ByteString.From(Enumerable.Repeat((byte)8, 32).ToArray()),
+                        out _,
+                        out _,
+                        out _,
+                        out _)).Throws<ServiceResultException>() ??
+                    throw new InvalidOperationException("The exception assertion returned no exception.");
+                await Assert.That(error.StatusCode).IsEqualTo(StatusCodes.BadUserAccessDenied);
+                await Assert.That(
+                    database.FinishBoundRequest(
+                        applicationId, requestId, fingerprint, out _, out _, out _, out _))
+                    .IsEqualTo(CertificateRequestState.Approved);
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
         }
 
         private static ApplicationRecordDataType CreateTestAppRecord(

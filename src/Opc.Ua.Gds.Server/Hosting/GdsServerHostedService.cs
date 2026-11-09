@@ -288,6 +288,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_services.GetService<GdsDeviceRegistrarRegistration>();
             m_server.DeviceRegistrarCertificateAuthorization = registrar?.CertificateAuthorization;
             m_server.CertificateRequestIssuanceStore = m_services.GetService<ICertificateRequestIssuanceStore>();
+            m_server.ClientCertificateBoundRequestStore =
+                m_certificateRequest as IClientCertificateBoundCertificateRequestStore;
             m_server.DeviceRegistrarPushEnrollments =
                 m_services.GetService<SecretStoreDeviceRegistrarPushEnrollmentProvider>();
             m_server.DeviceRegistrarFactory = registrar?.Factory;
@@ -663,7 +665,9 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// <summary>
         /// <see cref="GlobalDiscoverySampleServer"/> subclass that wires
         /// the optional DI-supplied services (<see cref="IAccessTokenProvider"/>,
-        /// <see cref="IKeyCredentialRequestStore"/>, <see cref="IConfigurationDataStore"/>)
+        /// <see cref="IKeyCredentialRequestStore"/>,
+        /// <see cref="IClientCertificateBoundCertificateRequestStore"/>,
+        /// <see cref="IConfigurationDataStore"/>)
         /// into the <see cref="ApplicationsNodeManager"/> and adds a
         /// <see cref="DefaultManagedApplicationsNodeManager"/> when a
         /// configuration store is supplied.
@@ -729,6 +733,11 @@ namespace Opc.Ua.Gds.Server.Hosting
             /// Gets or sets the host-owned secret issuance store used for completion retries.
             /// </summary>
             public ICertificateRequestIssuanceStore? CertificateRequestIssuanceStore { get; set; }
+
+            /// <summary>
+            /// Gets or sets the DI-supplied certificate request store with client-certificate binding.
+            /// </summary>
+            public IClientCertificateBoundCertificateRequestStore? ClientCertificateBoundRequestStore { get; set; }
 
             /// <summary>
             /// Gets or sets the enrollment journal bound only to this GDS's actual application node manager.
@@ -799,6 +808,9 @@ namespace Opc.Ua.Gds.Server.Hosting
                             applications.DeviceRegistrarCertificateAuthorization =
                                 DeviceRegistrarCertificateAuthorization;
                             applications.CertificateRequestIssuanceStore = CertificateRequestIssuanceStore;
+                            applications.ClientCertificateBoundRequestStore =
+                                ClientCertificateBoundRequestStore ?? m_request as
+                                    IClientCertificateBoundCertificateRequestStore;
                             DeviceRegistrarPushEnrollments?.Bind(applications);
                         })
                 };

@@ -1709,6 +1709,7 @@ Every pluggable interface and its purpose:
 |-----------|---------|---------|
 | `IApplicationsDatabase` | Application registration store | `LinqApplicationsDatabase` / `JsonApplicationsDatabase` |
 | `ICertificateRequest` | Certificate request lifecycle | `LinqApplicationsDatabase` |
+| `IClientCertificateBoundCertificateRequestStore` | Certificate requests bound to the initiating SecureChannel client certificate | `LinqApplicationsDatabase` / `JsonApplicationsDatabase` |
 | `ICertificateRequestIssuanceStore` | Material retained before onboarding request acceptance | Explicit provider required for onboarding |
 | `ICertificateGroup` | CA operations (sign, revoke) | `CertificateGroup` |
 | `IGdsUserDatabase` | User store + ApplicationAdmin bindings | Implement over `LinqUserDatabase` |
@@ -1717,6 +1718,19 @@ Every pluggable interface and its purpose:
 | `IAccessTokenProvider` | Token issuance (AuthorizationService) | `null` (Bad_NotSupported) |
 | `IConfigurationDataStore` | ManagedApplications config persistence | `InMemoryConfigurationDataStore` |
 | `IManagedApplicationsNodeManager` | ManagedApplications folder | `StubManagedApplicationsNodeManager` |
+
+GDS certificate handlers require `IClientCertificateBoundCertificateRequestStore`
+in addition to `ICertificateRequest`. The bound-store contract records the SHA-256
+fingerprint of the SecureChannel client certificate with each request and checks
+that fingerprint in `FinishRequest`. The SecureChannel may differ between the
+start and finish calls; the client certificate must match. `JsonApplicationsDatabase`
+persists the fingerprint with the request record. A custom store must persist the
+fingerprint in the same transaction as the request and reject a mismatch with
+`Bad_UserAccessDenied`. `AddCertificateRequest<T>` registers the bound-store
+service when `T` implements the interface, and direct construction uses the
+request store when it supports the contract. A store that implements only
+`ICertificateRequest` remains source-compatible but cannot serve these handlers;
+the GDS rejects certificate request operations rather than bypassing the binding.
 
 ---
 
@@ -2127,15 +2141,23 @@ Pull Certificate Management moved from §7.6 (1.04) to **§7.9** (v1.05.07); the
 
 | Section | Feature | Status | Source | Tests |
 |---------|---------|--------|--------|-------|
-| §7.9.3 | StartSigningRequest | ✅ | `OnStartSigningRequestAsync` + CSR key / CertificateType check + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupSigningRequestTests.cs`, `ClientTest.cs` |
-| §7.9.4 | StartNewKeyPairRequest | ✅ | `OnStartNewKeyPairRequest` + audit | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
-| §7.9.5 | FinishRequest | ✅ | `OnFinishRequestAsync` + issuer chain | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
+| §7.9.3 | StartSigningRequest | ✅ | `OnStartSigningRequestAsync` + CSR key / CertificateType check + bound client-certificate fingerprint + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupSigningRequestTests.cs`, `ClientTest.cs` |
+| §7.9.4 | StartNewKeyPairRequest | ✅ | `OnStartNewKeyPairRequest` + bound client-certificate fingerprint + audit | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
+| §7.9.5 | FinishRequest | ✅ | `OnFinishRequestAsync` + initiating client-certificate fingerprint check + issuer chain | `ApplicationsNodeManagerOnboardingTests.FinishRequest*`, `LinqApplicationsDatabaseTests.BoundCertificateRequest*`, `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
 | §7.9.6 | RevokeCertificate | ✅ | `OnRevokeCertificateAsync` + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupTests.cs` |
 | §7.9.7 | GetCertificateGroups | ✅ | `OnGetCertificateGroups` | `ClientTest.cs`, `CustomCertificateGroupIntegrationTest.cs` |
 | §7.9.8 | GetCertificates | ✅ | `OnGetCertificates` | `GdsCertificateManagementTests.cs` |
 | §7.9.9 | GetTrustList | ✅ | `OnGetTrustList` | `ClientTest.cs`, `CustomCertificateGroupIntegrationTest.cs` |
 | §7.9.10 | GetCertificateStatus | ✅ | `OnGetCertificateStatus` | `ClientTest.cs` |
 | §7.9.11 | CheckRevocationStatus | ✅ | `OnCheckRevocationStatusAsync` + ValidityTime | `GdsCertificateManagementTests.cs` |
+
+`StartSigningRequest` and `StartNewKeyPairRequest` bind each request to the
+SHA-256 fingerprint of the SecureChannel client certificate. `FinishRequest`
+compares the current SecureChannel certificate with that stored fingerprint and
+returns `Bad_UserAccessDenied` when they differ. The binding is independent of
+the SessionId, so a client can finish the request on another Session when it
+presents the same certificate. A durable request store retains the fingerprint
+across restart.
 
 `CheckRevocationStatus` uses locally configured issuer chains and verified local
 CRLs. Caller-supplied AIA URLs do not trigger certificate or CRL downloads.
