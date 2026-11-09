@@ -48,6 +48,55 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class NodeIdTests
     {
+        /// <summary>
+        /// Audit finding #52: Guid NodeIds hashed with <see cref="Guid.GetHashCode"/>, an
+        /// unseeded fold of the Guid's words, so a client could send any number of distinct
+        /// Guid NodeIds with one hash code and make every dictionary keyed by them quadratic.
+        /// </summary>
+        [Test]
+        public void GuidNodeIdsWhoseGuidHashesCollideHashApart()
+        {
+            const int count = 4096;
+            var guidHashes = new HashSet<int>();
+            var nodeIdHashes = new HashSet<int>();
+            var bytes = new byte[16];
+            for (int ii = 1; ii <= count; ii++)
+            {
+                byte[] value = BitConverter.GetBytes(ii);
+#if NETFRAMEWORK
+                // .NET Framework folds only _a, _b, _c, _f and _k into the hash, so the
+                // family varies d, e, g and h (bytes 8, 9, 11 and 12).
+                bytes[8] = value[0];
+                bytes[9] = value[1];
+                bytes[11] = value[2];
+                bytes[12] = value[3];
+#else
+                // .NET XORs the four 32 bit words, so equal first and last words cancel.
+                Array.Copy(value, 0, bytes, 0, 4);
+                Array.Copy(value, 0, bytes, 12, 4);
+#endif
+                var guid = new Guid(bytes);
+                guidHashes.Add(guid.GetHashCode());
+                nodeIdHashes.Add(new NodeId(guid, 2).GetHashCode());
+            }
+
+            Assert.That(guidHashes, Has.Count.EqualTo(1), "the family must collide on Guid.GetHashCode");
+            Assert.That(nodeIdHashes, Has.Count.GreaterThan(count - 16), "NodeId hashes must not collide");
+        }
+
+        [Test]
+        public void GuidNodeIdHashIsStableAndFollowsEquality()
+        {
+            var guid = Guid.NewGuid();
+            var created = new NodeId(guid, 3);
+            var parsed = NodeId.Parse($"ns=3;g={guid}");
+            Assert.That(parsed, Is.EqualTo(created));
+            Assert.That(parsed.GetHashCode(), Is.EqualTo(created.GetHashCode()));
+            var text = new NodeId("Text", 3);
+            var parsedText = NodeId.Parse("ns=3;s=Text");
+            Assert.That(parsedText.GetHashCode(), Is.EqualTo(text.GetHashCode()));
+        }
+
         [Test]
         public void NodeIdConstructor()
         {
