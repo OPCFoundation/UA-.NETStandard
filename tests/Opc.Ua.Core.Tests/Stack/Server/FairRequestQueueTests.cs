@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -704,6 +705,198 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.LastControlIntent, Is.EqualTo(controlIntent));
             Assert.That(entry.Owner.Class, Is.EqualTo(ResourceIsolationClass.Established));
             Assert.That(entry.Owner.Key, Is.EqualTo("unknown"));
+        }
+
+        /// <summary>
+        /// An entry that left its owner's FIFO, such as a held Publish, must not keep the
+        /// entries queued after it reachable once they left the FIFO as well: the owner keeps a
+        /// backlog, so its FIFO is never retired, and the chain would grow per dispatched request.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DequeuedEntryDoesNotKeepLaterEntriesOfItsOwnerReachable(bool useFairScheduling)
+        {
+            const int dispatched = 20;
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            Enqueue(queue, new TestRequest(token, park: true));
+            Enqueue(queue, new TestRequest(token));
+            FairRequestQueue.Entry held = Dequeue(queue);
+
+            var released = new List<WeakReference>();
+            for (int ii = 0; ii < dispatched; ii++)
+            {
+                released.Add(DispatchOneKeepingBacklog(queue, token));
+            }
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            // the entry dequeued last is the FIFO's sentinel and stays reachable from the FIFO
+            int reachable = 0;
+            for (int ii = 0; ii < released.Count - 1; ii++)
+            {
+                reachable += released[ii].IsAlive ? 1 : 0;
+            }
+            Assert.That(reachable, Is.Zero, "completed entries are kept reachable by the held entry");
+            Assert.That(held.Request, Is.Not.Null);
+
+            held.Dispose();
+            Dequeue(queue).Dispose();
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// Admits one request of the owner and dispatches and completes the oldest one.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static WeakReference DispatchOneKeepingBacklog(FairRequestQueue queue, NodeId token)
+        {
+            Enqueue(queue, new TestRequest(token));
+            FairRequestQueue.Entry entry = Dequeue(queue);
+            entry.Dispose();
+            return new WeakReference(entry);
+        }
+
+        /// <summary>
+        /// A held Publish drops its decoded payload when it parks and replaces its decoded-request
+        /// cost with a charge for what it still retains (its acknowledgement results and their
+        /// diagnostics, its audit entry id), but keeps its parked slot until it completes. A
+        /// Publish that retains as much as its full cost, such as one with many acknowledgements
+        /// and operation diagnostics, keeps the full cost.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
+        public async Task ParkedPublishIsChargedWhatItRetainsAndKeepsItsParkedSlotAsync(
+            bool useFairScheduling,
+            bool reservations,
+            bool largeRetainedState)
+        {
+            const long requestCost = 5000;
+            TestProvider provider = reservations
+                ? new ReservingTestProvider(costCapacity: 1_000_000)
+                : new TestProvider(costCapacity: 1_000_000);
+            provider.UseFairScheduling = useFairScheduling;
+            NodeId token = provider.AddOwner("A");
+            using var server = new QueueServer(provider, workers: 1, requestCost: requestCost);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var acknowledgements = new SubscriptionAcknowledgement[largeRetainedState ? 1000 : 1];
+            for (int ii = 0; ii < acknowledgements.Length; ii++)
+            {
+                acknowledgements[ii] = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = (uint)ii };
+            }
+            var publish = new PublishRequest { SubscriptionAcknowledgements = acknowledgements };
+            var request = new TestRequest(token, serviceRequest: publish, payloadReleasingSink: true);
+            publish.RequestHeader.AdditionalHeader = new ExtensionObject(new AdditionalParametersType());
+            if (largeRetainedState)
+            {
+                publish.RequestHeader.ReturnDiagnostics = (uint)DiagnosticsMasks.OperationAll;
+            }
+            long retained = request.ParkSink.EstimateRetainedBytes();
+            Assert.That(retained, largeRetainedState ? Is.GreaterThan(requestCost) : Is.LessThan(requestCost / 2));
+            long expected = largeRetainedState ? requestCost : retained;
+
+            server.Enqueue(request);
+            await request.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            for (int ii = 0; ii < 500 && (provider.Used(ResourceIsolationStage.RequestExecution) != 0 ||
+                provider.Used(ResourceIsolationStage.RequestQueueBytes) != expected); ii++)
+            {
+                await Task.Delay(10, deadline.Token).ConfigureAwait(false);
+            }
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.Zero);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(expected));
+            Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.EqualTo(1));
+            Assert.That(publish.RequestHeader.AdditionalHeader.IsNull, Is.True);
+            Assert.That(publish.SubscriptionAcknowledgements.Count, Is.Zero);
+
+            request.Release();
+            await request.Completed.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
+            AssertReservationsReleasedOnce(provider);
+        }
+
+        /// <summary>
+        /// A parked Publish keeps its full charge when the smaller one cannot be admitted beside
+        /// it, and a swap that runs after the entry was disposed returns what it admitted.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RetainedChargeIsNotSwappedWhenItCannotBeAdmittedOrTheEntryIsGone(bool reservations)
+        {
+            const long requestCost = 5000;
+            TestProvider provider = reservations
+                ? new ReservingTestProvider(costCapacity: requestCost)
+                : new TestProvider(costCapacity: requestCost);
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider, requestCost: requestCost);
+            var request = new TestRequest(token, serviceRequest: new PublishRequest(), payloadReleasingSink: true);
+            Enqueue(queue, request);
+            FairRequestQueue.Entry entry = Dequeue(queue);
+            Assert.That(request.ParkSink.RetainedCost, Is.GreaterThan(0).And.LessThan(requestCost));
+
+            // a sink that keeps its payload has nothing to swap
+            entry.ReleaseRequestCost(new RequestParkSink());
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(requestCost));
+
+            // the budget holds only the full charge, so the retained one is refused and the full one stays
+            entry.ReleaseRequestCost(request.ParkSink);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(requestCost));
+
+            entry.Dispose();
+            Assert.That(provider.TotalUsed, Is.Zero);
+            entry.ReleaseRequestCost(request.ParkSink);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// The retained estimate of a parked Publish grows with the audit entry id it keeps.
+        /// </summary>
+        [Test]
+        public void ParkSinkEstimateCountsTheAuditEntryId()
+        {
+            var publish = new PublishRequest();
+            var sink = new RequestParkSink(publish);
+            long withoutAudit = sink.EstimateRetainedBytes();
+            publish.RequestHeader.AuditEntryId = "audit";
+            Assert.That(sink.EstimateRetainedBytes(), Is.EqualTo(withoutAudit + 10));
+            Assert.That(new RequestParkSink().EstimateRetainedBytes(), Is.Zero);
+        }
+
+        /// <summary>
+        /// Only a Publish drops its payload when it parks: other parkable requests (a Session
+        /// establishment waiting for the limiter) still need theirs after the wait.
+        /// </summary>
+        [Test]
+        public void ParkSinkDropsThePayloadOfAPublishRequestOnly()
+        {
+            var publish = new PublishRequest
+            {
+                RequestHeader = new RequestHeader { AdditionalHeader = new ExtensionObject(new AdditionalParametersType()) },
+                SubscriptionAcknowledgements = [new SubscriptionAcknowledgement { SubscriptionId = 1 }]
+            };
+            var publishSink = new RequestParkSink(publish);
+            Assert.That(publishSink.ReleasesPayload, Is.True);
+            publishSink.NotifyParked();
+            publishSink.NotifyParked();
+            Assert.That(publishSink.ParkedTask.IsCompleted, Is.True);
+            Assert.That(publish.RequestHeader.AdditionalHeader.IsNull, Is.True);
+            Assert.That(publish.SubscriptionAcknowledgements.Count, Is.Zero);
+
+            var activate = new ActivateSessionRequest
+            {
+                RequestHeader = new RequestHeader { AdditionalHeader = new ExtensionObject(new AdditionalParametersType()) }
+            };
+            var activateSink = new RequestParkSink(activate);
+            Assert.That(activateSink.ReleasesPayload, Is.False);
+            activateSink.NotifyParked();
+            Assert.That(activate.RequestHeader.AdditionalHeader.IsNull, Is.False);
+            Assert.That(new RequestParkSink().ReleasesPayload, Is.False);
         }
 
         [Test]
@@ -2530,11 +2723,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 uint handle = 1,
                 bool park = false,
                 string channel = "channel",
-                IServiceRequest? serviceRequest = null)
+                IServiceRequest? serviceRequest = null,
+                bool payloadReleasingSink = false)
             {
                 Request = serviceRequest ?? (park ? new PublishRequest() : new ReadRequest());
                 Request.RequestHeader = new RequestHeader { AuthenticationToken = token, RequestHandle = handle };
-                ParkSink = (Request is PublishRequest ? new RequestParkSink() : null)!;
+                ParkSink = (Request is PublishRequest
+                    ? payloadReleasingSink ? new RequestParkSink(Request) : new RequestParkSink()
+                    : null)!;
                 SecureChannelContext = new SecureChannelContext(channel, null, RequestEncoding.Binary);
             }
 

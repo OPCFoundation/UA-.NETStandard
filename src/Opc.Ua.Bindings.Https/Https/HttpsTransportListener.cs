@@ -2271,7 +2271,8 @@ namespace Opc.Ua.Bindings
                     perWsListener.AttachChannel(channelId, channel);
                     channel.Attach(channelId, lease);
 
-                    await lease.WaitForCloseAsync(context.RequestAborted).ConfigureAwait(false);
+                    await WaitForCloseOrWriteStallAsync(lease, channel, context.RequestAborted)
+                        .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
                 {
@@ -2290,6 +2291,58 @@ namespace Opc.Ua.Bindings
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Waits until the binary WebSocket channel closes. Every half channel lifetime it also
+        /// checks the send of the channel: a peer that stops reading keeps a send waiting and every
+        /// queued response with it, while a Session keeps the channel active, so a send that waits
+        /// longer than the channel lifetime closes the channel, as the TCP listeners do.
+        /// </summary>
+        private async Task WaitForCloseOrWriteStallAsync(
+            UaScConnectionAdmission.Lease lease,
+            TcpListenerChannel channel,
+            CancellationToken ct)
+        {
+            Task closed = lease.WaitForCloseAsync(ct);
+            int lifetime = m_quotas.ChannelLifetime;
+            if (lifetime <= 0 || closed.IsCompleted)
+            {
+                await closed.ConfigureAwait(false);
+                return;
+            }
+            TimeSpan period = TimeSpan.FromMilliseconds(Math.Max(1, lifetime / 2));
+            using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            try
+            {
+                while (!closed.IsCompleted)
+                {
+#if NET8_0_OR_GREATER
+                    Task check = Task.Delay(period, TimeProvider, stop.Token);
+#else
+                    Task check = TimeProvider.Delay(period, stop.Token);
+#endif
+                    if (await Task.WhenAny(closed, check).ConfigureAwait(false) == closed)
+                    {
+                        break;
+                    }
+                    TimeSpan stalled = channel.GetWriteStallTime();
+                    if (stalled.TotalMilliseconds > lifetime)
+                    {
+                        m_logger.WssChannelWriteStalled(
+                            channel.Id,
+                            (long)stalled.TotalMilliseconds,
+                            channel.QueuedWriteBytes);
+                        channel.IdleCleanup();
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                stop.Cancel();
+            }
+            await closed.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -3740,5 +3793,18 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception exception,
             string channelId);
+
+        /// <summary>
+        /// Reports a binary WebSocket channel closed because its send waited longer than the
+        /// channel lifetime for a peer that stopped reading.
+        /// </summary>
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 20, Level = LogLevel.Warning,
+            Message = "WSSLISTENER - channel {ChannelId} closed: its send waited {StalledMs} ms for the peer " +
+                "to read, {QueuedBytes} bytes queued.")]
+        public static partial void WssChannelWriteStalled(
+            this ILogger logger,
+            uint channelId,
+            long stalledMs,
+            long queuedBytes);
     }
 }

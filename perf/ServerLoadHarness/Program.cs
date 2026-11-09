@@ -1004,6 +1004,41 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     ResultMask = (uint)BrowseResultMask.All
                 }
             };
+
+            // translate: --nodes copies of Server/ServerStatus/CurrentTime.
+            var translatePath = new BrowsePath
+            {
+                StartingNode = ObjectIds.Server,
+                RelativePath = new RelativePath
+                {
+                    Elements =
+                    [
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName(BrowseNames.ServerStatus)
+                        },
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName(BrowseNames.CurrentTime)
+                        }
+                    ]
+                }
+            };
+            m_translate = Enumerable.Repeat(translatePath, m_nodes).ToArray();
+
+            // call: --nodes calls of the reference server's Methods_Void (no arguments).
+            ushort referenceNamespace = (ushort)m_sessions[0].NamespaceUris.GetIndex(
+                "http://opcfoundation.org/Quickstarts/ReferenceServer");
+            var call = new CallMethodRequest
+            {
+                ObjectId = new NodeId("Methods", referenceNamespace),
+                MethodId = new NodeId("Methods_Void", referenceNamespace)
+            };
+            m_call = Enumerable.Repeat(call, m_nodes).ToArray();
             Console.WriteLine(FormattableString.Invariant(
                 $"{m_kind}: {nodes.Count} nodes/request, inflight {m_inflight}/session"));
             return m_kind == "churn" ? CreateChurnSubscriptionsAsync() : Task.CompletedTask;
@@ -1117,6 +1152,29 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         case "browse":
                             await session.BrowseAsync(null, null, 0, m_browse, ct).ConfigureAwait(false);
                             break;
+                        case "translate":
+                            TranslateBrowsePathsToNodeIdsResponse translated =
+                                await session.TranslateBrowsePathsToNodeIdsAsync(null, m_translate, ct)
+                                    .ConfigureAwait(false);
+                            foreach (BrowsePathResult result in translated.Results)
+                            {
+                                if (!CheckOperation(result.StatusCode))
+                                {
+                                    break;
+                                }
+                            }
+                            break;
+                        case "call":
+                            CallResponse called = await session.CallAsync(null, m_call, ct)
+                                .ConfigureAwait(false);
+                            foreach (CallMethodResult result in called.Results)
+                            {
+                                if (!CheckOperation(result.StatusCode))
+                                {
+                                    break;
+                                }
+                            }
+                            break;
                         default:
                             await session.ReadAsync(null, 0, TimestampsToReturn.Both, m_read, ct).ConfigureAwait(false);
                             break;
@@ -1148,10 +1206,29 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
         }
 
+        /// <summary>
+        /// Counts a request whose operations failed as an error, so a scenario that only
+        /// returns bad operation results cannot pass for throughput.
+        /// </summary>
+        private bool CheckOperation(StatusCode result)
+        {
+            if (StatusCode.IsBad(result))
+            {
+                if (Interlocked.Increment(ref m_errors) < 5)
+                {
+                    Console.WriteLine("error: operation " + result);
+                }
+                return false;
+            }
+            return true;
+        }
+
         private readonly string m_kind;
         private readonly ISession[] m_sessions;
         private readonly int m_nodes;
         private readonly int m_inflight;
+        private ArrayOf<BrowsePath> m_translate;
+        private ArrayOf<CallMethodRequest> m_call;
         private readonly LatencyRecorder m_latency = new();
         private int m_epoch;
         private long m_requests;
