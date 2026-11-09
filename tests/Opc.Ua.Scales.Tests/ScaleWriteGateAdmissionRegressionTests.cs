@@ -242,7 +242,7 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
-        public void TryExecuteSynchronouslyReleasesAdmissionWhenOperationThrows()
+        public async Task TryExecuteSynchronouslyReleasesAdmissionWhenOperationThrowsAsync()
         {
             var gate = new ScaleWriteGate();
 
@@ -254,6 +254,13 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(failure!.Message, Is.EqualTo("operation failed"));
             Assert.That(gate.TryExecuteSynchronously(() => 42, out int result), Is.True);
             Assert.That(result, Is.EqualTo(42));
+
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            int asynchronousResult = await gate.ExecuteAsynchronouslyAsync(
+                _ => new ValueTask<int>(43),
+                cancellation.Token).ConfigureAwait(false);
+
+            Assert.That(asynchronousResult, Is.EqualTo(43));
         }
 
         private static async Task DrainAsync(params Task?[] tasks)
