@@ -129,12 +129,13 @@ monitoring values without adding nodes or issuing a machine-control command.
 Changing an identifier's characteristic reference or optional-node shape
 requires rebuilding that instance.
 
-The advanced result binding alone is not a full GMS system. The undefined
-`GMS_ProductionStatisticsType` mentioned in the Production conformance unit is
-not fabricated, and the complete GMS Production facet is withheld. Defined
-GMS jobs/parts and inherited statistics remain implemented. GMS adds no
-measurement-start, calibration-execution, GMS job-start or correction-control
-protocol.
+The advanced result binding alone is not a full GMS system. Table 63 names
+`GMS GMS_ProductionStatisticsType` as a mandatory Production conformance unit,
+but Table 56 does not define that unit. The normative NodeSet contains no node
+named `GMS_ProductionStatisticsType`, so the complete GMS Production facet is
+withheld. Defined GMS jobs/parts and inherited statistics remain implemented.
+GMS adds no measurement-start, calibration-execution, GMS job-start or
+correction-control protocol.
 
 See the [GMS guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/GMS.md)
 for complete system interfaces, lifetimes and the upstream conformance exception.

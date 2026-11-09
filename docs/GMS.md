@@ -54,7 +54,7 @@ correction-actuation commands.
   - [Host policy and bounded replies](#host-policy-and-bounded-replies)
 - [Conformance and support limits](#conformance-and-support-limits)
   - [Supported surfaces](#supported-surfaces)
-  - [The undefined Production statistics requirement](#the-undefined-production-statistics-requirement)
+  - [The undefined Production conformance unit](#the-undefined-production-conformance-unit)
   - [Instance capabilities versus certification](#instance-capabilities-versus-certification)
 - [Model provenance](#model-provenance)
 - [Samples and related documentation](#samples-and-related-documentation)
@@ -431,9 +431,11 @@ enumeration metadata and `ValueAsText`; they are not normalized through an
 untyped string or floating-point representation. Rejected acquisition does
 not commit new job/part indexes.
 
-Inherited production statistics remain implemented. This is distinct from
-claiming the complete GMS Production facet, whose undefined requirement is
-documented [below](#the-undefined-production-statistics-requirement).
+Inherited production statistics remain implemented. The complete GMS Production
+facet remains withheld because Table 63 names
+`GMS GMS_ProductionStatisticsType` as mandatory, but Table 56 does not define
+that conformance unit. See the
+[conformance details below](#the-undefined-production-conformance-unit).
 No GMS-specific job execution verbs are introduced.
 
 ## Results, characteristics and corrections
@@ -832,23 +834,23 @@ for exact schemas, characteristic selection, bounds and cancellation behavior.
 | Results, characteristics/tolerances, corrections, queries, downloads and events | Native types with shared result services; corrections do not actuate |
 | `SensorWarningAlarmType` | Additional environmental-sensor conditions |
 | Standalone/shared hosting, typed clients, bounded MCP and NativeAOT | Supported through the same runtime APIs |
-| Complete GMS Production facet | Withheld because of the undefined requirement below |
+| Complete GMS Production facet | Withheld because of the missing conformance-unit definition below |
 | Invented measurement-start, calibration-execution or GMS job/correction-control verbs | Not supplied |
 | External OPC Foundation certification of a deployment | Not claimed |
 
-### The undefined Production statistics requirement
+### The undefined Production conformance unit
 
-[OPC 40210 section 12.3.2.7](https://reference.opcfoundation.org/specs/OPC-40210/12.3.2.7)
-requires `GMS_ProductionStatisticsType` for the Production conformance unit.
-The released specification does not define that type or its NodeId, and
-[Annex A.1's normative NodeSet](https://reference.opcfoundation.org/specs/OPC-40210/annex-a)
-contains no such definition.
+[Table 56](https://reference.opcfoundation.org/specs/OPC-40210/v1.0.1/12.2)
+defines the `GMS GMSJobType` and `GMS GMSPartType` conformance units, but not
+`GMS GMS_ProductionStatisticsType`. [Table 63](https://reference.opcfoundation.org/specs/OPC-40210/v1.0.1/12.3.2.7)
+names `GMS GMS_ProductionStatisticsType` as a mandatory Production conformance
+unit. The released normative NodeSet contains no node named
+`GMS_ProductionStatisticsType`.
 
-The implementation does not fabricate a type, reuse a different type under that
-name or silently claim the complete Production facet. Defined native GMS
-jobs/parts and inherited MachineTool statistics remain supported. This is a
-specific upstream conformance exception, not a statement that all production
-monitoring is absent.
+The implementation therefore withholds the complete Production facet. Defined
+native GMS jobs/parts and inherited MachineTool statistics remain supported.
+This is a specific upstream conformance exception, not a statement that all
+production monitoring is absent.
 
 ### Instance capabilities versus certification
 

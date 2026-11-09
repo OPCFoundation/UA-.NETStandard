@@ -90,6 +90,6 @@
     "WMTP shares the MachineTool assembly but is not part of the GMS runtime namespace or factory closure.",
     "Canonical XML identities prevail over prose discrepancies: SensorWarningAlarmType i=1010, GMSResultType i=2004, GMSResultManagementType i=1008.",
     "The XML and section 8.3 Table 17 set Qualified/IsCountingUp=true. Section 12.2 QualifiedToolLife instead requires remaining-time semantics with Indication=Time and IsCountingUp=false. The immutable model input is preserved; a runtime selecting this CU must configure its optional Qualified entry accordingly.",
-    "OPC-40210 12.3.2.7 requires GMS_ProductionStatisticsType, which is absent from the CU definitions and normative XML. No type or NodeId is invented; inherited production/statistics and defined GMS job/part declarations are retained. A complete GMS Production facet is not claimed."
+    "OPC-40210 Table 63 names GMS GMS_ProductionStatisticsType as a mandatory conformance unit, but Table 56 does not define that unit. The normative XML contains no node named GMS_ProductionStatisticsType. Inherited production/statistics and defined GMS job/part declarations are retained. A complete GMS Production facet is not claimed."
   ]
 }
