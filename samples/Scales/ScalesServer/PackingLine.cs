@@ -41,8 +41,8 @@ namespace ScalesSample
 {
     /// <summary>
     /// Builds the sample's weighing equipment: a packing line (a scale system
-    /// with a checkweigher, its infeed feeder and label printer) and four
-    /// stand-alone scales showing the other scale types.
+    /// with a checkweigher, its infeed feeder and label printer), stand-alone
+    /// scale kinds and separate manual and condition-driven recipe examples.
     /// </summary>
     internal sealed class PackingLine
     {
@@ -57,6 +57,31 @@ namespace ScalesSample
         public ScaleHandle Weighbridge { get; private set; } = null!;
 
         public ScaleHandle Batching { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the simulated catchweigher item pipeline.
+        /// </summary>
+        public ScaleHandle Catchweigher { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the simulated price labeler; no physical printing is performed.
+        /// </summary>
+        public ScaleHandle PriceLabeler { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the totalizing hopper reporting completed downpours.
+        /// </summary>
+        public ScaleHandle TotalizingHopper { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the separate opt-in condition-wait demonstration, leaving the manual BREAD recipe unchanged.
+        /// </summary>
+        public ScaleHandle ConditionBatching { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the analog/edge recipe with a deliberately unreachable timeout step.
+        /// </summary>
+        public RecipeState ConditionRecipe { get; private set; } = null!;
 
         /// <summary>
         /// Completes once every scale exists, which the simulation waits for.
@@ -92,7 +117,7 @@ namespace ScalesSample
                             .AddProduct("CEREAL-500", new LocalizedText("Cereal 500 g"), NominalWeight(0.5))
                             .AddProduct("CEREAL-375", new LocalizedText("Cereal 375 g"), NominalWeight(0.375))
                             .Select("CEREAL-500"))
-                        .WithProductionOutput()
+                        .WithProductionOutput(ScaleStatisticsObservationMode.FullCheck)
                         .AddFeederModule("Infeed", feeder => feeder
                             .WithIdentification(Identity("Contoso Conveyors", "CV-7", "Belt"))
                             .WithMachineryBuildingBlocks()
@@ -126,18 +151,26 @@ namespace ScalesSample
                     .WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
                     .WithWeightDetails()
                     .WithZeroAndTare()
+                    .WithPieceCountingTotals()
                     .WithTypeFeatures()
                     .WithProductionPreset(preset => preset
                         .AllowSelection()
                         .AddProduct("M4-SCREW", new LocalizedText("M4 x 10 screw"))
                         .Select("M4-SCREW")),
                 context.CancellationToken).ConfigureAwait(false);
+            ServiceResult referenceResult = PieceCounter.PieceCounting!.SetReferencePieceWeight(0.0005);
+            if (ServiceResult.IsBad(referenceResult))
+            {
+                throw new InvalidOperationException(
+                    $"Could not configure the piece-counting reference weight: {referenceResult}");
+            }
 
             Weighbridge = await manager.CreateScaleAsync(
                 Name("Weighbridge"),
                 ScaleKind.Vehicle,
                 scale => scale
                     .WithIdentification(Identity("Contoso Weighing", "WB-60", "Bridge-60t"))
+                    .WithVehicleTotals(_ => VehicleWeightAggregation.Absolute)
                     .WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
                     .WithWeightDetails()
                     .WithRegisterWeight()
@@ -183,6 +216,7 @@ namespace ScalesSample
             // then the dough rests.
             RecipeController recipes = Batching.Recipes!;
             RecipeState bread = recipes.AddRecipe("BREAD", new LocalizedText("Bread"));
+            ((RecipeProductState)Batching.ProductionPreset!.ActiveProduct!).RecipeNodeId!.Value = bread.NodeId;
             ushort ns = manager.NamespaceIndices.Scales;
             RecipeElementState flour = recipes.AddRecipeElement(bread, new NodeId(Opc.Ua.Scales.ObjectTypes.WeighingType, ns), "Flour", bread.NodeId);
             RecipeElementState water = recipes.AddRecipeElement(bread, new NodeId(Opc.Ua.Scales.ObjectTypes.WeighingType, ns), "Water", bread.NodeId);
@@ -192,6 +226,102 @@ namespace ScalesSample
                 Encoding.UTF8.GetString(bytes.ToArray()).Trim().Length > 0
                     ? ServiceResult.Good
                     : ServiceResult.Create(StatusCodes.BadDecodingError, "The recipe file is empty.");
+
+            Catchweigher = await manager.CreateScaleAsync(
+                Name("Catchweigher"),
+                ScaleKind.Catchweigher,
+                scale => scale
+                    .WithIdentification(Identity("Contoso Weighing", "CA-1", "Catch-6"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 6, 0.001, 0.001))
+                    .WithItemProcessing()
+                    .WithProductionPreset(preset => preset.AllowSelection()
+                        .AddProduct("ITEMS", new LocalizedText("Measured items")).Select("ITEMS")),
+                context.CancellationToken).ConfigureAwait(false);
+            var catchProduct = (CatchweigherProductState)Catchweigher.ProductionPreset!.ActiveProduct!;
+            Catchweigher.ProductionPreset.AddZone(catchProduct, new LocalizedText("Small"), 0, 1, ScaleUnits.Kilogram);
+            Catchweigher.ProductionPreset.AddZone(catchProduct, new LocalizedText("Large"), 1, 6, ScaleUnits.Kilogram);
+
+            PriceLabeler = await manager.CreateScaleAsync(
+                Name("PriceLabeler"),
+                ScaleKind.AutomaticWeightPriceLabeler,
+                scale => scale
+                    .WithIdentification(Identity("Contoso Weighing", "PR-1", "Price-6"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 6, 0.001, 0.001))
+                    .WithItemProcessing(context.GetRequiredService<IScalePriceCalculator>())
+                    .WithProductionPreset(preset => preset.AllowSelection()
+                        .AddProduct("CHEESE", new LocalizedText("Cheese"), (ctx, product) =>
+                        {
+                            var labeler = (AutomaticWeightPriceLabelerProductState)product;
+                            labeler.AddUnitPrice(ctx);
+                            labeler.UnitPrice!.WrappedValue = Variant.From(12.50);
+                            if (labeler.UnitPrice.FindChild(ctx, new QualifiedName(
+                                Opc.Ua.Scales.BrowseNames.CurrencyUnit, manager.NamespaceIndices.Scales))
+                                is BaseVariableState currency)
+                            {
+                                currency.WrappedValue = Variant.From(new ExtensionObject(new CurrencyUnitType
+                                {
+                                    AlphabeticCode = "EUR",
+                                    NumericCode = 978,
+                                    Exponent = 2,
+                                    Currency = new LocalizedText("Euro")
+                                }));
+                            }
+                        }).Select("CHEESE")),
+                context.CancellationToken).ConfigureAwait(false);
+
+            TotalizingHopper = await manager.CreateScaleAsync(
+                Name("TotalizingHopper"),
+                ScaleKind.TotalizingHopper,
+                scale => scale
+                    .WithIdentification(Identity("Contoso Weighing", "TH-1", "Bulk-300"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 300, 0.05, 0.1))
+                    .WithCompletedFills()
+                    .WithProductionPreset(preset => preset.AllowSelection()
+                        .AddProduct("GRAIN", new LocalizedText("Grain")).Select("GRAIN")),
+                context.CancellationToken).ConfigureAwait(false);
+            ConditionBatching = await manager.CreateScaleAsync(
+                Name("ConditionBatching"), ScaleKind.Recipe,
+                scale => scale
+                    .WithIdentification(Identity("Contoso Weighing", "RC-1", "Conditions"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 0.01, 0.01))
+                    .WithProductionPreset(preset => preset.AllowSelection()
+                        .AddProduct("DEMO", new LocalizedText("Condition batch")).Select("DEMO"))
+                    .ConfigureRecipes(controller =>
+                    {
+                        controller.EnableConditionWaits(TimeSpan.FromSeconds(2));
+                        controller.RegisterConditionSource(1, NodeId.Null, new LocalizedText("Local mass"),
+                            BuiltInType.Double, ScaleUnits.Kilogram);
+                        controller.RegisterConditionSource(2, NodeId.Null, new LocalizedText("Local ready edge"),
+                            BuiltInType.Boolean);
+                    }),
+                context.CancellationToken).ConfigureAwait(false);
+            RecipeController conditions = ConditionBatching.Recipes!;
+            await conditions.SetApplicationReleaseAsync(true, context.CancellationToken).ConfigureAwait(false);
+            ConditionRecipe = conditions.AddRecipe("CONDITIONS", new LocalizedText("Conditions with intervention"));
+            ((RecipeProductState)ConditionBatching.ProductionPreset!.ActiveProduct!).RecipeNodeId!.Value =
+                ConditionRecipe.NodeId;
+            var mass = (AnalogConditionSleepState)conditions.AddRecipeElement(
+                ConditionRecipe, new NodeId(Opc.Ua.Scales.ObjectTypes.AnalogConditionSleepType, ns),
+                "MassReady", ConditionRecipe.NodeId);
+            mass.ThresholdValueId!.Value = "1";
+            mass.ConditionMode!.Value = EqualityAndRelationalOperator.GreaterOrEqualThan_3;
+            mass.TargetThresholdValue!.WrappedValue = new Variant(5.0);
+            mass.TargetThresholdValue.EngineeringUnits!.Value = ScaleUnits.Kilogram;
+            var ready = (EdgeTriggeredSleepState)conditions.AddRecipeElement(
+                ConditionRecipe, new NodeId(Opc.Ua.Scales.ObjectTypes.EdgeTriggeredSleepType, ns),
+                "ReadyEdge", ConditionRecipe.NodeId);
+            ready.ThresholdValueId!.Value = "2";
+            ready.ConditionMode!.Value = EdgeOperator.Rising_0;
+            ready.TargetThresholdValue!.WrappedValue = new Variant(true);
+            var timeout = (AnalogConditionSleepState)conditions.AddRecipeElement(
+                ConditionRecipe, new NodeId(Opc.Ua.Scales.ObjectTypes.AnalogConditionSleepType, ns),
+                "OperatorIntervention", mass.NodeId, ready.NodeId);
+            timeout.ThresholdValueId!.Value = "1";
+            timeout.ConditionMode!.Value = EqualityAndRelationalOperator.GreaterOrEqualThan_3;
+            timeout.TargetThresholdValue!.WrappedValue = new Variant(1000.0);
+            timeout.TargetThresholdValue.EngineeringUnits!.Value = ScaleUnits.Kilogram;
+            timeout.AddTimeout(context.Manager.SystemContext);
+            timeout.Timeout!.Value = 1500;
             m_ready.TrySetResult(true);
         }
 

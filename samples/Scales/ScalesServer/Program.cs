@@ -34,6 +34,7 @@ using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Scales.Server.Runtime;
 using ScalesSample;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
@@ -79,6 +80,8 @@ string endpointUrl = new UriBuilder("opc.tcp", bindHost, port, "/ScalesServer").
 // The line creates the scales once the address space is ready; the
 // simulation drives them through the handles it keeps.
 builder.Services.AddSingleton<PackingLine>();
+builder.Services.AddSingleton<IScalePriceCalculator>(
+    new RoundedScalePriceCalculator(2, MidpointRounding.AwayFromZero));
 builder.Services.AddHostedService<ScaleSimulation>();
 
 builder.Services

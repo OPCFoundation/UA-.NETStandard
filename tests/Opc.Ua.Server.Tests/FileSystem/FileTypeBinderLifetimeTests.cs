@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -135,6 +136,85 @@ namespace Opc.Ua.Server.Tests.FileSystem
             (_, List<Variant> output) = await harness.CallAsync("Read", [reader, 4]).ConfigureAwait(false);
             Assert.That(output[0].TryGetValue(out ByteString content), Is.True);
             Assert.That(content.ToArray(), Is.EqualTo(s_initialContent));
+        }
+
+        /// <summary>
+        /// An idle bounded writer releases exclusivity before queued lifecycle continuations run.
+        /// </summary>
+        [Test]
+        public async Task SessionClosureReleasesIdleWriterBeforeDeferredCallbacksAsync()
+        {
+            await using var harness = new Harness();
+            bool committed = false;
+            await harness.BindAsync(commitOnClose: true, commit: (_, _) =>
+            {
+                committed = true;
+                return default;
+            }).ConfigureAwait(false);
+            uint writer = await harness.Binding.OpenAsync(harness.Session.Object.Id, 6).ConfigureAwait(false);
+            await harness.CallGoodAsync("Write", [writer, ByteString.From([9])]).ConfigureAwait(false);
+            var scheduler = new DeferredSynchronizationContext();
+            SynchronizationContext? previous = SynchronizationContext.Current;
+            try
+            {
+                try
+                {
+                    SynchronizationContext.SetSynchronizationContext(scheduler);
+                    harness.CloseSession();
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previous);
+                }
+                Assert.That(harness.File.OpenCount!.Value, Is.Zero);
+                Assert.That(committed, Is.False);
+                (ServiceResult stale, _) = await harness.CallAsync("Read", [writer, 1]).ConfigureAwait(false);
+                Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                harness.Context.SessionId = harness.OtherSession.Object.Id;
+                uint reader = await harness.Binding.OpenAsync(harness.OtherSession.Object.Id, 1).ConfigureAwait(false);
+                (_, List<Variant> output) = await harness.CallAsync("Read", [reader, 4]).ConfigureAwait(false);
+                Assert.That(output[0].TryGetValue(out ByteString content), Is.True);
+                Assert.That(content.ToArray(), Is.EqualTo(s_initialContent));
+                await harness.Binding.CloseAsync(harness.OtherSession.Object.Id, reader).ConfigureAwait(false);
+            }
+            finally
+            {
+                scheduler.RunPostedCallbacks();
+            }
+        }
+
+        /// <summary>
+        /// A failed, completed commit detaches its callback token before the remaining idle handle closes.
+        /// </summary>
+        [Test]
+        public async Task CompletedFailedCommitDetachesCallbackCancellationAsync()
+        {
+            await using var harness = new Harness();
+            CancellationToken callbackToken = default;
+            CancellationTokenRegistration registration = default;
+            bool cancelled = false;
+            await harness.BindAsync(commit: (_, token) =>
+            {
+                callbackToken = token;
+                registration = token.Register(() => cancelled = true);
+                throw new IOException("Publication failed.");
+            }).ConfigureAwait(false);
+            try
+            {
+                uint writer = await harness.Binding.OpenAsync(harness.Session.Object.Id, 7).ConfigureAwait(false);
+                await Assert.ThrowsAsync<IOException>(async () =>
+                    await harness.Binding.CommitAsync(harness.Session.Object.Id, writer).ConfigureAwait(false));
+                harness.CloseSession();
+                Assert.That(callbackToken.IsCancellationRequested, Is.False);
+                Assert.That(cancelled, Is.False);
+                harness.Context.SessionId = harness.OtherSession.Object.Id;
+                uint reader = await harness.Binding.OpenAsync(harness.OtherSession.Object.Id, 1).ConfigureAwait(false);
+                await harness.Binding.CloseAsync(harness.OtherSession.Object.Id, reader).ConfigureAwait(false);
+            }
+            finally
+            {
+                registration.Dispose();
+            }
         }
 
         /// <summary>
@@ -481,6 +561,32 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
         /// <summary>Content published by successful callback cases.</summary>
         private static readonly byte[] s_committedContent = [4, 5];
+
+        /// <summary>
+        /// Holds queued lifecycle continuations until the test explicitly admits them.
+        /// </summary>
+        private sealed class DeferredSynchronizationContext : SynchronizationContext
+        {
+            /// <inheritdoc/>
+            public override void Post(SendOrPostCallback callback, object? state)
+            {
+                m_callbacks.Enqueue(() => callback(state));
+            }
+
+            /// <summary>
+            /// Runs all queued callbacks so failed assertions cannot strand binding disposal.
+            /// </summary>
+            public void RunPostedCallbacks()
+            {
+                while (m_callbacks.TryDequeue(out Action? callback))
+                {
+                    callback();
+                }
+            }
+
+            /// <summary>Retains callbacks in admission order.</summary>
+            private readonly ConcurrentQueue<Action> m_callbacks = new();
+        }
 
         /// <summary>
         /// Creates a generated FileType and a real bounded binding with a controllable session registry.
