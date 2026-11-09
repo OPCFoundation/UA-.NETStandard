@@ -306,7 +306,7 @@ namespace Opc.Ua.Server
             GetServer(manager)?.RevokeServiceLevelControl();
         }
 
-        /// <summary>Retains candidate-owned handles without extending manager lifetimes.</summary>
+        /// <summary>Associates managers with staging servers through weak keys.</summary>
         private static readonly ConditionalWeakTable<IAsyncNodeManager, StagingServer> s_candidates = new();
 
         /// <summary>
