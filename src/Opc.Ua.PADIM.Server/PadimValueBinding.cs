@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -122,7 +123,7 @@ namespace Opc.Ua.PADIM.Server
             };
             var ownedRange = new Range { Low = range.Low, High = range.High };
             PropertyState<EUInformation> engineeringUnits = analog.EngineeringUnits!;
-            Variant previousUnits = Variant.FromStructure(engineeringUnits.Value);
+            EUInformation previousUnits = engineeringUnits.Value;
             PropertyState? previousRangeProperty = analog.EURange;
             Variant previousRange = previousRangeProperty?.Value ?? default;
             bool isRegistered = ReferenceEquals(
@@ -133,7 +134,10 @@ namespace Opc.Ua.PADIM.Server
             analog.AddEURange(m_device.Context, property => property.Value = ownedRange);
             if (isRegistered)
             {
-                m_device.Manager.ReportPropertyValueChanged(m_device.Context, engineeringUnits, previousUnits);
+                if (!EngineeringUnitsEqual(previousUnits, ownedUnits))
+                {
+                    m_device.Manager.ReportSemanticChange(m_device.Context, engineeringUnits);
+                }
                 m_device.Manager.ReportPropertyValueChanged(m_device.Context, analog.EURange!, previousRange);
             }
             return this;
@@ -376,6 +380,71 @@ namespace Opc.Ua.PADIM.Server
                 m_actualVariable.StatusCode = sample.StatusCode;
                 m_actualVariable.Timestamp = sample.SourceTimestamp;
             }
+        }
+
+        /// <summary>
+        /// Compares the unit identity and all retained localized metadata without changing wire-value equality.
+        /// </summary>
+        private static bool EngineeringUnitsEqual(EUInformation? previous, EUInformation current)
+        {
+            return previous != null &&
+                previous.NamespaceUri == current.NamespaceUri &&
+                previous.UnitId == current.UnitId &&
+                LocalizedMetadataEqual(previous.DisplayName, current.DisplayName) &&
+                LocalizedMetadataEqual(previous.Description, current.Description);
+        }
+
+        /// <summary>
+        /// Compares selected text, fallback formatting and translation entries.
+        /// Entry order is ignored only when it does not change retained fallback information.
+        /// </summary>
+        private static bool LocalizedMetadataEqual(LocalizedText previous, LocalizedText current)
+        {
+            TranslationInfo previousInfo = previous.TranslationInfo;
+            TranslationInfo currentInfo = current.TranslationInfo;
+            IReadOnlyDictionary<string, string>? previousTranslations = previous.Translations;
+            IReadOnlyDictionary<string, string>? currentTranslations = current.Translations;
+            // Compare encoded ordering through usable translations, but retain equality for undecodable text.
+            bool selectedTextEqual = previous.Equals(current) ||
+                (previous.IsMultiLanguage && current.IsMultiLanguage &&
+                    previousTranslations?.Count > 0 && currentTranslations?.Count > 0);
+            if (!selectedTextEqual ||
+                (previousInfo with { Args = null }) != (currentInfo with { Args = null }) ||
+                !CoreUtils.IsEqual(previousInfo.Args!, currentInfo.Args!))
+            {
+                return false;
+            }
+
+            if ((previousTranslations?.Count ?? 0) != (currentTranslations?.Count ?? 0))
+            {
+                return false;
+            }
+            if (previousTranslations == null || previousTranslations.Count == 0)
+            {
+                return true;
+            }
+
+            foreach (KeyValuePair<string, string> entry in previousTranslations)
+            {
+                bool found = false;
+                foreach (KeyValuePair<string, string> candidate in currentTranslations!)
+                {
+                    if (string.Equals(entry.Key, candidate.Key, StringComparison.Ordinal))
+                    {
+                        if (!string.Equals(entry.Value, candidate.Value, StringComparison.Ordinal))
+                        {
+                            return false;
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>

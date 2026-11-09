@@ -1314,7 +1314,8 @@ namespace Opc.Ua.Server
             ArrayOf<string> preferredLocales = context.PreferredLocales;
             if (resourceManager == null ||
                 preferredLocales.Count == 0 ||
-                value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.LocalizedText)
+                value.WrappedValue.TypeInfo.BuiltInType is not (
+                    BuiltInType.LocalizedText or BuiltInType.ExtensionObject))
             {
                 return value;
             }

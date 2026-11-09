@@ -112,10 +112,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Selects, for every <see cref="LocalizedText"/> held by the value (a scalar
-        /// or a one-dimensional array), the translation that is the most preferred
-        /// for the requested locales, or all translations when "mul" is requested
-        /// (OPC 10000-4 5.4, OPC 10000-3 8.5). Any other value is returned unchanged.
+        /// Selects translations for scalar or one-dimensional arrays of <see cref="LocalizedText"/>
+        /// and for the DisplayName and Description of <see cref="EUInformation"/> values,
+        /// including elements of mixed ExtensionObject arrays (OPC 10000-4 5.4, OPC 10000-3 8.5).
+        /// Other structures and array dimensions are returned unchanged.
         /// </summary>
         /// <remarks>
         /// The value is never modified in place, so a value stored in the address
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="preferredLocales">The locales of the session, most preferred first.</param>
         /// <param name="value">The value to translate.</param>
-        /// <returns>The value with every localized text translated.</returns>
+        /// <returns>The value with supported localized texts selected.</returns>
         public virtual Variant TranslateValue(ArrayOf<string> preferredLocales, Variant value)
         {
             if (preferredLocales.Count == 0 || value.IsNull)
@@ -146,6 +146,30 @@ namespace Opc.Ua.Server
                     translated[ii] = Translate(preferredLocales, texts[ii]);
                 }
                 return Variant.From(translated.ToArrayOf());
+            }
+
+            if (value.TryGetStructure<EUInformation>(out EUInformation? units) &&
+                units != null && units.GetType() == typeof(EUInformation))
+            {
+                return Variant.FromStructure(TranslateEngineeringUnits(preferredLocales, units));
+            }
+
+            if (value.TryGetValue(out ArrayOf<ExtensionObject> structures))
+            {
+                ExtensionObject[]? translated = null;
+                for (int ii = 0; ii < structures.Count; ii++)
+                {
+                    if (structures[ii].TryGetValue(out EUInformation? element) &&
+                        element != null && element.GetType() == typeof(EUInformation))
+                    {
+                        translated ??= structures.Span.ToArray();
+                        translated[ii] = new ExtensionObject(TranslateEngineeringUnits(preferredLocales, element));
+                    }
+                }
+                if (translated != null)
+                {
+                    return Variant.From(translated.ToArrayOf());
+                }
             }
 
             return value;
@@ -522,6 +546,20 @@ namespace Opc.Ua.Server
             /// Browse display name cost up to a microsecond.
             /// </summary>
             public Dictionary<string, string> Translations { get; init; } = new(StringComparer.Ordinal);
+        }
+
+        /// <summary>
+        /// Selects nested unit texts without modifying the structure stored in the address space.
+        /// </summary>
+        private EUInformation TranslateEngineeringUnits(ArrayOf<string> preferredLocales, EUInformation value)
+        {
+            return new EUInformation
+            {
+                NamespaceUri = value.NamespaceUri,
+                UnitId = value.UnitId,
+                DisplayName = Translate(preferredLocales, value.DisplayName),
+                Description = Translate(preferredLocales, value.Description)
+            };
         }
 
         /// <summary>

@@ -184,6 +184,21 @@ value carries `SemanticsChanged` without changing the acquired value or source
 timestamp. Initial configuration does not report a runtime semantic change.
 Configure metadata separately from concurrent acquisition or remote writes.
 
+Changes to retained translations or fallback formatting also report a semantic
+change, even when the selected text stays the same. Replacing metadata with equal
+translation entries, fallback information, and formatting arguments does not
+report a change. Dictionary insertion order alone does not change retained
+translation entries; encoded `mul` values can also change the fallback derived
+from their first entry.
+
+The server's resource manager selects `EUInformation.DisplayName` and
+`EUInformation.Description` using the session's preferred locales when returning
+read results, data-change notifications, or event fields. Selection creates a new
+structure without modifying the published metadata. The same selection applies
+to `EUInformation` elements in one-dimensional `ExtensionObject` arrays.
+Other structure types, including derived types with additional fields, remain
+unchanged. This is not a general traversal of arbitrary nested structures.
+
 ## Calibration and condition members
 
 Select condition and calibration fields from the actual device or signal

@@ -556,6 +556,97 @@ namespace Opc.Ua.Server.Tests
             Assert.That(value.Locale, Is.EqualTo("en-US"));
         }
 
+        /// <summary>
+        /// Selects both nested texts without modifying the engineering metadata stored in the node.
+        /// </summary>
+        [TestCase("de-DE", "Hallo", "de-DE")]
+        [TestCase("en-US", "Hello", "en-US")]
+        [TestCase("fr-FR", "Hello", "en-US")]
+        public void TranslateValueSelectsEngineeringUnitTexts(
+            string requestedLocale, string expectedText, string expectedLocale)
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            var stored = new EUInformation
+            {
+                NamespaceUri = "urn:units",
+                UnitId = 42,
+                DisplayName = CreateHelloText(),
+                Description = CreateHelloText()
+            };
+
+            Variant result = resourceManager.TranslateValue([requestedLocale], Variant.FromStructure(stored));
+
+            Assert.That(result.TryGetStructure<EUInformation>(out EUInformation? translated), Is.True);
+            Assert.That(translated, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(translated, Is.Not.SameAs(stored));
+                Assert.That(translated!.NamespaceUri, Is.EqualTo(stored.NamespaceUri));
+                Assert.That(translated.UnitId, Is.EqualTo(stored.UnitId));
+                Assert.That(translated.DisplayName.Text, Is.EqualTo(expectedText));
+                Assert.That(translated.DisplayName.Locale, Is.EqualTo(expectedLocale));
+                Assert.That(translated.Description.Text, Is.EqualTo(expectedText));
+                Assert.That(translated.Description.Locale, Is.EqualTo(expectedLocale));
+                Assert.That(stored.DisplayName.Locale, Is.EqualTo("en-US"));
+                Assert.That(stored.DisplayName.Translations, Has.Count.EqualTo(2));
+                Assert.That(stored.Description.Locale, Is.EqualTo("en-US"));
+                Assert.That(stored.Description.Translations, Has.Count.EqualTo(2));
+            });
+        }
+
+        /// <summary>
+        /// Translates engineering units in a mixed array while preserving unrelated and null elements.
+        /// </summary>
+        [Test]
+        public void TranslateValueSelectsEngineeringUnitsInMixedArray()
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            var units = new EUInformation { DisplayName = CreateHelloText(), Description = CreateHelloText() };
+            var range = new Range { Low = 1, High = 2 };
+            ExtensionObject[] stored = [new(units), ExtensionObject.Null, new(range)];
+
+            Variant result = resourceManager.TranslateValue(
+                ["fr-FR", "de-DE"], Variant.From(stored.ToArrayOf()));
+
+            Assert.That(result.TryGetValue(out ArrayOf<ExtensionObject> translated), Is.True);
+            Assert.That(translated.Count, Is.EqualTo(3));
+            Assert.That(translated[0].TryGetValue(out EUInformation? selected), Is.True);
+            Assert.That(selected, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(selected!.DisplayName.Text, Is.EqualTo("Hallo"));
+                Assert.That(selected.Description.Locale, Is.EqualTo("de-DE"));
+                Assert.That(translated[1].IsNull, Is.True);
+                Assert.That(translated[2], Is.EqualTo(stored[2]));
+                Assert.That(units.DisplayName.Locale, Is.EqualTo("en-US"));
+                Assert.That(units.Description.Locale, Is.EqualTo("en-US"));
+                Assert.That(stored[0].TryGetValue(out EUInformation? original), Is.True);
+                Assert.That(original, Is.SameAs(units));
+            });
+        }
+
+        /// <summary>
+        /// Keeps the original structure when no locales are requested and ignores unrelated structures.
+        /// </summary>
+        [Test]
+        public void TranslateValuePreservesUnrequestedAndUnrelatedStructures()
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            var units = new EUInformation { DisplayName = CreateHelloText() };
+            Variant stored = Variant.FromStructure(units);
+            Variant range = Variant.FromStructure(new Range { Low = 1, High = 2 });
+            Variant nullArray = Variant.From(default(ArrayOf<ExtensionObject>));
+            Variant emptyArray = Variant.From(ArrayOf.Empty<ExtensionObject>());
+
+            Assert.That(resourceManager.TranslateValue([], stored), Is.EqualTo(stored));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], range), Is.EqualTo(range));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], nullArray), Is.EqualTo(nullArray));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], emptyArray), Is.EqualTo(emptyArray));
+        }
+
         private static LocalizedText CreateHelloText()
         {
             return new LocalizedText(new Dictionary<string, string>

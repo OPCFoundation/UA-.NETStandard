@@ -143,10 +143,28 @@ namespace Opc.Ua.PADIM.Tests
                     NodeId owner = binding.Variable.NodeId;
                     var analog = (AnalogSignalVariableState)binding.Variable;
                     LocalizedText initial = await ReadTextAsync();
+                    (_, bool equalEvent, bool equalStatus) =
+                        await ObserveChangeAsync(Units("English", "Deutsch"));
+                    (_, bool reorderedEvent, bool reorderedStatus) =
+                        await ObserveChangeAsync(Units("English", "Deutsch", reverseTranslations: true));
                     (LocalizedText germanWire, bool germanEvent, bool germanStatus) =
-                        await ObserveChangeAsync("English", "DeutschChanged");
+                        await ObserveChangeAsync(Units("English", "DeutschChanged"));
                     (LocalizedText controlWire, bool controlEvent, bool controlStatus) =
-                        await ObserveChangeAsync("EnglishChanged", "DeutschChanged");
+                        await ObserveChangeAsync(Units("EnglishChanged", "DeutschChanged"));
+                    (LocalizedText fallbackWire, bool fallbackEvent, bool fallbackStatus) = await ObserveChangeAsync(
+                        Units("EnglishChanged", "DeutschChanged", fallback: "{0}", arguments: ["Fallback"]));
+                    (LocalizedText argumentsWire, bool argumentsEvent, bool argumentsStatus) = await ObserveChangeAsync(
+                        Units("EnglishChanged", "DeutschChanged", fallback: "{0}", arguments: ["ChangedFallback"]));
+                    (_, bool equalArgumentsEvent, bool equalArgumentsStatus) = await ObserveChangeAsync(
+                        Units("EnglishChanged", "DeutschChanged", fallback: "{0}", arguments: ["ChangedFallback"]));
+                    await ObserveChangeAsync(Units("English", "Deutsch", encodedText: "first"));
+                    (_, bool rawTextEvent, bool rawTextStatus) =
+                        await ObserveChangeAsync(Units("English", "Deutsch", encodedText: "second"));
+                    await ObserveChangeAsync(Units("English", "Deutsch",
+                        encodedText: "{\"t\":[[\"en-US\",\"English\"],[\"de-DE\",\"Deutsch\"]]}"));
+                    (_, bool encodedFallbackEvent, bool encodedFallbackStatus) = await ObserveChangeAsync(
+                        Units("English", "Deutsch",
+                            encodedText: "{\"t\":[[\"de-DE\",\"Deutsch\"],[\"en-US\",\"English\"]]}"));
 
                     TestContext.Progress.WriteLine(
                         $"locale={locale}; description={description}; " +
@@ -157,12 +175,38 @@ namespace Opc.Ua.PADIM.Tests
                         AssertWire(initial, "English", "Deutsch");
                         AssertWire(germanWire, "English", "DeutschChanged");
                         AssertWire(controlWire, "EnglishChanged", "DeutschChanged");
+                        Assert.That(equalEvent, Is.False, "Equal metadata must not report a semantic event.");
+                        Assert.That(equalStatus, Is.False, "Equal metadata must not set SemanticsChanged.");
+                        Assert.That(reorderedEvent, Is.False,
+                            "Dictionary insertion order must not report a semantic event.");
+                        Assert.That(reorderedStatus, Is.False,
+                            "Dictionary insertion order must not set SemanticsChanged.");
                         Assert.That(germanEvent, Is.True, "The German-only update must report the affected owner.");
                         Assert.That(germanStatus, Is.True, "The German-only update must set SemanticsChanged.");
                         Assert.That(controlEvent, Is.True,
                             "The default-translation positive control must report an event.");
                         Assert.That(controlStatus, Is.True,
                             "The default-translation positive control must set the bit.");
+                        Assert.That(fallbackEvent, Is.True, "Changed fallback formatting must report an event.");
+                        Assert.That(fallbackStatus, Is.True, "Changed fallback formatting must set the bit.");
+                        Assert.That(fallbackWire, Is.EqualTo(controlWire),
+                            "Fallback formatting changes must be detected even when the selected wire text is equal.");
+                        Assert.That(argumentsEvent, Is.True, "Changed formatting arguments must report an event.");
+                        Assert.That(argumentsStatus, Is.True, "Changed formatting arguments must set the bit.");
+                        Assert.That(argumentsWire, Is.EqualTo(fallbackWire),
+                            "Formatting argument changes must be detected even when the selected wire text is equal.");
+                        Assert.That(equalArgumentsEvent, Is.False,
+                            "Equal argument contents in a new array must not report an event.");
+                        Assert.That(equalArgumentsStatus, Is.False,
+                            "Equal argument contents in a new array must not set the bit.");
+                        Assert.That(rawTextEvent, Is.True,
+                            "Changed mul text without usable translations must report an event.");
+                        Assert.That(rawTextStatus, Is.True,
+                            "Changed mul text without usable translations must set the bit.");
+                        Assert.That(encodedFallbackEvent, Is.True,
+                            "Reordering encoded entries changes the retained first-entry fallback.");
+                        Assert.That(encodedFallbackStatus, Is.True,
+                            "Changing the decoded fallback must set the bit.");
                     });
 
                     async Task<LocalizedText> ReadTextAsync()
@@ -183,7 +227,7 @@ namespace Opc.Ua.PADIM.Tests
                     }
 
                     async Task<(LocalizedText Wire, bool Event, bool Status)> ObserveChangeAsync(
-                        string english, string german)
+                        EUInformation units)
                     {
                         using var phase = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
                         var filter = new EventFilter
@@ -207,7 +251,7 @@ namespace Opc.Ua.PADIM.Tests
                         await using IAsyncEnumerator<EventNotification> events = managed.DefaultStreaming
                             .SubscribeEventsWhenReadyAsync(new NodeId(2253u), filter, _ =>
                             {
-                                binding.WithEngineeringUnits(Units(english, german), new Range(high: 100, low: 0));
+                                binding.WithEngineeringUnits(units, new Range(high: 100, low: 0));
                                 ready = true;
                                 phase.CancelAfter(TimeSpan.FromSeconds(5));
                                 return default;
@@ -245,8 +289,14 @@ namespace Opc.Ua.PADIM.Tests
                         {
                             try
                             {
-                                return await samples.MoveNextAsync() &&
-                                    samples.Current.Value.StatusCode.SemanticsChanged;
+                                while (await samples.MoveNextAsync())
+                                {
+                                    if (samples.Current.Value.StatusCode.SemanticsChanged)
+                                    {
+                                        return true;
+                                    }
+                                }
+                                return false;
                             }
                             catch (OperationCanceledException) when (
                                 ready && phase.IsCancellationRequested && !timeout.IsCancellationRequested)
@@ -299,14 +349,29 @@ namespace Opc.Ua.PADIM.Tests
                 await host.StopAsync(CancellationToken.None);
             }
 
-            EUInformation Units(string english, string german)
+            EUInformation Units(
+                string english,
+                string german,
+                bool reverseTranslations = false,
+                string? fallback = null,
+                object[]? arguments = null,
+                string? encodedText = null)
             {
-                var translations = new Dictionary<string, string>(StringComparer.Ordinal)
+                var translations = new Dictionary<string, string>(StringComparer.Ordinal);
+                if (reverseTranslations)
                 {
-                    ["en-US"] = english,
-                    ["de-DE"] = german
-                };
-                var text = new LocalizedText(translations, new TranslationInfo("unit", "en-US", english));
+                    translations.Add("de-DE", german);
+                    translations.Add("en-US", english);
+                }
+                else
+                {
+                    translations.Add("en-US", english);
+                    translations.Add("de-DE", german);
+                }
+                LocalizedText text = encodedText != null
+                    ? new LocalizedText("mul", encodedText)
+                    : new LocalizedText(
+                        translations, new TranslationInfo("unit", "en-US", fallback ?? english, arguments));
                 return new EUInformation
                 {
                     NamespaceUri = "urn:padim:locale-test",
