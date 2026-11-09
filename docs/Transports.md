@@ -193,7 +193,8 @@ A send that waits longer than `ChannelLifetime` for the peer to read closes the
 channel. This also applies to a channel that serves a Session: Session activity
 keeps such a channel from being closed as idle, but not when its writer is stalled.
 Closing the channel releases the queued responses and logs a warning with the
-wait time and the queued bytes.
+wait time and the queued bytes. The UA-TCP, Kestrel TCP and binary WebSocket
+(`opcua+uacp`) listeners all check their channels every half `ChannelLifetime`.
 
 Hello negotiation also updates TCP and WebSocket receive-buffer sizes. The
 Kestrel pipe transport rents for the actual chunk size instead of the listener
