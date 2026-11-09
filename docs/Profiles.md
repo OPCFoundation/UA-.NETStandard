@@ -194,9 +194,10 @@ canonical URI string before claiming a facet):
   `IFileSystemProvider` in `src/Opc.Ua.Server/FileSystem/`. The
   reference server enables it via the `EnableFileSystemNodeManager`
   option. The matching System.IO-style client lives in
-  [`FileSystemClient`](FileSystemClient.md). The shared file handler rejects
-  combined Read + Write opens. A conflicting write-only open on a writable file
-  can return `Bad_InvalidState` where Part 20 requires `Bad_NotWritable`.
+  [`FileSystemClient`](FileSystemClient.md). Combined Read + Write opens
+  require an `IFileSystemReadWriteProvider`; the server returns
+  `Bad_NotSupported` when the provider lacks it. A conflicting write open can
+  return `Bad_InvalidState` where Part 20 requires `Bad_NotWritable`.
 - **Node Management** (Part 4 service set) —
   `INodeManagementAsyncNodeManager` opt-in plus a per-NodeManager
   `AllowNodeManagement` gate for `AddNodes` / `DeleteNodes` /
@@ -926,7 +927,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-17: Alias Names](https://reference.opcfoundation.org/specs/OPC-10000-17) | 1.05.07 | Full | - |
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
-| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens are rejected. A conflicting write open can return `Bad_InvalidState` instead of `Bad_NotWritable`. |
+| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens require `IFileSystemReadWriteProvider`; conflicting write opens can return `Bad_InvalidState` instead of `Bad_NotWritable` |
 | [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Initial pull cannot request a new key pair, and §7.2 recovery after a lost accepted response is incomplete. Managed-application updates and restart recovery depend on host providers. The Part 22 `Resources` integration is absent, and `ConfigurationFile` transfer is partial. Push acceptance is process-local. Hosts must reconcile registrar and device state before retrying after a restart or interruption. [Details](GDS.md#opc-10000-21-onboardingclient) |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | Defined optional interface, mapping, TSN and LLDP capabilities are provider-backed; production adapters remain application-supplied |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
@@ -1009,7 +1010,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40092-1: Flexible PUR Foam - Cutting Machines](https://reference.opcfoundation.org/specs/OPC-40092-1) | 1.0.0 | No | - |
 | [OPC 40100-1: Machine Vision - Control, Configuration, Recipe and Result Management](https://reference.opcfoundation.org/specs/OPC-40100-1) | 1.0 | Full | - |
 | [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
-| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Notification metadata, statistical equations and immediate GiveAway refresh after nominal writes are implemented. Ordinary notification reentry permits writes from overlapping callbacks. Existing mixed-category reporting and measured-only totals are preserved; Weighed does not represent fixed category participation |
+| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Mixed-category `Weighed` does not represent fixed category participation; ordinary notification reentry permits writes from overlapping callbacks |
 | [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
 | [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Full | Pump Base and Advanced profiles follow verified configured capabilities; Table 155's dependency uses the Table 153 Pump Base URI, while the CAS Base link remains a publication discrepancy |
 | [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |
