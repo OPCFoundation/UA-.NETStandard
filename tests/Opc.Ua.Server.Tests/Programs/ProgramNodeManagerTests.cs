@@ -454,6 +454,35 @@ namespace Opc.Ua.Server.Tests.Programs
         }
 
         [Test]
+        public async Task AutoDeletionRemovesInvocationAfterInternalHaltAsync()
+        {
+            await using Harness harness = await Harness.CreateAsync(autoDelete: true).ConfigureAwait(false);
+            ProgramRuntime runtime = await harness.CreateAsync("Invocation").ConfigureAwait(false);
+            var terminalEvent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            runtime.Node.OnReportEvent = (_, _, value) =>
+            {
+                if (value is ProgramTransitionEventState transition &&
+                    transition.ToState!.Id!.Value.TryGetValue(out NodeId state) &&
+                    state == ObjectIds.ProgramStateMachineType_Halted)
+                {
+                    terminalEvent.TrySetResult(true);
+                }
+            };
+
+            await runtime.ControlAsync(harness.Manager.SystemContext, ProgramControlMethod.Start)
+                .ConfigureAwait(false);
+            ServiceResult result = await runtime.ApplyUpdateAsync(
+                new ProgramExecutionUpdate(runtime.RunId, ProgramState.Halted)).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(terminalEvent.Task.IsCompleted, Is.True);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await harness.Provider.Executions[0].Disposed.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(harness.Manager.Find(runtime.Node.NodeId), Is.Null);
+            Assert.That(harness.Manager.GetInstanceCount(ProgramTypeIds.ManagedProgramType), Is.Zero);
+        }
+
+        [Test]
         public async Task ShutdownRemovesInvocationsAndAwaitsOwnedExecution()
         {
             await using Harness harness = await Harness.CreateAsync(deletable: false).ConfigureAwait(false);
