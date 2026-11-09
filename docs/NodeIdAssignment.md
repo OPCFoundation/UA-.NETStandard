@@ -174,8 +174,8 @@ Minting the same path twice is normal — `AssignNodeIds` walks a subtree
 on every create pass — so the record keeps a witness of the path
 alongside the identifier, and only a *differing* witness is a collision.
 The witness is the tail of the same hash, so two paths would have to
-agree on the identifier and on a further 64 bits before a real collision
-could pass as a re-mint.
+agree on the identifier and on a further 32 bits (`Numeric`) or 64 bits
+(`Guid`, `Opaque`) before a real collision could pass as a re-mint.
 
 Three consequences worth knowing:
 
@@ -188,7 +188,11 @@ Three consequences worth knowing:
   records.
 - The factory never prunes the record. An identifier handed to a client
   remains reserved after its node is removed, so re-minting it for another
-  path is a collision. The record costs roughly 50 bytes per distinct path.
+  path is a collision. The `Numeric` record is one array of 8 byte slots
+  per namespace, kept at most half full: at most 16 bytes and roughly
+  30 ns per distinct path, with no allocation per entry. The `Guid` and
+  `Opaque` record, kept only while collisions are detected, costs roughly
+  50 bytes per distinct path.
 - It covers identifiers the factory mints, not identifiers a caller
   assigns. `String` identifiers cannot collide, so the factory keeps no
   record for them. `Counter` identifiers cannot collide with each other,
