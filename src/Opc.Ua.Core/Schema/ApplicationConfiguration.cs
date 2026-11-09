@@ -1461,6 +1461,23 @@ namespace Opc.Ua
         [DataTypeField(Order = 42)]
         public int MaxMonitoredItemsPerSubscription { get; set; }
 
+        /// <summary>
+        /// The maximum number of select clauses of an EventFilter. CreateMonitoredItems and
+        /// ModifyMonitoredItems return Bad_EventFilterInvalid for an event item whose filter
+        /// has more. Every queued event keeps one field per select clause, so the limit
+        /// bounds the memory a queued event can hold. The value is published in
+        /// <c>Server.ServerCapabilities.MaxSelectClauseParameters</c>.
+        /// A value of zero or less means the server does not impose a limit.
+        /// </summary>
+        /// <value>The maximum number of select clauses of an event filter.</value>
+        [DataTypeField(Order = 43)]
+        public int MaxSelectClauseParameters { get; set; } = DefaultMaxSelectClauseParameters;
+
+        /// <summary>
+        /// The default of <see cref="MaxSelectClauseParameters"/>.
+        /// </summary>
+        public const int DefaultMaxSelectClauseParameters = 256;
+
         private ArrayOf<UserTokenPolicy> m_userTokenPolicies;
         private ArrayOf<string> m_serverProfileArray;
         private ArrayOf<string> m_serverCapabilities;

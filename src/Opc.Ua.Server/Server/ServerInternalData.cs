@@ -1472,6 +1472,12 @@ namespace Opc.Ua.Server
                 m_configuration.ServerConfiguration.MaxMonitoredItemCount);
             serverCapabilities.MaxMonitoredItemsPerSubscription?.Value = (uint)Math.Max(0,
                 m_configuration.ServerConfiguration.MaxMonitoredItemsPerSubscription);
+            // EventFilter limits enforced when an event item is created or modified (zero
+            // means no limit): the select clauses by configuration, the where clause
+            // elements by ContentFilter.MaxElementCount.
+            serverCapabilities.MaxSelectClauseParameters?.Value = (uint)Math.Max(0,
+                m_configuration.ServerConfiguration.MaxSelectClauseParameters);
+            serverCapabilities.MaxWhereClauseParameters?.Value = ContentFilter.MaxElementCount;
             serverCapabilities.MaxMonitoredItemsQueueSize?.Value = (uint)Math.Max(0,
                 m_configuration.ServerConfiguration.DurableSubscriptionsEnabled
                     ? Math.Max(

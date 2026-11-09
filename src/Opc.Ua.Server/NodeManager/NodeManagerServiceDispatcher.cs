@@ -2496,6 +2496,12 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
+                    if (ExceedsSelectClauseLimit(filter!))
+                    {
+                        errors[ii] = StatusCodes.BadEventFilterInvalid;
+                        continue;
+                    }
+
                     // validate the event filter.
                     EventFilter.Result result = filter!.Validate(
                         new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
@@ -3181,6 +3187,12 @@ namespace Opc.Ua.Server
                 // all event subscriptions required an event filter.
 
                 if (!itemToModify.RequestedParameters.Filter.TryGetValue(out EventFilter? filter))
+                {
+                    errors[ii] = StatusCodes.BadEventFilterInvalid;
+                    continue;
+                }
+
+                if (ExceedsSelectClauseLimit(filter!))
                 {
                     errors[ii] = StatusCodes.BadEventFilterInvalid;
                     continue;
@@ -4713,6 +4725,16 @@ namespace Opc.Ua.Server
         /// Server-wide queue and sampling limits for items without a bound source.
         /// </summary>
         private readonly ServerConfiguration m_configuration;
+
+        /// <summary>
+        /// Returns whether an event filter has more select clauses than the server accepts
+        /// (<see cref="ServerConfiguration.MaxSelectClauseParameters"/>, zero for no limit).
+        /// </summary>
+        private bool ExceedsSelectClauseLimit(EventFilter filter)
+        {
+            int maxSelectClauses = m_configuration.MaxSelectClauseParameters;
+            return maxSelectClauses > 0 && filter.SelectClauses.Count > maxSelectClauses;
+        }
 
         /// <summary>
         /// The optional legacy virtual lookup, bound once rather than inspected on a hot path.
