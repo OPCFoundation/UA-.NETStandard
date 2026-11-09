@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Mcp
 {
@@ -96,6 +98,29 @@ namespace Opc.Ua.Mcp
         public string? PcapBaseFolder { get; set; }
 
         /// <summary>
+        /// Host-owned directory for companion package uploads and result downloads.
+        /// Transfers are disabled until an existing directory is explicitly configured.
+        /// </summary>
+        public string? TransferRoot { get; set; }
+
+        /// <summary>
+        /// Maximum bytes in one companion upload or download, enforced while streaming.
+        /// Defaults to 64 MiB; callers of an MCP tool cannot raise this host policy.
+        /// </summary>
+        public long MaxTransferBytes { get; set; } = 64L * 1024 * 1024;
+
+        /// <summary>
+        /// Gets or sets host-only grants and lifecycle limits for privileged and live operations.
+        /// Tool profiles do not enable any of these capabilities.
+        /// </summary>
+        public McpExecutionOptions Execution { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets host-approved X.509 user identities selected by name, never by caller-supplied store paths.
+        /// </summary>
+        public ArrayOf<McpCertificateIdentity> CertificateIdentities { get; set; } = [];
+
+        /// <summary>
         /// Creates options from the well-known environment variables the MCP
         /// tools consume.
         /// </summary>
@@ -103,15 +128,36 @@ namespace Opc.Ua.Mcp
         /// This is the shape a host gets when it does not configure anything,
         /// so an embedded server behaves like the shipped tool by default.
         /// </remarks>
+        /// <exception cref="InvalidOperationException"></exception>
         public static OpcUaMcpOptions FromEnvironment()
         {
-            return new OpcUaMcpOptions
+            var options = new OpcUaMcpOptions
             {
                 NodeSetExportRoot = Environment.GetEnvironmentVariable(
                     "OPCUA_MCP_NODESET_EXPORT_ROOT"),
                 PcapBaseFolder = Environment.GetEnvironmentVariable(
-                    "OPCUA_MCP_PCAP_BASE_FOLDER")
+                    "OPCUA_MCP_PCAP_BASE_FOLDER"),
+                TransferRoot = Environment.GetEnvironmentVariable(
+                    "OPCUA_MCP_TRANSFER_ROOT")
             };
+            string? limit = Environment.GetEnvironmentVariable("OPCUA_MCP_MAX_TRANSFER_BYTES");
+            if (!string.IsNullOrWhiteSpace(limit))
+            {
+                if (!long.TryParse(limit, NumberStyles.None, CultureInfo.InvariantCulture, out long bytes) ||
+                    bytes <= 0)
+                {
+                    throw new InvalidOperationException("OPCUA_MCP_MAX_TRANSFER_BYTES must be a positive integer.");
+                }
+                options.MaxTransferBytes = bytes;
+            }
+            return options;
         }
     }
+
+    /// <summary>
+    /// A named user-certificate selector provisioned by the MCP host.
+    /// </summary>
+    /// <param name="Name">The exact non-secret reference accepted by Connect.</param>
+    /// <param name="Certificate">Store selection; private-key passwords stay with the injected provider.</param>
+    public sealed record McpCertificateIdentity(string Name, X509ClientIdentityOptions Certificate);
 }

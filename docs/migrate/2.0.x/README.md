@@ -1,7 +1,7 @@
 # Migrating from 1.5.378 to 2.0.x
 
 Version **2.0** introduces a major architectural change from pre-generated
-code files to runtime source generation and more efficient memory use,
+code files to compile-time source generation and more efficient memory use,
 with several major breaking changes requiring changes to your applications.
 
 This folder includes all of the 1.5.378 → 2.0 migration content as a
@@ -27,9 +27,10 @@ find the sub-doc that matches the symptom you are seeing.
 
 ## Contents
 
-- [Migration sub-doc index](#migration-sub-doc-index)
-- [All sub-documents](#all-sub-documents)
-- [See also](#see-also)
+- [Migrating from 1.5.378 to 2.0.x](#migrating-from-15378-to-20x)
+  - [Migration sub-doc index](#migration-sub-doc-index)
+  - [All sub-documents](#all-sub-documents)
+  - [See also](#see-also)
 
 ## Migration sub-doc index
 
@@ -40,7 +41,7 @@ table; loading a single sub-doc keeps the context window small.
 | When you hit… | Read |
 | --- | --- |
 | `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`; `[Obsolete]` warnings on built-in type APIs (analyzers `UA0002`–`UA0008`, `UA0014`, `UA0019`) | [`types.md`](types.md) |
-| Loggers (`Utils.LogX`, `Utils.Trace`), removed static logger helpers (`Utils.SetLogger` / `Utils.SetLogLevel`), telemetry context, constructor `ITelemetryContext` parameter changes, OLD-vs-NEW snippets, fluent DI registration (`AddOpcUa().AddLogging().AddMetrics()`), breaking-changes inventory, migration utilities | [`telemetry.md`](telemetry.md) |
+| Loggers (`Utils.LogX`, `Utils.Trace`), removed static logger helpers (`Utils.SetLogger` / `Utils.SetLogLevel`), telemetry context, constructor `ITelemetryContext` parameter changes, OLD-vs-NEW snippets, fluent DI registration (`AddOpcUa().AddLogging().AddMetrics()`), per-area migration links, migration utilities | [`telemetry.md`](telemetry.md) |
 | `OPCFoundation.NetStandard.Opc.Ua.*` package upgrade, TFM changes, Newtonsoft removal | [`packages.md`](packages.md) |
 | Source-generated `*Collection` shims, NodeManager generator, default of boolean properties, project structure | [`source-generation.md`](source-generation.md) |
 | `IEncodeableFactoryBuilder`, `IType`, JSON / XML / binary encoders, `EncodeableFactory.GlobalFactory`, `IJsonEncodeable`, `ComplexTypes` namespace move | [`encoders.md`](encoders.md) |

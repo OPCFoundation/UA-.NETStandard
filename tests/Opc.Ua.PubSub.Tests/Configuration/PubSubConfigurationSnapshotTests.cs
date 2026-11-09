@@ -198,7 +198,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(((PubSubConfigurationIssue[]?)ex.Issues) ?? [], Is.Not.Empty);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0102"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0102"));
         }
 
         [Test]
@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
                 ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0103"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0103"));
         }
 
         [Test]
@@ -263,7 +263,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
                 ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0104"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0104"));
         }
 
         [Test]
@@ -291,7 +291,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
                 ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0106"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0106"));
         }
 
         [Test]
@@ -311,7 +311,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
                 ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0110"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0110"));
         }
 
         [Test]
@@ -347,7 +347,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     () => PubSubConfigurationSnapshot.Create(config))!;
             Assert.That(
                 ((PubSubConfigurationIssue[]?)ex.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0108"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0108"));
         }
 
         [Test]

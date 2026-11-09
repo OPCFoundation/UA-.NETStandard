@@ -222,7 +222,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 ? transaction.AddIssuerCertificateAsync(replacement)
                 : transaction.RemoveIssuerCertificateAsync(original.Thumbprint)).ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transaction.CommitAsync().ConfigureAwait(false));
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -306,7 +306,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await manager.BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
             await transaction.RemoveTrustedCertificateAsync(certificate.Thumbprint).ConfigureAwait(false);
             await transaction.AddIssuerCertificateAsync(certificate).ConfigureAwait(false);
-            IOException thrown = Assert.ThrowsAsync<IOException>(
+            IOException thrown = await Assert.ThrowsAsync<IOException>(
                 async () => await transaction.CommitAsync().ConfigureAwait(false));
             Assert.That(thrown, Is.SameAs(failure));
             Assert.That(notifications, Has.Count.EqualTo(1));
@@ -466,7 +466,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
             await transaction.DisposeAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await transaction.CommitAsync().ConfigureAwait(false));
         }
 
@@ -581,7 +581,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await transaction.AddTrustedCertificateAsync(trustedCert).ConfigureAwait(false);
                 await transaction.AddCrlAsync(crl).ConfigureAwait(false);
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await transaction.CommitAsync().ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
             }
@@ -640,7 +640,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     await transaction.AddCrlAsync(crl).ConfigureAwait(false);
                 }
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await transaction.CommitAsync().ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             }

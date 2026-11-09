@@ -2,13 +2,13 @@
 
 ## Introduction
 
-The minimal console client demonstrates a clean, lightweight OPC UA client implementation using the modern fluent API and dependency injection with `HostApplicationBuilder`. It is designed as an educational reference and starting point for building OPC UA client applications.
+The minimal console client demonstrates the fluent OPC UA API and dependency injection with `HostApplicationBuilder`. Use it as a starting point for building OPC UA client applications.
 
 ## Key Features
 
 - **Fluent DI API**: Uses `HostApplicationBuilder` with fluent `.AddOpcUa()`, `.AddClient()`, `.AddSubscriptions()`, and `.AddAlarms()` configuration
 - **Secure by Default**: Discovers a `SignAndEncrypt` / `Basic256Sha256` endpoint unless `--insecure` is explicitly supplied
-- **Managed Sessions**: Leverages the modern `IManagedSessionFactory` for simplified session management
+- **Managed Sessions**: Uses `IManagedSessionFactory` for session management
 - **Fluent Subscriptions**: Creates a V2 subscription and monitored item with `AddSubscription()` and `TryAddMonitoredItem()`
 - **Dependency Injection**: Fully integrated Microsoft.Extensions.DependencyInjection with host-based lifetime management
 - **Service-Provided Telemetry**: Uses the DI-integrated `ITelemetryContext` for logging, metrics, and activity tracking
@@ -93,8 +93,6 @@ The client follows the patterns described in [DependencyInjection.md](../../../d
 
 This minimal client serves as:
 
-- A clean reference implementation for building OPC UA clients with dependency injection and HostApplicationBuilder
-- A learning resource for understanding the modern OPC UA client stack and fluent DI patterns
 - A template matching the architecture of MinimalBoilerServer for consistency
 - A starting point for custom client applications
 

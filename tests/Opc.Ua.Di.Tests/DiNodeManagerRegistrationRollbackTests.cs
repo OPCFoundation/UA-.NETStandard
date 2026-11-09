@@ -89,7 +89,7 @@ namespace Opc.Ua.Di.Tests
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await m_manager.CreateDeviceAsync(name, cancellationToken: cancelled.Token)
                     .ConfigureAwait(false));
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.Di.Tests
             DeviceState? failed = null;
             bool attached = false;
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await CreateDeviceWithExtensionAsync(
                     name,
                     device => new FailingChildState(device, () =>
@@ -156,7 +156,7 @@ namespace Opc.Ua.Di.Tests
                 throw new InvalidOperationException("Registration failed.");
             };
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await CreateDeviceWithExtensionAsync(
                     name,
                     device => extension = new BaseObjectState(device)).ConfigureAwait(false));
@@ -181,7 +181,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void AFailingRollbackDoesNotReplaceTheOriginalFailure()
+        public async Task AFailingRollbackDoesNotReplaceTheOriginalFailure()
         {
             NodeState deviceSet = DeviceSet();
             QualifiedName name = Name("BrokenTwice");
@@ -197,7 +197,7 @@ namespace Opc.Ua.Di.Tests
             };
             m_manager.FailRemoval = true;
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await CreateDeviceWithExtensionAsync(
                     name,
                     device => extension = new BaseObjectState(device)).ConfigureAwait(false));
@@ -214,7 +214,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void AFailingDetachDoesNotReplaceTheOriginalFailure()
+        public async Task AFailingDetachDoesNotReplaceTheOriginalFailure()
         {
             // The parent is supplied by the caller and RemoveChild is virtual.
             // A detach that threw during the rollback escaped and replaced the
@@ -231,7 +231,7 @@ namespace Opc.Ua.Di.Tests
                 }
             };
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await CreateDeviceWithExtensionAsync(
                     Name("DetachRefused"),
                     device => extension = new BaseObjectState(device),

@@ -160,7 +160,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void OpenAsyncRejectsUntrustedServerCertificateByDefault()
+        public async Task OpenAsyncRejectsUntrustedServerCertificateByDefault()
         {
             // No CertificateValidator on the settings — the channel must
             // fall back to the default TLS chain result, which rejects
@@ -168,7 +168,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             using var channel = new WebApiWssTransportChannel(new TelemetryStub());
             TransportChannelSettings settings = CreateSettings(certificateValidator: null);
 
-            WebSocketException? ex = Assert.ThrowsAsync<WebSocketException>(async () =>
+            WebSocketException? ex = await Assert.ThrowsAsync<WebSocketException>(async () =>
                 await channel
                     .OpenAsync(m_baseUri, settings, CancellationToken.None)
                     .ConfigureAwait(false));

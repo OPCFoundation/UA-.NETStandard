@@ -106,7 +106,7 @@ namespace Opc.Ua.WotCon.Tests
                 .ThrowsAsync(new OperationCanceledException(Canary));
             await using AssetRegistry registry = MakeRegistry(mock.Object, entries);
 
-            Assert.ThrowsAsync(Is.AssignableTo<OperationCanceledException>(), async () =>
+            await Assert.ThrowsAsync(Is.AssignableTo<OperationCanceledException>(), async () =>
                 await registry.DiscoverAssetsAsync(CancellationToken.None).ConfigureAwait(false));
         }
 

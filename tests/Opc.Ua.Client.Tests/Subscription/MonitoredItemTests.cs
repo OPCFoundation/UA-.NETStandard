@@ -31,9 +31,12 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 using Opc.Ua.Tests;
@@ -93,6 +96,141 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(sut.ServerId, Is.EqualTo(serverId));
             Assert.That(sut.Created, Is.True);
             Assert.That(((IMonitoredItemApplyState)sut).HasPendingChanges, Is.False);
+        }
+
+        /// <summary>
+        /// Loaded handles require a modify response for revised parameters, not another create or invented defaults.
+        /// </summary>
+        [Test]
+        public async Task LoadedItemRefreshesRevisedParametersOnceWithoutRecreationAsync()
+        {
+            m_options.Configure(options => options with
+            {
+                StartNodeId = new NodeId("loaded", 2),
+                MonitoringMode = MonitoringMode.Reporting,
+                SamplingInterval = TimeSpan.FromMilliseconds(20),
+                QueueSize = 17
+            });
+            var item = new TestMonitoredItem(m_context, m_options, m_telemetry.CreateLogger("MonitoredItem"));
+            await using (item.ConfigureAwait(false))
+            {
+                item.ApplyLoadState(new MonitoredItemLoadState("loaded", m_options, 42, 7, []));
+                Assert.That(item.TryGetPendingChange(out _), Is.False);
+
+                item.SetTransferResult(42, 9);
+
+                Assert.That(item.TryGetPendingChange(out MonitoredItem.Change? refresh), Is.True);
+                Assert.That(refresh!.ForceRecreate, Is.False);
+                Assert.That(refresh.MonitoringModeChange, Is.Null);
+                MonitoredItemModifyRequest request = refresh.BindModifyRequest()!;
+                Assert.That(request.MonitoredItemId, Is.EqualTo(9));
+                Assert.That(request.RequestedParameters.ClientHandle, Is.EqualTo(42));
+                Assert.That(request.RequestedParameters.SamplingInterval, Is.EqualTo(20));
+                Assert.That(request.RequestedParameters.QueueSize, Is.EqualTo(17));
+                refresh.SetModifyResult(request, new MonitoredItemModifyResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    RevisedSamplingInterval = 1000,
+                    RevisedQueueSize = 19
+                }, 0, [], new ResponseHeader());
+                Assert.That(item.CurrentSamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(1)));
+                Assert.That(item.CurrentQueueSize, Is.EqualTo(19));
+                Assert.That(item.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+                Assert.That(item.ServerId, Is.EqualTo(9));
+                Assert.That(item.TryGetPendingChange(out _), Is.False);
+                item.SetTransferResult(42, 9);
+                Assert.That(item.TryGetPendingChange(out _), Is.False);
+            }
+        }
+
+        /// <summary>
+        /// An options callback between refresh capture and enqueue cannot restore stale monitoring parameters.
+        /// </summary>
+        [Test]
+        public async Task LoadedItemRefreshPreservesOptionsChangedBeforeEnqueueAsync()
+        {
+            var initialFilter = new Mock<DataChangeFilter>();
+            initialFilter.SetupGet(filter => filter.TypeId).Returns(DataTypeIds.DataChangeFilter);
+            var updatedFilter = new DataChangeFilter { Trigger = DataChangeTrigger.StatusValueTimestamp };
+            var captured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var resume = new ManualResetEventSlim();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using TestMonitoredItem item = CreateLoadedItem(initialFilter.Object);
+            int captures = 0;
+            initialFilter.SetupGet(filter => filter.TypeId).Returns(() =>
+            {
+                if (Interlocked.Increment(ref captures) == 1)
+                {
+                    captured.TrySetResult(true);
+                    // The synchronous filter getter runs after options capture but before enqueue.
+                    resume.Wait(deadline.Token);
+                }
+                return DataTypeIds.DataChangeFilter;
+            });
+            Task transfer = Task.Run(() => item.SetTransferResult(42, 9), deadline.Token);
+            ArrayOf<MonitoredItemModifyRequest> requests;
+            try
+            {
+                await captured.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                UpdateMonitoringParameters(updatedFilter);
+                Assert.That(item.TryGetPendingChange(out MonitoredItem.Change? optionsChange), Is.True);
+                Assert.That(optionsChange!.Options, Is.SameAs(m_options.CurrentValue));
+                resume.Set();
+                await transfer.WaitAsync(deadline.Token).ConfigureAwait(false);
+                requests = ApplyPendingModifications(item);
+            }
+            finally
+            {
+                resume.Set();
+                await transfer.WaitAsync(deadline.Token).ConfigureAwait(false);
+            }
+
+            Assert.That(captures, Is.EqualTo(1));
+            Assert.That(requests.Count, Is.EqualTo(2));
+            foreach (MonitoredItemModifyRequest request in requests)
+            {
+                AssertUpdatedMonitoringParameters(request, updatedFilter);
+            }
+            Assert.That(item.CurrentSamplingInterval, Is.EqualTo(TimeSpan.FromMilliseconds(250)));
+            Assert.That(item.CurrentQueueSize, Is.EqualTo(31));
+            Assert.That(m_options.CurrentValue.SamplingInterval, Is.EqualTo(item.CurrentSamplingInterval));
+            Assert.That(m_options.CurrentValue.QueueSize, Is.EqualTo(item.CurrentQueueSize));
+            Assert.That(item.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+            Assert.That(item.ServerId, Is.EqualTo(9));
+            Assert.That(item.HasPendingChanges, Is.False);
+            item.SetTransferResult(42, 9);
+            Assert.That(item.HasPendingChanges, Is.False);
+        }
+
+        /// <summary>
+        /// Sequential options changes on either side of transfer retain the latest requested settings.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LoadedItemRefreshPreservesOptionsBeforeOrAfterTransferAsync(bool updateBeforeTransfer)
+        {
+            var initialFilter = new DataChangeFilter { Trigger = DataChangeTrigger.StatusValue };
+            var updatedFilter = new DataChangeFilter { Trigger = DataChangeTrigger.StatusValueTimestamp };
+            await using TestMonitoredItem item = CreateLoadedItem(initialFilter);
+            if (updateBeforeTransfer)
+            {
+                UpdateMonitoringParameters(updatedFilter);
+            }
+            item.SetTransferResult(42, 9);
+            if (!updateBeforeTransfer)
+            {
+                UpdateMonitoringParameters(updatedFilter);
+            }
+
+            ArrayOf<MonitoredItemModifyRequest> requests = ApplyPendingModifications(item);
+
+            Assert.That(requests.Count, Is.EqualTo(2));
+            AssertUpdatedMonitoringParameters(requests[^1], updatedFilter);
+            Assert.That(item.CurrentSamplingInterval, Is.EqualTo(TimeSpan.FromMilliseconds(250)));
+            Assert.That(item.CurrentQueueSize, Is.EqualTo(31));
+            Assert.That(item.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+            Assert.That(item.ServerId, Is.EqualTo(9));
+            Assert.That(item.HasPendingChanges, Is.False);
         }
 
         /// <summary>
@@ -687,6 +825,78 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(result, Is.EqualTo($"Test#{monitoredItem.ClientHandle}|0 (TestItem)"));
+        }
+
+        /// <summary>
+        /// Creates a healthy saved item that needs its revised parameters refreshed after transfer.
+        /// </summary>
+        private TestMonitoredItem CreateLoadedItem(MonitoringFilter filter)
+        {
+            m_options.Configure(options => options with
+            {
+                StartNodeId = new NodeId("loaded", 2),
+                MonitoringMode = MonitoringMode.Reporting,
+                SamplingInterval = TimeSpan.FromMilliseconds(20),
+                QueueSize = 17,
+                DiscardOldest = true,
+                Filter = filter
+            });
+            var item = new TestMonitoredItem(m_context, m_options, m_telemetry.CreateLogger("MonitoredItem"));
+            item.ApplyLoadState(new MonitoredItemLoadState("loaded", m_options, 42, 7, []));
+            Assert.That(item.HasPendingChanges, Is.False);
+            return item;
+        }
+
+        /// <summary>
+        /// Applies a distinct set of desired monitoring parameters through the real options callback.
+        /// </summary>
+        private void UpdateMonitoringParameters(MonitoringFilter filter)
+        {
+            m_options.Configure(options => options with
+            {
+                SamplingInterval = TimeSpan.FromMilliseconds(250),
+                QueueSize = 31,
+                DiscardOldest = false,
+                Filter = filter
+            });
+        }
+
+        /// <summary>
+        /// Completes every FIFO change using its requested parameters as the server's revised result.
+        /// </summary>
+        private static ArrayOf<MonitoredItemModifyRequest> ApplyPendingModifications(MonitoredItem item)
+        {
+            var requests = new List<MonitoredItemModifyRequest>();
+            while (item.TryGetPendingChange(out MonitoredItem.Change? change))
+            {
+                Assert.That(change.ForceRecreate, Is.False);
+                Assert.That(change.MonitoringModeChange, Is.Null);
+                MonitoredItemModifyRequest request = change.BindModifyRequest()!;
+                Assert.That(request, Is.Not.Null);
+                requests.Add(request);
+                change.SetModifyResult(request, new MonitoredItemModifyResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    RevisedSamplingInterval = request.RequestedParameters.SamplingInterval,
+                    RevisedQueueSize = request.RequestedParameters.QueueSize
+                }, 0, [], new ResponseHeader());
+            }
+            return requests.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Checks the exact latest parameters and preserved transferred identifiers sent to the server.
+        /// </summary>
+        private static void AssertUpdatedMonitoringParameters(
+            MonitoredItemModifyRequest request, DataChangeFilter filter)
+        {
+            Assert.That(request.MonitoredItemId, Is.EqualTo(9));
+            Assert.That(request.RequestedParameters.ClientHandle, Is.EqualTo(42));
+            Assert.That(request.RequestedParameters.SamplingInterval, Is.EqualTo(250));
+            Assert.That(request.RequestedParameters.QueueSize, Is.EqualTo(31));
+            Assert.That(request.RequestedParameters.DiscardOldest, Is.False);
+            Assert.That(request.RequestedParameters.Filter.TryGetValue(out DataChangeFilter? actual), Is.True);
+            Assert.That(actual, Is.SameAs(filter));
         }
 
         private sealed class TestMonitoredItem : MonitoredItem

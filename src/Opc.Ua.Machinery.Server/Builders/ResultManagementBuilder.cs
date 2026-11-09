@@ -135,7 +135,7 @@ namespace Opc.Ua.Machinery.Server.Builders
     /// result-ready events to the result store and exposes the
     /// <see cref="IMachineryResultPublisher"/> that feeds them.
     /// </summary>
-    internal sealed class ResultManagementBuilder : IResultManagementBuilder
+    internal sealed class ResultManagementBuilder : IResultManagementBuilder, IAsyncDisposable
     {
         public static ResultManagementBuilder Create(MachineryBuildScope scope, NodeState machine)
         {
@@ -153,6 +153,18 @@ namespace Opc.Ua.Machinery.Server.Builders
             return new ResultManagementBuilder(scope, management);
         }
 
+        /// <summary>
+        /// Binds an existing derived result-management object without replacing it.
+        /// </summary>
+        internal static ResultManagementBuilder Adopt(
+            MachineryBuildScope scope,
+            ResultManagementState management)
+        {
+            management.EventNotifier |= EventNotifiers.SubscribeToEvents;
+            scope.RecordFacet(MachineryFacet.ResultManagement);
+            return new ResultManagementBuilder(scope, management);
+        }
+
         private ResultManagementBuilder(MachineryBuildScope scope, ResultManagementState state)
         {
             m_scope = scope;
@@ -161,10 +173,19 @@ namespace Opc.Ua.Machinery.Server.Builders
                 state,
                 scope.Context,
                 ResolveOptions(scope));
+            scope.RegisteredResources.Add(this);
+            m_binder.PrepareMethods();
+            scope.PreRegistrationActions.Add(PrepareStoreAsync);
             scope.PostRegistrationActions.Add(BindAsync);
         }
 
         public ResultManagementState State { get; }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            return m_binder.DisposeAsync();
+        }
 
         public IMachineryResultPublisher? Publisher => m_publisher;
 
@@ -199,6 +220,18 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         public IResultManagementBuilder WithResultsFolder(int publishedResults = 4)
         {
+            return WithResultsFolder(
+                publishedResults,
+                static (context, parent, browseName) => context.CreateInstanceOfResultType(parent, browseName));
+        }
+
+        /// <summary>
+        /// Stages the result ring using the selected companion result-variable type.
+        /// </summary>
+        internal IResultManagementBuilder WithResultsFolder(
+            int publishedResults,
+            Func<ISystemContext, NodeState, QualifiedName, ResultState> createResult)
+        {
             if (publishedResults < 0)
             {
                 throw new ArgumentOutOfRangeException(
@@ -211,15 +244,53 @@ namespace Opc.Ua.Machinery.Server.Builders
             m_resultVariables = MachineryResultVariables.Create(
                 m_scope,
                 State.Results!,
-                publishedResults);
+                publishedResults,
+                createResult);
             return this;
         }
 
-        private async ValueTask BindAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// Selects the initialized result-ready event subtype supplied by a companion.
+        /// </summary>
+        internal IResultManagementBuilder WithResultReadyEvents(
+            NodeId eventTypeId,
+            Func<ISystemContext, NodeState, MachineryResult, ResultReadyEventState> createEvent)
         {
-            IMachineryResultStore? store = m_store ??
+            return WithResultReadyEvents([eventTypeId], createEvent);
+        }
+
+        /// <summary>
+        /// Selects a bounded set of event bases before any result can be published.
+        /// </summary>
+        internal IResultManagementBuilder WithResultReadyEvents(
+            ArrayOf<NodeId> eventTypeIds,
+            Func<ISystemContext, NodeState, MachineryResult, ResultReadyEventState> createEvent)
+        {
+            m_scope.EnsureMutable();
+            m_binder.SetEventFactory(eventTypeIds, createEvent);
+            return this;
+        }
+
+        /// <summary>
+        /// Selects validated per-result field and acquisition-metadata projection.
+        /// </summary>
+        internal IResultManagementBuilder WithResultProjection(
+            Func<MachineryResult, Action<ISystemContext, ResultState>> prepareProjection)
+        {
+            m_scope.EnsureMutable();
+            m_prepareProjection = prepareProjection;
+            return this;
+        }
+
+        /// <summary>
+        /// Resolves the store before exposing its result-management node.
+        /// </summary>
+        private ValueTask PrepareStoreAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            m_store ??=
                 m_scope.BuildContext.GetService<IMachineryResultStore>();
-            if (store == null)
+            if (m_store == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
@@ -227,7 +298,12 @@ namespace Opc.Ua.Machinery.Server.Builders
                     "WithStore() or WithInMemoryStore(), or register an " +
                     "IMachineryResultStore in the application services.");
             }
+            return default;
+        }
 
+        private async ValueTask BindAsync(CancellationToken cancellationToken)
+        {
+            IMachineryResultStore store = m_store!;
             // The publisher writes to the store the application bound; only
             // the read paths go through the metadata check below.
             IMachineryResultStore boundStore = store;
@@ -302,15 +378,19 @@ namespace Opc.Ua.Machinery.Server.Builders
                 : new MachineryServerOptions();
         }
 
-        internal ValueTask RaiseResultReadyAsync(
+        internal async ValueTask RaiseResultReadyAsync(
             MachineryResult result,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Action<ISystemContext, ResultState>? projection = null)
         {
-            _ = cancellationToken;
-            m_resultVariables?.Publish(m_scope.Context, result);
-            m_binder.RaiseResultReady(result);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_resultVariables != null)
+            {
+                await m_resultVariables.PublishAsync(m_scope.Context, result, projection, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            await m_binder.RaiseResultReadyAsync(result, projection, cancellationToken).ConfigureAwait(false);
             m_scope.RecordFacet(MachineryFacet.ResultEvents);
-            return default;
         }
 
         private readonly MachineryBuildScope m_scope;
@@ -320,6 +400,9 @@ namespace Opc.Ua.Machinery.Server.Builders
         private MachineryResultVariables? m_resultVariables;
         private bool m_transferRequested;
         private bool m_predefinedMetaData;
+
+        /// <summary>Captures immutable companion fields once for each newly published result.</summary>
+        private Func<MachineryResult, Action<ISystemContext, ResultState>>? m_prepareProjection;
 
         private sealed class ResultPublisher : IMachineryResultPublisher
         {
@@ -341,10 +424,17 @@ namespace Opc.Ua.Machinery.Server.Builders
                 {
                     PredefinedResultMetaData.Validate(result, onIngestion: true);
                 }
+                Action<ISystemContext, ResultState>? projection = null;
+                if (m_owner.m_prepareProjection != null)
+                {
+                    projection = m_owner.m_prepareProjection(result) ??
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                            "The companion result projection factory returned null.");
+                }
                 await MachineryResultIngestion
                     .StoreAsync(m_store, result, cancellationToken)
                     .ConfigureAwait(false);
-                await m_owner.RaiseResultReadyAsync(result, cancellationToken)
+                await m_owner.RaiseResultReadyAsync(result, cancellationToken, projection)
                     .ConfigureAwait(false);
             }
 

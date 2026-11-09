@@ -51,7 +51,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
-            server.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            var namespaceUris = new NamespaceTable();
+            server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
+            server.Setup(s => s.TypeTree).Returns(new TypeTable(namespaceUris));
+            server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
             var nodeManagerFactory = new Mock<IMainNodeManagerFactory>();
             var configurationNodeManager = new Mock<IConfigurationNodeManager>();
             configurationNodeManager.Setup(n => n.NamespaceUris).Returns([]);
@@ -72,8 +75,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                         MaxBrowseContinuationPoints = 10
                     }
                 },
-                null,
-                Array.Empty<IAsyncNodeManager>());
+                null);
             ArrayOf<NodeId> input =
             [
                 new NodeId("Temperature", 2),

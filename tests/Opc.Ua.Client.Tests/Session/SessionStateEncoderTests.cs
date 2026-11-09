@@ -104,7 +104,8 @@ namespace Opc.Ua.Client.Tests
                 Timestamp = timestamp,
                 TriggeringItemId = 50,
                 TriggeredItems = [300, 301, 302],
-                CacheQueueSize = 5
+                CacheQueueSize = 5,
+                ResolvedNodeId = new NodeId(43, 2)
             };
 
             MonitoredItemState decoded = RoundTrip(original);
@@ -126,6 +127,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.TriggeringItemId, Is.EqualTo(50u));
             Assert.That(decoded.TriggeredItems.Count, Is.EqualTo(3));
             Assert.That(decoded.CacheQueueSize, Is.EqualTo(5u));
+            Assert.That(decoded.ResolvedNodeId, Is.EqualTo(new NodeId(43, 2)));
         }
 
         [Test]

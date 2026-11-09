@@ -35,12 +35,15 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Nodes
 {
+    /// <summary>
+    /// Contains tests for type table.
+    /// </summary>
     [TestFixture]
     [Category("TypeTable")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class TypeTableTests
+    public partial class TypeTableTests
     {
         private static readonly NodeId s_rootTypeId = new(1000);
         private static readonly NodeId s_childTypeId = new(1001);
@@ -570,11 +573,14 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Is.False);
         }
 
+        /// <summary>
+        /// An unknown reference type has an OPC UA null browse name on every target framework.
+        /// </summary>
         [Test]
-        public void FindReferenceTypeNameReturnsDefaultForUnknownType()
+        public void FindReferenceTypeNameReturnsNullForUnknownType()
         {
             QualifiedName result = m_typeTable.FindReferenceTypeName(s_unknownTypeId);
-            Assert.That(result, Is.Default);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]

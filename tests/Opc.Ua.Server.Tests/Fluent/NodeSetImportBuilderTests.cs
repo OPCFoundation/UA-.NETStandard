@@ -321,7 +321,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void ReplacingAConfiguredPlaceholderIsRejected()
+        public async Task ReplacingAConfiguredPlaceholderIsRejected()
         {
             Harness harness = Harness.Create(CreateTypedValueProvider());
             var parent = new GeneratedLikeObjectState(null!)
@@ -350,7 +350,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                   </UAVariable>
                 """));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.CompleteAsync().ConfigureAwait(false));
 
             Assert.That(exception.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
@@ -390,8 +390,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                   </UAObject>
                 """));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.Builder.SealAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.Builder.SealAsync().ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
         }

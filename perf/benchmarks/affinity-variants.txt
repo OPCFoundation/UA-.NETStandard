@@ -1,0 +1,5 @@
+# Processor placement on the AMD Ryzen AI 9 HX 370: logical 0-7 = 4 Zen 5 (performance) cores, 8-23 = 8 Zen 5c cores
+default||
+server-p|SERVER_DOTNET_PROCESSOR_COUNT=8|--server-affinity 0xFF
+server-p-clients-e|SERVER_DOTNET_PROCESSOR_COUNT=8|--server-affinity 0xFF --client-affinity 0xFFFF00
+server-e-clients-p|SERVER_DOTNET_PROCESSOR_COUNT=16|--server-affinity 0xFFFF00 --client-affinity 0xFF

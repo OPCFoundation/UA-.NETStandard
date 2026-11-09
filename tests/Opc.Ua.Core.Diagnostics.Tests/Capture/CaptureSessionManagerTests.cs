@@ -214,7 +214,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
             var factory = new StubSourceFactory();
             await using var manager = new CaptureSessionManager(factory, TempDirectory);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await manager.RemoveAsync("missing", CancellationToken.None)
                     .ConfigureAwait(false));
         }

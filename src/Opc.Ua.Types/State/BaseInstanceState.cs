@@ -299,22 +299,44 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets the flag which indicates whether event are being monitored for the instance and its children.
+        /// Reports an event and propagates it to the parent.
         /// </summary>
+        /// <remarks>
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while reporting an event, synchronous sinks must not
+        /// block on work that needs the same gate. The synchronous path also waits for asynchronous sinks,
+        /// which must not await such work.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         public override void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-            base.ReportEvent(context, e);
-
-            // recursively notify the parent.
-            Parent?.ReportEvent(context, e);
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
+            {
+                if (!entered)
+                {
+                    return;
+                }
+                ReportEventCore(context, e);
+                Parent?.ReportEvent(context, e);
+            }
         }
 
         /// <summary>
-        /// Asynchronously reports an event and recursively notifies the parent, awaiting any
-        /// asynchronous report sink so the caller is never blocked.
+        /// Asynchronously reports an event and propagates it to the parent. Asynchronous sinks and
+        /// parent reporting are awaited; synchronous sinks are invoked directly.
         /// </summary>
+        /// <remarks>
+        /// This method does not invoke overrides of <see cref="ReportEvent"/>. A subclass that
+        /// customizes synchronous event reporting must also override this method to apply that
+        /// customization to asynchronous calls.
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while invoking or awaiting this method, report-event sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -323,12 +345,19 @@ namespace Opc.Ua
             IFilterTarget e,
             CancellationToken cancellationToken = default)
         {
-            await base.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
-
-            // recursively notify the parent.
-            if (Parent != null)
+            cancellationToken.ThrowIfCancellationRequested();
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
             {
-                await Parent.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
+                if (!entered)
+                {
+                    return;
+                }
+                await ReportEventCoreAsync(context, e, cancellationToken).ConfigureAwait(false);
+                if (Parent != null)
+                {
+                    await Parent.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
+                }
             }
         }
 

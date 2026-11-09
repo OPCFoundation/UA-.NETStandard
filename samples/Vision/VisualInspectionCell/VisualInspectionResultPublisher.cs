@@ -33,7 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Vision.VisualInspectionCell
 {
@@ -65,15 +65,9 @@ namespace Vision.VisualInspectionCell
             var qualifiedName = new QualifiedName(resultId, target.InstanceNamespaceIndex);
             InspectionResultState state = context.CreateInstanceOfInspectionResultType(
                 target.ResultsFolder, qualifiedName);
-            state.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
-            if (state.ResultId != null)
-            {
-                state.ResultId.Value = resultId;
-            }
-            if (state.CreationTime != null)
-            {
-                state.CreationTime.Value = timestamp;
-            }
+            state.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+            state.ResultId?.Value = resultId;
+            state.CreationTime?.Value = timestamp;
             state.AddSensor(context);
             state.CreateOrReplaceSensor(context, null).Value = target.SensorNodeId;
             state.AddPipeline(context);

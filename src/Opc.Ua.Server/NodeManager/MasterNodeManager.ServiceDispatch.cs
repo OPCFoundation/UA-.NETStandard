@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
     /// here stay on <see cref="MasterNodeManager"/> so overrides, protected access, and
     /// the public API surface are unchanged.
     /// </summary>
-    public partial class MasterNodeManager
+    public partial class MasterNodeManager : IRequestRouting
     {
         /// <summary>
         /// Determine the required history access permission depending on the HistoryUpdateDetails
@@ -104,6 +104,44 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        OperationContext.RoutingScope IRequestRouting.CaptureRequest(OperationContext context)
+        {
+            return m_serviceDispatch.CaptureRouting(context);
+        }
+
+        /// <inheritdoc/>
+        void IRequestRouting.PinRequest(OperationContext context)
+        {
+            // These services recapture routing after their mutation-admission wait.
+            if (context.RequestType is RequestType.AddNodes or
+                RequestType.DeleteNodes or
+                RequestType.AddReferences or
+                RequestType.DeleteReferences)
+            {
+                return;
+            }
+            context.PinRouting(m_nodeManagers);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> IRequestRouting.GetManagerHandleAsync(
+            OperationContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            return m_serviceDispatch.GetManagerHandleAsync(context, nodeId, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<NodeState?> IRequestRouting.FindNodeInAddressSpaceAsync(
+            OperationContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            return m_serviceDispatch.FindNodeInAddressSpaceAsync(context, nodeId, cancellationToken);
+        }
+
+        /// <inheritdoc/>
         public virtual object? GetManagerHandle(NodeId nodeId, out INodeManager? nodeManager)
         {
             return m_serviceDispatch.GetManagerHandle(nodeId, out nodeManager);
@@ -126,6 +164,29 @@ namespace Opc.Ua.Server
             GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             return m_serviceDispatch.GetManagerHandleAsync(nodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Checks whether a node is currently published by any NodeManager.
+        /// </summary>
+        /// <remarks>
+        /// The query reads the live routing, so a caller inside a dispatched service call, such as a method
+        /// callback that has just published a NodeManager, sees what was committed after the call captured its
+        /// routing image. The result is a live published-existence answer only. It is not a retained captured
+        /// service handle: the handle resolved by the lookup is discarded, the ambient captured routing image is
+        /// not promoted, and the answer must not be used to perform later service operations. The lookup goes
+        /// through <see cref="GetManagerHandleAsync"/> exactly once.
+        /// </remarks>
+        /// <param name="nodeId">The node to look up.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>True if a NodeManager resolves a handle for the node.</returns>
+        public async ValueTask<bool> IsNodeMaterializedAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
+        {
+            (object? handle, IAsyncNodeManager? _) = await GetManagerHandleAsync(nodeId, cancellationToken)
+                .ConfigureAwait(false);
+            return handle is not null;
         }
 
         /// <summary>
@@ -961,32 +1022,29 @@ namespace Opc.Ua.Server
                     AccessRestrictionType.ApplyRestrictionsToBrowse;
 
                 bool browseOperation =
-                    context.RequestType
+                    context?.RequestType
                         is RequestType.Browse
                             or RequestType.BrowseNext
                             or RequestType.TranslateBrowsePathsToNodeIds;
 
-                // Access restriction validation runs while a request is being processed,
-                // which always carries a channel context with an endpoint description.
-                EndpointDescription endpointDescription =
-                    context.ChannelContext!.EndpointDescription!;
+                // Notifications have no incoming request channel. Only the subscriber's
+                // session endpoint can supply their transport security, never the reporter.
+                EndpointDescription? endpointDescription =
+                    context?.ChannelContext?.EndpointDescription ??
+                    MonitoredReadAuthorization.GetEndpoint(context?.Session);
 
                 if ((
                         encryptionRequired &&
-                        endpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        endpointDescription.TransportProfileUri !=
-                            Profiles.HttpsBinaryTransport &&
+                        !MonitoredReadAuthorization.IsConfidential(endpointDescription) &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
                     (
                         signingRequired &&
-                        endpointDescription.SecurityMode != MessageSecurityMode.Sign &&
-                        endpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        endpointDescription.TransportProfileUri !=
-                            Profiles.HttpsBinaryTransport &&
+                        endpointDescription?.SecurityMode != MessageSecurityMode.Sign &&
+                        !MonitoredReadAuthorization.IsConfidential(endpointDescription) &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
-                    (sessionRequired && context.Session == null))
+                    (sessionRequired && context?.Session == null))
                 {
                     serviceResult = ServiceResult.Create(
                         StatusCodes.BadSecurityModeInsufficient,

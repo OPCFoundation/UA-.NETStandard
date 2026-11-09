@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Schema;
 
 namespace Opc.Ua
@@ -1930,7 +1931,7 @@ namespace Opc.Ua
 
         [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 10, Level = LogLevel.Warning,
             Message = "Data type not found: {Message}")]
-        public static partial void DataTypeNotFound(this ILogger logger, string message);
+        public static partial void DataTypeNotFound(this ILogger logger, [SensitiveText] string message);
 
         [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 11, Level = LogLevel.Warning,
             Message = "Datatype {NodeId} was not found.")]

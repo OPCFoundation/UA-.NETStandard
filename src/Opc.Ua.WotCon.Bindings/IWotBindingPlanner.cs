@@ -52,7 +52,8 @@ namespace Opc.Ua.WotCon.Bindings
             string? baseUri = null,
             WotBindingBounds? bounds = null,
             ImmutableDictionary<string, string>? namespacePrefixes = null,
-            WotEventSelectionCatalog? eventSelections = null)
+            WotEventSelectionCatalog? eventSelections = null,
+            WotBindingProcessingMode processingMode = WotBindingProcessingMode.Current)
         {
             SecurityDefinitions = securityDefinitions ?? ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             Codecs = codecs ?? WotPayloadCodecRegistry.Default;
@@ -61,6 +62,7 @@ namespace Opc.Ua.WotCon.Bindings
             Bounds = bounds ?? WotBindingBounds.Default;
             NamespacePrefixes = namespacePrefixes ?? ImmutableDictionary<string, string>.Empty;
             EventSelections = eventSelections ?? WotEventSelectionCatalog.Empty;
+            ProcessingMode = processingMode;
         }
 
         /// <summary>
@@ -111,6 +113,16 @@ namespace Opc.Ua.WotCon.Bindings
         /// with a field list the document does not state.
         /// </remarks>
         public WotEventSelectionCatalog EventSelections { get; }
+
+        /// <summary>
+        /// Gets the caller-selected Binding processing mode.
+        /// </summary>
+        public WotBindingProcessingMode ProcessingMode { get; }
+
+        /// <summary>
+        /// Gets the resolved local interactions and their payload-schema facts.
+        /// </summary>
+        public ArrayOf<WotProjectedAffordance> ProjectedAffordances { get; internal init; }
     }
 
     /// <summary>
@@ -285,10 +297,17 @@ namespace Opc.Ua.WotCon.Bindings
 
         /// <summary>
         /// Gets the security floor an <c>auto</c> security scheme puts on
-        /// endpoint selection (<c>uav:minimumSecurity</c>, WoT Binding
-        /// Section 5.7.1), or <c>null</c> when the document constrains nothing.
+        /// endpoint selection when all alternatives share that floor.
+        /// Otherwise each entry of <see cref="OpcUaSecurityRequirements"/>
+        /// carries its own floor.
         /// </summary>
         public WotSecurityFloor? SecurityFloor { get; }
+
+        /// <summary>
+        /// Gets exact OPC UA security alternatives. Each entry is a conjunction;
+        /// a session must satisfy an entry. Empty means no exact constraints.
+        /// </summary>
+        public ArrayOf<WotOpcUaSecurityRequirement> OpcUaSecurityRequirements { get; private init; }
 
         /// <summary>
         /// Gets the optional Section 13 occurrence-action argument policy.
@@ -298,6 +317,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Returns a copy of this entry with the supplied executability.
         /// </summary>
+        /// <param name="isExecutable">The executable flag supplied by the caller.</param>
         public WotCompiledForm WithExecutable(bool isExecutable)
         {
             if (isExecutable == IsExecutable)
@@ -309,7 +329,8 @@ namespace Opc.Ua.WotCon.Bindings
                 Endpoint, Addressing, OperationInfo, Payload, Security, isExecutable, TargetMapping,
                 EventSelection, SecurityFloor)
             {
-                ConditionInvocation = ConditionInvocation
+                ConditionInvocation = ConditionInvocation,
+                OpcUaSecurityRequirements = OpcUaSecurityRequirements
             };
         }
 
@@ -335,13 +356,15 @@ namespace Opc.Ua.WotCon.Bindings
                 Endpoint, Addressing, OperationInfo, Payload, Security, IsExecutable, targetMapping,
                 EventSelection, SecurityFloor)
             {
-                ConditionInvocation = ConditionInvocation
+                ConditionInvocation = ConditionInvocation,
+                OpcUaSecurityRequirements = OpcUaSecurityRequirements
             };
         }
 
         /// <summary>
         /// Returns a compiled form carrying the Condition invocation policy.
         /// </summary>
+        /// <param name="invocation">The WoT condition invocation.</param>
         public WotCompiledForm WithConditionInvocation(WotConditionInvocation? invocation)
         {
             if (ReferenceEquals(invocation, ConditionInvocation))
@@ -353,7 +376,24 @@ namespace Opc.Ua.WotCon.Bindings
                 Endpoint, Addressing, OperationInfo, Payload, Security, IsExecutable, TargetMapping,
                 EventSelection, SecurityFloor)
             {
-                ConditionInvocation = invocation
+                ConditionInvocation = invocation,
+                OpcUaSecurityRequirements = OpcUaSecurityRequirements
+            };
+        }
+
+        /// <summary>
+        /// Returns a compiled form carrying exact OPC UA security alternatives.
+        /// </summary>
+        public WotCompiledForm WithOpcUaSecurityRequirements(ArrayOf<WotOpcUaSecurityRequirement> requirements)
+        {
+            WotOpcUaSecurityRequirement.Validate(requirements, nameof(requirements));
+            return new WotCompiledForm(
+                Binding, AffordanceKind, AffordanceName, JsonPointer, Operation, OpToken,
+                Endpoint, Addressing, OperationInfo, Payload, Security, IsExecutable, TargetMapping,
+                EventSelection, SecurityFloor)
+            {
+                ConditionInvocation = ConditionInvocation,
+                OpcUaSecurityRequirements = requirements
             };
         }
     }

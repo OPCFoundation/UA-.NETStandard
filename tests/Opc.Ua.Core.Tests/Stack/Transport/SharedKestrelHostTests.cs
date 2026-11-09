@@ -126,12 +126,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 acc => MakeStubHost(),
                 kThumbprint).ConfigureAwait(false);
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
+            InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key,
                     null!,
                     "/test",
                     acc => MakeStubHost(),
-                    kOtherThumbprint).ConfigureAwait(false))!;
+                    kOtherThumbprint).ConfigureAwait(false)))!;
             Assert.That(ex.Message, Does.Contain(kThumbprint));
             Assert.That(ex.Message, Does.Contain(kOtherThumbprint));
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1));
@@ -155,13 +156,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 kThumbprint,
                 "mtls=1").ConfigureAwait(false);
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
+            InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key,
                     null!,
                     "/second",
                     acc => MakeStubHost(),
                     kThumbprint,
-                    "mtls=0").ConfigureAwait(false))!;
+                    "mtls=0").ConfigureAwait(false)))!;
             Assert.That(ex.Message, Does.Contain("mtls=0"));
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1));
 
@@ -208,9 +210,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task AcquireValidatesArgumentsAsync()
         {
             SharedHostKey key = NewKey();
-            Assert.ThrowsAsync<ArgumentNullException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key, null!, "/test", null!, kThumbprint).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
+            await Assert.ThrowsAsync<ArgumentException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key, null!, "/test", acc => MakeStubHost(), string.Empty).ConfigureAwait(false));
         }
 
@@ -345,7 +347,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             var restoredCertificate = new DisposeTracker();
             int restored = 0;
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await SharedKestrelHostRegistry.Instance.RotateCertificateAsync(
                     key, listenerA,
                     _ => throw new InvalidOperationException("new host failed"),
@@ -355,7 +357,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         restored++;
                         acc.Instance!.OwnCertificate(restoredCertificate);
                         return MakeStubHost();
-                    }).ConfigureAwait(false))!;
+                    }).ConfigureAwait(false)))!;
 
             Assert.That(ex.Message, Is.EqualTo("new host failed"));
             Assert.That(restored, Is.EqualTo(1));

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <RootNamespace>Opc.Ua.Recycling.Operator.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Opc.Ua.Recycling.Operator.Tests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.Playwright" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\samples\Recycling\RecyclingOperatorConsole\RecyclingOperatorConsole.csproj" />
+    <ProjectReference Include="..\..\samples\Recycling\RecyclingServer\RecyclingServer.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Recycling.Samples.Tests\Opc.Ua.Recycling.Samples.Tests.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\samples\Recycling\RecyclingOperatorConsole\wwwroot\**\*"
+             Link="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

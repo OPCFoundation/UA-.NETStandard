@@ -3,12 +3,51 @@
 ## Contents
 
 - [Overview](#overview)
-- **[Architecture](#architecture)** and **[Scope](#scope)** — what's implemented and how it fits together.
-- **[Server developer guide](#server-developer-guide)** — quick start, fluent builder, the registry, per-NodeManager wiring, annotations, configuration node.
-- **[Provider author guide](#provider-author-guide)** — interface-by-interface contract for a custom historian, including resume tokens, pagination, status codes, error semantics, and thread safety.
-- **[Client developer guide](#client-developer-guide)** — `HistoryClient` usage patterns.
+- [Architecture](#architecture)
+- [Scope](#scope)
+- [Server developer guide](#server-developer-guide)
+  - [Quick start: in-memory provider](#quick-start-in-memory-provider)
+  - [Fluent builder (`server.UseHistorian()…`)](#fluent-builder-serverusehistorian)
+  - [Fluent server API integration (`builder.Variable<T>(...).Historize()`)](#fluent-server-api-integration-buildervariablethistorize)
+  - [Per-NodeManager `GetHistorianProvider` override](#per-nodemanager-gethistorianprovider-override)
+  - [Server-wide registry (`IHistorianRegistryProvider`)](#server-wide-registry-ihistorianregistryprovider)
+  - [Provider resolution order](#provider-resolution-order)
+  - [Startup advertisement reconciliation](#startup-advertisement-reconciliation)
+  - [Annotations](#annotations)
+  - [`HistoricalDataConfigurationType` companion object](#historicaldataconfigurationtype-companion-object)
+  - [Aggregate-filtered monitored items](#aggregate-filtered-monitored-items)
+  - [`ServerSystemContext.Server`](#serversystemcontextserver)
+- [Provider author guide](#provider-author-guide)
+  - [Recommended base class](#recommended-base-class)
+  - [Capability interfaces](#capability-interfaces)
+  - [`HistorianOperationContext`](#historianoperationcontext)
+  - [Read pagination — `HistorianResumeToken` and `HistorianPage<T>`](#read-pagination--historianresumetoken-and-historianpaget)
+  - [Update semantics and status codes](#update-semantics-and-status-codes)
+  - [Atomic batch updates (`IHistorianTransactionalProvider`)](#atomic-batch-updates-ihistoriantransactionalprovider)
+  - [Modified history](#modified-history)
+  - [Processed (aggregate) reads](#processed-aggregate-reads)
+  - [At-time reads](#at-time-reads)
+  - [Annotations](#annotations-1)
+  - [Structured history data](#structured-history-data)
+  - [Event history](#event-history)
+  - [Per-node capabilities](#per-node-capabilities)
+  - [Thread safety](#thread-safety)
+  - [Cancellation](#cancellation)
+  - [Example: minimal `IHistorianDataProvider` skeleton](#example-minimal-ihistoriandataprovider-skeleton)
+- [Client developer guide](#client-developer-guide)
+  - [Constructing a `HistoryClient`](#constructing-a-historyclient)
+  - [Bounded pages and session lifetime](#bounded-pages-and-session-lifetime)
+  - [Reads — `IAsyncEnumerable<T>` with automatic continuation handling](#reads--iasyncenumerablet-with-automatic-continuation-handling)
+  - [Writes](#writes)
+  - [Discovery — capabilities and configuration](#discovery--capabilities-and-configuration)
 - [Automatic value capture](#automatic-value-capture)
-- **[Capability discovery](#capability-discovery)** and **[Auditing](#auditing)**.
+  - [Pipeline](#pipeline)
+  - [What triggers a capture](#what-triggers-a-capture)
+  - [Opting out](#opting-out)
+  - [Tuning](#tuning)
+  - [Implementing `IHistorianBulkInsertProvider`](#implementing-ihistorianbulkinsertprovider)
+- [Capability discovery](#capability-discovery)
+- [Auditing](#auditing)
 - [Part 11 profile conformance catalog](#part-11-profile-conformance-catalog)
 - [Limitations and roadmap](#limitations-and-roadmap)
 
@@ -21,46 +60,20 @@ time-series storage engine. `Opc.Ua.Server` also includes an
 
 ## Architecture
 
-```
-┌───────────────────────────────────────────────────────────────┐
-│                      OPC UA Client                            │
-│                                                               │
-│  Opc.Ua.Client.Historian.HistoryClient                        │
-│    ├ ReadRawAsync / ReadModifiedAsync     (IAsyncEnumerable)  │
-│    ├ ReadAtTimeAsync / ReadProcessedAsync (IAsyncEnumerable)  │
-│    ├ ReadAnnotationsAsync / ReadEventsAsync                   │
-│    ├ InsertAsync / ReplaceAsync / UpdateAsync                 │
-│    ├ InsertEventsAsync / ReplaceEventsAsync                   │
-│    ├ UpdateEventsAsync / DeleteEventsAsync                    │
-│    ├ DeleteRawAsync / DeleteAtTimeAsync                       │
-│    ├ UpdateStructureDataAsync / WriteAnnotationsAsync         │
-│    ├ GetServerCapabilitiesAsync / GetConfigurationAsync       │
-│    └ session.Historian() extension                            │
-└──────────┬────────────────────────────────────────────────────┘
-           │  HistoryRead / HistoryUpdate (binary or HTTPS)
-           ▼
-┌───────────────────────────────────────────────────────────────┐
-│                      OPC UA Server                            │
-│                                                               │
-│  Opc.Ua.Server.AsyncCustomNodeManager / CustomNodeManager2    │
-│    HistoryReadAsync / HistoryUpdateAsync                      │
-│      ↓ validates + dispatches by detail type                  │
-│  Opc.Ua.Server.Historian.HistorianDispatcher                  │
-│    ├ resolves provider per node                               │
-│    │   (per-NM override → registry → fallback)                │
-│    └ reports audit events on update                           │
-│  Opc.Ua.Server.Historian.IHistorianProvider                   │
-│    ├ IHistorianDataProvider          (raw + Insert/Replace…)  │
-│    ├ IHistorianModifiedProvider                               │
-│    ├ IHistorianAtTimeProvider             (optional)          │
-│    ├ IHistorianProcessedProvider          (optional)          │
-│    ├ IHistorianAnnotationProvider                             │
-│    ├ IHistorianEventProvider                                  │
-│    └ IHistorianTransactionalProvider      (optional, atomic)  │
-│      │                                                        │
-│      ↓ provider implementations:                              │
-│   InMemoryHistorianProvider, your tsdb adapter, …             │
-└───────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph client["OPC UA Client"]
+        history["Opc.Ua.Client.Historian.HistoryClient<br/>ReadRawAsync / ReadModifiedAsync (IAsyncEnumerable)<br/>ReadAtTimeAsync / ReadProcessedAsync (IAsyncEnumerable)<br/>ReadAnnotationsAsync / ReadEventsAsync<br/>InsertAsync / ReplaceAsync / UpdateAsync<br/>InsertEventsAsync / ReplaceEventsAsync<br/>UpdateEventsAsync / DeleteEventsAsync<br/>DeleteRawAsync / DeleteAtTimeAsync<br/>UpdateStructureDataAsync / WriteAnnotationsAsync<br/>GetServerCapabilitiesAsync / GetConfigurationAsync<br/>session.Historian() extension"]
+    end
+    subgraph server["OPC UA Server"]
+        managers["AsyncCustomNodeManager / CustomNodeManager2<br/>HistoryReadAsync / HistoryUpdateAsync"]
+        dispatch["Opc.Ua.Server.Historian.HistorianDispatcher<br/>Resolve provider per node:<br/>per-NM override, then registry, then fallback<br/>Report audit events on update"]
+        providers["Opc.Ua.Server.Historian.IHistorianProvider<br/>IHistorianDataProvider (raw + Insert/Replace...)<br/>IHistorianModifiedProvider<br/>IHistorianAtTimeProvider (optional)<br/>IHistorianProcessedProvider (optional)<br/>IHistorianAnnotationProvider<br/>IHistorianEventProvider<br/>IHistorianTransactionalProvider (optional, atomic)"]
+        implementations["InMemoryHistorianProvider<br/>Your TSDB adapter, ..."]
+        managers -->|validate and dispatch by detail type| dispatch
+        dispatch --> providers --> implementations
+    end
+    history -->|HistoryRead / HistoryUpdate: binary or HTTPS| managers
 ```
 
 ## Scope
@@ -83,6 +96,13 @@ This release ships the following Part 11 capabilities:
 | Audit events for HistoryUpdate         | ✅ Shipped — dispatcher reports value, annotation, raw-delete, at-time-delete, event-update, and event-delete audit events using provider-returned old values. |
 
 ## Server developer guide
+
+Asset Management Basics composes health and maintenance history onto assets
+owned by DI, Machinery, Pumps or Scales. Configure
+`AddAssetManagement(options => options.UseHistory(provider))` to use the same
+provider model and capture pipeline. The [AMB history guide](AMB.md#history)
+describes per-asset selection, event fields, source timestamps and typed client
+queries. History remains disabled when it is not configured.
 
 ### Quick start: in-memory provider
 
@@ -168,13 +188,22 @@ the separate `ExtraData` conditions are defined in
 
 ### Fluent builder (`server.UseHistorian()…`)
 
-For the most common case — one provider per server, default fallback — use the fluent builder. It rolls up provider registration, per-variable `Historizing`/access-level flags, optional `Annotations` property creation, and asynchronous `HistoricalDataConfigurationType` installation:
+Use `HistorianBuilder` for one server-wide provider or an explicitly scoped
+provider. It configures provider routing and history access, including optional
+`Annotations` properties and asynchronous `HistoricalDataConfigurationType`
+installation.
+
+Register providers and configure historization after publication, in
+`INodeManagerReadinessNotification.OnServerReadyAsync`. Address-space creation
+can run against a private staging server, whose shared historian registry is
+unavailable. Creating nodes during preparation does not make that registry
+available.
 
 ```csharp
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
-// inside your NodeManager.CreateAddressSpace:
+// Inside INodeManagerReadinessNotification.OnServerReadyAsync:
 HistorianBuilder historian = Server
     .UseHistorian()
     .UseInMemoryProvider()          // or .UseProvider(yourProvider)
@@ -209,55 +238,76 @@ Resolution precedence is deterministic — see [Provider resolution order](#prov
 
 ### Fluent server API integration (`builder.Variable<T>(...).Historize()`)
 
-The historian surface is also reachable from the standard `Opc.Ua.Server.Fluent` builder used by source-generated node managers — historization fits in the same `Configure(INodeManagerBuilder)` chain as `OnRead` / `OnWrite` / `OnCall` / `Publish<TEvent>`:
+Source-generated node managers use the same historian extensions through
+`Opc.Ua.Server.Fluent`. Bind ordinary read, write and method callbacks during
+`Configure`, but defer historian registration and `.Historize()` until published
+readiness. `DeferPublishedAuthoringUntilReady` supplies a builder attached to the
+published address space; use that builder instead of retaining the preparation
+builder for shared-service configuration.
+
+This example assumes the model contains a `Temperature` variable:
 
 ```csharp
-using Opc.Ua.Server.Fluent;       // exposes UseHistorian/Historize/WithHistorian
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 
 [NodeManager(NamespaceUri = "http://example.com/Plant/")]
-public partial class PlantNodeManager
+public sealed partial class PlantNodeManager : INodeManagerReadinessNotification
 {
     partial void Configure(INodeManagerBuilder builder)
     {
-        // Provision once: in-memory engine, registered as the default.
-        HistorianBuilder hist = builder.UseHistorian();
-        hist.UseInMemory();
-        hist.RegisterAsDefault();
-
-        // Variable-typed Historize() — most common form.
         builder.Variable<double>("Temperature")
-               .OnRead(GetTemperature)
-               .Historize();
+               .OnRead(static () => 20.0);
+
+        DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+        {
+            HistorianBuilder historian = published.UseHistorian();
+            historian.UseInMemory();
+            historian.RegisterAsDefault();
+            published.Variable<double>("Temperature").Historize();
+            return default;
+        });
+    }
+
+    ValueTask INodeManagerReadinessNotification.OnServerReadyAsync(CancellationToken cancellationToken)
+    {
+        return CompletePublishedConfigurationAsync(cancellationToken);
     }
 }
 ```
+
+The readiness implementation completes the deferred steps before the builders'
+final seal. A completed step is not replayed; a step interrupted by failure must
+support retry without duplicating its side effects.
 
 The fluent surface ships three entry points (extension methods on the standard builder interfaces):
 
 | Method | Use case |
 | --- | --- |
-| `builder.UseHistorian()` | Returns a per-manager `HistorianBuilder` cached in a `ConditionalWeakTable` keyed by the `INodeManagerBuilder`. Subsequent `Historize()` calls inherit this default. Calling it more than once on the same manager returns the same instance. |
-| `variable.Historize(...)` | Opts the variable in to historization. Without a prior `UseHistorian()` call (and without a per-call `provider` argument), the call lazily creates an in-memory provider and registers it as the server-wide default — the "just works" path. Returns the same builder so the chain can continue. |
+| `builder.UseHistorian()` | Returns a `HistorianBuilder` cached for that `INodeManagerBuilder`. Calls on the same published builder share the selected default; a separate authoring builder has its own cache entry. |
+| `variable.Historize(...)` | Opts the variable in to historization during published configuration. Without a selected provider or a per-call `provider` argument, it creates an in-memory provider and registers it as the server-wide default. Returns the same variable builder. |
 | `variable.WithHistorian(provider)` | Binds a specific `IHistorianProvider` to the variable's `NodeId`. Per-node bindings take precedence over the default, so this is the right knob for per-signal storage routing. |
 
-Per-call overrides on `Historize(...)`:
+Apply per-call overrides inside the published callback as well:
 
 ```csharp
 // Per-call provider — bypasses the cached default for this one variable.
-builder.Variable<int>("AuditLog")
+published.Variable<int>("AuditLog")
        .OnRead(GetAuditValue)
        .Historize(provider: mySqliteProvider);
 
 // History is read-only by default (historyAccessLevel = HistoryRead).
 // HistoryUpdate needs an explicit opt-in; restrict it with RolePermissions.
-builder.Variable<double>("CorrectableSetpoint")
+published.Variable<double>("CorrectableSetpoint")
        .Historize(
            historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
 // Per-call capabilities — the same HistorianNodeCapabilities POCO the
 // HistorianBuilder uses; propagated to the provider's GetCapabilitiesAsync.
-builder.Variable<double>("ReadOnlySensor")
+published.Variable<double>("ReadOnlySensor")
        .OnRead(GetReading)
        .Historize(capabilities: new HistorianNodeCapabilities
        {
@@ -267,7 +317,7 @@ builder.Variable<double>("ReadOnlySensor")
 
 // The archive owns the live Historizing state. Register history access and
 // provider routing without overwriting the current attribute value.
-builder.Variable<double>("ArchiveControlled")
+published.Variable<double>("ArchiveControlled")
        .Historize(
            historizing: null,
            autoCapture: false);
@@ -286,16 +336,27 @@ Provider registration, requested `HistoryRead` / `HistoryWrite` access bits,
 historical configuration installation, and automatic capture are independent
 from this attribute choice.
 
-Source-generated typed traversal works the same way — the trailing `.Historize()` attaches to any `IVariableBuilder<T>`:
+For source-generated typed traversal, construct a typed builder over the
+published builder inside the callback. Keep the readiness implementation shown
+above:
 
 ```csharp
 partial void Configure(IBoilerNodeManagerBuilder builder)
 {
     builder.Boilers.Boiler__1.LCX001.Measurement
-           .OnRead(GenerateLevelControlMeasurement)
-           .Historize();
+           .OnRead(GenerateLevelControlMeasurement);
+
+    DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+    {
+        var typed = new BoilerNodeManagerTypedBuilder(published);
+        typed.Boilers.Boiler__1.LCX001.Measurement.Historize();
+        return default;
+    });
 }
 ```
+
+The [MinimalBoilerServer implementation](../samples/MinimalApi/MinimalBoilerServer/BoilerNodeManager.Configure.cs)
+uses this pattern for historian and event-source registration.
 
 No `GetHistorianProvider(...)` override is required on the manager — the fluent path writes into the server-wide `IHistorianProviderRegistry` so the dispatcher's normal precedence (per-NM override → registry NodeId → namespace → default) picks the provider automatically.
 
@@ -336,6 +397,68 @@ if (server is IHistorianRegistryProvider registryProvider)
 ```
 
 The interface lives next to the historian types in `Opc.Ua.Server.Historian` so that mocks of `IServerInternal` don't need to implement it; production servers built on `ServerInternalData` always satisfy the check.
+
+Components that detach their own capture can use the optional
+`IHistorianNodeBindingRegistry.TryRegisterForNode` contract. The default registry
+adds the exact-node mapping atomically only if none exists; namespace and
+default fallbacks do not block it. Dispose the returned registration to remove
+that mapping without removing a later replacement, even if the replacement uses
+the same provider instance. Disposing a registration does not dispose its
+provider; the registry retains provider lifetime ownership until shutdown.
+
+The default registry's scoped tokens implement `IHistorianNodeBinding`.
+`ReleaseAsync(cleanup)` retains the node registration while the caller removes
+its metadata and owner-index entries, then restores attributes and removes the
+mapping even when cleanup fails. Competing mutations on that node are rejected
+until release finishes. If replacement setup is already in progress, release
+waits for its outcome: a committed successor is preserved without running the
+earlier owner's cleanup; a rolled-back replacement leaves the earlier owner
+responsible for cleanup. Repeated release calls share the original operation and
+its completed outcome.
+
+The overload taking `NodeState` also snapshots a variable's `Historizing`,
+`AccessLevel` and `UserAccessLevel`, or an object's `EventNotifier`. Releasing
+that registration restores the snapshot only while its exact-node mapping is
+still current. Restoration and removal complete before another registration can
+replace that mapping. A replacement owner must register before setting its
+attributes; disposing an earlier registration then cannot restore an older
+snapshot over those attributes. The overload taking only `NodeId` manages the
+mapping without changing node attributes.
+
+The standard fluent `.Historize(provider: ...)` path reserves the new mapping
+before changing variable attributes. If setup fails, it restores the prior exact
+mapping, registration identity and attributes. An owner that disposed during setup
+is not restored. Resolution and advertised providers retain the committed provider
+until setup commits. While a replacement is reserved, a competing registration,
+unregistration or replacement for that node is rejected before mutation; other
+nodes remain available.
+Registry shutdown invalidates pending reservations. A later commit throws
+`ObjectDisposedException`, restores the pre-setup attributes and leaves the
+registry empty; it cannot report a successful unpublished binding. The fluent
+path detaches and cancels raw capture created by the failed setup.
+If capture cleanup or replacement rollback also throws, the fluent operation
+reports an `AggregateException` containing the initiating error and each cleanup
+error. If cleanup succeeds, the initiating error is rethrown unchanged.
+Successful setup retains the new binding even if an older scoped owner disposes
+between the attribute changes and completion.
+Injected registries can implement `IHistorianNodeReplacementRegistry` and return
+an `IHistorianNodeReplacement` reservation with the same commit/rollback contract.
+A scoped registry without that capability can still historize unrelated nodes:
+the fluent operation acquires a new exact-node binding with `TryRegisterForNode`
+and releases it if setup fails. When an exact binding already exists, that registry
+cannot preserve its ownership identity through replacement; the operation rejects
+only that node with `NotSupportedException` before changing attributes or capture.
+Configure that binding directly or provide the replacement capability.
+Registries without scoped bindings retain the existing explicit-provider behavior.
+
+Ordinary registration transfers provider disposal responsibility to the registry,
+even if the route is later removed. To retain application or DI ownership, use
+`registry.RegisterForNode(myNodeId, archive, ownsProvider: false)`. This extension
+uses the optional `IHistorianProviderOwnershipRegistry` capability implemented by
+`HistorianProviderRegistry`; custom registries without that capability reject
+borrowed registration with `NotSupportedException`. Owning registration remains
+available on existing custom implementations. A borrowed registration does not
+revoke ownership acquired by an earlier owning registration of the same provider.
 
 ### Provider resolution order
 
@@ -510,7 +633,7 @@ The historian dispatcher relies on `systemContext.Server` for:
 
 ## Provider author guide
 
-A provider is a class that implements `IHistorianProvider` (the umbrella) plus any subset of the seven narrow capability interfaces. The dispatcher type-tests the concrete provider at runtime and routes calls accordingly — there is no central registration of capabilities, no virtual base class with thirty `NotImplementedException`s, and no factory.
+A provider implements `IHistorianProvider` plus the capability interfaces for the operations its backend supports; see the [capability table](#capability-interfaces) below. The dispatcher type-tests the concrete provider at runtime and routes calls accordingly — there is no central registration of capabilities, no virtual base class with thirty `NotImplementedException`s, and no factory.
 
 ### Recommended base class
 
@@ -630,7 +753,43 @@ Pagination rules:
 1. On the first page, the framework passes a default (empty) token.
 2. On subsequent pages, the framework passes back the exact `NextToken` from the previous page.
 3. To indicate "no more pages", return a page with a default (empty) `NextToken`. `IsFinal` becomes true automatically.
-4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is serialised to the wire as the OPC UA continuation point and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
+4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is retained server-side behind the wire continuation identifier and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
+
+The default Session cache retains a history continuation while it is saved or
+being used by a request. Its state includes the provider cursor and the original
+query parameters. A continuation records only a weak identity for its issuing
+NodeManager generation; it does not keep that generation alive. Every resumed
+read checks the caller's current permissions, and a continuation from a retired
+generation returns `BadContinuationPointInvalid`. For Annotations reads, the
+requested Property is remembered separately from the provider's source Variable.
+
+Clients use the continuation identifier returned by the latest response.
+Completion is indicated by an empty continuation identifier, not by the number
+of returned values. A provider can finish with an empty page if its next read
+finds no additional data. This follows the termination rule in
+[Part 4, 5.11.3.2, Table 50](https://reference.opcfoundation.org/specs/OPC-10000-4/5.11.3.2):
+the response has no continuation point when no further work needs continuation.
+[Part 11, 6.3](https://reference.opcfoundation.org/specs/OPC-10000-11/6.3)
+also permits zero values with a continuation point when acquisition is not
+finished. Clients therefore check both the operation status and the returned
+continuation identifier, rather than treating an empty values array as failure
+or as completion by itself.
+
+Paginated providers do not declare NodeManager dependencies. A later page is
+admitted only while the issuing generation's gate is open; target resolution
+uses the current request view. Retirement closes the gate, so a stale identifier
+returns `BadContinuationPointInvalid` before the provider is called. The
+continuation cache supplied by `Session` stores state and disposes it on
+completion, release, eviction, cancellation, or Session teardown; it does not
+retain NodeManagers. See
+[NodeManager continuation points](NodeManagers.md#continuation-points).
+
+Replicated history continuation records let a standby identify and remove
+records belonging to the original Session. They do not contain the live
+provider, source Node or NodeManager instance that executed the read.
+A standby therefore returns `BadContinuationPointInvalid` for such a record.
+The client starts a new HistoryRead against the standby instead of resuming
+the old provider cursor.
 
 Resuming a continuation is an atomic claim. The dispatcher keeps the claimed
 state unchanged until it has durably saved a fresh successor. Provider,
@@ -702,9 +861,8 @@ The HistoryUpdate service uses per-value best-effort updates even when the provi
 are persisted. This preserves the one-result-per-value contract of Part 4 §5.11.5.2 and the Insert/Replace status
 semantics of Part 11 §6.9.2. OPC UA has no client flag for requesting an atomic HistoryUpdate.
 
-**Behavior change:** implementing the transaction interface no longer implicitly makes service requests atomic.
-Applications that require all-or-nothing updates can call `InsertAtomicAsync`, `ReplaceAtomicAsync`, or
-`UpdateAtomicAsync` explicitly on the provider. Those methods retain their existing contract:
+Applications that require all-or-nothing updates call `InsertAtomicAsync`,
+`ReplaceAtomicAsync`, or `UpdateAtomicAsync` explicitly on the provider:
 
 - If every input value is applicable, return one success status per value and commit.
 - If any value cannot be applied, return the per-value failure code(s) and roll back the entire batch — the archive is left in its pre-call state.
@@ -905,6 +1063,13 @@ HistorianNodeCapabilities.ReadWrite;            // combined adapter/test preset
 
 Always set the `HistoricalDataConfigurationType` advisory fields (`Stepped`, `Definition`, `MaxTimeInterval`, `MinTimeInterval`, `ExceptionDeviation`, `StartOfArchive`, `StartOfOnlineArchive`) on the capability set you return for nodes whose companion object you want the framework to install.
 
+`InMemoryHistorianProvider.TryRegister` provisions a node only if neither its
+archive nor its per-node capabilities exist. With
+`HistorianBuilder.UseProvider(provider, provisionNodes: false)`, capture setup
+does not register or reconfigure in-memory nodes; the caller must provision them
+before attaching capture. The default builder behavior still calls `Register`
+and applies the supplied capabilities, including to previously registered nodes.
+
 For the server-wide `HistoryServerCapabilities` rollup the dispatcher calls `GetCapabilitiesAsync(NodeId.Null, ...)`. Treat `NodeId.Null` as "default — what does this provider support generally?" — the rollup unions the result across every registered provider.
 
 ### Thread safety
@@ -998,9 +1163,33 @@ HistoryClient historian = session.Historian();
 // Or explicit:
 HistoryClient historian = new HistoryClient(session, new HistoryClientOptions
 {
-    // optional knobs (default page size, timeout, etc.)
+    MaxDecodedPageItems = 1000, // 0 preserves the legacy unbounded page size
+    BindSessionGeneration = true // requires a stack ManagedSession
 });
 ```
+
+### Bounded pages and session lifetime
+
+Set `HistoryClientOptions.MaxDecodedPageItems` to bound each decoded raw,
+modified or event page. An oversized page fails with
+`BadEncodingLimitsExceeded` before yielding any item. Both arrays of a modified
+page are checked before modified-value copies are made. Zero preserves the
+legacy unbounded behavior. This is not a wire decoder quota: configure transport
+message and array limits separately.
+
+`BindSessionGeneration = true` keeps each enumeration and its continuation
+cleanup on the original server session. Recovery invalidates the enumeration
+instead of sending its old continuation point to a replacement.
+
+If you must resolve or check the target before starting the read, capture
+[`SessionRequestContext`](Sessions.md#generation-bound-client-requests) first
+and construct `HistoryClient(context.Session, options)`. Keep that context alive
+across all `MoveNextAsync` and `DisposeAsync` calls, and dispose the cursor
+before the context.
+
+Early disposal and cancellation release the last known continuation point on
+the original session when possible; a replacement never receives the old point.
+Cleanup failures are logged without discarding the original read failure.
 
 ### Reads — `IAsyncEnumerable<T>` with automatic continuation handling
 
@@ -1184,26 +1373,21 @@ if (cfg.HasConfiguration)
 
 ### Pipeline
 
-```
-  variable.Value = sample;
-  variable.Timestamp = now;
-  variable.ClearChangeMasks(systemContext, false);   ← fires StateChanged(Value)
-                            │
-                            ▼
-   StateChanged handler  (O(1), lock-free)
-                            │
-                            ▼
-   bounded Channel<CaptureEvent>   ← MaxQueuedSamples (default 4096)
-                            │
-                            ▼
-   HistorianCaptureSink consumer task
-       • drain up to BatchTarget samples (default 64)
-       • or wait BatchWindow (default 25 ms) for more
-       • group by NodeId
-       • flush:
-            provider is IHistorianBulkInsertProvider  → InsertBatchAsync
-            else                                      → per-node InsertAsync
-       • provider exceptions count lost samples and leave the consumer running
+```mermaid
+flowchart TD
+    update["variable.Value = sample;<br/>variable.Timestamp = now;<br/>variable.ClearChangeMasks(systemContext, false);"]
+    handler["StateChanged handler<br/>O(1), lock-free"]
+    channel["Bounded Channel&lt;CaptureEvent&gt;<br/>MaxQueuedSamples: default 4096"]
+    consumer["HistorianCaptureSink consumer task<br/>Drain up to BatchTarget samples (default 64)<br/>or wait BatchWindow (default 25 ms)<br/>Group by NodeId"]
+    bulk{"Provider is<br/>IHistorianBulkInsertProvider?"}
+    batch["InsertBatchAsync"]
+    single["Per-node InsertAsync"]
+    failure["Provider exceptions count lost samples<br/>and leave the consumer running"]
+    update -->|StateChanged: Value| handler --> channel --> consumer --> bulk
+    bulk -->|Yes| batch
+    bulk -->|No| single
+    batch -.->|Exception| failure
+    single -.->|Exception| failure
 ```
 
 The capture path is **best-effort under overload**. When the queue is full,
@@ -1302,7 +1486,7 @@ The bundled `InMemoryHistorianProvider` implements the interface and acquires it
 
 When at least one provider is registered, `Server.ServerCapabilities.HistoryServerCapabilities` is populated as the union of every provider's `GetCapabilitiesAsync(NodeId.Null, …)`. Clients can read this through normal `Read` requests or via `session.Historian().Session.ReadValueAsync(...)`.
 
-The rollup runs both when the capabilities node is freshly created by `DiagnosticsNodeManager` and when it was loaded from the predefined nodeset XML — so a stock server picks up the registered providers' capability set on every startup, without further wiring.
+The rollup runs both when the capabilities node is freshly created by `DiagnosticsNodeManager` and when it was loaded from the predefined nodeset XML — so the default server picks up the registered providers' capability set on every startup, without further wiring.
 
 ## Auditing
 

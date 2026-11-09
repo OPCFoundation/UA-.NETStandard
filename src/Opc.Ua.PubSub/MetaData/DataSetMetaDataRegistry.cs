@@ -61,6 +61,11 @@ namespace Opc.Ua.PubSub.MetaData
         private readonly Dictionary<IdentityKey, RegisteredEntry> m_entries = [];
 
         /// <summary>
+        /// Host-controlled descriptors shared without promoting received metadata between connections.
+        /// </summary>
+        private readonly IDataSetMetaDataRegistry? m_trustedRegistry;
+
+        /// <summary>
         /// Initializes a new, empty <see cref="DataSetMetaDataRegistry"/>.
         /// </summary>
         /// <param name="logger">
@@ -70,6 +75,18 @@ namespace Opc.Ua.PubSub.MetaData
         public DataSetMetaDataRegistry(ILogger<DataSetMetaDataRegistry>? logger = null)
         {
             m_logger = (ILogger?)logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+        }
+
+        /// <summary>
+        /// Creates a connection-local registry over host-trusted metadata.
+        /// Network registrations remain local and cannot downgrade trusted entries.
+        /// </summary>
+        internal DataSetMetaDataRegistry(
+            IDataSetMetaDataRegistry trustedRegistry,
+            ILogger<DataSetMetaDataRegistry>? logger)
+            : this(logger)
+        {
+            m_trustedRegistry = trustedRegistry ?? throw new ArgumentNullException(nameof(trustedRegistry));
         }
 
         /// <summary>
@@ -94,19 +111,38 @@ namespace Opc.Ua.PubSub.MetaData
         {
             get
             {
+                ArrayOf<DataSetMetaDataKey> trustedKeys = m_trustedRegistry is null ? [] : m_trustedRegistry.Keys;
                 lock (m_lock)
                 {
-                    if (m_entries.Count == 0)
+                    if (trustedKeys.Count == 0 && m_entries.Count == 0)
                     {
                         return [];
                     }
-                    var snapshot = new DataSetMetaDataKey[m_entries.Count];
-                    int i = 0;
+                    if (trustedKeys.Count == 0)
+                    {
+                        var localKeys = new DataSetMetaDataKey[m_entries.Count];
+                        int i = 0;
+                        foreach (RegisteredEntry entry in m_entries.Values)
+                        {
+                            localKeys[i++] = entry.Key;
+                        }
+                        return localKeys;
+                    }
+                    var snapshot = new Dictionary<IdentityKey, DataSetMetaDataKey>();
+                    foreach (DataSetMetaDataKey key in trustedKeys)
+                    {
+                        snapshot[new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId)] = key;
+                    }
                     foreach (RegisteredEntry entry in m_entries.Values)
                     {
-                        snapshot[i++] = entry.Key;
+                        DataSetMetaDataKey key = entry.Key;
+                        var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
+                        if (entry.Authenticated || !snapshot.ContainsKey(identity))
+                        {
+                            snapshot[identity] = key;
+                        }
                     }
-                    return snapshot;
+                    return [.. snapshot.Values];
                 }
             }
         }
@@ -115,22 +151,30 @@ namespace Opc.Ua.PubSub.MetaData
         public MetaDataMatchResult TryGet(in DataSetMetaDataKey key, out DataSetMetaDataType? metaData)
         {
             var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
+            RegisteredEntry entry;
+            bool found;
             lock (m_lock)
             {
-                if (!m_entries.TryGetValue(identity, out RegisteredEntry entry))
-                {
-                    metaData = null;
-                    return MetaDataMatchResult.NotFound;
-                }
-                metaData = entry.MetaData;
-                ConfigurationVersionDataType version = entry.MetaData.ConfigurationVersion
-                    ?? new ConfigurationVersionDataType();
-                if (version.MajorVersion != key.MajorVersion)
-                {
-                    return MetaDataMatchResult.MajorVersionMismatch;
-                }
-                return MetaDataMatchResult.Match;
+                found = m_entries.TryGetValue(identity, out entry);
             }
+            if ((!found || !entry.Authenticated) && m_trustedRegistry is not null)
+            {
+                MetaDataMatchResult trusted = m_trustedRegistry.TryGet(in key, out metaData);
+                if (trusted != MetaDataMatchResult.NotFound)
+                {
+                    return trusted;
+                }
+            }
+            if (!found)
+            {
+                metaData = null;
+                return MetaDataMatchResult.NotFound;
+            }
+            metaData = entry.MetaData;
+            ConfigurationVersionDataType version = entry.MetaData.ConfigurationVersion
+                ?? new ConfigurationVersionDataType();
+            return version.MajorVersion == key.MajorVersion
+                ? MetaDataMatchResult.Match : MetaDataMatchResult.MajorVersionMismatch;
         }
 
         /// <summary>
@@ -160,27 +204,15 @@ namespace Opc.Ua.PubSub.MetaData
             uint minorVersion,
             out DataSetMetaDataType? metaData)
         {
-            var identity = new IdentityKey(publisherId, writerGroupId, dataSetWriterId);
-            lock (m_lock)
+            var key = new DataSetMetaDataKey(publisherId, writerGroupId, dataSetWriterId, Uuid.Empty, majorVersion);
+            MetaDataMatchResult result = TryGet(in key, out metaData);
+            if (result != MetaDataMatchResult.Match)
             {
-                if (!m_entries.TryGetValue(identity, out RegisteredEntry entry))
-                {
-                    metaData = null;
-                    return MetaDataMatchResult.NotFound;
-                }
-                metaData = entry.MetaData;
-                ConfigurationVersionDataType version = entry.MetaData.ConfigurationVersion
-                    ?? new ConfigurationVersionDataType();
-                if (version.MajorVersion != majorVersion)
-                {
-                    return MetaDataMatchResult.MajorVersionMismatch;
-                }
-                if (version.MinorVersion != minorVersion)
-                {
-                    return MetaDataMatchResult.MinorVersionMismatch;
-                }
-                return MetaDataMatchResult.Match;
+                return result;
             }
+            uint currentMinor = metaData?.ConfigurationVersion?.MinorVersion ?? 0;
+            return currentMinor == minorVersion
+                ? MetaDataMatchResult.Match : MetaDataMatchResult.MinorVersionMismatch;
         }
 
         /// <inheritdoc/>
@@ -189,16 +221,36 @@ namespace Opc.Ua.PubSub.MetaData
         /// entries.</exception>
         public void Register(in DataSetMetaDataKey key, DataSetMetaDataType metaData)
         {
+            _ = RegisterReceived(in key, metaData, authenticated: true);
+        }
+
+        /// <summary>
+        /// Registers received metadata with its authentication provenance.
+        /// Unauthenticated metadata may replace only other unauthenticated metadata.
+        /// </summary>
+        internal bool RegisterReceived(in DataSetMetaDataKey key, DataSetMetaDataType metaData, bool authenticated)
+        {
             if (metaData is null)
             {
                 throw new ArgumentNullException(nameof(metaData));
+            }
+            if (!authenticated &&
+                m_trustedRegistry is not null &&
+                m_trustedRegistry.TryGet(in key, out _) != MetaDataMatchResult.NotFound)
+            {
+                return false;
             }
 
             var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
             DataSetMetaDataChangedEventArgs? evt;
             lock (m_lock)
             {
-                if (!m_entries.TryGetValue(identity, out RegisteredEntry existing) &&
+                bool found = m_entries.TryGetValue(identity, out RegisteredEntry existing);
+                if (found && existing.Authenticated && !authenticated)
+                {
+                    return false;
+                }
+                if (!found &&
                     MaxEntries > 0 &&
                     m_entries.Count >= MaxEntries)
                 {
@@ -207,7 +259,7 @@ namespace Opc.Ua.PubSub.MetaData
                         MaxEntries.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                         ").");
                 }
-                m_entries[identity] = new RegisteredEntry(key, metaData);
+                m_entries[identity] = new RegisteredEntry(key, metaData, authenticated);
                 evt = new DataSetMetaDataChangedEventArgs(key, existing.MetaData, metaData);
             }
             m_logger.RegisteredMetadata(
@@ -217,6 +269,7 @@ namespace Opc.Ua.PubSub.MetaData
                 metaData.ConfigurationVersion?.MajorVersion ?? 0,
                 metaData.ConfigurationVersion?.MinorVersion ?? 0);
             RaiseChanged(evt);
+            return true;
         }
 
         /// <inheritdoc/>
@@ -227,6 +280,23 @@ namespace Opc.Ua.PubSub.MetaData
             {
                 _ = m_entries.Remove(identity);
             }
+        }
+
+        /// <summary>
+        /// Reports whether a lookup resolves to authenticated or host-configured metadata.
+        /// </summary>
+        internal bool IsAuthenticated(in DataSetMetaDataKey key)
+        {
+            var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
+            lock (m_lock)
+            {
+                if (m_entries.TryGetValue(identity, out RegisteredEntry entry) && entry.Authenticated)
+                {
+                    return true;
+                }
+            }
+            return m_trustedRegistry is not null &&
+                m_trustedRegistry.TryGet(in key, out _) != MetaDataMatchResult.NotFound;
         }
 
         private void RaiseChanged(DataSetMetaDataChangedEventArgs evt)
@@ -252,14 +322,20 @@ namespace Opc.Ua.PubSub.MetaData
 
         private readonly struct RegisteredEntry
         {
-            public RegisteredEntry(DataSetMetaDataKey key, DataSetMetaDataType metaData)
+            public RegisteredEntry(DataSetMetaDataKey key, DataSetMetaDataType metaData, bool authenticated)
             {
                 Key = key;
                 MetaData = metaData;
+                Authenticated = authenticated;
             }
 
             public DataSetMetaDataKey Key { get; }
             public DataSetMetaDataType MetaData { get; }
+
+            /// <summary>
+            /// Whether this entry was authenticated or registered by the host.
+            /// </summary>
+            public bool Authenticated { get; }
         }
     }
 

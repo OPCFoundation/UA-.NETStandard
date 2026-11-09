@@ -37,18 +37,13 @@ using Opc.Ua.Server;
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
-    /// The production <see cref="IWotViewProjectionHost"/>. It publishes projection
-    /// Views into the live server address space by lazily creating a single shared
-    /// <see cref="WotProjectionViewNodeManager"/> through the public NodeManager
-    /// lifecycle, then delegating each apply and remove to it. One shared manager is
-    /// used because the coordinator refreshes a document by applying the new View and
-    /// only then removing the old one under the same deterministic NodeId; a single
-    /// manager that replaces the View in place avoids two managers transiently
-    /// claiming the same NodeId. Removal is identity-checked against the handle that
-    /// was returned by the matching apply so a superseding refresh is never undone by
-    /// the trailing remove of the generation it replaced.
+    /// The stock prepared View participant. It contributes a complete private
+    /// canonical NodeManager image to the source host's existing lifecycle batch.
+    /// The coordinator owns the durable decision and acknowledges the prepared
+    /// bookkeeping after the switch. Immediate apply/remove remain a separate
+    /// compatibility path and cannot mutate an established canonical image.
     /// </summary>
-    public sealed class LifecycleWotViewProjectionHost : IWotViewProjectionHost, IDisposable
+    public sealed partial class LifecycleWotViewProjectionHost : IWotPreparedViewProjectionHost, IDisposable
     {
         /// <summary>
         /// Initializes a new live projection-view host.
@@ -60,11 +55,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <paramref name="lifecycle"/> is <c>null</c>.
         /// </exception>
         public LifecycleWotViewProjectionHost(INodeManagerLifecycle lifecycle)
+            : this(lifecycle, WotProjectionRetirementPolicy.Migrate)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a host with the retirement policy used by its prepared canonical generations.
+        /// </summary>
+        /// <param name="lifecycle">The lifecycle used to initialize the instance.</param>
+        /// <param name="retirementPolicy">The retirement policy used to initialize the instance.</param>
+        public LifecycleWotViewProjectionHost(
+            INodeManagerLifecycle lifecycle, WotProjectionRetirementPolicy retirementPolicy)
         {
             m_lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
+            if (retirementPolicy is not (
+                WotProjectionRetirementPolicy.Migrate or WotProjectionRetirementPolicy.Invalidate))
+            {
+                throw new ArgumentOutOfRangeException(nameof(retirementPolicy));
+            }
+            m_retirementPolicy = retirementPolicy;
         }
 
         /// <inheritdoc/>
+        /// <param name="request">The WoT view projection request.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<WotViewProjectionHandle> ApplyAsync(
             WotViewProjectionRequest request,
             CancellationToken cancellationToken = default)
@@ -76,6 +90,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureImmediateImage();
+                if (m_live.TryGetValue(request.ViewNodeId, out WotViewProjectionHandle? owner) &&
+                    !string.Equals(owner.ResourceXid, request.ResourceXid, StringComparison.Ordinal))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdExists, "The View identity is owned by another logical Resource.");
+                }
                 WotProjectionViewNodeManager manager =
                     await EnsureManagerAsync(cancellationToken).ConfigureAwait(false);
                 List<string> applyOmissions = [];
@@ -105,6 +126,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
+        /// <param name="handle">The WoT view projection handle.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask RemoveAsync(
             WotViewProjectionHandle handle,
             CancellationToken cancellationToken = default)
@@ -118,6 +141,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureImmediateImage();
                 if (m_manager is null)
                 {
                     return;
@@ -151,11 +175,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return m_manager;
             }
             var factory = new ViewNodeManagerFactory();
-            m_registration = await m_lifecycle
-                .AddAsync(factory, callerContext: null, cancellationToken)
+            IPreparedChanges prepared = await m_lifecycle
+                .PrepareAsync([LifecycleChange.Add(factory)], cancellationToken)
                 .ConfigureAwait(false);
+            await using var preparedLifetime = prepared.ConfigureAwait(false);
+            LifecycleResult result = await prepared
+                .CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
+            if (!result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration) ||
+                registration is null)
+            {
+                throw new InvalidOperationException("The committed projection-view registration is no longer available.");
+            }
+            m_registration = registration;
             m_manager = factory.Created ?? throw new InvalidOperationException(
                 "The projection-view NodeManager factory did not create a NodeManager.");
+            if (result.CleanupFailure is { } failure)
+            {
+                throw new NodeManagerAddCommittedException(
+                    m_registration, result, "The WoT view is live, but reconciliation failed.", failure);
+            }
             return m_manager;
         }
 
@@ -174,6 +212,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly INodeManagerLifecycle m_lifecycle;
+        private readonly WotProjectionRetirementPolicy m_retirementPolicy;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly Dictionary<NodeId, WotViewProjectionHandle> m_live = new();
         private WotProjectionViewNodeManager? m_manager;

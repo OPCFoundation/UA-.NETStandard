@@ -86,8 +86,10 @@ namespace Opc.Ua.Mcp.Tools
             "(supply 'interfaceName'); source='inproc-client' captures the MCP server's own OPC UA client traffic " +
             "with full key material; source='inproc-server' is reserved for hosted server scenarios; source='replay' " +
             "re-reads an existing pcap + keylog. CLR names such as 'InProcessClient' are also accepted. " +
-            "The in-process tap only captures channels that already exist when " +
-            "start_capture is called. Returns the session id which must be passed to stop_capture / get_capture / " +
+            "In-process capture records traffic from capture-enabled channels while active, including channels " +
+            "created afterward. Start capture before Connect to include connection setup; starting afterward " +
+            "records only subsequent traffic and cannot recover earlier traffic. " +
+            "Returns the session id which must be passed to stop_capture / get_capture / " +
             "summarize_capture / replay_pcap. Capture stops automatically when the configured size/duration limits " +
             "are reached.")]
         public static async Task<CaptureSessionInfo> StartCaptureAsync(

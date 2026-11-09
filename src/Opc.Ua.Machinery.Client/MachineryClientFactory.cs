@@ -59,6 +59,21 @@ namespace Opc.Ua.Machinery.Client
         }
 
         /// <summary>
+        /// Creates a factory whose clients use copied, validated strict read limits.
+        /// </summary>
+        /// <param name="sessionFactory">The managed-session factory registered by AddClient.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="options">Positive bounds for each created client.</param>
+        public MachineryClientFactory(
+            Func<CancellationToken, Task<ManagedSession>> sessionFactory,
+            ITelemetryContext telemetry,
+            MachineryClientOptions options)
+            : this(sessionFactory, telemetry)
+        {
+            m_options = (options ?? throw new ArgumentNullException(nameof(options))).CopyAndValidate();
+        }
+
+        /// <summary>
         /// Creates a Machinery client over the current managed session.
         /// </summary>
         /// <param name="cancellationToken">Cancels session acquisition.</param>
@@ -67,10 +82,13 @@ namespace Opc.Ua.Machinery.Client
         {
             ManagedSession session = await m_sessionFactory(cancellationToken)
                 .ConfigureAwait(false);
-            return new MachineryClient(session, m_telemetry);
+            return m_options is null
+                ? new MachineryClient(session, m_telemetry)
+                : new MachineryClient(session, m_telemetry, m_options);
         }
 
         private readonly Func<CancellationToken, Task<ManagedSession>> m_sessionFactory;
         private readonly ITelemetryContext m_telemetry;
+        private readonly MachineryClientOptions? m_options;
     }
 }

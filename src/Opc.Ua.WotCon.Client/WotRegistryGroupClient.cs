@@ -42,8 +42,20 @@ namespace Opc.Ua.WotCon.Client
     /// generated <see cref="GroupTypeClient"/> proxy shared by
     /// both group subtypes.
     /// </summary>
-    public sealed class WotRegistryGroupClient
+    public sealed partial class WotRegistryGroupClient
     {
+        /// <summary>
+        /// Initializes a new <c>WotRegistryGroupClient</c> instance.
+        /// </summary>
+        /// <param name="session">The session used to initialize the instance.</param>
+        /// <param name="groupNodeId">The group node ID used to initialize the instance.</param>
+        /// <param name="groupId">The group ID used to initialize the instance.</param>
+        /// <param name="kind">The kind used to initialize the instance.</param>
+        /// <param name="proxy">The proxy used to initialize the instance.</param>
+        /// <param name="telemetry">The telemetry used to initialize the instance.</param>
+        /// <param name="usesDistinctHierarchy">
+        /// The uses-distinct-hierarchy flag used to initialize <c>WotRegistryGroupClient</c>.
+        /// </param>
         internal WotRegistryGroupClient(
             ISession session,
             NodeId groupNodeId,
@@ -56,7 +68,7 @@ namespace Opc.Ua.WotCon.Client
             Session = session;
             GroupNodeId = groupNodeId;
             GroupId = groupId;
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             Proxy = proxy;
             Telemetry = telemetry;
             m_usesDistinctHierarchy = usesDistinctHierarchy;
@@ -99,6 +111,9 @@ namespace Opc.Ua.WotCon.Client
         /// newly created resource plus the server-assigned version id.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="resourceId"/> is null or empty.</exception>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The version ID.</param>
         public async ValueTask<(WotRegistryResourceClient Resource, string VersionId)> CreateResourceAsync(
             string resourceId,
             string versionId = "",
@@ -111,6 +126,8 @@ namespace Opc.Ua.WotCon.Client
             (NodeId resourceNodeId, string versionIdOut, _) = await Proxy
                 .CreateResourceAsync(resourceId, versionId ?? string.Empty, requestFileOpen: false, ct)
                 .ConfigureAwait(false);
+            resourceId = await WotProvisioningContract.ReadAssignedIdentifierAsync(
+                Session, resourceNodeId, "ResourceId", ct).ConfigureAwait(false);
             return (
                 OpenResourceClient(
                     resourceNodeId,
@@ -126,6 +143,9 @@ namespace Opc.Ua.WotCon.Client
         /// whether it was newly created.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="resourceId"/> is null or empty.</exception>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The version ID.</param>
         public async ValueTask<(WotRegistryResourceClient Resource, string VersionId, bool Created)>
             GetOrCreateResourceAsync(
             string resourceId,
@@ -139,6 +159,8 @@ namespace Opc.Ua.WotCon.Client
             (NodeId resourceNodeId, string versionIdOut, _, bool created) = await Proxy
                 .GetOrCreateResourceAsync(resourceId, versionId ?? string.Empty, requestFileOpen: false, ct)
                 .ConfigureAwait(false);
+            resourceId = await WotProvisioningContract.ReadAssignedIdentifierAsync(
+                Session, resourceNodeId, "ResourceId", ct).ConfigureAwait(false);
             WotRegistryResourceClient resource = OpenResourceClient(
                 resourceNodeId,
                 resourceId,

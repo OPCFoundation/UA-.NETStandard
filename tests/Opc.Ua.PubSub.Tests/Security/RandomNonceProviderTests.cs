@@ -33,6 +33,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Policies;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Security
 {
@@ -45,6 +47,78 @@ namespace Opc.Ua.PubSub.Tests.Security
     {
         private const uint KeyId = 1U;
         private static readonly byte[] s_keyNonce = [0xA1, 0xB2, 0xC3, 0xD4];
+
+        /// <summary>
+        /// Actual wrapped frames retain independent monotonic counters when publishers share a provider.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR25SharedProviderKeepsMonotonicCountersAcrossLiveKeysAsync()
+        {
+            using var nonces = new RandomNonceProvider(PublisherId.FromUInt32(7));
+            using var ringA = new PubSubSecurityKeyRing("A");
+            using var ringB = new PubSubSecurityKeyRing("B");
+            ringA.SetCurrent(TestSecurityKeyFactory.Create(11));
+            ringB.SetCurrent(TestSecurityKeyFactory.Create(12));
+            var a = new UadpSecurityWrapper(PubSubAes128CtrPolicy.Instance,
+                new StaticSecurityKeyProvider("A", ringA), nonces, new SecurityTokenWindow(),
+                NUnitTelemetryContext.Create());
+            var b = new UadpSecurityWrapper(PubSubAes128CtrPolicy.Instance,
+                new StaticSecurityKeyProvider("B", ringB), nonces, new SecurityTokenWindow(),
+                NUnitTelemetryContext.Create());
+            UadpSecurityWrapper[] senders = [a, b, a, b, a];
+            ulong[] expected = [1, 1, 2, 2, 3];
+            for (int i = 0; i < senders.Length; i++)
+            {
+                ReadOnlyMemory<byte> frame = await senders[i].WrapAsync(
+                    ReadOnlyMemory<byte>.Empty, new byte[] { 42 }).ConfigureAwait(false);
+                Assert.That(UadpSecurityHeader.TryRead(frame.Span, out UadpSecurityHeader header, out _), Is.True);
+                Assert.That(AesCtrNonceLayout.Parse(header.MessageNonce.Span).MessageSequenceNumber,
+                    Is.EqualTo(expected[i]));
+            }
+        }
+
+        /// <summary>
+        /// Full nonce identity is retained without resetting an earlier live context.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityR25NewContextStartsFreshWithoutResettingEarlierContext()
+        {
+            using var provider = new RandomNonceProvider(PublisherId.FromUInt32(7));
+            byte[] buffer = new byte[8];
+            byte[][] keyNonces = [[1, 2, 3, 4], [1, 2, 3, 5], [1, 2, 3, 4]];
+            ulong[] expected = [1, 1, 2];
+            for (int i = 0; i < keyNonces.Length; i++)
+            {
+                provider.GetNext(1, keyNonces[i], buffer);
+                Assert.That(AesCtrNonceLayout.Parse(buffer).MessageSequenceNumber, Is.EqualTo(expected[i]));
+            }
+        }
+
+        /// <summary>
+        /// Interleaving cannot bypass a context's hard cap or mutate output after exhaustion.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityR25InterleavingCannotBypassPerKeyCap()
+        {
+            using var provider = new RandomNonceProvider(PublisherId.FromUInt32(7), maxMessagesPerKey: 3);
+            byte[] buffer = new byte[8];
+            for (int i = 0; i < 3; i++)
+            {
+                provider.GetNext(1, s_keyNonce, buffer);
+                if (i < 2)
+                {
+                    provider.GetNext(2, s_keyNonce, buffer);
+                }
+            }
+            byte[] before = (byte[])buffer.Clone();
+            Assert.That(() => provider.GetNext(1, s_keyNonce, buffer), Throws.InvalidOperationException);
+            Assert.That(buffer, Is.EqualTo(before));
+            provider.GetNext(2, s_keyNonce, buffer);
+            Assert.That(AesCtrNonceLayout.Parse(buffer).MessageSequenceNumber, Is.EqualTo(3));
+        }
 
         [Test]
         public void GetNext_ProducesUniqueMessageRandomBytes()

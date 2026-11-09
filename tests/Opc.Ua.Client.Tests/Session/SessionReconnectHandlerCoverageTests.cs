@@ -28,8 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Reflection;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.Tests.SessionContexts;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
@@ -78,6 +81,60 @@ namespace Opc.Ua.Client.Tests
             using var handler = new SessionReconnectHandler(m_telemetry);
 
             Assert.That(handler.Session, Is.Null);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR04LegacyReconnectRejectsHttpRefreshBeforeRecreationAsync()
+        {
+            await using var fixture = new SessionRequestContextTestContext();
+            ConfiguredEndpoint endpoint = fixture.InnerSession.ConfiguredEndpoint;
+            endpoint.Description.EndpointUrl = "https://requested.test/ua";
+            endpoint.Description.TransportProfileUri = Profiles.HttpsBinaryTransport;
+            endpoint.Description.SecurityMode = MessageSecurityMode.None;
+            endpoint.Description.SecurityPolicyUri = SecurityPolicies.None;
+            endpoint.Description.UserIdentityTokens =
+            [
+                new UserTokenPolicy
+                {
+                    TokenType = UserTokenType.UserName,
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                }
+            ];
+            using var handler = new HttpRefreshReconnectHandler(m_telemetry);
+            typeof(SessionReconnectHandler).GetProperty(nameof(SessionReconnectHandler.Session))!
+                .GetSetMethod(nonPublic: true)!.Invoke(handler, [fixture.InnerSession]);
+            foreach (string field in new[] { "m_reconnectFailed", "m_updateFromServer" })
+            {
+                typeof(SessionReconnectHandler).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .SetValue(handler, true);
+            }
+            var operation = (Task<bool>)typeof(SessionReconnectHandler)
+                .GetMethod("DoReconnectAsync", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(handler, null)!;
+
+            Assert.That(await operation.ConfigureAwait(false), Is.False);
+            Assert.That(handler.Refreshes, Is.EqualTo(1));
+            Assert.That(handler.Session, Is.SameAs(fixture.InnerSession));
+            Assert.That(endpoint.Description.EndpointUrl, Is.EqualTo("https://requested.test/ua"));
+            Assert.That(endpoint.Description.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.None));
+            Assert.That(endpoint.Description.UserIdentityTokens[0].SecurityPolicyUri,
+                Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            Assert.That(fixture.Requests, Is.Empty);
+        }
+
+        private sealed class HttpRefreshReconnectHandler(ITelemetryContext telemetry) : SessionReconnectHandler(telemetry)
+        {
+            internal int Refreshes { get; private set; }
+
+            internal override Task UpdateFromServerAsync(
+                ConfiguredEndpoint endpoint, ITransportWaitingConnection? connection,
+                MessageSecurityMode securityMode, string securityPolicyUri)
+            {
+                Refreshes++;
+                endpoint.Description.EndpointUrl = "http://requested.test/ua";
+                return Task.CompletedTask;
+            }
         }
 
         [Test]

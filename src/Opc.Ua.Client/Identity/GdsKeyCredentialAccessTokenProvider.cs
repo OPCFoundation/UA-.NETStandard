@@ -129,7 +129,22 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(endpoint));
             }
-            return AcquireCoreAsync(metadata, endpoint.Server?.ApplicationUri, ct);
+            if (metadata == null)
+            {
+                throw new ArgumentNullException(nameof(metadata));
+            }
+            string? applicationUri = endpoint.Server?.ApplicationUri;
+            if (string.IsNullOrWhiteSpace(applicationUri) ||
+                (!string.IsNullOrWhiteSpace(metadata.Audience) &&
+                    !string.Equals(metadata.Audience, applicationUri, StringComparison.Ordinal)) ||
+                (!string.IsNullOrWhiteSpace(metadata.ResourceUri) &&
+                    !string.Equals(metadata.ResourceUri, applicationUri, StringComparison.Ordinal)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "KeyCredential metadata must identify the selected server ApplicationUri.");
+            }
+            return AcquireCoreAsync(metadata, applicationUri, ct);
         }
 
         /// <inheritdoc/>
@@ -155,11 +170,8 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(metadata));
             }
-            string? audience = !string.IsNullOrWhiteSpace(metadata.Audience)
-                ? metadata.Audience
-                : !string.IsNullOrWhiteSpace(metadata.ResourceUri)
-                    ? metadata.ResourceUri
-                    : targetApplicationUri;
+            string? audience = targetApplicationUri ??
+                (!string.IsNullOrWhiteSpace(metadata.Audience) ? metadata.Audience : metadata.ResourceUri);
             if (string.IsNullOrWhiteSpace(audience))
             {
                 throw new ServiceResultException(

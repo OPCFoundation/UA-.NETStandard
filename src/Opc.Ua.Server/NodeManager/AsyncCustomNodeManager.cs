@@ -51,13 +51,14 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public class AsyncCustomNodeManager :
+    public partial class AsyncCustomNodeManager :
         IAsyncNodeManager,
         IDisposable,
         IAsyncDisposable,
         ILocalAddressSpaceSource,
         IPredefinedNodeSubtypeReplacer,
-        INodeManagerMonitoredItemLifecycle
+        INodeManagerMonitoredItemSource,
+        INodeValuePublication
     {
         /// <summary>
         /// Initializes the node manager.
@@ -226,11 +227,12 @@ namespace Opc.Ua.Server
                     return;
                 }
                 m_disposed = true;
-                if (m_operationCount == 0)
-                {
-                    m_operationsDrained.TrySetResult(true);
-                }
+                // Operations enter without the lock: publish the flag before counting them, so
+                // an operation entering now either is counted here or reads the flag and backs out.
+                Interlocked.MemoryBarrier();
+                CompleteOperationsDrainLocked();
             }
+            m_valuePublicationShutdown.Cancel();
             // Cleanup starts inline until its first incomplete await, then publishes the shared
             // success or failure that DisposeAsync awaits; no separate Task.Run is queued here.
             _ = DisposeOwnedResourcesAsync();
@@ -259,31 +261,75 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Admits an operation until it exits, allowing guarded access during the active teardown callback.
+        /// Retains manager resources until a companion operation and its awaited cleanup finish.
+        /// Nested manager calls remain available to that operation after shutdown closes admission.
         /// </summary>
+        /// <typeparam name="T">The companion operation's result type.</typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ObjectDisposedException"></exception>
-        private protected NodeManagerOperation BeginNodeManagerOperation()
+        protected async ValueTask<T> ExecuteNodeManagerOperationAsync<T>(
+            Func<CancellationToken, ValueTask<T>> operation,
+            CancellationToken cancellationToken = default)
         {
-            lock (m_operationLifetimeLock)
+            if (operation == null)
             {
-                if (m_disposed && (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
-                {
-                    throw new ObjectDisposedException(GetType().Name);
-                }
-                m_operationCount++;
-                return new NodeManagerOperation(this);
+                throw new ArgumentNullException(nameof(operation));
             }
+            cancellationToken.ThrowIfCancellationRequested();
+            using NodeManagerOperation admitted = BeginNodeManagerOperation();
+            return await operation(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Rejects access after admission closes unless it belongs to the active teardown callback.
+        /// Admits an operation until it exits, allowing nested access by an admitted operation or teardown callback.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <remarks>
+        /// Admission runs per service call and per monitored-item notification on every core, so
+        /// before disposal it counts in a per-processor slot instead of taking the operation
+        /// lifetime lock. The operation is counted before the disposal flag is read: disposal
+        /// either counts it, or the operation reads the flag and backs out. Once disposal has
+        /// started, the admissions it still allows (nested operations and the teardown callback)
+        /// are counted under the lock, where every drain check sees them; a per-processor slot
+        /// could be entered after a drain check had already summed it.
+        /// </remarks>
+        private protected NodeManagerOperation BeginNodeManagerOperation()
+        {
+            NodeManagerOperationContext? previous = m_operationContext.Value;
+            NodeManagerOperationContext context;
+            int slot = m_operationCount.Enter();
+            if (!m_disposed)
+            {
+                context = new NodeManagerOperationContext(previous, slot);
+            }
+            else
+            {
+                ExitNodeManagerOperation(slot);
+                lock (m_operationLifetimeLock)
+                {
+                    if (previous?.Active != true &&
+                        (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+                    {
+                        throw new ObjectDisposedException(GetType().Name);
+                    }
+                    m_lockedOperationCount++;
+                    context = new NodeManagerOperationContext(previous, kLockedOperationSlot);
+                }
+            }
+            m_operationContext.Value = context;
+            return new NodeManagerOperation(this, context);
+        }
+
+        /// <summary>
+        /// Rejects access after admission closes unless an admitted operation or teardown callback owns it.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
         private protected void ThrowIfNodeManagerStopping()
         {
             lock (m_operationLifetimeLock)
             {
-                if (m_disposed && (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+                if (m_disposed && m_operationContext.Value?.Active != true &&
+                    (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
                 {
                     throw new ObjectDisposedException(GetType().Name);
                 }
@@ -338,15 +384,53 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Releases an admitted operation and signals shutdown when the final operation exits.
         /// </summary>
-        private void CompleteNodeManagerOperation()
+        private void CompleteNodeManagerOperation(NodeManagerOperationContext context)
         {
-            lock (m_operationLifetimeLock)
+            if (!context.Deactivate())
             {
-                m_operationCount--;
-                if (m_disposed && m_operationCount == 0)
+                return;
+            }
+            if (ReferenceEquals(m_operationContext.Value, context))
+            {
+                m_operationContext.Value = context.Previous;
+            }
+            if (context.Slot == kLockedOperationSlot)
+            {
+                lock (m_operationLifetimeLock)
                 {
-                    m_operationsDrained.TrySetResult(true);
+                    m_lockedOperationCount--;
+                    CompleteOperationsDrainLocked();
                 }
+                return;
+            }
+            ExitNodeManagerOperation(context.Slot);
+        }
+
+        /// <summary>
+        /// Exits an operation admitted in a per-processor slot and signals a pending disposal when
+        /// it was the last one.
+        /// </summary>
+        private void ExitNodeManagerOperation(int slot)
+        {
+            m_operationCount.Exit(slot);
+            if (m_disposed)
+            {
+                lock (m_operationLifetimeLock)
+                {
+                    CompleteOperationsDrainLocked();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Signals the disposal drain once no operation is admitted. No slot admission can stick
+        /// after the disposal flag is published, so a zero sum read under the lock is final.
+        /// </summary>
+        private void CompleteOperationsDrainLocked()
+        {
+            if (m_disposed && m_lockedOperationCount == 0 && m_operationCount.Count == 0)
+            {
+                m_operationsDrained.TrySetResult(true);
             }
         }
 
@@ -358,6 +442,8 @@ namespace Opc.Ua.Server
             try
             {
                 await m_operationsDrained.Task.ConfigureAwait(false);
+                DisposeSessionClosingHandlers();
+                DisposeValueReadAuthorizations();
                 var errors = new List<Exception>();
                 lock (m_operationLifetimeLock)
                 {
@@ -384,6 +470,7 @@ namespace Opc.Ua.Server
                 await DisposeOwnedResourceAsync(m_writeSemaphore, PredefinedNodes.Clear, errors).ConfigureAwait(false);
                 await DisposeOwnedResourceAsync(m_monitoredItemSemaphore,
                     () => m_monitoredItemManager?.Dispose(), errors).ConfigureAwait(false);
+                m_valuePublicationShutdown.Dispose();
                 await DisposeOwnedResourceAsync(m_componentCacheSemaphore,
                     () => m_componentCache?.Clear(), errors).ConfigureAwait(false);
                 if (errors.Count > 0)
@@ -429,6 +516,38 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Tracks whether an operation inherited through an execution context is still admitted.
+        /// </summary>
+        private protected sealed class NodeManagerOperationContext(NodeManagerOperationContext? previous, int slot)
+        {
+            /// <summary>
+            /// Gets the surrounding operation to restore when this scope completes.
+            /// </summary>
+            public NodeManagerOperationContext? Previous { get; } = previous;
+
+            /// <summary>
+            /// Gets the admission counter slot the operation exits from.
+            /// </summary>
+            public int Slot { get; } = slot;
+
+            /// <summary>
+            /// Gets whether this scope still retains operation admission.
+            /// </summary>
+            public bool Active => Volatile.Read(ref m_active) != 0;
+
+            /// <summary>
+            /// Ends the admission once.
+            /// </summary>
+            /// <returns><c>true</c> for the call that ended it.</returns>
+            public bool Deactivate()
+            {
+                return Interlocked.Exchange(ref m_active, 0) != 0;
+            }
+
+            private int m_active = 1;
+        }
+
+        /// <summary>
         /// Retains operation admission through semaphore scopes and any deferred callbacks.
         /// </summary>
         private protected readonly struct NodeManagerOperation : IDisposable
@@ -436,9 +555,10 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Captures the node manager whose admitted operation this scope completes.
             /// </summary>
-            public NodeManagerOperation(AsyncCustomNodeManager owner)
+            public NodeManagerOperation(AsyncCustomNodeManager owner, NodeManagerOperationContext context)
             {
                 m_owner = owner;
+                m_context = context;
             }
 
             /// <summary>
@@ -446,13 +566,16 @@ namespace Opc.Ua.Server
             /// </summary>
             public void Dispose()
             {
-                m_owner.CompleteNodeManagerOperation();
+                m_owner.CompleteNodeManagerOperation(m_context);
             }
 
             /// <summary>
             /// Owns the admission count retained by this operation scope.
             /// </summary>
             private readonly AsyncCustomNodeManager m_owner;
+
+            /// <summary>The execution-context scope retained by this operation.</summary>
+            private readonly NodeManagerOperationContext m_context;
         }
 
         /// <summary>
@@ -645,7 +768,9 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Returns the system context for an operation, reusing the copy already made
-        /// for the same request. Use it in callbacks that run once per node of a request.
+        /// for the same request. Service calls and the callbacks that run once per node
+        /// of a request share one copy, so a request copies the context once per node
+        /// manager instead of once per call.
         /// </summary>
         private ServerSystemContext GetOperationSystemContext(OperationContext context)
         {
@@ -715,107 +840,106 @@ namespace Opc.Ua.Server
             => m_monitoredItemManager.MonitoredItems;
 
         /// <inheritdoc/>
-        async ValueTask<IReadOnlyList<IMonitoredItem>>
-            INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
-                IReadOnlyCollection<NodeId>? nodeIds,
-                CancellationToken cancellationToken)
+        Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemSource.GetNotificationDrain(NodeId nodeId)
         {
-            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
-            {
-                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
-                {
-                    if (!MonitoredItems.IsEmpty)
-                    {
-                        throw new NotSupportedException(
-                            "The configured monitored-item manager does not support lifecycle transitions.");
-                    }
-                    return [];
-                }
-                return lifecycle.GetMonitoredItemsSnapshot(nodeIds);
-            }
+            return m_monitoredItemManager.GetNotificationDrain(nodeId);
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.CanAttachMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemSource.ValidateSourceAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
-            return ValidateMonitoredItemForLifecycleAsync(monitoredItem, cancellationToken);
+            return ValidateMonitoredItemSourceAsync(monitoredItem, cancellationToken);
         }
 
         /// <inheritdoc/>
-        async ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.DetachMonitoredItemAsync(
+        async ValueTask<ServiceResult> INodeManagerMonitoredItemSource.ReleaseSourceAsync(
             IMonitoredItem monitoredItem,
+            long sourceRevision,
             CancellationToken cancellationToken)
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle ||
+                monitoredItem is not IMonitoredItemGenerationBinding)
             {
                 return StatusCodes.BadNotSupported;
             }
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
-            object previousHandle = sampledMonitoredItem.ManagerHandle;
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServiceResult result = await DetachMonitoredItemForLifecycleAsync(
+            await NodeManagerGenerationRegistry.GetOrCreate(this)
+                .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
+            return await ReleaseMonitoredItemSourceAsync(
                 context,
                 sampledMonitoredItem,
                 lifecycle,
+                sourceRevision,
                 cancellationToken).ConfigureAwait(false);
-
-            if (ServiceResult.IsGood(result) &&
-                previousHandle is NodeHandle handle &&
-                monitoredItem is IDetachableMonitoredItem { IsDetached: true })
-            {
-                await OnMonitoredItemDetachedAsync(
-                    context,
-                    handle,
-                    sampledMonitoredItem,
-                    cancellationToken).ConfigureAwait(false);
-            }
-            return result;
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemSource.AdoptSourceAsync(
             IMonitoredItem monitoredItem,
+            MonitoredItemAdoption adoption,
             CancellationToken cancellationToken)
         {
-            return AttachMonitoredItemAndNotifyAsync(
+            return AdoptMonitoredItemSourceAndNotifyAsync(
                 monitoredItem,
+                adoption,
                 cancellationToken);
         }
 
-        /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RecoverMonitoredItemAsync(
+        private async ValueTask<ServiceResult> AdoptMonitoredItemSourceAndNotifyAsync(
             IMonitoredItem monitoredItem,
-            CancellationToken cancellationToken)
-        {
-            return AttachMonitoredItemAndNotifyAsync(
-                monitoredItem,
-                cancellationToken);
-        }
-
-        private async ValueTask<ServiceResult> AttachMonitoredItemAndNotifyAsync(
-            IMonitoredItem monitoredItem,
+            MonitoredItemAdoption adoption,
             CancellationToken cancellationToken)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
+            if (monitoredItem is not IMonitoredItemGenerationBinding ||
+                m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+            await NodeManagerGenerationRegistry.GetOrCreate(this)
+                .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
+            (ServiceResult result, bool changed) = await AdoptMonitoredItemSourceAsync(
                 monitoredItem,
+                adoption,
                 cancellationToken).ConfigureAwait(false);
-            if (ServiceResult.IsGood(result) &&
+            if (changed && ServiceResult.IsGood(result) &&
                 monitoredItem is ISampledDataChangeMonitoredItem sampled &&
                 sampled.ManagerHandle is NodeHandle handle)
             {
                 ServerSystemContext context =
                     SystemContext.Copy(new OperationContext(monitoredItem));
-                await OnMonitoredItemAttachedAsync(
-                    context,
-                    handle,
-                    sampled,
-                    cancellationToken).ConfigureAwait(false);
+                long sourceRevision = adoption.SourceRevision;
+                try
+                {
+                    await OnMonitoredItemAttachedAsync(
+                        context,
+                        handle,
+                        sampled,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    try
+                    {
+                        ServiceResult release = await ReleaseMonitoredItemSourceAsync(
+                            context, sampled, lifecycle, sourceRevision, CancellationToken.None).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(release))
+                        {
+                            throw new ServiceResultException(release);
+                        }
+                    }
+                    catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "Monitored-item adoption and source cleanup both failed.", failure, cleanupFailure);
+                    }
+                    throw;
+                }
             }
             return result;
         }
@@ -847,13 +971,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates whether a sampled item can be rebound to this node manager's current address space.
         /// </summary>
-        private async ValueTask<ServiceResult> ValidateMonitoredItemForLifecycleAsync(
+        private async ValueTask<ServiceResult> ValidateMonitoredItemSourceAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle)
+                m_monitoredItemManager is not IMonitoredItemSourceManager)
             {
                 return StatusCodes.BadNotSupported;
             }
@@ -899,6 +1023,10 @@ namespace Opc.Ua.Server
                 return validationResult;
             }
 
+            if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0)
+            {
+                return ServiceResult.Good;
+            }
             (ServiceResult readResult, _) = await ReadMonitoredValueAsync(
                 context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
             return IsFatalInitialReadError(readResult)
@@ -906,16 +1034,22 @@ namespace Opc.Ua.Server
                 : ServiceResult.Good;
         }
 
-        private async ValueTask<ServiceResult> DetachMonitoredItemForLifecycleAsync(
+        private async ValueTask<ServiceResult> ReleaseMonitoredItemSourceAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            IMonitoredItemManagerLifecycle lifecycle,
+            IMonitoredItemSourceManager lifecycle,
+            long expectedSourceRevision,
             CancellationToken cancellationToken)
         {
             MonitoredNode2? monitoredNode = null;
             NodeState? eventSource = null;
             NodeHandle? handle = null;
             bool changed = false;
+            bool providerReleased = true;
+            bool restoredNative = false;
+            long sourceRevision = 0;
+            var binding = (IMonitoredItemGenerationBinding)monitoredItem;
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this);
             bool isEvent =
                 (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
             ServiceResult result;
@@ -923,67 +1057,71 @@ namespace Opc.Ua.Server
             {
                 using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
                 {
-                    handle = monitoredItem.ManagerHandle as NodeHandle;
+                    MonitoredItemSourceSnapshot source = binding.CaptureSource();
+                    if (source.Revision != expectedSourceRevision ||
+                        source.Generation is not null && !source.Generation.Identifies(generation))
+                    {
+                        return ServiceResult.Good;
+                    }
+                    sourceRevision = source.Revision;
+                    handle = source.Handle;
                     monitoredNode = isEvent ? handle?.MonitoredNode : null;
                     eventSource = isEvent ? handle?.Node : null;
-                    (result, changed) = lifecycle.DetachMonitoredItem(
+                    (result, changed) = lifecycle.ReleaseSource(
                         context,
                         monitoredItem,
+                        sourceRevision,
                         RemoveNodeFromComponentCache);
                     if (ServiceResult.IsBad(result) || !changed)
                     {
                         return result;
                     }
-                    if (monitoredNode == null || eventSource == null)
+                    providerReleased = monitoredNode == null || eventSource == null;
+                    if (!providerReleased)
                     {
-                        ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
-                        return result;
+                        eventSource!.SetAreEventsMonitored(context, false, true);
                     }
-                    eventSource.SetAreEventsMonitored(context, false, true);
                 }
 
-                await OnSubscribeToEventsAsync(
-                    context,
-                    monitoredNode,
-                    true,
-                    cancellationToken).ConfigureAwait(false);
+                await CompleteSourceReleaseAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException &&
-                changed &&
-                handle != null &&
-                monitoredNode != null &&
-                eventSource != null)
+            catch (Exception ex) when (ex is not OutOfMemoryException && changed)
             {
                 var compensationFailures = new List<Exception>();
                 MonitoredNode2? restoredNode = null;
-                using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+                if (!providerReleased && handle != null && monitoredNode != null && eventSource != null)
                 {
-                    if (ReferenceEquals(monitoredItem.ManagerHandle, handle) &&
-                        ReferenceEquals(monitoredItem.NodeManager, this) &&
-                        !MonitoredItems.ContainsKey(monitoredItem.Id))
+                    using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
                     {
-                        try
+                        MonitoredItemSourceSnapshot current = binding.CaptureSource();
+                        if (current.Revision == sourceRevision && current.Generation is null &&
+                            !binding.IsRemoved && !MonitoredItems.ContainsKey(monitoredItem.Id))
                         {
-                            (ServiceResult restoreResult, bool restored) = lifecycle.AttachMonitoredItem(
-                                context,
-                                handle,
-                                monitoredItem,
-                                AddNodeToComponentCache,
-                                RemoveNodeFromComponentCache);
-                            if (ServiceResult.IsBad(restoreResult))
+                            try
                             {
-                                compensationFailures.Add(new ServiceResultException(restoreResult));
+                                (ServiceResult restoreResult, bool restored) = lifecycle.AdoptSource(
+                                    context,
+                                    handle,
+                                    monitoredItem,
+                                    AddNodeToComponentCache,
+                                    RemoveNodeFromComponentCache,
+                                    sourceRevision);
+                                if (ServiceResult.IsBad(restoreResult))
+                                {
+                                    compensationFailures.Add(new ServiceResultException(restoreResult));
+                                }
+                                else if (restored)
+                                {
+                                    restoredNative = true;
+                                    eventSource.SetAreEventsMonitored(context, true, true);
+                                    restoredNode = handle.MonitoredNode;
+                                }
                             }
-                            else if (restored)
+                            catch (Exception compensationException) when (
+                                compensationException is not OutOfMemoryException)
                             {
-                                eventSource.SetAreEventsMonitored(context, true, true);
-                                restoredNode = handle.MonitoredNode;
+                                compensationFailures.Add(compensationException);
                             }
-                        }
-                        catch (Exception compensationException) when (
-                            compensationException is not OutOfMemoryException)
-                        {
-                            compensationFailures.Add(compensationException);
                         }
                     }
                 }
@@ -1000,6 +1138,10 @@ namespace Opc.Ua.Server
                         compensationFailures.Add(compensationException);
                     }
                 }
+                if (!restoredNative)
+                {
+                    generation.RetainSourceRelease(monitoredItem, sourceRevision, CompleteSourceReleaseAsync);
+                }
 
                 if (compensationFailures.Count > 0)
                 {
@@ -1011,33 +1153,67 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+            return result;
+
+            async ValueTask CompleteSourceReleaseAsync(CancellationToken ct)
             {
-                if (ReferenceEquals(monitoredItem.ManagerHandle, handle) &&
-                    ReferenceEquals(monitoredItem.NodeManager, this) &&
-                    !MonitoredItems.ContainsKey(monitoredItem.Id))
+                if (await HasNewerNativeSourceAsync(monitoredItem, binding, generation, sourceRevision)
+                    .ConfigureAwait(false))
                 {
-                    ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+                    return;
+                }
+                if (!providerReleased)
+                {
+                    await OnSubscribeToEventsAsync(context, monitoredNode!, true, ct).ConfigureAwait(false);
+                    providerReleased = true;
+                }
+                if (handle != null &&
+                    !await HasNewerNativeSourceAsync(monitoredItem, binding, generation, sourceRevision)
+                        .ConfigureAwait(false))
+                {
+                    await OnMonitoredItemDetachedAsync(context, handle, monitoredItem, ct).ConfigureAwait(false);
                 }
             }
-            return result;
+
+        }
+
+        /// <summary>
+        /// Detects a newer native binding that has assumed this generation's provider ownership.
+        /// </summary>
+        private async ValueTask<bool> HasNewerNativeSourceAsync(
+            ISampledDataChangeMonitoredItem monitoredItem,
+            IMonitoredItemGenerationBinding binding,
+            NodeManagerGeneration generation,
+            long sourceRevision)
+        {
+            using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+            {
+                MonitoredItemSourceSnapshot current = binding.CaptureSource();
+                return current.Generation?.Identifies(generation) == true &&
+                    current.Revision != sourceRevision &&
+                    MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? nativeItem) &&
+                    ReferenceEquals(nativeItem, monitoredItem);
+            }
         }
 
         /// <summary>
         /// Resolves the current node and attaches an existing sampled item to its monitoring manager.
         /// </summary>
         /// <exception cref="AggregateException"></exception>
-        private async ValueTask<ServiceResult> AttachMonitoredItemForLifecycleAsync(
+        private async ValueTask<(ServiceResult Result, bool Changed)> AdoptMonitoredItemSourceAsync(
             IMonitoredItem monitoredItem,
-            CancellationToken cancellationToken)
+            MonitoredItemAdoption adoption,
+            CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle ||
+                monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
-                return StatusCodes.BadNotSupported;
+                return (StatusCodes.BadNotSupported, false);
             }
 
+            long sourceRevision = adoption.SourceRevision;
             using var operationContext = new OperationContext(monitoredItem);
             ServerSystemContext context = SystemContext.Copy(operationContext);
             NodeHandle handle = await GetManagerHandleAsync(
@@ -1047,7 +1223,7 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             if (handle == null)
             {
-                return StatusCodes.BadNodeIdUnknown;
+                return (StatusCodes.BadNodeIdUnknown, false);
             }
 
             NodeState source = await ValidateNodeAsync(
@@ -1057,17 +1233,19 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             if (source == null)
             {
-                return StatusCodes.BadNodeIdUnknown;
+                return (StatusCodes.BadNodeIdUnknown, false);
             }
 
             bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+            bool externalValues =
+                (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0;
             DataValue initialValue = default;
             ServiceResult readResult = ServiceResult.Good;
             if (isEvent)
             {
                 if (!CanSubscribeToEvents(source))
                 {
-                    return StatusCodes.BadNotSupported;
+                    return (StatusCodes.BadNotSupported, false);
                 }
             }
             else
@@ -1079,43 +1257,61 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
                 if (ServiceResult.IsBad(validationResult))
                 {
-                    return validationResult;
+                    return (validationResult, false);
                 }
 
-                (readResult, initialValue) = await ReadMonitoredValueAsync(
-                    context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
-                if (IsFatalInitialReadError(readResult))
+                if (!externalValues)
                 {
-                    return readResult;
+                    (readResult, initialValue) = await ReadMonitoredValueAsync(
+                        context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
+                    if (IsFatalInitialReadError(readResult))
+                    {
+                        return (readResult, false);
+                    }
                 }
             }
 
             MonitoredNode2? monitoredNode = null;
             bool changed = false;
+            long boundRevision = 0;
             ServiceResult result;
             try
             {
                 using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
                 {
-                    (result, changed) = lifecycle.AttachMonitoredItem(
+                    (result, changed) = lifecycle.AdoptSource(
                         context,
                         handle,
                         sampledMonitoredItem,
                         AddNodeToComponentCache,
-                        RemoveNodeFromComponentCache);
+                        RemoveNodeFromComponentCache,
+                        sourceRevision,
+                        adoption);
                     if (ServiceResult.IsBad(result) || !changed)
                     {
-                        return result;
+                        return (result, changed);
                     }
+                    boundRevision = adoption.SourceRevision;
                     if (!isEvent)
                     {
-                        sampledMonitoredItem.QueueValue(initialValue, readResult, true);
-                        return result;
+                        if (!externalValues)
+                        {
+                            if (sampledMonitoredItem is MonitoredItem concreteItem)
+                            {
+                                concreteItem.QueueValueIfCurrent(
+                                    operationContext, initialValue, readResult, ignoreFilters: true);
+                            }
+                            else
+                            {
+                                sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                            }
+                        }
+                        return (result, changed);
                     }
                     monitoredNode = handle.MonitoredNode;
                     if (monitoredNode == null)
                     {
-                        return result;
+                        return (result, changed);
                     }
                     source.SetAreEventsMonitored(context, true, true);
                 }
@@ -1125,12 +1321,15 @@ namespace Opc.Ua.Server
                 using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    return ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
+                    if (binding.CaptureSource().Revision == boundRevision &&
+                        ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
                         ReferenceEquals(sampledMonitoredItem.NodeManager, this) &&
                         MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? current) &&
-                        ReferenceEquals(current, monitoredItem)
-                        ? result
-                        : new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid);
+                        ReferenceEquals(current, monitoredItem))
+                    {
+                        return (result, changed);
+                    }
+                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException && changed && monitoredNode != null)
@@ -1139,16 +1338,18 @@ namespace Opc.Ua.Server
                 bool removed = false;
                 using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
                 {
-                    if (ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
+                    if (binding.CaptureSource().Revision == boundRevision &&
+                        ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
                         ReferenceEquals(sampledMonitoredItem.NodeManager, this) &&
                         MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? current) &&
                         ReferenceEquals(current, monitoredItem))
                     {
                         try
                         {
-                            (ServiceResult detachResult, bool detached) = lifecycle.DetachMonitoredItem(
+                            (ServiceResult detachResult, bool detached) = lifecycle.ReleaseSource(
                                 context,
                                 sampledMonitoredItem,
+                                boundRevision,
                                 RemoveNodeFromComponentCache);
                             if (ServiceResult.IsBad(detachResult))
                             {
@@ -1158,7 +1359,6 @@ namespace Opc.Ua.Server
                             {
                                 removed = true;
                                 source.SetAreEventsMonitored(context, false, true);
-                                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
                             }
                         }
                         catch (Exception compensationException) when (
@@ -1166,6 +1366,12 @@ namespace Opc.Ua.Server
                         {
                             compensationFailures.Add(compensationException);
                         }
+                    }
+                    else if (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? registered) ||
+                        !ReferenceEquals(registered, monitoredItem))
+                    {
+                        // A late provider still owns its old registration after native release or handoff.
+                        removed = true;
                     }
                 }
                 if (removed)
@@ -1179,6 +1385,16 @@ namespace Opc.Ua.Server
                         compensationException is not OutOfMemoryException)
                     {
                         compensationFailures.Add(compensationException);
+                        NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this);
+                        generation.RetainSourceRelease(monitoredItem, boundRevision, async _ =>
+                        {
+                            if (!await HasNewerNativeSourceAsync(
+                                sampledMonitoredItem, binding, generation, boundRevision).ConfigureAwait(false))
+                            {
+                                await CompensateEventSubscriptionAsync(context, monitoredNode, true)
+                                    .ConfigureAwait(false);
+                            }
+                        });
                     }
                 }
                 if (compensationFailures.Count > 0)
@@ -1376,7 +1592,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="managerHandle">The handle to check.</param>
         /// <returns>Non-null if the handle belongs to the node manager.</returns>
-        protected virtual NodeHandle? IsHandleInNamespace(object managerHandle)
+        protected virtual NodeHandle? IsHandleInNamespace(object? managerHandle)
         {
             if (managerHandle is not NodeHandle source)
             {
@@ -1867,7 +2083,64 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            return DeleteNodeCoreAsync(context, nodeId, cancellationToken);
+            return DeleteNodeAsync(context, nodeId, emitModelChange: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Deletes a subtree with the normal reference, monitored-item and resource lifetime handling,
+        /// allowing its transaction to control automatic model-change emission for this call only.
+        /// </summary>
+        /// <param name="context">The operation's system context.</param>
+        /// <param name="nodeId">The root to remove.</param>
+        /// <param name="emitModelChange">
+        /// False when a transaction rolls back unpublished staging or emits its own aggregate change.
+        /// This does not modify the manager's policy or suppress deletion lifecycle callbacks.
+        /// </param>
+        /// <param name="cancellationToken">Cancels deletion.</param>
+        /// <returns>Whether the node existed and was removed.</returns>
+        public ValueTask<bool> DeleteNodeAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            bool emitModelChange,
+            CancellationToken cancellationToken)
+        {
+            return CompleteNodeDeletionAsync(
+                SystemContext.Copy(context),
+                nodeId,
+                deleteTargetReferences: true,
+                emitModelChange,
+                () => DeleteNodeCoreAsync(context, nodeId, cancellationToken));
+        }
+
+        private async ValueTask<T> CompleteNodeDeletionAsync<T>(
+            ServerSystemContext context,
+            NodeId nodeId,
+            bool deleteTargetReferences,
+            bool emitModelChange,
+            Func<ValueTask<T>> delete)
+        {
+            var changes = new NodeDeletionModelChanges(
+                context, nodeId, PredefinedNodes,
+                emitModelChange && ModelChangeEmissionEnabled, RequireNodeVersionForModelChange);
+            T result = default!;
+            Exception? failure = null;
+            try
+            {
+                result = await delete().ConfigureAwait(false);
+            }
+            catch (Exception deletionFailure) when (deletionFailure is not OutOfMemoryException)
+            {
+                failure = deletionFailure;
+            }
+            changes.Complete(failure, deleteTargetReferences, committed =>
+            {
+                foreach (ModelChangeStructureDataType change in committed)
+                {
+                    ModelChangeAggregator.Add(change);
+                }
+                EmitModelChange(context);
+            });
+            return result;
         }
 
         private async ValueTask<bool> DeleteNodeCoreAsync(
@@ -1884,21 +2157,15 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
-            NodeId modelChangeParentId = GetModelChangeParentNodeId(contextToUse, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(contextToUse, node);
-            IReadOnlyList<IMonitoredItem> detachedItems =
-                await DetachMonitoredItemsForNodeDeletionAsync(
+            IReadOnlyList<MonitoredItemSourceRelease> detachedItems =
+                await ReleaseSourcesForNodeDeletionAsync(
                     contextToUse,
                     node,
                     cancellationToken).ConfigureAwait(false);
-            bool addressSpaceRemovalStarted = false;
-            bool addressSpaceRemovalCompleted = false;
-
             try
             {
-                addressSpaceRemovalStarted = true;
                 try
                 {
                     await RemovePredefinedNodeAsync(
@@ -1908,8 +2175,6 @@ namespace Opc.Ua.Server
                 {
                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
                 }
-                addressSpaceRemovalCompleted = true;
-
                 // Refresh the parent's cached component view so a Browse issued
                 // after this runtime delete no longer reflects the removed child.
                 await RefreshParentComponentCacheAsync(
@@ -1923,39 +2188,16 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
             }
-            catch
+            catch (Exception failure)
             {
-                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
-                if (!addressSpaceRemovalStarted ||
-                    (!addressSpaceRemovalCompleted && nodeStillExists))
-                {
-                    await RestoreDetachedMonitoredItemsAsync(
-                        detachedItems,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                else
-                {
-                    foreach (IMonitoredItem monitoredItem in detachedItems)
-                    {
-                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-                    }
-                }
+                await RestoreSurvivingMonitoredItemsAsync(detachedItems, failure).ConfigureAwait(false);
                 throw;
             }
 
-            foreach (IMonitoredItem monitoredItem in detachedItems)
+            foreach (MonitoredItemSourceRelease source in detachedItems)
             {
-                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-            }
-
-            if (ModelChangeEmissionEnabled)
-            {
-                ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
-                if (!modelChangeParentId.IsNull)
-                {
-                    ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);
-                }
-                EmitModelChange(contextToUse);
+                ((IMonitoredItemGenerationBinding)source.Item)
+                    .TryInvalidateSource(source.Revision, terminal: false);
             }
 
             return true;
@@ -2006,6 +2248,7 @@ namespace Opc.Ua.Server
 
             var typeDefinitionId = ExpandedNodeId.ToNodeId(item.TypeDefinition, Server.NamespaceUris);
             ServiceResult typeDefinitionResult = await ValidateAddNodesTypeDefinitionAsync(
+                context,
                 item.NodeClass, typeDefinitionId, cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(typeDefinitionResult))
             {
@@ -2193,8 +2436,8 @@ namespace Opc.Ua.Server
                             if (PredefinedNodes.TryGetValue(newNodeId, out NodeState? indexedNode))
                             {
                                 List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, indexedNode);
-                                IReadOnlyList<IMonitoredItem> detachedItems =
-                                    await DetachMonitoredItemsForNodeDeletionAsync(
+                                IReadOnlyList<MonitoredItemSourceRelease> detachedItems =
+                                    await ReleaseSourcesForNodeDeletionAsync(
                                         systemContext, indexedNode, CancellationToken.None).ConfigureAwait(false);
                                 try
                                 {
@@ -2204,11 +2447,12 @@ namespace Opc.Ua.Server
                                 }
                                 finally
                                 {
-                                    foreach (IMonitoredItem monitoredItem in detachedItems)
+                                    foreach (MonitoredItemSourceRelease source in detachedItems)
                                     {
-                                        if (!PredefinedNodes.ContainsKey(monitoredItem.NodeId))
+                                        if (!PredefinedNodes.ContainsKey(source.Item.NodeId))
                                         {
-                                            ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                                            ((IMonitoredItemGenerationBinding)source.Item).TryInvalidateSource(
+                                                source.Revision, terminal: false);
                                         }
                                     }
                                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
@@ -2315,7 +2559,12 @@ namespace Opc.Ua.Server
             DeleteNodesItem item,
             CancellationToken cancellationToken = default)
         {
-            return DeleteNodeCoreAsync(context, item, cancellationToken);
+            return CompleteNodeDeletionAsync(
+                SystemContext.Copy(context),
+                item == null ? NodeId.Null : item.NodeId,
+                item != null && item.DeleteTargetReferences,
+                emitModelChange: true,
+                () => DeleteNodeCoreAsync(context, item!, cancellationToken));
         }
 
         private async ValueTask<ServiceResult> DeleteNodeCoreAsync(
@@ -2340,22 +2589,17 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadNodeIdUnknown);
             }
 
-            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
-            NodeId modelChangeParentId = GetModelChangeParentNodeId(systemContext, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, node);
-            IReadOnlyList<IMonitoredItem> detachedItems =
-                await DetachMonitoredItemsForNodeDeletionAsync(
+            IReadOnlyList<MonitoredItemSourceRelease> detachedItems =
+                await ReleaseSourcesForNodeDeletionAsync(
                     systemContext,
                     node,
                     cancellationToken).ConfigureAwait(false);
 
             var referencesToRemove = new List<LocalReference>();
-            bool addressSpaceRemovalStarted = false;
-            bool addressSpaceRemovalCompleted = false;
             try
             {
-                addressSpaceRemovalStarted = true;
                 try
                 {
                     await RemovePredefinedNodeAsync(
@@ -2365,8 +2609,6 @@ namespace Opc.Ua.Server
                 {
                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
                 }
-                addressSpaceRemovalCompleted = true;
-
                 // Refresh the parent's cached component view so a Browse issued
                 // after this runtime delete no longer reflects the removed child.
                 await RefreshParentComponentCacheAsync(
@@ -2380,71 +2622,19 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
             }
-            catch
+            catch (Exception failure)
             {
-                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
-                if (!addressSpaceRemovalStarted ||
-                    (!addressSpaceRemovalCompleted && nodeStillExists))
-                {
-                    await RestoreDetachedMonitoredItemsAsync(
-                        detachedItems,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                else
-                {
-                    foreach (IMonitoredItem monitoredItem in detachedItems)
-                    {
-                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-                    }
-                }
+                await RestoreSurvivingMonitoredItemsAsync(detachedItems, failure).ConfigureAwait(false);
                 throw;
             }
 
-            foreach (IMonitoredItem monitoredItem in detachedItems)
+            foreach (MonitoredItemSourceRelease source in detachedItems)
             {
-                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-            }
-
-            if (ModelChangeEmissionEnabled)
-            {
-                ModelChangeAggregator.RecordNodeDeleted(item.NodeId, deletedTypeDefinition);
-                if (!modelChangeParentId.IsNull)
-                {
-                    ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);
-                }
-                EmitModelChange(systemContext);
+                ((IMonitoredItemGenerationBinding)source.Item)
+                    .TryInvalidateSource(source.Revision, terminal: false);
             }
 
             return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Returns the node that loses a hierarchical Reference when
-        /// <paramref name="node"/> is deleted: its parent, or for a node
-        /// placed below a node of another NodeManager the source of its first
-        /// inverse hierarchical Reference.
-        /// </summary>
-        private NodeId GetModelChangeParentNodeId(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState { Parent: NodeState parent })
-            {
-                return parent.NodeId;
-            }
-
-            var references = new List<IReference>();
-            node.GetReferences(context, references);
-            foreach (IReference reference in references)
-            {
-                if (reference.IsInverse &&
-                    !reference.TargetId.IsAbsolute &&
-                    Server.TypeTree.IsTypeOf(
-                        reference.ReferenceTypeId,
-                        ReferenceTypeIds.HierarchicalReferences))
-                {
-                    return ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
-                }
-            }
-            return NodeId.Null;
         }
 
         private List<NodeState> GetSubtreeNotifiers(ISystemContext context, NodeState node)
@@ -2489,23 +2679,23 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Detaches items monitoring a deleted subtree and restores prior detachments if any item fails.
+        /// Releases sources monitoring a deleted subtree and restores owned incarnations if any release fails.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
-        private async ValueTask<IReadOnlyList<IMonitoredItem>>
-            DetachMonitoredItemsForNodeDeletionAsync(
+        private async ValueTask<IReadOnlyList<MonitoredItemSourceRelease>>
+            ReleaseSourcesForNodeDeletionAsync(
                 ISystemContext context,
                 NodeState node,
                 CancellationToken cancellationToken)
         {
-            var detachedItems = new List<IMonitoredItem>();
+            var detachedItems = new List<MonitoredItemSourceRelease>();
             Exception? failure = null;
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            IMonitoredItemManagerLifecycle lifecycle;
+            IMonitoredItemSourceManager lifecycle;
             IReadOnlyList<IMonitoredItem> monitoredItems;
             using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
-                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle managerLifecycle)
+                if (m_monitoredItemManager is not IMonitoredItemSourceManager managerLifecycle)
                 {
                     if (!MonitoredItems.IsEmpty)
                     {
@@ -2527,7 +2717,7 @@ namespace Opc.Ua.Server
                     nodes.AddRange(children);
                 }
 
-                monitoredItems = lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+                monitoredItems = m_monitoredItemManager.CaptureMonitoredItems(nodeIds);
             }
             detachedItems.Capacity = monitoredItems.Count;
             foreach (IMonitoredItem monitoredItem in monitoredItems)
@@ -2543,17 +2733,19 @@ namespace Opc.Ua.Server
                 {
                     ServerSystemContext itemContext =
                         SystemContext.Copy(new OperationContext(monitoredItem));
-                    ServiceResult result = await DetachMonitoredItemForLifecycleAsync(
+                    long sourceRevision = ((IMonitoredItemGenerationBinding)monitoredItem).SourceRevision;
+                    ServiceResult result = await ReleaseMonitoredItemSourceAsync(
                         itemContext,
                         sampledItem,
                         lifecycle,
+                        sourceRevision,
                         cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
                         failure = new ServiceResultException(result);
                         break;
                     }
-                    detachedItems.Add(monitoredItem);
+                    detachedItems.Add(new MonitoredItemSourceRelease(monitoredItem, sourceRevision));
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
@@ -2564,7 +2756,7 @@ namespace Opc.Ua.Server
 
             if (failure is not null)
             {
-                await RestoreDetachedMonitoredItemsAsync(
+                await RestoreReleasedSourcesAsync(
                     detachedItems,
                     CancellationToken.None).ConfigureAwait(false);
                 throw failure;
@@ -2572,22 +2764,68 @@ namespace Opc.Ua.Server
             return detachedItems;
         }
 
-        private async ValueTask RestoreDetachedMonitoredItemsAsync(
-            IReadOnlyList<IMonitoredItem> monitoredItems,
+        private async ValueTask RestoreSurvivingMonitoredItemsAsync(
+            IReadOnlyList<MonitoredItemSourceRelease> monitoredItems,
+            Exception deletionFailure)
+        {
+            var survivingItems = new List<MonitoredItemSourceRelease>(monitoredItems.Count);
+            foreach (MonitoredItemSourceRelease source in monitoredItems)
+            {
+                if (PredefinedNodes.ContainsKey(source.Item.NodeId))
+                {
+                    survivingItems.Add(source);
+                }
+                else
+                {
+                    ((IMonitoredItemGenerationBinding)source.Item)
+                        .TryInvalidateSource(source.Revision, terminal: false);
+                }
+            }
+            try
+            {
+                await RestoreReleasedSourcesAsync(survivingItems, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception restorationFailure) when (restorationFailure is not OutOfMemoryException)
+            {
+                throw new AggregateException(
+                    "Node deletion and monitored-item restoration failed.", deletionFailure, restorationFailure);
+            }
+        }
+
+        private async ValueTask RestoreReleasedSourcesAsync(
+            List<MonitoredItemSourceRelease> monitoredItems,
             CancellationToken cancellationToken)
         {
             TimeProvider clock = (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
-            using CancellationTokenSource timeout = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
-            using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+            List<Exception>? failures = null;
             for (int ii = monitoredItems.Count - 1; ii >= 0; ii--)
             {
-                ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
-                    monitoredItems[ii],
-                    cleanup.Token).ConfigureAwait(false);
-                if (ServiceResult.IsBad(result))
+                try
                 {
-                    throw new ServiceResultException(result);
+                    MonitoredItemSourceRelease source = monitoredItems[ii];
+                    if (((IMonitoredItemGenerationBinding)source.Item).SourceRevision != source.Revision)
+                    {
+                        continue;
+                    }
+                    using CancellationTokenSource timeout = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
+                    using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+                    (ServiceResult result, _) = await AdoptMonitoredItemSourceAsync(
+                        source.Item,
+                        new MonitoredItemAdoption(source.Revision),
+                        cancellationToken: cleanup.Token).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        throw new ServiceResultException(result);
+                    }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException("Monitored-item restoration failed.", failures);
             }
         }
 
@@ -2624,12 +2862,10 @@ namespace Opc.Ua.Server
 
             bool isInverse = !item.IsForward;
 
-            if (source.ReferenceExists(item.ReferenceTypeId, isInverse, item.TargetNodeId))
+            if (!source.AddReferenceIfMissing(item.ReferenceTypeId, isInverse, item.TargetNodeId))
             {
                 return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed));
             }
-
-            source.AddReference(item.ReferenceTypeId, isInverse, item.TargetNodeId);
 
             // Part 3 5.x/9.32.2: the NodeVersion of the source is updated and a
             // ModelChangeEvent reported whenever one of its References is added.
@@ -2752,7 +2988,7 @@ namespace Opc.Ua.Server
         /// </para>
         /// </remarks>
         private async ValueTask AddMandatoryInstanceDeclarationsAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeState instance,
             NodeId typeDefinitionId,
             int depth,
@@ -2777,7 +3013,8 @@ namespace Opc.Ua.Server
             while (!typeId.IsNull && visitedTypes.Add(typeId))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                NodeState? typeNode = await FindTypeNodeAsync(typeId, cancellationToken)
+                NodeState? typeNode = await FindTypeNodeAsync(
+                    context.OperationContext, typeId, cancellationToken)
                     .ConfigureAwait(false);
                 if (typeNode != null)
                 {
@@ -2820,7 +3057,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask AddMandatoryInstanceDeclarationsToSubtreeAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             BaseInstanceState node,
             int depth,
             CancellationToken cancellationToken)
@@ -2946,6 +3183,7 @@ namespace Opc.Ua.Server
         /// concrete subtype.
         /// </remarks>
         private async ValueTask<ServiceResult> ValidateAddNodesTypeDefinitionAsync(
+            OperationContext context,
             NodeClass nodeClass,
             NodeId typeDefinitionId,
             CancellationToken cancellationToken)
@@ -3002,7 +3240,7 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
             }
 
-            NodeState? typeNode = await FindTypeNodeAsync(typeDefinitionId, cancellationToken)
+            NodeState? typeNode = await FindTypeNodeAsync(context, typeDefinitionId, cancellationToken)
                 .ConfigureAwait(false);
             if (typeNode is BaseTypeState { IsAbstract: true })
             {
@@ -3017,6 +3255,7 @@ namespace Opc.Ua.Server
         /// then in the rest of the address space.
         /// </summary>
         private async ValueTask<NodeState?> FindTypeNodeAsync(
+            OperationContext? context,
             NodeId typeId,
             CancellationToken cancellationToken)
         {
@@ -3033,7 +3272,7 @@ namespace Opc.Ua.Server
             {
                 return null;
             }
-            return await master.FindNodeInAddressSpaceAsync(typeId, cancellationToken)
+            return await master.ResolveNodeInAddressSpaceAsync(context, typeId, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -3061,8 +3300,8 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    (object? handle, IAsyncNodeManager? owner) = await Server.NodeManager.GetManagerHandleAsync(
-                        variable.TypeDefinitionId, cancellationToken).ConfigureAwait(false);
+                    (object? handle, IAsyncNodeManager? owner) = await Server.NodeManager.ResolveManagerHandleAsync(
+                        context, variable.TypeDefinitionId, cancellationToken).ConfigureAwait(false);
                     NodeMetadata? metadata = handle == null || owner == null
                         ? null
                         : await owner.GetNodeMetadataAsync(
@@ -3435,7 +3674,7 @@ namespace Opc.Ua.Server
 
             if (Server.NodeManager is IDynamicNodeManagerHost recovery)
             {
-                await recovery.RecoverDetachedMonitoredItemsAsync(
+                await recovery.ResolveUnresolvedSourcesAsync(
                     this,
                     [activeNode.NodeId],
                     cancellationToken).ConfigureAwait(false);
@@ -3750,6 +3989,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            DisposeValueReadAuthorization(node);
             // Drop any cached component view so a later resolution does not
             // return the removed node.
             await InvalidateComponentCacheAsync(node.NodeId, cancellationToken).ConfigureAwait(false);
@@ -3998,39 +4238,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rebuilds type and encoding registrations from the current predefined nodes.
-        /// </summary>
-        internal void RebuildTypeTree()
-        {
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                if (node is BaseTypeState type)
-                {
-                    AddTypesToTypeTree(type);
-                }
-            }
-
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                var references = new List<IReference>();
-                node.GetReferences(SystemContext, references);
-                foreach (IReference reference in references)
-                {
-                    if (reference.IsInverse &&
-                        reference.ReferenceTypeId == ReferenceTypeIds.HasEncoding &&
-                        !reference.TargetId.IsAbsolute)
-                    {
-                        var dataTypeId = (NodeId)reference.TargetId;
-                        if (!Server.TypeTree.IsEncodingOf(node.NodeId, dataTypeId))
-                        {
-                            Server.TypeTree.AddEncoding(dataTypeId, node.NodeId);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// Finds the specified and checks if it is of the expected type.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -4180,6 +4387,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                DisposeValueReadAuthorization(node);
                 await OnNodeRemovedAsync(node, cancellationToken).ConfigureAwait(false);
                 if (node is BaseTypeState type &&
                     !IsTypeOwnedByAnotherNodeManager(type.NodeId))
@@ -4510,13 +4718,42 @@ namespace Opc.Ua.Server
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
             // The are originating from services in the context of AccessRestrictions and RolePermission validation.
             // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
+            uint[] attributeIds = RentValidationAttributeIds();
             target.ReadAttributes(
                 systemContext,
                 ref values,
-                Attributes.AccessRestrictions,
-                Attributes.RolePermissions,
-                Attributes.UserRolePermissions);
+                attributeIds);
+            t_validationAttributeIds = attributeIds;
         }
+
+        /// <summary>
+        /// Returns the attributes read by <see cref="ReadValidationAttributes"/>. The array is
+        /// passed to the virtual <see cref="NodeState.ReadAttributes(ISystemContext, ref Variant[], uint[])"/>,
+        /// which could change it, so it is filled again for every call; one array per thread is
+        /// taken for the call and given back afterwards, so a read that validates permissions
+        /// again (re-entrantly) gets its own. Filling it element by element avoids the
+        /// <c>RuntimeHelpers.InitializeArray</c> call of an array initializer.
+        /// </summary>
+        private static uint[] RentValidationAttributeIds()
+        {
+            uint[] attributeIds = t_validationAttributeIds ?? new uint[3];
+            t_validationAttributeIds = null;
+            attributeIds[0] = Attributes.AccessRestrictions;
+            attributeIds[1] = Attributes.RolePermissions;
+            attributeIds[2] = Attributes.UserRolePermissions;
+            return attributeIds;
+        }
+
+        [ThreadStatic]
+        private static uint[]? t_validationAttributeIds;
+
+        /// <summary>
+        /// The values array of a permission check that keeps no attribute cache: taken by
+        /// <see cref="TryValidatePermissionsAsync"/> for the synchronous read of the attributes
+        /// and given back cleared, before the check awaits anything.
+        /// </summary>
+        [ThreadStatic]
+        private static Variant[]? t_validationValues;
 
         /// <summary>
         /// Browses the references from a node managed by the node manager.
@@ -4538,7 +4775,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(continuationPoint));
             }
 
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // check for valid view.
             ValidateViewDescription(systemContext, continuationPoint.View!);
@@ -4552,6 +4789,8 @@ namespace Opc.Ua.Server
             NodeState source =
                 await ValidateNodeAsync(systemContext, handle, null!, cancellationToken).ConfigureAwait(false)
                 ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+
+            using IDisposable? activity = BeginBrowseActivity(systemContext, source);
 
             // check if node is in the view.
             if (!IsNodeInView(systemContext, continuationPoint, source))
@@ -4827,7 +5066,7 @@ namespace Opc.Ua.Server
             IList<NodeId> unresolvedTargetIds,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             // check for valid handle.
@@ -4845,6 +5084,8 @@ namespace Opc.Ua.Server
             {
                 return;
             }
+
+            using IDisposable? activity = BeginBrowseActivity(systemContext, source);
 
             // get list of references that relative path. The node guards the browser build itself.
             INodeBrowser browser = source.CreateBrowser(
@@ -4940,6 +5181,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Begins optional activity accounting for a resolved browse source.
+        /// The returned scope is disposed after browsing or translating the relative path finishes.
+        /// </summary>
+        /// <param name="context">The requesting session context.</param>
+        /// <param name="source">The resolved source node.</param>
+        /// <returns>The activity scope, or null when no accounting is needed.</returns>
+        protected virtual IDisposable? BeginBrowseActivity(ISystemContext context, NodeState source)
+        {
+            return null;
+        }
+
+        /// <summary>
         /// Reads the value for the specified attribute.
         /// </summary>
         public virtual async ValueTask ReadAsync(
@@ -4950,9 +5203,13 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
-            var nodesToValidate = new List<NodeHandle>();
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
+
+            // The cache shares the nodes resolved for one operation with the others of the
+            // request, so a request with one node only needs it for a node to validate.
+            IDictionary<NodeId, NodeState>? operationCache =
+                nodesToRead.Count > 1 ? new Dictionary<NodeId, NodeState>() : null;
+            List<NodeHandle>? nodesToValidate = null;
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
@@ -4964,12 +5221,14 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                // check for valid handle.
-                NodeHandle handle = await GetManagerHandleAsync(
-                    systemContext,
-                    nodeToRead.NodeId,
-                    operationCache,
-                    cancellationToken).ConfigureAwait(false);
+                // check for valid handle: the handle of an in-memory node this node manager
+                // already returned while the request was validated, or a new one.
+                NodeHandle handle = GetRoutedHandle(nodeToRead.Handle, nodeToRead.NodeId) ??
+                    await GetManagerHandleAsync(
+                        systemContext,
+                        nodeToRead.NodeId,
+                        operationCache!,
+                        cancellationToken).ConfigureAwait(false);
 
                 if (handle == null)
                 {
@@ -4991,7 +5250,7 @@ namespace Opc.Ua.Server
 
                     // must validate node in a separate operation
                     handle.Index = ii;
-                    nodesToValidate.Add(handle);
+                    (nodesToValidate ??= []).Add(handle);
 
                     continue;
                 }
@@ -5044,13 +5303,43 @@ namespace Opc.Ua.Server
             }
 
             // check for nothing to do.
-            if (nodesToValidate.Count == 0)
+            if (nodesToValidate == null)
             {
                 return;
             }
 
             // validates the nodes (reads values from the underlying data source if required).
-            await ReadAsync(systemContext, nodesToRead, values, errors, nodesToValidate, operationCache, cancellationToken).ConfigureAwait(false);
+            await ReadAsync(
+                systemContext,
+                nodesToRead,
+                values,
+                errors,
+                nodesToValidate,
+                operationCache ?? new Dictionary<NodeId, NodeState>(),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Returns the handle of an in-memory node of this node manager that the request
+        /// validation already resolved for <paramref name="nodeId"/>, or <c>null</c>.
+        /// </summary>
+        /// <remarks>
+        /// The Read service validates the permissions of every node through
+        /// <see cref="GetManagerHandleAsync(NodeId, CancellationToken)"/>, whose handle "does not
+        /// require the NodeId to be validated again"; it routes the handle of a node that was
+        /// already resolved and validated at that point (see
+        /// <see cref="NodeManagerServiceDispatcher"/>), so the read does not look the node up
+        /// and allocate a second handle.
+        /// </remarks>
+        internal NodeHandle? GetRoutedHandle(object? routed, NodeId nodeId)
+        {
+            return routed is NodeHandle handle &&
+                ReferenceEquals(handle.RoutedBy, this) &&
+                handle.Validated &&
+                handle.Node != null &&
+                handle.NodeId == nodeId
+                ? handle
+                : null;
         }
 
         /// <summary>
@@ -5214,7 +5503,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
@@ -5545,22 +5834,7 @@ namespace Opc.Ua.Server
                     propertyState.NodeId == property.NodeId &&
                     (hasSemanticChangeFlag || IsSemanticChangeProperty(node, propertyName)))
                 {
-                    monitoredItem.SetSemanticsChanged();
-
-                    // re-read in the context of the session owning the monitored item,
-                    // not in the context of the writer.
-                    ServerSystemContext itemContext = SystemContext.Copy(
-                        new OperationContext(kvp.Value));
-                    var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
-
-                    ServiceResult readResult = node.ReadAttribute(
-                        itemContext,
-                        Attributes.Value,
-                        monitoredItem.IndexRange,
-                        monitoredItem.DataEncoding,
-                        ref value);
-
-                    monitoredItem.QueueValue(value, readResult, true);
+                    m_monitoredItemManager.TryQueueSemanticResample(node, monitoredItem);
 
                     changedNode ??= node;
                 }
@@ -5811,7 +6085,7 @@ namespace Opc.Ua.Server
                 kept.Add(entry);
             }
 
-            return new ArrayOf<ModelChangeStructureDataType>(kept.ToArray());
+            return new ArrayOf<ModelChangeStructureDataType>([.. kept]);
         }
 
         /// <summary>
@@ -5942,7 +6216,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
@@ -6100,6 +6374,19 @@ namespace Opc.Ua.Server
         private IHistorianProvider? ResolveHistorianProvider(NodeState node)
         {
             return HistorianDispatcher.ResolveProvider(Server, node, GetHistorianProvider(node));
+        }
+
+        /// <summary>
+        /// Resolves the historian provider for a history read, preferring the provider restored with the continuation
+        /// point being resumed over the currently registered provider.
+        /// </summary>
+        /// <param name="context">The system context of the current operation.</param>
+        /// <param name="node">The node being read.</param>
+        /// <returns>The provider to use, or null if the node has no historian.</returns>
+        private IHistorianProvider? ResolveHistoryReadProvider(ServerSystemContext context, NodeState node)
+        {
+            return (context.OperationContext?.Session?.ContinuationPoints as SessionContinuationPoints)?
+                .GetRestoredHistoryProvider(node.NodeId) ?? ResolveHistorianProvider(node);
         }
 
         private static bool HasHistoryWritePermission(
@@ -6316,7 +6603,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    IHistorianProvider? annotationProvider = ResolveHistorianProvider(parent);
+                    IHistorianProvider? annotationProvider = ResolveHistoryReadProvider(context, parent);
                     if (annotationProvider == null)
                     {
                         errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -6341,7 +6628,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -6405,7 +6692,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -6476,7 +6763,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -6534,7 +6821,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -6814,7 +7101,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
@@ -7428,7 +7715,7 @@ namespace Opc.Ua.Server
                 return null!;
             }
 
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             NodeHandle? handle = await GetManagerHandleAsync(
@@ -7488,7 +7775,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
@@ -7585,6 +7872,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Asynchronously calls a method on an object.
         /// </summary>
+        /// <param name="context">The context for the method invocation.</param>
+        /// <param name="methodToCall">The requested receiver, method and input arguments.</param>
+        /// <param name="method">The resolved method state.</param>
+        /// <param name="result">The result populated for the Call service response.</param>
+        /// <param name="cancellationToken">The caller's cancellation token.</param>
         protected virtual async ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             CallMethodRequest methodToCall,
@@ -7605,70 +7897,8 @@ namespace Opc.Ua.Server
                cancellationToken
             ).ConfigureAwait(false);
 
-            if (ServiceResult.IsBad(callResult))
-            {
-                return callResult;
-            }
-
-            // check for argument errors.
-            bool argumentsValid = true;
-
-            var inputArgumentResults = new List<StatusCode>();
-            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
-
-            for (int jj = 0; jj < argumentErrors.Count; jj++)
-            {
-                ServiceResult argumentError = argumentErrors[jj];
-
-                if (argumentError != null)
-                {
-                    inputArgumentResults.Add(argumentError.StatusCode);
-
-                    if (ServiceResult.IsBad(argumentError))
-                    {
-                        argumentsValid = false;
-                    }
-
-                    // only fill in diagnostic info if it is requested.
-                    if (systemContext!.OperationContext != null &&
-                        (systemContext.OperationContext.DiagnosticsMask &
-                            DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        if (ServiceResult.IsBad(argumentError))
-                        {
-                            inputArgumentDiagnosticInfos.Add(
-                                new DiagnosticInfo(
-                                    argumentError,
-                                    systemContext.OperationContext.DiagnosticsMask,
-                                    false,
-                                    systemContext.OperationContext.StringTable,
-                                    m_logger));
-                        }
-                        else
-                        {
-                            inputArgumentDiagnosticInfos.Add(null!);
-                        }
-                    }
-                }
-            }
-
-            // check for validation errors.
-            if (!argumentsValid)
-            {
-                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
-                // when StatusCode is Good. Therefore set here to the argument results
-                // and return a Bad status code.
-                result.InputArgumentResults = inputArgumentResults;
-                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return result.StatusCode;
-            }
-
-            // return output arguments.
-            result.OutputArguments = outputArguments;
-
-            // return the actual result of the original call
-            return callResult;
+            return MethodCallResultBuilder.Apply(
+                callResult, argumentErrors, outputArguments, result, systemContext?.OperationContext, m_logger);
         }
 
         /// <summary>
@@ -7687,7 +7917,7 @@ namespace Opc.Ua.Server
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // check for valid handle.
             NodeHandle? handle = IsHandleInNamespace(sourceId);
@@ -7723,7 +7953,7 @@ namespace Opc.Ua.Server
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             ServiceResult firstError = ServiceResult.Good;
 
             // A client has subscribed to the Server object which means all events produced
@@ -7754,7 +7984,7 @@ namespace Opc.Ua.Server
                         : ServiceResult.Create(exception, StatusCodes.BadUnexpectedError,
                             "The event source could not complete subscription cleanup.");
                 }
-                if (result.StatusCode == StatusCodes.BadNotSupported ||
+                if ((result.StatusCode == StatusCodes.BadNotSupported && !CanSubscribeToEvents(kvp.Value)) ||
                     (unsubscribe && result.StatusCode == StatusCodes.BadNodeIdUnknown))
                 {
                     continue;
@@ -7825,6 +8055,10 @@ namespace Opc.Ua.Server
             return !nodeId.IsNull && RootNotifiers.TryGetValue(nodeId, out _);
         }
 
+        /// <summary>
+        /// Removes an alarm root notifier only if the registered notifier is the same node instance.
+        /// </summary>
+        /// <param name="notifier">The alarm root notifier to remove if it is still registered.</param>
         internal ValueTask RemoveAlarmRootNotifierAsync(NodeState notifier)
         {
             return RootNotifiers.TryGetValue(notifier.NodeId, out NodeState? current) &&
@@ -7885,6 +8119,13 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
+            if (stagingServer?.IsStaging == true)
+            {
+                stagingServer.StageRootNotifierReference(notifier.NodeId);
+                return;
+            }
+
             ServerObjectState? serverObject = Server.ServerObject;
             if (serverObject != null &&
                 serverObject.ReferenceExists(
@@ -7922,8 +8163,13 @@ namespace Opc.Ua.Server
             NodeState notifier,
             CancellationToken cancellationToken = default)
         {
+            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
             if (RootNotifiers.TryRemove(notifier.NodeId, out notifier!))
             {
+                if (stagingServer?.IsStaging == true)
+                {
+                    stagingServer.UnstageRootNotifierReference(notifier.NodeId);
+                }
                 var detached = new List<MonitoredNode2>();
                 using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
                 {
@@ -7961,7 +8207,9 @@ namespace Opc.Ua.Server
                     ObjectIds.Server);
 
                 ServerObjectState? serverObject = Server.ServerObject;
-                if (serverObject != null &&
+                if (stagingServer?.IsStaging != true &&
+                    stagingServer?.IsDetached != true &&
+                    serverObject != null &&
                     serverObject.ReferenceExists(
                         ReferenceTypeIds.HasNotifier,
                         false,
@@ -8012,13 +8260,20 @@ namespace Opc.Ua.Server
         /// <param name="node">The notifier node.</param>
         /// <param name="e">The event.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual ValueTask OnReportEventAsync(
+        protected virtual async ValueTask OnReportEventAsync(
             ISystemContext context,
             NodeState node,
             IFilterTarget e,
             CancellationToken cancellationToken = default)
         {
-            return Server.ReportEventAsync(context, e, cancellationToken);
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(Server, this, out var emission, context: context);
+            if (!admitted)
+            {
+                return;
+            }
+            using MasterNodeManager.SourceEmissionOrigin? origin = emission?.TransferToOrigin();
+            await Server.ReportEventAsync(origin?.CreateContext(context) ?? context, e, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -8054,12 +8309,11 @@ namespace Opc.Ua.Server
                         source,
                         monitoredItem,
                         unsubscribe);
-
-                // This call recursively updates a reference count all nodes in the notifier
-                // hierarchy below the area. Sources with a reference count of 0 do not have
-                // any active subscriptions so they do not need to report events.
-                if (ServiceResult.IsGood(serviceResult) &&
-                    wasSubscribed == unsubscribe)
+                if (ServiceResult.IsBad(serviceResult))
+                {
+                    return serviceResult;
+                }
+                if (wasSubscribed == unsubscribe)
                 {
                     source.SetAreEventsMonitored(context, !unsubscribe, true);
                 }
@@ -8074,10 +8328,11 @@ namespace Opc.Ua.Server
                     await OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch
+                catch (Exception exception) when (exception is not OutOfMemoryException)
                 {
                     if (!unsubscribe && !wasSubscribed)
                     {
+                        var compensationFailures = new List<Exception>();
                         bool removed = false;
                         // This operation was already admitted. Rollback must also work after
                         // cancellation or shutdown has closed admission for new operations.
@@ -8088,8 +8343,12 @@ namespace Opc.Ua.Server
                                     monitoredItem.Id, out IEventMonitoredItem? registered) &&
                                 ReferenceEquals(registered, monitoredItem))
                             {
-                                m_monitoredItemManager.SubscribeToEvents(
+                                (_, ServiceResult removeResult) = m_monitoredItemManager.SubscribeToEvents(
                                     context, source, monitoredItem, unsubscribe: true);
+                                if (ServiceResult.IsBad(removeResult))
+                                {
+                                    compensationFailures.Add(new ServiceResultException(removeResult));
+                                }
                                 source.SetAreEventsMonitored(context, false, true);
                                 removed = true;
                                 if (!monitoredNode.HasMonitoredItems)
@@ -8097,6 +8356,10 @@ namespace Opc.Ua.Server
                                     monitoredNode.Dispose();
                                 }
                             }
+                        }
+                        catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                        {
+                            compensationFailures.Add(cleanupFailure);
                         }
                         finally
                         {
@@ -8111,8 +8374,15 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
                             {
-                                m_logger.NodeManagerDeferredCleanupFailed(cleanupFailure);
+                                compensationFailures.Add(cleanupFailure);
                             }
+                        }
+                        if (compensationFailures.Count > 0)
+                        {
+                            compensationFailures.Insert(0, exception);
+                            throw new AggregateException(
+                                "Event subscription creation and compensation both failed.",
+                                compensationFailures);
                         }
                     }
                     throw;
@@ -8139,6 +8409,11 @@ namespace Opc.Ua.Server
         /// <param name="monitoredNode">The monitored node.</param>
         /// <param name="unsubscribe">if set to <c>true</c> unsubscribing.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <remarks>
+        /// Reconcile provider state with the monitored node's current membership and make unsubscribe idempotent.
+        /// A release can race a pending subscribe callback; cleanup can unsubscribe again after
+        /// that callback completes.
+        /// </remarks>
         protected virtual ValueTask OnSubscribeToEventsAsync(
             ServerSystemContext context,
             MonitoredNode2 monitoredNode,
@@ -8161,7 +8436,7 @@ namespace Opc.Ua.Server
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -8196,7 +8471,10 @@ namespace Opc.Ua.Server
                         }
 
                         // get the refresh events.
-                        nodesToRefresh.Add(((NodeHandle)monitoredItem.ManagerHandle).Node);
+                        if (monitoredItem.ManagerHandle is NodeHandle handle)
+                        {
+                            nodesToRefresh.Add(handle.Node);
+                        }
                     }
                 }
 
@@ -8215,7 +8493,15 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    monitoredItem.QueueEvent(events[jj]);
+                    if (monitoredItem is MonitoredItem concreteItem)
+                    {
+                        concreteItem.QueueEventIfCurrent(
+                            context.Session, context.NotificationAuthorization, events[jj], null, null);
+                    }
+                    else
+                    {
+                        monitoredItem.QueueEvent(events[jj]);
+                    }
                 }
             }
 
@@ -8396,7 +8682,25 @@ namespace Opc.Ua.Server
 
             if (success)
             {
-                OnMonitoredItemCreated(context, handle, restoredItem);
+                bool created = false;
+                try
+                {
+                    OnMonitoredItemCreated(context, handle, restoredItem);
+                    created = true;
+                }
+                finally
+                {
+                    if (!created)
+                    {
+                        // release the item so that a retry of the restore can recreate it.
+                        DeleteFailedMonitoredItem(
+                            context,
+                            handle,
+                            restoredItem,
+                            m_monitoredItemManager is MonitoredNodeMonitoredItemManager);
+                        monitoredItem = null;
+                    }
+                }
             }
 
             return success;
@@ -8422,7 +8726,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var createdItems = new List<IMonitoredItem>();
@@ -8485,6 +8789,8 @@ namespace Opc.Ua.Server
 
                 MonitoredItemCreateRequest itemToCreate = itemsToCreate[handle.Index];
 
+                // The node resolved; cancellation during admission must not retain the lookup placeholder.
+                errors[handle.Index] = ServiceResult.Good;
                 (errors[handle.Index], filterResult, monitoredItem) = await CreateMonitoredItemAsync(
                     systemContext,
                     handle,
@@ -8604,6 +8910,22 @@ namespace Opc.Ua.Server
                 return (StatusCodes.BadAttributeIdInvalid, filterResult, monitoredItem);
             }
 
+            ServiceResult readAuthorization = await ValidateRolePermissionsAsync(
+                context.OperationContext!,
+                handle.NodeId,
+                MonitoredReadAuthorization.PermissionFor(itemToCreate.ItemToMonitor.AttributeId),
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(readAuthorization))
+            {
+                return (readAuthorization, filterResult, monitoredItem);
+            }
+            readAuthorization = await ValidateMonitoredReadAsync(
+                context, handle.Node, itemToCreate.ItemToMonitor.AttributeId, cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(readAuthorization))
+            {
+                return (readAuthorization, filterResult, monitoredItem);
+            }
+
             // determine the sampling interval.
             double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                 itemToCreate.RequestedParameters.SamplingInterval,
@@ -8643,6 +8965,12 @@ namespace Opc.Ua.Server
             {
                 if (decision.Kind == MonitoredItemCreateDecisionKind.Custom)
                 {
+                    bool admitted = MasterNodeManager.TryBeginCustomSourceCreation(Server, this, out var admission);
+                    using var creationAdmission = admission;
+                    if (!admitted)
+                    {
+                        return (StatusCodes.BadNotSupported, filterResult, monitoredItem);
+                    }
                     if (m_monitoredItemManager is not ICustomMonitoredItemManager customManager)
                     {
                         return (StatusCodes.BadNotSupported, filterResult, monitoredItem);
@@ -8694,6 +9022,19 @@ namespace Opc.Ua.Server
             bool created = false;
             try
             {
+                if (decision.QueueInitialValue &&
+                    dataChangeMonitoredItem is MonitoredItem { UsesExternalValueSource: true })
+                {
+                    using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+                    {
+                        DeleteFailedMonitoredItem(
+                            context,
+                            handle,
+                            dataChangeMonitoredItem,
+                            componentCacheReferenceAdded);
+                    }
+                    return (StatusCodes.BadConfigurationError, filterResult, null);
+                }
                 ServiceResult error = ServiceResult.Good;
                 if (decision.Kind != MonitoredItemCreateDecisionKind.Custom ||
                     decision.QueueInitialValue)
@@ -8925,6 +9266,18 @@ namespace Opc.Ua.Server
                             request,
                             token,
                             cancellationToken).ConfigureAwait(false);
+                    ServiceResult authorization = await ValidateRolePermissionsAsync(
+                        context.OperationContext!, handle.NodeId, PermissionType.Read, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (!ServiceResult.IsBad(authorization))
+                    {
+                        authorization = await MonitoredReadAuthorization.ValidateAsync(
+                            this, handle.Node, context, Attributes.Value, cancellationToken).ConfigureAwait(false);
+                    }
+                    if (ServiceResult.IsBad(authorization))
+                    {
+                        return QueueInitialHistoryFailure(monitoredItem, utcNow, authorization);
+                    }
                     foreach (HistoricalDataValue historicalValue in page.Values)
                     {
                         // the priming window is client controlled (StartTime and
@@ -8961,7 +9314,8 @@ namespace Opc.Ua.Server
                             monitoredItem,
                             value,
                             valueError,
-                            ignoreFilters: false);
+                            ignoreFilters: false,
+                            context: context.OperationContext);
                     }
 
                     if (page.IsFinal)
@@ -9035,19 +9389,21 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<InitialValueReadResult> ReadCurrentValueAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken)
         {
             (ServiceResult error, DataValue value) = await ReadMonitoredValueAsync(
                 context, handle, monitoredItem, cancellationToken).ConfigureAwait(false);
-            QueueInitialValue(monitoredItem, value, error, ignoreFilters: true);
+            QueueInitialValue(
+                monitoredItem, value, error, ignoreFilters: true,
+                context: context.OperationContext);
             return new InitialValueReadResult(error);
         }
 
         private async ValueTask<(ServiceResult, DataValue)> ReadMonitoredValueAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken)
@@ -9066,6 +9422,30 @@ namespace Opc.Ua.Server
                 initialValue,
                 cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
+            ISession? session = monitoredItem.Session ?? context.OperationContext?.Session;
+            if (session != null && !ReferenceEquals(context.UserIdentity, session.EffectiveIdentity))
+            {
+                return (StatusCodes.BadUserAccessDenied, DataValue.FromStatusCode(StatusCodes.BadUserAccessDenied));
+            }
+            using OperationContext? current = session == null ? null : MonitoredReadAuthorization.CreateContext(session);
+            ServerSystemContext subscriberContext = current != null
+                ? SystemContext.Copy(current)
+                : context;
+            ServiceResult authorization = await ValidateRolePermissionsAsync(
+                subscriberContext.OperationContext!,
+                handle.NodeId,
+                MonitoredReadAuthorization.PermissionFor(monitoredItem.AttributeId),
+                cancellationToken).ConfigureAwait(false);
+            if (!ServiceResult.IsBad(authorization))
+            {
+                authorization = await MonitoredReadAuthorization.ValidateAsync(
+                    this, handle.Node, subscriberContext, monitoredItem.AttributeId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            if (ServiceResult.IsBad(authorization))
+            {
+                return (authorization, DataValue.FromStatusCode(authorization.StatusCode));
+            }
             return (error, value);
         }
 
@@ -9105,7 +9485,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<ServiceResult> ValidateInitialValueRequestAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken)
@@ -9153,8 +9533,14 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem,
             in DataValue value,
             ServiceResult? error,
-            bool ignoreFilters)
+            bool ignoreFilters,
+            OperationContext? context = null)
         {
+            if (monitoredItem is MonitoredItem concreteItem && context != null)
+            {
+                concreteItem.QueueValueIfCurrent(context, value, error, ignoreFilters, initialValue: true);
+                return;
+            }
             if (monitoredItem is IInitialValueMonitoredItem initialValueMonitoredItem)
             {
                 initialValueMonitoredItem.QueueInitialValue(
@@ -9196,7 +9582,7 @@ namespace Opc.Ua.Server
             }
 
             (object? nodeHandle, IAsyncNodeManager? nodeManager) = await Server.NodeManager
-                .GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
+                .ResolveManagerHandleAsync(operationContext, nodeId, cancellationToken).ConfigureAwait(false);
 
             if (nodeHandle == null || nodeManager == null)
             {
@@ -9346,132 +9732,23 @@ namespace Opc.Ua.Server
             ExtensionObject filter,
             CancellationToken cancellationToken = default)
         {
-            var result = new ValidateMonitoringFilterResult();
-
-            // nothing to do if the filter is not specified.
-            if (filter.IsNull)
+            ValidateMonitoringFilterResult result = MonitoredItemFilterValidation.Validate(
+                Server, context, handle.Node, attributeId, filter);
+            if (StatusCode.IsGood(result.StatusCode) && result.FilterToUse is ServerAggregateFilter aggregate)
             {
-                result.StatusCode = StatusCodes.Good;
-                return result;
-            }
-
-            // extension objects wrap any data structure. must check that the client provided the correct structure.
-
-            if (ExtensionObject.ToEncodeable(filter) is not DataChangeFilter deadbandFilter)
-            {
-                if (ExtensionObject.ToEncodeable(filter) is not AggregateFilter aggregateFilter ||
-                    attributeId != Attributes.Value)
-                {
-                    result.StatusCode = StatusCodes.BadFilterNotAllowed;
-                    return result;
-                }
-
-                if (!Server.AggregateManager.IsSupported(aggregateFilter.AggregateType))
-                {
-                    result.StatusCode = StatusCodes.BadAggregateNotSupported;
-                    return result;
-                }
-
-                var revisedFilter = new ServerAggregateFilter
-                {
-                    AggregateType = aggregateFilter.AggregateType,
-                    StartTime = aggregateFilter.StartTime,
-                    ProcessingInterval = aggregateFilter.ProcessingInterval,
-                    AggregateConfiguration = aggregateFilter.AggregateConfiguration,
-                    Stepped = false,
-                    PrimeInitialValue = true
-                };
-
-                StatusCode error = await ReviseAggregateFilterAsync(
+                StatusCode status = await ReviseAggregateFilterAsync(
                     context,
                     handle,
                     samplingInterval,
                     queueSize,
-                    revisedFilter,
+                    aggregate,
                     cancellationToken).ConfigureAwait(false);
-
-                if (StatusCode.IsBad(error))
+                if (StatusCode.IsBad(status))
                 {
-                    result.StatusCode = error;
-                    return result;
+                    return new ValidateMonitoringFilterResult { StatusCode = status };
                 }
-
-                var aggregateFilterResult = new AggregateFilterResult
-                {
-                    RevisedProcessingInterval = revisedFilter.ProcessingInterval,
-                    RevisedStartTime = revisedFilter.StartTime,
-                    RevisedAggregateConfiguration = revisedFilter.AggregateConfiguration
-                };
-
-                result.FilterToUse = revisedFilter;
-                result.FilterResult = aggregateFilterResult;
-                result.StatusCode = StatusCodes.Good;
-                return result;
+                result.FilterResult = MonitoredItemFilterValidation.CreateAggregateResult(aggregate);
             }
-
-            // deadband filters only allowed for variable values.
-            if (attributeId != Attributes.Value)
-            {
-                result.StatusCode = StatusCodes.BadFilterNotAllowed;
-                return result;
-            }
-
-            if (handle.Node is not BaseVariableState variable)
-            {
-                result.StatusCode = StatusCodes.BadFilterNotAllowed;
-                return result;
-            }
-
-            // check for status filter.
-            if (deadbandFilter.DeadbandType == (uint)DeadbandType.None)
-            {
-                result.FilterToUse = deadbandFilter;
-                result.StatusCode = StatusCodes.Good;
-                return result;
-            }
-
-            // deadband filters can only be used for numeric values.
-            if (!Server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number))
-            {
-                result.StatusCode = StatusCodes.BadFilterNotAllowed;
-                return result;
-            }
-
-            // nothing more to do for absolute filters.
-            if (deadbandFilter.DeadbandType == (uint)DeadbandType.Absolute)
-            {
-                result.FilterToUse = deadbandFilter;
-                result.StatusCode = StatusCodes.Good;
-                return result;
-            }
-
-            // need to look up the EU range if a percent filter is requested.
-            if (deadbandFilter.DeadbandType == (uint)DeadbandType.Percent)
-            {
-                // FindChild and the property value read each guard themselves on the node.
-                if (handle.Node.FindChild(
-                    context,
-                    QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
-                {
-                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
-                    return result;
-                }
-
-                Range tmpRange;
-                if (!property.Value.TryGetStructure(out tmpRange!))
-                {
-                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
-                    return result;
-                }
-
-                result.FilterToUse = deadbandFilter;
-                result.Range = tmpRange;
-                result.StatusCode = StatusCodes.Good;
-                return result;
-            }
-
-            // no other type of filter supported.
-            result.StatusCode = StatusCodes.BadFilterNotAllowed;
             return result;
         }
 
@@ -9511,21 +9788,8 @@ namespace Opc.Ua.Server
                 TimestampStructuredDataKeySelector.Instance;
             if (provider == null)
             {
-                filterToUse.ReviseProcessingInterval(
-                    samplingInterval,
-                    Server.AggregateManager.MinimumProcessingInterval);
-
-                DateTimeUtc currentTime =
-                    ((Server as ITimeProviderProvider)?.TimeProvider ??
-                        TimeProvider.System).GetUtcNow().UtcDateTime;
-                filterToUse.ReviseStartTime(currentTime, queueSize);
-
-                if (filterToUse.AggregateConfiguration
-                    .UseServerCapabilitiesDefaults)
-                {
-                    filterToUse.AggregateConfiguration = Server.AggregateManager
-                        .GetDefaultConfiguration(default);
-                }
+                MonitoredItemFilterValidation.ReviseDefaultAggregate(
+                    Server, samplingInterval, queueSize, filterToUse);
                 return StatusCodes.Good;
             }
 
@@ -9637,7 +9901,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -9978,7 +10242,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -10141,7 +10405,7 @@ namespace Opc.Ua.Server
             MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             var transferredItems = new List<IMonitoredItem>();
             bool deferInitialValues = transferOptions.DeferInitialValues;
 
@@ -10212,7 +10476,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -10344,16 +10608,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Called when a session is closed.
+        /// Called when a session is closed, awaiting registered session-resource cleanup.
         /// </summary>
+        /// <remarks>
+        /// Overrides must await this base implementation, including when subscriptions are retained.
+        /// </remarks>
         public virtual ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            // overridden by the sub-class.
-            return new ValueTask();
+            return InvokeSessionClosingHandlersAsync(sessionId, cancellationToken);
         }
 
         /// <summary>
@@ -10483,7 +10749,8 @@ namespace Opc.Ua.Server
                 ArrayOf<RolePermissionType> defaultRolePermissions,
                 ArrayOf<RolePermissionType> defaultUserRolePermissions) =
                 await GetDefaultPermissionsAsync(systemContext, target, cancellationToken).ConfigureAwait(false);
-            metadata.DefaultAccessRestrictions = defaultAccessRestrictions;
+            metadata.DefaultAccessRestrictions = target.AccessRestrictions.HasValue
+                ? AccessRestrictionType.None : defaultAccessRestrictions;
             metadata.DefaultRolePermissions = defaultRolePermissions;
             metadata.DefaultUserRolePermissions = defaultUserRolePermissions;
         }
@@ -10498,7 +10765,7 @@ namespace Opc.Ua.Server
         /// node manager; the caller then takes the <see cref="NodeMetadata"/> path, which has
         /// the fallbacks for that case.
         /// </returns>
-        internal async ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsAsync(
+        internal ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsAsync(
             OperationContext context,
             object targetHandle,
             PermissionType requestedPermission,
@@ -10508,6 +10775,26 @@ namespace Opc.Ua.Server
             bool validateAccessRestrictions,
             CancellationToken cancellationToken = default)
         {
+            return TryValidatePermissionsCoreAsync(
+                context, targetHandle, requestedPermission, uniqueNodesServiceAttributesCache, permissionsOnly,
+                logger, validateAccessRestrictions, validateRolePermissions: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates permissions, optionally against a retained source rather than current address-space routing.
+        /// </summary>
+        private async ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsCoreAsync(
+            OperationContext context,
+            object targetHandle,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            ILogger? logger,
+            bool validateAccessRestrictions,
+            bool validateRolePermissions,
+            CancellationToken cancellationToken,
+            bool exactSource = false)
+        {
             ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             NodeHandle? handle = IsHandleInNamespace(targetHandle);
@@ -10516,7 +10803,9 @@ namespace Opc.Ua.Server
                 return (false, null);
             }
 
-            NodeState? target = await ValidateNodeAsync(systemContext, handle, null!, cancellationToken).ConfigureAwait(false);
+            NodeState? target = exactSource
+                ? handle.Node
+                : await ValidateNodeAsync(systemContext, handle, null!, cancellationToken).ConfigureAwait(false);
             if (target == null)
             {
                 return (false, null);
@@ -10538,9 +10827,13 @@ namespace Opc.Ua.Server
                         ref values);
                 }
             }
-            else if (permissionsOnly)
+            Variant[]? scratch = null;
+            if (uniqueNodesServiceAttributesCache == null && permissionsOnly)
             {
-                values = new Variant[3];
+                // nothing keeps the values beyond this method: read them into the array of
+                // the thread.
+                values = scratch = t_validationValues ?? new Variant[3];
+                t_validationValues = null;
                 ReadValidationAttributes(systemContext, target, ref values);
             }
 
@@ -10565,26 +10858,33 @@ namespace Opc.Ua.Server
                 }
             }
 
-            (AccessRestrictionType defaultAccessRestrictions,
-                ArrayOf<RolePermissionType> defaultRolePermissions,
-                ArrayOf<RolePermissionType> defaultUserRolePermissions) =
-                await GetDefaultPermissionsAsync(systemContext, target, cancellationToken).ConfigureAwait(false);
+            if (scratch != null)
+            {
+                Array.Clear(scratch, 0, scratch.Length);
+                t_validationValues = scratch;
+            }
+
+            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+            if (!StatusCode.IsGood(defaults.Status))
+            {
+                return (true, new ServiceResult(defaults.Status));
+            }
 
             var permissions = new PermissionMetadata(
                 target.NodeId,
                 target.IsPartOfTypeHierarchy,
                 accessRestrictions,
-                defaultAccessRestrictions,
+                target.AccessRestrictions.HasValue
+                    ? AccessRestrictionType.None : defaults.DefaultAccessRestrictions,
                 rolePermissions,
-                defaultRolePermissions,
+                defaults.DefaultRolePermissions,
                 userRolePermissions,
-                defaultUserRolePermissions);
+                defaults.DefaultUserRolePermissions);
 
-            ServiceResult result = MasterNodeManager.ValidateRolePermissions(
-                context,
-                permissions,
-                requestedPermission,
-                logger);
+            ServiceResult result = validateRolePermissions
+                ? MasterNodeManager.ValidateRolePermissions(context, permissions, requestedPermission, logger)
+                : ServiceResult.Good;
             return (true, validateAccessRestrictions && ServiceResult.IsGood(result)
                 ? MasterNodeManager.ValidateAccessRestrictions(context, permissions, requestedPermission)
                 : result);
@@ -10602,71 +10902,16 @@ namespace Opc.Ua.Server
             NodeState target,
             CancellationToken cancellationToken = default)
         {
-            AccessRestrictionType defaultAccessRestrictions = AccessRestrictionType.None;
-            ArrayOf<RolePermissionType> defaultRolePermissions = default;
-            ArrayOf<RolePermissionType> defaultUserRolePermissions = default;
-
-            // check if NamespaceMetadata is defined for NamespaceIndex of the node.
-            NamespaceMetadataState? namespaceMetadataState = await
-                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(target.NodeId.NamespaceIndex, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (namespaceMetadataState != null)
+            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+            if (!StatusCode.IsGood(defaults.Status))
             {
-                Variant value = default;
-                DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
-
-                if (namespaceMetadataState.DefaultAccessRestrictions != null)
-                {
-                    // get DefaultAccessRestrictions for Namespace
-                    namespaceMetadataState.DefaultAccessRestrictions
-                        .ReadAttribute(
-                            systemContext,
-                            Attributes.Value,
-                            ref value,
-                            ref sourceTimestamp);
-
-                    if (!value.IsNull)
-                    {
-                        defaultAccessRestrictions =
-                            value.GetEnumeration<AccessRestrictionType>();
-                    }
-                }
-
-                if (namespaceMetadataState.DefaultRolePermissions != null)
-                {
-                    // get DefaultRolePermissions for Namespace
-                    namespaceMetadataState.DefaultRolePermissions
-                        .ReadAttribute(
-                            systemContext,
-                            Attributes.Value,
-                            ref value,
-                            ref sourceTimestamp);
-
-                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
-                    {
-                        defaultRolePermissions = rolePermissions;
-                    }
-                }
-
-                if (namespaceMetadataState.DefaultUserRolePermissions != null)
-                {
-                    // get DefaultUserRolePermissions for Namespace
-                    namespaceMetadataState.DefaultUserRolePermissions
-                        .ReadAttribute(
-                            systemContext,
-                            Attributes.Value,
-                            ref value,
-                            ref sourceTimestamp);
-
-                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
-                    {
-                        defaultUserRolePermissions = userRolePermissions;
-                    }
-                }
+                throw new ServiceResultException(defaults.Status);
             }
-
-            return (defaultAccessRestrictions, defaultRolePermissions, defaultUserRolePermissions);
+            return (
+                defaults.DefaultAccessRestrictions,
+                defaults.DefaultRolePermissions,
+                defaults.DefaultUserRolePermissions);
         }
 
         /// <summary>
@@ -10918,7 +11163,7 @@ namespace Opc.Ua.Server
 #pragma warning restore IDE1006 // Naming Styles
 
         /// <summary>
-        /// A wrapper for the browser that provides a lock.
+        /// A wrapper that serializes access to a resumable browser.
         /// </summary>
         private class BrowserContext : IDisposable
         {
@@ -10962,10 +11207,10 @@ namespace Opc.Ua.Server
                 [];
 #endif
         private List<LocalReference> m_removedExternalReferences = [];
-        private bool m_disposed;
+        private volatile bool m_disposed;
 
         /// <summary>
-        /// Protects operation admission, the active-operation count, and teardown-context activation.
+        /// Protects closing operation admission and teardown-context activation.
         /// </summary>
         private readonly Lock m_operationLifetimeLock = new();
 
@@ -10989,12 +11234,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Limits teardown access to the callback's lifetime, rejecting captured contexts afterward.
         /// </summary>
-        private bool m_disposeAsyncCoreActive;
+        private volatile bool m_disposeAsyncCoreActive;
 
         /// <summary>
         /// Counts admitted operations until their semaphore work and deferred callbacks finish.
         /// </summary>
-        private int m_operationCount;
+        private readonly StripedCounter m_operationCount = new();
+
+        /// <summary>
+        /// Counts the operations admitted under the lock after disposal started.
+        /// </summary>
+        private int m_lockedOperationCount;
+
+        /// <summary>
+        /// The slot of an operation counted in <see cref="m_lockedOperationCount"/>.
+        /// </summary>
+        private const int kLockedOperationSlot = -1;
+
+        /// <summary>The admitted operation inherited by nested callbacks.</summary>
+        private readonly AsyncLocal<NodeManagerOperationContext?> m_operationContext = new();
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>
@@ -11015,6 +11273,7 @@ namespace Opc.Ua.Server
         /// monitored items. A single channel reader still preserves notification order.
         /// </summary>
         internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = [];
+
         /// <summary>
         /// Assigns NodeIds to nodes created at runtime.
         /// </summary>
@@ -11068,6 +11327,12 @@ namespace Opc.Ua.Server
             Message = "Could not restore monitored item for node {NodeId}.")]
         public static partial void MonitoredItemRestoreFailed(this ILogger logger, Exception exception, NodeId nodeId);
 
+        /// <summary>
+        /// Logs a reference target resolution failure while remaining references continue to be processed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="targetId">The identifier of the reference target that could not be resolved.</param>
         [LoggerMessage(EventId = ServerEventIds.AsyncCustomNodeManager + 2, Level = LogLevel.Warning,
             Message = "Could not resolve referenced target {TargetId}; continuing with the remaining references.")]
         public static partial void ReferenceTargetResolutionFailed(

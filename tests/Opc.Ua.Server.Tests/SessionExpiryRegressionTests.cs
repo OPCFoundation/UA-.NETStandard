@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Tests
             clock.Advance(TimeSpan.FromSeconds(2));
             Assert.That(created.Session.HasExpired, Is.True);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await manager.ActivateSessionAsync(
                     context,
                     created.AuthenticationToken,
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server.Tests
                     default,
                     new SignatureData(),
                     [],
-                    deadline.Token).ConfigureAwait(false))!;
+                    deadline.Token).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(deadline.IsCancellationRequested, Is.False);
             Assert.That(manager.GetSession(created.AuthenticationToken), Is.Null);

@@ -902,12 +902,21 @@ namespace Opc.Ua.Redundancy.Server
                     if (change.Node != null &&
                         IsTopologyApplicable(change.NodeId, change.Sequence))
                     {
-                        await TryApplyUpsertAsync(
-                            change.NodeId,
-                            change.Node.Payload,
-                            change.Sequence,
-                            cancellationToken)
-                            .ConfigureAwait(false);
+                        try
+                        {
+                            await TryApplyUpsertAsync(
+                                change.NodeId,
+                                change.Node.Payload,
+                                change.Sequence,
+                                cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException)
+                        {
+                            await WithdrawUnreconstructableTreeAsync(
+                                change.NodeId, change.Sequence, cancellationToken).ConfigureAwait(false);
+                            throw;
+                        }
                         RecordTopology(change.NodeId, change.Sequence, exists: true);
                     }
                     break;
@@ -943,6 +952,56 @@ namespace Opc.Ua.Redundancy.Server
                         ApplyValueChange(change.NodeId, change.Value, change.Sequence);
                     }
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Withdraws stale live nodes when a newer topology cannot reconstruct their required policy.
+        /// Independent value updates remain buffered until a valid policy tree is registered again.
+        /// </summary>
+        private async ValueTask WithdrawUnreconstructableTreeAsync(
+            NodeId rootId,
+            ulong sequence,
+            CancellationToken cancellationToken)
+        {
+            var nodeIds = new HashSet<NodeId> { rootId };
+            lock (m_lock)
+            {
+                nodeIds.UnionWith(GetTrackedSubtree(rootId));
+            }
+            if (m_addressSpace.TryGetNode(rootId, out NodeState? root))
+            {
+                nodeIds.UnionWith(GetDescendantNodeIds(m_addressSpace.Context, root));
+            }
+            using (EnterInboundApply())
+            {
+                foreach (NodeId nodeId in nodeIds)
+                {
+                    if (m_ownsNode(nodeId))
+                    {
+                        await m_addressSpace.RemoveNodeAsync(nodeId, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+            }
+            lock (m_lock)
+            {
+                foreach (NodeId nodeId in nodeIds)
+                {
+                    if (sequence > 0)
+                    {
+                        RecordTopology(nodeId, sequence, exists: false);
+                    }
+                    else
+                    {
+                        m_topologyState.Remove(nodeId);
+                    }
+                    if (m_pendingValues.TryGetValue(nodeId, out PendingValue pending) &&
+                        pending.Sequence <= sequence)
+                    {
+                        m_pendingValues.Remove(nodeId);
+                    }
+                    DetachTrackedNode(nodeId);
+                }
             }
         }
 

@@ -15,6 +15,8 @@ The server-side counterpart lives in `Opc.Ua.Server.Alarms`.
 `CreateNode` and `DeleteNode`. Set a flag to opt out when you need manual
 control.
 
+## Contents
+
 - [Quick reference](#quick-reference)
 - [Server side: emitting model changes](#server-side-emitting-model-changes)
   - [Auto-emit from `CreateNode` and `DeleteNode`](#auto-emit-from-createnode-and-deletenode)
@@ -27,7 +29,12 @@ control.
   - [Namespace table refresh](#namespace-table-refresh)
   - [Per-node `NodeCache` invalidation](#per-node-nodecache-invalidation)
 - [NodeVersion correlation](#nodeversion-correlation)
+  - [Marking a node as trackable](#marking-a-node-as-trackable)
+  - [Opting out (legacy compatibility)](#opting-out-legacy-compatibility)
 - [Security considerations](#security-considerations)
+  - [Per-event `ReceiveEvents` is enforced](#per-event-receiveevents-is-enforced)
+  - [The `Affected` array is NOT filtered](#the-affected-array-is-not-filtered)
+  - [The initial address-space build does not emit](#the-initial-address-space-build-does-not-emit)
 - [Reference](#reference)
 
 ## Quick reference
@@ -108,6 +115,34 @@ in-memory `NodeStateCollection`), you can either:
 changes, so it is safe to call at the end of an arbitrary service
 implementation.
 
+Deletion is not an atomic subtree transaction. If removal fails after deleting
+some nodes, monitored items for removed nodes report `Bad_NodeIdUnknown`, while
+items for descendants that remain registered are restored to their node manager.
+The original failure is still reported; restoration failures are also surfaced.
+Each asynchronous restoration gets its own five-second cleanup budget, so one
+timed-out item does not cancel attempts to restore the remaining items.
+
+Deletion captures the subtree's model-change eligibility before mutation.
+Completion reports only nodes actually removed and references actually removed
+from surviving local nodes, including when later cleanup fails or the request
+is cancelled. A versioned descendant is reported even if its root is unversioned.
+The deletion error is still returned; notification failures are not suppressed.
+For reference endpoints owned by another node manager, automatic reporting
+requires requested and successful target-reference cleanup because their remaining
+references cannot be inspected locally. A bad per-reference cleanup result from
+an owning node manager is propagated as a deletion failure, not treated as
+successful cleanup. Committed local changes are still reported, but unconfirmed
+foreign reference removals are not. A successful `DeleteNodes` call with
+`DeleteTargetReferences = false` does not imply that foreign references were removed.
+This reporting covers both directions of hierarchical and non-hierarchical
+references to other node managers in the same server. Absolute targets are
+excluded, matching the deletion cleanup path.
+
+The asynchronous runtime deletion overload accepts `emitModelChange: false` for
+callers that own aggregation or roll back unpublished staging. This suppresses
+automatic reporting for that call, including after a committed deletion's cleanup
+fails, without changing the manager-wide policy or deletion lifecycle handling.
+
 ### Manual aggregation across a transaction
 
 `ModelChangeAggregator` is thread-safe and supports arbitrary batching:
@@ -179,7 +214,12 @@ await session.EnableModelChangeTrackingAsync(ct);
 await session.DisableModelChangeTrackingAsync(ct);
 ```
 
-Disposing the session disposes the tracker.
+Disposing the session disposes the tracker. Managed tracking owns a dedicated
+whole-message subscription, separate from `DefaultStreaming`. With delivery-confirmed
+acknowledgements, it confirms a message only after all model-change events in that
+message were processed. Application streams never share that acknowledgement ownership.
+Failures in namespace refresh, cache invalidation or event subscribers are still logged
+without stopping the tracker, but that message is not confirmed as successfully processed.
 
 ### Manual construction
 
@@ -188,9 +228,14 @@ a raw `Session` that has the V2 engine enabled — construct it
 yourself:
 
 ```csharp
-var streaming = new StreamingSubscription(session.SubscriptionManager);
+if (!session.TryGetSubscriptionManager(out ISubscriptionManager? manager) ||
+    !session.TryGetAcknowledgements(out ISessionAcknowledgements? acknowledgements))
+{
+    throw new InvalidOperationException("A V2 session with acknowledgement support is required.");
+}
 var tracker = new ModelChangeTracker(
-    streaming,
+    manager,
+    acknowledgements,
     nodeCache: session.NodeCache,
     logger: logger,
     namespaceTables: session);
@@ -198,7 +243,10 @@ var tracker = new ModelChangeTracker(
 await tracker.StartTrackingAsync(ct);
 ```
 
-The tracker takes an `IStreamingSubscription`, an optional `INodeCache`
+The whole-message constructor takes an `ISubscriptionManager` and the same session's
+`ISessionAcknowledgements` facet, and owns its subscription's lifetime. The existing
+`IStreamingSubscription` constructor remains available for externally managed streams;
+it does not assume ownership of their message acknowledgements. Both accept an optional `INodeCache`
 to invalidate, an optional `ILogger`, and an optional
 `INamespaceTableRefresher` (see
 [Namespace table refresh](#namespace-table-refresh)). It subscribes to
@@ -346,8 +394,14 @@ class MyInvalidatingCache : INodeCache
 
 ## NodeVersion correlation
 
-OPC UA Part 5 §9.32.2 ties `ModelChangeEvent` emission to the
+OPC UA Part 3 §9.32.2 ties `ModelChangeEvent` emission to the
 `NodeVersion` property:
+
+Automatic deletion captures a node's `NodeVersion` eligibility before removing
+it from the address space. A removed local node must not bypass this check as an
+unresolved external node. Unversioned session diagnostics therefore do not emit
+`NodeDeleted` events on session closure; versioned nodes and the explicit
+`RequireNodeVersionForModelChange = false` compatibility mode retain their events.
 
 > "Every time a `ModelChangeEvent` is issued for a Node, its
 > `NodeVersion` shall be changed, and every time the `NodeVersion` is

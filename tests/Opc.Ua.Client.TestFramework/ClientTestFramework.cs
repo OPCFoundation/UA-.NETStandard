@@ -41,6 +41,8 @@ using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
@@ -398,7 +400,7 @@ namespace Opc.Ua.Client.TestFramework
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
-                t => new ReferenceServer(t),
+                CreateReferenceServer,
                 enableTracing,
                 disableActivityLogging)
             {
@@ -480,6 +482,14 @@ namespace Opc.Ua.Client.TestFramework
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
+        }
+
+        /// <summary>
+        /// Creates the reference server while retaining the shared fixture configuration and startup sequence.
+        /// </summary>
+        protected virtual ReferenceServer CreateReferenceServer(ITelemetryContext telemetry)
+        {
+            return new ReferenceServer(telemetry);
         }
 
         /// <summary>

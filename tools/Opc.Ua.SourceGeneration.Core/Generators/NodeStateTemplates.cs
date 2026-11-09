@@ -1832,7 +1832,7 @@ namespace Opc.Ua.SourceGeneration
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 baseState.Executable = {{Tokens.ExecutableValue}};
-                baseState.UserExecutable = {{Tokens.ExecutableValue}};
+                baseState.UserExecutable = {{Tokens.UserExecutableValue}};
                 {{Tokens.ListOfInputArguments}}
                 {{Tokens.ListOfOutputArguments}}
                 {{Tokens.ReleaseStatusValue}}
@@ -2176,7 +2176,7 @@ namespace Opc.Ua.SourceGeneration
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 baseState.Executable = {{Tokens.ExecutableValue}};
-                baseState.UserExecutable = {{Tokens.ExecutableValue}};
+                baseState.UserExecutable = {{Tokens.UserExecutableValue}};
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
@@ -2363,7 +2363,7 @@ namespace Opc.Ua.SourceGeneration
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 baseState.Executable = {{Tokens.ExecutableValue}};
-                baseState.UserExecutable = {{Tokens.ExecutableValue}};
+                baseState.UserExecutable = {{Tokens.UserExecutableValue}};
                 {{Tokens.MethodDeclarationId}}
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}

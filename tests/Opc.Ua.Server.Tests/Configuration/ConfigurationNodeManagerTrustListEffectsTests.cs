@@ -257,10 +257,10 @@ namespace Opc.Ua.Server.Tests
                 // B's uncommitted target must not have leaked into A's effects.
                 Assert.That(
                     effects,
-                    Has.None.Matches<TrustListChangeEffect>(e => e.TrustListId == trustListB));
+                    Has.None.Matches<TrustListChangeEffect>(e => e is not null && e.TrustListId == trustListB));
                 Assert.That(
                     effects,
-                    Has.None.Matches<TrustListChangeEffect>(e => e.Kind == TrustListEffectKind.UserIdentityTrust));
+                    Has.None.Matches<TrustListChangeEffect>(e => e is not null && e.Kind == TrustListEffectKind.UserIdentityTrust));
             }
             finally
             {

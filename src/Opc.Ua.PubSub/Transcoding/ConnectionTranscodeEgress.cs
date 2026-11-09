@@ -89,8 +89,13 @@ namespace Opc.Ua.PubSub.Transcoding
             ArrayOf<PubSubMessageProperty> properties = result.Properties;
             for (int i = 0; i < frames.Count; i++)
             {
+                await m_connection.ValidateTranscodedFrameSecurityAsync(frames[i], cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            for (int i = 0; i < frames.Count; i++)
+            {
                 await m_connection
-                    .SendTranscodedFrameAsync(frames[i], topic, properties, cancellationToken)
+                    .SendValidatedTranscodedFrameAsync(frames[i], topic, properties, cancellationToken)
                     .ConfigureAwait(false);
             }
         }

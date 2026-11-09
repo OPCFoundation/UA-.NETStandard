@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server.Builders
 {

@@ -575,7 +575,7 @@ namespace Opc.Ua.Gds.Tests
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await GetAppAsync(appId).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await GetAppAsync(appId).ConfigureAwait(false));
         }
 
         [Test]
@@ -592,10 +592,10 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void AppDirUnregisterInvalidIdThrows()
+        public async Task AppDirUnregisterInvalidIdThrows()
         {
             var invalidId = new NodeId(Guid.NewGuid());
-            Assert.ThrowsAsync<ServiceResultException>(async () => await UnregisterAppAsync(invalidId).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await UnregisterAppAsync(invalidId).ConfigureAwait(false));
         }
 
         [Test]
@@ -605,7 +605,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             await UnregisterAppAsync(appId).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await UnregisterAppAsync(appId).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await UnregisterAppAsync(appId).ConfigureAwait(false));
         }
 
         [Test]
@@ -739,10 +739,10 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void AppDirGetApplicationInvalidIdThrows()
+        public async Task AppDirGetApplicationInvalidIdThrows()
         {
             var invalidId = new NodeId(Guid.NewGuid());
-            Assert.ThrowsAsync<ServiceResultException>(async () => await GetAppAsync(invalidId).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await GetAppAsync(invalidId).ConfigureAwait(false));
         }
 
         [Test]
@@ -1085,12 +1085,12 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void AppDirUpdateWithInvalidIdThrows()
+        public async Task AppDirUpdateWithInvalidIdThrows()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir041");
             rec.ApplicationId = new NodeId(Guid.NewGuid());
 
-            Exception ex = Assert.CatchAsync(async () => await UpdateAppAsync(rec).ConfigureAwait(false));
+            Exception ex = await Assert.CatchAsync(async () => await UpdateAppAsync(rec).ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null,
                 "Update with invalid ID should throw.");
         }
@@ -1694,7 +1694,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             await UnregisterAppAsync(appId).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await GetAppAsync(appId).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await GetAppAsync(appId).ConfigureAwait(false));
         }
 
         [Test]

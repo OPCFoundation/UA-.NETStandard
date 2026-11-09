@@ -106,89 +106,88 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(100)]
         public Task GetEndpointsAsync()
         {
             return m_clientTest.GetEndpointsAsync();
         }
 
         [Test]
-        [Order(100)]
+        [DependsOnTest(nameof(GetEndpointsAsync), AllowFailure = true)]
         public Task FindServersAsync()
         {
             return m_clientTest.FindServersAsync();
         }
 
         [Test]
-        [Order(100)]
+        [DependsOnTest(nameof(FindServersAsync), AllowFailure = true)]
         public Task FindServersOnNetworkAsync()
         {
             return m_clientTest.FindServersOnNetworkAsync();
         }
 
         [Test]
-        [Order(105)]
+        [DependsOnTest(nameof(FindServersOnNetworkAsync), AllowFailure = true)]
         public Task GetEndpointsOnDiscoveryChannelAsync()
         {
             return m_clientTest.GetEndpointsOnDiscoveryChannelAsync(true);
         }
 
         [Test]
-        [Order(110)]
+        [DependsOnTest(nameof(GetEndpointsOnDiscoveryChannelAsync), AllowFailure = true)]
         public Task InvalidConfigurationAsync()
         {
             return m_clientTest.InvalidConfigurationAsync();
         }
 
         [Test]
-        [Order(202)]
+        [DependsOnTest(nameof(InvalidConfigurationAsync), AllowFailure = true)]
         public Task ConnectAndCloseAsyncReadAfterCloseAsync()
         {
             return m_clientTest.ConnectAndCloseAsyncReadAfterCloseAsync();
         }
 
         [Test]
-        [Order(204)]
+        [DependsOnTest(nameof(ConnectAndCloseAsyncReadAfterCloseAsync), AllowFailure = true)]
         public Task ConnectAndCloseAsyncReadAfterCloseSessionReconnectAsync()
         {
             return m_clientTest.ConnectAndCloseAsyncReadAfterCloseSessionReconnectAsync();
         }
 
         [Test]
-        [Order(210)]
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ConnectAndCloseAsyncReadAfterCloseSessionReconnectAsync), AllowFailure = true)]
         public Task ConnectAndReconnectAsync(bool reconnectAbort, bool useMaxReconnectPeriod, CancellationToken ct)
         {
             return m_clientTest.ConnectAndReconnectAsync(reconnectAbort, useMaxReconnectPeriod, ct);
         }
 
         [Test]
-        [Order(240)]
+        [DependsOnTest(nameof(ConnectAndReconnectAsync), AllowFailure = true)]
         public Task ConnectMultipleSessionsAsync()
         {
             return m_clientTest.ConnectMultipleSessionsAsync();
         }
 
         [Test]
-        [Order(250)]
         [TestCase(true)]
         [TestCase(false)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ConnectMultipleSessionsAsync), AllowFailure = true)]
         public Task ReconnectSessionOnAlternateChannelAsync(bool closeChannel, CancellationToken ct)
         {
             return m_clientTest.ReconnectSessionOnAlternateChannelAsync(closeChannel, ct);
         }
 
         [Test]
-        [Order(260)]
         [TestCase(SecurityPolicies.None, true)]
         [TestCase(SecurityPolicies.Basic256Sha256, true)]
         [TestCase(SecurityPolicies.Basic256Sha256, false)]
         [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss, false)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ReconnectSessionOnAlternateChannelAsync), AllowFailure = true)]
         public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
             string securityPolicy,
             bool anonymous,
@@ -201,137 +200,146 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(270)]
+        [DependsOnTest(nameof(ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync), AllowFailure = true)]
         public Task RecreateSessionWithRenewUserIdentityAsync()
         {
             return m_clientTest.RecreateSessionWithRenewUserIdentityAsync();
         }
 
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(RecreateSessionWithRenewUserIdentityAsync), AllowFailure = true)]
         public Task GetOperationLimitsAsync()
         {
             return m_clientTest.GetOperationLimitsTestAsync();
         }
 
         [Test]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public void ReadPublicProperties()
         {
             m_clientTest.ReadPublicProperties();
         }
 
         [Test]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public Task ChangePreferredLocalesAsync()
         {
             return m_clientTest.ChangePreferredLocalesAsync();
         }
 
         [Test]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public Task ReadValueAsync()
         {
             return m_clientTest.ReadValueAsync();
         }
 
         [Test]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public Task ReadValueTypedAsync()
         {
             return m_clientTest.ReadValueTypedAsync();
         }
 
         [Test]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public Task ReadValueFromTestSimulationAsync()
         {
             return m_clientTest.ReadValueFromTestSimulationAsync();
         }
 
         [Test]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public Task ReadValuesAsync()
         {
             return m_clientTest.ReadValuesAsync();
         }
 
         [Test]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public Task ReadDataTypeDefinitionAsync()
         {
             return m_clientTest.ReadDataTypeDefinitionAsync();
         }
 
         [Test]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public Task ReadDataTypeDefinition2Async()
         {
             return m_clientTest.ReadDataTypeDefinition2Async();
         }
 
         [Test]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public Task ReadDataTypeDefinitionNodesAsync()
         {
             return m_clientTest.ReadDataTypeDefinitionNodesAsync();
         }
 
         [Test]
-        [Order(400)]
         [TestCase(SecurityPolicies.Basic256Sha256, false)]
         [TestCase(SecurityPolicies.Basic256Sha256, true)]
+        [DependsOnTest(nameof(GetOperationLimitsAsync), AllowFailure = true)]
         public Task BrowseFullAddressSpaceAsync(string securityPolicy, bool operationLimits)
         {
             return m_clientTest.BrowseFullAddressSpaceAsync(securityPolicy, operationLimits);
         }
 
         [Test]
-        [Order(450)]
+        [DependsOnTest(nameof(BrowseFullAddressSpaceAsync), AllowFailure = true)]
         public Task ReadDisplayNamesAsync()
         {
             return m_clientTest.ReadDisplayNamesAsync();
         }
 
         [Test]
-        [Order(480)]
+        [DependsOnTest(nameof(ReadDisplayNamesAsync), AllowFailure = true)]
         public Task SubscriptionAsync()
         {
             return m_clientTest.SubscriptionAsync();
         }
 
         [Test]
-        [Order(550)]
+        [DependsOnTest(nameof(SubscriptionAsync), AllowFailure = true)]
         public Task ReadNodeSyncAsync()
         {
             return m_clientTest.ReadNodeSyncAsync();
         }
 
         [Test]
-        [Order(550)]
+        [DependsOnTest(nameof(ReadNodeSyncAsync), AllowFailure = true)]
         public Task ReadNodeAsync()
         {
             return m_clientTest.ReadNodeAsync();
         }
 
         [Test]
-        [Order(570)]
         [TestCase(0)]
         [TestCase(ClientTest.MaxReferences)]
+        [DependsOnTest(nameof(ReadNodeAsync), AllowFailure = true)]
         public Task ReadNodesAsync(int nodeCount)
         {
             return m_clientTest.ReadNodesAsync(nodeCount);
         }
 
         [Test]
-        [Order(620)]
+        [DependsOnTest(nameof(ReadNodesAsync), AllowFailure = true)]
         public Task ReadAvailableEncodingsAsync()
         {
             return m_clientTest.ReadAvailableEncodingsAsync();
         }
 
         [Test]
-        [Order(800)]
         [TestCase(true)]
         [TestCase(false)]
+        [DependsOnTest(nameof(ReadAvailableEncodingsAsync), AllowFailure = true)]
         public Task TransferSubscriptionNativeAsync(bool sendInitialData)
         {
             return m_clientTest.TransferSubscriptionNativeAsync(sendInitialData);
         }
 
         [Test]
-        [Order(10000)]
+        [DependsOnTest(nameof(LoadAndDecodeLegacyComplexTypesAsync), AllowFailure = true)]
         public Task ReadBuildInfoAsync()
         {
             return m_clientTest.ReadBuildInfoAsync();
@@ -345,8 +353,8 @@ namespace Opc.Ua.Interop.Tests
         /// sample of the decoded structures back unchanged.
         /// </summary>
         [Test]
-        [Order(900)]
         [CancelAfter(300_000)]
+        [DependsOnTest(nameof(TransferSubscriptionNativeAsync), AllowFailure = true)]
         public async Task LoadAndDecodeLegacyComplexTypesAsync(CancellationToken ct)
         {
             ISession session = m_clientTest.Session;

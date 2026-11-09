@@ -50,12 +50,12 @@ namespace Opc.Ua.Pcap.Tests.Frame
         /// the supported packet size limit.
         /// </summary>
         [Test]
-        public void ReadRejectsRecordWithCapturedLengthExceedingMaxPacketBytes()
+        public async Task ReadRejectsRecordWithCapturedLengthExceedingMaxPacketBytes()
         {
             string path = CreateTempPath("too-large.pcap");
             WritePcapFile(path, PcapFileReader.MaxPacketBytes + 1U, payloadLength: 0);
 
-            PcapDiagnosticsException? exception = Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
+            PcapDiagnosticsException? exception = await Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
                 await PcapTestHelpers.ToListAsync(PcapFileReader.ReadAllAsync(path, CancellationToken.None))
                     .ConfigureAwait(false));
 
@@ -69,12 +69,12 @@ namespace Opc.Ua.Pcap.Tests.Frame
         /// unsigned integer value.
         /// </summary>
         [Test]
-        public void ReadRejectsRecordWithCapturedLengthUintMaxValue()
+        public async Task ReadRejectsRecordWithCapturedLengthUintMaxValue()
         {
             string path = CreateTempPath("uint-max.pcap");
             WritePcapFile(path, uint.MaxValue, payloadLength: 0);
 
-            PcapDiagnosticsException? exception = Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
+            PcapDiagnosticsException? exception = await Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
                 await PcapTestHelpers.ToListAsync(PcapFileReader.ReadAllAsync(path, CancellationToken.None))
                     .ConfigureAwait(false));
 

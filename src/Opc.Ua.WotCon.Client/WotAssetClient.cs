@@ -169,25 +169,16 @@ namespace Opc.Ua.WotCon.Client
             [EnumeratorCancellation] CancellationToken ct)
         {
             var refTypeId = ExpandedNodeId.ToNodeId(referenceType, Session.NamespaceUris);
-            (_, _, ArrayOf<ReferenceDescription> references) = await Session.BrowseAsync(
-                requestHeader: null,
-                view: null,
-                AssetId,
-                maxResultsToReturn: 0,
-                BrowseDirection.Forward,
-                refTypeId,
-                includeSubtypes: includeSubtypes,
-                (uint)nodeClasses,
-                ct).ConfigureAwait(false);
-            var snapshot = new ReferenceDescription[references.Count];
-            for (int i = 0; i < references.Count; i++)
+            await foreach (ReferenceDescription reference in Session.EnumerateReferencesAsync(
+                AssetId, refTypeId, includeSubtypes: includeSubtypes, nodeClassMask: (uint)nodeClasses, ct: ct)
+                .ConfigureAwait(false))
             {
-                snapshot[i] = references[i];
-            }
-            foreach (ReferenceDescription reference in snapshot)
-            {
-                ct.ThrowIfCancellationRequested();
                 var targetId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                if (reference.NodeId.ServerIndex != 0 || targetId.IsNull)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        "The affordance reference does not identify a node in the current session.");
+                }
                 yield return new WotAssetVariableEntry(
                     targetId,
                     reference.BrowseName.Name ?? string.Empty);

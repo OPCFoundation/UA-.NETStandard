@@ -50,11 +50,12 @@ bash where they differ.
 
 | Requirement | Route A | Route B |
 | --- | --- | --- |
-| .NET SDK | The exact version in [`global.json`](../global.json). Roll-forward is disabled, so other SDK versions are refused. | .NET 10 SDK. |
+| .NET SDK | Stable SDK 10.0.400 or later. [`global.json`](../global.json) uses `latestMajor` roll-forward and excludes prerelease SDKs. | .NET 10 SDK. |
 | Other requirements | Git, and internet access to restore NuGet packages on the first build | Internet access to nuget.org |
 | TCP port | 62541 | 62560 |
 
-Route B was verified with package version `2.0.0`.
+Route B was tested with package version `2.0.0`. The unpinned commands install
+the current stable packages, which may differ from that tested version.
 
 ## Route A: Run the repository samples
 
@@ -437,8 +438,9 @@ exercise with new certificates.
 To use the client with another server, change `DiscoveryUrl` to that server's
 URL. Set `SecurityMode` and `SecurityPolicyUri` to values that one of its
 endpoints offers. Trust the server certificate as in [B3](#b3-trust-each-application),
-and ask the server's administrator to trust your client certificate from
-`GettingStartedClient/pki/certs`. The client connects as an anonymous user; if
+and ask the server's administrator to trust the client's public `.der`
+certificate from `GettingStartedClient/pki/own/certs`. Do not send files from
+`GettingStartedClient/pki/own/private`. The client connects as an anonymous user; if
 the server requires user authentication, see
 [Identity providers](IdentityProviders.md). The client only browses, reads, and
 monitors; it does not change the server.
@@ -473,7 +475,7 @@ persistent, access-controlled location; see the
 | `BadNotConnected` with `Could not connect to the remote endpoint` | No server is listening at the URL. | Start the server, then check the host, port, and path in the URL. |
 | `No discovered endpoint matched the configured security policy and mode.` | The server does not offer the requested security mode and policy. | Choose a mode and policy that the server offers. See [Profiles](Profiles.md#security-profiles). |
 | The server does not start, and the port is in use | Another application uses the port. | Stop that application, or change the port in both the server endpoint URL and the client discovery URL. |
-| `A compatible .NET SDK was not found` (Route A) | The SDK version in `global.json` is not installed. | Install that SDK version. |
+| `A compatible .NET SDK was not found` (Route A) | No stable SDK satisfying `global.json` is installed. | Install a stable .NET SDK version 10.0.400 or later. |
 
 See [Certificates](Certificates.md) for certificate stores and chains, and
 [Diagnostics](Diagnostics.md) for logging and packet capture.

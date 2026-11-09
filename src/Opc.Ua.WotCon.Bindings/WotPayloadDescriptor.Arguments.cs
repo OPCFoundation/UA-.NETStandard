@@ -1,0 +1,384 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Linq;
+using System.Text.Json;
+using Opc.Ua.Wot;
+
+namespace Opc.Ua.WotCon.Bindings
+{
+    /// <summary>
+    /// Immutable payload metadata compiled from a form.
+    /// </summary>
+    public sealed partial class WotPayloadDescriptor
+    {
+        /// <summary>
+        /// Validates that both action layouts describe the captured interaction.
+        /// A legacy transport-only descriptor makes no argument-layout claims.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public void ValidateArgumentLayouts()
+        {
+            if (InputLayout is null && OutputLayout is null && Schema is null)
+            {
+                return;
+            }
+            if (InputLayout is null || OutputLayout is null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "An action requires both resolved argument layouts.");
+            }
+            WotPayloadSchema schema = GetActionSchema();
+            foreach (WotDiagnostic diagnostic in schema.Diagnostics)
+            {
+                if (diagnostic.Severity == WotDiagnosticSeverity.Error)
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError, diagnostic.Message);
+                }
+            }
+            ValidateLayoutSchema(InputLayout, schema, "input");
+            ValidateLayoutSchema(OutputLayout, schema, "output");
+        }
+
+        /// <summary>
+        /// Validates every native input position before invocation. JSON optionality and
+        /// defaults do not authorize omitting a position from the native signature.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <param name="inputs">The native input arguments.</param>
+        /// <param name="context">The service message context.</param>
+        public void ValidateInputs(ArrayOf<Variant> inputs, IServiceMessageContext context)
+        {
+            ValidateArgumentValues(inputs, InputLayout, "input", context, m_nativeInputs);
+        }
+
+        /// <summary>
+        /// Validates the complete native output list without accepting partial successful results.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <param name="outputs">The native output arguments.</param>
+        /// <param name="context">The service message context.</param>
+        public void ValidateOutputs(ArrayOf<Variant> outputs, IServiceMessageContext context)
+        {
+            try
+            {
+                ValidateArgumentValues(outputs, OutputLayout, "output", context, m_nativeOutputs);
+            }
+            catch (ServiceResultException exception) when (exception.StatusCode != StatusCodes.BadNotSupported)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, exception.Message, exception);
+            }
+        }
+
+        /// <summary>
+        /// Verifies the local Method's actual names, DataTypes and ranks against the
+        /// compiled action before installing its invocation handler or opening a channel.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
+        /// <param name="namespaceUris">The namespace URIs.</param>
+        /// <param name="typeTable">The type table.</param>
+        public void ValidateMethodSignature(
+            ArrayOf<Argument> inputArguments,
+            ArrayOf<Argument> outputArguments,
+            NamespaceTable namespaceUris,
+            ITypeTable? typeTable = null)
+        {
+            if (namespaceUris is null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+            ValidateArgumentLayouts();
+            ValidateSignature(inputArguments, InputLayout, "input", namespaceUris, typeTable);
+            ValidateSignature(outputArguments, OutputLayout, "output", namespaceUris, typeTable);
+        }
+
+        /// <summary>
+        /// Resolves unordered named schemas and validates them against native Method argument metadata.
+        /// </summary>
+        /// <param name="inputArguments">The ordered native input arguments.</param>
+        /// <param name="outputArguments">The ordered native output arguments.</param>
+        /// <param name="namespaceUris">The endpoint namespace table.</param>
+        /// <param name="typeTable">The endpoint type table.</param>
+        /// <returns>A descriptor whose action layouts follow native Method order.</returns>
+        public WotPayloadDescriptor WithNativeArgumentOrder(
+            ArrayOf<Argument> inputArguments,
+            ArrayOf<Argument> outputArguments,
+            NamespaceTable namespaceUris,
+            ITypeTable? typeTable = null)
+        {
+            return WithNativeArgumentOrder(
+                inputArguments, outputArguments, namespaceUris, typeTable, allowSingleValueNameMismatch: false);
+        }
+
+        /// <summary>
+        /// Resolves native argument order and optionally ignores synthetic names for one-value layouts.
+        /// </summary>
+        /// <param name="inputArguments">The ordered native input arguments.</param>
+        /// <param name="outputArguments">The ordered native output arguments.</param>
+        /// <param name="namespaceUris">The endpoint namespace table.</param>
+        /// <param name="typeTable">The endpoint type table.</param>
+        /// <param name="allowSingleValueNameMismatch">Whether single-value layouts may use native descriptive names.</param>
+        internal WotPayloadDescriptor WithNativeArgumentOrder(
+            ArrayOf<Argument> inputArguments,
+            ArrayOf<Argument> outputArguments,
+            NamespaceTable namespaceUris,
+            ITypeTable? typeTable,
+            bool allowSingleValueNameMismatch)
+        {
+            if (namespaceUris is null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+            WotMethodArgumentLayout input = ResolveNativeOrder(InputLayout, inputArguments);
+            WotMethodArgumentLayout output = ResolveNativeOrder(OutputLayout, outputArguments);
+            var resolved = new WotPayloadDescriptor(ContentType, CodecId, Metadata)
+            {
+                InputLayout = input,
+                OutputLayout = output,
+                Schema = Schema
+            };
+            resolved.ValidateArgumentLayouts();
+            resolved.ValidateSignature(
+                inputArguments, input, "input", namespaceUris, typeTable, allowSingleValueNameMismatch);
+            resolved.ValidateSignature(
+                outputArguments, output, "output", namespaceUris, typeTable, allowSingleValueNameMismatch);
+            resolved.m_nativeInputs = CaptureNativeTypes(inputArguments, namespaceUris, typeTable);
+            resolved.m_nativeOutputs = CaptureNativeTypes(outputArguments, namespaceUris, typeTable);
+            return resolved;
+        }
+
+        private static ArrayOf<NativeArgumentType> CaptureNativeTypes(
+            ArrayOf<Argument> arguments, NamespaceTable namespaceUris, ITypeTable? typeTable)
+        {
+            return arguments.ConvertAll(argument => new NativeArgumentType(
+                NodeId.ToExpandedNodeId(argument.DataType, namespaceUris),
+                TypeInfo.Create(
+                    typeTable is null
+                        ? TypeInfo.GetBuiltInType(argument.DataType)
+                        : TypeInfo.GetBuiltInType(argument.DataType, typeTable),
+                    argument.ValueRank)));
+        }
+
+        private void ValidateArgumentValues(
+            ArrayOf<Variant> arguments,
+            WotMethodArgumentLayout? layout,
+            string member,
+            IServiceMessageContext context,
+            ArrayOf<NativeArgumentType> nativeTypes)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            ValidateArgumentLayouts();
+            if (layout is null)
+            {
+                return;
+            }
+            if (arguments.Count != layout.ArgumentCount)
+            {
+                throw new ServiceResultException(
+                    arguments.Count < layout.ArgumentCount
+                        ? StatusCodes.BadArgumentsMissing : StatusCodes.BadTooManyArguments,
+                    $"The action declares {layout.ArgumentCount} native {member} arguments, " +
+                    $"but {arguments.Count} were supplied.");
+            }
+            if (arguments.Count == 0)
+            {
+                return;
+            }
+            WotPayloadSchema schema = GetActionSchema();
+            var validator = new WotPayloadValueValidator(context);
+            for (int index = 0; index < arguments.Count; index++)
+            {
+                WotPayloadTypeBinding binding = GetArgumentBinding(schema, layout, member, index);
+                validator.Validate(arguments[index], binding.DataTypeId, binding.TypeInfo);
+                if (!nativeTypes.IsNull)
+                {
+                    NativeArgumentType native = nativeTypes[index];
+                    validator.Validate(arguments[index], native.DataTypeId, native.TypeInfo);
+                }
+            }
+        }
+
+        private void ValidateSignature(
+            ArrayOf<Argument> arguments,
+            WotMethodArgumentLayout? layout,
+            string member,
+            NamespaceTable namespaceUris,
+            ITypeTable? typeTable,
+            bool allowSingleValueNameMismatch = false)
+        {
+            if (layout is null)
+            {
+                return;
+            }
+            if (arguments.Count != layout.ArgumentCount)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    $"The local Method's {member} argument count disagrees with its compiled action.");
+            }
+            WotPayloadSchema schema = GetActionSchema();
+            for (int index = 0; index < arguments.Count; index++)
+            {
+                WotPayloadTypeBinding binding = GetArgumentBinding(schema, layout, member, index);
+                var expected = ExpandedNodeId.ToNodeId(binding.DataTypeId, namespaceUris);
+                Argument argument = arguments[index];
+                bool validateName = !allowSingleValueNameMismatch ||
+                    layout.Kind != WotMethodArgumentLayoutKind.Single;
+                if (argument is null ||
+                    !MatchesDataType(argument.DataType, expected, typeTable) ||
+                    argument.ValueRank != binding.TypeInfo.ValueRank ||
+                    (validateName &&
+                        !string.Equals(argument.Name, layout.GetArgumentName(index), StringComparison.Ordinal)))
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                        $"The local Method's {member} argument at position {index} " +
+                        "disagrees with its compiled action.");
+                }
+            }
+        }
+
+        private static bool MatchesDataType(NodeId actual, NodeId expected, ITypeTable? typeTable)
+        {
+            if (actual.IsNull || expected.IsNull)
+            {
+                return false;
+            }
+            if (actual == expected || expected == Ua.DataTypeIds.BaseDataType)
+            {
+                return true;
+            }
+            if (expected != Ua.DataTypeIds.Number &&
+                expected != Ua.DataTypeIds.Integer &&
+                expected != Ua.DataTypeIds.UInteger &&
+                expected != Ua.DataTypeIds.Structure &&
+                expected != Ua.DataTypeIds.Enumeration)
+            {
+                return false;
+            }
+            if (typeTable?.IsTypeOf(actual, expected) == true)
+            {
+                return true;
+            }
+            BuiltInType actualType = typeTable is null
+                ? TypeInfo.GetBuiltInType(actual) : TypeInfo.GetBuiltInType(actual, typeTable);
+            if (expected == Ua.DataTypeIds.Number)
+            {
+                return actualType is >= BuiltInType.SByte and <= BuiltInType.Double;
+            }
+            if (expected == Ua.DataTypeIds.Integer)
+            {
+                return actualType is BuiltInType.SByte or BuiltInType.Int16 or BuiltInType.Int32 or BuiltInType.Int64;
+            }
+            return expected == Ua.DataTypeIds.UInteger &&
+                actualType is BuiltInType.Byte or BuiltInType.UInt16 or BuiltInType.UInt32 or BuiltInType.UInt64;
+        }
+
+        private static WotMethodArgumentLayout ResolveNativeOrder(
+            WotMethodArgumentLayout? layout, ArrayOf<Argument> arguments)
+        {
+            if (layout is null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "An action requires both resolved argument layouts.");
+            }
+            if (layout.Kind != WotMethodArgumentLayoutKind.NamedUnresolved)
+            {
+                return layout;
+            }
+            var names = new string[arguments.Count];
+            for (int index = 0; index < arguments.Count; index++)
+            {
+                Argument argument = arguments[index] ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "A native Method argument metadata entry is missing.");
+                names[index] = argument.Name ?? string.Empty;
+            }
+            try
+            {
+                return layout.ResolveNativeOrder(names.ToArrayOf());
+            }
+            catch (ArgumentException exception)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, exception.Message, exception);
+            }
+        }
+
+        private static void ValidateLayoutSchema(
+            WotMethodArgumentLayout layout, WotPayloadSchema schema, string member)
+        {
+            if (schema.Definition.ValueKind != JsonValueKind.Object)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "The captured interaction is not an action object.");
+            }
+            schema.Definition.TryGetProperty(member, out JsonElement declared);
+            bool matches = layout.Schema.ValueKind == JsonValueKind.Undefined
+                ? declared.ValueKind == JsonValueKind.Undefined
+                : declared.ValueKind != JsonValueKind.Undefined && JsonElement.DeepEquals(layout.Schema, declared);
+            if (!matches)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    $"The {member} layout disagrees with its captured payload schema.");
+            }
+        }
+
+        private static WotPayloadTypeBinding GetArgumentBinding(
+            WotPayloadSchema schema, WotMethodArgumentLayout layout, string member, int index)
+        {
+            string pointer = "/" + member;
+            if (layout.Kind == WotMethodArgumentLayoutKind.Named)
+            {
+                pointer += "/properties/" + WotAffordanceForm.EscapePointerToken(layout.FieldOrder[index]);
+            }
+            if (!schema.TryGetTypeBinding(pointer, out WotPayloadTypeBinding? binding) || binding.DataTypeId.IsNull)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, $"The native argument type at '{pointer}' is unresolved.");
+            }
+            return binding;
+        }
+
+        /// <summary>
+        /// The endpoint-qualified native type and rank of an argument.
+        /// </summary>
+        private readonly record struct NativeArgumentType(ExpandedNodeId DataTypeId, TypeInfo TypeInfo);
+
+        private ArrayOf<NativeArgumentType> m_nativeInputs;
+        private ArrayOf<NativeArgumentType> m_nativeOutputs;
+    }
+}

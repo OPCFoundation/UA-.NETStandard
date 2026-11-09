@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
                 server.CancelAuthentication = true;
 
                 using var lifetime = new RequestLifetime();
-                Assert.CatchAsync<OperationCanceledException>(async () =>
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await server.ActivateSessionAsync(
                         channel, new RequestHeader { AuthenticationToken = token }, null, default, default,
                         default, null, lifetime).ConfigureAwait(false));
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.Tests
                     .CloseSessionAsync(sessionId).AsTask().GetAwaiter().GetResult();
 
                 using var lifetime = new RequestLifetime();
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await server.ActivateSessionAsync(
                         channel, new RequestHeader { AuthenticationToken = token }, null, default, default,
                         default, null, lifetime).ConfigureAwait(false));

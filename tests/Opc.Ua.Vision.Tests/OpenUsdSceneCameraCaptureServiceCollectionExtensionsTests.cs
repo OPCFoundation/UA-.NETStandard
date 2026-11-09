@@ -60,7 +60,7 @@ namespace Opc.Ua.Vision.Tests
             services.AddOpenUsdSceneCameraCaptureProvider(_ => invoked = true);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var options = provider.GetRequiredService<OpenUsdSceneCaptureOptions>();
+            OpenUsdSceneCaptureOptions options = provider.GetRequiredService<OpenUsdSceneCaptureOptions>();
 
             Assert.Multiple(() =>
             {
@@ -76,8 +76,8 @@ namespace Opc.Ua.Vision.Tests
             services.AddOpenUsdSceneCameraCaptureProvider();
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var one = provider.GetRequiredService<ISceneCameraCaptureProvider>();
-            var two = provider.GetRequiredService<ISceneCameraCaptureProvider>();
+            ISceneCameraCaptureProvider one = provider.GetRequiredService<ISceneCameraCaptureProvider>();
+            ISceneCameraCaptureProvider two = provider.GetRequiredService<ISceneCameraCaptureProvider>();
 
             Assert.That(one, Is.SameAs(two));
         }
@@ -108,7 +108,7 @@ namespace Opc.Ua.Vision.Tests
             services.AddOpenUsdSceneCameraCaptureProvider();
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var options = provider.GetRequiredService<OpenUsdSceneCaptureOptions>();
+            OpenUsdSceneCaptureOptions options = provider.GetRequiredService<OpenUsdSceneCaptureOptions>();
             var defaults = new OpenUsdSceneCaptureOptions();
 
             Assert.Multiple(() =>

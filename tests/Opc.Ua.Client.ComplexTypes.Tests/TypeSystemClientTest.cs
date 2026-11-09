@@ -155,7 +155,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
-        [Order(100)]
         [TestCase(false, false, false)]
         [TestCase(true, false, false)]
         [TestCase(false, true, false)]
@@ -204,7 +203,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(LoadTypeSystemAsync), AllowFailure = true)]
         public async Task BrowseComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
@@ -242,7 +241,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(BrowseComplexTypesServerAsync), AllowFailure = true)]
         public async Task FetchComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
@@ -379,7 +378,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
-        [Order(330)]
+        [DependsOnTest(nameof(FetchComplexTypesServerAsync), AllowFailure = true)]
         public void ValidateFetchedAndBrowsedNodesMatch()
         {
             if (m_browsedNodesCount < 0 || m_fetchedNodesCount < 0)
@@ -399,7 +398,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(ValidateFetchedAndBrowsedNodesMatch), AllowFailure = true)]
         public async Task ReadWriteScalarVariableTypeAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);

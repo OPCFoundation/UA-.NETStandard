@@ -8,6 +8,10 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Migrating custom node write overrides](#migrating-custom-node-write-overrides)
+- [Correcting preview onboarding ticket APIs](#correcting-preview-onboarding-ticket-apis)
+- [Migrating confirmation-enabled ConfigurationFile providers](#migrating-confirmation-enabled-configurationfile-providers)
+- [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
 - [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
@@ -20,7 +24,7 @@ covers cross-cutting changes.
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
-- [Migrating code that called IServerInternal.Set* mutators](#migrating-code-that-called-iserverinternalset-mutators)
+- [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
 - [Migrating servers that relied on unserved history advertisement](#migrating-servers-that-relied-on-unserved-history-advertisement)
@@ -28,6 +32,7 @@ covers cross-cutting changes.
 - [Configuring distributed address-space storage](#configuring-distributed-address-space-storage)
 - [Migrating SamplingGroupManager create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
 - [Migrating callers of the synchronous MonitoredNode2 notification wrappers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
+- [Migrating condition subclasses to asynchronous state setters](#migrating-condition-subclasses-to-asynchronous-state-setters)
 - [Migrating callers of the SecurityPolicies lookup and cryptography statics](#migrating-callers-of-the-securitypolicies-lookup-and-cryptography-statics)
 - [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
 - [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
@@ -35,13 +40,182 @@ covers cross-cutting changes.
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
+- [ContentFilter NULL semantics follow OPC 10000-4 1.05.07](#contentfilter-null-semantics-follow-opc-10000-4-10507)
 - [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
 - [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
+- [Migrating from the classic subscription fast callbacks and DefaultSubscription](#migrating-from-the-classic-subscription-fast-callbacks-and-defaultsubscription)
+- [Migrating from the PublishSequenceNumbersToAcknowledge event](#migrating-from-the-publishsequencenumberstoacknowledge-event)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
   - [Asynchronous as default](#asynchronous-as-default)
   - [Observability](#observability)
 - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
 - [Support](#support)
+
+## General principles
+
+Compatibility is documented per API and release in the
+[version-specific migration guides](migrate/). Some replaced APIs retain
+`[Obsolete]` forwarders; others are removed and require source changes.
+Resolve obsolete warnings before upgrading, and work through the applicable
+minor-version guides in order; removal timing is specific to the API and release,
+not a universal grace period or SemVer guarantee.
+Consult the [Security Policy](../SECURITY.md) for maintained release lines.
+
+> **Pro TIP.** Point your favourite coding agent at this guide and let
+> it do the migration work for you. The
+> [`opcua-v20-migration`](../.agents/skills/opcua-v20-migration/SKILL.md)
+> agent skill knows when to load which sub-doc and runs the
+> migration-analyzer codefixer end-to-end.
+
+Copilot CLI discovers the skill automatically inside a clone. To install it
+for use in any repository:
+
+```bash
+copilot plugin marketplace add OPCFoundation/UA-.NETStandard
+copilot plugin install opcua-v20-migration@opcua-dotnet
+```
+
+## Migrating custom node write overrides
+
+**Breaking change:** `NodeState.WriteAttributeAsync` is no longer virtual.
+Move custom implementations to the protected virtual `WriteAttributeCoreAsync`
+hook. Existing callers keep the same public method and parameters; derived node
+types that override the public method require a source change and recompilation.
+
+The public entrypoint now owns Value-write admission through validation, the
+custom hook, callback dispatch and the correlated value/status/timestamp cache
+commit. A public override could previously bypass that operation by not calling
+base, or run custom behavior outside it. Making the public method non-virtual
+prevents that bypass without exposing synchronization to derived types.
+
+Before:
+
+```csharp
+public override ValueTask<ServiceResult> WriteAttributeAsync(
+    ISystemContext context,
+    uint attributeId,
+    NumericRange indexRange,
+    DataValue value,
+    CancellationToken cancellationToken = default)
+{
+    return base.WriteAttributeAsync(
+        context, attributeId, indexRange, value, cancellationToken);
+}
+```
+
+After:
+
+```csharp
+protected override ValueTask<ServiceResult> WriteAttributeCoreAsync(
+    ISystemContext context,
+    uint attributeId,
+    NumericRange indexRange,
+    DataValue value,
+    CancellationToken cancellationToken = default)
+{
+    return base.WriteAttributeCoreAsync(
+        context, attributeId, indexRange, value, cancellationToken);
+}
+```
+
+Keep custom validation and write behavior inside the core hook. Call the protected
+base hook to retain native behavior; do not call the public `WriteAttributeAsync`
+on the same node from that hook. When admission is bound, the nested public call
+waits behind the operation that invoked the hook until its cancellation token is
+cancelled. Cancellation unwinds that wait and releases the outer operation's
+admission. There is no invocation identity that distinguishes this call from an
+independent queued writer, so ordinary overlapping asynchronous writers continue
+to wait and serialize.
+
+The synchronous `WriteAttribute` entrypoint is non-virtual and keeps its
+synchronous implementation, including protected `WriteValueAttribute`
+customization. It does not block on the asynchronous hook. Both public paths
+apply the same Value-write admission where an owning runtime binds it.
+
+On an executor-bound node, an asynchronous Value write no longer falls back to
+the synchronous implementation. Configure `OnWriteValueAsync` or
+`OnSimpleWriteValueAsync` on a `BaseVariableState`, or implement the asynchronous
+core yourself. When no native asynchronous implementation handles the write, it
+returns `BadNotSupported` without invoking synchronous handlers or changing the
+cached value, status or timestamp. This includes variables with no write
+handlers. Calling the synchronous entrypoint remains supported; wrapping it in
+an asynchronous core would violate this rule.
+
+Scales supplies a native async cache-write policy for its stock writable
+variables, including product targets, tolerances and recipe condition settings.
+That policy retains native validation and correlated cache commit. Custom
+synchronous-only handlers require an asynchronous implementation; they are
+neither invoked nor silently bypassed by the policy.
+Stock `MultiStateValueDiscreteState` notification settings use a separate native
+async enum policy, including `ValueAsText` updates after a successful cache
+commit. Native validation checks access/type before enum membership; the
+synchronous implementation checks enum membership first. Application-defined
+subclasses, `SelectionListState` and `MultiStateDiscreteState` do not receive
+these policies; provide their native async behavior explicitly.
+
+Unbound nodes retain their existing synchronous fallback. Non-Value attributes
+still dispatch to the protected core without Value-write admission.
+
+Direct assignments to node properties do not pass through these methods and
+require application serialization. See [Scales write coordination](Scales.md)
+for the runtime-specific rejection and publication behavior.
+
+## Correcting preview onboarding ticket APIs
+
+Part 21 `EncodedTicket` is a String subtype. Applications using the earlier
+2.0 preview onboarding APIs must pass signed JSON envelopes as
+`ArrayOf<string>`, not `ArrayOf<ByteString>`. The obsolete `OnboardingClient`
+byte-input overloads decode UTF-8 before sending String values; invalid UTF-8
+throws locally. They do not preserve the incorrect ByteString wire format.
+This correction does not replace an onboarding API from 1.5.378.
+
+Server hosts must pass an `IOnboardingTicketValidator` when calling
+`BindToTicketStore`. The obsolete overload without a validator rejects
+registration with `BadConfigurationError` instead of storing unverified
+tickets. Register authority stores through `AddOnboardingTickets` and resolve
+the validator from dependency injection, or construct it with an explicit
+trust provider. See [onboarding configuration](GDS.md#opc-10000-21-onboardingclient).
+
+## Migrating confirmation-enabled ConfigurationFile providers
+
+Providers that set `IApplicationConfigurationFileProvider.RequiresConfirmation`
+to `true` must now implement `IRecoverableApplicationConfigurationFileProvider`.
+Without it, the server rejects `CloseAndUpdate` with `Bad_NotSupported` before
+calling validation or changing provider state. Providers that do not require
+confirmation are unaffected.
+
+The new interface requires durable storage for the previous configuration, the
+proposed configuration and targets, the update identifier, apply time and
+optional revert deadline. Implement `ApplyPendingUpdateAsync`,
+`ConfirmPendingUpdateAsync` and `RevertPendingUpdateAsync` as atomic,
+idempotent operations scoped to that identifier. `GetPendingUpdateAsync` must
+return the transaction state after process restart so the server can apply,
+confirm or revert it before exposing `ConfigurationFile`.
+
+Persist the rollback snapshot and revert deadline in the provider's durable
+transaction store. The server owns timer scheduling; the provider supplies the
+pending state used to recover after restart. A provider must not report
+successful staging until the new configuration and prior state can be
+recovered. See the [ConfigurationFile provider contract in
+CertificateManager.md](CertificateManager.md#optional-serverconfiguration-surface-opc-ua-part-12-7103-71013-71020)
+for the full behavior and registration guidance.
+
+## Program state numbers and managed execution
+
+`ProgramStateMachineState.CurrentState.Number` now agrees with the standard
+model: Halted=11, Ready=12, Running=13 and Suspended=14. Earlier runtime values
+were 4, 1, 2 and 3 respectively. Compare using `Opc.Ua.Programs.ProgramState`
+or the standard state NodeIds instead of the old numeric values. State and
+transition declarations in namespace zero are unchanged. Generated Program
+subtypes now reference those inherited declarations in namespace zero instead
+of incorrectly qualifying their numeric identifiers with the subtype namespace.
+
+The opt-in [Program runtime](Programs.md) owns provider execution, lifecycle,
+results and diagnostics. Its Reset follows the explicit Part 10 definition
+(Halted-to-Ready); the existing low-level Reset-from-Suspended behavior remains.
+Do not drive the same node through both an attached runtime and independent
+legacy FSM callbacks. Existing synchronous methods are not sync-over-async
+wrappers around the new runtime.
 
 ## Empty LocalizedText fields in 2.0
 
@@ -58,39 +232,6 @@ empty selected translation remains absent text rather than selecting fallback
 text; its `Text` property returns `null`. Translation-backed values retain
 their metadata and are not necessarily `IsNull`, even when both exposed fields
 are null.
-
-## General principles
-
-1. All API that is replaced with newer API is marked `[Obsolete]` and
-   code should compile and work albeit of the warnings (which can be
-   suppressed). `[Obsolete]` API will be cleaned up in the next *minor*
-   version increment. We therefore recommend upgrading from minor
-   version to minor version and fixing all `[Obsolete]` warnings as you
-   go along.
-2. API that cannot be supported anymore will be removed in a minor
-   version and migration steps documented in the version sub-folder.
-   We try to keep this to an absolute minimum.
-3. Bugs or issues found in obsoleted API are not supported.
-4. We follow semver, but do not use the major version indicator to
-   denote breaking changes like (1) or (2) as we should if we followed
-   related conventions. We are a small team and cannot afford to
-   maintain previous major versions, therefore we try to keep cases of
-   (2) to a minimum and expect you to upgrade to the next minor version
-   within 6 months of release.
-
-> **Pro TIP.** Point your favourite coding agent at this guide and let
-> it do the migration work for you. The
-> [`opcua-v20-migration`](../.agents/skills/opcua-v20-migration/SKILL.md)
-> agent skill knows when to load which sub-doc and runs the
-> migration-analyzer codefixer end-to-end.
-
-Copilot CLI discovers the skill automatically inside a clone. To install it
-for use in any repository:
-
-```bash
-copilot plugin marketplace add OPCFoundation/UA-.NETStandard
-copilot plugin install opcua-v20-migration@opcua-dotnet
-```
 
 ## Per-version migration index
 
@@ -161,8 +302,8 @@ body captures and returns.
 
 ### Why there is no `[Obsolete]` shim
 
-Every other removal in this guide keeps an `[Obsolete]` member for a release.
-These do not, and deliberately so. A lock is only useful if it is *the* lock the
+The exposed diagnostics-lock members are removed without `[Obsolete]` shims.
+A lock is only useful if it is *the* lock the
 owner takes. A shim would have to hand back either a lock nobody else takes -
 silently turning a working critical section into no synchronization at all - or
 the real lock, which is exactly the coupling being removed. A missing member is
@@ -197,7 +338,7 @@ shared node. Analyzer `UA0025` flags the removed member.
 `BaseVariableValue.Lock` was removed, and the constructor now takes a
 `System.Threading.Lock` instead of an `object`.
 
-A derived value class - which is what the source generator emits for every
+A derived value class - as emitted by the source generator for every
 structure variable - synchronizes through the protected `EnterLock()` /
 `ExitLock()` pair:
 
@@ -296,7 +437,7 @@ factory may run more than once; only one result is published and every caller
 receives that same instance, so keep the factory free of side effects that would
 matter if it ran twice.
 
-One behaviour change is worth knowing: enumerating `Properties` while another
+Enumerating `Properties` while another
 thread writes no longer throws `InvalidOperationException`. It yields a
 moment-in-time view instead. Code that relied on the exception to detect
 concurrent modification has to detect it some other way.
@@ -475,7 +616,7 @@ declared parameter type changes and an implementation fails to compile
 (`CS0535`) until its signature is updated.
 
 `IServerContext` is the ambient view of a running server. It carries what
-is genuinely server-wide and nothing else — it deliberately does not hand
+is server-wide and nothing else — it deliberately does not hand
 out the server's subsystems. A startup task that needs a subsystem takes it
 as a constructor dependency, which every implementation in this repository
 already did for its other dependencies.
@@ -644,6 +785,49 @@ await monitoredNode.OnReportEventAsync(context, node, e, cancellationToken)
 
 The wrappers still work and are unchanged in behaviour, so this is a
 warning to act on rather than a break.
+
+## Migrating condition subclasses to asynchronous state setters
+
+Condition and alarm state classes now provide asynchronous virtual counterparts
+for their state setters. Existing synchronous methods remain available and
+continue to dispatch through synchronous overrides. An asynchronous caller uses
+the async virtual method instead; it does not call a subclass's synchronous
+override. A subclass that customizes one of these setters must also override
+its async counterpart when the application uses the async path.
+
+| Synchronous override | Async counterpart |
+| --- | --- |
+| `ConditionState.SetEnableState` | `ConditionState.SetEnableStateAsync` |
+| `ConditionState.SetSeverity` | `ConditionState.SetSeverityAsync` |
+| `AcknowledgeableConditionState.SetAcknowledgedState` | `AcknowledgeableConditionState.SetAcknowledgedStateAsync` |
+| `AcknowledgeableConditionState.SetConfirmedState` | `AcknowledgeableConditionState.SetConfirmedStateAsync` |
+| `AlarmConditionState.SetActiveState` | `AlarmConditionState.SetActiveStateAsync` |
+| `AlarmConditionState.SetShelvingState` | `AlarmConditionState.SetShelvingStateAsync` |
+| `AlarmConditionState.SetSilenceState` | `AlarmConditionState.SetSilenceStateAsync` |
+| `AlarmConditionState.SetLatchedState` | `AlarmConditionState.SetLatchedStateAsync` |
+| `ExclusiveLimitAlarmState.SetActiveState` | `ExclusiveLimitAlarmState.SetActiveStateAsync` |
+| `ExclusiveLimitAlarmState.SetLimitState` | `ExclusiveLimitAlarmState.SetLimitStateAsync` |
+
+Async setters honor cancellation before changing state. Once a setter has
+committed a mutation, it completes nested state updates and change-mask
+notifications without observing caller cancellation, so cancellation cannot
+leave a compound active-state update partly applied.
+
+`ExclusiveLimitAlarmState` keeps its active and limit states consistent when
+notifications or Retain evaluation are deferred. Subclasses customizing these
+updates must override the overload that accepts `clearChangeMasks` and
+`updateRetainState`; overloads with both options enabled retain dispatch through
+the existing synchronous or asynchronous setter override.
+
+When publishing a condition snapshot after releasing an application mutation
+gate, initialize `InstanceStateSnapshot` while still holding that gate. Snapshot
+initialization captures the condition's EventId, acknowledgement and confirmation
+state and counters with its attributes; reporting registers that captured state
+instead of reading a newer live EventId. Assign a new EventId for each evaluation
+and do not change the snapshot's EventId or Handle after initialization. Snapshot
+capture alone does not register an EventId for condition methods; registration
+occurs when `ReportEvent` or `ReportEventAsync` is invoked, including a report
+whose delivery is subsequently canceled.
 
 <a id="ua0029"></a>
 
@@ -816,6 +1000,14 @@ this reassembly budget. Once a complete request has been decoded, separate
 limits control how many requests may wait, execute, or remain parked, and how
 much request data they may retain. A request refused at that stage receives
 `BadServerTooBusy`, even if it fitted in a single transport chunk.
+
+`MaxQueuedRequestCount` keeps its 1.5.x meaning: established Sessions can have
+that many decoded requests waiting. Balanced and TrustedReservations add their
+reserved queue entries on top of it. Earlier 2.0 previews carved them out of it,
+so a client that kept exactly `MaxQueuedRequestCount` requests outstanding could
+receive `BadServerTooBusy`. A server that relied on the smaller queue should
+lower `MaxQueuedRequestCount` or set `ResourceIsolationStageOptions.Capacity` for
+the RequestQueue stage. See [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits).
 
 For workloads with many simultaneous large requests, set
 `WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign
@@ -1051,6 +1243,102 @@ fails with `Bad_WriteNotSupported` without the received timestamps and remembers
   structures. `StructureDefinition.FirstExplicitFieldIndex` marks the first field of the
   subtype; NodeSet export writes only those fields.
 
+## Migrating from the classic subscription fast callbacks and DefaultSubscription
+
+The following classic client members are `[Obsolete]` and produce `CS0618`:
+
+| Obsolete member | Replacement |
+| --- | --- |
+| `Subscription.FastDataChangeCallback` and `FastDataChangeNotificationEventHandler` | `ISubscriptionNotificationHandler.OnDataChangeNotificationAsync` |
+| `Subscription.FastEventCallback` and `FastEventNotificationEventHandler` | `ISubscriptionNotificationHandler.OnEventDataNotificationAsync` |
+| `Subscription.FastKeepAliveCallback` and `FastKeepAliveNotificationEventHandler` | `ISubscriptionNotificationHandler.OnKeepAliveNotificationAsync` |
+| `ISession.DefaultSubscription` (and `Session`, `ManagedSession`, `RedundantClientSession`) | `ISubscriptionManager.Add` with `SubscriptionOptions` |
+
+The members keep working; existing classic code builds with a warning. New
+code should use the managed (V2) subscription model: implement
+`ISubscriptionNotificationHandler` and add the subscription through the
+session's `ISubscriptionManager`. The options that `DefaultSubscription`
+used as a template are passed explicitly in `SubscriptionOptions`.
+
+```csharp
+// was
+var subscription = new Subscription(session.DefaultSubscription)
+{
+    PublishingInterval = 1000,
+    FastDataChangeCallback = OnDataChange
+};
+session.AddSubscription(subscription);
+await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+// now
+ISubscription subscription = managedSession.AddSubscription(
+    handler, // ISubscriptionNotificationHandler
+    new SubscriptionOptions
+    {
+        PublishingInterval = TimeSpan.FromSeconds(1),
+        PublishingEnabled = true
+    });
+```
+
+Monitored items are added with `subscription.MonitoredItems.TryAdd(...)`. See
+[Subscriptions: Classic → V2 surface mapping](Subscriptions.md#classic--v2-surface-mapping)
+for the complete mapping.
+
+## Migrating from the PublishSequenceNumbersToAcknowledge event
+
+`ISession.PublishSequenceNumbersToAcknowledge` (and its implementations on `Session`,
+`ManagedSession` and `RedundantClientSession`) is `[Obsolete]`. Acknowledgements are now
+controlled by injectable, asynchronous providers instead of an event that edits mutable
+lists. The event still works with its previous behaviour as long as no provider is
+configured.
+
+| Was | Now |
+| --- | --- |
+| Defer acknowledgements in the event until downstream delivery, keyed by subscription id and sequence number | `AcknowledgementMode.AfterConfirmation` (`ManagedSessionBuilder.AcknowledgeAfterConfirmation()`) and `session.Confirm(handle)` with the `AcknowledgementHandle` carried by `DataValueChange.Acknowledgement` / `EventNotification.Acknowledgement` (classic: `Subscription.TryGetAcknowledgementHandle`) |
+| Any other policy in the event | An `ISubscriptionAcknowledgementProvider` (`ManagedSessionOptions.AcknowledgementProvider`, `WithAcknowledgementProvider`, or `AddAcknowledgementProvider<T>()`) |
+| Bookkeeping cleaned up from several events | An `ISubscriptionAcknowledgementObserver`, told exactly once how every acknowledgement ended |
+
+Differences to be aware of:
+
+- A provider is called concurrently and without SDK locks, so it must be thread-safe. If it
+  throws, the batch is deferred (fail-closed); the event sent everything (fail-open).
+- Handles stay unambiguous when the server reuses a subscription id; keys made of the
+  subscription id and sequence number do not.
+- With a provider configured, the event is not raised.
+
+```csharp
+// was
+session.PublishSequenceNumbersToAcknowledge += (_, e) =>
+{
+    foreach (SubscriptionAcknowledgement ack in e.AcknowledgementsToSend.ToList())
+    {
+        if (!delivered.Contains((ack.SubscriptionId, ack.SequenceNumber)))
+        {
+            e.AcknowledgementsToSend.Remove(ack);
+            e.DeferredAcknowledgementsToSend.Add(ack);
+        }
+    }
+};
+
+// now
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .AcknowledgeAfterConfirmation()
+    .ConnectAsync(ct).ConfigureAwait(false);
+// Implement ISubscriptionNotificationMessageHandler and register it using
+// managedSession.AddMessageSubscription(handler, options). After every payload of
+// SubscriptionNotificationMessage was delivered downstream:
+session.Confirm(message.Acknowledgement);
+```
+
+Whole-message handlers receive one envelope containing all payloads in wire order.
+They replace data/event callbacks for the opted-in subscription; existing callbacks
+and all deprecations above remain unchanged. For the classic engine, set
+`Subscription.NotificationMessageHandler`. Do not confirm a shared handle from an
+individual data/event callback unless the application knows the entire message completed.
+
+See [Subscriptions: Acknowledgement providers](Subscriptions.md#acknowledgement-providers).
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default
@@ -1075,8 +1363,8 @@ inventory of removed / `[Obsolete]` `Utils` APIs.
 Configuration-level trace apply APIs were removed as well: `TraceConfiguration.ApplySettings()` and `ApplicationConfigurationBuilder` trace setters (`SetOutputFilePath`, `SetDeleteOnLoad`, `SetTraceMasks`). Configure logging through `ITelemetryContext` instead.
 ## Migrating from 1.04 to 1.05
 
-A few features are still missing to fully comply with 1.05, but
-certification for v1.04 is still possible with the 1.05 release.
+See [OPC UA Profiles and Facets](Profiles.md) for current feature coverage;
+check certification against the specific product version and profiles.
 
 ## Support
 

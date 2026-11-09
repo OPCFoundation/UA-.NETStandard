@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Udp.Dtls
@@ -350,7 +351,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public static partial void CreatingDtlsContext(
             this ILogger logger,
             string? connection,
-            UdpEndpoint endpoint,
+            [NetworkAddress] UdpEndpoint endpoint,
             string profile);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.DefaultDtlsContextFactory + 1,
@@ -358,21 +359,21 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             Message = "Resolved OPC UA PubSub DTLS local certificate identifier '{Identifier}'.")]
         public static partial void ResolvedLocalCertificateIdentifier(
             this ILogger logger,
-            CertificateIdentifier identifier);
+            [ApplicationIdentity] CertificateIdentifier identifier);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.DefaultDtlsContextFactory + 2, Level = LogLevel.Warning,
             Message = "OPC UA PubSub DTLS local certificate identifier '{Identifier}' did not resolve to a " +
                 "certificate with a private key.")]
         public static partial void LocalCertificateIdentifierWithoutPrivateKey(
             this ILogger logger,
-            CertificateIdentifier identifier);
+            [ApplicationIdentity] CertificateIdentifier identifier);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.DefaultDtlsContextFactory + 3, Level = LogLevel.Warning,
             Message = "Failed to resolve OPC UA PubSub DTLS local certificate identifier '{Identifier}'.")]
         public static partial void FailedToResolveLocalCertificateIdentifier(
             this ILogger logger,
             Exception exception,
-            CertificateIdentifier identifier);
+            [ApplicationIdentity] CertificateIdentifier identifier);
     }
 
 }

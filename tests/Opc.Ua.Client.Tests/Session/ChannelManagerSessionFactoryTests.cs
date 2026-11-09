@@ -230,13 +230,13 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CreateChannelAsyncWithNullConfigurationThrowsArgumentNullException()
+        public async Task CreateChannelAsyncWithNullConfigurationThrowsArgumentNullException()
         {
             var manager = new Mock<IClientChannelManager>();
             var factory = new ChannelManagerSessionFactory(manager.Object, m_telemetry);
             ConfiguredEndpoint endpoint = CreateEndpoint();
 
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException ex = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await factory.CreateChannelAsync(
                     null!,
                     null,
@@ -249,12 +249,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CreateChannelAsyncWithNullEndpointThrowsArgumentNullException()
+        public async Task CreateChannelAsyncWithNullEndpointThrowsArgumentNullException()
         {
             var manager = new Mock<IClientChannelManager>();
             var factory = new ChannelManagerSessionFactory(manager.Object, m_telemetry);
 
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException ex = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await factory.CreateChannelAsync(
                     CreateConfiguration(),
                     null,
@@ -267,12 +267,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CreateAsyncReverseConnectWithNullEndpointThrowsArgumentNullException()
+        public async Task CreateAsyncReverseConnectWithNullEndpointThrowsArgumentNullException()
         {
             var manager = new Mock<IClientChannelManager>();
             var factory = new ChannelManagerSessionFactory(manager.Object, m_telemetry);
 
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException ex = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await factory.CreateAsync(
                     CreateConfiguration(),
                     (ReverseConnectManager)null!,
@@ -289,12 +289,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CreateAsyncReverseConnectWithNullManagerDelegatesToPlainPath()
+        public async Task CreateAsyncReverseConnectWithNullManagerDelegatesToPlainPath()
         {
             var manager = new Mock<IClientChannelManager>();
             var factory = new ChannelManagerSessionFactory(manager.Object, m_telemetry);
 
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException ex = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await factory.CreateAsync(
                     null!,
                     (ReverseConnectManager)null!,
@@ -311,12 +311,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void RecreateAsyncWithNullTemplateDelegatesToInnerFactory()
+        public async Task RecreateAsyncWithNullTemplateDelegatesToInnerFactory()
         {
             var manager = new Mock<IClientChannelManager>();
             var factory = new ChannelManagerSessionFactory(manager.Object, m_telemetry);
 
-            ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(null!, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.ParamName, Is.EqualTo("sessionTemplate"));

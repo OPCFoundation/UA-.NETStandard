@@ -268,6 +268,82 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.AdditionalInfo, Is.EqualTo("additional debug"));
         }
 
+        /// <summary>
+        /// Verifies that additional information requires request and permission at every diagnostic level.
+        /// </summary>
+        /// <param name="serviceLevel">The service-level flag for this test case.</param>
+        /// <param name="requested">The requested flag for this test case.</param>
+        /// <param name="authorized">The authorized flag for this test case.</param>
+        [TestCase(false, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, false)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        public void AdditionalInformationRequiresRequestAndPermissionAtEveryDiagnosticLevel(
+            bool serviceLevel, bool requested, bool authorized)
+        {
+            var inner = new ServiceResult(
+                "urn:source", StatusCodes.BadDecodingError, LocalizedText.Null, "inner detail", innerResult: null);
+            var result = new ServiceResult(
+                "urn:source", StatusCodes.Bad, LocalizedText.Null, "outer detail", inner);
+            DiagnosticsMasks mask = serviceLevel
+                ? DiagnosticsMasks.ServiceInnerDiagnostics : DiagnosticsMasks.OperationInnerDiagnostics;
+            if (requested)
+            {
+                mask |= serviceLevel
+                    ? DiagnosticsMasks.ServiceAdditionalInfo : DiagnosticsMasks.OperationAdditionalInfo;
+            }
+            if (authorized)
+            {
+                mask |= DiagnosticsMasks.UserPermissionAdditionalInfo;
+            }
+
+            var actual = new DiagnosticInfo(result, mask, serviceLevel, new StringTable(), s_logger);
+
+            Assert.That(actual.AdditionalInfo, Is.EqualTo(requested && authorized ? "outer detail" : null));
+            Assert.That(actual.InnerDiagnosticInfo, Is.Not.Null);
+            Assert.That(actual.InnerDiagnosticInfo!.AdditionalInfo,
+                Is.EqualTo(requested && authorized ? "inner detail" : null));
+        }
+
+        /// <summary>
+        /// Verifies that nested diagnostic text without an error status survives string table reencoding.
+        /// </summary>
+        /// <param name="indexed">The indexed flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NestedDiagnosticTextWithoutAnErrorStatusSurvivesStringTableReencoding(bool indexed)
+        {
+            var diagnostic = new DiagnosticInfo
+            {
+                NamespaceUri = 0,
+                SymbolicId = 1,
+                InnerDiagnosticInfo = new DiagnosticInfo { SymbolicId = 2, LocalizedText = 3 }
+            };
+            ArrayOf<string> source = ["urn:source", "Rejected", "ValidationContext", "Input was validated"];
+            ServiceResult decoded = indexed
+                ? new ServiceResult(StatusCodes.Bad, 0, [diagnostic], source)
+                : new ServiceResult(StatusCodes.Bad, diagnostic, source);
+
+            Assert.That(decoded.InnerResult, Is.Not.Null);
+            Assert.That(decoded.InnerResult!.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(decoded.InnerResult.SymbolicId, Is.EqualTo("ValidationContext"));
+            Assert.That(decoded.InnerResult.LocalizedText.Text, Is.EqualTo("Input was validated"));
+            var destination = new StringTable();
+            destination.Append("existing response entry");
+            var encoded = new DiagnosticInfo(decoded, DiagnosticsMasks.OperationAll, false, destination, s_logger);
+
+            Assert.That(encoded.InnerDiagnosticInfo, Is.Not.Null);
+            Assert.That(encoded.InnerDiagnosticInfo!.InnerStatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(destination.GetString((uint)encoded.InnerDiagnosticInfo.SymbolicId),
+                Is.EqualTo("ValidationContext"));
+            Assert.That(destination.GetString((uint)encoded.InnerDiagnosticInfo.LocalizedText),
+                Is.EqualTo("Input was validated"));
+        }
+
         [Test]
         public void ServiceResultConstructorSkipsAdditionalInfoWithoutUserPermission()
         {
@@ -326,6 +402,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(di.InnerDiagnosticInfo, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that service result constructor truncates at max depth.
+        /// </summary>
         [Test]
         public void ServiceResultConstructorTruncatesAtMaxDepth()
         {
@@ -349,8 +428,27 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 depth++;
             }
 
-            // Depth should be limited to MaxInnerDepth
-            Assert.That(depth, Is.LessThanOrEqualTo(DiagnosticInfo.MaxInnerDepth));
+            Assert.That(depth, Is.EqualTo(DiagnosticInfo.MaxInnerDepth - 1),
+                "The decoder's limit includes the outer DiagnosticInfo.");
+            Assert.That(innermost.InnerStatusCode, Is.EqualTo(StatusCodes.Bad));
+        }
+
+        /// <summary>
+        /// Verifies that good inner status information bits remain available for encoding.
+        /// </summary>
+        [Test]
+        public void GoodInnerStatusInformationBitsRemainAvailableForEncoding()
+        {
+            StatusCode status = StatusCodes.Good.SetSemanticsChanged(true);
+            var source = new DiagnosticInfo { InnerStatusCode = status };
+
+            var decoded = new ServiceResult(StatusCodes.Bad, source, []);
+
+            Assert.That(decoded.InnerResult, Is.Not.Null);
+            Assert.That(decoded.InnerResult!.StatusCode.Code, Is.EqualTo(status.Code));
+            var encoded = new DiagnosticInfo(
+                decoded, DiagnosticsMasks.OperationInnerStatusCode, false, new StringTable(), s_logger);
+            Assert.That(encoded.InnerStatusCode.Code, Is.EqualTo(status.Code));
         }
 
         [Test]

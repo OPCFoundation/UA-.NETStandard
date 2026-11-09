@@ -230,7 +230,6 @@ namespace Opc.Ua.Sessions.Tests
         : ChannelManagerIntegrationTestBase
     {
         [Test]
-        [Order(100)]
         [CancelAfter(120_000)]
         public async Task TwoManagedSessionsShareOneManagedChannelAsync(
             CancellationToken ct)
@@ -274,8 +273,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(TwoManagedSessionsShareOneManagedChannelAsync), AllowFailure = true)]
         public async Task ReleasingOneSessionKeepsSharedChannelReadyAsync(
             CancellationToken ct)
         {
@@ -324,8 +323,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(300)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ReleasingOneSessionKeepsSharedChannelReadyAsync), AllowFailure = true)]
         public async Task ReleasingAllSessionsRemovesSharedChannelEntryAsync(
             CancellationToken ct)
         {

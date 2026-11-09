@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -74,7 +75,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 RobotIntentServerOptions options = services
                     .GetRequiredService<IOptions<RobotIntentServerOptions>>()
                     .Value;
-                IRobotIntentModelProvider[] providers = [.. services.GetServices<IRobotIntentModelProvider>()];
+                Opc.Ua.ArrayOf<IRobotIntentModelProvider> providers = services
+                    .GetServices<IRobotIntentModelProvider>().ToArray();
                 return new RobotIntentNodeManagerFactory(
                     providers,
                     options,
@@ -85,7 +87,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 RobotIntentServerOptions options = services
                     .GetRequiredService<IOptions<RobotIntentServerOptions>>()
                     .Value;
-                IRobotIntentModelProvider[] providers = [.. services.GetServices<IRobotIntentModelProvider>()];
+                Opc.Ua.ArrayOf<IRobotIntentModelProvider> providers = services
+                    .GetServices<IRobotIntentModelProvider>().ToArray();
                 return new RobotIntentHostedNodeManagerFactory(
                     providers,
                     options,
@@ -231,8 +234,14 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Adapts a callback to the Robot Intent post-setup contract.
+        /// </summary>
         private sealed class DelegateRobotIntentConfigurator : IRobotIntentPostSetupConfigurator
         {
+            /// <summary>
+            /// Creates a callback registration for the specified manager type.
+            /// </summary>
             public DelegateRobotIntentConfigurator(
                 Type targetManagerType,
                 Func<IRobotIntentBuildContext, CancellationToken, ValueTask> configure)
@@ -241,8 +250,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 m_configure = configure;
             }
 
+            /// <summary>
+            /// Gets the manager type matched by the post-setup runner.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Invokes the callback with the build context and its cancellation token.
+            /// </summary>
             public ValueTask RunAsync(IRobotIntentBuildContext context)
             {
                 return m_configure(context, context.CancellationToken);

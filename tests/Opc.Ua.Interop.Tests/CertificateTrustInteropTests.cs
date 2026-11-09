@@ -107,7 +107,7 @@ namespace Opc.Ua.Interop.Tests
 
                 // TODO: Remove when CA2025 recognizes NUnit's Assert.ThrowsAsync task completion.
 #pragma warning disable CA2025 // Assert.ThrowsAsync completes the task before the client is disposed
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                     () => ConnectAsync(client, url));
 #pragma warning restore CA2025
                 Assert.That(sre.StatusCode, Is.AnyOf(s_clientRejectedCodes), sre.ToString());
@@ -138,7 +138,7 @@ namespace Opc.Ua.Interop.Tests
 
                 // TODO: Remove when CA2025 recognizes NUnit's Assert.ThrowsAsync task completion.
 #pragma warning disable CA2025 // Assert.ThrowsAsync completes the task before the client is disposed
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                     () => ConnectAsync(client, url));
 #pragma warning restore CA2025
                 Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted), sre.ToString());
@@ -246,7 +246,7 @@ namespace Opc.Ua.Interop.Tests
                 {
                     // TODO: Remove when CA2025 recognizes NUnit's Assert.ThrowsAsync task completion.
 #pragma warning disable CA2025 // Assert.ThrowsAsync completes the task before the client is disposed
-                    ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                    ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                         () => ConnectAsync(client, url));
 #pragma warning restore CA2025
                     Assert.That(sre.StatusCode, Is.AnyOf(s_clientRejectedCodes), sre.ToString());

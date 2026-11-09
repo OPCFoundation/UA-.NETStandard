@@ -88,7 +88,6 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(60_000)]
         public async Task AddSubscriptionV2Async(CancellationToken ct)
         {
@@ -156,10 +155,10 @@ namespace Opc.Ua.Subscriptions.Tests
                 // TODO(V2): expose RepublishAsync(seq, ct) on ISubscription.
                 var internalSub =
                     (Client.Subscriptions.Subscription)((LogicalSubscription)subscription).Primary;
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException sre = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session.RepublishAsync(null,
                         internalSub.Id, internalSub.LastSequenceNumberProcessed + 100, ct)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(sre.StatusCode,
                     Is.EqualTo(StatusCodes.BadMessageNotAvailable));
 
@@ -177,8 +176,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(AddSubscriptionV2Async), AllowFailure = true)]
         public async Task SaveAndLoadSubscriptionV2Async(CancellationToken ct)
         {
             ManagedSession session = await ConnectV2Async(nameof(SaveAndLoadSubscriptionV2Async), ct).ConfigureAwait(false);
@@ -291,8 +290,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(300)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SaveAndLoadSubscriptionV2Async), AllowFailure = true)]
         public async Task SequentialPublishingV2Async(CancellationToken ct)
         {
             // V2 publish channel guarantees per-subscription in-order
@@ -426,8 +425,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(400)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SequentialPublishingV2Async), AllowFailure = true)]
         public async Task PublishRequestCountV2Async(CancellationToken ct)
         {
             ManagedSession session = await ConnectV2Async(nameof(PublishRequestCountV2Async), ct).ConfigureAwait(false);
@@ -490,8 +489,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(500)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(PublishRequestCountV2Async), AllowFailure = true)]
         public async Task KeepAliveHandlerV2Async(CancellationToken ct)
         {
             ManagedSession session = await ConnectV2Async(nameof(KeepAliveHandlerV2Async), ct).ConfigureAwait(false);
@@ -567,8 +566,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(600)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(KeepAliveHandlerV2Async), AllowFailure = true)]
         public async Task SetTriggeringTrackingV2Async(CancellationToken ct)
         {
             ManagedSession session = await ConnectV2Async(nameof(SetTriggeringTrackingV2Async), ct).ConfigureAwait(false);
@@ -650,8 +649,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(601)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SetTriggeringTrackingV2Async), AllowFailure = true)]
         public async Task DeclarativeTriggeredByNamesV2Async(CancellationToken ct)
         {
             ManagedSession session = await ConnectV2Async(
@@ -709,8 +708,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(602)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(DeclarativeTriggeredByNamesV2Async), AllowFailure = true)]
         public async Task NToMTriggeringV2Async(CancellationToken ct)
         {
             ManagedSession session = await ConnectV2Async(
@@ -783,8 +782,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(700)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(NToMTriggeringV2Async), AllowFailure = true)]
         public async Task ConcurrentAddMonitoredItemsNoDuplicatesV2Async(
             CancellationToken ct)
         {

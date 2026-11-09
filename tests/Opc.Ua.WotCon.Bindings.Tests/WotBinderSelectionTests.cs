@@ -220,16 +220,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// forgery is aimed at.
         /// </remarks>
         [Test]
-        public void HttpValidationUsesTheAddressingTargetNotTheBaseUri()
+        public async Task HttpValidationUsesTheAddressingTargetNotTheBaseUri()
         {
             var executor = new NamedExecutor(new HttpBindingPlanner().Identity);
             var registry = new WotProtocolBinderRegistry(
                 [new HttpBindingPlanner()], [executor]);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await registry.OpenChannelAsync(HttpForm(
                     baseUri: "http://example.com",
-                    target: "http://169.254.169.254/latest/meta-data/")).ConfigureAwait(false))!;
+                    target: "http://169.254.169.254/latest/meta-data/")).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {

@@ -1444,6 +1444,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a batteries-included reference-style demo server.
         /// </summary>
+        /// <remarks>
+        /// Uses configured role options while preserving an explicitly registered role manager.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddReferenceServer(
             this IOpcUaBuilder builder,
@@ -1463,7 +1466,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 options.IncludeUnsecurePolicyNone = false;
                 configure?.Invoke(options);
             });
-            serverBuilder.AddRoleManager<RoleManager>();
+            serverBuilder.ConfigureRoles(static _ => { });
             return RegisterFluentNodeManager(
                 serverBuilder,
                 "http://opcfoundation.org/UA/ReferenceServer",
@@ -1474,6 +1477,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a hardened hosted server preset with secure policies, identity authenticators and roles.
         /// </summary>
+        /// <remarks>
+        /// Uses configured role options while preserving an explicitly registered role manager.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddSecureServer(
             this IOpcUaBuilder builder,
@@ -1500,7 +1506,7 @@ namespace Microsoft.Extensions.DependencyInjection
             serverBuilder.Services.TryAddSingleton<IUserDatabase, LinqUserDatabase>();
             serverBuilder.Services.TryAddSingleton<IUserManagement, UserManagement>();
             return serverBuilder
-                .AddRoleManager<RoleManager>()
+                .ConfigureRoles(static _ => { })
                 .AddDefaultIdentityAuthenticators(options =>
                 {
                     options.EnableAnonymous = false;
@@ -1674,6 +1680,9 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+            services.TryAddSingleton<ServerApplicationCertificateActivator>();
+            services.TryAddSingleton<IServerApplicationCertificateActivator>(
+                sp => sp.GetRequiredService<ServerApplicationCertificateActivator>());
 
             // The PushManagement transaction coordinator holds mutable
             // per-server transaction state (OPC 10000-12 §§7.10.2-7.10.11) and
@@ -1922,8 +1931,6 @@ namespace Microsoft.Extensions.DependencyInjection
                 BindString(child, nameof(ServerReverseConnectClientOptions.EndpointUrl),
                     value => client.EndpointUrl = value);
                 BindInt32(child, nameof(ServerReverseConnectClientOptions.Timeout), value => client.Timeout = value);
-                BindInt32(child, nameof(ServerReverseConnectClientOptions.MaxSessionCount),
-                    value => client.MaxSessionCount = value);
                 BindBoolean(child, nameof(ServerReverseConnectClientOptions.Enabled), value => client.Enabled = value);
                 reverseConnect.Clients.Add(client);
             }

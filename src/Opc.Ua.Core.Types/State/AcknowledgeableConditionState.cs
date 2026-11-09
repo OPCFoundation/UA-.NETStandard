@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -53,6 +54,85 @@ namespace Opc.Ua
         /// <param name="acknowledged">if set to <c>true</c> the condition is acknowledged.</param>
         public virtual void SetAcknowledgedState(ISystemContext context, bool acknowledged)
         {
+            SetAcknowledgedState(context, acknowledged, clearChangeMasks: true, updateRetainState: true);
+        }
+
+        /// <summary>
+        /// Sets the acknowledged state and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="acknowledged">Whether the condition is acknowledged.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetAcknowledgedState(ISystemContext, bool)"/> must also
+        /// override this method.
+        /// </remarks>
+        public virtual ValueTask SetAcknowledgedStateAsync(
+            ISystemContext context,
+            bool acknowledged,
+            CancellationToken cancellationToken = default)
+        {
+            return SetAcknowledgedStateAsync(
+                context, acknowledged, clearChangeMasks: true, updateRetainState: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Sets acknowledgement attributes and optionally awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="acknowledged">Whether the condition is acknowledged.</param>
+        /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
+        /// <param name="updateRetainState">Whether to derive the Retain state.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        public virtual async ValueTask SetAcknowledgedStateAsync(
+            ISystemContext context,
+            bool acknowledged,
+            bool clearChangeMasks,
+            bool updateRetainState,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (acknowledged)
+            {
+                UpdateStateAfterAcknowledge(context);
+                m_acknowledgeCount++;
+            }
+            else
+            {
+                UpdateStateAfterUnacknowledge(context);
+            }
+
+            AckedState!.Timestamp = DateTimeUtc.Now;
+            if (updateRetainState)
+            {
+                UpdateRetainState();
+            }
+            if (clearChangeMasks)
+            {
+                await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Sets acknowledgement attributes and optionally publishes their change masks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="acknowledged">Whether the condition is acknowledged.</param>
+        /// <param name="clearChangeMasks">
+        /// Whether to notify state observers now. Otherwise the caller clears change masks after its other updates.
+        /// </param>
+        /// <param name="updateRetainState">
+        /// Whether to derive Retain, including invoking a configured retain-state provider.
+        /// Otherwise the caller assigns Retain after its other updates.
+        /// </param>
+        public void SetAcknowledgedState(
+            ISystemContext context, bool acknowledged, bool clearChangeMasks, bool updateRetainState)
+        {
             if (acknowledged)
             {
                 UpdateStateAfterAcknowledge(context);
@@ -64,7 +144,14 @@ namespace Opc.Ua
             }
 
             AckedState!.Timestamp = DateTimeUtc.Now; // ConditionState.Initialize creates AckedState
-            ClearChangeMasks(context, includeChildren: true);
+            if (updateRetainState)
+            {
+                UpdateRetainState();
+            }
+            if (clearChangeMasks)
+            {
+                ClearChangeMasks(context, includeChildren: true);
+            }
         }
 
         /// <summary>
@@ -86,7 +173,41 @@ namespace Opc.Ua
 
             ConfirmedState?.Timestamp = DateTimeUtc.Now;
 
+            UpdateRetainState();
             ClearChangeMasks(context, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Sets the confirmed state and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="confirmed">Whether the condition is confirmed.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetConfirmedState"/> must also override this method.
+        /// </remarks>
+        public virtual async ValueTask SetConfirmedStateAsync(
+            ISystemContext context,
+            bool confirmed,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (confirmed)
+            {
+                UpdateStateAfterConfirm(context);
+                m_confirmCount++;
+            }
+            else
+            {
+                UpdateStateAfterUnconfirm(context);
+            }
+
+            ConfirmedState?.Timestamp = DateTimeUtc.Now;
+            UpdateRetainState();
+            await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                .ConfigureAwait(false);
         }
 
         /// <summary>

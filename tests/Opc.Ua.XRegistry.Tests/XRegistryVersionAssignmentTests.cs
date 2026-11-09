@@ -70,12 +70,13 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public async Task GetOrCreateWithAnEmptyVersionDoesNotReturnAnUnrelatedVersionAsync()
+        public async Task GetOrCreateWithAnEmptyVersionReturnsTheDefaultExactVersionAsync()
         {
             using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
                 .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm, "schemas").ConfigureAwait(false);
-            await CreateAsync(nm, group, "r", "1").ConfigureAwait(false);
+            CreateResourceMethodStateResult existing = await CreateAsync(nm, group, "r", "1")
+                .ConfigureAwait(false);
 
             GetOrCreateResourceMethodStateResult result = await nm.OnGetOrCreateResourceAsync(
                 nm.SystemContext, null!, group, "r", string.Empty, false, CancellationToken.None)
@@ -83,10 +84,9 @@ namespace Opc.Ua.XRegistry.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Created, Is.True,
-                    "The pre-existing version 1 must not be silently returned as if it were the " +
-                    "one the caller asked the server to assign.");
-                Assert.That(result.AssignedVersionId, Is.EqualTo("2"));
+                Assert.That(result.Created, Is.False);
+                Assert.That(result.ResourceNodeId, Is.EqualTo(existing.ResourceNodeId));
+                Assert.That(result.AssignedVersionId, Is.EqualTo("1"));
             });
         }
 

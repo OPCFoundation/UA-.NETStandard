@@ -36,6 +36,8 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 #pragma warning disable CA2000, CA2007
 
 namespace Opc.Ua.Client.Tests
@@ -131,6 +133,26 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// The context reports whether a deferral handler is registered, so that the V2
+        /// engine only applies the policy when there is one.
+        /// </summary>
+        [Test]
+        public void AcknowledgementPolicyIsReportedWhileAHandlerIsRegistered()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var capability = (IAcknowledgementPolicyCapability)scope.Context;
+            static void handler(ISession _1, PublishSequenceNumbersToAcknowledgeEventArgs _2)
+            {
+            }
+
+            Assert.That(capability.HasAcknowledgementPolicy, Is.False);
+            scope.Session.PublishSequenceNumbersToAcknowledge += handler;
+            Assert.That(capability.HasAcknowledgementPolicy, Is.True);
+            scope.Session.PublishSequenceNumbersToAcknowledge -= handler;
+            Assert.That(capability.HasAcknowledgementPolicy, Is.False);
+        }
+
         [Test]
         public void PrepareAcknowledgementsWithoutCallbackSendsAllAcknowledgements()
         {
@@ -211,6 +233,36 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// A handler that moves an acknowledgement to the deferred list and then
+        /// throws must not lose it: every presented acknowledgement is sent.
+        /// </summary>
+        [Test]
+        public void PrepareAcknowledgementsCallbackFailureAfterDeferringRestoresAllAcknowledgements()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var first = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 2 };
+            var second = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 3 };
+            var acknowledgements = new List<SubscriptionAcknowledgement> { first, second };
+
+            scope.Session.PublishSequenceNumbersToAcknowledge += (_, e) =>
+            {
+                e.AcknowledgementsToSend.Remove(first);
+                e.DeferredAcknowledgementsToSend.Add(first);
+                throw new InvalidOperationException();
+            };
+
+            (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending) =
+                scope.Context.PrepareAcknowledgementsToSend(acknowledgements);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(toSend, Is.EqualTo([first, second]).Using<SubscriptionAcknowledgement>(
+                    (x, y) => ReferenceEquals(x, y)));
+                Assert.That(updatedPending, Is.Empty);
+            });
+        }
+
         [Test]
         public void PublishNotificationsAreForwardedAsynchronously()
         {
@@ -285,6 +337,51 @@ namespace Opc.Ua.Client.Tests
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// A replaced transport starts with a new message context. The next Publish restores
+        /// deferred decoding on it.
+        /// </summary>
+        [Test]
+        public async Task PublishRestoresDeferredDecodingOnAReplacedTransportAsync()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var initial = (ServiceMessageContext)scope.Session.MessageContext;
+            scope.Session.DeferNotificationBodies = true;
+            Assert.That(initial.DeferNotificationBodies, Is.True);
+
+            // a managed channel keeps its identity and swaps the transport behind it.
+            ServiceMessageContext replaced = ServiceMessageContext.Create(scope.Telemetry);
+            scope.Channel.SetupGet(c => c.MessageContext).Returns(replaced);
+            Assert.That(replaced.DeferNotificationBodies, Is.False);
+
+            try
+            {
+                await scope.Context.PublishAsync(new RequestHeader(), []).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is ServiceResultException or NullReferenceException)
+            {
+                // the mock channel does not answer; only the context matters here.
+            }
+
+            Assert.That(replaced.DeferNotificationBodies, Is.True);
+        }
+
+        /// <summary>
+        /// A session that does not defer leaves alone what another session on a shared
+        /// transport turned on, so the order of connecting does not change the result.
+        /// </summary>
+        [Test]
+        public void SessionThatDoesNotDeferLeavesASharedTransportAlone()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var shared = (ServiceMessageContext)scope.Session.MessageContext;
+            shared.DeferNotificationBodies = true;
+
+            scope.Session.DeferNotificationBodies = false;
+
+            Assert.That(shared.DeferNotificationBodies, Is.True);
+        }
+
         [Test]
         public void AsyncRequestTrackingDelegatesToSession()
         {
@@ -321,7 +418,7 @@ namespace Opc.Ua.Client.Tests
                 CreateEndpoint(),
                 engineFactory: engineFactory);
 
-            return new TestSessionScope(session, engineFactory.Context!, telemetry);
+            return new TestSessionScope(session, engineFactory.Context!, telemetry, channel);
         }
 
         private static ApplicationConfiguration CreateClientConfiguration(
@@ -390,11 +487,13 @@ namespace Opc.Ua.Client.Tests
             public TestSessionScope(
                 Session session,
                 ISubscriptionEngineContext context,
-                ITelemetryContext telemetry)
+                ITelemetryContext telemetry,
+                Mock<ITransportChannel> channel)
             {
                 Session = session;
                 Context = context;
                 Telemetry = telemetry;
+                Channel = channel;
             }
 
             public Session Session { get; }
@@ -402,6 +501,8 @@ namespace Opc.Ua.Client.Tests
             public ISubscriptionEngineContext Context { get; }
 
             public ITelemetryContext Telemetry { get; }
+
+            public Mock<ITransportChannel> Channel { get; }
 
             public void Dispose()
             {

@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Client
 {
@@ -56,7 +57,8 @@ namespace Opc.Ua.Vision.Client
             if (resultNodeId.IsNull)
             {
                 throw new ArgumentException(
-                    "Result NodeId must not be null.", nameof(resultNodeId));
+                    "Result NodeId must not be null.",
+                    nameof(resultNodeId));
             }
             ResultNodeId = resultNodeId;
         }
@@ -77,22 +79,26 @@ namespace Opc.Ua.Vision.Client
         {
             string[] members =
             [
-                BrowseNames.ResultId,
-                BrowseNames.CreationTime,
-                BrowseNames.Sensor,
-                BrowseNames.Pipeline,
-                BrowseNames.ModelVersionUsed,
-                BrowseNames.Frame,
-                BrowseNames.Evaluation,
-                BrowseNames.PartId,
-                BrowseNames.RecipeId,
-                BrowseNames.Characteristics
+                Perception.BrowseNames.ResultId,
+                Perception.BrowseNames.CreationTime,
+                Perception.BrowseNames.Sensor,
+                Perception.BrowseNames.Pipeline,
+                Perception.BrowseNames.ModelVersionUsed,
+                Perception.BrowseNames.Frame,
+                Perception.BrowseNames.Evaluation,
+                Perception.BrowseNames.PartId,
+                Perception.BrowseNames.RecipeId,
+                Perception.BrowseNames.Characteristics
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                ResultNodeId, members, cancellationToken).ConfigureAwait(false);
-            var toRead = ExtractPresent(nodes);
+                ResultNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
+            List<NodeId> toRead = ExtractPresent(nodes);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                toRead, cancellationToken).ConfigureAwait(false);
+                toRead,
+                cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(values);
             int cursor = 0;
             string? resultId = TakeString(values, nodes, 0, ref cursor);
             DateTimeUtc creationTime = TakeDateTime(values, nodes, 1, ref cursor);
@@ -100,9 +106,15 @@ namespace Opc.Ua.Vision.Client
             NodeId pipeline = TakeNodeId(values, nodes, 3, ref cursor);
             string? modelVersion = TakeString(values, nodes, 4, ref cursor);
             VisionImageReferenceDataType? frame = TakeImageReference(
-                values, nodes, 5, ref cursor);
+                values,
+                nodes,
+                5,
+                ref cursor);
             VisionResultEvaluationEnum evaluation = TakeEnum<VisionResultEvaluationEnum>(
-                values, nodes, 6, ref cursor);
+                values,
+                nodes,
+                6,
+                ref cursor);
             string? partId = TakeString(values, nodes, 7, ref cursor);
             string? recipeId = TakeString(values, nodes, 8, ref cursor);
             ArrayOf<VisionCharacteristicDataType> characteristics =
@@ -134,20 +146,24 @@ namespace Opc.Ua.Vision.Client
         {
             string[] members =
             [
-                BrowseNames.ResultId,
-                BrowseNames.CreationTime,
-                BrowseNames.Sensor,
-                BrowseNames.Pipeline,
-                BrowseNames.ModelVersionUsed,
-                BrowseNames.Frame,
-                BrowseNames.FrameId,
-                BrowseNames.Detections
+                Perception.BrowseNames.ResultId,
+                Perception.BrowseNames.CreationTime,
+                Perception.BrowseNames.Sensor,
+                Perception.BrowseNames.Pipeline,
+                Perception.BrowseNames.ModelVersionUsed,
+                Perception.BrowseNames.Frame,
+                Perception.BrowseNames.FrameId,
+                Perception.BrowseNames.Detections
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                ResultNodeId, members, cancellationToken).ConfigureAwait(false);
-            var toRead = ExtractPresent(nodes);
+                ResultNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
+            List<NodeId> toRead = ExtractPresent(nodes);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                toRead, cancellationToken).ConfigureAwait(false);
+                toRead,
+                cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(values);
             int cursor = 0;
             string? resultId = TakeString(values, nodes, 0, ref cursor);
             DateTimeUtc creationTime = TakeDateTime(values, nodes, 1, ref cursor);
@@ -155,10 +171,16 @@ namespace Opc.Ua.Vision.Client
             NodeId pipeline = TakeNodeId(values, nodes, 3, ref cursor);
             string? modelVersion = TakeString(values, nodes, 4, ref cursor);
             VisionImageReferenceDataType? frame = TakeImageReference(
-                values, nodes, 5, ref cursor);
+                values,
+                nodes,
+                5,
+                ref cursor);
             string? frameId = TakeString(values, nodes, 6, ref cursor);
             ArrayOf<VisionDetectionDataType> detections = TakeDetections(
-                values, nodes, 7, ref cursor);
+                values,
+                nodes,
+                7,
+                ref cursor);
             return new VisionDetectionResultSnapshot
             {
                 NodeId = ResultNodeId,
@@ -184,29 +206,39 @@ namespace Opc.Ua.Vision.Client
         {
             string[] members =
             [
-                BrowseNames.ResultId,
-                BrowseNames.CreationTime,
-                BrowseNames.Sensor,
-                BrowseNames.Pipeline,
-                BrowseNames.Frame,
-                BrowseNames.LabelClasses,
-                BrowseNames.Mask
+                Perception.BrowseNames.ResultId,
+                Perception.BrowseNames.CreationTime,
+                Perception.BrowseNames.Sensor,
+                Perception.BrowseNames.Pipeline,
+                Perception.BrowseNames.Frame,
+                Perception.BrowseNames.LabelClasses,
+                Perception.BrowseNames.Mask
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                ResultNodeId, members, cancellationToken).ConfigureAwait(false);
-            var toRead = ExtractPresent(nodes);
+                ResultNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
+            List<NodeId> toRead = ExtractPresent(nodes);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                toRead, cancellationToken).ConfigureAwait(false);
+                toRead,
+                cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(values);
             int cursor = 0;
             string? resultId = TakeString(values, nodes, 0, ref cursor);
             DateTimeUtc creationTime = TakeDateTime(values, nodes, 1, ref cursor);
             NodeId sensor = TakeNodeId(values, nodes, 2, ref cursor);
             NodeId pipeline = TakeNodeId(values, nodes, 3, ref cursor);
             VisionImageReferenceDataType? frame = TakeImageReference(
-                values, nodes, 4, ref cursor);
+                values,
+                nodes,
+                4,
+                ref cursor);
             ArrayOf<string> labels = TakeStringArray(values, nodes, 5, ref cursor);
             VisionImageReferenceDataType? mask = TakeImageReference(
-                values, nodes, 6, ref cursor);
+                values,
+                nodes,
+                6,
+                ref cursor);
             return new VisionSegmentationResultSnapshot
             {
                 NodeId = ResultNodeId,
@@ -247,7 +279,9 @@ namespace Opc.Ua.Vision.Client
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             NodeId detectionsNode = await m_operations.ResolveChildAsync(
-                ResultNodeId, BrowseNames.Detections, cancellationToken)
+                ResultNodeId,
+                Perception.BrowseNames.Detections,
+                cancellationToken)
                 .ConfigureAwait(false);
             if (detectionsNode.IsNull)
             {
@@ -258,7 +292,9 @@ namespace Opc.Ua.Vision.Client
             }
             var monitored = new List<NodeId> { detectionsNode };
             await foreach (DataValueChange _ in streaming.SubscribeDataChangesAsync(
-                    monitored, null, cancellationToken).ConfigureAwait(false))
+                monitored,
+                null,
+                cancellationToken).ConfigureAwait(false))
             {
                 yield return await ReadDetectionAsync(cancellationToken)
                     .ConfigureAwait(false);
@@ -292,7 +328,9 @@ namespace Opc.Ua.Vision.Client
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             NodeId characteristicsNode = await m_operations.ResolveChildAsync(
-                ResultNodeId, BrowseNames.Characteristics, cancellationToken)
+                ResultNodeId,
+                Perception.BrowseNames.Characteristics,
+                cancellationToken)
                 .ConfigureAwait(false);
             if (characteristicsNode.IsNull)
             {
@@ -303,7 +341,9 @@ namespace Opc.Ua.Vision.Client
             }
             var monitored = new List<NodeId> { characteristicsNode };
             await foreach (DataValueChange _ in streaming.SubscribeDataChangesAsync(
-                    monitored, null, cancellationToken).ConfigureAwait(false))
+                monitored,
+                null,
+                cancellationToken).ConfigureAwait(false))
             {
                 yield return await ReadInspectionAsync(cancellationToken)
                     .ConfigureAwait(false);
@@ -337,7 +377,9 @@ namespace Opc.Ua.Vision.Client
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             NodeId maskNode = await m_operations.ResolveChildAsync(
-                ResultNodeId, BrowseNames.Mask, cancellationToken).ConfigureAwait(false);
+                ResultNodeId,
+                Perception.BrowseNames.Mask,
+                cancellationToken).ConfigureAwait(false);
             if (maskNode.IsNull)
             {
                 throw ServiceResultException.Create(
@@ -347,7 +389,9 @@ namespace Opc.Ua.Vision.Client
             }
             var monitored = new List<NodeId> { maskNode };
             await foreach (DataValueChange _ in streaming.SubscribeDataChangesAsync(
-                    monitored, null, cancellationToken).ConfigureAwait(false))
+                monitored,
+                null,
+                cancellationToken).ConfigureAwait(false))
             {
                 yield return await ReadSegmentationAsync(cancellationToken)
                     .ConfigureAwait(false);
@@ -378,7 +422,8 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out string text) ? text : null;
+            return value.WrappedValue.TryGetValue(out string text) ? text :
+                throw VisionClientOperations.InvalidMember();
         }
 
         private static DateTimeUtc TakeDateTime(
@@ -392,7 +437,8 @@ namespace Opc.Ua.Vision.Client
                 return default;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out DateTimeUtc dt) ? dt : default;
+            return value.WrappedValue.TryGetValue(out DateTimeUtc dt) ? dt :
+                throw VisionClientOperations.InvalidMember();
         }
 
         private static NodeId TakeNodeId(
@@ -406,9 +452,9 @@ namespace Opc.Ua.Vision.Client
                 return NodeId.Null;
             }
             DataValue value = values[cursor++];
-            return VisionClientOperations.TryReadNodeId(value, out NodeId nodeId)
+            return value.WrappedValue.TryGetValue(out NodeId nodeId)
                 ? nodeId
-                : NodeId.Null;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private static TEnum TakeEnum<TEnum>(
@@ -425,7 +471,7 @@ namespace Opc.Ua.Vision.Client
             DataValue value = values[cursor++];
             return VisionClientOperations.TryReadEnum(value, out TEnum result)
                 ? result
-                : default;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private static ArrayOf<string> TakeStringArray(
@@ -436,12 +482,12 @@ namespace Opc.Ua.Vision.Client
         {
             if (nodes[index].IsNull)
             {
-                return ArrayOf<string>.Empty;
+                return [];
             }
             DataValue value = values[cursor++];
             return value.WrappedValue.TryGetValue(out ArrayOf<string> array)
                 ? array
-                : ArrayOf<string>.Empty;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private VisionImageReferenceDataType? TakeImageReference(
@@ -455,13 +501,16 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             DataValue value = values[cursor++];
-#pragma warning disable CS8600 // TryGetValue uses [MaybeNullWhen(false)] on encodeable overloads.
-            return value.WrappedValue.TryGetValue(
-                    out VisionImageReferenceDataType structure,
-                    m_operations.Session.MessageContext)
+            if (value.WrappedValue.IsNull ||
+                (value.WrappedValue.TryGetValue(out ExtensionObject body) && body.IsNull))
+            {
+                return null;
+            }
+            return value.WrappedValue.TryGetValue<VisionImageReferenceDataType>(
+                out VisionImageReferenceDataType? structure,
+                m_operations.Session.MessageContext)
                 ? structure
-                : null;
-#pragma warning restore CS8600
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private ArrayOf<VisionDetectionDataType> TakeDetections(
@@ -472,14 +521,14 @@ namespace Opc.Ua.Vision.Client
         {
             if (nodes[index].IsNull)
             {
-                return ArrayOf<VisionDetectionDataType>.Empty;
+                throw new ServiceResultException(StatusCodes.BadNotFound, "The required Detections member is absent.");
             }
             DataValue value = values[cursor++];
             return value.WrappedValue.TryGetValue(
-                    out ArrayOf<VisionDetectionDataType> array,
-                    m_operations.Session.MessageContext)
+                out ArrayOf<VisionDetectionDataType> array,
+                m_operations.Session.MessageContext)
                 ? array
-                : ArrayOf<VisionDetectionDataType>.Empty;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private ArrayOf<VisionCharacteristicDataType> TakeCharacteristics(
@@ -490,14 +539,16 @@ namespace Opc.Ua.Vision.Client
         {
             if (nodes[index].IsNull)
             {
-                return ArrayOf<VisionCharacteristicDataType>.Empty;
+                throw new ServiceResultException(
+                    StatusCodes.BadNotFound,
+                    "The required Characteristics member is absent.");
             }
             DataValue value = values[cursor++];
             return value.WrappedValue.TryGetValue(
-                    out ArrayOf<VisionCharacteristicDataType> array,
-                    m_operations.Session.MessageContext)
+                out ArrayOf<VisionCharacteristicDataType> array,
+                m_operations.Session.MessageContext)
                 ? array
-                : ArrayOf<VisionCharacteristicDataType>.Empty;
+                : throw VisionClientOperations.InvalidMember();
         }
     }
 }

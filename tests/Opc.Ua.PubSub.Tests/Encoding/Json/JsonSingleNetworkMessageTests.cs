@@ -97,7 +97,7 @@ namespace OpcUaPubSubJsonTests
 
         [Test]
         [TestSpec("7.3.4.7.3")]
-        public Task Encode_SingleNetworkMessage_RejectsMultipleMessagesAsync()
+        public async Task Encode_SingleNetworkMessage_RejectsMultipleMessagesAsync()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             var dsm1 = new JsonDataSetMessage { DataSetWriterId = 1 };
@@ -111,14 +111,13 @@ namespace OpcUaPubSubJsonTests
             };
             var encoder = new JsonEncoder();
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await encoder.EncodeAsync(msg, ctx).ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [Test]
         [TestSpec("7.2.5.4.5")]
-        public Task Encode_SingleNetworkMessage_RejectsZeroMessagesAsync()
+        public async Task Encode_SingleNetworkMessage_RejectsZeroMessagesAsync()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             var msg = new JsonNetworkMessage
@@ -130,9 +129,8 @@ namespace OpcUaPubSubJsonTests
             };
             var encoder = new JsonEncoder();
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await encoder.EncodeAsync(msg, ctx).ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [Test]

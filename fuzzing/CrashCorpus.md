@@ -86,7 +86,7 @@ dotnet test fuzzing/Opc.Ua.Encoders.Fuzz.Tests -c Release -p:CustomTestTarget=ne
 git clean -fdx fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets
 ```
 
-`.gitignore` does not exclude the overlaid files, so the final `git clean` is what keeps them out
+`.gitignore` does not exclude the overlaid files, so the final `git clean` keeps them out
 of a commit. `Assets/Repo` and `Assets/ForkMessages` are tracked and are not touched.
 
 ## Adding inputs

@@ -9464,6 +9464,68 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// An override that changes only the type argument of one generic
+        /// node state class is a refinement to an unrelated class; a
+        /// different class, the same class or a non-generic base class is
+        /// not.
+        /// </summary>
+        [TestCase("PropertyState<ArrayOf<ScanResult>>", "PropertyState<ArrayOf<RfidScanResult>>", true)]
+        [TestCase("PropertyState<ScanResult>", "PropertyState<RfidScanResult>", true)]
+        [TestCase("BaseDataVariableState<int>", "BaseDataVariableState<string>", true)]
+        [TestCase("PropertyState<int>", "PropertyState<int>", false)]
+        [TestCase("PropertyState<int>", "PropertyState", false)]
+        [TestCase("PropertyState", "PropertyState<int>", false)]
+        [TestCase("AnalogItemState<int>", "BaseDataVariableState<int>", false)]
+        [TestCase("PropertyState", "DataItemState", false)]
+        public void IsOverriddenWithRefinedGenericClassDetectsTypeArgumentRefinement(
+            string mergedClassName, string overriddenClassName, bool expected)
+        {
+            var mockInstance = new InstanceDesign
+            {
+                ModellingRule = ModellingRule.Mandatory,
+                OveriddenNode = new InstanceDesign
+                {
+                    TypeDefinitionNode = new ObjectTypeDesign { ClassName = overriddenClassName }
+                },
+                TypeDefinitionNode = new ObjectTypeDesign { ClassName = mergedClassName }
+            };
+
+            bool result = mockInstance.IsOverriddenWithRefinedGenericClass("http://test.org/UA/", []);
+
+            Assert.That(result, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// A child that does not override anything, or a placeholder, is no refinement.
+        /// </summary>
+        [TestCase(ModellingRule.Mandatory, false)]
+        [TestCase(ModellingRule.OptionalPlaceholder, true)]
+        public void IsOverriddenWithRefinedGenericClassIsFalseWithoutOverride(
+            ModellingRule modellingRule, bool hasOverriddenNode)
+        {
+            var mockInstance = new InstanceDesign
+            {
+                ModellingRule = modellingRule,
+                OveriddenNode = hasOverriddenNode ? new InstanceDesign() : null!,
+                TypeDefinitionNode = new ObjectTypeDesign { ClassName = "PropertyState<int>" }
+            };
+
+            Assert.That(mockInstance.IsOverriddenWithRefinedGenericClass("http://test.org/UA/", []), Is.False);
+        }
+
+        /// <summary>
+        /// IsOverriddenWithRefinedGenericClass rejects a null instance.
+        /// </summary>
+        [Test]
+        public void IsOverriddenWithRefinedGenericClassNullInstanceThrows()
+        {
+            InstanceDesign? instance = null;
+
+            Assert.Throws<ArgumentNullException>(() =>
+                instance!.IsOverriddenWithRefinedGenericClass("http://test.org/UA/", []));
+        }
+
+        /// <summary>
         /// Tests that IsOverriddenWithSameClass returns false when class names are different.
         /// Input: Merged class name is "PropertyState", overridden class name is "DataItemState".
         /// Expected: Returns false.
@@ -12154,6 +12216,74 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.Null);
+        }
+
+        /// <summary>
+        /// GetNamespaceUriAsCode returns the namespace constant when the model
+        /// declares the namespace.
+        /// </summary>
+        [Test]
+        public void GetNamespaceUriAsCodeDeclaredNamespaceReturnsConstant()
+        {
+            Namespace[] namespaces =
+            [
+                new Namespace { Name = "TestName", Prefix = "TestPrefix", Value = "http://opcfoundation.org/Test" }
+            ];
+
+            string result = namespaces.GetNamespaceUriAsCode("http://opcfoundation.org/Test");
+
+            Assert.That(result, Is.EqualTo("global::TestPrefix.Namespaces.TestName"));
+        }
+
+        /// <summary>
+        /// GetNamespaceUriAsCode returns the URI as an escaped string literal
+        /// when the model does not declare the namespace.
+        /// </summary>
+        [Test]
+        public void GetNamespaceUriAsCodeUndeclaredNamespaceReturnsEscapedLiteral()
+        {
+            Namespace[] namespaces =
+            [
+                new Namespace { Name = "TestName", Prefix = "TestPrefix", Value = "http://opcfoundation.org/Test" }
+            ];
+
+            string result = namespaces.GetNamespaceUriAsCode("http://test.org/\"Quoted\"\\Path/");
+
+            Assert.That(result, Is.EqualTo("\"http://test.org/\\\"Quoted\\\"\\\\Path/\""));
+        }
+
+        /// <summary>
+        /// The NodeId and ExpandedNodeId of a node in a namespace the model does
+        /// not declare - the stand-in for a reference target of a namespace
+        /// listed only in the NodeSet's NamespaceUris - use the escaped URI
+        /// literal instead of an empty namespace argument.
+        /// </summary>
+        [Test]
+        public void GetNodeIdAsCodeUndeclaredNamespaceUsesEscapedUriLiteral()
+        {
+            Namespace[] namespaces =
+            [
+                new Namespace { Name = "OpcUa", Prefix = "Opc.Ua", Value = "http://opcfoundation.org/UA/" }
+            ];
+            var node = new ObjectDesign
+            {
+                SymbolicId = new XmlQualifiedName("ExternalNode_5001", "http://test.org/\"Quoted\"\\Path/"),
+                NumericId = 5001,
+                NumericIdSpecified = true
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    node.GetNodeIdAsCode(namespaces, "context.NamespaceUris"),
+                    Is.EqualTo(
+                        "global::Opc.Ua.NodeId.Create(5001u, \"http://test.org/\\\"Quoted\\\"\\\\Path/\", " +
+                        "context.NamespaceUris)"));
+                Assert.That(
+                    node.GetExpandedNodeIdAsCode(namespaces),
+                    Is.EqualTo(
+                        "new global::Opc.Ua.ExpandedNodeId(5001u, \"http://test.org/\\\"Quoted\\\"\\\\Path/\")"));
+            });
         }
 
         /// <summary>

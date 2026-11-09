@@ -28,9 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using Microsoft.Extensions.Options;
 
 namespace Opc.Ua
@@ -75,9 +74,9 @@ namespace Opc.Ua
             set
             {
                 m_currentValue = value;
-                foreach (KeyValuePair<Listener, Action<T, string?>> listener in m_listeners)
+                foreach (Listener listener in Volatile.Read(ref m_listeners))
                 {
-                    listener.Value(value, null);
+                    listener.Callback(value, null);
                 }
             }
         }
@@ -91,7 +90,57 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public IDisposable? OnChange(Action<T, string?> listener)
         {
-            return new Listener(this, listener);
+            var registration = new Listener(this, listener);
+            Listener[] current = Volatile.Read(ref m_listeners);
+            while (true)
+            {
+                var updated = new Listener[current.Length + 1];
+                Array.Copy(current, updated, current.Length);
+                updated[current.Length] = registration;
+                Listener[] observed = Interlocked.CompareExchange(
+                    ref m_listeners, updated, current);
+                if (ReferenceEquals(observed, current))
+                {
+                    return registration;
+                }
+                current = observed;
+            }
+        }
+
+        /// <summary>
+        /// Remove a listener registration. Copy on write, a no-op when the
+        /// registration was already removed.
+        /// </summary>
+        private void Remove(Listener registration)
+        {
+            Listener[] current = Volatile.Read(ref m_listeners);
+            while (true)
+            {
+                int index = Array.IndexOf(current, registration);
+                if (index < 0)
+                {
+                    return;
+                }
+                Listener[] updated;
+                if (current.Length == 1)
+                {
+                    updated = [];
+                }
+                else
+                {
+                    updated = new Listener[current.Length - 1];
+                    Array.Copy(current, updated, index);
+                    Array.Copy(current, index + 1, updated, index,
+                        current.Length - index - 1);
+                }
+                Listener[] observed = Interlocked.CompareExchange(
+                    ref m_listeners, updated, current);
+                if (ReferenceEquals(observed, current))
+                {
+                    return;
+                }
+                current = observed;
+            }
         }
 
         /// <summary>
@@ -101,22 +150,32 @@ namespace Opc.Ua
         {
             /// <inheritdoc/>
             public Listener(OptionsMonitor<T> monitor,
-                Action<T, string?> listener)
+                Action<T, string?> callback)
             {
                 m_monitor = monitor;
-                m_monitor.m_listeners.TryAdd(this, listener);
+                Callback = callback;
             }
+
+            /// <summary>
+            /// The registered change callback
+            /// </summary>
+            public Action<T, string?> Callback { get; }
 
             /// <inheritdoc/>
             public void Dispose()
             {
-                m_monitor.m_listeners.TryRemove(this, out _);
+                m_monitor.Remove(this);
             }
 
             private readonly OptionsMonitor<T> m_monitor;
         }
 
-        private readonly ConcurrentDictionary<Listener, Action<T, string?>> m_listeners = new();
+        /// <summary>
+        /// Copy-on-write listener list. A monitor has zero or one listener
+        /// in most cases (one per monitored item), where a concurrent
+        /// dictionary would allocate one lock per processor.
+        /// </summary>
+        private Listener[] m_listeners = [];
         private T m_currentValue;
     }
 }

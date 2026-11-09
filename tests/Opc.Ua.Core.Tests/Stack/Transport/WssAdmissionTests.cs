@@ -156,7 +156,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(rejected.UpgradeCalls, Is.Zero);
                 Assert.That(rejected.Context.Response.StatusCode, Is.EqualTo(503));
                 first.ReleaseUpgrade.TrySetResult(true);
-                Assert.ThrowsAsync<IOException>(async () =>
+                await Assert.ThrowsAsync<IOException>(async () =>
                     await firstHandler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
                 await AssertHealthyUpgradeAsync(listener).ConfigureAwait(false);
             }
@@ -184,7 +184,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await request.UpgradeEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             await listener.StopAsync().ConfigureAwait(false);
             Assert.That(request.Context.RequestAborted.IsCancellationRequested, Is.True);
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
             using var rejected = new UpgradeRequest();
             await listener.AcceptWebSocketAsync(rejected.Context).ConfigureAwait(false);
@@ -296,7 +296,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var provider = new CountingIsolationProvider();
             await using HttpsTransportListener listener = CreateListener(provider: provider);
             using var request = new UpgradeRequest { UpgradeError = new IOException("upgrade failed") };
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await listener.AcceptWebSocketAsync(request.Context).ConfigureAwait(false));
             Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
             Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);

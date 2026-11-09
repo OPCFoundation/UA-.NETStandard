@@ -31,22 +31,18 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua;
-using Opc.Ua.AI;
 using Opc.Ua.AI.Client;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Alarms;
-using Opc.Ua.Configuration;
 using Opc.Ua.ISA95.Client;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
 
 namespace Vision.VisualInspectionAgent
@@ -322,7 +318,7 @@ namespace Vision.VisualInspectionAgent
                     AIInvokeResult result = await cell.Deployment.InvokeAsync(
                         ByteString.From(Encoding.UTF8.GetBytes(payload)),
                         "application/vnd.opcfoundation.visual-inspection.measurements+json",
-                        ArrayOf<global::Opc.Ua.KeyValuePair>.Empty,
+                        [],
                         5000,
                         cancellationToken: cancellationToken).ConfigureAwait(false);
                     Console.WriteLine(FormattableString.Invariant(
@@ -374,7 +370,7 @@ namespace Vision.VisualInspectionAgent
                     Variant.From(payload),
                     Variant.From(string.Empty),
                     Variant.From(contentType),
-                    Variant.FromStructure(ArrayOf<global::Opc.Ua.KeyValuePair>.Empty),
+                    Variant.FromStructure(ArrayOf<Opc.Ua.KeyValuePair>.Empty),
                     Variant.From(5000.0)
                 ]
             };
@@ -549,8 +545,8 @@ namespace Vision.VisualInspectionAgent
             await cell.Feedback.SubmitCorrectionAsync(
                 cycleId,
                 VisionFeedbackPurposeEnum.GroundTruthLabel,
-                ArrayOf<VisionDetectionDataType>.Empty,
-                retractAll ? ArrayOf<VisionCharacteristicDataType>.Empty : decision.Characteristics,
+                [],
+                retractAll ? [] : decision.Characteristics,
                 LocalizedText.From(disposition.ToString()),
                 ByteString.Empty,
                 retractAll,
@@ -559,8 +555,8 @@ namespace Vision.VisualInspectionAgent
             await cell.Feedback.SubmitCorrectionAsync(
                 cycleId,
                 VisionFeedbackPurposeEnum.GroundTruthLabel,
-                ArrayOf<VisionDetectionDataType>.Empty,
-                retractAll ? ArrayOf<VisionCharacteristicDataType>.Empty : decision.Characteristics,
+                [],
+                retractAll ? [] : decision.Characteristics,
                 LocalizedText.From(disposition.ToString()),
                 ByteString.Empty,
                 retractAll,
@@ -576,8 +572,8 @@ namespace Vision.VisualInspectionAgent
         {
             var pending = new Queue<NodeId>();
             var visited = new HashSet<NodeId>();
-            pending.Enqueue(global::Opc.Ua.ObjectIds.ObjectsFolder);
-            visited.Add(global::Opc.Ua.ObjectIds.ObjectsFolder);
+            pending.Enqueue(Opc.Ua.ObjectIds.ObjectsFolder);
+            visited.Add(Opc.Ua.ObjectIds.ObjectsFolder);
             while (pending.Count > 0)
             {
                 NodeId current = pending.Dequeue();
@@ -602,7 +598,7 @@ namespace Vision.VisualInspectionAgent
                 }
                 foreach (ReferenceDescription reference in descriptions[0])
                 {
-                    NodeId nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_sample.Session.NamespaceUris);
+                    var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_sample.Session.NamespaceUris);
                     if (nodeId.IsNull)
                     {
                         continue;
@@ -745,7 +741,7 @@ namespace Vision.VisualInspectionAgent
             {
                 throw new InvalidDataException("AI Invoke returned an empty response.");
             }
-            using JsonDocument document = JsonDocument.Parse(responsePayload.ToArray());
+            using var document = JsonDocument.Parse(responsePayload.ToArray());
             JsonElement root = document.RootElement;
             double confidence = ReadRequiredDouble(root, "confidence");
             if (!root.TryGetProperty("measurements", out JsonElement measurements) ||
@@ -771,7 +767,7 @@ namespace Vision.VisualInspectionAgent
         private static VisionImageReferenceDataType CreateFixtureImageReference(string fixture)
         {
             string path = Path.Combine(FixtureDirectory, fixture);
-            ByteString png = ByteString.From(File.ReadAllBytes(path));
+            var png = ByteString.From(File.ReadAllBytes(path));
             return new VisionImageReferenceDataType
             {
                 Uri = FormattableString.Invariant($"opcua-inline://visual-inspection-cell/fixtures/{fixture}"),

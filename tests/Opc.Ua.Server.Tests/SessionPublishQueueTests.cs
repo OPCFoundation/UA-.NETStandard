@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -84,17 +85,17 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PublishAsync_NoSubscriptions_ThrowsBadNoSubscription()
+        public async Task PublishAsync_NoSubscriptions_ThrowsBadNoSubscription()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
             ServiceResultException ex =
-                Assert.CatchAsync<ServiceResultException>(() => queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None));
+                await Assert.CatchAsync<ServiceResultException>(() => queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoSubscription));
         }
 
         [Test]
-        public void PublishAsync_QueueFull_FailsOldestRequestAndQueuesNewRequest()
+        public async Task PublishAsync_QueueFull_FailsOldestRequestAndQueuesNewRequest()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
@@ -114,7 +115,7 @@ namespace Opc.Ua.Server.Tests
                 queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
 
             ServiceResultException ex =
-                Assert.CatchAsync<ServiceResultException>(async () => await queued[0].ConfigureAwait(false));
+                await Assert.CatchAsync<ServiceResultException>(async () => await queued[0].ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
             Assert.That(newRequest.IsCompleted, Is.False);
             Assert.That(queued.GetRange(1, kMaxPublishRequests - 1).TrueForAll(t => !t.IsCompleted), Is.True);
@@ -151,7 +152,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PublishAsync_AcceptsMoreRequestsThanSubscriptions()
+        public async Task PublishAsync_AcceptsMoreRequestsThanSubscriptions()
         {
             // The configured limit is lower than the number of Subscriptions.
             const int subscriptionCount = 3;
@@ -175,7 +176,7 @@ namespace Opc.Ua.Server.Tests
             Task<ISubscriptionPublishPipeline> overflow =
                 queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
             ServiceResultException ex =
-                Assert.CatchAsync<ServiceResultException>(async () => await queued[0].ConfigureAwait(false));
+                await Assert.CatchAsync<ServiceResultException>(async () => await queued[0].ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
             Assert.That(overflow.IsCompleted, Is.False);
         }
@@ -337,7 +338,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PublishAsync_WhenParked_CancelServiceCancelsRequest()
+        public async Task PublishAsync_WhenParked_CancelServiceCancelsRequest()
         {
             // The OPC UA Cancel service cancels outstanding requests via
             // RequestManager.CancelRequests -> RequestLifetime.TryCancel. That must also
@@ -377,7 +378,7 @@ namespace Opc.Ua.Server.Tests
             requestManager.CancelRequests(context.SessionId, requestHandle, out uint cancelCount);
 
             Assert.That(cancelCount, Is.EqualTo(1), "The Cancel service should match the parked Publish request.");
-            Assert.CatchAsync<OperationCanceledException>(() => task);
+            await Assert.CatchAsync<OperationCanceledException>(() => task);
             Assert.That(task.IsCanceled, Is.True, "The parked Publish request must complete as canceled.");
             Assert.That(
                 context.OperationStatus.Code,
@@ -407,13 +408,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PublishAsync_NoSubscriptions_DoesNotNotifyParkSink()
+        public async Task PublishAsync_NoSubscriptions_DoesNotNotifyParkSink()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
             var sink = new TestParkSink();
 
-            Assert.CatchAsync<ServiceResultException>(
+            await Assert.CatchAsync<ServiceResultException>(
                 () => queue.PublishAsync("channel1", DateTime.MaxValue, false, sink, CancellationToken.None));
             Assert.That(
                 sink.ParkedCount,
@@ -441,7 +442,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void Close_ClearsQueuesAndSignalsSessionClosed()
+        public async Task Close_ClearsQueuesAndSignalsSessionClosed()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
@@ -461,7 +462,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subs[0], Is.SameAs(subMock.Object));
             subMock.Verify(s => s.SessionClosed(m_sessionMock.Object), Times.Once);
 
-            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
+            ServiceResultException ex = await Assert.CatchAsync<ServiceResultException>(() => task);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
 
@@ -487,7 +488,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void Remove_RemovesSubscription()
+        public async Task Remove_RemovesSubscription()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
@@ -499,7 +500,7 @@ namespace Opc.Ua.Server.Tests
 
             queue.Remove(subMock.Object, removeQueuedRequests: true);
 
-            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
+            ServiceResultException ex = await Assert.CatchAsync<ServiceResultException>(() => task);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoSubscription));
         }
 
@@ -685,7 +686,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void TryPublishCustomStatus_BadStatus_CompletesRequestWithException()
+        public async Task TryPublishCustomStatus_BadStatus_CompletesRequestWithException()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
@@ -698,12 +699,12 @@ namespace Opc.Ua.Server.Tests
             bool published = queue.TryPublishCustomStatus(StatusCodes.BadNotConnected);
             Assert.That(published, Is.True);
 
-            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
+            ServiceResultException ex = await Assert.CatchAsync<ServiceResultException>(() => task);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
         }
 
         [Test]
-        public void PublishAsync_TimesOut_ThrowsBadTimeout()
+        public async Task PublishAsync_TimesOut_ThrowsBadTimeout()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
@@ -720,7 +721,7 @@ namespace Opc.Ua.Server.Tests
             DateTime timeout2 = DateTime.UtcNow.AddMilliseconds(1);
             Task<ISubscriptionPublishPipeline> task2 = queue.PublishAsync("channel2", timeout2, false, null, CancellationToken.None);
 
-            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task2);
+            ServiceResultException ex = await Assert.CatchAsync<ServiceResultException>(() => task2);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
         }
 
@@ -749,7 +750,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PublishAsyncWithTimeoutHintBeyondTimerRangeTimesOutAtDeadline()
+        public async Task PublishAsyncWithTimeoutHintBeyondTimerRangeTimesOutAtDeadline()
         {
             var timeProvider = new FakeTimeProvider();
             using var queue = new SessionPublishQueue(
@@ -776,8 +777,39 @@ namespace Opc.Ua.Server.Tests
             Assert.That(task.IsCompleted, Is.False);
 
             timeProvider.Advance(TimeSpan.FromSeconds(2));
-            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
+            ServiceResultException ex = await Assert.CatchAsync<ServiceResultException>(() => task);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
+        /// <summary>
+        /// The enclosing request lifetime cancels Publish before the queue's timer grace expires.
+        /// </summary>
+        [Test]
+        public async Task EnclosingDeadlineCancelsPublishBeforeQueueGraceAsync()
+        {
+            var clock = new FakeTimeProvider();
+            long timestamp = 0;
+            using var monitor = new RequestDeadlineMonitor(
+                TimeSpan.FromMilliseconds(20), () => timestamp, automatic: false);
+            using var lifetime = new RequestLifetime(monitor, TimeSpan.FromSeconds(2), default, default);
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests, clock);
+            var subscription = new Mock<ISubscriptionPublishPipeline>();
+            subscription.Setup(value => value.Id).Returns(1);
+            queue.Add(subscription.Object);
+
+            Task<ISubscriptionPublishPipeline> publish = queue.PublishAsync(
+                "channel1", clock.GetUtcNow().UtcDateTime.AddSeconds(2), false, null,
+                lifetime.CancellationToken);
+
+            clock.Advance(TimeSpan.FromMilliseconds(2025));
+            Assert.That(publish.IsCompleted, Is.False, "The queue's 500 ms grace has not expired.");
+            timestamp = Stopwatch.Frequency * 2025 / 1000;
+            Assert.That(monitor.Sweep(), Is.EqualTo(1));
+            await Assert.ThrowsAsync<TaskCanceledException>(async () => await publish.ConfigureAwait(false))
+                .ConfigureAwait(false);
+            Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.True);
+            Assert.That(monitor.Sweep(), Is.Zero, "A request has only one terminal completion.");
         }
 
         [Test]
@@ -839,7 +871,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PublishAsyncParksWhileOnlySubscriptionIsClaimedForTransfer()
+        public async Task PublishAsyncParksWhileOnlySubscriptionIsClaimedForTransfer()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
@@ -867,12 +899,12 @@ namespace Opc.Ua.Server.Tests
             queue.CompleteTransferClaim(claim!);
             queue.RemoveQueuedRequests();
 
-            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => parked);
+            ServiceResultException ex = await Assert.CatchAsync<ServiceResultException>(() => parked);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoSubscription));
         }
 
         [Test]
-        public void RemoveQueuedRequests_NoSubscriptions_FailsRequests()
+        public async Task RemoveQueuedRequests_NoSubscriptions_FailsRequests()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
@@ -888,12 +920,12 @@ namespace Opc.Ua.Server.Tests
 
             queue.RemoveQueuedRequests();
 
-            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
+            ServiceResultException ex = await Assert.CatchAsync<ServiceResultException>(() => task);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoSubscription));
         }
 
         [Test]
-        public void AssignSubscriptionToRequest_InvalidSecureChannel_ThrowsBadSecureChannelIdInvalid()
+        public async Task AssignSubscriptionToRequest_InvalidSecureChannel_ThrowsBadSecureChannelIdInvalid()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
@@ -910,7 +942,7 @@ namespace Opc.Ua.Server.Tests
             subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
             queue.PublishTimerExpired(); // Triggers assignment
 
-            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
+            ServiceResultException ex = await Assert.CatchAsync<ServiceResultException>(() => task);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
         }
 

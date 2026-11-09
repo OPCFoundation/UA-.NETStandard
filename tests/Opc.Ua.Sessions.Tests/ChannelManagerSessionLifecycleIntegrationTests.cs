@@ -59,7 +59,6 @@ namespace Opc.Ua.Sessions.Tests
         : ChannelManagerIntegrationTestBase
     {
         [Test]
-        [Order(100)]
         [CancelAfter(180_000)]
         public async Task BadSessionIdInvalidDuringReactivationRecreatesOnlyThatSession(
             CancellationToken ct)
@@ -122,8 +121,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(150)]
         [CancelAfter(180_000)]
+        [DependsOnTest(nameof(BadSessionIdInvalidDuringReactivationRecreatesOnlyThatSession), AllowFailure = true)]
         public async Task ParticipantTimeoutBoundsSlowReconnectParticipantAsync(CancellationToken ct)
         {
             var participantTimeout = TimeSpan.FromMilliseconds(500);
@@ -176,8 +175,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(180_000)]
+        [DependsOnTest(nameof(ParticipantTimeoutBoundsSlowReconnectParticipantAsync), AllowFailure = true)]
         public async Task FailoverSwapsOnlyOneLeaseWhenChannelsAreSharedAsync(
             CancellationToken ct)
         {

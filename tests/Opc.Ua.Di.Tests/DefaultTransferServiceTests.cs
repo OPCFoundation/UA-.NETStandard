@@ -279,13 +279,13 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void TransferToDeviceRejectsNullArgs()
+        public async Task TransferToDeviceRejectsNullArgs()
         {
             var service = new DefaultTransferService();
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await service.TransferToDeviceAsync(
                     null!, ElementId, new ParameterSet(ElementId)).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await service.TransferToDeviceAsync(
                     CreateContext(), ElementId, null!).ConfigureAwait(false));
         }

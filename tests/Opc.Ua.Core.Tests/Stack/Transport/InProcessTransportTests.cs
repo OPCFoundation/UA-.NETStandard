@@ -102,9 +102,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             try
             {
                 client.Close();
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ReceiveChunkAsync(CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
                 await Task.CompletedTask.ConfigureAwait(false);
             }
@@ -288,10 +288,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             try
             {
                 client.Close();
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client
                         .SendChunkAsync(new ReadOnlyMemory<byte>(new byte[4]), CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
                 await Task.CompletedTask.ConfigureAwait(false);
             }
@@ -356,10 +356,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 client.Close();
                 var col = new BufferCollection { new ArraySegment<byte>(new byte[4]) };
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client
                         .SendChunkAsync(col, CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
                 await Task.CompletedTask.ConfigureAwait(false);
             }
@@ -387,9 +387,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     .SendChunkAsync(new ReadOnlyMemory<byte>(new byte[1000]), CancellationToken.None)
                     .ConfigureAwait(false);
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ReceiveChunkAsync(CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
             }
             finally
@@ -467,10 +467,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
                 // After Dispose the outbound channel is complete so SendChunkAsync
                 // must report BadConnectionClosed.
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client
                         .SendChunkAsync(new ReadOnlyMemory<byte>(new byte[4]), CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
                 await Task.CompletedTask.ConfigureAwait(false);
             }

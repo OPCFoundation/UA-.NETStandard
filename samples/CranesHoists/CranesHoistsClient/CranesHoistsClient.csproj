@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>CranesHoistsClient</AssemblyName>
+    <PackageId>CranesHoistsClient</PackageId>
+    <RootNamespace>CranesHoistsSample.Client</RootNamespace>
+    <Description>Read-only OPC 40020-1 client with bounded observation and opt-in limit requests.</Description>
+    <IsPackable>false</IsPackable>
+    <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.CranesHoists.Client\Opc.Ua.CranesHoists.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\SampleArguments.cs" Link="SampleArguments.cs" />
+  </ItemGroup>
+</Project>

@@ -143,7 +143,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                     {
                         Name = "wg-sign",
                         SecurityMode = MessageSecurityMode.Sign,
-                        SecurityGroupId = "SignGroup"
+                        SecurityGroupId = DemoGroup
                     }
                 ],
                 ReaderGroups =

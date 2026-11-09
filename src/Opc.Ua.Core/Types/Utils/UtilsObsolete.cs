@@ -36,6 +36,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -922,13 +923,13 @@ namespace Opc.Ua
         public static partial void UtilsObsoleteLogMessage0(
             this ILogger logger,
             Exception? exception,
-            string fileName);
+            [FilePath] string fileName);
 
         [LoggerMessage(EventId = CoreEventIds.UtilsObsolete + 1, Level = LogLevel.Debug,
             Message = "Could not find installed file: {FileName}")]
         public static partial void UtilsObsoleteLogMessage1(
             this ILogger logger,
             Exception? exception,
-            string fileName);
+            [FilePath] string fileName);
     }
 }

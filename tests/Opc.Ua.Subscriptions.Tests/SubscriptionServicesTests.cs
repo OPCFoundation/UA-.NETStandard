@@ -272,9 +272,9 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public Task ModifySubscriptionWithInvalidIdReturnsBadSubscriptionIdInvalid()
+        public async Task ModifySubscriptionWithInvalidIdReturnsBadSubscriptionIdInvalid()
         {
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await Session.ModifySubscriptionAsync(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await Session.ModifySubscriptionAsync(
                     null,
                     999999u,
                     DefaultPublishingInterval,
@@ -285,7 +285,6 @@ namespace Opc.Ua.Subscriptions.Tests
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -658,7 +657,7 @@ namespace Opc.Ua.Subscriptions.Tests
             CreateSubscriptionResponse createResp = await CreateDefaultSubscriptionAsync().ConfigureAwait(false);
             uint id = createResp.SubscriptionId;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await Session.RepublishAsync(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await Session.RepublishAsync(
                     null, id, 999999u,
                     CancellationToken.None).ConfigureAwait(false));
 

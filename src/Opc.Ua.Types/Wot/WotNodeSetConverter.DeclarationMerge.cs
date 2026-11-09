@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using Opc.Ua.Export;
 
@@ -157,8 +158,19 @@ namespace Opc.Ua.Wot
                     continue;
                 }
 
+                affordances.TryGetValue(browseName, out JsonElement affordance);
                 IReadOnlyList<WotTypeDeclaration> matches =
                     declarations.Match(namespaceUri, browseName);
+                if (matches.Count == 0 && affordance.ValueKind == JsonValueKind.Object &&
+                    GetElementString(affordance, "uav:browseName") is null)
+                {
+                    matches = declarations.Declarations.ToList()
+                        .Where(declaration => declaration.BrowseName == browseName).ToList();
+                    if (matches.Count == 1)
+                    {
+                        node.BrowseName = DeclarationBrowseName(nodeSet, matches[0]);
+                    }
+                }
                 if (matches.Count == 0)
                 {
                     if (closed)
@@ -185,11 +197,108 @@ namespace Opc.Ua.Wot
                     continue;
                 }
 
-                affordances.TryGetValue(browseName, out JsonElement affordance);
                 Populate(
                     nodeSet, node, affordance, matches[0], rootNodeId, rootReferences,
                     diagnostics);
             }
+            PopulateMissingMandatoryVariables(document, nodeSet, items, rootReferences, rootNodeId, declarations,
+                diagnostics);
+        }
+
+        private static void PopulateMissingMandatoryVariables(
+            WotDocument document,
+            UANodeSet nodeSet,
+            List<UANode> items,
+            List<Reference> rootReferences,
+            string rootNodeId,
+            WotDeclarationCatalog declarations,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (document.Kind != WotDocumentKind.ThingDescription)
+            {
+                return;
+            }
+            string modelUri = DeriveModelUri(document);
+            string rootLocal = LocalName(GetUavString(document, "browseName")) ??
+                SanitizeName(document.Title) ?? "Thing";
+            foreach (WotTypeDeclaration declaration in declarations.Declarations)
+            {
+                if (declaration.ModellingRule != WotModellingRule.Mandatory ||
+                    declaration.Kind != WotDeclarationKind.Variable ||
+                    items.Any(node => IsDirectMember(node, rootNodeId, rootReferences) &&
+                        TryResolveQualifiedName(nodeSet, node.BrowseName, out string ns, out string name) &&
+                        ns == declaration.NamespaceUri && name == declaration.BrowseName))
+                {
+                    continue;
+                }
+                if (declaration.DataType.Length == 0 || declaration.TypeDefinitionNodeId.Length == 0)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error, WotDiagnosticCode.DeclarationsUnavailable,
+                        $"Mandatory declaration '{declaration.BrowseName}' has incomplete native type metadata.",
+                        WotLocation.FromNode(declaration.NodeId)));
+                    continue;
+                }
+                string identity = WotPortableIdentity.GenerateNodeId(modelUri,
+                    new ArrayOf<WotBrowsePathElement>(
+                    [
+                        new WotBrowsePathElement(modelUri, rootLocal),
+                        new WotBrowsePathElement(declaration.NamespaceUri, declaration.BrowseName)
+                    ]));
+                string nodeId = ToNodeSetNodeId(identity, nodeSet, diagnostics);
+                var variable = new UAVariable
+                {
+                    NodeId = nodeId,
+                    ParentNodeId = rootNodeId,
+                    BrowseName = DeclarationBrowseName(nodeSet, declaration),
+                    DisplayName = MakeText(declaration.BrowseName),
+                    DataType = ToNodeSetNodeId(declaration.DataType, nodeSet, diagnostics),
+                    ValueRank = declaration.ValueRank,
+                    ArrayDimensions = declaration.ArrayDimensions.IsEmpty ? null :
+                        string.Join(",", declaration.ArrayDimensions.ToList()
+                            .Select(dimension => dimension.ToString(CultureInfo.InvariantCulture))),
+                    AccessLevel = AccessLevels.CurrentRead,
+                    References =
+                    [
+                        new Reference
+                        {
+                            ReferenceType = declaration.ReferenceTypeName,
+                            IsForward = false,
+                            Value = rootNodeId
+                        },
+                        new Reference
+                        {
+                            ReferenceType = "HasTypeDefinition",
+                            IsForward = true,
+                            Value = ToNodeSetNodeId(declaration.TypeDefinitionNodeId, nodeSet, diagnostics)
+                        }
+                    ]
+                };
+                items.Add(variable);
+                rootReferences.Add(new Reference
+                {
+                    ReferenceType = declaration.ReferenceTypeName,
+                    IsForward = true,
+                    Value = nodeId
+                });
+            }
+        }
+
+        private static string DeclarationBrowseName(UANodeSet nodeSet, WotTypeDeclaration declaration)
+        {
+            if (declaration.NamespaceUri == WotVocabulary.OpcUaNamespace)
+            {
+                return declaration.BrowseName;
+            }
+            var namespaces = new List<string>(nodeSet.NamespaceUris ?? []);
+            int index = namespaces.FindIndex(uri => uri == declaration.NamespaceUri);
+            if (index < 0)
+            {
+                index = namespaces.Count;
+                namespaces.Add(declaration.NamespaceUri);
+                nodeSet.NamespaceUris = namespaces.ToArray();
+            }
+            return new QualifiedName(declaration.BrowseName, checked((ushort)(index + 1))).ToString();
         }
 
         /// <summary>

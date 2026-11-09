@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Bindings
 {
@@ -148,7 +149,7 @@ namespace Opc.Ua.Bindings
                 }
                 else if (logger.IsEnabled(LogLevel.Error))
                 {
-                    logger.TcpServiceHostLogMessage0(Redaction.Redact.Create(uri));
+                    logger.TcpServiceHostLogMessage0(uri);
                 }
             }
 
@@ -166,7 +167,7 @@ namespace Opc.Ua.Bindings
             Message = "Failed to create endpoint {Uri} because the transport profile is unsupported.")]
         public static partial void TcpServiceHostLogMessage0(
             this ILogger logger,
-            global::Opc.Ua.Redaction.RedactionWrapper<global::System.UriBuilder> uri);
+            [NetworkAddress] global::System.UriBuilder uri);
     }
 
 }

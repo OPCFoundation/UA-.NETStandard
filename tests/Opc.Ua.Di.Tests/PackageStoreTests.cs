@@ -102,20 +102,20 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void MemoryStoreOpenReadThrowsForMissingPackage()
+        public async Task MemoryStoreOpenReadThrowsForMissingPackage()
         {
             var store = new MemoryPackageStore();
-            Assert.ThrowsAsync<FileNotFoundException>(
+            await Assert.ThrowsAsync<FileNotFoundException>(
                 async () => await store.OpenReadAsync("nope").ConfigureAwait(false));
         }
 
         [Test]
-        public void MemoryStoreRejectsEmptyId()
+        public async Task MemoryStoreRejectsEmptyId()
         {
             var store = new MemoryPackageStore();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await store.GetAsync(string.Empty).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await store.ExistsAsync("   ").ConfigureAwait(false));
         }
 
@@ -123,7 +123,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreAddAndGetRoundTripViaPhysicalProvider()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -165,7 +165,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreListReturnsKnownPackages()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -200,7 +200,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreDeleteRemovesPackage()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -226,10 +226,10 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void FileSystemStoreRejectsIdWithPathSeparator()
+        public async Task FileSystemStoreRejectsIdWithPathSeparator()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -239,9 +239,9 @@ namespace Opc.Ua.Di.Tests
                     mountName: "Packages",
                     isWritable: true);
                 var store = new FileSystemPackageStore(provider, rootPath: "/Pkgs");
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await store.GetAsync("bad/id").ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await store.GetAsync("bad\\id").ConfigureAwait(false));
             }
             finally
@@ -255,10 +255,10 @@ namespace Opc.Ua.Di.Tests
 
         [TestCase(".")]
         [TestCase("..")]
-        public void FileSystemStoreRejectsDotSegmentId(string packageId)
+        public async Task FileSystemStoreRejectsDotSegmentId(string packageId)
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -269,7 +269,7 @@ namespace Opc.Ua.Di.Tests
                     isWritable: true);
                 var store = new FileSystemPackageStore(provider, rootPath: "/Pkgs");
 
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await store.GetAsync(packageId).ConfigureAwait(false));
             }
             finally
@@ -287,7 +287,7 @@ namespace Opc.Ua.Di.Tests
         public void FileSystemStoreRejectsRootWithDotSegment(string rootPath)
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -314,7 +314,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreCanonicalizesProviderRelativeRootAsync()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try

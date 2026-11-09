@@ -140,12 +140,9 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             WotBindingMaturity.OpcSpecification,
             commit: "OPC-10101-1.00",
             retrieved: Retrieved,
-            note: "uav: terms (id, componentOf, mapToNodeId, mapToType, mapByFieldPath) " +
+            note: "uav: terms (id, callObjectId, mapToNodeId, mapToType, mapByFieldPath) " +
                 "per the official OPC UA WoT Connectivity binding (OPC 10101), plus the " +
                 "WoT Binding " + WotBindingConformance.CurrentRevision + " terms " +
-                "uav:eventSelectClauses (Section 6.1) and uav:minimumSecurity (Section 5.7.1). " +
-                "The superseded uav:eventFields spelling this implementation minted before " +
-                "Section 6.1 standardized the select-clause list is still read and never " +
-                "written.");
+                "uav:eventSelectClauses (Section 6.1) and uav:minimumSecurity (Section 5.7.1).");
     }
 }

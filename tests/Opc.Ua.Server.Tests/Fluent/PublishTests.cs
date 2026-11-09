@@ -679,7 +679,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             // Cancelling the seal is not a configuration error, so it must not
             // be wrapped as one.
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await manager.EventSources
                     .CompleteRegistrationsAsync(cts.Token).ConfigureAwait(false));
             Assert.That(manager.RootNotifiers, Does.Not.ContainKey(notifier.NodeId));
@@ -712,7 +712,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             // registration.
             await WaitForAsync(iteratorEntered.Task).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.EventSources.CompleteRegistrationsAsync()
                     .ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -1338,10 +1338,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             {
                 SubscriptionCallback = subscription.Object
             };
-            var detachable = (IDetachableMonitoredItem)item;
-            var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
-            detachable.Detach(m_mockServer.Object);
-            ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false);
+            var detachable = (IMonitoredItemGenerationBinding)item;
+            var lifecycle = (INodeManagerMonitoredItemSource)manager;
+            detachable.ReleaseSource();
+            ServiceResult attached = await lifecycle.AdoptSourceAsync(item).ConfigureAwait(false);
             Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
             var originalFailure = new InvalidOperationException("Event unsubscribe failed after stopping its source.");
             manager.UnsubscribeCallback = async ct =>
@@ -1351,7 +1351,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             Task transition = deleteNode
                 ? manager.DeleteNodeAsync(manager.SystemContext, source.NodeId).AsTask()
-                : lifecycle.DetachMonitoredItemAsync(item).AsTask();
+                : lifecycle.ReleaseSourceAsync(item).AsTask();
             var independentItem = new Mock<IEventMonitoredItem>();
             independentItem.SetupGet(value => value.Id).Returns(38);
             independentItem.SetupGet(value => value.NodeId).Returns(independent.NodeId);
@@ -1373,14 +1373,14 @@ namespace Opc.Ua.Server.Tests.Fluent
                 clock.Advance(deadline - TimeSpan.FromTicks(1));
                 Assert.That(transition.IsCompleted, Is.False);
                 clock.Advance(TimeSpan.FromTicks(1));
-                AggregateException failure = Assert.ThrowsAsync<AggregateException>(
-                    async () => await transition.WaitAsync(s_signalTimeout).ConfigureAwait(false))!;
+                AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                    async () => await transition.WaitAsync(s_signalTimeout).ConfigureAwait(false)))!;
                 Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
                 Assert.That(failure.InnerExceptions[0], Is.SameAs(originalFailure));
                 Assert.That(failure.InnerExceptions[1],
                     Is.InstanceOf<OperationCanceledException>().Or.InstanceOf<TimeoutException>());
                 Assert.That(replacement.Ready.Task.IsCompleted, Is.False);
-                Assert.That(detachable.IsDetached, Is.False);
+                Assert.That(detachable.IsSourceUnavailable, Is.False);
                 Assert.That(item.NodeManager, Is.SameAs(manager));
                 Assert.That(source.AreEventsMonitored, Is.True);
                 Assert.That(manager.Find(source.NodeId), Is.SameAs(source));
@@ -1399,7 +1399,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 {
                 }
                 manager.UnsubscribeCallback = null!;
-                await lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
+                await lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false);
                 await manager.SubscribeEventAsync(independent, independentItem.Object, true).ConfigureAwait(false);
             }
         }

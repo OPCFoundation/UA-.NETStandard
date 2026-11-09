@@ -1,0 +1,3 @@
+--scenario sub --sessions 10 --subs 15 --nodes 600 --node-type all --pub 100 --write-interval 150 --security encrypt --duration 15 --warmup 10
+--scenario sub --sessions 2 --subs 1 --nodes 100 --pub 100 --write-interval 150 --security encrypt --duration 15 --warmup 10
+--scenario events --sessions 10 --subs 15 --pub 100 --event-rate 1000 --security encrypt --duration 15 --warmup 10

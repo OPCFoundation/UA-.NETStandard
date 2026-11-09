@@ -488,15 +488,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public void SaveWithNullArgumentsThrows()
+        public async Task SaveWithNullArgumentsThrows()
         {
             using var kv = new InMemorySharedKeyValueStore();
             var store = new SharedKeyValuePendingCertificateKeyStore(kv, NewOptions());
             using Certificate cert = NewCertificateWithKey();
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await store.SaveAsync(null!, cert, CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await store.SaveAsync(NewContext(), null!, CancellationToken.None).ConfigureAwait(false));
         }
 

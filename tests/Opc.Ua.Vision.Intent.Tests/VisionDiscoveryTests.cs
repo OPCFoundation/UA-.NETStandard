@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Vision.Client;
 using Opc.Ua.Vision.Intent.Tests.Infrastructure;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Intent.Tests
 {
@@ -105,12 +106,12 @@ namespace Opc.Ua.Vision.Intent.Tests
             ArrayOf<NodeId> frames = await context.Vision.DiscoverFramesAsync()
                 .ConfigureAwait(false);
 
-            List<VisionNodeEntry> pipelineEntries = new();
+            List<VisionNodeEntry> pipelineEntries = [];
             await foreach (VisionNodeEntry entry in context.Vision.EnumeratePipelinesAsync())
             {
                 pipelineEntries.Add(entry);
             }
-            List<VisionNodeEntry> frameEntries = new();
+            List<VisionNodeEntry> frameEntries = [];
             await foreach (VisionNodeEntry entry in context.Vision.EnumerateFramesAsync())
             {
                 frameEntries.Add(entry);
@@ -127,7 +128,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                 Assert.That(
                     pipelineEntries.Select(e => e.BrowseName.Name),
                     Does.Contain(TestVisionCell.PipelineBrowseName));
-                List<string> frameNames = new();
+                List<string> frameNames = [];
                 foreach (VisionNodeEntry entry in frameEntries)
                 {
                     string? name = entry.BrowseName.Name;
@@ -160,7 +161,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                 .ConfigureAwait(false);
             Assert.That(image, Is.Not.Null);
 
-            List<VisionNodeEntry> calibrations = new();
+            List<VisionNodeEntry> calibrations = [];
             await foreach (VisionNodeEntry entry in sensorClient.EnumerateCalibrationsAsync())
             {
                 calibrations.Add(entry);

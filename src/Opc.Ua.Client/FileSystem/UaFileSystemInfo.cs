@@ -67,7 +67,8 @@ namespace Opc.Ua.Client.FileSystem
         public FileSystemClient Owner { get; }
 
         /// <summary>
-        /// The parent directory; <c>null</c> only for the root.
+        /// The parent directory; <c>null</c> for the root and for a
+        /// detached file (see <see cref="UaFileInfo.IsDetached"/>).
         /// </summary>
         public UaDirectoryInfo? Parent { get; }
 

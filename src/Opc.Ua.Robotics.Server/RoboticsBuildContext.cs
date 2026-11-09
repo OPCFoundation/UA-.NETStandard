@@ -67,20 +67,19 @@ namespace Opc.Ua.Robotics.Server
             m_postSetupContext = postSetupContext;
 
             Context = manager.SystemContext;
-            if (Context.NodeIdFactory is not IRoboticsNodeIdFactory)
+            if (Context.NodeIdFactory is not ICompanionNodeIdFactory)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     "The custom DI node manager '{0}' cannot build Robotics instances because " +
-                    "Context.NodeIdFactory does not implement {1}. Implement the marker on the " +
+                    "Context.NodeIdFactory does not implement {1} or {2}. Implement a marker on the " +
                     "manager with a thread-safe allocator for the configured instance namespace, " +
                     "or assign such a factory before ConfigureRoboticsFor/CreateRoboticsBuildContext.",
                     manager.GetType().FullName ?? manager.GetType().Name,
-                    nameof(IRoboticsNodeIdFactory));
+                    nameof(IRoboticsNodeIdFactory),
+                    nameof(ICompanionNodeIdFactory));
             }
-            m_releasesNodeIdReservations =
-                manager is RoboticsNodeManager &&
-                ReferenceEquals(Context.NodeIdFactory, manager);
+            m_nodeIdReservationOwner = Context.NodeIdFactory as ICompanionNodeIdReservationOwner;
 
             int iaNamespaceIndex = Context.NamespaceUris.GetIndex(
                 Opc.Ua.IA.Namespaces.IA);
@@ -209,10 +208,7 @@ namespace Opc.Ua.Robotics.Server
 
         void IRoboticsBuildCoordinator.ReleaseNodeIdReservation(NodeState node)
         {
-            if (m_releasesNodeIdReservations)
-            {
-                m_managerCoordinator.ReleaseNodeId(node);
-            }
+            m_nodeIdReservationOwner?.ReleaseNodeIdReservation(node);
         }
 
         IDisposable IRoboticsBuildCoordinator.ReserveRootBrowseName(
@@ -228,7 +224,7 @@ namespace Opc.Ua.Robotics.Server
         bool IRoboticsBuildCoordinator.IsSealed => IsSealed;
 
         bool IRoboticsBuildCoordinator.ReleasesNodeIdReservations =>
-            m_releasesNodeIdReservations;
+            m_nodeIdReservationOwner != null;
 
         private void ReleaseBuildLease()
         {
@@ -247,7 +243,7 @@ namespace Opc.Ua.Robotics.Server
         private readonly IDiPostSetupContext? m_postSetupContext;
         private readonly RoboticsBuildCoordinator m_managerCoordinator;
         private readonly Lock m_stateLock = new();
-        private readonly bool m_releasesNodeIdReservations;
+        private readonly ICompanionNodeIdReservationOwner? m_nodeIdReservationOwner;
         private int m_activeBuildLeaseCount;
         private bool m_sealed;
 

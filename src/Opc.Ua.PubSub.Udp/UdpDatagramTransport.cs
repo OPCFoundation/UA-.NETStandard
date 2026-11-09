@@ -41,6 +41,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Udp
 {
@@ -92,7 +93,7 @@ namespace Opc.Ua.PubSub.Udp
         private IPEndPoint? m_sendDestination;
         private bool m_socketIsConnected;
         private readonly bool m_useConnectedUnicastClient;
-        private readonly bool m_trackLastSeenUnicastPeer;
+        private readonly IUdpDatagramIo? m_datagramIo;
 
         /// <summary>
         /// Initializes a new <see cref="UdpDatagramTransport"/>.
@@ -160,7 +161,8 @@ namespace Opc.Ua.PubSub.Udp
             UdpTransportOptions options,
             IPubSubDiagnostics? diagnostics,
             bool useConnectedUnicastClient,
-            bool trackLastSeenUnicastPeer)
+            bool trackLastSeenUnicastPeer,
+            IUdpDatagramIo? datagramIo = null)
         {
             if (connection is null)
             {
@@ -192,7 +194,9 @@ namespace Opc.Ua.PubSub.Udp
             m_options = options;
             m_diagnostics = diagnostics;
             m_useConnectedUnicastClient = useConnectedUnicastClient;
-            m_trackLastSeenUnicastPeer = trackLastSeenUnicastPeer;
+            // Retained for internal constructor compatibility; inbound traffic never selects a publication peer.
+            _ = trackLastSeenUnicastPeer;
+            m_datagramIo = datagramIo;
             m_logger = telemetry.CreateLogger<UdpDatagramTransport>();
             m_repeater = new UdpMessageRepeater(
                 options.MessageRepeatCount,
@@ -321,14 +325,22 @@ namespace Opc.Ua.PubSub.Udp
                 {
                     return default;
                 }
+                m_options.GetDatagramPolicy()?.RequireOpen(Endpoint, Direction, m_networkInterface);
                 Socket socket = new(
                     Endpoint.Address.AddressFamily,
                     SocketType.Dgram,
                     ProtocolType.Udp);
                 try
                 {
-                    ConfigureSocket(socket);
-                    BindAndJoin(socket);
+                    if (m_datagramIo is null)
+                    {
+                        ConfigureSocket(socket);
+                        BindAndJoin(socket);
+                    }
+                    else
+                    {
+                        m_sendDestination = new IPEndPoint(Endpoint.Address, Endpoint.Port);
+                    }
                 }
                 catch
                 {
@@ -383,7 +395,7 @@ namespace Opc.Ua.PubSub.Udp
             {
                 try
                 {
-                    loopCts.Cancel();
+                    await loopCts.CancelAsync().ConfigureAwait(false);
                 }
                 catch (ObjectDisposedException)
                 {
@@ -474,7 +486,7 @@ namespace Opc.Ua.PubSub.Udp
         }
 
         /// <summary>
-        /// Sends one datagram to an explicit destination endpoint, falling back to the last-seen
+        /// Sends one datagram to an explicit destination endpoint, falling back to the configured
         /// unicast peer when none is supplied. Used by the DTLS transport to route a handshake reply
         /// to the specific source that sent the corresponding ClientHello.
         /// </summary>
@@ -573,9 +585,10 @@ namespace Opc.Ua.PubSub.Udp
             ReadOnlyMemory<byte> payload,
             CancellationToken cancellationToken)
         {
-            if (socket.AddressFamily == AddressFamily.InterNetwork &&
+            if (m_datagramIo is not null ||
+                (socket.AddressFamily == AddressFamily.InterNetwork &&
                 socket.LocalEndPoint is IPEndPoint localEndPoint &&
-                !IPAddress.IsLoopback(localEndPoint.Address))
+                !IPAddress.IsLoopback(localEndPoint.Address)))
             {
                 await SendOnceAsync(
                     socket,
@@ -649,9 +662,24 @@ namespace Opc.Ua.PubSub.Udp
             ReadOnlyMemory<byte> payload,
             CancellationToken cancellationToken)
         {
+            IPEndPoint? actualDestination = isConnectedSocket
+                ? socket.RemoteEndPoint as IPEndPoint
+                : destination;
+            if (m_options.GetDatagramPolicy() is { } policy)
+            {
+                policy.RequireSend(actualDestination ??
+                    throw new InvalidOperationException("A policy-controlled datagram requires a destination."),
+                    payload.Length);
+            }
             try
             {
-                if (isConnectedSocket)
+                if (m_datagramIo is not null)
+                {
+                    await m_datagramIo.SendAsync(payload, actualDestination ??
+                        throw new InvalidOperationException("UDP transport has no send destination configured."),
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else if (isConnectedSocket)
                 {
 #if NET8_0_OR_GREATER
                     await socket.SendAsync(payload, SocketFlags.None, cancellationToken)
@@ -714,21 +742,29 @@ namespace Opc.Ua.PubSub.Udp
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    SocketReceiveFromResult result;
+                    SocketReceiveMessageFromResult result;
                     try
                     {
+                        if (m_datagramIo is not null)
+                        {
+                            result = await m_datagramIo.ReceiveAsync(
+                                receiveBuffer.AsMemory(0, maxFrameSize), cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
 #if NET8_0_OR_GREATER
-                        result = await socket.ReceiveFromAsync(
+                        result = await socket.ReceiveMessageFromAsync(
                             receiveBuffer,
                             SocketFlags.None,
                             anyEndPoint,
                             cancellationToken).ConfigureAwait(false);
 #else
-                        result = await socket.ReceiveFromAsync(
+                        result = await socket.ReceiveMessageFromAsync(
                             new ArraySegment<byte>(receiveBuffer, 0, maxFrameSize),
                             SocketFlags.None,
                             anyEndPoint).ConfigureAwait(false);
 #endif
+                        }
                     }
                     catch (OperationCanceledException)
                     {
@@ -758,6 +794,13 @@ namespace Opc.Ua.PubSub.Udp
                             PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                         continue;
                     }
+                    if (m_options.GetDatagramPolicy() is { } policy &&
+                        (result.RemoteEndPoint is not IPEndPoint remote ||
+                            !policy.AcceptReceive(remote, result.PacketInformation.Interface, result.ReceivedBytes)))
+                    {
+                        m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                        continue;
+                    }
                     byte[] copy = new byte[result.ReceivedBytes];
                     Buffer.BlockCopy(receiveBuffer, 0, copy, 0, result.ReceivedBytes);
                     var sourceEndpoint = result.RemoteEndPoint as IPEndPoint;
@@ -766,16 +809,6 @@ namespace Opc.Ua.PubSub.Udp
                         topic: null,
                         receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
                         sourceEndpoint: sourceEndpoint);
-                    if (Endpoint.AddressType == UdpAddressType.Unicast &&
-                        m_trackLastSeenUnicastPeer &&
-                        sourceEndpoint is not null)
-                    {
-                        lock (m_sync)
-                        {
-                            m_sendDestination = sourceEndpoint;
-                        }
-                    }
-
                     m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
                     try
                     {
@@ -925,7 +958,7 @@ namespace Opc.Ua.PubSub.Udp
                     }
                 }
             }
-            catch (SocketException ex)
+            catch (SocketException ex) when (m_options.GetDatagramPolicy() is null)
             {
                 m_logger.SettingMulticastInterfaceFailed(ex, m_connection.Name);
             }
@@ -1045,8 +1078,17 @@ namespace Opc.Ua.PubSub.Udp
         /// loopback address avoids both. Non-loopback endpoints keep binding to the wildcard address
         /// so datagrams can arrive on any interface.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private IPAddress SelectUnicastBindAddress()
         {
+            if (m_options.GetLocalAddress() is { } local)
+            {
+                if (local.AddressFamily != Endpoint.Address.AddressFamily)
+                {
+                    throw new InvalidOperationException("The local bind address has a different address family.");
+                }
+                return local;
+            }
             if (Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
             {
                 return IPAddress.IsLoopback(Endpoint.Address)
@@ -1076,7 +1118,8 @@ namespace Opc.Ua.PubSub.Udp
 
         private void JoinStandardDiscoveryGroupIfNeeded(Socket socket)
         {
-            if (!ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
+            if (m_options.GetDatagramPolicy()?.AllowStandardDiscovery == false ||
+                !ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
             {
                 return;
             }
@@ -1103,7 +1146,8 @@ namespace Opc.Ua.PubSub.Udp
                     socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.DropMembership, option);
                 }
             }
-            if (!ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
+            if (m_options.GetDatagramPolicy()?.AllowStandardDiscovery == false ||
+                !ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
             {
                 return;
             }
@@ -1312,7 +1356,7 @@ namespace Opc.Ua.PubSub.Udp
         public static partial void UdpTransportOpened(
             this ILogger logger,
             string? connection,
-            UdpEndpoint endpoint,
+            [NetworkAddress] UdpEndpoint endpoint,
             PubSubTransportDirection direction);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 1, Level = LogLevel.Debug,
@@ -1343,7 +1387,7 @@ namespace Opc.Ua.PubSub.Udp
             this ILogger logger,
             Exception exception,
             string? connection,
-            string endpoint);
+            [NetworkAddress] string endpoint);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 5, Level = LogLevel.Warning,
             Message = "UDP receive on connection '{Connection}' raised {Code}; continuing.")]
@@ -1441,7 +1485,7 @@ namespace Opc.Ua.PubSub.Udp
             this ILogger logger,
             Exception exception,
             string? connection,
-            string endpoint);
+            [NetworkAddress] string endpoint);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 19, Level = LogLevel.Debug,
             Message = "Setting the multicast send interface failed for connection '{Connection}'.")]
@@ -1450,5 +1494,4 @@ namespace Opc.Ua.PubSub.Udp
             Exception exception,
             string? connection);
     }
-
 }

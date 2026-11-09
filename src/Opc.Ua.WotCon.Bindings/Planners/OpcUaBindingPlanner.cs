@@ -30,14 +30,18 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
+using System.IO;
+using System.Text;
+using System.Text.Json;
 using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings.Planners
 {
     /// <summary>
     /// The OPC UA WoT Connectivity binding planner (OPC 10101). It validates the
-    /// portable <c>uav:id</c> / <c>opc.tcp</c> href and the <c>uav:componentOf</c>
-    /// containment reference, checks <c>op</c> compatibility, compiles the
+    /// portable <c>uav:id</c> / <c>opc.tcp</c> href and the form-scoped
+    /// <c>uav:callObjectId</c> receiver, checks <c>op</c> compatibility, compiles the
     /// event field selection of WoT Binding Section 6.1 and the <c>auto</c>
     /// endpoint security floor of Section 5.7.1, and compiles the
     /// form into immutable endpoint and NodeId addressing metadata. It is
@@ -54,20 +58,6 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// The OPC UA WoT binding vocabulary URI.
         /// </summary>
         public const string BindingUri = "http://opcfoundation.org/UA/WoT-Binding/";
-
-        /// <summary>
-        /// The superseded spelling this implementation minted for an event's
-        /// extra select clauses before WoT Binding Section 6.1 standardized
-        /// <see cref="WotEventSelectClauses.Term"/>.
-        /// </summary>
-        /// <remarks>
-        /// It is authored on a form, carries bare browse paths and adds to the
-        /// implicit BaseEventType default. It is still read so a document already
-        /// authored against this implementation keeps working, and it is never
-        /// written: a document this stack produces states the standardized
-        /// terms.
-        /// </remarks>
-        public const string LegacyEventFieldsTerm = "uav:eventFields";
 
         private static readonly string[] s_schemes = ["opc.tcp", "opc.https", "opc.wss"];
 
@@ -88,7 +78,11 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 WoTBindingCapabilityEnum.SubscribeEvent,
                 WoTBindingCapabilityEnum.UnsubscribeEvent
             ],
-            ["application/json", "application/opcua+json", "application/octet-stream"],
+            [
+                "application/json",
+                "application/opcua+json",
+                "application/octet-stream"
+            ],
             isExecutable: true);
 
         /// <inheritdoc/>
@@ -101,53 +95,150 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         }
 
         /// <inheritdoc/>
+        /// <param name="form">The WoT affordance form.</param>
+        /// <param name="context">The WoT binding plan context.</param>
         public override WotBindingCompilation Compile(WotAffordanceForm form, WotBindingPlanContext context)
         {
             var diagnostics = new List<WotBindingDiagnostic>();
+            if (!form.TryResolveHref(
+                context.BaseUri, out WotAffordanceForm resolved, out WotBindingDiagnostic? addressDiagnostic))
+            {
+                return WotBindingCompilation.Unsupported([addressDiagnostic]);
+            }
+            form = resolved;
 
+            string? nodeId;
+            bool nodeIdInPath;
+            WotBrowsePathTarget? pathTarget;
             WotEndpointDescriptor endpoint;
             string? authority;
-            if (!string.IsNullOrEmpty(form.Href) && TryParseUri(form.Href!, out Uri uri))
+            try
             {
-                if (!IsOpcScheme(uri.Scheme))
+                if (context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero &&
+                    form.HasPublishedTargetCapture)
+                {
+                    if (form.PublishedTargetError is { } targetError)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            targetError,
+                            form.Pointer("uav:id"),
+                            "uav:id"));
+                        return WotBindingCompilation.Unsupported([.. diagnostics]);
+                    }
+                    nodeId = form.PublishedNodeId ?? form.PublishedHrefNodeId;
+                    nodeIdInPath = form.PublishedHrefNodeIdInPath;
+                }
+                else
+                {
+                    nodeId = ResolveNodeId(form, out nodeIdInPath);
+                    if (context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero &&
+                        WotPortableIdentity.IsSessionLocalNodeId(nodeId))
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            "A numeric NodeId namespace index requires its mapping in the original document context.",
+                            form.Pointer("uav:id"),
+                            "uav:id"));
+                        return WotBindingCompilation.Unsupported([.. diagnostics]);
+                    }
+                }
+                if (!form.TryGetBrowsePath(context, out pathTarget, out string? pathError))
                 {
                     diagnostics.Add(WotBindingDiagnostic.Error(
-                        WotBindingDiagnosticCode.UnsupportedScheme,
-                        $"'{uri.Scheme}' is not an OPC UA transport scheme.", form.Pointer("href")));
+                        WotBindingDiagnosticCode.InvalidFieldValue, pathError!,
+                        form.Pointer(WotBrowsePathTarget.PathTerm), WotBrowsePathTarget.PathTerm));
                     return WotBindingCompilation.Unsupported([.. diagnostics]);
                 }
-                endpoint = MakeEndpoint(uri);
-                authority = ToTransmittedAuthority(uri);
+                if (pathTarget is not null &&
+                    (pathTarget.Path.Length > context.Bounds.MaxUriLength ||
+                        pathTarget.Elements.Count > context.Bounds.MaxBrowsePathElements))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        "The browse path exceeds the configured addressing bounds.",
+                        pathTarget.JsonPointer, WotBrowsePathTarget.PathTerm));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
+                }
+                if (pathTarget is not null &&
+                    form.FormElement.TryGetProperty("uav:id", out System.Text.Json.JsonElement declaredId) &&
+                    (declaredId.ValueKind != System.Text.Json.JsonValueKind.String ||
+                        string.IsNullOrWhiteSpace(declaredId.GetString())))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue, "A declared target NodeId must be a non-empty string.",
+                        form.Pointer("uav:id"), "uav:id"));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
+                }
+                if (!string.IsNullOrEmpty(form.Href) && TryParseUri(form.Href!, out Uri uri))
+                {
+                    if (!IsOpcScheme(uri.Scheme))
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.UnsupportedScheme,
+                            $"'{uri.Scheme}' is not an OPC UA transport scheme.", form.Pointer("href")));
+                        return WotBindingCompilation.Unsupported([.. diagnostics]);
+                    }
+                    endpoint = MakeOpcUaEndpoint(uri, nodeIdInPath);
+                    authority = ToTransmittedAuthority(uri);
+                }
+                else if (!string.IsNullOrEmpty(context.BaseUri) &&
+                    TryParseUri(context.BaseUri!, out Uri baseUri) &&
+                    IsOpcScheme(baseUri.Scheme))
+                {
+                    endpoint = MakeOpcUaEndpoint(baseUri, nodeIdInPath: false);
+                    authority = ToTransmittedAuthority(baseUri);
+                }
+                else
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.MissingRequiredField,
+                        "An OPC UA form requires an opc.tcp href or a Thing base opc.tcp endpoint.",
+                        form.Pointer("href")));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
+                }
             }
-            else if (!string.IsNullOrEmpty(context.BaseUri) &&
-                TryParseUri(context.BaseUri!, out Uri baseUri) &&
-                IsOpcScheme(baseUri.Scheme))
+            catch (FormatException exception)
             {
-                endpoint = MakeEndpoint(baseUri);
-                authority = ToTransmittedAuthority(baseUri);
-            }
-            else
-            {
-                diagnostics.Add(WotBindingDiagnostic.Error(
-                    WotBindingDiagnosticCode.MissingRequiredField,
-                    "An OPC UA form requires an opc.tcp href or a Thing base opc.tcp endpoint.",
-                    form.Pointer("href")));
-                return WotBindingCompilation.Unsupported([.. diagnostics]);
+                return WotBindingCompilation.Unsupported(
+                    [WotBindingDiagnostic.Error(WotBindingDiagnosticCode.InvalidFieldValue,
+                        exception.Message, form.Pointer("href"))]);
             }
 
-            string? nodeId = ResolveNodeId(form);
-            if (string.IsNullOrEmpty(nodeId))
+            if (string.IsNullOrEmpty(nodeId) && pathTarget is null)
             {
                 diagnostics.Add(WotBindingDiagnostic.Error(
                     WotBindingDiagnosticCode.MissingRequiredField,
-                    "An OPC UA form requires uav:id or a NodeId in the href path.",
+                    "An OPC UA form requires a NodeId or a resolvable uav:browsePath.",
                     form.Pointer("uav:id"), "uav:id"));
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
-            ImmutableDictionary<string, string> metadata = ImmutableDictionary<string, string>.Empty
-                .Add("nodeId", nodeId!);
-            metadata = AddIfPresent(form, "uav:componentOf", "componentOf", metadata);
+            ImmutableDictionary<string, string> metadata = ImmutableDictionary<string, string>.Empty;
+            if (!string.IsNullOrEmpty(nodeId))
+            {
+                metadata = metadata.Add("nodeId", nodeId!);
+            }
+            string? capturedHrefTarget =
+                context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero &&
+                form.HasPublishedTargetCapture
+                    ? form.PublishedHrefNodeId
+                    : ResolveHrefNodeId(form.Href, out _);
+            if (pathTarget is not null && capturedHrefTarget is { } hrefTarget)
+            {
+                if (string.IsNullOrWhiteSpace(hrefTarget))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue, "A declared href NodeId must not be empty.",
+                        form.Pointer("href"), "href"));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
+                }
+                metadata = metadata.Add("pathHrefNodeId", hrefTarget);
+            }
+            if (!TryCompileCallReceiver(form, endpoint, context, diagnostics, ref metadata))
+            {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
 
             WotEventSelection? eventSelection = ResolveEventSelection(form, context, diagnostics);
             if (form.Kind == WotAffordanceKind.Event && eventSelection is null)
@@ -155,13 +246,34 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
-            if (!ResolveCodec(form, context, diagnostics, out WotPayloadDescriptor payload))
+            if (!ResolveCodec(form, context, diagnostics, "application/octet-stream", out WotPayloadDescriptor payload))
             {
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
-            var addressing = new WotAddressingDescriptor(nodeId!, metadata);
+            if (!context.Codecs.TrySelect(payload.ContentType, out _))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.UnsupportedContentType,
+                    $"No payload codec is registered for '{payload.ContentType}'.", form.Pointer("contentType")));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            if (!WotConditionInvocation.TryCreate(
+                form, payload, out WotConditionInvocation? invocation, out string? invocationError))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue, invocationError!,
+                    form.AffordancePointer(), "uav:conditionAction"));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            var addressing = new WotAddressingDescriptor(nodeId ?? string.Empty, metadata);
+            if (pathTarget is not null)
+            {
+                addressing = addressing.WithBrowsePathTarget(pathTarget);
+            }
             ImmutableArray<WotCredentialReference> security = ResolveSecurity(form, context, authority, diagnostics);
-            if (!TryResolveSecurityFloor(form, context, diagnostics, out WotSecurityFloor? securityFloor))
+            if (!TryResolveSecurityRequirements(
+                form, context, authority, diagnostics, out ArrayOf<WotOpcUaSecurityRequirement> exact,
+                out WotSecurityFloor? securityFloor))
             {
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
@@ -174,7 +286,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     Identity, form.Kind, form.AffordanceName, form.JsonPointer, capability, op,
                     endpoint, addressing, operation, payload, security, Capability.IsExecutable,
                     targetMapping: null, eventSelection, securityFloor)
-                    .WithConditionInvocation(WotConditionInvocation.FromAffordance(form)));
+                    .WithOpcUaSecurityRequirements(exact)
+                    .WithConditionInvocation(invocation));
             }
 
             if (entries.Count == 0)
@@ -195,25 +308,20 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// states neither takes the implicit <c>BaseEventType</c> default.
         /// Resolving a link follows document references, so it happens before
         /// planning and this method reads the result from
-        /// <see cref="WotBindingPlanContext.EventSelections"/>. The superseded
-        /// <c>uav:eventFields</c> spelling this implementation minted before the
-        /// terms existed adds field names to that default. Where a form carries
-        /// both, the standardized terms win and the contradiction is reported:
-        /// merging the two would produce a list neither spelling states, and
-        /// silently preferring one without saying so would leave the author
-        /// unable to tell which was honoured.
+        /// <see cref="WotBindingPlanContext.EventSelections"/>.
         /// </remarks>
         /// <returns>
         /// The effective selection, or <c>null</c> when the affordance is not
         /// an event or the authored selection is invalid or unresolved.
         /// </returns>
-        private static WotEventSelection? ResolveEventSelection(
+        /// <param name="form">The WoT affordance form.</param>
+        /// <param name="context">The WoT binding plan context.</param>
+        /// <param name="diagnostics">The collection receiving binding diagnostics.</param>
+        internal static WotEventSelection? ResolveEventSelection(
             WotAffordanceForm form,
             WotBindingPlanContext context,
             List<WotBindingDiagnostic> diagnostics)
         {
-            bool legacy = form.TryGetStringArray(
-                LegacyEventFieldsTerm, out ImmutableArray<string> legacyFields);
             if (form.Kind != WotAffordanceKind.Event)
             {
                 if (HasSelectClauses(form.FormElement) || HasSelectClauses(form.AffordanceElement))
@@ -241,31 +349,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
 
             if (!WotEventSelectionResolver.StatesSelection(form.AffordanceElement))
             {
-                if (!legacy)
-                {
-                    return WotEventSelection.Default;
-                }
-                diagnostics.Add(WotBindingDiagnostic.Warning(
-                    WotBindingDiagnosticCode.UnknownVocabularyTerm,
-                    $"'{LegacyEventFieldsTerm}' is the spelling this implementation minted " +
-                    $"before WoT Binding Section 6.1 standardized '{WotEventSelectClauses.Term}'. " +
-                    "It is still read, and its fields are added to the implicit default " +
-                    "selection, but a portable document states the standardized terms instead.",
-                    form.Pointer(LegacyEventFieldsTerm),
-                    LegacyEventFieldsTerm));
-                return BuildLegacySelection(legacyFields);
-            }
-
-            if (legacy)
-            {
-                diagnostics.Add(WotBindingDiagnostic.Warning(
-                    WotBindingDiagnosticCode.ConflictingFields,
-                    $"The affordance states its selection with the standardized terms of " +
-                    $"WoT Binding Section 6.1 and the form states '{LegacyEventFieldsTerm}'. " +
-                    "The standardized terms are honoured; the superseded spelling is ignored " +
-                    "rather than merged, because a merged list is one neither spelling states.",
-                    form.Pointer(LegacyEventFieldsTerm),
-                    LegacyEventFieldsTerm));
+                return WotEventSelection.Default;
             }
 
             string pointer = form.AffordancePointer(WotEventSelectClauses.Term);
@@ -327,8 +411,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     collision,
                     collisionIndex < 0
                         ? pointer
-                        : pointer + "/" + collisionIndex.ToString(
-                            System.Globalization.CultureInfo.InvariantCulture),
+                        : pointer +
+                            "/" +
+                            collisionIndex.ToString(
+                                System.Globalization.CultureInfo.InvariantCulture),
                     WotEventSelectClauses.Term));
                 return null;
             }
@@ -348,6 +434,12 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             out string error)
         {
             resolved = null;
+            if (clause.ResolvedBrowsePath is { } captured)
+            {
+                resolved = clause.WithBrowsePath(captured);
+                error = string.Empty;
+                return true;
+            }
             if (clause.BrowsePath.Length == 0)
             {
                 resolved = clause;
@@ -358,7 +450,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             // contains '/' - which every http NamespaceUri does - is rewritten
             // as one element rather than torn apart by the path separator.
             ArrayOf<string> parsed = clause.PathElements;
-            var elements = new string[parsed.Count];
+            string[] elements = new string[parsed.Count];
             bool rewritten = false;
             for (int ii = 0; ii < elements.Length; ii++)
             {
@@ -400,8 +492,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 // A bare name is a namespace 0 BrowseName.
                 return true;
             }
-            string prefix = element.Substring(0, separator);
-            string name = element.Substring(separator + 1);
+            string prefix = element[..separator];
+            string name = element[(separator + 1)..];
             if (string.Equals(prefix, "ua", StringComparison.Ordinal))
             {
                 resolved = name;
@@ -424,105 +516,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             return true;
         }
 
-        private static WotEventSelection BuildLegacySelection(ImmutableArray<string> fields)
-        {
-            var clauses = new List<WotResolvedEventSelectClause>(
-                WotEventSelectClauses.Default.Count + fields.Length);
-            foreach (WotResolvedEventSelectClause clause in WotEventSelectClauses.Default)
-            {
-                clauses.Add(clause);
-            }
-            foreach (string field in fields)
-            {
-                // A superseded field that reaches a data member the default
-                // already fills is not added twice: Section 6.1 lets exactly one
-                // clause materialize a member, and the implicit default is the
-                // list this spelling extends rather than competes with.
-                clauses.Add(new WotResolvedEventSelectClause(
-                    WotEventSelectClauses.BaseEventTypeId,
-                    field,
-                    WotEventSelectClauseSource.Explicit));
-                if (!WotEventSelectClauses.TryFindMaterializedCollision(
-                    new ArrayOf<WotResolvedEventSelectClause>(clauses.ToArray()),
-                    null,
-                    out _,
-                    out _))
-                {
-                    clauses.RemoveAt(clauses.Count - 1);
-                }
-            }
-            return new WotEventSelection(clauses.ToArray(), WotEventSelectionOrigin.Legacy);
-        }
-
         private static bool HasSelectClauses(System.Text.Json.JsonElement element)
         {
             return element.ValueKind == System.Text.Json.JsonValueKind.Object &&
                 element.TryGetProperty(WotEventSelectClauses.Term, out _);
-        }
-
-        /// <summary>
-        /// Resolves the security floor an <c>auto</c> scheme referenced by the
-        /// form puts on endpoint selection (WoT Binding Section 5.7.1).
-        /// </summary>
-        /// <remarks>
-        /// A floor the document declares but this Binding cannot read - one
-        /// carried by a scheme other than <c>auto</c>, or naming a mode or
-        /// policy Section 5.7 does not - fails the form rather than compiling
-        /// it without the constraint. A floor a client may quietly step below
-        /// states nothing, and a floor a client never learned about states
-        /// less.
-        /// </remarks>
-        private static bool TryResolveSecurityFloor(
-            WotAffordanceForm form,
-            WotBindingPlanContext context,
-            List<WotBindingDiagnostic> diagnostics,
-            out WotSecurityFloor? floor)
-        {
-            floor = null;
-            WotSecurityFloor? combined = null;
-            var visited = new HashSet<string>(StringComparer.Ordinal);
-            var pending = new Queue<string>();
-            foreach (string schemeName in form.SecuritySchemes)
-            {
-                pending.Enqueue(schemeName);
-            }
-            while (pending.Count > 0)
-            {
-                string schemeName = pending.Dequeue();
-                if (!visited.Add(schemeName) ||
-                    !context.SecurityDefinitions.TryGetValue(
-                        schemeName, out WotSecurityDefinition? definition))
-                {
-                    continue;
-                }
-                // A `combo` scheme is the standard way to require a secure
-                // channel and a user token together, so a floor stated on the
-                // channel scheme it combines is a floor the form is subject to.
-                foreach (string referenced in definition.Combines)
-                {
-                    pending.Enqueue(referenced);
-                }
-                if (definition.MinimumSecurity is { IsEmpty: false } stated)
-                {
-                    combined = Combine(combined, stated);
-                    continue;
-                }
-                if (definition.DeclaresMinimumSecurity)
-                {
-                    diagnostics.Add(WotBindingDiagnostic.Error(
-                        WotBindingDiagnosticCode.InvalidSecurityFloor,
-                        $"The '{schemeName}' security scheme declares " +
-                        $"'{WotBindingConformance.MinimumSecurityTerm}' but the floor cannot be " +
-                        "read: WoT Binding Section 5.7.1 carries it only on an 'auto' scheme and " +
-                        "only with the mode and policy names Section 5.7 lists.",
-                        "/securityDefinitions/" + WotAffordanceForm.EscapePointerToken(schemeName) +
-                            "/" + WotBindingConformance.MinimumSecurityTerm,
-                        WotBindingConformance.MinimumSecurityTerm));
-                    return false;
-                }
-            }
-            floor = combined;
-            return true;
         }
 
         /// <summary>
@@ -567,6 +564,277 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             return leftRank >= rightRank ? left : right;
         }
 
+        private static bool TryResolveSecurityRequirements(
+            WotAffordanceForm form,
+            WotBindingPlanContext context,
+            string? endpoint,
+            List<WotBindingDiagnostic> diagnostics,
+            out ArrayOf<WotOpcUaSecurityRequirement> requirements,
+            out WotSecurityFloor? commonFloor)
+        {
+            requirements = [];
+            commonFloor = null;
+            if (context.Bounds.MaxSecurityAlternatives <= 0 || context.Bounds.MaxSecurityDepth <= 0)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.BoundsExceeded, "Security compilation bounds must be positive."));
+                return false;
+            }
+            List<WotOpcUaSecurityRequirement> result = [new(null, null)];
+            var active = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string name in form.SecuritySchemes)
+            {
+                List<WotOpcUaSecurityRequirement>? expanded = Expand(name);
+                if (expanded is null)
+                {
+                    return false;
+                }
+                List<WotOpcUaSecurityRequirement>? merged = CombineAlternatives(result, expanded);
+                if (merged is null)
+                {
+                    return false;
+                }
+                result = merged;
+            }
+            if (result.Exists(requirement => requirement.SecurityMode.HasValue ||
+                requirement.SecurityPolicyUri is not null ||
+                requirement.UserIdentityToken.HasValue ||
+                requirement.MinimumSecurity is { IsEmpty: false }))
+            {
+                requirements = result.ToArrayOf();
+            }
+            commonFloor = result[0].MinimumSecurity;
+            foreach (WotOpcUaSecurityRequirement requirement in result)
+            {
+                if (requirement.MinimumSecurity?.SecurityMode != commonFloor?.SecurityMode ||
+                    requirement.MinimumSecurity?.SecurityPolicy != commonFloor?.SecurityPolicy)
+                {
+                    commonFloor = null;
+                    break;
+                }
+            }
+            return true;
+
+            List<WotOpcUaSecurityRequirement>? Expand(string name)
+            {
+                string pointer = "/securityDefinitions/" + WotAffordanceForm.EscapePointerToken(name);
+                if (active.Count >= context.Bounds.MaxSecurityDepth || !active.Add(name))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.BoundsExceeded,
+                        "The security scheme graph is cyclic or exceeds the configured depth.", pointer));
+                    return null;
+                }
+                try
+                {
+                    if (!context.SecurityDefinitions.TryGetValue(name, out WotSecurityDefinition? definition))
+                    {
+                        if (name == "nosec_sc")
+                        {
+                            return [new(null, null)];
+                        }
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.UnknownSecurityScheme,
+                            $"The required security scheme '{name}' is not declared.", pointer));
+                        return null;
+                    }
+                    if (definition.CombinationError is not null)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue, definition.CombinationError, pointer));
+                        return null;
+                    }
+                    if (definition.DeclaresIssueToken && definition.Scheme != WotSecurityScheme.OpcUaAuthentication)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            "Only an OPC UA authentication scheme can reference token acquisition.",
+                            pointer + "/uav:issueToken"));
+                        return null;
+                    }
+                    if (definition.DeclaresMinimumSecurity &&
+                        (definition.Scheme != WotSecurityScheme.Auto ||
+                            definition.MinimumSecurity is not { IsEmpty: false }))
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidSecurityFloor,
+                            $"The '{name}' security scheme declares an invalid minimum security floor; " +
+                            "only an auto scheme can carry a floor with recognized mode and policy names.",
+                            pointer + "/" + WotBindingConformance.MinimumSecurityTerm,
+                            WotBindingConformance.MinimumSecurityTerm));
+                        return null;
+                    }
+                    if (definition.Scheme == WotSecurityScheme.Combo)
+                    {
+                        List<WotOpcUaSecurityRequirement> combinations = definition.CombinesAlternatives
+                            ? [] : [new(null, null)];
+                        foreach (string child in definition.Combines)
+                        {
+                            List<WotOpcUaSecurityRequirement>? nested = Expand(child);
+                            if (nested is null)
+                            {
+                                return null;
+                            }
+                            if (definition.CombinesAlternatives)
+                            {
+                                combinations.AddRange(nested);
+                                if (!CheckBound(combinations.Count))
+                                {
+                                    return null;
+                                }
+                            }
+                            else
+                            {
+                                List<WotOpcUaSecurityRequirement>? merged = CombineAlternatives(combinations, nested);
+                                if (merged is null)
+                                {
+                                    return null;
+                                }
+                                combinations = merged;
+                            }
+                        }
+                        return combinations;
+                    }
+                    if (definition.Scheme == WotSecurityScheme.OpcUaAuthentication)
+                    {
+                        UserTokenType? requiredToken = definition.OpcUaUserIdentityToken switch
+                        {
+                            "Anonymous" => UserTokenType.Anonymous,
+                            "UserName" => UserTokenType.UserName,
+                            "Certificate" => UserTokenType.Certificate,
+                            "IssuedToken" => UserTokenType.IssuedToken,
+                            _ => null
+                        };
+                        if (requiredToken.HasValue)
+                        {
+                            WotCredentialReference? issuer = null;
+                            if (definition.DeclaresIssueToken)
+                            {
+                                if (requiredToken != UserTokenType.IssuedToken ||
+                                    string.IsNullOrEmpty(definition.OpcUaIssueToken) ||
+                                    !context.SecurityDefinitions.TryGetValue(
+                                        definition.OpcUaIssueToken!, out WotSecurityDefinition? issuerDefinition))
+                                {
+                                    diagnostics.Add(WotBindingDiagnostic.Error(
+                                        WotBindingDiagnosticCode.InvalidFieldValue,
+                                        "IssuedToken acquisition requires a declared security scheme name.",
+                                        pointer + "/uav:issueToken"));
+                                    return null;
+                                }
+                                if (Expand(definition.OpcUaIssueToken!) is null)
+                                {
+                                    return null;
+                                }
+                                issuer = WotCredentialReference.FromDefinition(issuerDefinition, BindingUri, endpoint);
+                            }
+                            return [new(null, null, requiredToken, null, issuer)];
+                        }
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            "The OPC UA authentication scheme requires a valid user token kind.", pointer));
+                        return null;
+                    }
+                    if (definition.Scheme != WotSecurityScheme.OpcUaChannelSecurity)
+                    {
+                        return [new(null, null, null, definition.MinimumSecurity)];
+                    }
+                    if (!WotBindingConformance.IsSecurityMode(definition.OpcUaSecurityMode) ||
+                        !WotBindingConformance.IsSecurityPolicy(definition.OpcUaSecurityPolicy))
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            "An OPC UA channel scheme requires a valid exact security mode and policy.", pointer));
+                        return null;
+                    }
+                    MessageSecurityMode mode = definition.OpcUaSecurityMode switch
+                    {
+                        "None" => MessageSecurityMode.None,
+                        "Sign" => MessageSecurityMode.Sign,
+                        _ => MessageSecurityMode.SignAndEncrypt
+                    };
+                    var channel = new WotOpcUaSecurityRequirement(
+                        mode, WotOpcUaSecurityRequirement.PolicyPrefix + definition.OpcUaSecurityPolicy);
+                    if (!channel.IsConsistent)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.ConflictingFields,
+                            "Security mode None requires policy None, and a secured mode requires a secured policy.",
+                            pointer));
+                        return null;
+                    }
+                    return [channel];
+                }
+                finally
+                {
+                    active.Remove(name);
+                }
+            }
+
+            List<WotOpcUaSecurityRequirement>? CombineAlternatives(
+                List<WotOpcUaSecurityRequirement> left, List<WotOpcUaSecurityRequirement> right)
+            {
+                var combinations = new List<WotOpcUaSecurityRequirement>();
+                foreach (WotOpcUaSecurityRequirement first in left)
+                {
+                    foreach (WotOpcUaSecurityRequirement second in right)
+                    {
+                        if ((first.SecurityMode.HasValue &&
+                            second.SecurityMode.HasValue &&
+                            first.SecurityMode != second.SecurityMode) ||
+                            (first.SecurityPolicyUri is not null &&
+                                second.SecurityPolicyUri is not null &&
+                                first.SecurityPolicyUri != second.SecurityPolicyUri) ||
+                            (first.UserIdentityToken.HasValue &&
+                                second.UserIdentityToken.HasValue &&
+                                first.UserIdentityToken != second.UserIdentityToken) ||
+                            (first.IssueTokenReference is not null &&
+                                second.IssueTokenReference is not null &&
+                                first.IssueTokenReference.SchemeName != second.IssueTokenReference.SchemeName))
+                        {
+                            continue;
+                        }
+                        var combined = new WotOpcUaSecurityRequirement(
+                            first.SecurityMode ?? second.SecurityMode,
+                            first.SecurityPolicyUri ?? second.SecurityPolicyUri,
+                            first.UserIdentityToken ?? second.UserIdentityToken,
+                            second.MinimumSecurity is null ? first.MinimumSecurity :
+                                Combine(first.MinimumSecurity, second.MinimumSecurity),
+                            first.IssueTokenReference ?? second.IssueTokenReference);
+                        if (!combined.IsConsistent)
+                        {
+                            continue;
+                        }
+                        combinations.Add(combined);
+                        if (!CheckBound(combinations.Count))
+                        {
+                            return null;
+                        }
+                    }
+                }
+                if (combinations.Count == 0)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.ConflictingFields,
+                        "The combined OPC UA schemes have no compatible mode, policy and identity combination.",
+                        form.Pointer("security")));
+                    return null;
+                }
+                return combinations;
+            }
+
+            bool CheckBound(int count)
+            {
+                if (count <= context.Bounds.MaxSecurityAlternatives)
+                {
+                    return true;
+                }
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.BoundsExceeded,
+                    "The security combinations exceed the configured alternative limit.", form.Pointer("security")));
+                return false;
+            }
+        }
+
         private static bool IsOpcScheme(string scheme)
         {
             foreach (string handled in s_schemes)
@@ -579,50 +847,280 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             return false;
         }
 
-        private static string? ResolveNodeId(WotAffordanceForm form)
+        private static WotEndpointDescriptor MakeOpcUaEndpoint(Uri uri, bool nodeIdInPath)
         {
-            if (form.TryGetString("uav:id", out string id) && !string.IsNullOrEmpty(id))
+            WotEndpointDescriptor endpoint = MakeEndpoint(uri);
+            if (nodeIdInPath)
             {
-                return id;
+                return endpoint;
             }
-            if (!string.IsNullOrEmpty(form.Href) && TryParseUri(form.Href!, out Uri uri))
+            WotPortableIdentity.ReadUriTargetNodeId(ToTransmittedUri(uri), out string address);
+            if (uri.AbsolutePath is "" or "/" && !address.Contains('?', StringComparison.Ordinal))
             {
-                string path = uri.AbsolutePath.Trim('/');
-                if (LooksLikeNodeId(path))
+                return endpoint;
+            }
+            return new WotEndpointDescriptor(
+                endpoint.Scheme, endpoint.Host, endpoint.Port, address, endpoint.Metadata);
+        }
+
+        private static string? ResolveNodeId(WotAffordanceForm form, out bool nodeIdInPath)
+        {
+            string? hrefTarget = ResolveHrefNodeId(form.Href, out nodeIdInPath);
+            return form.TryGetString("uav:id", out string id) && !string.IsNullOrEmpty(id) ? id : hrefTarget;
+        }
+
+        private static string? ResolveHrefNodeId(string? href, out bool nodeIdInPath)
+        {
+            nodeIdInPath = false;
+            if (!string.IsNullOrEmpty(href) && TryParseUri(href!, out Uri uri))
+            {
+                string? target = WotPortableIdentity.ReadUriTargetNodeId(ToTransmittedUri(uri), out _);
+                if (target is not null)
                 {
-                    return Uri.UnescapeDataString(path);
+                    return target;
                 }
-                string query = uri.Query.TrimStart('?');
-                if (query.StartsWith("id=", StringComparison.OrdinalIgnoreCase))
+                string path = Uri.UnescapeDataString(uri.AbsolutePath.Trim('/'));
+                if (!string.IsNullOrEmpty(path) && ExpandedNodeId.TryParse(path, out _))
                 {
-                    return Uri.UnescapeDataString(query[3..]);
+                    nodeIdInPath = true;
+                    return path;
                 }
             }
             return null;
         }
 
-        private static bool LooksLikeNodeId(string value)
+        private static bool TryCompileCallReceiver(
+            WotAffordanceForm form,
+            WotEndpointDescriptor endpoint,
+            WotBindingPlanContext context,
+            List<WotBindingDiagnostic> diagnostics,
+            ref ImmutableDictionary<string, string> metadata)
         {
-            if (string.IsNullOrEmpty(value))
+            if (form.Kind == WotAffordanceKind.Action &&
+                context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero)
             {
+                return TryCompilePublishedCallReceiver(form, context, diagnostics, ref metadata);
+            }
+            const string term = "uav:callObjectId";
+            if (form.AffordanceElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                form.AffordanceElement.TryGetProperty(term, out _))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue,
+                    "A Call receiver belongs on the selected form, not on the action affordance.",
+                    form.AffordancePointer(term), term));
                 return false;
             }
-            // A textual OPC UA NodeId always carries an identifier assignment
-            // (for example "i=", "s=", "g=", "b=" or a namespace "ns=").
-            foreach (char c in value)
+            if (form.FormElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                form.FormElement.TryGetProperty(term, out _))
             {
-                if (c == '=')
+                if (form.Kind != WotAffordanceKind.Action ||
+                    !form.TryGetString(term, out string receiver) ||
+                    !WotPortableIdentity.IsPortableNodeId(receiver) ||
+                    !ExpandedNodeId.TryParse(receiver, out ExpandedNodeId parsed) ||
+                    parsed.IsNull)
                 {
-                    return true;
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        "A Call form's uav:callObjectId must be a non-null portable receiver NodeId.",
+                        form.Pointer(term), term));
+                    return false;
                 }
+                metadata = metadata.Add("callObjectId", receiver);
+                return true;
             }
+            if (form.Kind != WotAffordanceKind.Action)
+            {
+                return true;
+            }
+            if (form.SourceCallReceiver is { } sourceReceiver)
+            {
+                if (!WotCallReceiver.TryGetEndpoint(endpoint.BaseUri, out string selectedEndpoint) ||
+                    !string.Equals(selectedEndpoint, form.SourceCallEndpoint, StringComparison.Ordinal))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        "The selected Call endpoint differs from the original source Thing endpoint.",
+                        form.Pointer("href"), "href"));
+                    return false;
+                }
+                metadata = metadata.Add("callObjectId", sourceReceiver).Add("sourceCallReceiver", "object");
+                return true;
+            }
+            diagnostics.Add(WotBindingDiagnostic.Error(
+                WotBindingDiagnosticCode.MissingRequiredField,
+                (form.SourceCallError ??
+                    "An OPC UA action requires a captured original source Thing Object.") +
+                    " Otherwise, author a form-scoped uav:callObjectId; local containment does not identify it.",
+                form.Pointer(term), term));
             return false;
         }
 
-        private static ImmutableDictionary<string, string> AddIfPresent(
-            WotAffordanceForm form, string term, string key, ImmutableDictionary<string, string> metadata)
+        private static bool TryCompilePublishedCallReceiver(
+            WotAffordanceForm form,
+            WotBindingPlanContext context,
+            List<WotBindingDiagnostic> diagnostics,
+            ref ImmutableDictionary<string, string> metadata)
         {
-            return form.TryGetString(term, out string value) ? metadata.Add(key, value) : metadata;
+            const string componentTerm = "uav:componentOf";
+            const string receiverTerm = "uav:callObjectId";
+            if (form.AffordanceElement.ValueKind == JsonValueKind.Object &&
+                form.AffordanceElement.TryGetProperty(receiverTerm, out _))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue,
+                    "A Call receiver belongs on the selected form, not on the action affordance.",
+                    form.AffordancePointer(receiverTerm), receiverTerm));
+                return false;
+            }
+            string? declaration = form.SourceComponentOf;
+            if (declaration is null &&
+                form.AffordanceElement.ValueKind == JsonValueKind.Object &&
+                !form.AffordanceElement.TryGetProperty("uav:resolvedFrom", out _) &&
+                form.AffordanceElement.TryGetProperty(componentTerm, out JsonElement authored))
+            {
+                declaration = authored.GetRawText();
+            }
+            if (declaration is null)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.MissingRequiredField,
+                    "Published OPC 10101 v1.00 actions require an array-valued action-level uav:componentOf.",
+                    form.AffordancePointer(componentTerm), componentTerm));
+                return false;
+            }
+
+            List<string> candidates = [];
+            try
+            {
+                using JsonDocument json = JsonDocument.Parse(declaration);
+                JsonElement array = json.RootElement;
+                if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() == 0)
+                {
+                    throw new FormatException("uav:componentOf must be a non-empty array of portable NodeIds.");
+                }
+                var unique = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonElement item in array.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.String ||
+                        item.GetString() is not { } value ||
+                        (form.SourceComponentOf is not null && !WotPortableIdentity.IsPortableNodeId(value)) ||
+                        !TryCanonicalOwnerId(value, context.NamespacePrefixes, out string candidate) ||
+                        !unique.Add(candidate))
+                    {
+                        throw new FormatException(
+                            "Every uav:componentOf entry must be a unique, resolvable portable NodeId.");
+                    }
+                    candidates.Add(candidate);
+                }
+            }
+            catch (Exception exception) when (exception is JsonException or FormatException)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue,
+                    exception.Message, form.AffordancePointer(componentTerm), componentTerm));
+                return false;
+            }
+
+            if (form.FormElement.ValueKind == JsonValueKind.Object &&
+                form.FormElement.TryGetProperty(receiverTerm, out _))
+            {
+                if (form.PublishedCallObjectIdError is { } receiverError)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        receiverError, form.Pointer(receiverTerm), receiverTerm));
+                    return false;
+                }
+                string? capturedReceiver = form.PublishedCallObjectId;
+                bool validReceiver = capturedReceiver is not null;
+                string canonicalReceiver = capturedReceiver ?? string.Empty;
+                if (!validReceiver &&
+                    form.TryGetString(receiverTerm, out string receiver) &&
+                    !WotPortableIdentity.IsSessionLocalNodeId(receiver))
+                {
+                    validReceiver = TryCanonicalOwnerId(receiver, context.NamespacePrefixes, out canonicalReceiver);
+                }
+                if (!validReceiver ||
+                    !candidates.Contains(canonicalReceiver))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.ConflictingFields,
+                        "The explicit Call receiver must match an action-level uav:componentOf candidate.",
+                        form.Pointer(receiverTerm), receiverTerm));
+                    return false;
+                }
+                metadata = metadata.Add("callObjectId", canonicalReceiver);
+            }
+            metadata = metadata
+                .Add("componentOfCandidates", SerializeOwnerIds(candidates))
+                .Add("sourceCallReceiver", "componentOf")
+                .Add("bindingProcessingMode", "published-one-zero");
+            return true;
+        }
+
+        private static bool TryCanonicalOwnerId(
+            string value, ImmutableDictionary<string, string> namespacePrefixes, out string canonical)
+        {
+            canonical = string.Empty;
+            if (WotPortableIdentity.IsPortableNodeId(value))
+            {
+                canonical = WotPortableIdentity.CanonicalNodeId(value);
+                return true;
+            }
+            if (!value.StartsWith("ns=", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            int separator = value.IndexOf(';', StringComparison.Ordinal);
+            if (separator < 3 ||
+                !TryParseNamespaceIndex(value, separator, out ushort namespaceIndex) ||
+                !NodeId.TryParse(value.Substring(separator + 1), out NodeId nodeId) ||
+                nodeId.NamespaceIndex != 0)
+            {
+                return false;
+            }
+            if (namespaceIndex == 0)
+            {
+                canonical = nodeId.ToString();
+                return true;
+            }
+            if (!namespacePrefixes.TryGetValue(
+                namespaceIndex.ToString(CultureInfo.InvariantCulture), out string? namespaceUri))
+            {
+                return false;
+            }
+            canonical = WotPortableIdentity.CanonicalNodeId(
+                "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";" + nodeId);
+            return true;
+        }
+
+        private static bool TryParseNamespaceIndex(string value, int separator, out ushort namespaceIndex)
+        {
+#if NETFRAMEWORK || NETSTANDARD2_0
+            return ushort.TryParse(
+                value.Substring(3, separator - 3), NumberStyles.None, CultureInfo.InvariantCulture,
+                out namespaceIndex);
+#else
+            return ushort.TryParse(
+                value.AsSpan(3, separator - 3), NumberStyles.None, CultureInfo.InvariantCulture,
+                out namespaceIndex);
+#endif
+        }
+
+        private static string SerializeOwnerIds(List<string> candidates)
+        {
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartArray();
+                foreach (string candidate in candidates)
+                {
+                    writer.WriteStringValue(candidate);
+                }
+                writer.WriteEndArray();
+            }
+            return Encoding.UTF8.GetString(stream.ToArray());
         }
 
         private static string OpcUaService(WoTBindingCapabilityEnum operation)

@@ -1173,7 +1173,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify the PEM Writer, no password.
         /// </summary>
         [Test]
-        [Order(530)]
         public void VerifyPemWriterRSAPrivateKeys()
         {
             // all app certs are trusted
@@ -1385,13 +1384,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Validate various null parameter return null exception.
         /// </summary>
         [Test]
-        public void TestNullParameters()
+        public async Task TestNullParameters()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             using var validator = TemporaryCertificateManager.Create(telemetry);
             CertificateManager certValidator = validator.Update();
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await certValidator.UpdateAsync(null!).ConfigureAwait(false));
         }
 
@@ -2204,7 +2203,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// suppressible status code, not the user's exception.
         /// </summary>
         [Test]
-        public Task AcceptErrorCallbackThrowingDoesNotPropagateAsync()
+        public async Task AcceptErrorCallbackThrowingDoesNotPropagateAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -2225,7 +2224,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var publicKey = Certificate.FromRawData(selfSigned.RawData);
 
             CertificateValidationResult? result = null;
-            Assert.DoesNotThrowAsync(async () => result = await certValidator
+            await Assert.DoesNotThrowAsync(async () => result = await certValidator
                     .ValidateAsync(publicKey, ct: CancellationToken.None)
                     .ConfigureAwait(false), "AcceptError callback exception must not propagate out of ValidateAsync.");
 
@@ -2237,7 +2236,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "Caller sees the underlying validation error, not the callback exception.");
 
             certValidator.AcceptError = null;
-            return Task.CompletedTask;
         }
 
         /// <summary>

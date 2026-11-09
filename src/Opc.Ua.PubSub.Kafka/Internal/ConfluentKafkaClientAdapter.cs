@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Kafka.Internal
 {
@@ -114,7 +115,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             }
             ThrowIfDisposed();
             ct.ThrowIfCancellationRequested();
-            ValidateCredentialTransport(options);
+            KafkaSecurityProtocol securityProtocol = ValidateCredentialTransport(options);
 
             bool raiseConnected;
             lock (m_sync)
@@ -126,7 +127,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             }
             m_logger.KafkaAdapterConnected(
                 string.IsNullOrEmpty(options.BootstrapServers) ? options.Endpoint : options.BootstrapServers,
-                options.SecurityProtocol);
+                securityProtocol);
             if (raiseConnected)
             {
                 ConnectionStateChanged?.Invoke(
@@ -272,6 +273,48 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 m_disposed = true;
             }
             await ShutdownAsync(raiseEvent: false).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Builds the producer configuration using the effective transport and credential policy.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="options"/> is null.
+        /// </exception>
+        internal static ProducerConfig CreateProducerConfig(KafkaConnectionOptions options)
+        {
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            var config = new ProducerConfig();
+            ApplyCommonConfig(config, options);
+            KafkaDeliveryGuarantee guarantee = options.DeliveryGuarantee.ToDeliveryGuarantee();
+            config.Acks = MapAcks(guarantee.Acks);
+            config.EnableIdempotence = guarantee.EnableIdempotence;
+            config.MessageTimeoutMs = (int)options.MessageTimeout.TotalMilliseconds;
+            config.MessageMaxBytes = options.MaxMessageSize;
+            return config;
+        }
+
+        /// <summary>
+        /// Builds the consumer configuration using the effective transport and credential policy.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="options"/> is null.
+        /// </exception>
+        internal static ConsumerConfig CreateConsumerConfig(KafkaConnectionOptions options)
+        {
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            var config = new ConsumerConfig();
+            ApplyCommonConfig(config, options);
+            config.GroupId = ResolveGroupId(options);
+            config.AutoOffsetReset = MapAutoOffsetReset(options.AutoOffsetReset);
+            config.EnableAutoCommit = options.EnableAutoCommit;
+            return config;
         }
 
         private async ValueTask ShutdownAsync(bool raiseEvent)
@@ -482,30 +525,12 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             }
         }
 
-        private static ProducerConfig CreateProducerConfig(KafkaConnectionOptions options)
-        {
-            var config = new ProducerConfig();
-            ApplyCommonConfig(config, options);
-            KafkaDeliveryGuarantee guarantee = options.DeliveryGuarantee.ToDeliveryGuarantee();
-            config.Acks = MapAcks(guarantee.Acks);
-            config.EnableIdempotence = guarantee.EnableIdempotence;
-            config.MessageTimeoutMs = (int)options.MessageTimeout.TotalMilliseconds;
-            config.MessageMaxBytes = options.MaxMessageSize;
-            return config;
-        }
-
-        private static ConsumerConfig CreateConsumerConfig(KafkaConnectionOptions options)
-        {
-            var config = new ConsumerConfig();
-            ApplyCommonConfig(config, options);
-            config.GroupId = ResolveGroupId(options);
-            config.AutoOffsetReset = MapAutoOffsetReset(options.AutoOffsetReset);
-            config.EnableAutoCommit = options.EnableAutoCommit;
-            return config;
-        }
-
+        /// <summary>
+        /// Applies common broker settings and the validated effective transport to either client.
+        /// </summary>
         private static void ApplyCommonConfig(ClientConfig config, KafkaConnectionOptions options)
         {
+            KafkaSecurityProtocol securityProtocol = ValidateCredentialTransport(options);
             string bootstrap = options.BootstrapServers;
             if (string.IsNullOrEmpty(bootstrap) && !string.IsNullOrEmpty(options.Endpoint))
             {
@@ -516,7 +541,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             {
                 config.ClientId = options.ClientId;
             }
-            config.SecurityProtocol = MapSecurityProtocol(options.SecurityProtocol);
+            config.SecurityProtocol = MapSecurityProtocol(securityProtocol);
             if (options.SaslMechanism != KafkaSaslMechanism.None)
             {
                 config.SaslMechanism = MapSaslMechanism(options.SaslMechanism);
@@ -548,23 +573,50 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             }
         }
 
-        private static void ValidateCredentialTransport(KafkaConnectionOptions options)
+        /// <summary>
+        /// Validates credentials against the same effective protocol installed on both clients.
+        /// </summary>
+        private static KafkaSecurityProtocol ValidateCredentialTransport(KafkaConnectionOptions options)
         {
-            if (options.SaslMechanism == KafkaSaslMechanism.None ||
-                string.IsNullOrEmpty(options.UserName))
-            {
-                return;
-            }
-            bool useTls = options.SecurityProtocol
-                    is KafkaSecurityProtocol.Ssl
-                    or KafkaSecurityProtocol.SaslSsl ||
-                (options.Tls?.UseTls ?? false);
-            if (!useTls && !options.AllowCredentialsOverPlaintext)
+            KafkaSecurityProtocol securityProtocol = ResolveSecurityProtocol(options);
+            bool useTls = securityProtocol is KafkaSecurityProtocol.Ssl or KafkaSecurityProtocol.SaslSsl;
+            if (options.SaslMechanism != KafkaSaslMechanism.None &&
+                !string.IsNullOrEmpty(options.UserName) &&
+                !useTls &&
+                !options.AllowCredentialsOverPlaintext)
             {
                 throw new InvalidOperationException(
                     "Kafka SASL credentials require TLS unless " +
                     "KafkaConnectionOptions.AllowCredentialsOverPlaintext is set.");
             }
+            return securityProtocol;
+        }
+
+        /// <summary>
+        /// Reconciles explicit TLS and endpoint security without downgrading an existing SSL protocol.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The configured security protocol is unsupported.
+        /// </exception>
+        private static KafkaSecurityProtocol ResolveSecurityProtocol(KafkaConnectionOptions options)
+        {
+            bool useTls = (options.Tls?.UseTls ?? false) ||
+                (!string.IsNullOrEmpty(options.Endpoint) && KafkaEndpointParser.Parse(options.Endpoint).UseTls);
+            return options.SecurityProtocol switch
+            {
+                KafkaSecurityProtocol.Plaintext => useTls
+                    ? KafkaSecurityProtocol.Ssl
+                    : KafkaSecurityProtocol.Plaintext,
+                KafkaSecurityProtocol.SaslPlaintext => useTls
+                    ? KafkaSecurityProtocol.SaslSsl
+                    : KafkaSecurityProtocol.SaslPlaintext,
+                KafkaSecurityProtocol.Ssl => KafkaSecurityProtocol.Ssl,
+                KafkaSecurityProtocol.SaslSsl => KafkaSecurityProtocol.SaslSsl,
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    options.SecurityProtocol,
+                    "Unsupported Kafka security protocol.")
+            };
         }
 
         private static string ResolveGroupId(KafkaConnectionOptions options)
@@ -591,6 +643,12 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             };
         }
 
+        /// <summary>
+        /// Maps supported wire protocols without a plaintext fallback.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="protocol"/> is unsupported.
+        /// </exception>
         private static SecurityProtocol MapSecurityProtocol(KafkaSecurityProtocol protocol)
         {
             return protocol switch
@@ -599,7 +657,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 KafkaSecurityProtocol.Ssl => SecurityProtocol.Ssl,
                 KafkaSecurityProtocol.SaslPlaintext => SecurityProtocol.SaslPlaintext,
                 KafkaSecurityProtocol.SaslSsl => SecurityProtocol.SaslSsl,
-                _ => SecurityProtocol.Plaintext
+                _ => throw new ArgumentOutOfRangeException(nameof(protocol), protocol, "Unsupported security protocol.")
             };
         }
 
@@ -637,18 +695,24 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             this ILogger logger,
             Exception exception,
             ErrorCode code,
-            string? reason);
+            [SensitiveText] string? reason);
 
         [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 1, Level = LogLevel.Trace,
             Message = "librdkafka [{Facility}] {Message}")]
-        public static partial void LibrdkafkaTrace(this ILogger logger, string facility, string message);
+        public static partial void LibrdkafkaTrace(
+            this ILogger logger,
+            string facility,
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 2, Level = LogLevel.Error,
             Message = "Kafka fatal error {Code}: {Reason}")]
-        public static partial void KafkaFatalError(this ILogger logger, ErrorCode code, string? reason);
+        public static partial void KafkaFatalError(
+            this ILogger logger,
+            ErrorCode code,
+            [SensitiveText] string? reason);
 
         [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 3, Level = LogLevel.Warning,
             Message = "Kafka error {Code}: {Reason}")]
-        public static partial void KafkaError(this ILogger logger, ErrorCode code, string? reason);
+        public static partial void KafkaError(this ILogger logger, ErrorCode code, [SensitiveText] string? reason);
     }
 }

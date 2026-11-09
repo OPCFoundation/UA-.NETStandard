@@ -1,0 +1,1106 @@
+{
+  "repository": "https://github.com/OPCFoundation/UA-Nodeset",
+  "revision": "96a08945425d0295edb3607d2a38f6841ef44046",
+  "packageNotice": "licenses/CompanionModels.NOTICE.txt",
+  "scope": "Information-model foundations only; not a device implementation or certification.",
+  "models": [
+    {
+      "project": "Opc.Ua.PlasticsRubber",
+      "specification": "OPC 40083",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+      "version": "1.03",
+      "publicationDate": "2021-05-10T12:00:00Z",
+      "clrNamespace": "Opc.Ua.PlasticsRubber",
+      "modelName": "PlasticsRubber",
+      "loader": "AddOpcUaPlasticsRubber",
+      "nodeSet": {
+        "kind": "independently-authored-interface-implementation",
+        "sha256": "6a67e0a713add07af0f92fe13ec76686d21af4887ed223497f49f7c5d36da62e",
+        "basis": {
+          "source": "PlasticsRubber/GeneralTypes/1.02/Opc.Ua.PlasticsRubber.GeneralTypes.NodeSet2.xml",
+          "sha256": "5fe4469bf64ebab5a828d2f888dca85e985cf2d48286029d37565c09e4ac9ba8",
+          "version": "1.02",
+          "license": "OPC Foundation MIT License 1.00",
+          "localPath": "Basis/Opc.Ua.PlasticsRubber.GeneralTypes.1.02.NodeSet2.xml"
+        },
+        "implementation": {
+          "script": "author-interface-model.py",
+          "basedOnSpecification": "https://reference.opcfoundation.org/specs/OPC-40083/v1.03",
+          "agreement": "https://reference.opcfoundation.org/specs/OPC-40083/v1.03/agreement-of-use",
+          "changes": "13 additions, 9 changed nodes, no removals; dictionaries regenerated from DataType definitions.",
+          "excludedInputs": "Official 1.03 XML, its prose, schema blobs and identifier table are not redistribution or generation inputs.",
+          "metadata": "Version and publication identify the implemented interface contract, not this implementation's origin."
+        }
+      },
+      "upstreamIdentifiers": null,
+      "identifierGuard": {
+        "sha256": "f397145b96ea9e36737c455507cc9d12165835a2cbe5510414b13ff0b213f3a8",
+        "derivation": "From authored NodeSet only; not an upstream table."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "PublicationDate": "2020-07-15T00:00:00Z",
+          "Version": "1.04.7"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "PublicationDate": "2020-06-02T00:00:00Z",
+          "Version": "1.02.2"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di"
+      ],
+      "nodeCounts": {
+        "UADataType": 28,
+        "UAMethod": 76,
+        "UAObject": 66,
+        "UAObjectType": 69,
+        "UAVariable": 722
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-1",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion",
+      "modelName": "Extrusion",
+      "loader": "AddOpcUaExtrusion",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/GeneralTypes/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.GeneralTypes.NodeSet2.xml",
+        "sha256": "20f4ce69b4701646ccbbedfb64450097d699d9eeae23496918e1fea9da4d1fe6",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/GeneralTypes/2.00/NodeIds.csv",
+        "sha256": "885298075f5075845e7d831152076e7709b9f0ccc51713a9d5e0aaca873df4ba"
+      },
+      "identifierGuard": {
+        "sha256": "7c90e1447ff97594abb4b5581d31c830d34c4cf8d22f29e5577938d23baad97f",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UADataType": 1,
+        "UAMethod": 62,
+        "UAObject": 102,
+        "UAObjectType": 11,
+        "UAVariable": 1042
+      },
+      "upstreamIdentifierDiscrepancies": [
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromExecutingToExecuting",
+          "identifier": 5105,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromExecutingToNotAvailable",
+          "identifier": 5106,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromExecutingToNotExecuting",
+          "identifier": 5107,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromExecutingToOutOfService",
+          "identifier": 5108,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotAvailableToExecuting",
+          "identifier": 5109,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotAvailableToNotAvailable",
+          "identifier": 5110,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotAvailableToNotExecuting",
+          "identifier": 5111,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotAvailableToOutOfService",
+          "identifier": 5112,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotExecutingToExecuting",
+          "identifier": 5113,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotExecutingToNotAvailable",
+          "identifier": 5114,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotExecutingToNotExecuting",
+          "identifier": 5115,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotExecutingToOutOfService",
+          "identifier": 5116,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromOutOfServiceToExecuting",
+          "identifier": 5117,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromOutOfServiceToNotAvailable",
+          "identifier": 5118,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromOutOfServiceToNotExecuting",
+          "identifier": 5119,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromOutOfServiceToOutOfService",
+          "identifier": 5120,
+          "nodeClass": "Object"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromExecutingToExecuting_TransitionNumber",
+          "identifier": 6706,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromExecutingToNotAvailable_TransitionNumber",
+          "identifier": 6707,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromExecutingToNotExecuting_TransitionNumber",
+          "identifier": 6708,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromExecutingToOutOfService_TransitionNumber",
+          "identifier": 6709,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotAvailableToExecuting_TransitionNumber",
+          "identifier": 6710,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotAvailableToNotAvailable_TransitionNumber",
+          "identifier": 6711,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotAvailableToNotExecuting_TransitionNumber",
+          "identifier": 6712,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotAvailableToOutOfService_TransitionNumber",
+          "identifier": 6713,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotExecutingToExecuting_TransitionNumber",
+          "identifier": 6714,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotExecutingToNotAvailable_TransitionNumber",
+          "identifier": 6715,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotExecutingToNotExecuting_TransitionNumber",
+          "identifier": 6716,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromNotExecutingToOutOfService_TransitionNumber",
+          "identifier": 7053,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromOutOfServiceToExecuting_TransitionNumber",
+          "identifier": 7054,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromOutOfServiceToNotAvailable_TransitionNumber",
+          "identifier": 7055,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromOutOfServiceToNotExecuting_TransitionNumber",
+          "identifier": 7056,
+          "nodeClass": "Variable"
+        },
+        {
+          "kind": "published-table-row-absent-from-nodeset",
+          "symbolicName": "ExtrusionDeviceType_MachineryBuildingBlocks_MachineryItemState_FromOutOfServiceToOutOfService_TransitionNumber",
+          "identifier": 7121,
+          "nodeClass": "Variable"
+        }
+      ],
+      "modelDirectory": "GeneralTypes/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-2",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/ExtrusionLine/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.Line",
+      "modelName": "ExtrusionLine",
+      "loader": "AddOpcUaExtrusionLine",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/ExtrusionLine/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.ExtrusionLine.NodeSet2.xml",
+        "sha256": "21dcf568e4a819343c88741bb33ad89323b0e21cdc7935d70d19e44d5f0d9319",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/ExtrusionLine/2.00/NodeIds.csv",
+        "sha256": "69cb03576bb3a4400e61545db58c08f4a9b5b0d43ba7219ab4323cbc7cf1e707"
+      },
+      "identifierGuard": {
+        "sha256": "1b51cbf87d11c4d264e04a59e8cc4cec5cc78617c522fb35051e39ba822b1352",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UADataType": 1,
+        "UAMethod": 24,
+        "UAObject": 19,
+        "UAObjectType": 10,
+        "UAVariable": 211
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Line/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-3",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Extruder/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.Extruder",
+      "modelName": "ExtrusionExtruder",
+      "loader": "AddOpcUaExtrusionExtruder",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/Extruder/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Extruder.NodeSet2.xml",
+        "sha256": "b6ec3dd6ce6ade02ccecf1ff4daf5042b998096809ff81130ba5e3b864afd3ca",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/Extruder/2.00/NodeIds.csv",
+        "sha256": "ac9f521f49e34675e6ab7d5b4d71b268b4b43bfbc7de2890fdd77d8b1e9b4a96"
+      },
+      "identifierGuard": {
+        "sha256": "cdc9f35309bbba8668d5efa3f9eca2851f9100f4fdd692a87de688127459b72e",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UADataType": 1,
+        "UAMethod": 22,
+        "UAObject": 38,
+        "UAObjectType": 4,
+        "UAVariable": 502
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Extruder/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-4",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/HaulOff/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.HaulOff",
+      "modelName": "ExtrusionHaulOff",
+      "loader": "AddOpcUaExtrusionHaulOff",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/HaulOff/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.HaulOff.NodeSet2.xml",
+        "sha256": "3b784aafb2b85714d53a3dadf0a2f2f5c4de86934be791f925385b269305f96e",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/HaulOff/2.00/NodeIds.csv",
+        "sha256": "6fa33c7d810e921302b1801a798b899c872f42178af33e97a4ccd5fb892a45f3"
+      },
+      "identifierGuard": {
+        "sha256": "c7ddafea95fcf0c1ff10a00f74c05815c800e0d3dfb8ee0fb464d4d4827c308f",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UAMethod": 6,
+        "UAObject": 6,
+        "UAObjectType": 1,
+        "UAVariable": 60
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "HaulOff/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-5",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/MeltPump/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.MeltPump",
+      "modelName": "ExtrusionMeltPump",
+      "loader": "AddOpcUaExtrusionMeltPump",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/MeltPump/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.MeltPump.NodeSet2.xml",
+        "sha256": "28a729dea897f30fd97c2722559e7e0906e0344fde633a36670bc7aff9f9d33b",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/MeltPump/2.00/NodeIds.csv",
+        "sha256": "b030f5d9ed567d0ad196966e2650748163db900e195f7ddae35e8ed3387037a3"
+      },
+      "identifierGuard": {
+        "sha256": "0f6d8e637a3a25b77c02db352e332a19d05b91d2f21483506088f6f8e1dce31a",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UAMethod": 8,
+        "UAObject": 12,
+        "UAObjectType": 1,
+        "UAVariable": 119
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "MeltPump/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-6",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Filter/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.Filter",
+      "modelName": "ExtrusionFilter",
+      "loader": "AddOpcUaExtrusionFilter",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/Filter/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Filter.NodeSet2.xml",
+        "sha256": "a777d81f671827181d4a3a37e988d007159098dbf3becd7b1e81ae6726d3556c",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/Filter/2.00/NodeIds.csv",
+        "sha256": "59519318454fc2fc4be21741254bae77dd3b51db3b1bcbd41114c48dd3fa2515"
+      },
+      "identifierGuard": {
+        "sha256": "562c52c6c19913b8184335d94258d426b4b4f62158cac7d9e9151356bf95f6b0",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UADataType": 1,
+        "UAMethod": 16,
+        "UAObject": 22,
+        "UAObjectType": 3,
+        "UAVariable": 284
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Filter/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-7",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Die/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.Die",
+      "modelName": "ExtrusionDie",
+      "loader": "AddOpcUaExtrusionDie",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/Die/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Die.NodeSet2.xml",
+        "sha256": "5c46894382556ebbb4baf07f60cde54a66f97e96dfae6517e9e3ed45354b2b5b",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/Die/2.00/NodeIds.csv",
+        "sha256": "31f2d24cf89b62cc93cf5d3a90c776cc42f2090c4ffbf2f1acbda26413ac8e79"
+      },
+      "identifierGuard": {
+        "sha256": "5938a37c967781ae1ff63cd3d66898daf3837ba9f01b2cf6fec23d2636c853e0",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UAMethod": 3,
+        "UAObject": 6,
+        "UAObjectType": 1,
+        "UAVariable": 23
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Die/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-8",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Pelletizer/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.Pelletizer",
+      "modelName": "ExtrusionPelletizer",
+      "loader": "AddOpcUaExtrusionPelletizer",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/Pelletizer/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Pelletizer.NodeSet2.xml",
+        "sha256": "f595f187af91bce55d29ebe528a516553e92e86b4c9a68c0ea4901a1393cc64f",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/Pelletizer/2.00/NodeIds.csv",
+        "sha256": "310868524c6a41f7b22897316baf175aad22d5fe52592fb3548d30d38f80fcd4"
+      },
+      "identifierGuard": {
+        "sha256": "6ea7a9d2929e9c599d0e7be102aea1733da6062080c833cecfb29795fa57a05f",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UAMethod": 8,
+        "UAObject": 14,
+        "UAObjectType": 3,
+        "UAVariable": 131
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Pelletizer/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-9",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Cutter/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.Cutter",
+      "modelName": "ExtrusionCutter",
+      "loader": "AddOpcUaExtrusionCutter",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/Cutter/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Cutter.NodeSet2.xml",
+        "sha256": "b6c709b004033ce5bd3fd156c87bf75d2f4e060a6b8ed75c00b3a4f53641c5da",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/Cutter/2.00/NodeIds.csv",
+        "sha256": "2e9a40171fad68be7c328142f3d054da0b4a50cc941840ee4b7663d48b5d75f7"
+      },
+      "identifierGuard": {
+        "sha256": "34949ce191fb6ea66cc592ec53e769e8946389b437993c99760e8251cedbe04c",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UADataType": 1,
+        "UAMethod": 8,
+        "UAObject": 6,
+        "UAObjectType": 4,
+        "UAVariable": 97
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Cutter/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-10",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Calibrator/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.Calibrator",
+      "modelName": "ExtrusionCalibrator",
+      "loader": "AddOpcUaExtrusionCalibrator",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/Calibrator/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Calibrator.NodeSet2.xml",
+        "sha256": "18f872bd54680fe599919445730f1b561b829ab871b1c29d30cede1cb48bb775",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/Calibrator/2.00/NodeIds.csv",
+        "sha256": "fc38eaa86b9559db9785c6a7af440cca8f0b3ff75b469a168d1775c7b61cde7c"
+      },
+      "identifierGuard": {
+        "sha256": "4445d161b5a9ecab86dcf94b95af6fdd8bbc39388dbc3e15a6db57d9b251c8c2",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UAMethod": 114,
+        "UAObject": 88,
+        "UAObjectType": 3,
+        "UAVariable": 1126
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Calibrator/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-11",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Corrugator/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.Corrugator",
+      "modelName": "ExtrusionCorrugator",
+      "loader": "AddOpcUaExtrusionCorrugator",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/Corrugator/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Corrugator.NodeSet2.xml",
+        "sha256": "149eac84eaaed3fc95f1e9d3b4215ad35a963af8410ecba9e5694819f3fb7f14",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/Corrugator/2.00/NodeIds.csv",
+        "sha256": "f2fbf077c465fb85b7671c04d23e1fd75d3b41f54497f49c6953297711af7dce"
+      },
+      "identifierGuard": {
+        "sha256": "ca4d8f085b0e1066d548d9838e54cdebd2e7ce1b3b64044d429785deffc35483",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/HaulOff/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UAObject": 1,
+        "UAObjectType": 1,
+        "UAVariable": 9
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Corrugator/Model"
+    },
+    {
+      "project": "Opc.Ua.Extrusion",
+      "specification": "OPC 40084-12",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Calender/",
+      "version": "2.00",
+      "publicationDate": "2022-05-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.Extrusion.Calender",
+      "modelName": "ExtrusionCalender",
+      "loader": "AddOpcUaExtrusionCalender",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/Extrusion_v2/Calender/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Calender.NodeSet2.xml",
+        "sha256": "d196cb4d38ecfe9adf7b32285a9fb71f968ebfdb87bcae1ee4c72e87057bbd8b",
+        "license": "OPC Foundation MIT License 1.00"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/Extrusion_v2/Calender/2.00/NodeIds.csv",
+        "sha256": "419599750b961d3930370dca6bfbf0e4a2fab040720e90aaf42f67804b8ae52b"
+      },
+      "identifierGuard": {
+        "sha256": "a3aa4ecb7770c0aca497c66ffea1b010ef9f4b0aadb950dc62db928e99c93dfc",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "Version": "1.04.7",
+          "PublicationDate": "2020-07-15T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "Version": "1.02.2",
+          "PublicationDate": "2020-06-02T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "Version": "1.02.0",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "Version": "1.03",
+          "PublicationDate": "2021-05-10T12:00:00Z"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/",
+          "Version": "2.00",
+          "PublicationDate": "2022-05-01T00:00:00Z"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery",
+        "Opc.Ua.PlasticsRubber"
+      ],
+      "nodeCounts": {
+        "UAMethod": 5,
+        "UAObject": 11,
+        "UAObjectType": 3,
+        "UAVariable": 191
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Calender/Model"
+    },
+    {
+      "project": "Opc.Ua.PlasticsRubber",
+      "specification": "OPC 40082-6",
+      "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/GDD/",
+      "version": "1.0.0",
+      "publicationDate": "2026-10-01T00:00:00Z",
+      "clrNamespace": "Opc.Ua.GranulateDrying",
+      "modelName": "GranulateDrying",
+      "loader": "AddOpcUaGranulateDrying",
+      "nodeSet": {
+        "kind": "unmodified-upstream-publication",
+        "source": "PlasticsRubber/GDD/Opc.Ua.PlasticsRubber.GDD.NodeSet2.xml",
+        "sha256": "9ca7395872123ec4a63821927625689011eefef791c023c55c67a6091b68dbd4",
+        "license": "MIT (SPDX)"
+      },
+      "upstreamIdentifiers": {
+        "source": "PlasticsRubber/GDD/Opc.Ua.PlasticsRubber.GDD.NodeIds.csv",
+        "sha256": "fedbcdfec2e13a13a3af15cfd7bef69936ae064ab8c8d56cf08cb9a3bc68e696"
+      },
+      "identifierGuard": {
+        "sha256": "fec99375f5c642d98a574bf244491338eddc7f9d3b3ac5a18d1e4a4e6a4bd1c2",
+        "derivation": "tools/nodesets/derive-identifier-table.py over the published table and NodeSet."
+      },
+      "requiredModels": [
+        {
+          "ModelVersion": "1.5.6",
+          "ModelUri": "http://opcfoundation.org/UA/",
+          "PublicationDate": "2025-11-08T00:00:00Z",
+          "Version": "1.05.06"
+        },
+        {
+          "ModelVersion": "1.5.0",
+          "ModelUri": "http://opcfoundation.org/UA/DI/",
+          "PublicationDate": "2025-11-15T00:00:00Z",
+          "Version": "1.05.0"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/",
+          "PublicationDate": "2021-05-10T12:00:00Z",
+          "Version": "1.03"
+        },
+        {
+          "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+          "PublicationDate": "2023-08-01T00:00:00Z",
+          "Version": "1.03.0"
+        }
+      ],
+      "projectDependencies": [
+        "Opc.Ua.Core",
+        "Opc.Ua.Di",
+        "Opc.Ua.Machinery"
+      ],
+      "nodeCounts": {
+        "UADataType": 6,
+        "UAMethod": 166,
+        "UAObject": 92,
+        "UAObjectType": 11,
+        "UAVariable": 4029
+      },
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "GranulateDrying/Model"
+    }
+  ]
+}

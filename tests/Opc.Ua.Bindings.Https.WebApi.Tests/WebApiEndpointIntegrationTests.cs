@@ -130,7 +130,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(
                 response.Content.Headers.ContentType?.Parameters,
                 Has.Some.Matches<NameValueHeaderValue>(p =>
-                    p.Name == "encoding" && p.Value == "verbose"));
+                    p is not null && p.Name == "encoding" && p.Value == "verbose"));
         }
 
         [Test]
@@ -149,7 +149,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(
                 response.Content.Headers.ContentType?.Parameters,
                 Has.Some.Matches<NameValueHeaderValue>(p =>
-                    p.Name == "encoding" && p.Value == "compact"),
+                    p is not null && p.Name == "encoding" && p.Value == "compact"),
                 "server must default to Compact encoding per Part 6 §5.4.9");
         }
 

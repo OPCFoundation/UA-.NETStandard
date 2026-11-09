@@ -29,14 +29,11 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Server;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Vision.BinPickingCell
@@ -298,7 +295,7 @@ namespace Vision.BinPickingCell
             string explanation = FormattableString.Invariant(
                 $"{ExplanationUri}?purpose={request.Purpose}&source={Uri.EscapeDataString(modelTag)}");
             string resultId = "det-agent-" + Guid.NewGuid().ToString("N");
-            DateTimeUtc timestamp = DateTimeUtc.From(DateTime.UtcNow);
+            var timestamp = DateTimeUtc.From(DateTime.UtcNow);
             try
             {
                 m_targetProvider.PublishDetections(
@@ -413,7 +410,7 @@ namespace Vision.BinPickingCell
                 ? string.Empty
                 : request.Reason.Text ?? string.Empty;
             string correctionResultId = "det-agent-correction-" + Guid.NewGuid().ToString("N");
-            DateTimeUtc timestamp = DateTimeUtc.From(DateTime.UtcNow);
+            var timestamp = DateTimeUtc.From(DateTime.UtcNow);
             const string modelVersion = "agent-off-server:correction";
             string explanation = FormattableString.Invariant(
                 $"{ExplanationUri}?purpose={request.Purpose}&corrects={Uri.EscapeDataString(request.ResultId)}");
@@ -597,7 +594,7 @@ namespace Vision.BinPickingCell
                     $"Detection {index} Pose.FrameId '{pose.FrameId}' does not match " +
                     $"the calibrated camera frame '{target.CameraFrameId}'.");
             }
-            System.ReadOnlySpan<double> orientation = pose.Orientation.Span;
+            ReadOnlySpan<double> orientation = pose.Orientation.Span;
             if (orientation.Length < 4)
             {
                 return Refuse(
@@ -618,7 +615,7 @@ namespace Vision.BinPickingCell
                     FormattableString.Invariant(
                         $"Detection {index} Pose.Orientation has zero norm and does not describe a rotation."));
             }
-            System.ReadOnlySpan<double> position = pose.Position.Span;
+            ReadOnlySpan<double> position = pose.Position.Span;
             if (position.Length < 3)
             {
                 return Refuse(
@@ -670,14 +667,8 @@ namespace Vision.BinPickingCell
             DetectionResultState state = context.CreateInstanceOfDetectionResultType(
                 target.ResultsFolder, qualifiedName);
             state.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
-            if (state.ResultId != null)
-            {
-                state.ResultId.Value = resultId;
-            }
-            if (state.CreationTime != null)
-            {
-                state.CreationTime.Value = timestamp;
-            }
+            state.ResultId?.Value = resultId;
+            state.CreationTime?.Value = timestamp;
             state.CreateOrReplaceSensor(context, null).Value = target.SensorNodeId;
             state.CreateOrReplacePipeline(context, null).Value = target.PipelineNodeId;
             state.CreateOrReplaceModelVersionUsed(context, null).Value = modelVersion;
@@ -699,15 +690,9 @@ namespace Vision.BinPickingCell
                     SizeBytes = 0u,
                     Timestamp = timestamp
                 };
-            if (state.Detections != null)
-            {
-                state.Detections.Value = detections;
-            }
+            state.Detections?.Value = detections;
             state.AddFrameId(context, NodeId.Null);
-            if (state.FrameId != null)
-            {
-                state.FrameId.Value = target.CameraFrameId;
-            }
+            state.FrameId?.Value = target.CameraFrameId;
             state.NodeId = context.RequireNodeIdFactory().New(context, state);
             context.AssignInstanceChildNodeIds(state, state.NodeId);
             target.ResultsFolder.AddChild(state);

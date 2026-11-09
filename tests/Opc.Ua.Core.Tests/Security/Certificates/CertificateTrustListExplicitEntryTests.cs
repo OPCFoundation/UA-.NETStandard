@@ -272,7 +272,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 long createdBefore = Certificate.InstancesCreated;
                 long disposedBefore = Certificate.InstancesDisposed;
 
-                OperationCanceledException exception = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                OperationCanceledException exception = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 {
                     using CertificateCollection certificates = await trustList
                         .GetCertificatesAsync(m_telemetry, cancellation.Token)

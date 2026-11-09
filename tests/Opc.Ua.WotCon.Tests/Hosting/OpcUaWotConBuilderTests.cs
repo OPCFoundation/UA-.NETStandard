@@ -199,7 +199,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         }
 
         [Test]
-        public void WotConServerStartupValidatorThrowsWithoutAddServer()
+        public async Task WotConServerStartupValidatorThrowsWithoutAddServer()
         {
             IServiceCollection services = new ServiceCollection();
             services.AddLogging();
@@ -210,8 +210,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             using ServiceProvider sp = services.BuildServiceProvider();
             IHostedService validator = sp.GetServices<IHostedService>().Single();
 
-            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await validator.StartAsync(CancellationToken.None).ConfigureAwait(false))!;
+            InvalidOperationException exception = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await validator.StartAsync(CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(exception.Message, Does.Contain("AddServer"));
         }
@@ -395,8 +395,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Func<CancellationToken, Task<WotConnectivityClient>> factory =
                 sp.GetRequiredService<Func<CancellationToken, Task<WotConnectivityClient>>>();
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+            InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(ex.Message, Does.Contain(nameof(WotConClientOptions.LazyConnect)));
         }
 
@@ -410,8 +410,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Func<CancellationToken, Task<WotConnectivityClient>> factory =
                 sp.GetRequiredService<Func<CancellationToken, Task<WotConnectivityClient>>>();
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+            InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(ex.Message, Does.Contain("AddClient"));
         }

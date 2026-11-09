@@ -33,13 +33,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua;
-using Opc.Ua.AI;
 using Opc.Ua.AI.Inference;
-using AIRefs = Opc.Ua.AI.ReferenceTypeIds;
-using BrowseNames = Opc.Ua.AI.BrowseNames;
-using ObjectIds = Opc.Ua.ObjectIds;
-using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Opc.Ua.AI.Server
 {
@@ -57,11 +51,11 @@ namespace Opc.Ua.AI.Server
         {
             Child<InvokeMethodState>(deployment, BrowseNames.Invoke).OnCallAsync =
                 (context, method, objectId, payload, payloadUri, contentType, parameters, timeout, ct) =>
-                    InvokeAsync(objectId, payload, payloadUri, contentType, parameters, timeout, ct);
+                    InvokeAsync(context, method, objectId, payload, payloadUri, contentType, parameters, timeout, ct);
 
             Child<InvokeAsyncMethodState>(deployment, BrowseNames.InvokeAsync).OnCallAsync =
                 (context, method, objectId, payload, payloadUri, contentType, parameters, ct) =>
-                    StartJobAsync(objectId, payload, payloadUri, contentType, parameters, ct);
+                    StartJobAsync(context, objectId, payload, payloadUri, contentType, parameters, ct);
 
             Child<GetCapabilitiesMethodState>(deployment, BrowseNames.GetCapabilities)
                 .OnCallAsync =
@@ -69,7 +63,7 @@ namespace Opc.Ua.AI.Server
 
             Child<BeginTransferMethodState>(deployment, BrowseNames.BeginTransfer).OnCallAsync =
                 (context, method, objectId, contentType, requestSize, ct) =>
-                    BeginTransferAsync(objectId, contentType, requestSize, null, ct);
+                    BeginTransferAsync(context, method, objectId, contentType, requestSize, null, ct);
         }
 
         /// <summary>
@@ -92,11 +86,13 @@ namespace Opc.Ua.AI.Server
         /// </para>
         /// </remarks>
         private async ValueTask<InvokeMethodStateResult> InvokeAsync(
+            ISystemContext context,
+            MethodState method,
             NodeId objectId,
             ByteString payload,
             string payloadUri,
             string contentType,
-            ArrayOf<Opc.Ua.KeyValuePair> parameters,
+            ArrayOf<KeyValuePair> parameters,
             double timeout,
             CancellationToken ct)
         {
@@ -142,6 +138,8 @@ namespace Opc.Ua.AI.Server
             {
                 BeginTransferMethodStateResult transfer =
                     await BeginTransferAsync(
+                        context,
+                        method,
                         objectId,
                         contentType,
                         (ulong)body.Length,
@@ -162,7 +160,7 @@ namespace Opc.Ua.AI.Server
                         ResponseContentType = string.Empty,
                         ModelUsed = NodeId.Null,
                         Usage = new UsageDataType(),
-                        SafetyAssessment = ArrayOf<SafetyAssessmentDataType>.Empty,
+                        SafetyAssessment = [],
                         TransferRequired = true,
                         Transfer = NodeId.Null
                     };
@@ -176,7 +174,7 @@ namespace Opc.Ua.AI.Server
                     ModelUsed = NodeId.Null,
                     Usage = new UsageDataType(),
                     FinishReason = FinishReasonEnum.Length,
-                    SafetyAssessment = ArrayOf<SafetyAssessmentDataType>.Empty,
+                    SafetyAssessment = [],
                     TransferRequired = true,
                     Transfer = transfer.Transfer
                 };
@@ -193,7 +191,7 @@ namespace Opc.Ua.AI.Server
                     TimeoutOrDefault(timeout),
                     ct).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is ArgumentException || ex is JsonException)
+            catch (Exception ex) when (ex is ArgumentException or JsonException)
             {
                 return new InvokeMethodStateResult
                 {
@@ -211,7 +209,7 @@ namespace Opc.Ua.AI.Server
                     RetryAfter = outcome.Result.RetryAfter.TotalMilliseconds,
                     ModelUsed = NodeId.Null,
                     Usage = new UsageDataType(),
-                    SafetyAssessment = ArrayOf<SafetyAssessmentDataType>.Empty,
+                    SafetyAssessment = [],
                     ResponsePayload = ByteString.Empty,
                     ResponseContentType = string.Empty,
                     Transfer = NodeId.Null
@@ -226,7 +224,7 @@ namespace Opc.Ua.AI.Server
                 ModelUsed = outcome.ModelUsed,
                 Usage = ToUsage(outcome.Result),
                 FinishReason = ToFinishReason(outcome.Result.Finish),
-                SafetyAssessment = ArrayOf<SafetyAssessmentDataType>.Empty,
+                SafetyAssessment = [],
                 RetryAfter = 0,
                 TransferRequired = false,
                 Transfer = NodeId.Null
@@ -252,7 +250,7 @@ namespace Opc.Ua.AI.Server
                 return new GetCapabilitiesMethodStateResult
                 {
                     ServiceResult = StatusCodes.BadNodeIdUnknown,
-                    Capabilities = ArrayOf<CapabilityDataType>.Empty
+                    Capabilities = []
                 };
             }
 
@@ -306,14 +304,14 @@ namespace Opc.Ua.AI.Server
         }
 
         private static bool TryNormalizeParameters(
-            ArrayOf<Opc.Ua.KeyValuePair> parameters,
+            ArrayOf<KeyValuePair> parameters,
             out Dictionary<string, string> normalized)
         {
             normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             for (int ii = 0; ii < parameters.Count; ii++)
             {
-                Opc.Ua.KeyValuePair parameter = parameters[ii];
+                KeyValuePair parameter = parameters[ii];
                 if (parameter.Key.NamespaceIndex != 0 ||
                     string.IsNullOrWhiteSpace(parameter.Key.Name) ||
                     !TryFormatParameterValue(parameter.Value, out string value) ||

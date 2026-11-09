@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Server;
@@ -58,15 +59,24 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Parent node ID under which to add the new node")] string parentNodeId,
             [Description("Reference type from parent to new node, e.g. 'i=35' (Organizes)")] string referenceTypeId,
             [Description("Browse name for the new node, e.g. '2:MyNewNode'")] string browseName,
-            [Description("Node class: 'Object', 'Variable', 'Method', 'ObjectType', 'VariableType', 'ReferenceType', 'DataType', 'View'")] string nodeClass,
-            [Description("Type definition node ID, e.g. 'i=58' (BaseObjectType) or 'i=62' (BaseVariableType)")] string? typeDefinition = null,
+            [Description(
+                "Node class: 'Object', 'Variable', 'Method', 'ObjectType', 'VariableType', 'ReferenceType', " +
+                "'DataType', 'View'")]
+            string nodeClass,
+            [Description("Type definition node ID, e.g. 'i=58' (BaseObjectType) or 'i=62' (BaseVariableType)")]
+            string? typeDefinition = null,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
 
             try
             {
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                Client.ISession session = sessionInfo.Session;
                 NodeClass nc = nodeClass.ToUpperInvariant() switch
                 {
                     "OBJECT" => NodeClass.Object,
@@ -122,6 +132,14 @@ namespace Opc.Ua.Mcp.Tools
                     }
                 ];
 
+                await sessionManager.UaOperationGuard.AuthorizeNodesAsync(sessionInfo,
+                    [McpModelAccess.ModelNode(session, nodesToAdd[0].ParentNodeId)], ct).ConfigureAwait(false);
+                if (!nodesToAdd[0].TypeDefinition.IsNull)
+                {
+                    await sessionManager.UaOperationGuard.AuthorizeNodesAsync(sessionInfo,
+                        [McpModelAccess.ModelNode(session, nodesToAdd[0].TypeDefinition)], ct).ConfigureAwait(false);
+                }
+                operation.VerifyBeforeDispatch(ct);
                 AddNodesResponse response = await session.AddNodesAsync(
                     null,
                     nodesToAdd,
@@ -167,10 +185,15 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
 
             try
             {
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                Client.ISession session = sessionInfo.Session;
                 ArrayOf<AddReferencesItem> referencesToAdd =
                 [
                     new AddReferencesItem
@@ -183,6 +206,16 @@ namespace Opc.Ua.Mcp.Tools
                     }
                 ];
 
+                await sessionManager.UaOperationGuard.AuthorizeNodesAsync(sessionInfo,
+                    [referencesToAdd[0].SourceNodeId], ct).ConfigureAwait(false);
+                if (referencesToAdd[0].TargetNodeId.ServerIndex != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        "A remote reference target cannot be classified by this session's host policy.");
+                }
+                await sessionManager.UaOperationGuard.AuthorizeNodesAsync(sessionInfo,
+                    [McpModelAccess.ModelNode(session, referencesToAdd[0].TargetNodeId)], ct).ConfigureAwait(false);
+                operation.VerifyBeforeDispatch(ct);
                 AddReferencesResponse response = await session.AddReferencesAsync(
                     null,
                     referencesToAdd,
@@ -220,16 +253,24 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
 
             try
             {
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                Client.ISession session = sessionInfo.Session;
                 ArrayOf<DeleteNodesItem> nodesToDelete = nodeIds.Select(id => new DeleteNodesItem
                 {
                     NodeId = OpcUaJsonHelper.ParseNodeId(id),
                     DeleteTargetReferences = deleteTargetReferences
                 }).ToArray();
 
+                await sessionManager.UaOperationGuard.AuthorizeNodesAsync(
+                    sessionInfo, nodesToDelete.ConvertAll(node => node.NodeId), ct).ConfigureAwait(false);
+                operation.VerifyBeforeDispatch(ct);
                 DeleteNodesResponse response = await session.DeleteNodesAsync(
                     null,
                     nodesToDelete,
@@ -269,10 +310,15 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
 
             try
             {
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                Client.ISession session = sessionInfo.Session;
                 ArrayOf<DeleteReferencesItem> referencesToDelete =
                 [
                     new DeleteReferencesItem
@@ -285,6 +331,16 @@ namespace Opc.Ua.Mcp.Tools
                     }
                 ];
 
+                await sessionManager.UaOperationGuard.AuthorizeNodesAsync(sessionInfo,
+                    [referencesToDelete[0].SourceNodeId], ct).ConfigureAwait(false);
+                if (referencesToDelete[0].TargetNodeId.ServerIndex != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        "A remote reference target cannot be classified by this session's host policy.");
+                }
+                await sessionManager.UaOperationGuard.AuthorizeNodesAsync(sessionInfo,
+                    [McpModelAccess.ModelNode(session, referencesToDelete[0].TargetNodeId)], ct).ConfigureAwait(false);
+                operation.VerifyBeforeDispatch(ct);
                 DeleteReferencesResponse response = await session.DeleteReferencesAsync(
                     null,
                     referencesToDelete,

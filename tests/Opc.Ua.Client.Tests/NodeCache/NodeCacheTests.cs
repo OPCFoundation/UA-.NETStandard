@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void GetNodeThrowsTest()
+        public async Task GetNodeThrowsTest()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -405,11 +405,11 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Exactly(3));
             var nodeCache = new NodeCache(context.Object, telemetry);
 
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }
@@ -1282,7 +1282,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void GetValueAsyncShouldHandleErrors()
+        public async Task GetValueAsyncShouldHandleErrors()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1300,7 +1300,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act && Assert
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetValueAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }

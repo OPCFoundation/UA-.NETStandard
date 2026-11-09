@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Security.Policies;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Security.Sks
 {
@@ -705,7 +706,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             int count,
             string groupId,
             uint tokenId,
-            string? caller);
+            [UserIdentity] string? caller);
     }
 
 }

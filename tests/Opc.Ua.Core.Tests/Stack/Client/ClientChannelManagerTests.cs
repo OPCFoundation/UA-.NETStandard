@@ -569,8 +569,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             IManagedTransportChannel lease = await manager.GetAsync(CreateParticipant("p1", endpoint1).Object)
                 .ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.GetAsync(CreateParticipant("p2", endpoint2).Object).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.GetAsync(CreateParticipant("p2", endpoint2).Object).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
 
             await lease.CloseAsync().ConfigureAwait(false);

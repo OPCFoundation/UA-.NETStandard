@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "scenario": "utility-disturbance",
+  "seed": 104729,
+  "windows": [
+    {
+      "startTick": 18,
+      "endTick": 30,
+      "sorterRecoveryPermille": 1000,
+      "electricalSupplyPermille": 400,
+      "thermalSupplyPermille": 200
+    }
+  ]
+}

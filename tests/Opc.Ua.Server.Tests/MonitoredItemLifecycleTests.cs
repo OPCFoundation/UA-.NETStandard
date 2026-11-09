@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -53,11 +54,11 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem item = CreateMonitoredItem(telemetry);
-            var lifecycle = (IDetachableMonitoredItem)item;
+            var lifecycle = (IMonitoredItemGenerationBinding)item;
 
-            lifecycle.MarkNodeDeleted();
-            lifecycle.MarkNodeDeleted();
-            lifecycle.QueueNodeIdUnknown();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
+            lifecycle.Invalidate(terminal: false);
 
             Queue<MonitoredItemNotification> first = Publish(item, telemetry, 10, out bool more);
             Queue<MonitoredItemNotification> second = Publish(item, telemetry, 10, out bool moreAfter);
@@ -81,12 +82,11 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 1);
-            var lifecycle = (IDetachableMonitoredItem)item;
             var beforeDeletion = new DataValue(new Variant(7), StatusCodes.Good);
             var recovered = new DataValue(new Variant(42), StatusCodes.Good);
 
             item.QueueValue(beforeDeletion, ServiceResult.Good);
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
 
             // Part 4 5.13.1.5 makes a queue of size one a buffer holding the newest Notification,
             // so the marker takes the single slot and the value sampled before the deletion goes.
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 1);
             var recovered = new DataValue(Variant.From(42), StatusCodes.Good);
 
-            ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(recovered, ServiceResult.Good);
             Queue<MonitoredItemNotification> notifications = Publish(item, telemetry, 1, out bool more);
 
@@ -178,12 +178,11 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 4,
                 filter: filter,
                 samplingInterval: 0);
-            var lifecycle = (IDetachableMonitoredItem)item;
 
             item.QueueValue(
                 new DataValue(new Variant(1), StatusCodes.Good),
                 ServiceResult.Good);
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(
                 new DataValue(new Variant(2), StatusCodes.Good),
                 ServiceResult.Good);
@@ -227,15 +226,15 @@ namespace Opc.Ua.Server.Tests
                 telemetry,
                 nodeManager: originalManager.Object,
                 managerHandle: originalHandle);
-            var lifecycle = (IDetachableMonitoredItem)item;
+            var lifecycle = (IMonitoredItemGenerationBinding)item;
 
-            lifecycle.MarkNodeDeleted();
-            lifecycle.Rebind(reboundManager.Object, reboundHandle);
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
+            lifecycle.BindSource(reboundManager.Object, reboundHandle);
             Queue<MonitoredItemNotification> notifications = Publish(item, telemetry, 1, out _);
 
             Assert.Multiple(() =>
             {
-                Assert.That(lifecycle.IsDetached, Is.False);
+                Assert.That(lifecycle.IsSourceUnavailable, Is.False);
                 Assert.That(lifecycle.IsDeleted, Is.False);
                 Assert.That(item.NodeManager, Is.SameAs(reboundManager.Object));
                 Assert.That(item.ManagerHandle, Is.SameAs(reboundHandle));
@@ -255,14 +254,14 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var reboundManager = new Mock<IAsyncNodeManager>();
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 2);
-            var lifecycle = (IDetachableMonitoredItem)item;
+            var lifecycle = (IMonitoredItemGenerationBinding)item;
 
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
             Queue<MonitoredItemNotification> firstEpoch = Publish(item, telemetry, 2, out _);
 
-            lifecycle.Rebind(reboundManager.Object, new object());
-            lifecycle.MarkNodeDeleted();
+            lifecycle.BindSource(reboundManager.Object, new object());
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             Queue<MonitoredItemNotification> secondEpoch = Publish(item, telemetry, 1, out _);
 
             Assert.Multiple(() =>
@@ -287,9 +286,9 @@ namespace Opc.Ua.Server.Tests
             // restored item cannot silently disagree with the item it was stored from.
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem source = CreateMonitoredItem(telemetry, queueSize: 2);
-            var sourceLifecycle = (IDetachableMonitoredItem)source;
-            sourceLifecycle.MarkNodeDeleted();
-            sourceLifecycle.BeginDetach();
+            var sourceBinding = (IMonitoredItemGenerationBinding)source;
+            sourceBinding.Invalidate(terminal: false);
+            Assert.That(sourceBinding.TryClearSource(sourceBinding.SourceRevision), Is.True);
 
             IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
 
@@ -300,14 +299,14 @@ namespace Opc.Ua.Server.Tests
                 new Mock<IAsyncNodeManager>().Object,
                 new object(),
                 stored);
-            var restoredLifecycle = (IDetachableMonitoredItem)restored;
+            var restoredLifecycle = (IMonitoredItemGenerationBinding)restored;
 
             Assert.Multiple(() =>
             {
                 Assert.That(stored.IsDeleted, Is.True);
                 Assert.That(stored.IsDetached, Is.True);
                 Assert.That(restoredLifecycle.IsDeleted, Is.True);
-                Assert.That(restoredLifecycle.IsDetached, Is.True);
+                Assert.That(restoredLifecycle.IsSourceUnavailable, Is.True);
             });
         }
 
@@ -332,14 +331,14 @@ namespace Opc.Ua.Server.Tests
                 new Mock<IAsyncNodeManager>().Object,
                 new object(),
                 stored);
-            var restoredLifecycle = (IDetachableMonitoredItem)restored;
+            var restoredLifecycle = (IMonitoredItemGenerationBinding)restored;
 
             Assert.Multiple(() =>
             {
                 Assert.That(stored.IsDeleted, Is.False);
                 Assert.That(stored.IsDetached, Is.False);
                 Assert.That(restoredLifecycle.IsDeleted, Is.False);
-                Assert.That(restoredLifecycle.IsDetached, Is.False);
+                Assert.That(restoredLifecycle.IsSourceUnavailable, Is.False);
             });
         }
 
@@ -355,14 +354,14 @@ namespace Opc.Ua.Server.Tests
                 telemetry,
                 queueSize: 4,
                 samplingInterval: 0);
-            var lifecycle = (IDetachableMonitoredItem)item;
+            var lifecycle = (IMonitoredItemGenerationBinding)item;
 
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(
                 new DataValue(new Variant(1), StatusCodes.Good),
                 ServiceResult.Good);
-            lifecycle.Rebind(reboundManager.Object, new object());
-            lifecycle.MarkNodeDeleted();
+            lifecycle.BindSource(reboundManager.Object, new object());
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(
                 new DataValue(new Variant(2), StatusCodes.Good),
                 ServiceResult.Good);
@@ -454,7 +453,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.False);
+                Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.False);
                 Assert.That(notifications, Has.Count.EqualTo(1));
                 Assert.That(notifications.Peek().Value.WrappedValue, Is.EqualTo(new Variant(42)));
                 Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -780,11 +779,289 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Equal payloads do not make an older queued value the required terminal entry.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void RequiredEntryIsNotAnEarlierEqualValue(bool discardOldest)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry, queueFactory, queueSize: 3, discardOldest);
+            var finalValue = new DataValue(Variant.From(42), StatusCodes.Good);
+            var intermediateValue = new DataValue(Variant.From(11), StatusCodes.Good);
+            handler.QueueValue(finalValue, ServiceResult.Good);
+            handler.QueueValue(intermediateValue, ServiceResult.Good);
+            handler.QueueRequiredValue(finalValue, ServiceResult.Good);
+
+            Assert.That(handler.PublishSingleValue(out DataValue first, out _, out bool firstRequired), Is.True);
+            Assert.That(first, Is.EqualTo(finalValue));
+            Assert.That(firstRequired, Is.False, "Only the appended terminal entry carries the requirement.");
+            Assert.That(handler.HasRequiredValues, Is.True);
+            Assert.That(handler.PublishSingleValue(out DataValue intermediate, out _, out bool middleRequired),
+                Is.True);
+            Assert.That(intermediate, Is.EqualTo(intermediateValue));
+            Assert.That(middleRequired, Is.False);
+            Assert.That(handler.HasRequiredValues, Is.True);
+            Assert.That(handler.PublishSingleValue(out DataValue last, out _, out bool lastRequired), Is.True);
+            Assert.That(last, Is.EqualTo(finalValue));
+            Assert.That(lastRequired, Is.True);
+            Assert.That(handler.HasRequiredValues, Is.False);
+            Assert.That(handler.ItemsInQueue, Is.Zero);
+        }
+
+        /// <summary>
+        /// Resizing preserves the actual terminal entry rather than promoting an older equal value.
+        /// </summary>
+        [TestCase(1u, true)]
+        [TestCase(1u, false)]
+        [TestCase(2u, true)]
+        [TestCase(2u, false)]
+        [TestCase(3u, true)]
+        [TestCase(3u, false)]
+        [TestCase(4u, true)]
+        [TestCase(4u, false)]
+        public void RequiredEntryIdentitySurvivesQueueResize(uint revisedSize, bool discardOldest)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry, queueFactory, queueSize: 3, discardOldest);
+            var finalValue = new DataValue(42);
+            handler.QueueValue(finalValue, ServiceResult.Good);
+            handler.QueueValue(new DataValue(11), ServiceResult.Good);
+            handler.QueueRequiredValue(finalValue, ServiceResult.Good);
+
+            handler.SetQueueSize(revisedSize, discardOldest, DiagnosticsMasks.OperationAll);
+
+            ArrayOf<int> expected = revisedSize switch
+            {
+                1 => [42],
+                2 when discardOldest => [11, 42],
+                2 => [42, 42],
+                _ => [42, 11, 42]
+            };
+            AssertRequiredQueueSequence(handler, expected, expected.Count - 1);
+        }
+
+        /// <summary>
+        /// Discarding an older equal value advances protection to the actual marker without losing newer entries.
+        /// </summary>
+        [Test]
+        public void OverflowDiscardsEqualOrdinaryHeadBeforeProtectingRequiredHead()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry, queueFactory, queueSize: 3, discardOldest: true);
+            var finalValue = new DataValue(42);
+            handler.QueueValue(finalValue, ServiceResult.Good);
+            handler.QueueValue(new DataValue(11), ServiceResult.Good);
+            handler.QueueRequiredValue(finalValue, ServiceResult.Good);
+
+            Assert.That(handler.QueueValue(new DataValue(99), ServiceResult.Good), Is.True);
+            Assert.That(handler.QueueValue(new DataValue(100), ServiceResult.Good), Is.True);
+            Assert.That(handler.QueueValue(new DataValue(101), ServiceResult.Good), Is.True);
+
+            ArrayOf<DataValue> published = AssertRequiredQueueSequence(handler, [42, 99, 100], 0);
+            Assert.That(published[0].StatusCode.Overflow, Is.True);
+            Assert.That(published[1].StatusCode.Overflow, Is.False);
+            Assert.That(published[2].StatusCode.Overflow, Is.False);
+        }
+
+        /// <summary>
+        /// An ordinary equal tail remains replaceable by overflow or sample coalescing
+        /// while a different entry is required.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EqualOrdinaryTailRemainsReplaceable(bool coalesceSample)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            var clock = new FakeTimeProvider();
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry, queueFactory, queueSize: 3, discardOldest: false, clock);
+            var finalValue = new DataValue(42);
+            handler.QueueRequiredValue(finalValue, ServiceResult.Good);
+            handler.QueueValue(new DataValue(11), ServiceResult.Good);
+            handler.QueueValue(finalValue, ServiceResult.Good);
+            if (coalesceSample)
+            {
+                handler.SetSamplingInterval(1000);
+            }
+
+            Assert.That(handler.QueueValue(new DataValue(99), ServiceResult.Good), Is.EqualTo(!coalesceSample));
+
+            ArrayOf<DataValue> published = AssertRequiredQueueSequence(handler, [42, 11, 99], 0);
+            Assert.That(published[0].StatusCode.Overflow, Is.False);
+            Assert.That(published[2].StatusCode.Overflow, Is.EqualTo(!coalesceSample));
+        }
+
+        /// <summary>
+        /// A discarded incoming value marks the required tail's overflow, never an earlier equal value.
+        /// </summary>
+        [Test]
+        public void RequiredTailOverflowDoesNotMarkEarlierEqualEntry()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry, queueFactory, queueSize: 3, discardOldest: false);
+            var finalValue = new DataValue(42);
+            handler.QueueValue(finalValue, ServiceResult.Good);
+            handler.QueueValue(new DataValue(11), ServiceResult.Good);
+            handler.QueueRequiredValue(finalValue, ServiceResult.Good);
+
+            Assert.That(handler.QueueValue(new DataValue(99), ServiceResult.Good), Is.True);
+
+            ArrayOf<DataValue> published = AssertRequiredQueueSequence(handler, [42, 11, 42], 2);
+            Assert.That(published[0].StatusCode.Overflow, Is.False);
+            Assert.That(published[1].StatusCode.Overflow, Is.False);
+            Assert.That(published[2].StatusCode.Overflow, Is.True);
+        }
+
+        /// <summary>
+        /// Replacing a required entry removes only that entry, not an equal ordinary predecessor.
+        /// </summary>
+        [Test]
+        public void ReplacementRequiredEntryPreservesEqualOrdinaryPredecessor()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry, queueFactory, queueSize: 4, discardOldest: true);
+            var previous = new DataValue(Variant.From(42), StatusCodes.BadCommunicationError);
+            var error = new ServiceResult(StatusCodes.BadCommunicationError);
+            handler.QueueValue(previous, error);
+            handler.QueueValue(new DataValue(11), ServiceResult.Good);
+            handler.QueueRequiredValue(previous, error);
+            handler.QueueValue(new DataValue(12), ServiceResult.Good);
+
+            handler.QueueRequiredValue(new DataValue(Variant.From(43), StatusCodes.BadNodeIdUnknown),
+                new ServiceResult(StatusCodes.BadNodeIdUnknown), replaceExisting: true);
+
+            ArrayOf<DataValue> published = AssertRequiredQueueSequence(handler, [42, 11, 12, 43], 3);
+            Assert.That(published[0], Is.EqualTo(previous));
+            Assert.That(published[3].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        /// <summary>
+        /// Released protection cannot survive on equal ordinary entries or poison a subsequent required observation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReleasedRequiredEntryLeavesNoIdentityOnEqualValues(bool rearmBeforeDrain)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry, queueFactory, queueSize: 3, discardOldest: true);
+            var finalValue = new DataValue(42);
+            handler.QueueValue(finalValue, ServiceResult.Good);
+            handler.QueueValue(new DataValue(11), ServiceResult.Good);
+            handler.QueueRequiredValue(finalValue, ServiceResult.Good);
+
+            handler.ReleaseRequiredValue(new DataValue(99));
+            Assert.That(handler.HasRequiredValues, Is.True);
+            handler.ReleaseRequiredValue(finalValue);
+
+            Assert.That(handler.HasRequiredValues, Is.False);
+            if (rearmBeforeDrain)
+            {
+                handler.QueueRequiredValue(finalValue, ServiceResult.Good);
+                AssertRequiredQueueSequence(handler, [11, 42, 42], 2);
+            }
+            else
+            {
+                AssertRequiredQueueSequence(handler, [42, 11, 42], -1);
+            }
+            handler.QueueRequiredValue(finalValue, ServiceResult.Good);
+            AssertRequiredQueueSequence(handler, [42], 0);
+        }
+
+        /// <summary>
+        /// A transient durable dequeue failure cannot advance the required entry's position.
+        /// </summary>
+        [Test]
+        public void FailedDequeueDoesNotAdvanceRequiredEntryIdentity()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var queue = new TransientDequeueQueue(
+                new DataChangeMonitoredItemQueue(false, 1, telemetry));
+            queue.ResetQueue(3, queueErrors: true);
+            using var handler = new DataChangeQueueHandler(
+                queue, discardOldest: true, samplingInterval: 0, telemetry);
+            var finalValue = new DataValue(42);
+            handler.QueueValue(finalValue, ServiceResult.Good);
+            handler.QueueValue(new DataValue(11), ServiceResult.Good);
+            handler.QueueRequiredValue(finalValue, ServiceResult.Good);
+
+            queue.FailuresRemaining = 1;
+            Assert.That(handler.PublishSingleValue(out _, out _, out bool required), Is.False);
+            Assert.That(required, Is.False);
+            Assert.That(handler.ItemsInQueue, Is.EqualTo(3));
+            Assert.That(handler.HasRequiredValues, Is.True);
+            queue.FailuresRemaining = 1;
+            handler.SetQueueSize(4, true, DiagnosticsMasks.OperationAll);
+
+            AssertRequiredQueueSequence(handler, [42, 11, 42], 2);
+        }
+
+        /// <summary>
+        /// A required entry is protected even when its status normally identifies replaceable initial data.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void RequiredInitialDataEntryIsNotReplacedAsAnOrdinaryDummy(bool discardOldest)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry, queueFactory, queueSize: 1, discardOldest);
+            var finalValue = new DataValue(Variant.Null, StatusCodes.BadWaitingForInitialData);
+            handler.QueueRequiredValue(finalValue, new ServiceResult(StatusCodes.BadWaitingForInitialData));
+
+            Assert.That(handler.QueueValue(new DataValue(99), ServiceResult.Good), Is.True);
+
+            Assert.That(handler.PublishSingleValue(out DataValue published, out _, out bool required), Is.True);
+            Assert.That(published.WrappedValue.IsNull, Is.True);
+            Assert.That(published.StatusCode.SetOverflow(false), Is.EqualTo(StatusCodes.BadWaitingForInitialData));
+            Assert.That(required, Is.True);
+            Assert.That(handler.HasRequiredValues, Is.False);
+            Assert.That(handler.ItemsInQueue, Is.Zero);
+        }
+
+        private static ArrayOf<DataValue> AssertRequiredQueueSequence(
+            DataChangeQueueHandler handler,
+            ArrayOf<int> expected,
+            int requiredIndex)
+        {
+            Assert.That(handler.ItemsInQueue, Is.EqualTo(expected.Count));
+            var published = new List<DataValue>();
+            for (int ii = 0; ii < expected.Count; ii++)
+            {
+                Assert.That(handler.PublishSingleValue(out DataValue value, out _, out bool required), Is.True);
+                Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
+                Assert.That(actual, Is.EqualTo(expected[ii]));
+                Assert.That(required, Is.EqualTo(ii == requiredIndex));
+                Assert.That(handler.HasRequiredValues, Is.EqualTo(ii < requiredIndex));
+                published.Add(value);
+            }
+            Assert.That(handler.PublishSingleValue(out _, out _, out bool finalRequired), Is.False);
+            Assert.That(finalRequired, Is.False);
+            Assert.That(handler.ItemsInQueue, Is.Zero);
+            return [.. published];
+        }
+
         private static DataChangeQueueHandler CreateQueueHandler(
             ITelemetryContext telemetry,
             MonitoredItemQueueFactory queueFactory,
             uint queueSize,
-            bool discardOldest)
+            bool discardOldest,
+            TimeProvider? timeProvider = null)
         {
             IDataChangeMonitoredItemQueue queue = queueFactory.CreateDataChangeQueue(false, 1);
             queue.ResetQueue(queueSize, false);
@@ -793,7 +1070,8 @@ namespace Opc.Ua.Server.Tests
                 discardOldest,
                 samplingInterval: 0,
                 telemetry,
-                discardedValueHandler: null);
+                discardedValueHandler: null,
+                timeProvider);
         }
 
         private static DataValue CreateBadNodeIdUnknownValue()

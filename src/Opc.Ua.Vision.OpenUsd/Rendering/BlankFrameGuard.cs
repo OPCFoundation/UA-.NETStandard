@@ -49,10 +49,8 @@ namespace Opc.Ua.Vision.OpenUsd.Rendering
     /// a blank frame as if it succeeded.
     /// </summary>
     /// <remarks>
-    /// The check is defensive in depth: even though every capture uses a
-    /// fresh session (which avoids the known session-reuse landmine), the
-    /// guard runs anyway so a future backend regression or an unrelated
-    /// crash-into-black cannot go unreported.
+    /// Retained and offscreen capture callers both run this guard so a backend
+    /// regression or a scene without visible geometry cannot go unreported.
     /// </remarks>
     internal static class BlankFrameGuard
     {
@@ -70,10 +68,15 @@ namespace Opc.Ua.Vision.OpenUsd.Rendering
                 throw new ArgumentNullException(nameof(result));
             }
 
-            int drawCount = result.RenderResult.DrawCount;
-            int meshCount = result.RenderResult.Statistics.MeshCount;
+            return Check(result.RenderResult.DrawCount, result.RenderResult.Statistics.MeshCount, result.Rgba.Span);
+        }
 
-            if (drawCount == 0 || meshCount == 0)
+        /// <summary>
+        /// Checks a detached retained-frame readback without manufacturing a renderer capture result.
+        /// </summary>
+        public static BlankFrameCheck Check(int drawCount, int meshCount, ReadOnlySpan<byte> rgba)
+        {
+            if (drawCount <= 0 || meshCount <= 0)
             {
                 return new BlankFrameCheck(
                     IsBlank: true,
@@ -84,7 +87,7 @@ namespace Opc.Ua.Vision.OpenUsd.Rendering
                         $"(drawCount={drawCount}, meshCount={meshCount})");
             }
 
-            bool uniform = IsUniformRgba8(result.Rgba.Span);
+            bool uniform = IsUniformRgba8(rgba);
             if (uniform)
             {
                 return new BlankFrameCheck(
@@ -100,7 +103,7 @@ namespace Opc.Ua.Vision.OpenUsd.Rendering
 
         private static bool IsUniformRgba8(ReadOnlySpan<byte> rgba)
         {
-            if (rgba.Length < 4)
+            if (rgba.Length < 4 || rgba.Length % 4 != 0)
             {
                 return true;
             }

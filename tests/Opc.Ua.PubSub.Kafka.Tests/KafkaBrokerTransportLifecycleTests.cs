@@ -130,9 +130,9 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             Assert.That(events, Has.Count.GreaterThanOrEqualTo(4));
             Assert.That(events[0].IsConnected, Is.True);
             Assert.That(events, Has.Some.Matches<PubSubTransportStateChangedEventArgs>(e =>
-                !e.IsConnected && e.Reason == "broker reset"));
+                e is not null && !e.IsConnected && e.Reason == "broker reset"));
             Assert.That(events, Has.Some.Matches<PubSubTransportStateChangedEventArgs>(e =>
-                e.IsConnected && e.Reason == "reconnected"));
+                e is not null && e.IsConnected && e.Reason == "reconnected"));
             Assert.That(events[^1].IsConnected, Is.False);
         }
 

@@ -498,7 +498,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void LoadDataTypesThrowsWhenRootNodeCannotBeResolvedAsDataType()
+        public async Task LoadDataTypesThrowsWhenRootNodeCannotBeResolvedAsDataType()
         {
             var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
             var unknownId =
@@ -507,11 +507,11 @@ namespace Opc.Ua.Server.Tests
             var nonDataType =
                 NodeId.ToExpandedNodeId(m_structEncodingId, m_namespaceUris);
 
-            ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException missing = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await resolver
                     .LoadDataTypesAsync(unknownId, addRootNode: true)
                     .ConfigureAwait(false));
-            ServiceResultException wrongClass = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException wrongClass = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await resolver
                     .LoadDataTypesAsync(nonDataType, addRootNode: true)
                     .ConfigureAwait(false));

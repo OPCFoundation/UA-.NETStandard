@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Moq;
 using NUnit.Framework;
@@ -118,6 +119,38 @@ namespace Opc.Ua.Server.Tests
             return new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
         }
 
+        /// <summary>
+        /// External membership does not create a source, accepts no duplicate, and releases only its own item.
+        /// </summary>
+        [Test]
+        public void ExternalMembershipIsScopedAndDoesNotOwnTheItem()
+        {
+            using Subscription subscription = CreateSubscription();
+            var membership = (ISubscriptionMonitoredItemLifecycle)subscription;
+            Assert.That(() => subscription.IncludeExternalMonitoredItem(null!), Throws.ArgumentNullException);
+            var item = new Mock<IMonitoredItem>();
+            item.SetupGet(value => value.Id).Returns(42u);
+
+            IDisposable lease = subscription.IncludeExternalMonitoredItem(item.Object);
+            Assert.That(membership.ContainsMonitoredItem(item.Object), Is.True);
+            Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1));
+            Assert.That(
+                () => subscription.IncludeExternalMonitoredItem(item.Object),
+                Throws.ArgumentException);
+            lease.Dispose();
+            Assert.That(membership.ContainsMonitoredItem(item.Object), Is.False);
+            Assert.That(subscription.MonitoredItemCount, Is.Zero);
+
+            var replacement = new Mock<IMonitoredItem>();
+            replacement.SetupGet(value => value.Id).Returns(42u);
+            using IDisposable replacementLease = subscription.IncludeExternalMonitoredItem(replacement.Object);
+            lease.Dispose();
+            Assert.That(membership.ContainsMonitoredItem(replacement.Object), Is.True);
+            Assert.That(membership.ContainsMonitoredItem(item.Object), Is.False);
+            item.VerifyGet(value => value.Id, Times.AtLeastOnce);
+            item.VerifyNoOtherCalls();
+        }
+
         [Test]
         public void SamplingReportingModeChangesDoNotWrapDisabledDiagnostics()
         {
@@ -149,11 +182,11 @@ namespace Opc.Ua.Server.Tests
                 ?? throw new InvalidOperationException("Field m_messageQueue not found");
             object messageQueue = queueField.GetValue(subscription)
                 ?? throw new InvalidOperationException("m_messageQueue is null");
-            PropertyInfo sentMessagesProperty = messageQueue.GetType().GetProperty("SentMessages",
-                BindingFlags.Public | BindingFlags.Instance)
-                ?? throw new InvalidOperationException("Property SentMessages not found");
-            var sentMessages = (List<NotificationMessage>)sentMessagesProperty.GetValue(messageQueue)!;
-            sentMessages!.AddRange(messages);
+            FieldInfo sentField = messageQueue.GetType().GetField("m_sent",
+                BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_sent not found");
+            var sentMessages = (List<NotificationMessageLease>)sentField.GetValue(messageQueue)!;
+            sentMessages!.AddRange(messages.Select(message => new NotificationMessageLease(message)));
 
             // the injected messages were sent (returned by a Publish response).
             FieldInfo lastSentField = messageQueue.GetType().GetField("m_lastSentMessage",
@@ -860,18 +893,18 @@ namespace Opc.Ua.Server.Tests
 
             await subscription.DeleteAsync(context).ConfigureAwait(false);
 
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.CreateMonitoredItemsAsync(
                     context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.ModifyMonitoredItemsAsync(
                     context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.DeleteMonitoredItemsAsync(context, []).ConfigureAwait(false)));
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.SetMonitoringModeAsync(
                     context, MonitoringMode.Reporting, []).ConfigureAwait(false)));
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.ConditionRefreshAsync().ConfigureAwait(false)));
         }
 

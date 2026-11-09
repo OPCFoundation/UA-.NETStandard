@@ -51,6 +51,7 @@ the manual constructors when you need finer control.
   - [Migrating with an existing configuration XML file](#migrating-with-an-existing-configuration-xml-file)
   - [Server security and resource controls](#server-security-and-resource-controls)
   - [First-class server options](#first-class-server-options)
+  - [Server resource isolation](#server-resource-isolation)
   - [Committed session bindings](#committed-session-bindings)
   - [Server-side reverse connect](#server-side-reverse-connect)
   - [Operation limits](#operation-limits)
@@ -65,6 +66,8 @@ the manual constructors when you need finer control.
   - [Fluent shortcuts](#fluent-shortcuts)
   - [Identity (client)](#identity-client)
 - [Complex types](#complex-types)
+- [Base Network Model](#base-network-model)
+- [Programs](#programs)
 - [Alarms and conditions](#alarms-and-conditions)
 - [Client-side reverse connect](#client-side-reverse-connect)
 - [Channel manager](#channel-manager)
@@ -72,6 +75,7 @@ the manual constructors when you need finer control.
 - [GDS Client](#gds-client)
 - [GDS Server](#gds-server)
   - [Identity (GDS server)](#identity-gds-server)
+  - [Startup tasks (GDS server)](#startup-tasks-gds-server)
 - [LDS Server](#lds-server)
 - [WoT Connectivity Server](#wot-connectivity-server)
 - [WoT Connectivity Client](#wot-connectivity-client)
@@ -129,7 +133,7 @@ Identity-provider extensions hang off `IOpcUaServerBuilder`,
 | `AddIdentityAugmenter<T>()`                   | server, gds              | —                                |
 | `AddGdsApplicationSelfAdminProvider()`        | gds                      | —                                |
 | `AddJwtIssuer(...)`                           | server, gds              | `OpcUa:Server:Identity:Issuers[]`|
-| `WithAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
+| `AddAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
 | `WithKeyCredentialPush(...)`                  | server                   | —                                |
 | `AddSessionlessInvocation(...)`               | server                   | —                                |
 | `ConfigureRoles(...)`                         | server, gds              | `OpcUa:Server:Roles`             |
@@ -316,6 +320,7 @@ Prefer the first-class properties for their common settings and use
 | `SetRejectUnknownRevocationStatus(...)` | Rejects chains when CA revocation status cannot be determined; default `true`. |
 | `SetUseValidatedCertificates(...)` | Reuses previously validated certificates without repeating the full validation path; default `false`. Leave disabled unless the reduced revalidation is explicitly acceptable for the deployment. |
 | `SetSuppressNonceValidationErrors(...)` | Suppresses zero/weak nonce errors; default `false`. Enabling it weakens user-token protection and is only for unavoidable legacy interoperability. |
+| `SetAllowUnencryptedUserNameTokens(...)` | Lets a client send a `UserName` token whose password is not encrypted over a channel that is not `SignAndEncrypt`; default `false`. The password then travels in plain text, so enable it only for interoperability with legacy devices that offer no encrypted user token policy, and only where the network traffic is encrypted in some other manner, such as a VPN (see OPC 10000-4 v1.05.07 §7.40.4). |
 | `SetSendCertificateChain(...)` | Sends the chain with a CA-signed application certificate; default `true`. |
 | `SetMinimumCertificateKeySize(...)` | Sets the minimum accepted RSA key size; default `2048`. Prefer `MinimumCertificateKeySize`. |
 | `AddCertificatePasswordProvider(...)` | Supplies an `ICertificatePasswordProvider` for protected private keys; no provider is registered by default. |
@@ -437,22 +442,37 @@ at most one regular server may be registered per service collection.
 The regular hosted server also registers `INodeManagerLifecycle` as a singleton forwarding provider. After the server reaches `Running`, application services can inject it to add, reload, or remove lifecycle-owned NodeManagers. Calls made before startup or after shutdown fail explicitly.
 
 ```csharp
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Opc.Ua.Server.RuntimeNodeSet;
+
 public sealed class RuntimeModelService(INodeManagerLifecycle lifecycle)
 {
-    public ValueTask<NodeManagerRegistration> AddAsync(CancellationToken ct)
+    public ValueTask<LifecycleResult> AddAsync(CancellationToken ct)
     {
-        return lifecycle.AddRuntimeNodeSetAsync(
-            new RuntimeNodeSetOptions
-            {
-                Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
-            },
-            callerContext: null,
+        return lifecycle.ApplyAsync(
+            [
+                LifecycleChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(
+                        new RuntimeNodeSetOptions
+                        {
+                            Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
+                        }))
+            ],
             ct);
     }
 }
 ```
 
-Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead. Both paths use the same lifecycle implementation and generation-aware registration handles.
+The returned `LifecycleResult` identifies the committed publication even when reconciliation reports
+issues. Inspect `Issues` and retry unfinished callbacks with `RetryReconciliationAsync`; do not
+repeat the addition. Retain `result.Registrations[0].Slot` for later replacement or removal.
+Use [explicit preparation](NodeManagers.md#preparation-decision-and-abort) when publication must
+follow a durable application decision.
+
+Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead.
+Both paths use the same lifecycle implementation and stable registration slots.
 
 Advanced server services can be supplied through the same fluent builder:
 
@@ -583,6 +603,12 @@ server cleanup; subsequent tasks do not run.
 `StopAsync` waits for execution cleanup even after a host shutdown timeout,
 so the host does not dispose dependencies that the server is still using.
 Slow cleanup can therefore outlast that timeout.
+
+Hosted server disposal detaches the injected lifecycle even if server disposal
+throws. The hosted service retains the failed server for a later disposal
+attempt; retaining its resources does not make it available through the hosted
+lifecycle. A successful retry releases the server reference, and later hosted
+disposal calls do not dispose it again.
 
 Use injected services for application dependencies and the existing typed
 node-manager lookup for server subsystems. For example, inside a task:
@@ -903,7 +929,7 @@ capacities. The server owns and disposes only the default provider it creates.
 ### Committed session bindings
 
 Managed servers automatically supply their session manager's committed-binding
-view to transport listeners. A custom `ISessionBindingProvider` registered as a
+view to transport listeners. A custom `IServerSessionBindingProvider` registered as a
 singleton is applied by the hosted server; direct hosts can assign
 `ServerBase.SessionBindingProvider` before startup. This optional seam preserves
 existing session-manager and transport-callback interfaces. Its snapshots are
@@ -932,7 +958,6 @@ unchanged. The data binds directly from
           {
             "EndpointUrl": "opc.tcp://client.example.com:4841",
             "Timeout": 30000,
-            "MaxSessionCount": 1,
             "Enabled": true
           }
         ]
@@ -1015,7 +1040,7 @@ one policy per token type of the registered authenticators instead
 
 | Extension | Purpose |
 |---|---|
-| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Registers `RoleConfigurationOptions` for future role-related tuning. The DTO currently has no configurable members; the extension exists as a stable expansion point. |
+| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Configures roles and identity-mapping rules on the default role manager. Well-known roles are configured when the manager is resolved; custom role nodes are materialized when the server address space starts. |
 | `AddIdentityAuthenticator<TAuth>()` | Registers a single custom `IUserTokenAuthenticator` implementation. The hosted service adds it to `IServerInternal.IdentityRegistry` on startup. |
 | `AddIdentityAuthenticator(IUserTokenAuthenticator)` | Registers an already-constructed authenticator instance. |
 | `AddIdentityAuthenticator(Func<IServiceProvider, ICertificateValidatorEx?, IUserTokenAuthenticator>)` | Creates an authenticator during startup with injected services and the effective certificate validator, which may be `null`. |
@@ -1114,7 +1139,12 @@ services.AddOpcUa()
     }));
 ```
 
-Use `AddRoleManager(IRoleManager)` or `AddRoleManager<T>()` to replace the default role manager.
+Both `AddSecureServer` and `AddReferenceServer` honor `ConfigureRoles` and
+previously registered `RoleConfigurationOptions`. They preserve an explicitly
+registered `IRoleManager`; options do not silently replace or mutate that custom
+manager. Configuration remains deferred until service resolution and startup.
+
+Use `AddRoleManager(IRoleManager)` or `AddRoleManager<T>()` to explicitly replace the default role manager.
 `AddServer<TServer>()` remains available for custom server implementations.
 Custom types that need session, subscription, or durable-subscription DI
 hooks must derive from `DependencyInjectionStandardServer`. The same
@@ -1527,6 +1557,29 @@ var cts = new ComplexTypeSystem(session, telemetry);
 await cts.LoadAsync(ct: ct);
 ```
 
+## Base Network Model
+
+For Part 22 network state, register
+`AddServer(...).AddNetworkModel(provider, authorizeMappingEdits)` and
+`AddClient(...).AddNetworkModelClient()`. The application owns the provider;
+mapping edits are denied when no authorization policy is supplied. Direct
+construction uses `NetworkModelNodeManagerFactory` and `NetworkModelClient`.
+See [Base Network Model](BaseNetworkModel.md) for provider composition, standard
+entry points and typed client operations.
+
+## Programs
+
+Register the managed Part 10 server host with
+`AddServer(...).AddPrograms(definitions)` or the overload that resolves
+definitions/providers from `IServiceProvider` per server start. Registration
+does not create or start workloads. Client registration is available through
+`AddClient(...).AddProgramClient()`.
+
+The direct alternatives are `ProgramNodeManagerFactory`, `ProgramRuntime.AttachAsync`
+and `ProgramClient`. They use the same execution/lifecycle and generated proxy
+paths, not independent implementations. See [Programs](Programs.md) for provider
+contracts, explicit lifetime limits, typed client examples and compatibility rules.
+
 ## Alarms and conditions
 
 ```csharp
@@ -1567,7 +1620,7 @@ use the dependency injection infrastructure. See
 [Alarms and Conditions](AlarmsAndConditions.md) for the full
 developer guide.
 
-### Client-side reverse connect
+## Client-side reverse connect
 
 When `OpcUaClientOptions.ReverseConnect` is set, the dependency injection container
 registers a singleton `ReverseConnectManager` that opens the configured
@@ -1997,6 +2050,6 @@ services.AddOpcUa()
 - [Native AOT](NativeAoT.md) — publishing applications and the AOT test harness.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
 - [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
-- [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
+- [WoT Connectivity](WotCon.md) — OPC 10100-1 information model.
 - [Diagnostics](Diagnostics.md) — `ITelemetryContext` end-to-end.
 - [CryptoProvider](CryptoProvider.md) — `AddCryptoProvider`, hardware-held private keys, FIPS posture and audit.

@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var participant = new Mock<IReconnectParticipant>();
             participant.SetupGet(value => value.Id).Returns("ownership-probe");
             participant.SetupGet(value => value.Endpoint).Returns(endpoint);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
             {
                 using IManagedTransportChannel lease = await manager.GetAsync(
                     participant.Object, deadline.Token).ConfigureAwait(false);

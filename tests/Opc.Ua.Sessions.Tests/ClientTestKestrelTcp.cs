@@ -104,7 +104,6 @@ namespace Opc.Ua.Sessions.Tests
         /// Smoke: GetEndpoints over Kestrel-TCP listener.
         /// </summary>
         [Test]
-        [Order(105)]
         public Task GetEndpointsOnDiscoveryChannelAsync()
         {
             return m_clientTest.GetEndpointsOnDiscoveryChannelAsync(true);
@@ -114,7 +113,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Connect / close a SecurityNone session.
         /// </summary>
         [Test]
-        [Order(201)]
+        [DependsOnTest(nameof(GetEndpointsOnDiscoveryChannelAsync), AllowFailure = true)]
         public Task ConnectAndCloseAsyncNoSecurityAsync()
         {
             return m_clientTest.ConnectAndCloseAsync(SecurityPolicies.None);
@@ -125,7 +124,7 @@ namespace Opc.Ua.Sessions.Tests
         /// service-level traffic over the Kestrel-TCP listener.
         /// </summary>
         [Theory]
-        [Order(400)]
+        [DependsOnTest(nameof(ConnectAndCloseAsyncNoSecurityAsync), AllowFailure = true)]
         public Task BrowseFullAddressSpaceSecurityNoneAsync(bool operationLimits)
         {
             return m_clientTest.BrowseFullAddressSpaceAsync(SecurityPolicies.None, operationLimits);

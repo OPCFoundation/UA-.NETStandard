@@ -108,9 +108,9 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         public void PumpBearingTemperatureBindingTargetsAuthoredDisplayColor()
         {
             string representation = ReadRepositoryFile(
-                "samples", "DI", "PumpDeviceIntegrationServer", "OpenUsdRepresentation.cs");
+                "samples", "Di", "PumpDeviceIntegrationServer", "OpenUsdRepresentation.cs");
             string asset = ReadRepositoryFile(
-                "samples", "DI", "PumpDeviceIntegrationServer", "Assets", "Plant.usda");
+                "samples", "Di", "PumpDeviceIntegrationServer", "Assets", "Plant.usda");
 
             Assert.That(
                 representation,

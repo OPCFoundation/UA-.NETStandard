@@ -76,11 +76,11 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void CreateAddressSpaceRejectsNullExternalReferences()
+        public async Task CreateAddressSpaceRejectsNullExternalReferences()
         {
             using var manager = new PipelineTestManager(_ => { });
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await manager.CreateAddressSpaceAsync(null!).ConfigureAwait(false));
             Assert.That(manager.ConfigureCount, Is.Zero);
         }

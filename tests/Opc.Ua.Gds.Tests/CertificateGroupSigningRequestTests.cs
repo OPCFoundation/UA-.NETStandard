@@ -30,6 +30,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Tests;
@@ -82,12 +83,12 @@ namespace Opc.Ua.Gds.Tests
         /// Bad_InvalidArgument, not accepted and failed in FinishRequest.
         /// </summary>
         [Test]
-        public void RsaCsrForEccCertificateTypeIsRejected()
+        public async Task RsaCsrForEccCertificateTypeIsRejected()
         {
             using var certificateGroup = new CertificateGroup(NUnitTelemetryContext.Create());
             var application = new ApplicationRecordDataType { ApplicationUri = ApplicationUri };
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await certificateGroup
                     .VerifySigningRequestAsync(
                         application,
@@ -257,13 +258,13 @@ namespace Opc.Ua.Gds.Tests
         /// Bad_InvalidArgument for it.
         /// </summary>
         [Test]
-        public void UnsupportedKeyAlgorithmIsNotSupported()
+        public async Task UnsupportedKeyAlgorithmIsNotSupported()
         {
             using var certificateGroup = new CertificateGroup(NUnitTelemetryContext.Create());
             var application = new ApplicationRecordDataType { ApplicationUri = ApplicationUri };
             ByteString dsaRequest = CreateUnsupportedKeySigningRequest();
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await certificateGroup
                     .VerifySigningRequestAsync(
                         application,

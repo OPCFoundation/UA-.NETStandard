@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -96,6 +97,7 @@ namespace Opc.Ua.Server
             m_logger = server.Telemetry.CreateLogger<SamplingGroup>();
             m_backgroundWork = new BackgroundTaskScope(nameof(SamplingGroup), server.Telemetry);
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            m_systemContextTemplate = new ServerSystemContext(server);
             m_samplingRates = samplingRates ??
                 throw new ArgumentNullException(nameof(samplingRates));
             m_session = context.Session;
@@ -142,6 +144,7 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     (samplingCts, samplingTask) = DetachSamplingLoop();
+                    UnsubscribePermissionChanges();
                 }
 
                 CancelSamplingLoop(samplingCts, samplingTask);
@@ -165,8 +168,9 @@ namespace Opc.Ua.Server
                 m_samplingCts = samplingCts;
                 CancellationToken token = samplingCts.Token;
                 double samplingInterval = m_samplingInterval;
+                SubscribePermissionChanges();
                 m_samplingTask = Task.Run(
-                    () => SampleMonitoredItemsAsync(samplingInterval, token).AsTask(),
+                    () => SampleMonitoredItemsAsync(samplingInterval, samplingCts, token).AsTask(),
                     CancellationToken.None);
             }
         }
@@ -179,9 +183,50 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 StopSamplingLoop();
+                UnsubscribePermissionChanges();
                 m_items.Clear();
+                m_itemSnapshot = null;
             }
         }
+
+        /// <summary>
+        /// Invalidates the cached role permission verdicts of the sampled items when the
+        /// default permissions of a namespace change. Must be called while holding the lock.
+        /// </summary>
+        private void SubscribePermissionChanges()
+        {
+            if (m_configurationNodeManager != null)
+            {
+                return;
+            }
+
+            IConfigurationNodeManager? configurationNodeManager = m_server.ConfigurationNodeManager;
+            if (configurationNodeManager != null)
+            {
+                configurationNodeManager.DefaultPermissionsChanged += OnDefaultPermissionsChanged;
+                m_configurationNodeManager = configurationNodeManager;
+            }
+        }
+
+        /// <summary>
+        /// Stops observing namespace default permission changes. Must be called while holding the lock.
+        /// </summary>
+        private void UnsubscribePermissionChanges()
+        {
+            m_configurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
+            m_configurationNodeManager = null;
+        }
+
+        private void OnDefaultPermissionsChanged(object? sender, EventArgs e)
+        {
+            Interlocked.Increment(ref m_permissionEpoch);
+        }
+
+        /// <summary>
+        /// Changes whenever a cached role permission verdict of an item may be stale: the role
+        /// permissions of a node or the default permissions of a namespace changed.
+        /// </summary>
+        private long PermissionEpoch => Interlocked.Read(ref m_permissionEpoch) + NodeState.RolePermissionsVersion;
 
         /// <summary>
         /// Stops the running sampling loop. Must be called while holding the lock.
@@ -417,6 +462,11 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                if (m_itemsToAdd.Count > 0 || m_itemsToRemove.Count > 0)
+                {
+                    m_itemSnapshot = null;
+                }
+
                 m_itemsToAdd.Clear();
                 m_itemsWithInitialValue.Clear();
 
@@ -425,7 +475,7 @@ namespace Opc.Ua.Server
                 {
                     m_backgroundWork.Run(
                         nameof(DoSampleAsync),
-                        async ct => await DoSampleAsync(itemsToSample, ownedByLoop: false, ct)
+                        async ct => await DoSampleAsync(itemsToSample, loopCts: null, ct)
                             .ConfigureAwait(false));
                 }
 
@@ -563,13 +613,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
-        private async ValueTask SampleMonitoredItemsAsync(double samplingInterval, CancellationToken cancellationToken = default)
+        private async ValueTask SampleMonitoredItemsAsync(
+            double samplingInterval,
+            CancellationTokenSource samplingCts,
+            CancellationToken cancellationToken)
         {
             try
             {
                 m_logger.ServerNameThreadStarted(Thread.CurrentThread.Name);
 
                 int sleepCycle = Convert.ToInt32(samplingInterval, CultureInfo.InvariantCulture);
+                var loop = new SamplingLoop(this, samplingCts);
 
                 long frequency = m_timeProvider.TimestampFrequency;
                 var schedule = SamplingSchedule.Create(samplingInterval, frequency, m_timeProvider.GetTimestamp());
@@ -600,44 +654,23 @@ namespace Opc.Ua.Server
                         break;
                     }
 
-                    // get current list of items to sample.
-                    var items = new List<ISampledDataChangeMonitoredItem>();
+                    // get current items to sample; the snapshot is rebuilt only when items
+                    // were added or removed.
+                    ISampledDataChangeMonitoredItem[] items;
 
                     lock (m_lock)
                     {
                         // a detached loop stops even before its token is cancelled.
-                        if (m_samplingCts == null || m_samplingCts.Token != cancellationToken)
+                        if (!ReferenceEquals(m_samplingCts, samplingCts))
                         {
                             break;
                         }
 
-                        uint disabledItemCount = 0;
-                        Dictionary<uint, ISampledDataChangeMonitoredItem>.Enumerator enumerator =
-                            m_items.GetEnumerator();
-
-                        while (enumerator.MoveNext())
-                        {
-                            ISampledDataChangeMonitoredItem monitoredItem = enumerator.Current
-                                .Value;
-
-                            if (monitoredItem.MonitoringMode == MonitoringMode.Disabled)
-                            {
-                                disabledItemCount++;
-                                continue;
-                            }
-
-                            // check whether the item should be sampled.
-                            //if (!monitoredItem.SamplingIntervalExpired())
-                            //{
-                            //    continue;
-                            //}
-
-                            items.Add(monitoredItem);
-                        }
+                        items = m_itemSnapshot ??= [.. m_items.Values];
                     }
 
                     // sample the values.
-                    await DoSampleAsync(items, ownedByLoop: true, cancellationToken).ConfigureAwait(false);
+                    await loop.SampleAsync(items, cancellationToken).ConfigureAwait(false);
 
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -664,14 +697,14 @@ namespace Opc.Ua.Server
         /// Samples the values of the items.
         /// </summary>
         /// <param name="items">The items to sample.</param>
-        /// <param name="ownedByLoop">
-        /// True for a sample of the sampling loop that owns <paramref name="cancellationToken"/>;
-        /// it stops as soon as that loop is detached from the group.
+        /// <param name="loopCts">
+        /// The token source of the sampling loop that takes the sample, or null for a sample
+        /// outside the loop; a loop sample stops as soon as that loop is detached from the group.
         /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
         private async ValueTask DoSampleAsync(
             List<ISampledDataChangeMonitoredItem> items,
-            bool ownedByLoop,
+            CancellationTokenSource? loopCts,
             CancellationToken cancellationToken = default)
         {
             try
@@ -679,6 +712,13 @@ namespace Opc.Ua.Server
                 // read values for all enabled items.
                 if (items != null && items.Count > 0)
                 {
+                    bool admitted = MasterNodeManager.TryCaptureItemEmission(
+                        m_server, m_nodeManager, null, out var emission);
+                    using var emissionLease = emission;
+                    if (!admitted)
+                    {
+                        return;
+                    }
                     if (m_session == null)
                     {
                         // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
@@ -691,11 +731,7 @@ namespace Opc.Ua.Server
                         .GroupBy(item => (object?)item.Session ?? item.EffectiveIdentity))
                     {
                         List<ISampledDataChangeMonitoredItem> ownedItems = [.. owned];
-                        ISession? session = ownedItems[0].Session;
-                        using OperationContext context = session != null
-                            ? new OperationContext(session, m_diagnosticsMask)
-                            : new OperationContext(ownedItems[0]);
-                        await SampleItemsAsync(context, ownedItems, ownedByLoop, cancellationToken).ConfigureAwait(false);
+                        await SampleItemsAsync(ownedItems, loopCts, emission, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -713,11 +749,17 @@ namespace Opc.Ua.Server
         /// Reads and queues the values of items owned by the session of the context.
         /// </summary>
         private async ValueTask SampleItemsAsync(
-            OperationContext context,
             List<ISampledDataChangeMonitoredItem> items,
-            bool ownedByLoop,
+            CancellationTokenSource? loopCts,
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission,
             CancellationToken cancellationToken)
         {
+            _ = MonitoredReadAuthorization.TryRefreshIdentity(m_server, items[0].Session);
+            // The weak subscriber entry owns this context; callers must not dispose it.
+            // TODO: Remove suppression when CA2000 recognizes shared context ownership.
+#pragma warning disable CA2000
+            OperationContext context = MonitoredReadAuthorization.GetSubscriberContext(items[0], m_diagnosticsMask);
+#pragma warning restore CA2000
             var itemsToRead = new List<ReadValueId>(items.Count);
             var values = new List<DataValue>(items.Count);
             var errors = new List<ServiceResult>(items.Count);
@@ -736,11 +778,12 @@ namespace Opc.Ua.Server
             // read values.
             await m_nodeManager.ReadAsync(context, 0, itemsToRead, values, errors, cancellationToken).ConfigureAwait(false);
 
+            ServerSystemContext systemContext = GetSampleSystemContext(context);
             // update monitored items, unless the group stopped while reading: its items
             // may already be deleted.
             for (int ii = 0; ii < items.Count; ii++)
             {
-                if (IsSamplingStopped(ownedByLoop, cancellationToken))
+                if (IsSamplingStopped(loopCts, cancellationToken))
                 {
                     return;
                 }
@@ -753,30 +796,174 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
 
+                (permissionResult, _, _) = await ValidateSampleReadAccessAsync(
+                    items[ii], ResolveSampledNode(items[ii]), context, systemContext, permissionResult, cancellationToken)
+                    .ConfigureAwait(false);
+
                 // the group may have stopped while the permission check was suspended.
-                if (IsSamplingStopped(ownedByLoop, cancellationToken))
+                if (IsSamplingStopped(loopCts, cancellationToken))
                 {
                     return;
                 }
 
-                if (ServiceResult.IsBad(permissionResult))
-                {
-                    items[ii].QueueValue(
-                        DataValue.FromStatusCode(
-                            permissionResult.StatusCode,
-                            m_timeProvider.GetUtcNow().UtcDateTime),
-                        permissionResult);
-                    continue;
-                }
+                QueueSample(items[ii], context, values[ii], errors[ii], permissionResult, sourceEmission);
+            }
+        }
 
-                if (values[ii].IsNull)
-                {
-                    values[ii] = DataValue.FromStatusCode(
-                        StatusCodes.BadInternalError,
-                        m_timeProvider.GetUtcNow().UtcDateTime);
-                }
+        /// <summary>
+        /// Gets the stable system-context copy for this sampling group and subscriber.
+        /// </summary>
+        private ServerSystemContext GetSampleSystemContext(OperationContext context)
+        {
+            return context.GetSystemContext(
+                (m_nodeManager as AsyncCustomNodeManager)?.SystemContext ?? m_systemContextTemplate);
+        }
 
-                items[ii].QueueValue(values[ii], errors[ii]);
+        /// <summary>
+        /// Resolves the exact sampled source, leaving provider-specific handles to their existing contracts.
+        /// </summary>
+        private NodeState? ResolveSampledNode(ISampledDataChangeMonitoredItem item)
+        {
+            return item.ManagerHandle switch
+            {
+                NodeHandle handle => handle.Node,
+                NodeState state => state,
+                _ => (m_nodeManager as AsyncCustomNodeManager)?.Find(item.NodeId)
+            };
+        }
+
+        /// <summary>
+        /// Checks that a sampling pass still belongs to the current item owner.
+        /// </summary>
+        private static bool IsCurrentOwner(ISampledDataChangeMonitoredItem item, OperationContext context)
+        {
+            ISession? session = item.Session;
+            return ReferenceEquals(context.Session, session) &&
+                ReferenceEquals(context.UserIdentity, session?.EffectiveIdentity ?? item.EffectiveIdentity) &&
+                (session is null ||
+                (context.ChannelContext?.SecureChannelId ?? string.Empty) ==
+                    (session.SecureChannelId ?? string.Empty)) &&
+                (session is not Session concreteSession ||
+                    ReferenceEquals(context.NotificationAuthorization, concreteSession.NotificationAuthorization));
+        }
+
+        /// <summary>
+        /// Reuses only an exact-source grant for the current owner and permission epoch.
+        /// </summary>
+        private bool TryReuseSampleReadAccess(
+            ISampledDataChangeMonitoredItem item,
+            NodeState node,
+            OperationContext context,
+            in PermissionVerdict verdict,
+            [NotNullWhen(true)] out ServiceResult? result)
+        {
+            result = null;
+            return verdict.Read != null &&
+                ReferenceEquals(verdict.ReadNode, node) &&
+                verdict.Epoch == PermissionEpoch &&
+                IsCurrentOwner(item, context) &&
+                (item.Session is Session ||
+                    verdict.IdentityGeneration == (item.Session?.CaptureIdentityRefreshSnapshot().Generation ?? 0)) &&
+                MonitoredReadVerdict.TryReuse(
+                    verdict.Read, m_server, m_nodeManager, node, item.AttributeId,
+                    MonitoredReadInputs.Capture(item.Session, node), out result);
+        }
+
+        /// <summary>
+        /// Rechecks a sampled source and retains a grant only while all captured inputs remain current.
+        /// </summary>
+        private async ValueTask<(ServiceResult Result, MonitoredReadVerdict? Verdict, long Epoch)>
+            ValidateSampleReadAccessAsync(
+            ISampledDataChangeMonitoredItem item,
+            NodeState? node,
+            OperationContext readContext,
+            ServerSystemContext systemContext,
+            ServiceResult permission,
+            CancellationToken cancellationToken)
+        {
+            if (ServiceResult.IsBad(permission) || node == null)
+            {
+                // Provider-specific non-NodeState handles retain their existing Read and role validation contracts.
+                return (permission, null, 0);
+            }
+            try
+            {
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!IsCurrentOwner(item, readContext) || item.Session?.IsIdentityStale == true)
+                    {
+                        return (StatusCodes.BadUserAccessDenied, null, 0);
+                    }
+                    MonitoredReadInputs inputs = MonitoredReadInputs.Capture(item.Session, node);
+                    long epoch = PermissionEpoch;
+                    long identityGeneration = item.Session is Session
+                        ? 0 : item.Session?.CaptureIdentityRefreshSnapshot().Generation ?? 0;
+                    (ServiceResult result, MonitoredReadVerdict? verdict) = await MonitoredReadVerdict.ValidateAsync(
+                        m_server, m_nodeManager, node, systemContext, item.AttributeId, inputs, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (IsCurrentOwner(item, readContext) &&
+                        (item.Session is Session ||
+                            identityGeneration == (item.Session?.CaptureIdentityRefreshSnapshot().Generation ?? 0)) &&
+                        inputs.IsCurrent(item.Session, node) &&
+                        epoch == PermissionEpoch)
+                    {
+                        return (result, verdict, epoch);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (ObjectDisposedException)
+            {
+                return (StatusCodes.BadShutdown, null, 0);
+            }
+            catch (ServiceResultException error)
+            {
+                return (error.Result, null, 0);
+            }
+            catch (Exception error) when (
+                error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+            {
+                return (ServiceResult.Create(
+                    error, StatusCodes.BadUnexpectedError, "A sampled Value read authorization failed."), null, 0);
+            }
+        }
+
+        /// <summary>
+        /// Queues a sampled value, or the error of a failed permission check, on an item.
+        /// </summary>
+        private void QueueSample(
+            ISampledDataChangeMonitoredItem item,
+            OperationContext context,
+            DataValue value,
+            ServiceResult error,
+            ServiceResult permissionResult,
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission)
+        {
+            if (ServiceResult.IsBad(permissionResult))
+            {
+                value = DataValue.FromStatusCode(
+                    permissionResult.StatusCode,
+                    m_timeProvider.GetUtcNow().UtcDateTime);
+                error = permissionResult;
+            }
+            else if (value.IsNull)
+            {
+                value = DataValue.FromStatusCode(
+                    StatusCodes.BadInternalError,
+                    m_timeProvider.GetUtcNow().UtcDateTime);
+            }
+
+            if (item is MonitoredItem concreteItem)
+            {
+                concreteItem.QueueValueIfCurrent(context, value, error, sourceEmission: sourceEmission);
+            }
+            else
+            {
+                item.QueueValue(value, error);
             }
         }
 
@@ -785,23 +972,293 @@ namespace Opc.Ua.Server
         /// sampling loop that was detached from the group and whose cancellation is still
         /// pending on the thread pool.
         /// </summary>
-        private bool IsSamplingStopped(bool ownedByLoop, CancellationToken cancellationToken)
+        private bool IsSamplingStopped(CancellationTokenSource? loopCts, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
             {
                 return true;
             }
 
-            if (!ownedByLoop)
+            // the loop is detached under the lock; a stale read only delays the stop by one item.
+            return loopCts != null && !ReferenceEquals(Volatile.Read(ref m_samplingCts), loopCts);
+        }
+
+        /// <summary>
+        /// The state that one sampling loop keeps between its cycles: the read requests and
+        /// results of its items, and the role permission verdicts of their last validation.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Each loop owns its state, so a detached loop that still finishes a cycle cannot
+        /// interfere with its successor.
+        /// </para>
+        /// <para>
+        /// The Read permission of an item is validated when the item joins the loop and again
+        /// whenever its Session, effective identity or node handle changed, the RolePermissions or
+        /// UserRolePermissions of a node changed, or the default permissions of a namespace changed.
+        /// Independently of these signals, every item is revalidated about once per
+        /// <see cref="kPermissionRevalidationPeriod"/>, spread over the cycles, which bounds
+        /// the delay for permissions that a node manager computes without a change signal.
+        /// </para>
+        /// </remarks>
+        private sealed class SamplingLoop
+        {
+            public SamplingLoop(SamplingGroup group, CancellationTokenSource loopCts)
             {
-                return false;
+                m_group = group;
+                m_loopCts = loopCts;
+                // round down, so that no verdict is used for longer than the period.
+                double cycles = Math.Floor(kPermissionRevalidationPeriod / Math.Max(group.m_samplingInterval, 1));
+                m_revalidationStride = (int)Math.Min(Math.Max(cycles, 1), int.MaxValue);
             }
 
-            lock (m_lock)
+            /// <summary>
+            /// Reads and queues the values of the enabled items.
+            /// </summary>
+            public async ValueTask SampleAsync(
+                ISampledDataChangeMonitoredItem[] items,
+                CancellationToken cancellationToken)
             {
-                return m_samplingCts == null || m_samplingCts.Token != cancellationToken;
+                try
+                {
+                    await SampleItemsAsync(items, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // the group was stopped while sampling.
+                }
+                catch (Exception e)
+                {
+                    m_group.m_logger.ServerUnexpectedErrorSamplingValues(e);
+                }
             }
+
+            private async ValueTask SampleItemsAsync(
+                ISampledDataChangeMonitoredItem[] items,
+                CancellationToken cancellationToken)
+            {
+                if (!ReferenceEquals(items, m_items))
+                {
+                    Reset(items);
+                }
+
+                // prepare the reads; disabled items are marked processed so no node manager reads them.
+                ISampledDataChangeMonitoredItem? first = null;
+                object? owner = null;
+                bool singleOwner = true;
+                for (int ii = 0; ii < items.Length; ii++)
+                {
+                    ISampledDataChangeMonitoredItem item = items[ii];
+                    ReadValueId readValueId = m_readValueIds[ii];
+                    m_values[ii] = default;
+                    m_errors[ii] = null!;
+                    m_enabled[ii] = item.MonitoringMode != MonitoringMode.Disabled;
+                    readValueId.Processed = !m_enabled[ii];
+                    if (!m_enabled[ii])
+                    {
+                        continue;
+                    }
+
+                    if (item.ManagerHandle is not { } handle)
+                    {
+                        m_enabled[ii] = false;
+                        readValueId.Processed = true;
+                        continue;
+                    }
+                    readValueId.Handle = handle;
+                    object? itemOwner = (object?)item.Session ?? item.EffectiveIdentity;
+                    if (first == null)
+                    {
+                        first = item;
+                        owner = itemOwner;
+                    }
+                    else if (!Equals(owner, itemOwner))
+                    {
+                        singleOwner = false;
+                    }
+                }
+
+                if (first == null)
+                {
+                    return;
+                }
+
+                if (!singleOwner)
+                {
+                    // TransferSubscriptions moved items to another owner without regrouping them:
+                    // read and validate each owner's items with its own context.
+                    var enabled = new List<ISampledDataChangeMonitoredItem>(items.Length);
+                    for (int ii = 0; ii < items.Length; ii++)
+                    {
+                        if (m_enabled[ii])
+                        {
+                            enabled.Add(items[ii]);
+                        }
+                    }
+
+                    await m_group.DoSampleAsync(enabled, m_loopCts, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+
+                // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
+                m_group.m_session ??= first.Session;
+
+                bool admitted = MasterNodeManager.TryCaptureItemEmission(
+                    m_group.m_server, m_group.m_nodeManager, null, out var emission);
+                using var emissionLease = emission;
+                if (!admitted)
+                {
+                    return;
+                }
+
+                _ = MonitoredReadAuthorization.TryRefreshIdentity(m_group.m_server, first.Session);
+                // The weak subscriber entry owns this context; callers must not dispose it.
+                // TODO: Remove suppression when CA2000 recognizes shared context ownership.
+#pragma warning disable CA2000
+                OperationContext context = MonitoredReadAuthorization.GetSubscriberContext(
+                    first, m_group.m_diagnosticsMask);
+#pragma warning restore CA2000
+
+                await m_group.m_nodeManager.ReadAsync(
+                    context, 0, m_readValueIds, m_values, m_errors, cancellationToken).ConfigureAwait(false);
+
+                long epoch = m_group.PermissionEpoch;
+                int slice = (int)(m_cycle++ % m_revalidationStride);
+                long identityGeneration = context.Session?.CaptureIdentityRefreshSnapshot().Generation ?? 0;
+                ServerSystemContext? systemContext = null;
+
+                // update monitored items, unless the group stopped while reading: its items
+                // may already be deleted.
+                for (int ii = 0; ii < items.Length; ii++)
+                {
+                    if (!m_enabled[ii])
+                    {
+                        continue;
+                    }
+
+                    if (m_group.IsSamplingStopped(m_loopCts, cancellationToken))
+                    {
+                        return;
+                    }
+
+                    ReadValueId readValueId = m_readValueIds[ii];
+                    PermissionVerdict verdict = m_verdicts[ii];
+                    ServiceResult? permissionResult = verdict.Result;
+                    if (permissionResult == null ||
+                        ii % m_revalidationStride == slice ||
+                        verdict.Epoch != epoch ||
+                        verdict.IdentityGeneration != identityGeneration ||
+                        !ReferenceEquals(verdict.Context, context) ||
+                        !ReferenceEquals(verdict.Session, context.Session) ||
+                        !ReferenceEquals(verdict.Identity, context.UserIdentity) ||
+                        !ReferenceEquals(verdict.Handle, readValueId.Handle))
+                    {
+                        permissionResult = await m_group.m_nodeManager
+                            .ValidateRolePermissionsAsync(
+                                context,
+                                readValueId.NodeId,
+                                PermissionType.Read,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+
+                        // the group may have stopped while the permission check was suspended.
+                        if (m_group.IsSamplingStopped(m_loopCts, cancellationToken))
+                        {
+                            return;
+                        }
+
+                        verdict = new PermissionVerdict(
+                            permissionResult, epoch, context.Session, context.UserIdentity, readValueId.Handle,
+                            identityGeneration, context);
+                        m_verdicts[ii] = verdict;
+                    }
+
+                    NodeState? node = m_group.ResolveSampledNode(items[ii]);
+                    if (node != null &&
+                        ServiceResult.IsGood(permissionResult) &&
+                        context.Session?.IsIdentityStale != true &&
+                        m_group.TryReuseSampleReadAccess(items[ii], node, context, verdict, out ServiceResult? reused))
+                    {
+                        permissionResult = reused;
+                    }
+                    else
+                    {
+                        systemContext ??= m_group.GetSampleSystemContext(context);
+                        (permissionResult, MonitoredReadVerdict? read, long readEpoch) =
+                            await m_group.ValidateSampleReadAccessAsync(
+                                items[ii], node, context, systemContext, permissionResult, cancellationToken)
+                                .ConfigureAwait(false);
+                        if (read != null && readEpoch == verdict.Epoch)
+                        {
+                            m_verdicts[ii] = verdict with { Read = read, ReadNode = node };
+                        }
+                    }
+                    if (m_group.IsSamplingStopped(m_loopCts, cancellationToken))
+                    {
+                        return;
+                    }
+                    m_group.QueueSample(items[ii], context, m_values[ii], m_errors[ii], permissionResult, emission);
+                }
+            }
+
+            /// <summary>
+            /// Rebuilds the per-item state after items were added to or removed from the group.
+            /// </summary>
+            private void Reset(ISampledDataChangeMonitoredItem[] items)
+            {
+                m_items = items;
+                m_readValueIds = new ReadValueId[items.Length];
+                for (int ii = 0; ii < items.Length; ii++)
+                {
+                    m_readValueIds[ii] = items[ii].GetReadValueId();
+                }
+
+                m_values = new DataValue[items.Length];
+                m_errors = new ServiceResult[items.Length];
+                m_enabled = new bool[items.Length];
+                m_verdicts = new PermissionVerdict[items.Length];
+            }
+
+            private readonly SamplingGroup m_group;
+            private readonly CancellationTokenSource m_loopCts;
+            private readonly int m_revalidationStride;
+            private long m_cycle;
+            private ISampledDataChangeMonitoredItem[]? m_items;
+            private ReadValueId[] m_readValueIds = [];
+            private DataValue[] m_values = [];
+            private ServiceResult[] m_errors = [];
+            private bool[] m_enabled = [];
+            private PermissionVerdict[] m_verdicts = [];
         }
+
+        /// <summary>
+        /// The cached result of a role permission validation and the inputs it is valid for.
+        /// </summary>
+        /// <param name="Result">The role permission result.</param>
+        /// <param name="Epoch">The group permission epoch.</param>
+        /// <param name="Session">The owning session.</param>
+        /// <param name="Identity">The effective subscriber identity.</param>
+        /// <param name="Handle">The current sampled handle.</param>
+        /// <param name="IdentityGeneration">The session activation or role refresh generation.</param>
+        /// <param name="Context">The shared authorization context captured for the sample.</param>
+        /// <param name="Read">An optional reusable exact-source grant.</param>
+        /// <param name="ReadNode">The exact node authorized by the grant.</param>
+        private readonly record struct PermissionVerdict(
+            ServiceResult? Result,
+            long Epoch,
+            ISession? Session,
+            IUserIdentity? Identity,
+            object? Handle,
+            long IdentityGeneration,
+            OperationContext Context,
+            MonitoredReadVerdict? Read = null,
+            NodeState? ReadNode = null);
+
+        /// <summary>
+        /// The longest time a cached role permission verdict of a sampled item is used
+        /// without revalidation, in milliseconds.
+        /// </summary>
+        private const double kPermissionRevalidationPeriod = 1000;
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
@@ -809,6 +1266,10 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly IAsyncNodeManager m_nodeManager;
+
+        /// <summary>Stable fallback template for provider-specific sampling managers.</summary>
+        private readonly ServerSystemContext m_systemContextTemplate;
+
         private ISession? m_session;
         private readonly IUserIdentity? m_effectiveIdentity;
         private readonly DiagnosticsMasks m_diagnosticsMask;
@@ -818,6 +1279,9 @@ namespace Opc.Ua.Server
         private readonly HashSet<uint> m_itemsWithInitialValue = [];
         private readonly Dictionary<uint, ISampledDataChangeMonitoredItem> m_items;
         private readonly List<SamplingRateGroup> m_samplingRates;
+        private ISampledDataChangeMonitoredItem[]? m_itemSnapshot;
+        private IConfigurationNodeManager? m_configurationNodeManager;
+        private long m_permissionEpoch;
         private Task? m_samplingTask;
         // Dispose detaches the source and CancelSamplingLoop disposes it once the loop completes.
         // TODO: Remove the pragma when CA2213 recognizes deferred ownership transfer.

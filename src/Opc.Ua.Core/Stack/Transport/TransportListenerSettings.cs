@@ -151,7 +151,7 @@ namespace Opc.Ua
         /// A standalone host without a provider has only legacy response-count hints, which
         /// cannot account for transfer, timeout or administrative closure.
         /// </remarks>
-        public ISessionBindingProvider? SessionBindingProvider { get; set; }
+        public IServerSessionBindingProvider? SessionBindingProvider { get; set; }
 
         /// <summary>
         /// Gets or sets the server-owned isolation policy shared across transport listeners.

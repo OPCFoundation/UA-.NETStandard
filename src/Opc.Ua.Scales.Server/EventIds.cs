@@ -46,5 +46,6 @@ namespace Opc.Ua.Scales.Server
         public const int ScaleHandle = 8210;
         public const int ScaleProducts = 8220;
         public const int ScaleRecipes = 8230;
+        public const int ScaleRuntimeServices = 8240;
     }
 }

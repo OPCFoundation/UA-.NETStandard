@@ -68,6 +68,67 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// Repeated positive and negative checks reuse one complete walk of all four type hierarchies.
+        /// </summary>
+        /// <param name="nodeClass">The class of the companion type held by the Server.</param>
+        [TestCase(NodeClass.ObjectType)]
+        [TestCase(NodeClass.VariableType)]
+        [TestCase(NodeClass.DataType)]
+        [TestCase(NodeClass.ReferenceType)]
+        public async Task HeldNamespacesAreCachedAcrossRepeatedChecksAsync(NodeClass nodeClass)
+        {
+            int metadataReads = 0;
+            AddressSpaceWotNodeResolver resolver = CreateResolver(() => metadataReads++, nodeClass);
+
+            Assert.That(await resolver.HoldsNamespaceAsync("urn:registered:without-types").ConfigureAwait(false),
+                Is.False);
+            int initialReads = metadataReads;
+            Assert.That(initialReads, Is.Positive);
+            for (int ii = 0; ii < 3; ii++)
+            {
+                Assert.That(await resolver.HoldsNamespaceAsync(CompanionNamespace).ConfigureAwait(false), Is.True);
+                Assert.That(await resolver.HoldsNamespaceAsync("urn:registered:without-types").ConfigureAwait(false),
+                    Is.False);
+            }
+            Assert.That(metadataReads, Is.EqualTo(initialReads));
+
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThatAsync(
+                () => resolver.HoldsNamespaceAsync(CompanionNamespace, cancellation.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(metadataReads, Is.EqualTo(initialReads));
+        }
+
+        /// <summary>
+        /// A canceled first walk is not published as a partial namespace cache.
+        /// </summary>
+        [Test]
+        public async Task CanceledNamespaceWalkCanBeRetriedAsync()
+        {
+            int metadataReads = 0;
+            using var cancellation = new CancellationTokenSource();
+            AddressSpaceWotNodeResolver resolver = CreateResolver(() =>
+            {
+                metadataReads++;
+                if (metadataReads == 1)
+                {
+                    cancellation.Cancel();
+                    cancellation.Token.ThrowIfCancellationRequested();
+                }
+            });
+
+            await Assert.ThatAsync(
+                () => resolver.HoldsNamespaceAsync(CompanionNamespace, cancellation.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(await resolver.HoldsNamespaceAsync(CompanionNamespace).ConfigureAwait(false), Is.True);
+            Assert.That(metadataReads, Is.GreaterThan(1));
+            int completedReads = metadataReads;
+            Assert.That(await resolver.HoldsNamespaceAsync(CompanionNamespace).ConfigureAwait(false), Is.True);
+            Assert.That(metadataReads, Is.EqualTo(completedReads));
+        }
+
+        /// <summary>
         /// The definitive form of Section 5.2.1: an ExpandedNodeId naming a
         /// type the Server holds resolves to it.
         /// </summary>
@@ -304,10 +365,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// symmetric <c>ConnectedTo</c>, plus one Node the type hierarchy lists
         /// as a ReferenceType but whose Attributes say otherwise.
         /// </summary>
-        private static AddressSpaceWotNodeResolver CreateResolver()
+        /// <param name="onMetadataRead">An optional callback observing each metadata read.</param>
+        /// <param name="nodeClass">The class of the companion type in the hierarchy.</param>
+        private static AddressSpaceWotNodeResolver CreateResolver(
+            Action? onMetadataRead = null,
+            NodeClass nodeClass = NodeClass.ObjectType)
         {
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append(CompanionNamespace);
+            namespaceUris.Append("urn:registered:without-types");
             ushort index = (ushort)namespaceUris.GetIndex(CompanionNamespace);
             var tankTypeId = new NodeId(1042u, index);
             var flowsIntoId = new NodeId(5001u, index);
@@ -319,8 +385,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             // The roots have to exist before anything derives from them.
             typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.BaseObjectType, NodeId.Null);
             typeTable.AddSubtype(Opc.Ua.VariableTypeIds.BaseVariableType, NodeId.Null);
+            typeTable.AddSubtype(Opc.Ua.DataTypeIds.BaseDataType, NodeId.Null);
             typeTable.AddSubtype(Opc.Ua.ReferenceTypeIds.References, NodeId.Null);
-            typeTable.AddSubtype(tankTypeId, Opc.Ua.ObjectTypeIds.BaseObjectType);
+            typeTable.AddSubtype(tankTypeId, nodeClass switch
+            {
+                NodeClass.VariableType => Opc.Ua.VariableTypeIds.BaseVariableType,
+                NodeClass.DataType => Opc.Ua.DataTypeIds.BaseDataType,
+                NodeClass.ReferenceType => Opc.Ua.ReferenceTypeIds.References,
+                _ => Opc.Ua.ObjectTypeIds.BaseObjectType
+            });
             typeTable.AddSubtype(flowsIntoId, Opc.Ua.ReferenceTypeIds.References);
             typeTable.AddSubtype(connectedToId, Opc.Ua.ReferenceTypeIds.References);
             typeTable.AddSubtype(pretendId, Opc.Ua.ReferenceTypeIds.References);
@@ -342,9 +415,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     BrowseResultMask _,
                     CancellationToken _) =>
                 {
+                    onMetadataRead?.Invoke();
                     var metadata = new NodeMetadata(handle, (NodeId)handle)
                     {
-                        NodeClass = NodeClass.ObjectType,
+                        NodeClass = nodeClass,
                         BrowseName = new QualifiedName("TankType", index)
                     };
                     return new ValueTask<NodeMetadata>(metadata);

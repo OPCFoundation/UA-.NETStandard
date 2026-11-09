@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Vision.Client;
 using Opc.Ua.Vision.Intent.Tests.Infrastructure;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Intent.Tests
 {
@@ -95,7 +96,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                     "Both authored parts should be detected in the initial bin state.");
                 Assert.That(detections.Select(d => d.ClassLabel),
                     Is.EquivalentTo(s_stringValues1));
-                Assert.That(detections.All(d => d.Confidence >= 0.0 && d.Confidence <= 1.0), Is.True,
+                Assert.That(detections.All(d => d.Confidence is >= 0.0 and <= 1.0), Is.True,
                     "All confidences must live in [0, 1].");
                 Assert.That(detections.All(d => d.HasBoundingBox2D), Is.True,
                     "The ground-truth detector reports a bounding box for every part.");
@@ -177,7 +178,7 @@ namespace Opc.Ua.Vision.Intent.Tests
         private static async Task<VisionDetectionResultSnapshot> ReadSingleResultAsync(
             VisionPipelineClient pipeline, VisionIntentClientContext context)
         {
-            List<VisionNodeEntry> results = new();
+            List<VisionNodeEntry> results = [];
             await foreach (VisionNodeEntry entry in pipeline.EnumerateResultsAsync())
             {
                 results.Add(entry);

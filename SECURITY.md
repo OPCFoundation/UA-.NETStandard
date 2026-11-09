@@ -2,7 +2,10 @@
 
 ## Supported Versions
 
-Only the latest version will receive security updates.
+Security fixes are provided for maintained release lines. The 1.x line on
+`master378` continues to receive security and critical-bug fixes alongside
+2.0 development on `master`. Use the latest available release in a maintained
+line; older patch versions are not maintained separately.
 
 ## Reporting a Vulnerability
 

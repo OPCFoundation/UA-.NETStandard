@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -47,6 +48,11 @@ namespace Opc.Ua.Client
         private const int kKeepAliveTimerMargin = 1000;
         private const int kRepublishMessageExpiredTimeout = 10000;
         private const uint kMaxSequenceNumberGap = 1024;
+
+        /// <summary>
+        /// Orders the server id claims of all subscriptions in the process.
+        /// </summary>
+        private static long s_idClaims;
 
         /// <summary>
         /// Duration to wait before republishing missed notification
@@ -116,9 +122,12 @@ namespace Opc.Ua.Client
             {
                 m_StateChanged = template.m_StateChanged;
                 m_PublishStatusChanged = template.m_PublishStatusChanged;
+#pragma warning disable CS0618 // copies the obsolete classic fast callbacks until they are removed
                 FastDataChangeCallback = template.FastDataChangeCallback;
                 FastEventCallback = template.FastEventCallback;
+                NotificationMessageHandler = template.NotificationMessageHandler;
                 FastKeepAliveCallback = template.FastKeepAliveCallback;
+#pragma warning restore CS0618
             }
 
             // copy the list of monitored items.
@@ -613,6 +622,8 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// The maximum number of messages to keep in the internal cache.
+        /// The newest message is always kept, so a value below one keeps one
+        /// message. A lowered value takes effect when the next message arrives.
         /// </summary>
         public int MaxMessageCount
         {
@@ -719,12 +730,21 @@ namespace Opc.Ua.Client
         public SubscriptionRecoveryPolicy RecoveryPolicy { get; set; }
 
         /// <summary>
+        /// Gets or sets an asynchronous whole-message handler. When set, it replaces the
+        /// fast data-change and event callbacks, but not caching, keep-alives or state changes.
+        /// </summary>
+        public Subscriptions.ISubscriptionNotificationMessageHandler? NotificationMessageHandler { get; set; }
+
+        /// <summary>
         /// Gets or sets the fast data change callback.
         /// </summary>
         /// <value>The fast data change callback.</value>
         /// <remarks>
         /// Only one callback is allowed at a time but it is more efficient to call than an event.
         /// </remarks>
+        [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+            "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+            "See docs/MigrationGuide.md.")]
         public FastDataChangeNotificationEventHandler? FastDataChangeCallback { get; set; }
 
         /// <summary>
@@ -734,6 +754,9 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// Only one callback is allowed at a time but it is more efficient to call than an event.
         /// </remarks>
+        [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+            "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+            "See docs/MigrationGuide.md.")]
         public FastEventNotificationEventHandler? FastEventCallback { get; set; }
 
         /// <summary>
@@ -743,6 +766,9 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// Only one callback is allowed at a time but it is more efficient to call than an event.
         /// </remarks>
+        [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+            "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+            "See docs/MigrationGuide.md.")]
         public FastKeepAliveNotificationEventHandler? FastKeepAliveCallback { get; set; }
 
         /// <summary>
@@ -833,6 +859,85 @@ namespace Opc.Ua.Client
         /// The unique identifier assigned by the server.
         /// </summary>
         public uint Id { get; private set; }
+
+        /// <summary>
+        /// Gets the acknowledgement handle of a data change or event notification this
+        /// subscription delivered through <see cref="FastDataChangeCallback"/> or
+        /// <see cref="FastEventCallback"/>. Handles are only recorded when the classic
+        /// subscription engine tracks the acknowledgement, which it does when the session has
+        /// an acknowledgement configuration (for example
+        /// <see cref="AcknowledgementMode.AfterConfirmation"/>). A classic subscription served
+        /// by the default V2 engine has no handles. All notifications of one message share the
+        /// handle; confirm it only after all of them were processed.
+        /// </summary>
+        /// <param name="notification">The notification the callback received.</param>
+        /// <param name="handle">The acknowledgement of the message it arrived in.</param>
+        /// <returns><c>true</c> if a handle was recorded for the notification.</returns>
+        public bool TryGetAcknowledgementHandle(NotificationData notification, out AcknowledgementHandle handle)
+        {
+            if (notification != null &&
+                m_acknowledgementHandles.TryGetValue(notification, out StrongBox<AcknowledgementHandle>? box))
+            {
+                handle = box.Value;
+                return true;
+            }
+            handle = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the acknowledgement scope of the subscription's current lifetime.
+        /// </summary>
+        internal AcknowledgementScope GetAcknowledgementScope()
+        {
+            return AcknowledgementScope.GetOrCreate(
+                ref m_acknowledgementScope,
+                this,
+                Interlocked.Read(ref m_acknowledgementGeneration),
+                Id);
+        }
+
+        /// <summary>
+        /// Gets the order in which the subscription claimed its current server id, or 0. A
+        /// later claim of the same id by another subscription supersedes this one.
+        /// </summary>
+        internal long IdClaim => Interlocked.Read(ref m_idClaim);
+
+        /// <summary>
+        /// Gets a value indicating whether another subscription claimed the server id later,
+        /// for example because the server reused it while this subscription was still
+        /// registered.
+        /// </summary>
+        internal bool IsIdClaimSuperseded
+        {
+            get
+            {
+                long claim = IdClaim;
+                return claim != 0 && Interlocked.Read(ref m_supersededIdClaim) == claim;
+            }
+        }
+
+        /// <summary>
+        /// Marks the current id claim as superseded by a later claim of the same id. The
+        /// acknowledgements of the current lifetime are retired, and the mark stays after
+        /// the later claimant is retired, until this subscription claims an id again.
+        /// </summary>
+        internal void SupersedeIdClaim()
+        {
+            long claim = IdClaim;
+            if (claim != 0 && Interlocked.Exchange(ref m_supersededIdClaim, claim) != claim)
+            {
+                Interlocked.Increment(ref m_acknowledgementGeneration);
+            }
+        }
+
+        /// <summary>
+        /// Records that the subscription claimed its current server id.
+        /// </summary>
+        private void ClaimId()
+        {
+            Interlocked.Exchange(ref m_idClaim, Interlocked.Increment(ref s_idClaims));
+        }
 
         /// <summary>
         /// Whether the subscription has been created on the server.
@@ -1029,6 +1134,13 @@ namespace Opc.Ua.Client
             // belongs to another server subscription. Reset it, otherwise the
             // item is taken as created and never created on the new one.
             ResetMonitoredItemServerIds(createdOnly: true);
+            lock (m_cache)
+            {
+                foreach (MonitoredItem item in m_monitoredItems.Values)
+                {
+                    item.ResolvedNodeId = NodeId.Null;
+                }
+            }
 
             // create the subscription.
             uint revisedMaxKeepAliveCount = KeepAliveCount;
@@ -1267,43 +1379,25 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Resolves all relative paths to nodes on the server.
+        /// Resolves relative paths for items that have not started creation.
         /// </summary>
         public async Task ResolveItemNodeIdsAsync(CancellationToken ct = default)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
-            // collect list of browse paths.
-            (ArrayOf<BrowsePath> browsePaths, ArrayOf<MonitoredItem> itemsToBrowse) = PrepareResolveItemNodeIds();
-
-            // nothing to do.
-            if (browsePaths.Count == 0)
+            var items = new List<(MonitoredItem Item, MonitoredItemOptions Options, long Revision)>();
+            lock (m_cache)
             {
-                return;
+                foreach (MonitoredItem item in m_monitoredItems.Values)
+                {
+                    if (item.TryPrepareResolve(out MonitoredItemOptions options, out long revision))
+                    {
+                        items.Add((item, options, revision));
+                    }
+                }
             }
-
-            // translate browse paths.
-            TranslateBrowsePathsToNodeIdsResponse response = await Session
-                .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
-                .ConfigureAwait(false);
-
-            ArrayOf<BrowsePathResult> results = response.Results;
-            ClientBase.ValidateResponse(results, browsePaths);
-            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, browsePaths);
-
-            // update results.
-            for (int ii = 0; ii < results.Count; ii++)
-            {
-                itemsToBrowse[ii]
-                    .SetResolvePathResult(
-                        results[ii],
-                        ii,
-                        response.DiagnosticInfos,
-                        response.ResponseHeader);
-            }
-
-            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+            await ResolveItemNodeIdsAsync(items, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1362,14 +1456,12 @@ namespace Opc.Ua.Client
                     }
                 }
             }
-            catch
+            finally
             {
-                // Clear the Creating flag on all items if an exception occurs
                 foreach (MonitoredItem monitoredItem in itemsToCreate)
                 {
-                    monitoredItem.Status.Creating = false;
+                    monitoredItem.CompleteCreate();
                 }
-                throw;
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsCreated;
@@ -1488,7 +1580,7 @@ namespace Opc.Ua.Client
                     foreach (MonitoredItem monitoredItem in itemsToDelete)
                     {
                         m_deletingItems.Remove(monitoredItem);
-                        if (succeeded)
+                        if (succeeded && !monitoredItem.Created)
                         {
                             m_deletedItems.Remove(monitoredItem);
                         }
@@ -1847,20 +1939,15 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
+            Session? previousSession = Session as Session;
+            List<AcknowledgementHandover> releasedAcknowledgements = [];
+            bool sourceDetached = false;
+            bool acknowledgementsHandedOver = false;
             if (Created)
             {
                 // handle the case when the client has the subscription template and reconnects
                 if (id != Id)
                 {
-                    return (false, default);
-                }
-
-                // remove the subscription from disconnected session
-                if (Session?.RemoveTransferredSubscription(this) != true)
-                {
-                    m_logger.SubscriptionIdSubscriptionIdFailedRemoveTransferredSubscription(
-                        Id,
-                        Session?.SessionId);
                     return (false, default);
                 }
 
@@ -1871,13 +1958,53 @@ namespace Opc.Ua.Client
                 await session.RemoveSubscriptionsAsync(subscriptionsToRemove, ct)
                     .ConfigureAwait(false);
 
-                // add transferred subscription to session
-                if (!session.AddSubscription(this))
+                // Detach and release while the previous engine is locked, so its Publish
+                // completion cannot retire or report these acknowledgements in the gap.
+                bool removed = previousSession != null &&
+                    !ReferenceEquals(previousSession, session)
+                    ? previousSession.RemoveTransferredSubscriptionForTransfer(
+                        this,
+                        out releasedAcknowledgements)
+                    : Session?.RemoveTransferredSubscription(this) == true;
+                if (!removed)
                 {
-                    m_logger.SubscriptionIdSubscriptionIdFailedAddTransferredSubscription(
+                    m_logger.SubscriptionIdSubscriptionIdFailedRemoveTransferredSubscription(
                         Id,
-                        session.SessionId);
+                        Session?.SessionId);
                     return (false, default);
+                }
+                sourceDetached = previousSession != null &&
+                    !ReferenceEquals(previousSession, session);
+
+                // add transferred subscription to session
+                try
+                {
+                    if (!session.AddSubscription(this))
+                    {
+                        m_logger.SubscriptionIdSubscriptionIdFailedAddTransferredSubscription(
+                            Id,
+                            session.SessionId);
+                        if (sourceDetached &&
+                            previousSession!.RestoreTransferredSubscription(this, releasedAcknowledgements))
+                        {
+                            sourceDetached = false;
+                        }
+                        else if (sourceDetached)
+                        {
+                            previousSession!.RetireReleasedAcknowledgements(releasedAcknowledgements);
+                            acknowledgementsHandedOver = true;
+                        }
+                        return (false, default);
+                    }
+                }
+                catch
+                {
+                    if (sourceDetached)
+                    {
+                        previousSession!.RetireReleasedAcknowledgements(releasedAcknowledgements);
+                        acknowledgementsHandedOver = true;
+                    }
+                    throw;
                 }
             }
             else
@@ -1976,13 +2103,45 @@ namespace Opc.Ua.Client
 
                 // sets state to 'Created'
                 Id = id;
+                ClaimId();
                 TransferItems(serverHandles, clientHandles, out IList<MonitoredItem> itemsToModify);
 
                 await ModifyItemsAsync(ct).ConfigureAwait(false);
             }
 
             // add available sequence numbers to incoming
-            ArrayOf<uint> acknowledgements = ProcessTransferredSequenceNumbers(availableSequenceNumbers);
+            ArrayOf<uint> acknowledgements;
+            try
+            {
+                acknowledgements = ProcessTransferredSequenceNumbers(availableSequenceNumbers);
+                if (sourceDetached && releasedAcknowledgements.Count != 0)
+                {
+                    if (session is Session targetSession)
+                    {
+                        targetSession.HandOverAcknowledgements(
+                            previousSession,
+                            this,
+                            releasedAcknowledgements,
+                            availableSequenceNumbers,
+                            acknowledgements);
+                    }
+                    else if (previousSession != null)
+                    {
+                        previousSession.RetireReleasedAcknowledgements(releasedAcknowledgements);
+                    }
+                    acknowledgementsHandedOver = true;
+                }
+            }
+            catch
+            {
+                if (sourceDetached &&
+                    !acknowledgementsHandedOver)
+                {
+                    previousSession!.RetireReleasedAcknowledgements(releasedAcknowledgements);
+                    acknowledgementsHandedOver = true;
+                }
+                throw;
+            }
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
             ChangesCompleted();
@@ -2099,7 +2258,19 @@ namespace Opc.Ua.Client
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message)
         {
-            SaveMessageInCache(availableSequenceNumbers, message, true);
+            SaveMessageInCache(availableSequenceNumbers, message, true, null);
+        }
+
+        /// <summary>
+        /// Adds the notification message to internal cache, with the acknowledgement scope the
+        /// engine tracked when the message was received.
+        /// </summary>
+        internal void SaveMessageInCache(
+            ArrayOf<uint> availableSequenceNumbers,
+            NotificationMessage message,
+            AcknowledgementScope? acknowledgementScope)
+        {
+            SaveMessageInCache(availableSequenceNumbers, message, true, acknowledgementScope);
         }
 
         /// <summary>
@@ -2109,15 +2280,28 @@ namespace Opc.Ua.Client
         /// kept: otherwise every other missing message would be given up
         /// while the server still holds it.
         /// </summary>
-        internal void SaveRepublishedMessageInCache(NotificationMessage message)
+        internal void SaveRepublishedMessageInCache(
+            NotificationMessage message,
+            AcknowledgementScope? acknowledgementScope = null)
         {
-            SaveMessageInCache(default, message, false);
+            SaveMessageInCache(default, message, false, acknowledgementScope);
         }
 
+        /// <summary>
+        /// Adds a received message to the cache of messages waiting for dispatch.
+        /// </summary>
+        /// <param name="availableSequenceNumbers">The sequence numbers the server holds.</param>
+        /// <param name="message">The received message.</param>
+        /// <param name="updateAvailableSequenceNumbers">Whether to replace the available
+        /// sequence numbers.</param>
+        /// <param name="acknowledgementScope">The scope the engine tracked the acknowledgement
+        /// with, or <c>null</c> to capture the current one. Delivered notifications carry the
+        /// same handle.</param>
         private void SaveMessageInCache(
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message,
-            bool updateAvailableSequenceNumbers)
+            bool updateAvailableSequenceNumbers,
+            AcknowledgementScope? acknowledgementScope)
         {
             PublishStateChangedEventHandler? callback = null;
 
@@ -2175,8 +2359,13 @@ namespace Opc.Ua.Client
                     if (message.NotificationData.Count > 0 && !newEntry.Processed)
                     {
                         newEntry.Message = message;
+                        newEntry.IsRepublishResponse = !updateAvailableSequenceNumbers;
                         newEntry.SavedDuringTransfer = Volatile.Read(ref m_transfersInProgress) != 0;
                         newEntry.TransferGeneration = Volatile.Read(ref m_transferGeneration);
+                        newEntry.AcknowledgementScope =
+                            acknowledgementScope != null && ReferenceEquals(acknowledgementScope.Owner, this)
+                                ? acknowledgementScope
+                                : null;
                     }
                 }
 
@@ -2627,25 +2816,38 @@ namespace Opc.Ua.Client
                     for (int i = 0; i < availableNumbers; i++)
                     {
                         bool found = false;
+                        bool republishRequested = false;
                         foreach (uint sequenceNumber in availableSequenceNumberList)
                         {
                             if (lastSequenceNumberToRepublish == sequenceNumber)
                             {
-                                IncomingMessage entry = FindOrCreateEntry(now, backdatedTimestamp, sequenceNumber);
-                                entry.Republished = false;
-                                entry.RepublishStatus = default;
-                                entry.RepublishImmediately = true;
                                 found = true;
+                                IncomingMessage? existing = FindEntry(sequenceNumber);
+                                if (existing == null || (!existing.Processed && existing.Message == null))
+                                {
+                                    IncomingMessage entry = FindOrCreateEntry(
+                                        now,
+                                        backdatedTimestamp,
+                                        sequenceNumber);
+                                    entry.Republished = false;
+                                    entry.RepublishStatus = default;
+                                    entry.RepublishImmediately = true;
+                                    republishRequested = true;
+                                }
                                 break;
                             }
                         }
 
                         if (found)
                         {
-                            // remove sequence number handled for republish
-                            availableSequenceNumberList.Remove(lastSequenceNumberToRepublish);
+                            // Keep already-received messages in the acknowledgement list;
+                            // only messages requiring replay are removed from it.
+                            if (republishRequested)
+                            {
+                                availableSequenceNumberList.Remove(lastSequenceNumberToRepublish);
+                                republishMessages++;
+                            }
                             lastSequenceNumberToRepublish--;
-                            republishMessages++;
                         }
                         else
                         {
@@ -2935,6 +3137,7 @@ namespace Opc.Ua.Client
 
                 CurrentPublishingEnabled = PublishingEnabled;
                 TransferId = Id = subscriptionId;
+                ClaimId();
                 m_changeMask |= SubscriptionChangeMask.Created;
             }
 
@@ -3000,12 +3203,39 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Records the acknowledgement handle of a delivered notification. Only messages whose
+        /// acknowledgement the classic engine tracks have a handle: it uses the scope captured
+        /// when the message was received, so it matches the tracked acknowledgement.
+        /// </summary>
+        private void RecordAcknowledgementHandle(
+            NotificationData notification,
+            AcknowledgementScope? acknowledgementScope,
+            uint sequenceNumber)
+        {
+            if (acknowledgementScope == null)
+            {
+                return;
+            }
+            m_acknowledgementHandles.GetValue(notification, static _ => new StrongBox<AcknowledgementHandle>()).Value =
+                new AcknowledgementHandle(acknowledgementScope, sequenceNumber);
+        }
+
+        /// <summary>
         /// Delete the subscription.
         /// Ignore errors, always reset all parameter.
         /// </summary>
         private void DeleteSubscription()
         {
+            // The id is cleared before the generation advances, so an acknowledgement stamped
+            // in between belongs to the ended lifetime and never shares a scope with a later
+            // lifetime that reuses the id. Retired afterwards: none can be stamped for this
+            // subscription any more.
             TransferId = Id = 0;
+            Interlocked.Increment(ref m_acknowledgementGeneration);
+            if (Session is Session { SubscriptionEngine: ClassicSubscriptionEngine engine })
+            {
+                engine.RetireAcknowledgementsOf(this, includeCurrentLifetime: true);
+            }
             CurrentPublishingInterval = 0;
             CurrentKeepAliveCount = 0;
             CurrentPublishingEnabled = false;
@@ -3035,6 +3265,10 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                foreach (MonitoredItem monitoredItem in m_deletedItems)
+                {
+                    monitoredItem.SetDeleteResult(StatusCodes.Good, -1, default, null);
+                }
                 m_deletedItems.Clear();
                 m_deletingItems.Clear();
             }
@@ -3130,7 +3364,8 @@ namespace Opc.Ua.Client
                 PublishStateChangedEventHandler? callback = null;
 
                 // list of new messages to process.
-                List<(NotificationMessage Message, bool SavedDuringTransfer, int TransferGeneration)>?
+                List<(NotificationMessage Message, bool SavedDuringTransfer, int TransferGeneration,
+                    AcknowledgementScope? AcknowledgementScope, bool IsRepublishResponse)>?
                     messagesToProcess = null;
 
                 // list of keep alive messages to process.
@@ -3158,17 +3393,20 @@ namespace Opc.Ua.Client
                             (!State.SequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
                         {
                             (messagesToProcess ??= []).Add(
-                                (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration));
+                                (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration,
+                                    ii.Value.AcknowledgementScope, ii.Value.IsRepublishResponse));
 
-                            // remove the oldest items. The emptiness check keeps a
-                            // negative MaxMessageCount from throwing on RemoveFirst.
-                            while (m_messageCache.Count > 0 &&
+                            m_messageCache.AddLast(ii.Value.Message);
+
+                            // remove the oldest items. The newest message always
+                            // stays cached because the last notification properties
+                            // read it, also when MaxMessageCount is zero or negative.
+                            while (m_messageCache.Count > 1 &&
                                 m_messageCache.Count > MaxMessageCount)
                             {
                                 m_messageCache.RemoveFirst();
                             }
 
-                            m_messageCache.AddLast(ii.Value.Message);
                             ii.Value.Processed = true;
 
                             // Keep the last sequence number processed going up
@@ -3243,7 +3481,9 @@ namespace Opc.Ua.Client
                 }
 
                 // process new keep alive messages.
+#pragma warning disable CS0618 // dispatches the obsolete classic fast callbacks until they are removed
                 FastKeepAliveNotificationEventHandler? keepAliveCallback = FastKeepAliveCallback;
+#pragma warning restore CS0618
                 if (keepAliveToProcess != null && keepAliveCallback != null)
                 {
                     foreach (IncomingMessage message in keepAliveToProcess)
@@ -3261,12 +3501,20 @@ namespace Opc.Ua.Client
                 if (messagesToProcess != null)
                 {
                     int noNotificationsReceived;
+#pragma warning disable CS0618 // dispatches the obsolete classic fast callbacks until they are removed
                     FastDataChangeNotificationEventHandler? datachangeCallback
                         = FastDataChangeCallback;
                     FastEventNotificationEventHandler? eventCallback = FastEventCallback;
+#pragma warning restore CS0618
+                    Subscriptions.ISubscriptionNotificationMessageHandler? messageHandler = NotificationMessageHandler;
+                    if (messageHandler != null)
+                    {
+                        datachangeCallback = null;
+                        eventCallback = null;
+                    }
 
-                    foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration)
-                        in messagesToProcess)
+                    foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration,
+                        AcknowledgementScope? acknowledgementScope, bool isRepublishResponse) in messagesToProcess)
                     {
                         noNotificationsReceived = 0;
                         try
@@ -3277,6 +3525,7 @@ namespace Opc.Ua.Client
                                 {
                                     datachange.PublishTime = message.PublishTime;
                                     datachange.SequenceNumber = message.SequenceNumber;
+                                    RecordAcknowledgementHandle(datachange, acknowledgementScope, message.SequenceNumber);
                                     datachange.MoreNotifications = message.MoreNotifications;
 
                                     noNotificationsReceived += datachange.MonitoredItems.Count;
@@ -3306,6 +3555,7 @@ namespace Opc.Ua.Client
                                 {
                                     events.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
+                                    RecordAcknowledgementHandle(events, acknowledgementScope, message.SequenceNumber);
                                     events.MoreNotifications = message.MoreNotifications;
 
                                     noNotificationsReceived += events.Events.Count;
@@ -3357,6 +3607,15 @@ namespace Opc.Ua.Client
                                         publishStateChangedMask |= PublishStateChangedMask.Timeout;
                                     }
                                 }
+                            }
+                            if (messageHandler != null)
+                            {
+                                AcknowledgementScope scope = acknowledgementScope ?? GetAcknowledgementScope();
+                                var handle = new AcknowledgementHandle(scope, message.SequenceNumber);
+                                await messageHandler.OnNotificationMessageAsync(
+                                    Subscriptions.NotificationMessageDispatch.CreateClassic(
+                                        message, handle, isRepublishResponse), ct)
+                                    .ConfigureAwait(false);
                             }
                         }
                         catch (Exception e)
@@ -3526,53 +3785,70 @@ namespace Opc.Ua.Client
         {
             VerifySessionAndSubscriptionState(true);
 
-            await ResolveItemNodeIdsAsync(ct).ConfigureAwait(false);
-
-            var requestItems = new List<MonitoredItemCreateRequest>();
-            var itemsToCreate = new List<MonitoredItem>();
+            var prepared = new List<(MonitoredItem Item, MonitoredItemOptions Options, long Revision)>();
             lock (m_cache)
             {
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                foreach (MonitoredItem item in m_monitoredItems.Values)
                 {
-                    // ignore items that have been created or are being created.
-                    if (monitoredItem.Status.Created || monitoredItem.Status.Creating)
+                    if (item.TryPrepareCreate(out MonitoredItemOptions options, out long revision))
                     {
+                        prepared.Add((item, options, revision));
+                    }
+                }
+            }
+
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                await ResolveItemNodeIdsAsync(prepared, ct).ConfigureAwait(false);
+                var requestItems = new List<MonitoredItemCreateRequest>(prepared.Count);
+                var itemsToCreate = new List<MonitoredItem>(prepared.Count);
+                foreach ((MonitoredItem monitoredItem, MonitoredItemOptions targetOptions, _) in prepared)
+                {
+                    if (!string.IsNullOrEmpty(targetOptions.RelativePath) &&
+                        monitoredItem.ResolvedNodeId.IsNull &&
+                        ServiceResult.IsBad(monitoredItem.Status.Error))
+                    {
+                        monitoredItem.CompleteCreate();
                         continue;
                     }
 
+                    MonitoredItemOptions options = monitoredItem.State;
                     // build item request.
                     var request = new MonitoredItemCreateRequest();
 
                     request.ItemToMonitor.NodeId = monitoredItem.ResolvedNodeId;
-                    request.ItemToMonitor.AttributeId = monitoredItem.AttributeId;
-                    request.ItemToMonitor.IndexRange = monitoredItem.IndexRange;
-                    request.ItemToMonitor.DataEncoding = monitoredItem.Encoding;
+                    request.ItemToMonitor.AttributeId = options.AttributeId;
+                    request.ItemToMonitor.IndexRange = options.IndexRange;
+                    request.ItemToMonitor.DataEncoding = options.Encoding;
 
-                    request.MonitoringMode = monitoredItem.MonitoringMode;
+                    request.MonitoringMode = options.MonitoringMode;
 
                     request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
-                    request.RequestedParameters.SamplingInterval = monitoredItem.SamplingInterval;
-                    request.RequestedParameters.QueueSize = monitoredItem.QueueSize;
-                    request.RequestedParameters.DiscardOldest = monitoredItem.DiscardOldest;
+                    request.RequestedParameters.SamplingInterval = options.SamplingInterval;
+                    request.RequestedParameters.QueueSize = options.QueueSize;
+                    request.RequestedParameters.DiscardOldest = options.DiscardOldest;
 
-                    if (monitoredItem.Filter != null)
+                    if (options.Filter != null)
                     {
                         request.RequestedParameters.Filter
-                            = new ExtensionObject(monitoredItem.Filter);
+                            = new ExtensionObject(options.Filter);
                     }
 
                     requestItems.Add(request);
                     itemsToCreate.Add(monitoredItem);
                 }
 
-                // Mark all items as being created before releasing the lock
-                // to prevent duplicate creation requests in multi-threaded scenarios
-                foreach (MonitoredItem monitoredItem in itemsToCreate)
-                {
-                    monitoredItem.Status.Creating = true;
-                }
+                return (requestItems, itemsToCreate);
             }
-            return (requestItems, itemsToCreate);
+            catch
+            {
+                foreach ((MonitoredItem item, _, _) in prepared)
+                {
+                    item.CompleteCreate();
+                }
+                throw;
+            }
         }
 
         /// <summary>
@@ -3652,49 +3928,71 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Resolves captured targets and rejects results for superseded item configurations.
+        /// </summary>
+        private async Task ResolveItemNodeIdsAsync(
+            List<(MonitoredItem Item, MonitoredItemOptions Options, long Revision)> items,
+            CancellationToken ct)
+        {
+            VerifySessionAndSubscriptionState(true);
+            (ArrayOf<BrowsePath> browsePaths, List<(MonitoredItem Item, long Revision)> itemsToBrowse)
+                = PrepareResolveItemNodeIds(items);
+            if (browsePaths.Count == 0)
+            {
+                return;
+            }
+
+            TranslateBrowsePathsToNodeIdsResponse response = await Session
+                .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
+                .ConfigureAwait(false);
+
+            ArrayOf<BrowsePathResult> results = response.Results;
+            ClientBase.ValidateResponse(results, browsePaths);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, browsePaths);
+
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToBrowse[ii].Item.SetResolvePathResult(
+                    itemsToBrowse[ii].Revision,
+                    results[ii],
+                    ii,
+                    response.DiagnosticInfos,
+                    response.ResponseHeader);
+            }
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+        }
+
+        /// <summary>
         /// Prepare the ResolveItem to NodeId service call.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private (ArrayOf<BrowsePath>, ArrayOf<MonitoredItem>) PrepareResolveItemNodeIds()
+        private (ArrayOf<BrowsePath>, List<(MonitoredItem Item, long Revision)>) PrepareResolveItemNodeIds(
+            List<(MonitoredItem Item, MonitoredItemOptions Options, long Revision)> items)
         {
             List<BrowsePath> browsePaths = [];
-            List<MonitoredItem> itemsToBrowse = [];
-            lock (m_cache)
+            List<(MonitoredItem Item, long Revision)> itemsToBrowse = [];
+            foreach ((MonitoredItem item, MonitoredItemOptions options, long revision) in items)
             {
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                if (!string.IsNullOrEmpty(options.RelativePath) && item.ResolvedNodeId.IsNull)
                 {
-                    if (!string.IsNullOrEmpty(monitoredItem.RelativePath) &&
-                        monitoredItem.ResolvedNodeId.IsNull)
+                    var browsePath = new BrowsePath
                     {
-                        // cannot change the relative path after an item is created.
-                        if (monitoredItem.Created)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadInvalidState,
-                                "Cannot modify item path after it is created.");
-                        }
+                        StartingNode = options.StartNodeId
+                    };
 
-                        var browsePath = new BrowsePath
-                        {
-                            StartingNode = monitoredItem.StartNodeId
-                        };
-
-                        // parse the relative path.
-                        try
-                        {
-                            browsePath.RelativePath = RelativePath.Parse(
-                                monitoredItem.RelativePath!,
-                                Session!.TypeTree);
-                        }
-                        catch (Exception e)
-                        {
-                            monitoredItem.SetError(new ServiceResult(e));
-                            continue;
-                        }
-
-                        browsePaths.Add(browsePath);
-                        itemsToBrowse.Add(monitoredItem);
+                    // parse the relative path.
+                    try
+                    {
+                        browsePath.RelativePath = RelativePath.Parse(options.RelativePath!, Session!.TypeTree);
                     }
+                    catch (Exception e)
+                    {
+                        item.SetError(new ServiceResult(e));
+                        continue;
+                    }
+
+                    browsePaths.Add(browsePath);
+                    itemsToBrowse.Add((item, revision));
                 }
             }
             return (browsePaths, itemsToBrowse);
@@ -3950,6 +4248,14 @@ namespace Opc.Ua.Client
 
         private Tuple<ITelemetryContext?, ActivitySource>? m_activitySource;
         private ITelemetryContext? m_telemetry;
+        private AcknowledgementScope? m_acknowledgementScope;
+        private long m_acknowledgementGeneration;
+        private long m_idClaim;
+        private long m_supersededIdClaim;
+
+        private readonly ConditionalWeakTable<NotificationData, StrongBox<AcknowledgementHandle>>
+            m_acknowledgementHandles = new();
+
         private ILogger m_logger;
         private ILogger m_eventLogger;
 
@@ -3964,10 +4270,14 @@ namespace Opc.Ua.Client
             public NotificationMessage? Message;
             public bool Processed;
             public bool Republished;
+
+            /// <summary>Whether the message arrived via Republish, not merely a requested retry.</summary>
+            public bool IsRepublishResponse;
             public bool RepublishImmediately;
             public StatusCode RepublishStatus;
             public bool SavedDuringTransfer;
             public int TransferGeneration;
+            public AcknowledgementScope? AcknowledgementScope;
         }
     }
 
@@ -4078,6 +4388,9 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive data change notifications via a direct function call instead of a .NET Event.
     /// </summary>
+    [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+        "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+        "See docs/MigrationGuide.md.")]
     public delegate void FastDataChangeNotificationEventHandler(
         Subscription subscription,
         DataChangeNotification notification,
@@ -4086,6 +4399,9 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive event notifications via a direct function call instead of a .NET Event.
     /// </summary>
+    [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+        "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+        "See docs/MigrationGuide.md.")]
     public delegate void FastEventNotificationEventHandler(
         Subscription subscription,
         EventNotificationList notification,
@@ -4094,6 +4410,9 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive keep alive notifications via a direct function call instead of a .NET Event.
     /// </summary>
+    [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+        "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+        "See docs/MigrationGuide.md.")]
     public delegate void FastKeepAliveNotificationEventHandler(
         Subscription subscription,
         NotificationData notification);

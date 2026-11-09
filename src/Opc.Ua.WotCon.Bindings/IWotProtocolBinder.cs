@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Text.Json;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -154,11 +156,11 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         protected static bool HasVocabularyPrefix(WotAffordanceForm form, string prefix)
         {
-            if (form.FormElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+            if (form.FormElement.ValueKind != JsonValueKind.Object)
             {
                 return false;
             }
-            foreach (System.Text.Json.JsonProperty property in form.FormElement.EnumerateObject())
+            foreach (JsonProperty property in form.FormElement.EnumerateObject())
             {
                 if (property.Name.StartsWith(prefix, StringComparison.Ordinal))
                 {
@@ -317,6 +319,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Percent-encodes every non-ASCII character of a URI as UTF-8 bytes.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         internal static string PercentEncodeNonAscii(string uri)
         {
             if (uri is null)
@@ -498,9 +501,11 @@ namespace Opc.Ua.WotCon.Bindings
                         form.Pointer("op"), op));
                     continue;
                 }
-                // "unobserveproperty" and "unsubscribeevent" are teardown ops for a
-                // running observe / subscribe; do not emit a duplicate entry.
-                if (op is "unobserveproperty" or "unsubscribeevent")
+                // Combined event forms share one subscription lifetime. A separate
+                // unsubscribe form still needs its own valid teardown entry.
+                if (string.Equals(op, "unobserveproperty", StringComparison.OrdinalIgnoreCase) ||
+                    (string.Equals(op, "unsubscribeevent", StringComparison.OrdinalIgnoreCase) &&
+                        form.HasOperation("subscribeevent")))
                 {
                     continue;
                 }
@@ -521,14 +526,86 @@ namespace Opc.Ua.WotCon.Bindings
             ICollection<WotBindingDiagnostic> diagnostics,
             out WotPayloadDescriptor payload)
         {
-            string contentType = string.IsNullOrEmpty(form.ContentType) ? "application/json" : form.ContentType!;
+            return ResolveCodec(form, context, diagnostics, "application/json", out payload);
+        }
+
+        /// <summary>
+        /// Selects a codec for a content type, using the binding-specific default when none is declared.
+        /// </summary>
+        protected bool ResolveCodec(
+            WotAffordanceForm form,
+            WotBindingPlanContext context,
+            ICollection<WotBindingDiagnostic> diagnostics,
+            string defaultContentType,
+            out WotPayloadDescriptor payload)
+        {
+            if (string.IsNullOrEmpty(defaultContentType))
+            {
+                throw new ArgumentException("A default content type is required.", nameof(defaultContentType));
+            }
+            string contentType = string.IsNullOrEmpty(form.ContentType) ? defaultContentType : form.ContentType!;
             if (!ValidateContentType(form, contentType, diagnostics))
             {
                 payload = new WotPayloadDescriptor(contentType, string.Empty);
                 return false;
             }
-            context.Codecs.TrySelect(form.ContentType, out IWotPayloadCodec codec);
+            string? codecContentType = string.IsNullOrEmpty(form.ContentType) &&
+                string.Equals(defaultContentType, "application/json", StringComparison.Ordinal)
+                    ? form.ContentType
+                    : contentType;
+            context.Codecs.TrySelect(codecContentType, out IWotPayloadCodec codec);
             payload = new WotPayloadDescriptor(contentType, codec.Id);
+            WotProjectedAffordance? local = context.ProjectedAffordances.Find(
+                item => item.Kind == form.Kind && item.JsonPointer == form.AffordancePointer());
+            WotPayloadSchema? resolvedSchema = local?.PayloadSchema ?? form.PayloadSchema;
+            JsonElement definition = resolvedSchema?.Definition ?? form.AffordanceElement;
+            if (resolvedSchema is { } schema)
+            {
+                payload = payload.WithSchema(schema);
+                bool invalid = false;
+                foreach (WotDiagnostic diagnostic in schema.Diagnostics)
+                {
+                    if (diagnostic.Severity == WotDiagnosticSeverity.Error)
+                    {
+                        invalid = true;
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue, diagnostic.Message, form.AffordancePointer()));
+                    }
+                }
+                if (invalid)
+                {
+                    return false;
+                }
+            }
+            if (form.Kind == WotAffordanceKind.Action && definition.ValueKind == JsonValueKind.Object)
+            {
+                bool resolveNamedOrderAtRuntime =
+                    Identity.Id == "opc.opcua" &&
+                    context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero;
+                WotConversionResult<WotMethodArgumentLayout> input =
+                    WotNodeSetConverter.GetMethodArgumentLayout(
+                        definition, "input", resolveNamedOrderAtRuntime);
+                WotConversionResult<WotMethodArgumentLayout> output =
+                    WotNodeSetConverter.GetMethodArgumentLayout(
+                        definition, "output", resolveNamedOrderAtRuntime);
+                if (!input.Success || !output.Success)
+                {
+                    foreach (WotDiagnostic diagnostic in input.Diagnostics)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue, diagnostic.Message,
+                            form.AffordancePointer() + diagnostic.Location?.JsonPointer));
+                    }
+                    foreach (WotDiagnostic diagnostic in output.Diagnostics)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue, diagnostic.Message,
+                            form.AffordancePointer() + diagnostic.Location?.JsonPointer));
+                    }
+                    return false;
+                }
+                payload = payload.WithArgumentLayouts(input.Value!, output.Value!);
+            }
             return true;
         }
 
@@ -543,7 +620,7 @@ namespace Opc.Ua.WotCon.Bindings
             for (int i = 0; i < contentType.Length; i++)
             {
                 char ch = contentType[i];
-                if (ch is '\r' or '\n' or '\0' || ch > 0x7F)
+                if (ch is '\r' or '\n' or '\0' or > (char)0x7F)
                 {
                     diagnostics.Add(WotBindingDiagnostic.Error(
                         WotBindingDiagnosticCode.InvalidFieldValue,

@@ -311,6 +311,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the specified references.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// An owning node manager returned a bad result while deleting a reference.
+        /// </exception>
         ValueTask RemoveReferencesAsync(List<LocalReference> referencesToRemove, CancellationToken cancellationToken = default);
 
         /// <summary>

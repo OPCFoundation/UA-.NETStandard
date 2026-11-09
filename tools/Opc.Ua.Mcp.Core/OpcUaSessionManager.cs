@@ -39,6 +39,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Mcp
@@ -55,6 +57,11 @@ namespace Opc.Ua.Mcp
         private readonly ILogger<OpcUaSessionManager> m_logger;
         private readonly IServiceProvider m_serviceProvider;
         private readonly OpcUaClientOptions m_clientOptions;
+
+        /// <summary>
+        /// Trusted transport scopes distinguishing host provisioning from caller-owned connections.
+        /// </summary>
+        private readonly McpCallerContext m_callers;
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ConcurrentDictionary<string, SessionInfo> m_sessions = new(StringComparer.OrdinalIgnoreCase);
         private ApplicationConfiguration? m_configuration;
@@ -79,8 +86,25 @@ namespace Opc.Ua.Mcp
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             m_clientOptions = clientOptions ?? throw new ArgumentNullException(nameof(clientOptions));
+            m_callers = serviceProvider.GetService<McpCallerContext>() ?? new McpCallerContext();
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            OperationPolicy = serviceProvider.GetService<IMcpOperationPolicy>() ??
+                new McpExecutionPolicy(
+                    serviceProvider.GetService<OpcUaMcpOptions>()?.Execution ?? new McpExecutionOptions(),
+                    m_callers,
+                    telemetry);
+            UaOperationGuard = new McpUaOperationGuard(OperationPolicy);
         }
+
+        /// <summary>
+        /// Gets the injected host authority shared by semantic operations and generic UA request guards.
+        /// </summary>
+        public IMcpOperationPolicy OperationPolicy { get; }
+
+        /// <summary>
+        /// Gets the shared protected-model guard used before generic UA mutations.
+        /// </summary>
+        public McpUaOperationGuard UaOperationGuard { get; }
 
         /// <summary>
         /// Holds information about a named OPC UA session.
@@ -117,15 +141,55 @@ namespace Opc.Ua.Mcp
             /// </summary>
             public bool IsConnected => Session.Connected;
 
+            /// <summary>
+            /// Gets the immutable registration identity, or an empty string for an unregistered service view.
+            /// </summary>
+            public string RegistrationId => Authority?.RegistrationId ?? string.Empty;
+
+            /// <summary>
+            /// Gets the host-established lifetime, ownership and authenticated-target binding.
+            /// </summary>
+            internal McpSessionAuthority? Authority { get; init; }
+
+            /// <summary>
+            /// Gets the certificate-validation resources owned by this registration.
+            /// </summary>
             internal ConnectionValidationContext? ValidationContext { get; init; }
 
+            /// <summary>
+            /// Gets whether the manager owns the underlying session's lifetime.
+            /// </summary>
             internal bool OwnsSession { get; init; } = true;
+
+            /// <summary>
+            /// Creates a non-owning captured service view without losing registration provenance.
+            /// </summary>
+            public SessionInfo WithSession(ISession session)
+            {
+                ArgumentNullException.ThrowIfNull(session);
+                return new SessionInfo
+                {
+                    Name = Name,
+                    Session = session,
+                    Endpoint = CoreUtils.Clone(Endpoint)!,
+                    AuthType = AuthType,
+                    ConnectedAt = ConnectedAt,
+                    Authority = Authority,
+                    OwnsSession = false
+                };
+            }
         }
 
         /// <summary>
         /// Gets the first session, or null if none connected. For backward compatibility.
         /// </summary>
-        public ISession? Session => m_sessions.Values.FirstOrDefault()?.Session;
+        public ISession? Session => GetVisibleSessions().FirstOrDefault()?.Session;
+
+        /// <summary>
+        /// Gets whether the call originates in trusted embedding code rather than an MCP request scope.
+        /// A local transport request is still caller-bound.
+        /// </summary>
+        public bool IsTrustedHostCall => !m_callers.HasRequestScope;
 
         /// <summary>
         /// Gets the telemetry context used by this session manager.
@@ -142,7 +206,7 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public IReadOnlyList<ITransportChannel> GetActiveTransportChannels()
         {
-            return [.. m_sessions.Values
+            return [.. GetVisibleSessions()
                 .Where(static info => info.IsConnected)
                 .Select(static info => info.Session.TransportChannel)
                 .OfType<ITransportChannel>()];
@@ -173,7 +237,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Gets whether any session is currently connected.
         /// </summary>
-        public bool IsConnected => m_sessions.Values.Any(s => s.IsConnected);
+        public bool IsConnected => GetVisibleSessions().Any(s => s.IsConnected);
 
         /// <summary>
         /// Gets a session by name, or the only active session if name is null.
@@ -181,37 +245,57 @@ namespace Opc.Ua.Mcp
         /// <exception cref="InvalidOperationException">Not connected or ambiguous session.</exception>
         public ISession GetSessionOrThrow(string? name = null)
         {
+            return GetSessionInfoOrThrow(name).Session;
+        }
+
+        /// <summary>
+        /// Resolves a connected session and its actual registered name as one ownership snapshot.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The requested session is missing, disconnected or ambiguous.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The current caller has no access to a registered session.
+        /// </exception>
+        public SessionInfo GetSessionInfoOrThrow(string? name = null)
+        {
             if (name != null)
             {
                 if (m_sessions.TryGetValue(name, out SessionInfo? info) && info.IsConnected)
                 {
-                    return info.Session;
+                    RequireSessionAccess(info);
+                    return info;
                 }
 
                 throw new InvalidOperationException(
                     $"Session '{name}' not found or not connected. Use the 'Connect' tool first.");
             }
 
-            int count = m_sessions.Count;
+            SessionInfo[] visible = [.. GetVisibleSessions()];
+            int count = visible.Length;
             if (count == 0)
             {
+                if (!m_sessions.IsEmpty)
+                {
+                    throw SessionAccessDenied();
+                }
                 throw new InvalidOperationException(
                     "Not connected to an OPC UA server. Use the 'Connect' tool first.");
             }
 
             if (count == 1)
             {
-                SessionInfo single = m_sessions.Values.First();
+                SessionInfo single = visible[0];
                 if (single.IsConnected)
                 {
-                    return single.Session;
+                    return single;
                 }
 
                 throw new InvalidOperationException(
                     "Not connected to an OPC UA server. Use the 'Connect' tool first.");
             }
 
-            string names = string.Join(", ", m_sessions.Keys);
+            string names = string.Join(", ", visible.Select(info => info.Name));
             throw new InvalidOperationException(
                 $"Multiple sessions active. Specify a sessionName: {names}");
         }
@@ -221,7 +305,7 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public IReadOnlyCollection<SessionInfo> GetAllSessions()
         {
-            return m_sessions.Values.ToList().AsReadOnly();
+            return GetVisibleSessions().ToList().AsReadOnly();
         }
 
         /// <summary>
@@ -229,7 +313,20 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public SessionInfo? GetSessionInfo(string name)
         {
-            return m_sessions.GetValueOrDefault(name);
+            if (!m_sessions.TryGetValue(name, out SessionInfo? info))
+            {
+                return null;
+            }
+            RequireSessionAccess(info);
+            return info;
+        }
+
+        /// <summary>
+        /// Resolves the optional host contract for fixed custom sessions without changing managed-session capture.
+        /// </summary>
+        internal IMcpFixedSessionContract? GetFixedSessionContract()
+        {
+            return m_serviceProvider.GetService<IMcpFixedSessionContract>();
         }
 
         /// <summary>
@@ -253,7 +350,7 @@ namespace Opc.Ua.Mcp
         /// Connects to an OPC UA server with endpoint selection and authentication options.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<string> ConnectAsync(
+        public Task<string> ConnectAsync(
             string? name,
             string endpointUrl,
             string? securityMode,
@@ -264,7 +361,71 @@ namespace Opc.Ua.Mcp
             bool autoAcceptCerts,
             CancellationToken ct)
         {
+            return ConnectAsync(name, endpointUrl, securityMode, securityPolicy, authType,
+                username, password, autoAcceptCerts, certificateIdentity: null, ct);
+        }
+
+        /// <summary>
+        /// Connects using the selected authentication kind and an optional host-approved X.509 identity reference.
+        /// </summary>
+        public Task<string> ConnectAsync(
+            string? name,
+            string endpointUrl,
+            string? securityMode,
+            string? securityPolicy,
+            string authType,
+            string? username,
+            string? password,
+            bool autoAcceptCerts,
+            string? certificateIdentity,
+            CancellationToken ct)
+        {
+            return ConnectCoreAsync(name, endpointUrl, securityMode, securityPolicy, authType,
+                username, password, autoAcceptCerts, certificateIdentity, null, ct);
+        }
+
+        /// <summary>
+        /// Connects using a pre-acquired JWT and strict server-certificate validation.
+        /// </summary>
+        public Task<string> ConnectJwtAsync(
+            string? name,
+            string endpointUrl,
+            string jwt,
+            string? securityMode = null,
+            string? securityPolicy = null,
+            CancellationToken ct = default)
+        {
+            McpJwtIdentityProvider.ValidateToken(jwt,
+                m_configuration?.TransportQuotas ?? m_clientOptions.Configuration?.TransportQuotas);
+            return ConnectCoreAsync(name, endpointUrl, securityMode, securityPolicy, "Jwt",
+                null, null, false, null, jwt, ct);
+        }
+
+        /// <summary>
+        /// Establishes a connection without changing caller ownership or registration provenance.
+        /// </summary>
+        private async Task<string> ConnectCoreAsync(
+            string? name,
+            string endpointUrl,
+            string? securityMode,
+            string? securityPolicy,
+            string authType,
+            string? username,
+            string? password,
+            bool autoAcceptCerts,
+            string? certificateIdentity,
+            string? jwt,
+            CancellationToken ct)
+        {
             ObjectDisposedException.ThrowIf(m_disposed, this);
+            McpCallerIdentity? owner = IsTrustedHostCall ? null : OperationPolicy.RequireCaller();
+            if (certificateIdentity != null &&
+                !string.Equals(authType, "Certificate", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    "A certificate identity reference requires Certificate authentication.",
+                    nameof(certificateIdentity));
+            }
 
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -280,43 +441,96 @@ namespace Opc.Ua.Mcp
                         uri.Port);
                 }
 
-                // Disconnect existing session with same name
+                // Establish replacement authority before loading configuration or contacting an endpoint.
                 if (m_sessions.TryGetValue(name, out SessionInfo? existing))
                 {
+                    RequireSessionMutation(existing, owner);
+                }
+
+                if (jwt != null)
+                {
+                    await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
+                    McpJwtIdentityProvider.ValidateToken(jwt, m_configuration!.TransportQuotas);
+                }
+
+                if (existing != null)
+                {
                     await DisconnectInternalAsync(existing, ct).ConfigureAwait(false);
+                    existing.Authority?.Retire();
                     m_sessions.TryRemove(name, out _);
                 }
 
+                IMcpSessionConnector? connector = m_serviceProvider.GetService<IMcpSessionConnector>();
+                if (connector is not null)
+                {
+                    ISession connected = jwt == null
+                        ? await connector.ConnectAsync(
+                            name, endpointUrl, securityMode, securityPolicy, authType, username, password,
+                            autoAcceptCerts, certificateIdentity, ct).ConfigureAwait(false)
+                        : await connector.ConnectJwtAsync(
+                            name, endpointUrl, jwt, securityMode, securityPolicy, ct).ConfigureAwait(false);
+                    return RegisterConnectedSession(
+                        name, connected, authType, owner,
+                        autoAcceptCerts, null, endpointUrl);
+                }
+
                 await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
+                IClientIdentityProvider? identityProvider =
+                    string.Equals(authType, "Certificate", StringComparison.OrdinalIgnoreCase)
+                        ? CreateCertificateIdentityProvider(certificateIdentity, m_configuration!)
+                        : null;
                 ConnectionValidationContext? validationContext =
                     await CreateConnectionValidationContextAsync(
                         m_configuration!,
                         Telemetry,
-                        autoAcceptCerts,
+                        autoAcceptCertificates: jwt == null && autoAcceptCerts,
                         ct).ConfigureAwait(false);
                 try
                 {
                     ApplicationConfiguration configuration = validationContext.Configuration;
+                    if (jwt != null)
+                    {
+                        identityProvider = new McpJwtIdentityProvider(jwt, configuration, Telemetry);
+                    }
 
                     m_logger.Connecting(endpointUrl, name);
 
-                    EndpointDescription selectedEndpoint = await SelectEndpointAsync(
-                        configuration,
-                        endpointUrl,
-                        securityMode,
-                        securityPolicy,
-                        authType,
-                        ct).ConfigureAwait(false);
-
-                    UserIdentity identity = BuildUserIdentity(authType, username, password);
+                    EndpointDescription selectedEndpoint = jwt != null
+                        ? await SelectJwtEndpointAsync(
+                            configuration, endpointUrl, securityMode, securityPolicy, identityProvider!, ct)
+                            .ConfigureAwait(false)
+                        : await SelectEndpointAsync(
+                            configuration, endpointUrl, securityMode, securityPolicy, authType, ct)
+                            .ConfigureAwait(false);
 
                     var endpointConfiguration = EndpointConfiguration.Create(configuration);
                     var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
+                    if (jwt != null)
+                    {
+                        endpoint.UpdateBeforeConnect = false;
+                    }
                     ManagedSessionBuilder builder = new ManagedSessionBuilder(configuration, Telemetry)
                         .UseEndpoint(endpoint)
                         .WithSessionName(name)
-                        .WithSessionTimeout(TimeSpan.FromMilliseconds(60_000))
-                        .WithUserIdentity(identity);
+                        .WithSessionTimeout(TimeSpan.FromMilliseconds(60_000));
+                    if (jwt != null)
+                    {
+                        builder.WithCheckDomain();
+                    }
+                    if (identityProvider != null)
+                    {
+                        builder.WithIdentityProvider(identityProvider);
+                    }
+                    else
+                    {
+                        builder.WithUserIdentity(BuildUserIdentity(authType, username, password));
+                    }
+
+                    if (jwt != null)
+                    {
+                        builder.WithReconnectPolicy(new McpJwtReconnectPolicy(
+                            m_serviceProvider.GetService<IReconnectPolicy>() ?? new ReconnectPolicy()));
+                    }
 
                     if (validationContext.UseSharedChannelManager)
                     {
@@ -331,30 +545,11 @@ namespace Opc.Ua.Mcp
                     session.KeepAliveInterval = 5000;
                     SubscribeSessionStateLogging(name, session);
 
-                    m_sessions[name] = new SessionInfo
-                    {
-                        Name = name,
-                        Session = session,
-                        Endpoint = selectedEndpoint,
-                        AuthType = authType,
-                        ConnectedAt = DateTime.UtcNow,
-                        ValidationContext = validationContext
-                    };
+                    string result = RegisterConnectedSession(
+                        name, session, authType, owner, autoAcceptCerts,
+                        validationContext, endpointUrl);
                     validationContext = null;
-
-                    m_logger.Connected(name, session.SessionName, session.SessionId);
-
-                    return string.Format(
-                        CultureInfo.InvariantCulture,
-                        "Connected to {0} as '{1}'. SecurityMode={2}, SecurityPolicy={3}, Auth={4}, " +
-                        "SessionName={5}, SessionId={6}",
-                        endpointUrl,
-                        name,
-                        selectedEndpoint.SecurityMode,
-                        selectedEndpoint.SecurityPolicyUri,
-                        authType,
-                        session.SessionName,
-                        session.SessionId);
+                    return result;
                 }
                 finally
                 {
@@ -370,6 +565,9 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Registers an already-connected session without transferring ownership to the MCP session manager.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The operation did not originate from a trusted host call.
+        /// </exception>
         public async Task<string> RegisterExistingSessionAsync(
             string name,
             ISession session,
@@ -380,24 +578,38 @@ namespace Opc.Ua.Mcp
             ArgumentException.ThrowIfNullOrWhiteSpace(name);
             ArgumentNullException.ThrowIfNull(session);
             ArgumentException.ThrowIfNullOrWhiteSpace(authType);
+            if (!IsTrustedHostCall)
+            {
+                throw SessionAccessDenied();
+            }
 
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 if (m_sessions.TryGetValue(name, out SessionInfo? existing))
                 {
-                    await DisconnectInternalAsync(existing, ct).ConfigureAwait(false);
+                    if (!ReferenceEquals(existing.Session, session))
+                    {
+                        await DisconnectInternalAsync(existing, ct).ConfigureAwait(false);
+                    }
+                    existing.Authority?.Retire();
                     m_sessions.TryRemove(name, out _);
                 }
 
+                SessionInfo? retained = existing is not null && ReferenceEquals(existing.Session, session)
+                    ? existing : null;
                 m_sessions[name] = new SessionInfo
                 {
                     Name = name,
                     Session = session,
-                    Endpoint = session.ConfiguredEndpoint.Description,
+                    Endpoint = CoreUtils.Clone(session.ConfiguredEndpoint.Description)!,
                     AuthType = authType,
                     ConnectedAt = DateTime.UtcNow,
-                    OwnsSession = false
+                    OwnsSession = retained?.OwnsSession == true,
+                    ValidationContext = retained?.ValidationContext,
+                    Authority = new McpSessionAuthority(
+                        null, retained?.Authority?.AutoAccepted == true,
+                        session.ConfiguredEndpoint.Description)
                 };
 
                 m_logger.Connected(name, session.SessionName, session.SessionId);
@@ -420,16 +632,20 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public async Task<string> DisconnectAsync(string? name = null, CancellationToken ct = default)
         {
+            McpCallerIdentity? caller = IsTrustedHostCall ? null : OperationPolicy.RequireCaller();
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 if (name != null)
                 {
-                    if (!m_sessions.TryRemove(name, out SessionInfo? info))
+                    if (!m_sessions.TryGetValue(name, out SessionInfo? info))
                     {
                         return $"Session '{name}' not found.";
                     }
 
+                    RequireSessionMutation(info, caller);
+                    m_sessions.TryRemove(name, out _);
+                    info.Authority?.Retire();
                     await DisconnectInternalAsync(info, ct).ConfigureAwait(false);
                     return $"Disconnected session '{name}'.";
                 }
@@ -448,7 +664,9 @@ namespace Opc.Ua.Mcp
 
                 // Exactly one session
                 KeyValuePair<string, SessionInfo> single = m_sessions.First();
+                RequireSessionMutation(single.Value, caller);
                 m_sessions.TryRemove(single.Key, out _);
+                single.Value.Authority?.Retire();
                 await DisconnectInternalAsync(single.Value, ct).ConfigureAwait(false);
                 return $"Disconnected session '{single.Key}'.";
             }
@@ -470,6 +688,7 @@ namespace Opc.Ua.Mcp
                     return $"Session '{name}' not found.";
                 }
 
+                RequireSessionAccess(info);
                 return FormatSessionStatus(info);
             }
 
@@ -479,7 +698,7 @@ namespace Opc.Ua.Mcp
             }
 
             var lines = new List<string>();
-            foreach (SessionInfo info in m_sessions.Values)
+            foreach (SessionInfo info in GetVisibleSessions())
             {
                 lines.Add(FormatSessionStatus(info));
             }
@@ -500,6 +719,7 @@ namespace Opc.Ua.Mcp
             m_disposed = true;
             foreach (SessionInfo info in m_sessions.Values)
             {
+                info.Authority?.Retire();
                 try
                 {
                     if (info.OwnsSession)
@@ -515,6 +735,154 @@ namespace Opc.Ua.Mcp
 
             m_sessions.Clear();
             m_lock.Dispose();
+        }
+
+        /// <summary>
+        /// Publishes only the session and provenance established by the connection path.
+        /// </summary>
+        private string RegisterConnectedSession(
+            string name, ISession session, string authType,
+            McpCallerIdentity? owner, bool autoAccepted, ConnectionValidationContext? validationContext,
+            string endpointUrl)
+        {
+            EndpointDescription endpoint = session.ConfiguredEndpoint.Description;
+            m_sessions[name] = new SessionInfo
+            {
+                Name = name,
+                Session = session,
+                Endpoint = CoreUtils.Clone(endpoint)!,
+                AuthType = authType,
+                ValidationContext = validationContext,
+                Authority = new McpSessionAuthority(owner, autoAccepted, endpoint)
+            };
+            m_logger.Connected(name, session.SessionName, session.SessionId);
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "Connected to {0} as '{1}'. SecurityMode={2}, SecurityPolicy={3}, Auth={4}, " +
+                "SessionName={5}, SessionId={6}",
+                endpointUrl, name, endpoint.SecurityMode, endpoint.SecurityPolicyUri,
+                authType, session.SessionName, session.SessionId);
+        }
+
+        /// <summary>
+        /// Prevents a reusable name grant from lending one caller's connection to another caller.
+        /// Host registrations are borrowable only with an explicit frozen session grant.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The registration belongs to another caller, or the caller has no grant to borrow it.
+        /// </exception>
+        private void RequireSessionAccess(SessionInfo info)
+        {
+            if (IsTrustedHostCall)
+            {
+                return;
+            }
+            McpCallerIdentity caller = OperationPolicy.RequireCaller();
+            if (info.Authority?.Owner is { } owner)
+            {
+                if (owner != caller)
+                {
+                    throw SessionAccessDenied();
+                }
+                return;
+            }
+            _ = OperationPolicy.RequireSessionAccess(info.Name);
+        }
+
+        /// <summary>
+        /// A session grant permits use, never replacement or removal of a host or another caller's registration.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The caller does not own the registration.
+        /// </exception>
+        private static void RequireSessionMutation(SessionInfo info, McpCallerIdentity? caller)
+        {
+            if (caller is not null && info.Authority?.Owner != caller)
+            {
+                throw SessionAccessDenied();
+            }
+        }
+
+        /// <summary>
+        /// Filters enumeration without revealing registrations the current caller cannot borrow.
+        /// </summary>
+        private IEnumerable<SessionInfo> GetVisibleSessions()
+        {
+            foreach (SessionInfo info in m_sessions.Values)
+            {
+                bool allowed;
+                try
+                {
+                    RequireSessionAccess(info);
+                    allowed = true;
+                }
+                catch (ServiceResultException exception) when (exception.StatusCode == StatusCodes.BadUserAccessDenied)
+                {
+                    allowed = false;
+                }
+                if (allowed)
+                {
+                    yield return info;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns a bounded refusal without disclosing another registration's identity or endpoint.
+        /// </summary>
+        private static ServiceResultException SessionAccessDenied()
+        {
+            return new ServiceResultException(StatusCodes.BadUserAccessDenied,
+                "The caller cannot replace, remove or borrow this UA session registration.");
+        }
+
+        /// <summary>
+        /// Resolves a host-owned selector through the existing X.509 identity and certificate providers.
+        /// </summary>
+        internal IClientIdentityProvider CreateCertificateIdentityProvider(
+            string? reference,
+            ApplicationConfiguration configuration)
+        {
+            if (string.IsNullOrWhiteSpace(reference))
+            {
+                throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected,
+                    "Certificate authentication requires a host-configured certificateIdentity reference.");
+            }
+            ArrayOf<McpCertificateIdentity> identities =
+                m_serviceProvider.GetRequiredService<OpcUaMcpOptions>().CertificateIdentities;
+            McpCertificateIdentity? selected = null;
+            foreach (McpCertificateIdentity candidate in identities)
+            {
+                if (candidate.Name != reference)
+                {
+                    continue;
+                }
+                if (selected != null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                        "The configured certificate identity name is ambiguous.");
+                }
+                selected = candidate;
+            }
+            if (selected?.Certificate == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected,
+                    "The requested certificateIdentity is not configured by the host.");
+            }
+            ICertificateManager manager = configuration.CertificateManager ??
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "The application certificate manager is not initialized.");
+            ICertificatePasswordProvider passwords = m_serviceProvider
+                .GetService<ICertificatePasswordProvider>() ?? new CertificatePasswordProvider();
+            return new CompositeClientIdentityProviderBuilder()
+                .AddX509(options =>
+                {
+                    options.StoreType = selected.Certificate.StoreType;
+                    options.StorePath = selected.Certificate.StorePath;
+                    options.SubjectName = selected.Certificate.SubjectName;
+                    options.Thumbprint = selected.Certificate.Thumbprint;
+                }, manager.CertificateProvider, passwords)
+                .Build();
         }
 
         private static async Task DisconnectInternalAsync(SessionInfo info, CancellationToken ct)
@@ -560,7 +928,8 @@ namespace Opc.Ua.Mcp
                 certificateManager = CertificateManagerFactory.Create(
                     configuration.SecurityConfiguration,
                     telemetry);
-                certificateManager.AcceptError = AutoAcceptError;
+                certificateManager.AutoAcceptUntrustedCertificates = false;
+                certificateManager.AcceptError = autoAcceptCertificates ? AutoAcceptError : null;
                 await certificateManager.LoadApplicationCertificatesAsync(
                     configuration.SecurityConfiguration,
                     configuration.ApplicationUri,
@@ -578,7 +947,10 @@ namespace Opc.Ua.Mcp
             }
             finally
             {
-                certificateManager?.Dispose();
+                if (certificateManager is not null)
+                {
+                    await certificateManager.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 
@@ -586,6 +958,11 @@ namespace Opc.Ua.Mcp
         {
             if (m_configuration != null)
             {
+                return;
+            }
+            if (m_clientOptions.Configuration is { } supplied)
+            {
+                m_configuration = supplied;
                 return;
             }
 
@@ -622,7 +999,7 @@ namespace Opc.Ua.Mcp
             m_configuration = config;
         }
 
-        private async Task<ArrayOf<EndpointDescription>> DiscoverEndpointsInternalAsync(
+        private static async Task<ArrayOf<EndpointDescription>> DiscoverEndpointsInternalAsync(
             ApplicationConfiguration configuration,
             string discoveryUrl,
             CancellationToken ct)
@@ -719,6 +1096,86 @@ namespace Opc.Ua.Mcp
                         authType));
         }
 
+        /// <summary>
+        /// Selects only endpoints with a usable JWT policy, including when no security filter was supplied.
+        /// </summary>
+        private async Task<EndpointDescription> SelectJwtEndpointAsync(
+            ApplicationConfiguration configuration,
+            string endpointUrl,
+            string? securityMode,
+            string? securityPolicy,
+            IClientIdentityProvider provider,
+            CancellationToken ct)
+        {
+            ArrayOf<EndpointDescription> endpoints = await DiscoverEndpointsInternalAsync(
+                configuration, endpointUrl, ct).ConfigureAwait(false);
+            return await SelectJwtEndpointAsync(
+                endpoints, endpointUrl, securityMode, securityPolicy, provider, configuration, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Evaluates JWT policy compatibility before ranking discovered endpoints.
+        /// </summary>
+        internal static async Task<EndpointDescription> SelectJwtEndpointAsync(
+            ArrayOf<EndpointDescription> endpoints,
+            string endpointUrl,
+            string? securityMode,
+            string? securityPolicy,
+            IClientIdentityProvider provider,
+            ApplicationConfiguration configuration,
+            CancellationToken ct)
+        {
+            var requestUri = new Uri(endpointUrl);
+            MessageSecurityMode? mode = securityMode == null ? null : ParseSecurityMode(securityMode);
+            ServiceMessageContext messageContext = configuration.CreateMessageContext();
+            ArrayOf<string> supportedSecurityPolicies =
+                configuration.SecurityConfiguration.SupportedSecurityPolicies;
+            foreach (EndpointDescription endpoint in (endpoints.ToArray() ?? [])
+                .OrderByDescending(candidate => candidate.SecurityLevel))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (!Uri.TryCreate(endpoint.EndpointUrl, UriKind.Absolute, out Uri? uri) ||
+                    !string.Equals(uri.Scheme, requestUri.Scheme, StringComparison.OrdinalIgnoreCase) ||
+                    (mode != null && endpoint.SecurityMode != mode) ||
+                    (securityPolicy != null && !(endpoint.SecurityPolicyUri?.EndsWith(
+                        "#" + securityPolicy, StringComparison.OrdinalIgnoreCase) ?? false)))
+                {
+                    continue;
+                }
+                if (endpoint.SecurityMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt &&
+                    (endpoint.SecurityPolicyUri == null ||
+                        !supportedSecurityPolicies.Contains(
+                            policy => policy == endpoint.SecurityPolicyUri)))
+                {
+                    continue;
+                }
+
+                var context = new IdentitySelectionContext(
+                    endpoint, endpoint.UserIdentityTokens, messageContext,
+                    configuration.SecurityConfiguration.SupportedSecurityPolicies);
+                try
+                {
+                    _ = await provider.SelectUserTokenPolicyAsync(context, ct).ConfigureAwait(false);
+                    var endpointUri = new Uri(endpoint.EndpointUrl);
+                    var normalizedUri = new UriBuilder(endpointUri)
+                    {
+                        Host = requestUri.IdnHost,
+                        Port = requestUri.Port
+                    };
+                    endpoint.EndpointUrl = normalizedUri.ToString();
+                    return endpoint;
+                }
+                catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadIdentityTokenRejected)
+                {
+                    // A stronger endpoint without a usable JWT policy must not hide a compatible endpoint.
+                }
+            }
+
+            throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected,
+                "No endpoint offers a compatible, encrypted JWT user-token policy.");
+        }
+
         private static MessageSecurityMode ParseSecurityMode(string securityMode)
         {
             return securityMode.ToUpperInvariant() switch
@@ -766,12 +1223,6 @@ namespace Opc.Ua.Mcp
                     return new UserIdentity(
                         username,
                         System.Text.Encoding.UTF8.GetBytes(password ?? string.Empty));
-                case "CERTIFICATE":
-                    throw new NotSupportedException(
-                        "Certificate authentication is not yet supported through the MCP " +
-                        "Connect tool. Certificate auth requires certificate store " +
-                        "configuration which is beyond the scope of MCP tool parameters. " +
-                        "Use 'Anonymous' or 'Username' authentication instead.");
                 default:
                     throw new ArgumentException(
                         $"Invalid authType '{authType}'. " +
@@ -885,7 +1336,7 @@ namespace Opc.Ua.Mcp
     {
         [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 0, Level = LogLevel.Information,
             Message = "Connecting to {EndpointUrl} as '{Name}'...")]
-        public static partial void Connecting(this ILogger logger, string endpointUrl, string name);
+        public static partial void Connecting(this ILogger logger, [NetworkAddress] string endpointUrl, string name);
 
         [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 1, Level = LogLevel.Information,
             Message = "Connected '{Name}'. SessionName={SessionName}, SessionId={SessionId}")]

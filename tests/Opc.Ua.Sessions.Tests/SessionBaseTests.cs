@@ -634,7 +634,7 @@ namespace Opc.Ua.Sessions.Tests
             return AssertCreateSessionInjectsServiceResultAsync(StatusCodes.BadSecureChannelIdInvalid);
         }
 
-        private Task AssertCreateSessionInjectsServiceResultAsync(StatusCode injected)
+        private async Task AssertCreateSessionInjectsServiceResultAsync(StatusCode injected)
         {
             // Session.OpenAsync retries CreateSession without the client
             // certificate when the first attempt fails, so a one-shot
@@ -644,10 +644,9 @@ namespace Opc.Ua.Sessions.Tests
             using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(
                 (req, resp) => resp.ResponseHeader.ServiceResult = injected);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenAuxSessionAsync().ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(injected));
-            return Task.CompletedTask;
         }
 
         [Description("CreateSession – injects service result Bad_NonceInvalid in the response.")]
@@ -687,16 +686,15 @@ namespace Opc.Ua.Sessions.Tests
 
         [Description("CreateSession – the SessionId returned by the server is null for the second session.")]
         [Test]
-        public Task CreateSessionWithInjectedNullSessionIdAsync()
+        public async Task CreateSessionWithInjectedNullSessionIdAsync()
         {
             // A null SessionId in the response makes ActivateSession fail
             // because the client uses SessionId to identify the session.
             using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(
                 (req, resp) => resp.SessionId = NodeId.Null);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenAuxSessionAsync().ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [Description("CreateSession – the server returns the same AuthenticationToken for two distinct sessions.")]
@@ -963,8 +961,8 @@ namespace Opc.Ua.Sessions.Tests
             ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
                 MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -985,8 +983,8 @@ namespace Opc.Ua.Sessions.Tests
             ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
                 MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
         }
@@ -1014,10 +1012,10 @@ namespace Opc.Ua.Sessions.Tests
                 ? new UserIdentity("user1", "password"u8)
                 : new UserIdentity();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ClientFixture
                     .ConnectAsync(endpoint, identity)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
         }
@@ -1035,8 +1033,8 @@ namespace Opc.Ua.Sessions.Tests
             ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
                 MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
         }
@@ -1070,11 +1068,11 @@ namespace Opc.Ua.Sessions.Tests
                     default,
                     CancellationToken.None).ConfigureAwait(false);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session.UpdateSessionAsync(
                         session.Identity,
                         default,
-                        CancellationToken.None).ConfigureAwait(false))!;
+                        CancellationToken.None).ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
             }
@@ -1108,11 +1106,11 @@ namespace Opc.Ua.Sessions.Tests
                 Assert.That(applied, Is.True);
                 Assert.That(session.Connected, Is.True);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session.UpdateSessionAsync(
                         session.Identity,
                         default,
-                        CancellationToken.None).ConfigureAwait(false))!;
+                        CancellationToken.None).ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
             }
@@ -1138,8 +1136,8 @@ namespace Opc.Ua.Sessions.Tests
                 ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
                     MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false))!;
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
             }
@@ -1373,15 +1371,14 @@ namespace Opc.Ua.Sessions.Tests
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadSecurityChecksFailed);
         }
 
-        private Task AssertActivateSessionInjectsServiceResultAsync(StatusCode injected)
+        private async Task AssertActivateSessionInjectsServiceResultAsync(StatusCode injected)
         {
             using IDisposable expectation = MockController.ExpectNextResponse<ActivateSessionResponse>(
                 r => r.ResponseHeader.ServiceResult = injected);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenAuxSessionAsync().ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(injected));
-            return Task.CompletedTask;
         }
 
         [Description("CloseSession – the server returns Bad_SessionIdInvalid as the service result.")]

@@ -44,9 +44,24 @@ namespace Opc.Ua
     internal static class ServerEventIds
     {
         /// <summary>
+        /// Event identifier offset for provider-backed Part 22 acquisitions.
+        /// </summary>
+        public const int NetworkModelNodeManager = 740;
+
+        /// <summary>
         /// Event identifier offset for runtime resource isolation.
         /// </summary>
         public const int ResourceIsolation = 700;
+
+        /// <summary>
+        /// Event identifier offset for managed Program execution.
+        /// </summary>
+        public const int ProgramRuntime = 710;
+
+        /// <summary>
+        /// Event identifier offset for Program lifecycle hosting.
+        /// </summary>
+        public const int ProgramNodeManager = 730;
 
         /// <summary>
         /// Event identifier offset for aggregate calculation messages.

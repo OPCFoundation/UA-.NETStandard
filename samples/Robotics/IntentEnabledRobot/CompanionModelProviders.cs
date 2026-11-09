@@ -31,6 +31,7 @@ using System;
 using Opc.Ua;
 using Opc.Ua.OpenUsd;
 using Opc.Ua.Robotics.Server;
+using Opc.Ua.XRegistry;
 
 namespace Robotics.IntentEnabledRobot
 {
@@ -45,7 +46,8 @@ namespace Robotics.IntentEnabledRobot
         /// <inheritdoc/>
         public ArrayOf<string> NamespaceUris => new string[]
         {
-            Opc.Ua.OpenUsd.Namespaces.OpenUSD
+            Opc.Ua.OpenUsd.Namespaces.OpenUSD,
+            Opc.Ua.XRegistry.Namespaces.xRegistry
         };
 
         /// <inheritdoc/>
@@ -60,6 +62,7 @@ namespace Robotics.IntentEnabledRobot
                 throw new ArgumentNullException(nameof(context));
             }
 
+            nodes.AddOpcUaXRegistry(context);
             nodes.AddOpcUaOpenUsd(context);
         }
     }

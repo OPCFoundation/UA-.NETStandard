@@ -210,6 +210,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment))
                 {
                     await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
+                    DtlsCertificateAuthenticator.ValidateServerIdentity(peerChain[0], m_endpoint);
                     byte[] certificateVerifyTranscriptHash = transcript.GetHash();
                     DtlsHandshakeFrame certificateVerifyFrame = await ReceiveFrameAsync(
                         channel,

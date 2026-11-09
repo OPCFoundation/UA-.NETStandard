@@ -82,6 +82,15 @@ namespace Opc.Ua.AMB.Client
         /// <returns>The NodeId, or <see cref="NodeId.Null"/> when the server has no AMB.</returns>
         public NodeId GetCategoryId(AssetAliasCategory category)
         {
+            if (m_options is not null)
+            {
+                NamespaceIndexOf(Namespaces.AMB);
+                if (category is not AssetAliasCategory.Assets and
+                    not AssetAliasCategory.ByProductInstanceUri and not AssetAliasCategory.ByAssetId)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(category));
+                }
+            }
             return ToNodeId(category switch
             {
                 AssetAliasCategory.ByProductInstanceUri => ObjectIds.AssetsByProductInstanceUri,
@@ -124,20 +133,44 @@ namespace Opc.Ua.AMB.Client
                     }
                 ],
                 cancellationToken).ConfigureAwait(false);
+            ValidateResponse(response.ResponseHeader, response.Results.Count, 1, response.DiagnosticInfos.Count);
             CallMethodResult result = response.Results[0];
-            if (StatusCode.IsBad(result.StatusCode))
+            if (m_options is not null)
+            {
+                ValidateCallResult(result, 2, 1);
+            }
+            else if (StatusCode.IsBad(result.StatusCode))
             {
                 throw new ServiceResultException(result.StatusCode);
             }
 
             var aliases = new List<AssetAlias>();
+            BrowseBudget budget = CreateBrowseBudget();
+            if (m_options is not null)
+            {
+                if (!result.OutputArguments[0].TryGetValue(out ArrayOf<ExtensionObject> encoded))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTypeMismatch, "FindAlias returned an invalid value.");
+                }
+                budget.Add(encoded.Count);
+            }
             if (result.OutputArguments.Count > 0 &&
                 result.OutputArguments[0].TryGetValue(out ArrayOf<AliasNameDataType> found, Session.MessageContext))
             {
                 foreach (AliasNameDataType alias in found)
                 {
+                    if (m_options is not null && alias is null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadDecodingError, "An AMB alias is missing.");
+                    }
+                    budget.Add(alias.ReferencedNodes.Count);
                     aliases.Add(new AssetAlias(category, alias.AliasName.Name ?? string.Empty, alias.ReferencedNodes));
                 }
+            }
+            else if (m_options is not null)
+            {
+                throw new ServiceResultException(StatusCodes.BadTypeMismatch, "FindAlias returned an invalid value.");
             }
             return aliases.ToArrayOf();
         }
@@ -150,6 +183,10 @@ namespace Opc.Ua.AMB.Client
         /// <returns>The NodeIds of the assets.</returns>
         public async ValueTask<ArrayOf<NodeId>> DiscoverAssetsAsync(CancellationToken cancellationToken = default)
         {
+            if (m_options is not null)
+            {
+                return await DiscoverByBrowsingAsync(CreateBrowseBudget(), cancellationToken).ConfigureAwait(false);
+            }
             ArrayOf<AssetAlias> aliases = await FindAssetsAsync("%", AssetAliasCategory.Assets, cancellationToken)
                 .ConfigureAwait(false);
             var assets = new List<NodeId>();
@@ -185,23 +222,44 @@ namespace Opc.Ua.AMB.Client
             AssetAliasCategory category = AssetAliasCategory.ByProductInstanceUri,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            await foreach (AssetAlias alias in EnumerateAssetsWithBudgetAsync(
+                category, CreateBrowseBudget(), cancellationToken).ConfigureAwait(false))
+            {
+                yield return alias;
+            }
+        }
+
+        private async IAsyncEnumerable<AssetAlias> EnumerateAssetsWithBudgetAsync(
+            AssetAliasCategory category,
+            BrowseBudget budget,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
             AssetAliasCategory[] categories = category == AssetAliasCategory.Assets
                 ? [AssetAliasCategory.ByProductInstanceUri, AssetAliasCategory.ByAssetId]
                 : [category];
             foreach (AssetAliasCategory current in categories)
             {
-                List<ReferenceDescription> aliases = await BrowseAsync(
+                List<ReferenceDescription> aliases = await BrowseWithBudgetAsync(
                     GetCategoryId(current),
                     Ua.ReferenceTypeIds.Organizes,
                     BrowseDirection.Forward,
-                    cancellationToken,
-                    NodeClass.Object).ConfigureAwait(false);
+                    NodeClass.Object,
+                    budget,
+                    cancellationToken).ConfigureAwait(false);
+                var seen = new HashSet<NodeId>();
                 foreach (ReferenceDescription alias in aliases)
                 {
-                    List<ReferenceDescription> targets = await BrowseAsync(
-                        ToNodeId(alias.NodeId),
+                    NodeId aliasId = ToNodeId(alias.NodeId);
+                    if (m_options is not null && (aliasId.IsNull || !seen.Add(aliasId)))
+                    {
+                        continue;
+                    }
+                    List<ReferenceDescription> targets = await BrowseWithBudgetAsync(
+                        aliasId,
                         Ua.ReferenceTypeIds.AliasFor,
                         BrowseDirection.Forward,
+                        NodeClass.Unspecified,
+                        budget,
                         cancellationToken).ConfigureAwait(false);
                     var referenced = new ExpandedNodeId[targets.Count];
                     for (int ii = 0; ii < referenced.Length; ii++)
@@ -216,6 +274,32 @@ namespace Opc.Ua.AMB.Client
             }
         }
 
+        private async ValueTask<ArrayOf<NodeId>> DiscoverByBrowsingAsync(
+            BrowseBudget budget,
+            CancellationToken cancellationToken)
+        {
+            var assets = new List<NodeId>();
+            var seen = new HashSet<NodeId>();
+            await foreach (AssetAlias alias in EnumerateAssetsWithBudgetAsync(
+                AssetAliasCategory.Assets, budget, cancellationToken).ConfigureAwait(false))
+            {
+                for (int ii = 0; ii < alias.ReferencedNodes.Count; ii++)
+                {
+                    ExpandedNodeId target = alias.ReferencedNodes[ii];
+                    if (target.IsNull || target.ServerIndex != 0)
+                    {
+                        continue;
+                    }
+                    NodeId local = ToNodeId(target);
+                    if (seen.Add(local))
+                    {
+                        assets.Add(local);
+                    }
+                }
+            }
+            return assets.ToArrayOf();
+        }
+
         /// <summary>
         /// Reads the <c>NodeVersion</c> of an alias category, which changes
         /// whenever an asset is listed, moved or withdrawn (§8.2).
@@ -227,11 +311,12 @@ namespace Opc.Ua.AMB.Client
             AssetAliasCategory category,
             CancellationToken cancellationToken = default)
         {
-            Variant[] values = await ReadChildValuesAsync(
+            AssetReadValue[] fields = await ReadFieldsAsync(
                 GetCategoryId(category),
                 [[new QualifiedName(Ua.BrowseNames.NodeVersion)]],
                 cancellationToken).ConfigureAwait(false);
-            return StringOf(values[0]);
+            RequireValueType(fields[0], fields[0].Value.WrappedValue.TryGetValue(out string? _));
+            return StringOf(VariantsOf(fields)[0]);
         }
 
         /// <summary>

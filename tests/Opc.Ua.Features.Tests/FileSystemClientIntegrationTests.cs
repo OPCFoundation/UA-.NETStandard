@@ -77,7 +77,7 @@ namespace Opc.Ua.Features.Tests
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            m_providerRoot = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            m_providerRoot = Path.Combine(AppContext.BaseDirectory, Path.GetRandomFileName());
             Directory.CreateDirectory(m_providerRoot);
 
             m_serverFixture = new ServerFixture<ReferenceServer>(
@@ -464,7 +464,7 @@ namespace Opc.Ua.Features.Tests
                 .ConfigureAwait(false);
 
             FileSystemClient client = OpenClient();
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await client.Root.CreateFileAsync("denied.txt").ConfigureAwait(false));
         }
     }

@@ -121,8 +121,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             // Budget exhaustion surfaces as BadSecureChannelClosed from the
             // manager's reconnect overload; the channel is left in the
             // Faulted state and the budget reports exhaustion.
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await reconnectTask.ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await reconnectTask.ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {

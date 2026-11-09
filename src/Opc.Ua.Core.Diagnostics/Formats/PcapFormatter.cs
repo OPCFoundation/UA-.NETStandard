@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.Models;
 
 namespace Opc.Ua.Pcap.Formats
@@ -78,13 +79,17 @@ namespace Opc.Ua.Pcap.Formats
                     "Source does not produce a libpcap file. Try format=json|csv|text|service-timeline.");
             }
 
+            CaptureFileValidator.RejectKeyLogPath(path, source.GetKeyLogFilePath());
             byte[] bytes = await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false);
+            using MemoryStream stream = new(bytes, writable: false);
+            (FormatKind kind, long frameCount) = await CaptureFileValidator.ValidateAsync(stream, ct)
+                .ConfigureAwait(false);
             return new FormatResult
             {
-                Kind = Kind,
-                MimeType = MimeType,
+                Kind = kind,
+                MimeType = kind == FormatKind.PcapNg ? "application/x-pcapng" : MimeType,
                 Bytes = bytes,
-                FramesFormatted = source.FrameCount
+                FramesFormatted = frameCount
             };
         }
 

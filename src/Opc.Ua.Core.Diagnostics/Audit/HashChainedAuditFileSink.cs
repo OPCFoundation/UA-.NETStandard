@@ -37,6 +37,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Pcap.Audit
 {
@@ -466,7 +467,9 @@ namespace Opc.Ua.Pcap.Audit
     {
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.HashChainedAuditFileSink + 0, Level = LogLevel.Debug,
             Message = "Continuing tamper-evident Pcap audit chain from existing ledger {FilePath}.")]
-        public static partial void ContinuingTamperEvidentPcapAuditChain(this ILogger logger, string filePath);
+        public static partial void ContinuingTamperEvidentPcapAuditChain(
+            this ILogger logger,
+            [FilePath] string filePath);
     }
 
 }

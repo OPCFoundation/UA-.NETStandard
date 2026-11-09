@@ -201,10 +201,10 @@ namespace Opc.Ua.Vision.Tests
                 "TryGetFacetUri",
                 BindingFlags.NonPublic | BindingFlags.Static,
                 binder: null,
-                types: new[] { typeof(string), typeof(string).MakeByRefType() },
+                types: [typeof(string), typeof(string).MakeByRefType()],
                 modifiers: null);
             Assert.That(method, Is.Not.Null, "VisionConformanceUris.TryGetFacetUri must exist.");
-            object?[] args = new object?[] { name, string.Empty };
+            object?[] args = [name, string.Empty];
             bool ok = (bool)method!.Invoke(null, args)!;
             facetUri = (string)args[1]!;
             return ok;

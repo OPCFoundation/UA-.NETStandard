@@ -49,6 +49,66 @@ namespace Opc.Ua.Types.Tests.Schema
     [Parallelizable]
     public class SchemaAuditRegressionTests
     {
+        /// <summary>
+        /// Defaults follow the owning namespace URI, not declaration order or a rebased namespace index.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityR09OwningModelAndLocalOverridesPreservePolicyPrecedence()
+        {
+            const string xml =
+                """
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris><Uri>urn:test:owner-a</Uri><Uri>urn:test:owner-b</Uri></NamespaceUris>
+                  <Models>
+                    <Model ModelUri="urn:test:owner-b" AccessRestrictions="1">
+                      <RolePermissions><RolePermission Permissions="32">i=15668</RolePermission></RolePermissions>
+                    </Model>
+                    <Model ModelUri="urn:test:owner-a" AccessRestrictions="2">
+                      <RolePermissions><RolePermission Permissions="32">ns=2;s=Reader</RolePermission></RolePermissions>
+                    </Model>
+                  </Models>
+                  <UAObject NodeId="ns=1;s=Default" BrowseName="2:Default" />
+                  <UAObject NodeId="ns=2;s=Other" BrowseName="1:Other" />
+                  <UAObject NodeId="ns=1;s=Zero" BrowseName="1:Zero" AccessRestrictions="0">
+                    <RolePermissions />
+                  </UAObject>
+                  <UAObject NodeId="ns=1;s=Local" BrowseName="1:Local" AccessRestrictions="1">
+                    <RolePermissions><RolePermission Permissions="1">i=15644</RolePermission></RolePermissions>
+                  </UAObject>
+                </UANodeSet>
+                """;
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            UANodeSet nodeSet = UANodeSet.Read(stream)!;
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
+            context.NamespaceUris.GetIndexOrAppend("urn:test:unrelated");
+            ushort second = context.NamespaceUris.GetIndexOrAppend("urn:test:owner-b");
+            context.NamespaceUris.GetIndexOrAppend("urn:test:owner-a");
+            var nodes = new NodeStateCollection();
+            nodeSet.Import(context, nodes);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(nodes[0].AccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired));
+                Assert.That(nodes[0].RolePermissions.Count, Is.EqualTo(1));
+                Assert.That(nodes[0].RolePermissions[0].RoleId, Is.EqualTo(new NodeId("Reader", second)));
+                Assert.That(nodes[1].AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired));
+                Assert.That(nodes[1].RolePermissions.Count, Is.EqualTo(1));
+                Assert.That(nodes[1].RolePermissions[0].RoleId, Is.EqualTo(new NodeId(15668u)));
+                Assert.That(nodes[2].AccessRestrictions, Is.EqualTo(AccessRestrictionType.None));
+                Assert.That(nodes[2].RolePermissions.IsNull, Is.False);
+                Assert.That(nodes[2].RolePermissions.ToArray(), Is.Empty);
+                Assert.That(nodes[3].AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired));
+                Assert.That(nodes[3].RolePermissions.Count, Is.EqualTo(1));
+                Assert.That(nodes[3].RolePermissions[0].RoleId, Is.EqualTo(new NodeId(15644u)));
+                Assert.That(nodes[3].RolePermissions[0].Permissions, Is.EqualTo((uint)PermissionType.Browse));
+            });
+        }
+
         [Test]
         public void DefaultImportKeepsAnUnresolvedNamespaceUriOnAReferenceTarget()
         {

@@ -37,6 +37,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
@@ -180,7 +181,15 @@ namespace Opc.Ua.Bindings
                 m_handshakeTimer = null;
                 m_requestedToken?.Dispose();
                 m_requestedToken = null;
-                m_requests?.Clear();
+                DisposeTimeoutTimer();
+
+                // the operations have no timers of their own: without the
+                // channel's timer a pending operation would wait forever.
+                foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
+                {
+                    operation.Value.Fault(StatusCodes.BadSecureChannelClosed);
+                }
+                m_requests.Clear();
                 m_handshakeOperation?.Dispose();
                 m_handshakeOperation = null;
                 ServerCertificate?.Dispose();
@@ -271,7 +280,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    await transport.ConnectAsync(url, ct).ConfigureAwait(false);
+                    await ConnectTransportAsync(transport, url, operation, ct).ConfigureAwait(false);
 
                     m_logger
                         .UaSCClientLog2(
@@ -319,6 +328,71 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Connects the transport within the deadline of the handshake
+        /// <paramref name="operation"/>. A connect the network silently drops
+        /// would otherwise stay pending until the operating system gives up,
+        /// long after the operation timed out.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// BadRequestTimeout when the deadline passes before the transport is
+        /// connected; caller cancellation surfaces as before.
+        /// </exception>
+        private async ValueTask ConnectTransportAsync(
+            IUaSCByteTransport transport,
+            Uri url,
+            WriteOperation operation,
+            CancellationToken ct)
+        {
+            // no deadline (int.MaxValue): only the caller cancels.
+            if (operation.TimeoutDeadline == long.MaxValue)
+            {
+                await transport.ConnectAsync(url, ct).ConfigureAwait(false);
+                return;
+            }
+
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            TimeSpan dueTime = TimeProvider.GetElapsedTime(
+                TimeProvider.GetTimestamp(),
+                operation.TimeoutDeadline);
+            // rounded up like the timeout scan: a timer that fires early would
+            // report a timeout before the deadline.
+            dueTime = dueTime > TimeSpan.Zero
+                ? TimeSpan.FromMilliseconds(Math.Ceiling(dueTime.TotalMilliseconds))
+                : TimeSpan.Zero;
+            using ITimer timer = TimeProvider.CreateTimer(
+                static state =>
+                {
+                    try
+                    {
+                        ((CancellationTokenSource)state!).Cancel();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // the connect completed while the timer fired.
+                    }
+                },
+                deadline,
+                dueTime,
+                Timeout.InfiniteTimeSpan);
+            try
+            {
+                await transport.ConnectAsync(url, deadline.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException e) when (ct.IsCancellationRequested)
+            {
+                // report the caller's token, not the linked one.
+                throw new OperationCanceledException(e.Message, e, ct);
+            }
+            catch (Exception e) when (deadline.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadRequestTimeout,
+                    "The connection to the remote endpoint was not established within the operation timeout.",
+                    e);
+            }
+        }
+
+        /// <summary>
         /// Closes a connection with the server.
         /// </summary>
         public async Task CloseAsync(int timeout, CancellationToken ct = default)
@@ -350,6 +424,14 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <remarks>
+        /// The state machine of a request is pooled, so the returned task must be awaited
+        /// once, like any value task.
+        /// </remarks>
+#if NET6_0_OR_GREATER
+        [System.Runtime.CompilerServices.AsyncMethodBuilder(
+            typeof(System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder<>))]
+#endif
         public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             int timeout,
@@ -367,7 +449,11 @@ namespace Opc.Ua.Bindings
 
             using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = null;
-            using (Gate.Enter())
+
+            // a request that waits for the gate (another request or a response is being
+            // processed) must not block its thread: a blocking wait spins first, and with
+            // many concurrent requests on one channel the spinning took a fifth of the CPU.
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 // Queue the operation while connecting and it will be played once connected.
                 if (State == TcpChannelState.Connecting)
@@ -404,7 +490,13 @@ namespace Opc.Ua.Bindings
             {
                 OperationCompleted(operation);
             }
-            if (operation.MessageBody is not IServiceResponse response)
+            IEncodeable? body = operation.MessageBody;
+
+            // the operation is often promoted while it waits (a Publish waits for the
+            // publishing interval); a dead old operation that still referenced the
+            // response would keep it alive through every collection until a full one.
+            operation.MessageBody = null;
+            if (body is not IServiceResponse response)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnknownResponse,
@@ -1412,10 +1504,21 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            using var responseStream = new ArraySegmentStream(chunksToProcess);
-            return BinaryDecoder.DecodeMessage<IServiceResponse>(
-                responseStream,
-                Quotas.MessageContext) ??
+            IServiceResponse? response;
+            if (chunksToProcess.Count == 1)
+            {
+                // a response in one chunk, which most are, is decoded from that chunk's
+                // buffer without a stream over the chunk list, as the server decodes requests.
+                response = DecodeMessage<IServiceResponse>(chunksToProcess[0], Quotas.MessageContext);
+            }
+            else
+            {
+                using var responseStream = new ArraySegmentStream(chunksToProcess);
+                response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+                    responseStream,
+                    Quotas.MessageContext);
+            }
+            return response ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
                     "Could not parse response body.");
@@ -1659,17 +1762,134 @@ namespace Opc.Ua.Bindings
             {
                 requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             }
-            var operation = new WriteOperation(timeout, callback, state, m_logger, TimeProvider)
+            long deadline = long.MaxValue;
+            if (timeout is > 0 and not int.MaxValue)
+            {
+                deadline = TimeProvider.GetTimestamp() +
+                    (timeout * TimeProvider.TimestampFrequency / 1000);
+            }
+            var operation = new WriteOperation(callback, state, m_logger, TimeProvider, deadline)
             {
                 RequestId = requestId
             };
-            if (!m_requests.TryAdd(operation.RequestId, operation))
+            lock (m_timeoutLock)
             {
-                throw ServiceResultException.Unexpected(
-                    "Could not add request {0} to list of pending operations.",
-                    operation.RequestId);
+                // Dispose fails the operations it finds after it stopped the timer;
+                // an operation added later would neither be failed nor time out.
+                if (m_nextTimeoutScan == long.MinValue)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "The channel is disposed.");
+                }
+                if (!m_requests.TryAdd(operation.RequestId, operation))
+                {
+                    throw ServiceResultException.Unexpected(
+                        "Could not add request {0} to list of pending operations.",
+                        operation.RequestId);
+                }
+                // added first, so that a scan that starts after the deadline is
+                // scheduled finds the operation.
+                if (deadline != long.MaxValue)
+                {
+                    ScheduleTimeoutScanLocked(deadline);
+                }
             }
             return operation;
+        }
+
+        /// <summary>
+        /// Arms the timeout timer for <paramref name="deadline"/> unless it is
+        /// already armed for an earlier or the same time. One timer per channel
+        /// times out all pending operations instead of a timer per operation;
+        /// with equal timeouts a new deadline is never the earliest, so a
+        /// request usually only reads the scheduled time.
+        /// </summary>
+        private void ScheduleTimeoutScan(long deadline)
+        {
+            lock (m_timeoutLock)
+            {
+                ScheduleTimeoutScanLocked(deadline);
+            }
+        }
+
+        /// <summary>
+        /// <see cref="ScheduleTimeoutScan"/> with <see cref="m_timeoutLock"/> held.
+        /// </summary>
+        private void ScheduleTimeoutScanLocked(long deadline)
+        {
+            if (deadline >= m_nextTimeoutScan)
+            {
+                return;
+            }
+            m_nextTimeoutScan = deadline;
+
+            // rounded up: a timer that fires early finds nothing expired.
+            TimeSpan dueTime = TimeProvider.GetElapsedTime(TimeProvider.GetTimestamp(), deadline);
+            dueTime = dueTime > TimeSpan.Zero
+                ? TimeSpan.FromMilliseconds(Math.Ceiling(dueTime.TotalMilliseconds))
+                : TimeSpan.Zero;
+
+            if (m_timeoutTimer == null)
+            {
+                m_timeoutTimer = TimeProvider.CreateTimer(
+                    static state => ((UaSCUaBinaryClientChannel)state!).OnTimeoutScan(),
+                    this,
+                    dueTime,
+                    Timeout.InfiniteTimeSpan);
+            }
+            else
+            {
+                m_timeoutTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
+            }
+        }
+
+        /// <summary>
+        /// Times out the pending operations whose deadline has passed and arms
+        /// the timer for the earliest remaining deadline.
+        /// </summary>
+        private void OnTimeoutScan()
+        {
+            lock (m_timeoutLock)
+            {
+                // disposed.
+                if (m_nextTimeoutScan == long.MinValue)
+                {
+                    return;
+                }
+                // an operation added from here on schedules its own deadline.
+                m_nextTimeoutScan = long.MaxValue;
+            }
+
+            long now = TimeProvider.GetTimestamp();
+            long next = long.MaxValue;
+            foreach (KeyValuePair<uint, WriteOperation> entry in m_requests)
+            {
+                WriteOperation operation = entry.Value;
+                if (!operation.TimeOutIfExpired(now) && operation.TimeoutDeadline < next)
+                {
+                    next = operation.TimeoutDeadline;
+                }
+            }
+
+            if (next != long.MaxValue)
+            {
+                ScheduleTimeoutScan(next);
+            }
+        }
+
+        /// <summary>
+        /// Stops the timeout timer for good. Operations are no longer added from
+        /// here on, so the ones pending afterwards are all the channel holds.
+        /// </summary>
+        private void DisposeTimeoutTimer()
+        {
+            lock (m_timeoutLock)
+            {
+                m_nextTimeoutScan = long.MinValue;
+                m_timeoutTimer?.Dispose();
+                m_timeoutTimer = null;
+            }
         }
 
         /// <summary>
@@ -1913,6 +2133,7 @@ namespace Opc.Ua.Bindings
             }
 
             BufferCollection? chunksToProcess = null;
+            ArraySegment<byte> singleChunk = default;
             try
             {
                 // check for an abort.
@@ -1942,11 +2163,18 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
-
-                // get response.
-                operation.MessageBody = ParseResponse(chunksToProcess);
+                // get response: a response in one chunk, which most are, is decoded
+                // from that chunk without a collection of the chunks.
+                if (IsSingleChunkMessage(messageBody, isServerContext: false))
+                {
+                    singleChunk = messageBody;
+                    operation.MessageBody = DecodeMessage<IServiceResponse>(singleChunk, Quotas.MessageContext);
+                }
+                else
+                {
+                    chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
+                    operation.MessageBody = ParseResponse(chunksToProcess);
+                }
 
                 if (operation.MessageBody == null)
                 {
@@ -1975,6 +2203,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 chunksToProcess?.Release(BufferManager, "ProcessResponseMessage");
+                ReturnBuffer(singleChunk, "ProcessResponseMessage");
             }
         }
 
@@ -1985,6 +2214,9 @@ namespace Opc.Ua.Bindings
         private WriteOperation? m_handshakeOperation;
         private ChannelToken? m_requestedToken;
         private ITimer? m_handshakeTimer;
+        private readonly Lock m_timeoutLock = new();
+        private ITimer? m_timeoutTimer;
+        private long m_nextTimeoutScan = long.MaxValue;
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
         private readonly IUaSCByteTransportFactory m_transportFactory;
@@ -2018,33 +2250,37 @@ namespace Opc.Ua.Bindings
             Message = "CLIENTCHANNEL SOCKET CONNECTING to {Url} via {Proxy}: ChannelId={ChannelId}")]
         public static partial void UaSCClientLog0(
             this ILogger logger,
-            Uri url,
-            string? proxy,
+            [NetworkAddress] Uri url,
+            [NetworkAddress] string? proxy,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 1, Level = LogLevel.Information,
             Message = "CLIENTCHANNEL SOCKET CONNECTING to {Url}: ChannelId={ChannelId}")]
         public static partial void UaSCClientLog1(
             this ILogger logger,
-            Uri url,
+            [NetworkAddress] Uri url,
             uint channelId);
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 2, Level = LogLevel.Information,
             Message = "CLIENTCHANNEL CONNECTED via {Url}: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void UaSCClientLog2(
             this ILogger logger,
-            Uri url,
-            System.Net.EndPoint? remoteEndpoint,
+            [NetworkAddress] Uri url,
+            [NetworkAddress] System.Net.EndPoint? remoteEndpoint,
             uint channelId);
+#pragma warning restore LOGGEN036
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 3, Level = LogLevel.Error,
             Message = "CLIENTCHANNEL CONNECT FAILED via {Url}: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void UaSCClientLog3(
             this ILogger logger,
             Exception? exception,
-            Uri url,
-            System.Net.EndPoint? remoteEndpoint,
+            [NetworkAddress] Uri url,
+            [NetworkAddress] System.Net.EndPoint? remoteEndpoint,
             uint channelId);
+#pragma warning restore LOGGEN036
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 4, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: Could not gracefully close the channel.")]
@@ -2128,27 +2364,33 @@ namespace Opc.Ua.Bindings
             Message = "ChannelId {ChannelId}: Attempting Reconnect Now.")]
         public static partial void UaSCClientLog19(this ILogger logger, uint channelId);
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 20, Level = LogLevel.Information,
             Message = "ChannelId {ChannelId}: CLIENTCHANNEL TRANSPORT CLOSED ON SCHEDULED HANDSHAKE: {RemoteEndpoint}")]
         public static partial void UaSCClientLog20(
             this ILogger logger,
             uint channelId,
-            System.Net.EndPoint? remoteEndpoint);
+            [NetworkAddress] System.Net.EndPoint? remoteEndpoint);
+#pragma warning restore LOGGEN036
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 21, Level = LogLevel.Information,
             Message = "CLIENTCHANNEL TRANSPORT RECONNECTED: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void UaSCClientLog21(
             this ILogger logger,
-            System.Net.EndPoint? remoteEndpoint,
+            [NetworkAddress] System.Net.EndPoint? remoteEndpoint,
             uint channelId);
+#pragma warning restore LOGGEN036
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 22, Level = LogLevel.Error,
             Message = "CLIENTCHANNEL TRANSPORT RECONNECT FAILED: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void UaSCClientLog22(
             this ILogger logger,
             Exception? exception,
-            System.Net.EndPoint? remoteEndpoint,
+            [NetworkAddress] System.Net.EndPoint? remoteEndpoint,
             uint channelId);
+#pragma warning restore LOGGEN036
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 23, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: Reconnect Failed.")]
@@ -2172,12 +2414,14 @@ namespace Opc.Ua.Bindings
             Message = "ChannelId {ChannelId}: Cannot Recover Channel")]
         public static partial void UaSCClientLog26(this ILogger logger, uint channelId);
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 27, Level = LogLevel.Information,
             Message = "ChannelId {ChannelId}: CLIENTCHANNEL TRANSPORT CLOSED SHUTDOWN: {RemoteEndpoint}")]
         public static partial void UaSCClientLog27(
             this ILogger logger,
             uint channelId,
-            System.Net.EndPoint? remoteEndpoint);
+            [NetworkAddress] System.Net.EndPoint? remoteEndpoint);
+#pragma warning restore LOGGEN036
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 28, Level = LogLevel.Warning,
             Message = "ChannelId {ChannelId}: Force reconnect reason={ServiceResult}")]
@@ -2192,7 +2436,7 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint channelId,
             int delay,
-            string serviceResult);
+            [SensitiveText] string serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 30, Level = LogLevel.Information,
             Message = "ChannelId {ChannelId}: Token Expiry {Expiration:HH:mm:ss.fff}, renewal scheduled " +

@@ -30,14 +30,18 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 #if NET8_0_OR_GREATER
+using System.Net.Sockets;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
 #endif
 
@@ -387,7 +391,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Factory = null
             };
 
-            Assert.CatchAsync(async () => await listener.OpenAsync(baseAddress, settings, callback.Object).ConfigureAwait(false));
+            await Assert.CatchAsync(async () => await listener.OpenAsync(baseAddress, settings, callback.Object).ConfigureAwait(false));
 
             Assert.That(listener.ListenerId, Is.Not.Null.And.Not.Empty);
             Assert.That(listener.EndpointUrl, Is.EqualTo(baseAddress));
@@ -820,6 +824,93 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 ServiceMessageContext.Create(m_telemetry));
         }
 
+        /// <summary>
+        /// The listener pins its TLS certificate before Kestrel binds. When the
+        /// bind fails because the port is taken, the failed start stops the
+        /// listener again and releases the certificate, so a caller that drops
+        /// the listener does not leak it.
+        /// </summary>
+        [Test]
+        public async Task OpenOnTakenPortReleasesPinnedTlsCertificateAsync()
+        {
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=Https Taken Port").CreateForRSA();
+            var registry = new Mock<ICertificateRegistry>();
+            registry.Setup(value => value.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https))
+                .Returns(() => new CertificateEntry(
+                    tlsCertificate, new CertificateCollection(), ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            var settings = new TransportListenerSettings
+            {
+                Descriptions = [],
+                Configuration = EndpointConfiguration.Create(),
+                ServerCertificates = registry.Object,
+                CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
+                NamespaceUris = new NamespaceTable()
+            };
+
+            // Dual-mode on [::], so it holds the port Kestrel binds for a host name.
+            TcpListener blocker = TcpListener.Create(0);
+            blocker.Start();
+            try
+            {
+                int port = ((IPEndPoint)blocker.LocalEndpoint).Port;
+                await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+
+                await Assert.CatchAsync<IOException>(async () => await listener.OpenAsync(
+                    new Uri($"https://localhost:{port}/taken"),
+                    settings,
+                    Mock.Of<ITransportListenerCallback>()).ConfigureAwait(false));
+
+                Assert.That(GetPrivateField(listener, "m_pinnedServerCert"), Is.Null);
+                Assert.That(GetPrivateField(listener, "m_pinnedServerCertX509"), Is.Null);
+            }
+            finally
+            {
+                blocker.Stop();
+            }
+        }
+
+        /// <summary>
+        /// When the cleanup after a failed start fails too, here because the
+        /// host throws on dispose, the pinned TLS certificate is still released
+        /// and both errors are reported.
+        /// </summary>
+        [Test]
+        public async Task FailedStartWithFailingCleanupStillReleasesPinnedTlsCertificateAsync()
+        {
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=Https Failed Cleanup").CreateForRSA();
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            var startError = new InvalidOperationException("No TLS certificate.");
+            var registry = new Mock<ICertificateRegistry>();
+            registry.Setup(value => value.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https))
+                .Throws(startError);
+            var cleanupError = new InvalidOperationException("Host dispose failed.");
+            var host = new Mock<IHost>();
+            host.Setup(value => value.Dispose()).Throws(cleanupError);
+            SetPrivateField(listener, "m_serverCertProvider", registry.Object);
+            SetPrivateField(listener, "m_host", host.Object);
+            SetPrivateField(listener, "m_pinnedServerCert", tlsCertificate.AddRef());
+
+            AggregateException error = await Assert.ThrowsAsync<AggregateException>(
+                async () => await listener.StartAsync().ConfigureAwait(false));
+
+            Assert.That(error.InnerExceptions, Is.EqualTo(new Exception[] { startError, cleanupError }));
+            Assert.That(GetPrivateField(listener, "m_pinnedServerCert"), Is.Null);
+        }
+
+        private static object? GetPrivateField(HttpsTransportListener listener, string name)
+        {
+            return typeof(HttpsTransportListener)
+                .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(listener);
+        }
+
+        private static void SetPrivateField(HttpsTransportListener listener, string name, object value)
+        {
+            typeof(HttpsTransportListener)
+                .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(listener, value);
+        }
+
         private static X509Certificate2 CreateTlsTestCertificate(string subject)
         {
             using Certificate certificate = CertificateBuilder.Create(subject)
@@ -861,6 +952,211 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             return listener;
+        }
+
+        [TestCase(true, 0)]
+        [TestCase(true, 1)]
+        [TestCase(true, 2)]
+        [TestCase(false, 0)]
+        [TestCase(false, 1)]
+        [TestCase(false, 2)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR01JsonWithoutClientCertificateNeverDispatchesAsync(bool json, int operation)
+        {
+            int dispatches = 0;
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ProcessRequestAsync(
+                    It.IsAny<SecureChannelContext>(), It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns<SecureChannelContext, IServiceRequest, CancellationToken>((_, _, _) =>
+                {
+                    dispatches++;
+                    return new ValueTask<IServiceResponse>(new ReadResponse());
+                });
+            await using HttpsTransportListener listener = CreateSecurityListener(callback.Object, mutualTls: true);
+            IServiceRequest request = operation switch
+            {
+                0 => new CreateSessionRequest(),
+                1 => new ActivateSessionRequest(),
+                _ => new ReadRequest()
+            };
+            request.RequestHeader = new RequestHeader
+            {
+                RequestHandle = 819,
+                AuthenticationToken = new NodeId(1u, 0)
+            };
+
+            IServiceResponse response = await DispatchSecurityRequestAsync(listener, request, json).ConfigureAwait(false);
+
+            Assert.That(response, Is.TypeOf<ServiceFault>());
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(819u));
+            Assert.That(dispatches, Is.Zero);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR01MatchingValidatedCertificatePreservesAnonymousSessionAsync(bool json)
+        {
+            using X509Certificate2 certificate = CreateTlsTestCertificate("CN=Https Json Client");
+            string? channelId = null;
+            int dispatches = 0;
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ProcessRequestAsync(
+                    It.IsAny<SecureChannelContext>(), It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns<SecureChannelContext, IServiceRequest, CancellationToken>((channel, request, _) =>
+                {
+                    Assert.That(channelId ??= channel.SecureChannelId, Is.EqualTo(channel.SecureChannelId));
+                    Assert.That(channel.ClientChannelCertificate.ToArray(), Is.EqualTo(certificate.RawData));
+                    dispatches++;
+                    IServiceResponse response = request switch
+                    {
+                        CreateSessionRequest => new CreateSessionResponse(),
+                        ActivateSessionRequest => new ActivateSessionResponse(),
+                        _ => new ReadResponse { Results = [new DataValue(Variant.From(42))] }
+                    };
+                    response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
+                    return new ValueTask<IServiceResponse>(response);
+                });
+            await using HttpsTransportListener listener = CreateSecurityListener(callback.Object, mutualTls: true);
+            using X509Certificate2 issuer = CreateTlsTestCertificate("CN=Https Json Issuer");
+            IServiceRequest[] requests =
+            [
+                new CreateSessionRequest { ClientCertificate = ByteString.From([.. certificate.RawData, .. issuer.RawData]) },
+                new ActivateSessionRequest { UserIdentityToken = new ExtensionObject(new AnonymousIdentityToken()) },
+                new ReadRequest()
+            ];
+            foreach (IServiceRequest request in requests)
+            {
+                request.RequestHeader = new RequestHeader { RequestHandle = (uint)dispatches + 1 };
+                IServiceResponse response = await DispatchSecurityRequestAsync(listener, request, json, certificate)
+                    .ConfigureAwait(false);
+                Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+                if (response is ReadResponse read)
+                {
+                    Assert.That(read.Results[0].WrappedValue.TryGetValue(out int marker), Is.True);
+                    Assert.That(marker, Is.EqualTo(42));
+                }
+            }
+            Assert.That(dispatches, Is.EqualTo(3));
+            Assert.That(channelId, Is.EqualTo(listener.ListenerId));
+        }
+
+        [TestCase(true, true, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, false)]
+        [TestCase(false, false, false)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR01DiscoveryAndExplicitTlsOnlyModeRetainSupportedAccessAsync(
+            bool json, bool mutualTls, bool discovery)
+        {
+            int dispatches = 0;
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ProcessRequestAsync(
+                    It.IsAny<SecureChannelContext>(), It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns<SecureChannelContext, IServiceRequest, CancellationToken>((_, request, _) =>
+                {
+                    dispatches++;
+                    IServiceResponse response = discovery ? new GetEndpointsResponse() : new ReadResponse();
+                    response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
+                    return new ValueTask<IServiceResponse>(response);
+                });
+            await using HttpsTransportListener listener = CreateSecurityListener(callback.Object, mutualTls);
+            IServiceRequest request = discovery ? new GetEndpointsRequest() : new ReadRequest();
+            request.RequestHeader = new RequestHeader { RequestHandle = 127 };
+            IServiceResponse response = await DispatchSecurityRequestAsync(listener, request, json).ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(127u));
+            Assert.That(dispatches, Is.EqualTo(1));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR01MismatchedApplicationLeafNeverDispatchesAsync(bool json)
+        {
+            using X509Certificate2 certificate = CreateTlsTestCertificate("CN=Https Actual Leaf");
+            using X509Certificate2 other = CreateTlsTestCertificate("CN=Https Other Leaf");
+            var callback = new Mock<ITransportListenerCallback>(MockBehavior.Strict);
+            await using HttpsTransportListener listener = CreateSecurityListener(callback.Object, mutualTls: true);
+            var request = new CreateSessionRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 128 },
+                ClientCertificate = ByteString.From([.. other.RawData, .. certificate.RawData])
+            };
+            IServiceResponse response = await DispatchSecurityRequestAsync(listener, request, json, certificate)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(128u));
+            callback.VerifyNoOtherCalls();
+        }
+
+        private HttpsTransportListener CreateSecurityListener(ITransportListenerCallback callback, bool mutualTls)
+        {
+            var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            listener.Initialize(new Uri("https://localhost:51002"), new TransportListenerSettings
+            {
+                Descriptions =
+                [
+                    new EndpointDescription
+                    {
+                        EndpointUrl = "https://localhost:51002",
+                        SecurityMode = MessageSecurityMode.None,
+                        SecurityPolicyUri = SecurityPolicies.None,
+                        TransportProfileUri = Profiles.HttpsBinaryTransport,
+                        UserIdentityTokens = [new UserTokenPolicy(UserTokenType.Anonymous)]
+                    },
+                    new EndpointDescription
+                    {
+                        EndpointUrl = "https://localhost:51002",
+                        SecurityMode = MessageSecurityMode.None,
+                        SecurityPolicyUri = SecurityPolicies.None,
+                        TransportProfileUri = Profiles.HttpsJsonTransport,
+                        UserIdentityTokens = [new UserTokenPolicy(UserTokenType.Anonymous)]
+                    }
+                ],
+                Configuration = EndpointConfiguration.Create(),
+                HttpsMutualTls = mutualTls
+            }, callback);
+            return listener;
+        }
+
+        private async Task<IServiceResponse> DispatchSecurityRequestAsync(
+            HttpsTransportListener listener, IServiceRequest request, bool json, X509Certificate2? certificate = null)
+        {
+            byte[] payload;
+            if (json)
+            {
+                using var body = new MemoryStream();
+                using (var encoder = new JsonEncoder(
+                    body, ServiceMessageContext.Create(m_telemetry), JsonEncoderOptions.Compact))
+                {
+                    encoder.EncodeMessage(request, request.TypeId);
+                }
+                payload = body.ToArray();
+            }
+            else
+            {
+                payload = BinaryEncoder.EncodeMessage(request, ServiceMessageContext.Create(m_telemetry));
+            }
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = json ? Profiles.OpcUaJsonContentType : "application/octet-stream";
+            context.Request.ContentLength = payload.Length;
+            using var requestBody = new MemoryStream(payload);
+            context.Request.Body = requestBody;
+            context.Connection.ClientCertificate = certificate;
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+            if (json)
+            {
+                await listener.SendJsonAsync(context).ConfigureAwait(false);
+                return JsonDecoder.DecodeMessage<IServiceResponse>(
+                    responseBody.ToArray(), ServiceMessageContext.Create(m_telemetry));
+            }
+            await listener.SendBinaryAsync(context).ConfigureAwait(false);
+            return BinaryDecoder.DecodeMessage<IServiceResponse>(
+                responseBody.ToArray(), ServiceMessageContext.Create(m_telemetry));
         }
 #endif
     }

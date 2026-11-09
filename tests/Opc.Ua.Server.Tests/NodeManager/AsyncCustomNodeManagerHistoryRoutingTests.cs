@@ -254,6 +254,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             notifier.NodeId = new NodeId("EventNotifier", nsIdx);
             notifier.BrowseName = new QualifiedName("EventNotifier", nsIdx);
             notifier.EventNotifier = EventNotifiers.HistoryRead | EventNotifiers.SubscribeToEvents;
+            Historian.HistoricalEventAuthorizationTestHelper.RegisterUnrestrictedEventNodes(
+                h.Context, [ObjectTypeIds.BaseEventType]);
 
             await h.Manager.AddNodeAsync(h.Context, default, notifier).ConfigureAwait(false);
 
@@ -379,7 +381,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var results = new List<HistoryReadResult> { null! };
             var errors = new List<ServiceResult> { null! };
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await h.Manager.HistoryReadAsync(
                     h.OperationContext, details,
                     (TimestampsToReturn)99,
@@ -413,7 +415,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var results = new List<HistoryReadResult> { null! };
             var errors = new List<ServiceResult> { null! };
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await h.Manager.HistoryReadAsync(
                     h.OperationContext, details,
                     TimestampsToReturn.Source,
@@ -449,7 +451,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var results = new List<HistoryReadResult> { null! };
             var errors = new List<ServiceResult> { null! };
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await h.Manager.HistoryReadAsync(
                     h.OperationContext, details,
                     TimestampsToReturn.Source,

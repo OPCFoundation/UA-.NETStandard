@@ -81,7 +81,8 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             }
 
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
-            m_rootPath = rootPath;
+            m_rootPath = CanonicalizeProviderPath(rootPath, nameof(rootPath));
+            m_rootPrefix = m_rootPath == "/" ? m_rootPath : m_rootPath + "/";
             m_time = timeProvider ?? TimeProvider.System;
             ElementId = elementId;
         }
@@ -121,25 +122,9 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
         public async ValueTask<SoftwarePackage?> GetCurrentVersionAsync(
             CancellationToken cancellationToken = default)
         {
-            string markerPath = BuildPath(CurrentMarkerFileName);
-            FileSystemEntry? entry = await m_provider
-                .GetEntryAsync(markerPath, cancellationToken)
+            string? version = await ReadCurrentMarkerAsync(cancellationToken)
                 .ConfigureAwait(false);
-            if (entry is null or { IsDirectory: true })
-            {
-                return null;
-            }
-            string version;
-            using (Stream stream = await m_provider
-                .OpenReadAsync(markerPath, cancellationToken)
-                .ConfigureAwait(false))
-            using (var reader = new StreamReader(stream, Encoding.UTF8))
-            {
-                version = await ReadAllTextAsync(reader, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            if (string.IsNullOrEmpty(version))
+            if (version == null)
             {
                 return null;
             }
@@ -249,12 +234,12 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             {
                 return false;
             }
+            string? current = await ReadCurrentMarkerAsync(cancellationToken)
+                .ConfigureAwait(false);
             await DeleteEntryRecursivelyAsync(
                 BuildPath(version), cancellationToken).ConfigureAwait(false);
 
             // Clear current marker if it pointed to this version.
-            string? current = await ReadCurrentMarkerAsync(cancellationToken)
-                .ConfigureAwait(false);
             if (string.Equals(current, version, StringComparison.Ordinal))
             {
                 FileSystemEntry? markerEntry = await m_provider
@@ -305,10 +290,6 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        // Helpers
-        // ──────────────────────────────────────────────────────────────────
-
         private async ValueTask<SoftwarePackage?> TryReadMetadataAsync(
             string version, CancellationToken cancellationToken)
         {
@@ -348,21 +329,31 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Reads and validates the active revision before any caller uses it.
+        /// </summary>
         private async ValueTask<string?> ReadCurrentMarkerAsync(
             CancellationToken cancellationToken)
         {
+            string markerPath = BuildPath(CurrentMarkerFileName);
             FileSystemEntry? entry = await m_provider
-                .GetEntryAsync(BuildPath(CurrentMarkerFileName), cancellationToken)
+                .GetEntryAsync(markerPath, cancellationToken)
                 .ConfigureAwait(false);
             if (entry is null or { IsDirectory: true })
             {
                 return null;
             }
             using Stream stream = await m_provider
-                .OpenReadAsync(BuildPath(CurrentMarkerFileName), cancellationToken)
+                .OpenReadAsync(markerPath, cancellationToken)
                 .ConfigureAwait(false);
             using var reader = new StreamReader(stream, Encoding.UTF8);
-            return await ReadAllTextAsync(reader, cancellationToken).ConfigureAwait(false);
+            string version = await ReadAllTextAsync(reader, cancellationToken).ConfigureAwait(false);
+            if (version.Length == 0)
+            {
+                return null;
+            }
+            ValidateVersion(version);
+            return version;
         }
 
         private static async Task<string> ReadAllTextAsync(
@@ -376,6 +367,9 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
 #endif
         }
 
+        /// <summary>
+        /// Deletes descendants only after validating each provider-supplied entry name.
+        /// </summary>
         private async ValueTask DeleteEntryRecursivelyAsync(
             string path, CancellationToken cancellationToken)
         {
@@ -383,7 +377,8 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
                 .EnumerateAsync(path, cancellationToken)
                 .ConfigureAwait(false))
             {
-                string childPath = path.TrimEnd('/') + "/" + child.Name;
+                ValidateVersion(child.Name);
+                string childPath = CanonicalizeContainedPath(path + "/" + child.Name);
                 if (child.IsDirectory)
                 {
                     await DeleteEntryRecursivelyAsync(childPath, cancellationToken)
@@ -398,6 +393,12 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             await m_provider.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Requires a revision to identify one non-dot path component.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// The version is empty, contains a path separator, or aliases a dot segment or empty component.
+        /// </exception>
         private static void ValidateVersion(string version)
         {
             if (string.IsNullOrWhiteSpace(version))
@@ -411,20 +412,99 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
                     "Version identifier must not contain path separators.",
                     nameof(version));
             }
+            if (version is "." or ".." || version.TrimEnd(' ', '.').Length == 0)
+            {
+                throw new ArgumentException(
+                    "Version identifier must not be a dot segment or an alias of an empty component.",
+                    nameof(version));
+            }
         }
 
-        private string BuildPath(string version)
+        /// <summary>
+        /// Builds a canonical path strictly beneath the configured software-folder root.
+        /// </summary>
+        private string BuildPath(string version, string? fileName = null)
         {
-            return m_rootPath.TrimEnd('/') + "/" + version;
+            ValidateVersion(version);
+            string path = m_rootPrefix + version;
+            if (fileName != null)
+            {
+                ValidateVersion(fileName);
+                path += "/" + fileName;
+            }
+            return CanonicalizeContainedPath(path);
         }
 
-        private string BuildPath(string version, string fileName)
+        /// <summary>
+        /// Applies the same separator-aware provider-path boundary as the package store.
+        /// </summary>
+        /// <exception cref="UnauthorizedAccessException">
+        /// The canonical path is not strictly beneath the configured software-folder root.
+        /// </exception>
+        private string CanonicalizeContainedPath(string path)
         {
-            return BuildPath(version) + "/" + fileName;
+            string canonicalPath = CanonicalizeProviderPath(path, nameof(path));
+            if (canonicalPath.Length <= m_rootPath.Length ||
+                !canonicalPath.StartsWith(m_rootPrefix, StringComparison.Ordinal))
+            {
+                throw new UnauthorizedAccessException(
+                    "The version path escapes the configured software-folder root.");
+            }
+            return canonicalPath;
+        }
+
+        /// <summary>
+        /// Canonicalizes portable provider paths without resolving dot segments.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// A path component is a dot segment or an alias of an empty component.
+        /// </exception>
+        private static string CanonicalizeProviderPath(string path, string parameterName)
+        {
+            var canonicalPath = new StringBuilder(path.Length + 1);
+            canonicalPath.Append('/');
+            int index = 0;
+            while (index < path.Length)
+            {
+                while (index < path.Length && path[index] is '/' or '\\')
+                {
+                    index++;
+                }
+
+                int segmentStart = index;
+                while (index < path.Length && path[index] is not ('/' or '\\'))
+                {
+                    index++;
+                }
+
+                int segmentLength = index - segmentStart;
+                if (segmentLength == 0)
+                {
+                    break;
+                }
+                string segment = path.Substring(segmentStart, segmentLength);
+                if (segment is "." or ".." || segment.TrimEnd(' ', '.').Length == 0)
+                {
+                    throw new ArgumentException(
+                        "Provider-relative paths must not contain dot segments or empty-component aliases.",
+                        parameterName);
+                }
+
+                if (canonicalPath.Length > 1)
+                {
+                    canonicalPath.Append('/');
+                }
+                canonicalPath.Append(segment);
+            }
+            return canonicalPath.ToString();
         }
 
         private readonly IFileSystemProvider m_provider;
         private readonly string m_rootPath;
+
+        /// <summary>The canonical separator-terminated software-folder boundary.</summary>
+        private readonly string m_rootPrefix;
+
         private readonly TimeProvider m_time;
 
         private static readonly char[] s_invalidVersionChars = ['/', '\\'];

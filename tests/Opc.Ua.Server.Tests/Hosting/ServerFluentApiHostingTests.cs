@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             try
             {
-                await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                await using (HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                     services =>
                     {
                         IOpcUaBuilder builder = services.AddOpcUa()
@@ -147,22 +147,27 @@ namespace Opc.Ua.Server.Tests.Hosting
                                 options.IncludeUnsecurePolicyNone = true;
                             })
                             .AddCertificateManager(certificateManager);
-                    }).ConfigureAwait(false);
+                    }).ConfigureAwait(false))
+                {
+                    Assert.That(
+                        await WaitForAsync(
+                            () => ObservedHostedServer.StartedApplicationType != null,
+                            TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                        Is.True);
+                    Assert.That(
+                        ObservedHostedServer.StartedApplicationName,
+                        Is.EqualTo("CombinedHostedApplication"));
+                    Assert.That(
+                        ObservedHostedServer.StartedApplicationType,
+                        Is.EqualTo(ApplicationType.ClientAndServer));
+                    Assert.That(
+                        ObservedHostedServer.StartedCertificateManager,
+                        Is.SameAs(certificateManager));
+                }
 
-                Assert.That(
-                    await WaitForAsync(
-                        () => ObservedHostedServer.StartedApplicationType != null,
-                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
-                    Is.True);
-                Assert.That(
-                    ObservedHostedServer.StartedApplicationName,
-                    Is.EqualTo("CombinedHostedApplication"));
-                Assert.That(
-                    ObservedHostedServer.StartedApplicationType,
-                    Is.EqualTo(ApplicationType.ClientAndServer));
-                Assert.That(
-                    ObservedHostedServer.StartedCertificateManager,
-                    Is.SameAs(certificateManager));
+                using ICertificateStore store = certificateManager.OpenCertificateStore(
+                    Path.Combine(pkiRoot, "own"),
+                    CertificateStoreType.Directory);
             }
             finally
             {
@@ -469,7 +474,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             RoleEntry entry = roleManager.GetRole(ObjectIds.WellKnownRole_Observer)!;
 
             Assert.That(entry.Identities, Has.Exactly(1).Matches<IdentityMappingRuleType>(rule =>
-                rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
+                rule is not null && rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
         }
 
         /// <summary>
@@ -501,7 +506,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             RoleEntry entry = roleManager.GetRole(ObjectIds.WellKnownRole_Observer)!;
 
             Assert.That(entry.Identities, Has.Exactly(1).Matches<IdentityMappingRuleType>(rule =>
-                rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
+                rule is not null && rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
         }
 
         /// <summary>
@@ -1068,10 +1073,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         private static void ConfigureHostedOptions(OpcUaServerOptions options, string applicationName)
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(ServerFluentApiHostingTests),
-                applicationName,
-                Guid.NewGuid().ToString("N"));
+                AppContext.BaseDirectory,
+                "host-" + Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;
             options.ProductUri = "urn:localhost:" + applicationName + ":product";

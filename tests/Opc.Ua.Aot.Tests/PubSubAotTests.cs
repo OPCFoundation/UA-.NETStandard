@@ -69,9 +69,9 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             PubSubConfigurationDataType cfg =
-                pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                SampleClient
                     .PublisherConfigurationBuilder.Build(
-                        pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                        SampleClient
                             .PublisherProfile.UdpUadp,
                         "opc.udp://239.0.0.250:4840",
                         publisherId: 1,
@@ -83,14 +83,14 @@ namespace Opc.Ua.Aot.Tests
                 .WithApplicationId("urn:test:pubsub-aot")
                 .UseAllStandardEncoders()
                 .AddSecurityKeyProvider(
-                    pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                    SampleClient
                         .SampleSecurity.CreateKeyProvider())
                 .AddTransportFactory(new UdpPubSubTransportFactory(
                     Options.Create(new UdpTransportOptions())))
                 .AddDataSetSource(
-                    pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                    SampleClient
                         .PublisherConfigurationBuilder.DataSetName,
-                    new pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                    new SampleClient
                         .SampleDataSetSource())
                 .UseConfiguration(cfg)
                 .Build();
@@ -109,9 +109,9 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             PubSubConfigurationDataType cfg =
-                pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                SampleClient
                     .SubscriberConfigurationBuilder.Build(
-                        pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                        SampleClient
                             .SubscriberProfile.MqttJson,
                         "mqtt://localhost:1883",
                         publisherIdFilter: 1,
@@ -123,12 +123,11 @@ namespace Opc.Ua.Aot.Tests
                 .UseAllStandardEncoders()
                 .AddTransportFactory(new FakeMqttJsonTransportFactory())
                 .AddSubscribedDataSetSink(
-                    pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                    SampleClient
                         .SubscriberConfigurationBuilder.ReaderName,
-                    new pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                    new SampleClient
                         .ConsoleLoggingSink(
-                            telemetry.CreateLogger<pubsubsample::Quickstarts
-                                .ConsoleReferencePubSubClient.ConsoleLoggingSink>()))
+                            telemetry.CreateLogger<SampleClient.ConsoleLoggingSink>()))
                 .UseConfiguration(cfg)
                 .Build();
 
@@ -174,9 +173,9 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             PubSubConfigurationDataType original =
-                pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                SampleClient
                     .PublisherConfigurationBuilder.Build(
-                        pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                        SampleClient
                             .PublisherProfile.UdpUadp,
                         "opc.udp://239.0.0.250:4840",
                         publisherId: 7,
@@ -222,9 +221,9 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             PubSubConfigurationDataType cfg =
-                pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                SampleClient
                     .PublisherConfigurationBuilder.Build(
-                        pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                        SampleClient
                             .PublisherProfile.UdpUadp,
                         "opc.udp://239.0.0.250:4845",
                         publisherId: 9,
@@ -236,14 +235,14 @@ namespace Opc.Ua.Aot.Tests
                 .WithApplicationId("urn:test:publisher-lifecycle")
                 .UseAllStandardEncoders()
                 .AddSecurityKeyProvider(
-                    pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                    SampleClient
                         .SampleSecurity.CreateKeyProvider())
                 .AddTransportFactory(new UdpPubSubTransportFactory(
                     Options.Create(new UdpTransportOptions())))
                 .AddDataSetSource(
-                    pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                    SampleClient
                         .PublisherConfigurationBuilder.DataSetName,
-                    new pubsubsample::Quickstarts.ConsoleReferencePubSubClient
+                    new SampleClient
                         .SampleDataSetSource())
                 .UseConfiguration(cfg)
                 .Build();
@@ -356,7 +355,7 @@ namespace Opc.Ua.Aot.Tests
                 .EncodeAsync(msg, context).ConfigureAwait(false);
             await Assert.That(bytes.Length).IsGreaterThan(0);
 
-            PubSubNetworkMessage decoded = await new UadpDecoder()
+            PubSubNetworkMessage? decoded = await new UadpDecoder()
                 .TryDecodeAsync(bytes, context).ConfigureAwait(false);
             await Assert.That(decoded).IsNotNull();
             var roundTripped = (UadpNetworkMessage)decoded!;
@@ -436,7 +435,7 @@ namespace Opc.Ua.Aot.Tests
                 .EncodeAsync(msg, context).ConfigureAwait(false);
             await Assert.That(bytes.Length).IsGreaterThan(0);
 
-            PubSubNetworkMessage decoded = await new PubSub.Encoding.Json.JsonDecoder()
+            PubSubNetworkMessage? decoded = await new PubSub.Encoding.Json.JsonDecoder()
                 .TryDecodeAsync(bytes, context).ConfigureAwait(false);
             await Assert.That(decoded).IsNotNull();
             var roundTripped = (PubSub.Encoding.Json.JsonNetworkMessage)decoded!;
@@ -448,7 +447,7 @@ namespace Opc.Ua.Aot.Tests
         }
 
         private static PubSubNetworkMessageContext NewContext(
-            IDataSetMetaDataRegistry registry = null)
+            IDataSetMetaDataRegistry? registry = null)
         {
             return new PubSubNetworkMessageContext(
                 ServiceMessageContext.CreateEmpty(null!),

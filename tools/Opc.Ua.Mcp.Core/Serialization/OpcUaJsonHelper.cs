@@ -317,6 +317,130 @@ namespace Opc.Ua.Mcp.Serialization
             }
         }
 
+        /// <summary>
+        /// Preserves structured session values through their UA codecs without changing primitive result shapes.
+        /// </summary>
+        internal static object? VariantToObject(Variant variant, IServiceMessageContext context)
+        {
+            if (variant.TypeInfo.BuiltInType == BuiltInType.ExtensionObject)
+            {
+                if (variant.TryGetValue(out ExtensionObject scalar))
+                {
+                    return ExtensionObjectToDict(scalar, context);
+                }
+                if (variant.TryGetValue(out ArrayOf<ExtensionObject> array))
+                {
+                    return array.IsNull ? null :
+                        array.ToArray()!.Select(value => ExtensionObjectToDict(value, context)).ToList();
+                }
+                return McpCompanionJson.Variant(variant, context);
+            }
+            if (variant.TypeInfo.BuiltInType is BuiltInType.DataValue or BuiltInType.Variant)
+            {
+                return McpCompanionJson.Variant(variant, context);
+            }
+            return VariantToObject(variant);
+        }
+
+        /// <summary>
+        /// Preserves session-specific structure codecs alongside the ordinary quality and timestamp fields.
+        /// </summary>
+        internal static Dictionary<string, object?> DataValueToDict(
+            in DataValue value, IServiceMessageContext context)
+        {
+            Dictionary<string, object?> result = DataValueToDict(value.WithWrappedValue(Variant.Null));
+            result["value"] = VariantToObject(value.WrappedValue, context);
+            return result;
+        }
+
+        /// <summary>
+        /// Decodes explicitly typed UA JSON arguments without reinterpreting legacy string arguments.
+        /// </summary>
+        internal static ArrayOf<Variant> ParseCallArguments(
+            string[]? inputArguments,
+            string? inputArgumentsJson,
+            IServiceMessageContext context)
+        {
+            if (inputArgumentsJson == null)
+            {
+                return inputArguments == null ? [] : inputArguments.Select(value => new Variant(value)).ToArrayOf();
+            }
+            if (inputArguments != null)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                    "Specify either inputArguments or inputArgumentsJson, not both.");
+            }
+            const int maxInputBytes = 4 * 1024 * 1024;
+            if (inputArgumentsJson.Length > maxInputBytes ||
+                Encoding.UTF8.GetByteCount(inputArgumentsJson) > maxInputBytes)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                    "Typed method arguments exceed the 4 MiB input bound.");
+            }
+            JsonNode? parsed;
+            try
+            {
+                parsed = JsonNode.Parse(inputArgumentsJson);
+            }
+            catch (JsonException exception)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError, exception, "Typed method arguments must be a UA JSON Variant array.");
+            }
+            if (parsed is not JsonArray array || array.Count > 1024)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                    "Typed method arguments must be a UA JSON Variant array of at most 1024 items.");
+            }
+            ValidateTypedArgumentEnvelopes(array);
+            using var decoder = new JsonDecoder(new JsonObject { ["Arguments"] = array }.ToJsonString(), context);
+            return decoder.ReadVariantArray("Arguments");
+        }
+
+        /// <summary>
+        /// Validates typed Variant and DataValue envelopes without interpreting structure fields as envelopes.
+        /// </summary>
+        private static void ValidateTypedArgumentEnvelopes(JsonArray arguments)
+        {
+            var pending = new Stack<JsonNode?>();
+            foreach (JsonNode? argument in arguments)
+            {
+                pending.Push(argument);
+            }
+
+            while (pending.Count > 0)
+            {
+                if (pending.Pop() is not JsonObject envelope)
+                {
+                    continue;
+                }
+
+                JsonNode? value = envelope["Value"];
+                if (value != null && envelope["UaType"] == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError,
+                        "A non-null typed method argument Value requires an explicit UaType.");
+                }
+
+                if (envelope["UaType"] is JsonValue uaType &&
+                    uaType.TryGetValue(out byte builtInType) &&
+                    builtInType is (byte)BuiltInType.Variant or (byte)BuiltInType.DataValue)
+                {
+                    if (value is JsonArray values)
+                    {
+                        foreach (JsonNode? item in values)
+                        {
+                            pending.Push(item);
+                        }
+                    }
+                    else if (value != null)
+                    {
+                        pending.Push(value);
+                    }
+                }
+            }
+        }
+
         private static object? VariantArrayToObject(Variant variant)
         {
             return variant.TypeInfo.BuiltInType switch
@@ -550,16 +674,23 @@ namespace Opc.Ua.Mcp.Serialization
             };
         }
 
-        private static Dictionary<string, object?> ExtensionObjectToDict(ExtensionObject ext)
+        private static Dictionary<string, object?> ExtensionObjectToDict(
+            ExtensionObject ext, IServiceMessageContext? context = null)
         {
             var result = new Dictionary<string, object?>
             {
                 ["typeId"] = ext.TypeId.ToString()
             };
 
-            if (ext.TryGetValue(out IEncodeable? encodeable))
+            context ??= ServiceMessageContext.Create(null!);
+            if (ext.TryGetValue(out IEncodeable? encodeable, context))
             {
-                result["body"] = encodeable.ToString();
+                result["body"] = McpCompanionJson.Encode(encodeable, context);
+            }
+            else if (!ext.IsNull)
+            {
+                result["encoding"] = ext.Encoding.ToString();
+                result["body"] = McpCompanionJson.Variant(Variant.From(ext), context);
             }
 
             return result;

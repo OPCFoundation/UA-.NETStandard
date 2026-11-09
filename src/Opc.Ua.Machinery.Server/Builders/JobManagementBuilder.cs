@@ -133,9 +133,22 @@ namespace Opc.Ua.Machinery.Server.Builders
             return new JobManagementBuilder(scope, jobManagement);
         }
 
-        private JobManagementBuilder(MachineryBuildScope scope, JobManagementState state)
+        /// <summary>
+        /// Adopts a companion's declared job-management node with complete provider validation.
+        /// </summary>
+        internal static JobManagementBuilder Adopt(MachineryBuildScope scope, JobManagementState state)
+        {
+            scope.RecordFacet(MachineryFacet.JobManagement);
+            return new JobManagementBuilder(scope, state, requireResponseProvider: true);
+        }
+
+        private JobManagementBuilder(
+            MachineryBuildScope scope,
+            JobManagementState state,
+            bool requireResponseProvider = false)
         {
             m_scope = scope;
+            m_requireResponseProvider = requireResponseProvider;
             State = state;
 
             m_binder = new Isa95JobControlV2Binder(
@@ -163,6 +176,10 @@ namespace Opc.Ua.Machinery.Server.Builders
             // machine is registered, so a provider resolved from the hosting
             // container is looked up at the same point as every other service.
             scope.PostRegistrationActions.Add(BindAsync);
+            if (requireResponseProvider)
+            {
+                scope.PreRegistrationActions.Add(PrepareProvidersAsync);
+            }
         }
 
         public JobManagementState State { get; }
@@ -197,39 +214,9 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         private async ValueTask BindAsync(CancellationToken cancellationToken)
         {
-            // Every list this builder publishes - JobOrderList and
-            // JobOrderResponseList alike - is a variable on this machine's own
-            // JobManagement block, so it has to be fed by this machine's own
-            // provider. A machine that was given one through
-            // WithJobOrderReceiver/WithJobOrderCatalog/WithJobResponseProvider
-            // must therefore never fall back to the container: that singleton
-            // belongs to another machine, and reading it here would publish
-            // another machine's orders and responses - every machine in the
-            // server would show one shared pair of lists.
-            //
-            // Decided before anything is defaulted, because the fallbacks below
-            // would otherwise make every machine look like it had its own.
-            bool ownProvider = m_receiver != null
-                || m_catalog != null
-                || m_responseProvider != null;
-
-            IIsa95JobOrderReceiverV2? receiver = m_receiver ??
-                m_scope.BuildContext.GetService<IIsa95JobOrderReceiverV2>();
-            if (receiver == null)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "OPC 40001-3 JobManagement needs an ISA-95 Job Control V2 job-order " +
-                    "receiver. Register one with AddInMemoryIsa95JobControlProvider() or " +
-                    "supply it through WithJobOrderReceiver().");
-            }
-
-            // Resolved before InitializeOrderVariables, so MaxDownloadableJobOrders
-            // reports the catalog's own limit rather than zero whenever the
-            // catalog was not named explicitly.
-            m_catalog ??= ownProvider
-                ? FirstOf<IIsa95JobOrderCatalog>(m_receiver, m_responseProvider)
-                : m_scope.BuildContext.GetService<IIsa95JobOrderCatalog>();
+            ResolveProviders();
+            bool ownProvider = m_ownProvider;
+            IIsa95JobOrderReceiverV2 receiver = m_boundReceiver!;
 
             if (m_predefinedParameters)
             {
@@ -245,9 +232,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             control.JobOrderList!.OnSimpleReadValue = ReadJobOrderList;
             m_jobOrderList = control.JobOrderList;
 
-            IIsa95JobResponseProviderV2? responseProvider = m_responseProvider ?? (ownProvider
-                ? FirstOf<IIsa95JobResponseProviderV2>(m_receiver, m_catalog)
-                : m_scope.BuildContext.GetService<IIsa95JobResponseProviderV2>());
+            IIsa95JobResponseProviderV2? responseProvider = m_boundResponseProvider;
             if (responseProvider != null && State.JobOrderResults != null)
             {
                 State.JobOrderResults.EventNotifier = EventNotifiers.SubscribeToEvents;
@@ -321,6 +306,54 @@ namespace Opc.Ua.Machinery.Server.Builders
                 // registered - when its node manager is disposed.
                 m_scope.RegisteredResources.Add(this);
             }
+        }
+
+        /// <summary>
+        /// Validates companion provider requirements before publishing its machine.
+        /// </summary>
+        private ValueTask PrepareProvidersAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ResolveProviders();
+            return default;
+        }
+
+        /// <summary>
+        /// Resolves each per-machine provider once without borrowing another machine's catalog.
+        /// </summary>
+        private void ResolveProviders()
+        {
+            if (m_boundReceiver != null)
+            {
+                return;
+            }
+
+            bool ownProvider = m_receiver != null || m_catalog != null || m_responseProvider != null;
+            IIsa95JobOrderReceiverV2 receiver = m_receiver ??
+                m_scope.BuildContext.GetService<IIsa95JobOrderReceiverV2>() ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "OPC 40001-3 JobManagement needs an ISA-95 Job Control V2 job-order " +
+                    "receiver. Register one with AddInMemoryIsa95JobControlProvider() or " +
+                    "supply it through WithJobOrderReceiver().");
+            IIsa95JobOrderCatalog? catalog = m_catalog ?? (ownProvider
+                ? FirstOf<IIsa95JobOrderCatalog>(m_receiver, m_responseProvider)
+                : m_scope.BuildContext.GetService<IIsa95JobOrderCatalog>());
+            IIsa95JobResponseProviderV2? responseProvider = m_responseProvider ?? (ownProvider
+                ? FirstOf<IIsa95JobResponseProviderV2>(m_receiver, catalog)
+                : m_scope.BuildContext.GetService<IIsa95JobResponseProviderV2>());
+            if (m_requireResponseProvider && (responseProvider == null || State.JobOrderResults == null))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "Companion JobManagement needs an ISA-95 Job Control V2 response provider " +
+                    "and its mandatory JobOrderResults node.");
+            }
+
+            m_catalog = catalog;
+            m_ownProvider = ownProvider;
+            m_boundResponseProvider = responseProvider;
+            m_boundReceiver = receiver;
         }
 
         /// <summary>
@@ -585,10 +618,14 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         private readonly MachineryBuildScope m_scope;
         private readonly Isa95JobControlV2Binder m_binder;
+        private readonly bool m_requireResponseProvider;
         private readonly Lock m_refreshLock = new();
         private CancellationTokenSource? m_changeStreamCts;
         private IIsa95JobOrderReceiverV2? m_receiver;
         private IIsa95JobResponseProviderV2? m_responseProvider;
+        private IIsa95JobOrderReceiverV2? m_boundReceiver;
+        private IIsa95JobResponseProviderV2? m_boundResponseProvider;
+        private bool m_ownProvider;
         private IIsa95JobOrderCatalog? m_catalog;
         private IIsa95JobResponseCatalog? m_responseCatalog;
         private ArrayOf<V2.ISA95JobOrderAndStateDataType> m_jobOrders = [];

@@ -201,6 +201,9 @@ namespace Opc.Ua.Vision.Tests
             return rgba;
         }
 
+        /// <summary>
+        /// Builds a color-only capture fixture without invoking the native renderer.
+        /// </summary>
         private static SilkFrameCaptureResult MakeCapture(
             int width, int height, byte[] rgba, int drawCount, int meshCount)
         {
@@ -209,21 +212,24 @@ namespace Opc.Ua.Vision.Tests
             ConstructorInfo? ctor = typeof(SilkFrameCaptureResult).GetConstructor(
                 BindingFlags.NonPublic | BindingFlags.Instance,
                 binder: null,
-                types: new[]
-                {
+                types:
+                [
                     typeof(int),
                     typeof(int),
                     typeof(byte[]),
                     typeof(SilkMeshRenderResult),
                     typeof(ulong),
                     typeof(uint),
-                    typeof(RenderDiagnosticsState)
-                },
+                    typeof(RenderDiagnosticsState),
+                    typeof(SilkDepthCaptureResult),
+                    typeof(SilkHdrColorCaptureResult)
+                ],
                 modifiers: null);
             Assert.That(ctor, Is.Not.Null,
-                "SilkFrameCaptureResult's internal capture constructor must exist for BlankFrameGuard tests to construct fixtures.");
+                "SilkFrameCaptureResult's internal capture constructor must exist " +
+                "for BlankFrameGuard tests to construct fixtures.");
             return (SilkFrameCaptureResult)ctor!.Invoke(
-                new object[] { width, height, rgba, render, 0UL, 0U, RenderDiagnosticsState.Empty });
+                [width, height, rgba, render, 0UL, 0U, RenderDiagnosticsState.Empty, null, null]);
         }
     }
 }

@@ -1167,5 +1167,55 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Elements[0].TargetName.Name, Is.EqualTo("NodeA"));
         }
+
+        [Test]
+        public void ParsePortableResolvesEscapedDelimiterInPrefix()
+        {
+            var table = new NamespaceTable();
+            string? requested = null;
+
+            var result = RelativePathFormatter.ParsePortable(
+                "/ex&.com:Node",
+                table,
+                prefix =>
+                {
+                    requested = prefix;
+                    return "http://example.com/UA/";
+                },
+                8);
+
+            Assert.That(requested, Is.EqualTo("ex.com"));
+            Assert.That(result.Elements, Has.Count.EqualTo(1));
+            Assert.That(result.Elements[0].TargetName.Name, Is.EqualTo("Node"));
+            Assert.That(
+                table.GetString(result.Elements[0].TargetName.NamespaceIndex),
+                Is.EqualTo("http://example.com/UA/"));
+        }
+
+        [Test]
+        public void ParsePortableKeepsEscapedDelimiterInUnprefixedName()
+        {
+            var result = RelativePathFormatter.ParsePortable(
+                "/a&.b",
+                new NamespaceTable(),
+                _ => throw new InvalidOperationException("No prefix expected."),
+                8);
+
+            Assert.That(result.Elements[0].TargetName.Name, Is.EqualTo("a.b"));
+            Assert.That(result.Elements[0].TargetName.NamespaceIndex, Is.Zero);
+        }
+
+        [Test]
+        public void ParsePortableRejectsInvalidEscapeInPrefix()
+        {
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
+                () => RelativePathFormatter.ParsePortable(
+                    "/ex&x:Node",
+                    new NamespaceTable(),
+                    _ => "http://example.com/UA/",
+                    8));
+
+            Assert.That(ex!.StatusCode, Is.EqualTo((uint)StatusCodes.BadSyntaxError));
+        }
     }
 }

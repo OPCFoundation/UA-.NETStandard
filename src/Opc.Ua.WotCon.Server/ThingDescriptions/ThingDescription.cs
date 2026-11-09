@@ -36,49 +36,76 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     /// <summary>
     /// W3C WoT Thing Description root document. Only the fields consumed
     /// by the WoT Connectivity mapping (OPC 10100-1 §6) are modelled;
-    /// unknown fields are tolerated and ignored.
+    /// unmodeled members are retained for native discovery admission.
     /// </summary>
     public sealed class ThingDescription
     {
-        /// <summary>The TD <c>@context</c> array.</summary>
+        /// <summary>
+        /// The TD <c>@context</c> array.
+        /// </summary>
         [JsonPropertyName("@context")]
         public JsonElement? Context { get; set; }
 
-        /// <summary>The TD <c>id</c>.</summary>
+        /// <summary>
+        /// The TD <c>id</c>.
+        /// </summary>
         [JsonPropertyName("id")]
         public string? Id { get; set; }
 
-        /// <summary>The TD <c>@type</c> array.</summary>
+        /// <summary>
+        /// The TD <c>@type</c> array.
+        /// </summary>
         [JsonPropertyName("@type")]
         public JsonElement? Type { get; set; }
 
-        /// <summary>Thing name (used as the OPC UA asset BrowseName).</summary>
+        /// <summary>
+        /// Thing name (used as the OPC UA asset BrowseName).
+        /// </summary>
         [JsonPropertyName("name")]
         public string? Name { get; set; }
 
-        /// <summary>Base URI used by relative-href forms.</summary>
+        /// <summary>
+        /// Base URI used by relative-href forms.
+        /// </summary>
         [JsonPropertyName("base")]
         public string? Base { get; set; }
 
-        /// <summary>Human-readable title.</summary>
+        /// <summary>
+        /// Human-readable title.
+        /// </summary>
         [JsonPropertyName("title")]
         public string? Title { get; set; }
 
-        /// <summary>Optional description.</summary>
+        /// <summary>
+        /// Optional description.
+        /// </summary>
         [JsonPropertyName("description")]
         public string? Description { get; set; }
 
-        /// <summary>WoT properties keyed by property name.</summary>
+        /// <summary>
+        /// WoT properties keyed by property name.
+        /// </summary>
         [JsonPropertyName("properties")]
         public Dictionary<string, WotProperty>? Properties { get; set; }
 
-        /// <summary>WoT actions keyed by action name (OPC 10100-1 §6.3.9).</summary>
+        /// <summary>
+        /// WoT actions keyed by action name (OPC 10100-1 §6.3.9).
+        /// </summary>
         [JsonPropertyName("actions")]
         public Dictionary<string, WotAction>? Actions { get; set; }
 
-        /// <summary>WoT events keyed by event name (OPC 10100-1 §6.3.10).</summary>
+        /// <summary>
+        /// WoT events keyed by event name (OPC 10100-1 §6.3.10).
+        /// </summary>
         [JsonPropertyName("events")]
         public Dictionary<string, WotEvent>? Events { get; set; }
+
+        /// <summary>
+        /// Native identity metadata and other unmodeled root members.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -88,11 +115,15 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     /// </summary>
     public sealed class WotEvent
     {
-        /// <summary>Optional title.</summary>
+        /// <summary>
+        /// Optional title.
+        /// </summary>
         [JsonPropertyName("title")]
         public string? Title { get; set; }
 
-        /// <summary>Optional description.</summary>
+        /// <summary>
+        /// Optional description.
+        /// </summary>
         [JsonPropertyName("description")]
         public string? Description { get; set; }
 
@@ -115,9 +146,18 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         [JsonPropertyName("uav:conditionTypeId")]
         public string? ConditionTypeId { get; set; }
 
-        /// <summary>Protocol binding forms.</summary>
+        /// <summary>
+        /// Protocol binding forms.
+        /// </summary>
         [JsonPropertyName("forms")]
         public List<JsonElement>? Forms { get; set; }
+
+        /// <summary>
+        /// Unmodeled event mapping metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -126,41 +166,66 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     /// </summary>
     public sealed class WotProperty
     {
-        /// <summary>WoT JSON Schema <c>type</c> (e.g. <c>"number"</c>).</summary>
+        /// <summary>
+        /// WoT JSON Schema <c>type</c> (e.g. <c>"number"</c>).
+        /// </summary>
         [JsonPropertyName("type")]
         public string? Type { get; set; }
 
-        /// <summary>Optional title.</summary>
+        /// <summary>
+        /// Optional title.
+        /// </summary>
         [JsonPropertyName("title")]
         public string? Title { get; set; }
 
-        /// <summary>Optional description.</summary>
+        /// <summary>
+        /// Optional description.
+        /// </summary>
         [JsonPropertyName("description")]
         public string? Description { get; set; }
 
-        /// <summary><c>true</c> for read-only properties.</summary>
+        /// <summary>
+        /// <c>true</c> for read-only properties.
+        /// </summary>
         [JsonPropertyName("readOnly")]
         public bool ReadOnly { get; set; }
 
-        /// <summary><c>true</c> when the property is observable.</summary>
+        /// <summary>
+        /// <c>true</c> when the property is observable.
+        /// </summary>
         [JsonPropertyName("observable")]
         public bool Observable { get; set; }
 
-        /// <summary>Item schema when <see cref="Type"/> is <c>array</c>.</summary>
+        /// <summary>
+        /// Item schema when <see cref="Type"/> is <c>array</c>.
+        /// </summary>
         [JsonPropertyName("items")]
         public WotPropertyItems? Items { get; set; }
 
-        /// <summary>Optional engineering unit suffix.</summary>
+        /// <summary>
+        /// Optional engineering unit suffix.
+        /// </summary>
         [JsonPropertyName("unit")]
         public string? Unit { get; set; }
 
-        /// <summary>Optional OPC UA NodeId override (when the TD pins one).</summary>
+        /// <summary>
+        /// Optional OPC UA NodeId override (when the TD pins one).
+        /// </summary>
         [JsonPropertyName("opcua:nodeId")]
         public string? OpcUaNodeId { get; set; }
 
-        /// <summary>Forms — protocol-binding specific endpoints.</summary>
+        /// <summary>
+        /// Forms — protocol-binding specific endpoints.
+        /// </summary>
         [JsonPropertyName("forms")]
         public List<JsonElement>? Forms { get; set; }
+
+        /// <summary>
+        /// Unmodeled property mapping metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -168,9 +233,18 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     /// </summary>
     public sealed class WotPropertyItems
     {
-        /// <summary>The element JSON-schema <c>type</c>.</summary>
+        /// <summary>
+        /// The element JSON-schema <c>type</c>.
+        /// </summary>
         [JsonPropertyName("type")]
         public string? Type { get; set; }
+
+        /// <summary>
+        /// Unmodeled item-schema metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -180,11 +254,15 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     /// </summary>
     public sealed class WotAction
     {
-        /// <summary>Optional title.</summary>
+        /// <summary>
+        /// Optional title.
+        /// </summary>
         [JsonPropertyName("title")]
         public string? Title { get; set; }
 
-        /// <summary>Optional description.</summary>
+        /// <summary>
+        /// Optional description.
+        /// </summary>
         [JsonPropertyName("description")]
         public string? Description { get; set; }
 
@@ -197,7 +275,9 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         [JsonPropertyName("input")]
         public WotActionSchema? Input { get; set; }
 
-        /// <summary>Output JSON schema. Same rules as <see cref="Input"/>.</summary>
+        /// <summary>
+        /// Output JSON schema. Same rules as <see cref="Input"/>.
+        /// </summary>
         [JsonPropertyName("output")]
         public WotActionSchema? Output { get; set; }
 
@@ -213,9 +293,18 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         [JsonPropertyName("uav:actsOn")]
         public string? ActsOn { get; set; }
 
-        /// <summary>Forms — protocol-binding specific endpoints.</summary>
+        /// <summary>
+        /// Forms — protocol-binding specific endpoints.
+        /// </summary>
         [JsonPropertyName("forms")]
         public List<JsonElement>? Forms { get; set; }
+
+        /// <summary>
+        /// Unmodeled action mapping metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -223,15 +312,21 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     /// </summary>
     public sealed class WotActionSchema
     {
-        /// <summary>Schema <c>type</c> (e.g. <c>object</c>).</summary>
+        /// <summary>
+        /// Schema <c>type</c> (e.g. <c>object</c>).
+        /// </summary>
         [JsonPropertyName("type")]
         public string? Type { get; set; }
 
-        /// <summary>Optional title.</summary>
+        /// <summary>
+        /// Optional title.
+        /// </summary>
         [JsonPropertyName("title")]
         public string? Title { get; set; }
 
-        /// <summary>Optional description.</summary>
+        /// <summary>
+        /// Optional description.
+        /// </summary>
         [JsonPropertyName("description")]
         public string? Description { get; set; }
 
@@ -240,6 +335,13 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// </summary>
         [JsonPropertyName("properties")]
         public Dictionary<string, WotActionMember>? Properties { get; set; }
+
+        /// <summary>
+        /// Unmodeled payload-schema metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -247,28 +349,47 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     /// </summary>
     public sealed class WotActionMember
     {
-        /// <summary>JSON-schema <c>type</c>.</summary>
+        /// <summary>
+        /// JSON-schema <c>type</c>.
+        /// </summary>
         [JsonPropertyName("type")]
         public string? Type { get; set; }
 
-        /// <summary>Optional description.</summary>
+        /// <summary>
+        /// Optional description.
+        /// </summary>
         [JsonPropertyName("description")]
         public string? Description { get; set; }
 
-        /// <summary>Optional engineering unit suffix.</summary>
+        /// <summary>
+        /// Optional engineering unit suffix.
+        /// </summary>
         [JsonPropertyName("unit")]
         public string? Unit { get; set; }
 
-        /// <summary>Optional minimum value (numeric schemas).</summary>
+        /// <summary>
+        /// Optional minimum value (numeric schemas).
+        /// </summary>
         [JsonPropertyName("minimum")]
         public double? Minimum { get; set; }
 
-        /// <summary>Optional maximum value (numeric schemas).</summary>
+        /// <summary>
+        /// Optional maximum value (numeric schemas).
+        /// </summary>
         [JsonPropertyName("maximum")]
         public double? Maximum { get; set; }
 
-        /// <summary>Element schema for array members.</summary>
+        /// <summary>
+        /// Element schema for array members.
+        /// </summary>
         [JsonPropertyName("items")]
         public WotPropertyItems? Items { get; set; }
+
+        /// <summary>
+        /// Unmodeled member-schema metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 }

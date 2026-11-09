@@ -1,0 +1,6 @@
+# Rows of the reference Read table (native open62541 Read workers, steady state)
+dotnet-4-pinned|SERVER_DOTNET_PROCESSOR_COUNT=4|--server-affinity 0xF
+open62541||--server-exe {workers}/server.exe
+dotnet-24|SERVER_DOTNET_gcServer=1|
+dotnet-24-inflight-1000|SERVER_DOTNET_gcServer=1|--inflight 1000
+dotnet-24-encrypt|SERVER_DOTNET_gcServer=1|--security encrypt

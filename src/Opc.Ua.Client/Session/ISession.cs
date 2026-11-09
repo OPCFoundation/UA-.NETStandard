@@ -109,6 +109,8 @@ namespace Opc.Ua.Client
         /// If the client chooses to defer acknowledge of sequence numbers, it is responsible
         /// to transfer these <see cref="SubscriptionAcknowledgement"/> to the deferred list.
         /// </remarks>
+        [Obsolete("Use an ISubscriptionAcknowledgementProvider (ManagedSessionOptions.AcknowledgementProvider) " +
+            "or AcknowledgementMode.AfterConfirmation instead. See docs/Subscriptions.md.")]
         event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge;
 
         /// <summary>
@@ -235,6 +237,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets or Sets the default subscription for the session.
         /// </summary>
+        [Obsolete("The classic subscription template is deprecated. Use the managed " +
+            "subscription model (ISubscriptionManager.Add with SubscriptionOptions) instead. " +
+            "See docs/MigrationGuide.md.")]
         Subscription DefaultSubscription { get; set; }
 
         /// <summary>

@@ -52,7 +52,7 @@ namespace Opc.Ua.Machinery.Tests
         public async Task SetUpAsync()
         {
             m_fixture = new ServerFixture<StandardServer>(
-                telemetry => new StandardServer(telemetry))
+                telemetry => new StandardServer(telemetry) { SessionManagerFactory = m_session.Factory })
             {
                 AutoAccept = true,
                 SecurityNone = true
@@ -181,7 +181,7 @@ namespace Opc.Ua.Machinery.Tests
             var errors = new List<ServiceResult>();
             ServiceResult status = await m_manager.ResultManagement!.ResultTransfer!
                 .GenerateFileForRead!.CallAsync(
-                    m_manager.SystemContext,
+                    m_session.CreateContext(m_manager.SystemContext),
                     m_manager.ResultManagement.ResultTransfer.NodeId,
                     new[] { Variant.FromStructure(options) }.ToArrayOf(),
                     errors,
@@ -210,5 +210,8 @@ namespace Opc.Ua.Machinery.Tests
         private ServerFixture<StandardServer>? m_fixture;
         private MachineryResultNodeManager? m_manager;
         private InMemoryMachineryResultStore? m_store;
+
+        /// <summary>The registered owner of generated result files.</summary>
+        private readonly MachineryTestSession m_session = new();
     }
 }

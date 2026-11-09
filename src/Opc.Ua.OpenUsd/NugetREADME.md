@@ -11,7 +11,13 @@ binds OPC UA values to it:
 - `OpenUsdRootType`, `OpenUsdStageType`, and `OpenUsdRepresentationType`;
 - live, alarm, history, and command binding types;
 - component composition and aggregation;
-- content integrity and Part 5 asset delivery metadata.
+- content integrity and Part 5 asset delivery metadata;
+- xRegistry-based artifact registries, asset-container groups, and typed exact Versions.
+
+The binding model consumes the xRegistry companion model from `Opc.Ua.XRegistry`.
+Servers must load that model before the OpenUSD binding model. Stage `Assets` folders
+are non-owning views of logical Resources in `Server/OpenUSD/Artifacts`, not per-stage
+file containers.
 
 The generic, dependency-injectable connector lives in **Opc.Ua.OpenUsd.Client**.
 

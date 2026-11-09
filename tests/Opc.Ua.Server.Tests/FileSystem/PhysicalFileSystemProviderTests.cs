@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [SetUp]
         public void SetUp()
         {
-            m_root = Path.Combine(Path.GetTempPath(), "pfsp-" + Guid.NewGuid().ToString("N"));
+            m_root = Path.Combine(AppContext.BaseDirectory, "pfsp-" + Guid.NewGuid().ToString("N"));
         }
 
         [TearDown]
@@ -77,6 +77,122 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
+        /// Combined streams support one read/write cursor, initial positioning, truncation, and exclusive sharing.
+        /// </summary>
+        [TestCase(FileWriteMode.OpenOrCreate, 0, 3)]
+        [TestCase(FileWriteMode.Append, 3, 3)]
+        [TestCase(FileWriteMode.Truncate, 0, 0)]
+        public async Task CombinedAccessHasSeekableExclusiveCursorAsync(
+            FileWriteMode mode, long initialPosition, long initialLength)
+        {
+            PhysicalFileSystemProvider provider = CreateProvider();
+            string path = Path.Combine(m_root, "combined.bin");
+            using (var seed = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                await WritePayloadAsync(seed, s_combinedContent).ConfigureAwait(false);
+            }
+            using Stream stream = await provider.OpenReadWriteAsync("combined.bin", mode, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(stream.CanRead && stream.CanWrite && stream.CanSeek, Is.True);
+            Assert.That(stream.Position, Is.EqualTo(initialPosition));
+            Assert.That(stream.Length, Is.EqualTo(initialLength));
+            Assert.That(() =>
+            {
+                using var conflicting = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            }, Throws.InstanceOf<IOException>());
+            stream.Position = 0;
+            await WritePayloadAsync(stream, s_replacement).ConfigureAwait(false);
+            Assert.That(stream.Position, Is.EqualTo(1));
+            stream.Position = 0;
+            byte[] buffer = new byte[1];
+            int read = await ReadPayloadAsync(stream, buffer).ConfigureAwait(false);
+            Assert.That(read, Is.EqualTo(1));
+            Assert.That(buffer[0], Is.EqualTo(9));
+            Assert.That(stream.Length, Is.EqualTo(Math.Max(1, initialLength)));
+        }
+
+        /// <summary>
+        /// Write-only append is initial positioning, not a restriction on later SetPosition calls.
+        /// </summary>
+        [Test]
+        public async Task WriteOnlyAppendPermitsSeekingBeforeInitialEndAsync()
+        {
+            PhysicalFileSystemProvider provider = CreateProvider();
+            using (Stream seed = await provider.OpenWriteAsync(
+                "append.bin", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false))
+            {
+                await WritePayloadAsync(seed, s_combinedContent).ConfigureAwait(false);
+            }
+            using (Stream stream = await provider.OpenWriteAsync(
+                "append.bin", FileWriteMode.Append, CancellationToken.None).ConfigureAwait(false))
+            {
+                Assert.That(stream.Position, Is.EqualTo(3));
+                stream.Position = 0;
+                await WritePayloadAsync(stream, s_replacement).ConfigureAwait(false);
+            }
+            using Stream reader = await provider.OpenReadAsync("append.bin", CancellationToken.None)
+                .ConfigureAwait(false);
+            byte[] bytes = new byte[3];
+            int count = await ReadPayloadAsync(reader, bytes).ConfigureAwait(false);
+            Assert.That(count, Is.EqualTo(3));
+            Assert.That(bytes, Is.EqualTo(s_appendContent));
+        }
+
+        /// <summary>
+        /// Every combined write mode creates a missing file without changing the initial empty cursor.
+        /// </summary>
+        [TestCase(FileWriteMode.OpenOrCreate)]
+        [TestCase(FileWriteMode.Append)]
+        [TestCase(FileWriteMode.Truncate)]
+        public async Task CombinedAccessCreatesMissingFileAsync(FileWriteMode mode)
+        {
+            PhysicalFileSystemProvider provider = CreateProvider();
+            using Stream stream = await provider.OpenReadWriteAsync("new.bin", mode, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(stream.Length, Is.Zero);
+            Assert.That(stream.Position, Is.Zero);
+            Assert.That(File.Exists(Path.Combine(m_root, "new.bin")), Is.True);
+            await WritePayloadAsync(stream, s_createdContent).ConfigureAwait(false);
+            Assert.That(stream.Length, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Read-only providers and already cancelled requests reject before a combined erase can truncate content.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RejectedCombinedErasePreservesExistingContentAsync(bool cancelled)
+        {
+            PhysicalFileSystemProvider writable = CreateProvider();
+            using (Stream seed = await writable.OpenWriteAsync(
+                "preserved.bin", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false))
+            {
+                await WritePayloadAsync(seed, s_combinedContent).ConfigureAwait(false);
+            }
+            PhysicalFileSystemProvider provider = cancelled ? writable : CreateProvider(isWritable: false);
+            using var cancellation = new CancellationTokenSource();
+            if (cancelled)
+            {
+                cancellation.Cancel();
+                Assert.That(() => provider.OpenReadWriteAsync(
+                    "preserved.bin", FileWriteMode.Truncate, cancellation.Token),
+                    Throws.TypeOf<OperationCanceledException>());
+            }
+            else
+            {
+                Assert.That(() => provider.OpenReadWriteAsync(
+                    "preserved.bin", FileWriteMode.Truncate, CancellationToken.None),
+                    Throws.TypeOf<UnauthorizedAccessException>());
+            }
+            using Stream stream = await writable.OpenReadAsync("preserved.bin", CancellationToken.None)
+                .ConfigureAwait(false);
+            byte[] buffer = new byte[3];
+            int count = await ReadPayloadAsync(stream, buffer).ConfigureAwait(false);
+            Assert.That(count, Is.EqualTo(3));
+            Assert.That(buffer, Is.EqualTo(s_combinedContent));
+        }
+
+        /// <summary>
         /// Writes a byte array to a stream by using the legacy array overload on .NET Framework
         /// targets and the memory-based overload on newer targets.
         /// </summary>
@@ -89,12 +205,25 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <param name="cancellationToken">
         /// The cancellation token to observe while writing.
         /// </param>
-        private static Task WritePayloadAsync(Stream stream, byte[] payload, CancellationToken cancellationToken = default)
+        private static Task WritePayloadAsync(
+            Stream stream, byte[] payload, CancellationToken cancellationToken = default)
         {
 #if NET48
             return stream.WriteAsync(payload, 0, payload.Length, cancellationToken);
 #else
             return stream.WriteAsync((ReadOnlyMemory<byte>)payload, cancellationToken).AsTask();
+#endif
+        }
+
+        /// <summary>
+        /// Reads through the array overload on .NET Framework and the memory overload on newer targets.
+        /// </summary>
+        private static Task<int> ReadPayloadAsync(Stream stream, byte[] payload)
+        {
+#if NET48
+            return stream.ReadAsync(payload, 0, payload.Length, CancellationToken.None);
+#else
+            return stream.ReadAsync(payload.AsMemory(), CancellationToken.None).AsTask();
 #endif
         }
 
@@ -248,6 +377,49 @@ namespace Opc.Ua.Server.Tests.FileSystem
             }
 
             Assert.That(File.Exists(Path.Combine(m_root, "new.bin")), Is.True);
+        }
+
+        /// <summary>
+        /// A writer excludes other streams across provider instances until it is disposed.
+        /// Failed opens must not truncate the current writer's data.
+        /// </summary>
+        [TestCase(FileWriteMode.OpenOrCreate)]
+        [TestCase(FileWriteMode.Truncate)]
+        [TestCase(FileWriteMode.Append)]
+        public async Task OpenWriterExcludesOtherStreamsUntilDisposedAsync(FileWriteMode mode)
+        {
+            PhysicalFileSystemProvider provider = CreateProvider();
+            var other = new PhysicalFileSystemProvider(m_root);
+            byte[] payload = [1, 2, 3];
+
+            using (Stream writer = await provider.OpenWriteAsync(
+                "exclusive.bin", mode, CancellationToken.None).ConfigureAwait(false))
+            {
+                await WritePayloadAsync(writer, payload).ConfigureAwait(false);
+                await writer.FlushAsync().ConfigureAwait(false);
+
+                await Assert.ThrowsAsync<IOException>(async () =>
+                {
+                    using Stream unexpected = await other.OpenWriteAsync(
+                        "exclusive.bin", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false);
+                });
+                await Assert.ThrowsAsync<IOException>(async () =>
+                {
+                    using Stream unexpected = await other.OpenReadAsync(
+                        "exclusive.bin", CancellationToken.None).ConfigureAwait(false);
+                });
+            }
+
+            using (Stream reader = await other.OpenReadAsync(
+                "exclusive.bin", CancellationToken.None).ConfigureAwait(false))
+            {
+                using var contents = new MemoryStream();
+                await reader.CopyToAsync(contents).ConfigureAwait(false);
+                Assert.That(contents.ToArray(), Is.EqualTo(payload));
+            }
+            using Stream replacement = await other.OpenWriteAsync(
+                "exclusive.bin", FileWriteMode.OpenOrCreate, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(replacement.Length, Is.EqualTo(payload.Length));
         }
 
         [Test]
@@ -535,5 +707,17 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     "MIME for " + expectation.Key);
             }
         }
+
+        /// <summary>Initial content shared by combined-access cases.</summary>
+        private static readonly byte[] s_combinedContent = [1, 2, 3];
+
+        /// <summary>Content after a seekable append writer replaces the first byte.</summary>
+        private static readonly byte[] s_appendContent = [9, 2, 3];
+
+        /// <summary>Replacement written through a repositioned cursor.</summary>
+        private static readonly byte[] s_replacement = [9];
+
+        /// <summary>Content written into a newly created combined-access file.</summary>
+        private static readonly byte[] s_createdContent = [7];
     }
 }

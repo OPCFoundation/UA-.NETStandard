@@ -66,6 +66,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             nameSpaceUris.GetIndexOrAppend(ApplicationUri);
             nameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             nameSpaceUris.GetIndexOrAppend(OpcUaOnboarding);
+            nameSpaceUris.GetIndexOrAppend(global::Opc.Ua.Programs.Namespaces.OpcUaPrograms);
         }
 
         [OneTimeTearDown]
@@ -150,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         /// Instantiate NodeState types across Opc.Ua assemblies and fail on placeholder children.
         /// </summary>
         [Test]
-        public void NodeStateTypesAcrossOpcUaAssemblies_ShouldNotInstantiatePlaceholderChildren()
+        public void NodeStateTypesAcrossOpcUaAssembliesShouldNotInstantiatePlaceholderChildren()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
@@ -163,7 +164,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     continue;
                 }
 
-                testObject.Create(context, new NodeId(nodeId++), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
+                testObject.Create(context, new NodeId(nodeId++),
+                    QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
                 CollectInstantiatedPlaceholders(
                     context,
                     testObject,
@@ -175,7 +177,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(
                 placeholders,
                 Is.Empty,
-                "Instantiated placeholder children were found:" + Environment.NewLine + string.Join(Environment.NewLine, placeholders));
+                "Instantiated placeholder children were found:" +
+                    Environment.NewLine + string.Join(Environment.NewLine, placeholders));
         }
 
         /// <summary>
@@ -390,6 +393,41 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             Assert.That(clone, Is.Not.Null);
             Assert.That(clone.Parent, Is.SameAs(parent));
+        }
+
+        /// <summary>
+        /// Verify that the fields of an initialized event carry the event time as their
+        /// source timestamp, so reading them does not stamp them with the current time.
+        /// </summary>
+        [Test]
+        public void InitializedEventFieldsCarryTheEventTime()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            var source = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(1000),
+                BrowseName = QualifiedName.From("Source")
+            };
+            var eventState = new BaseEventState(null);
+            eventState.Initialize(context, source, EventSeverity.Medium, new LocalizedText("message"));
+
+            DateTimeUtc time = eventState.Time!.Value;
+            Assert.That(time, Is.Not.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(eventState.EventId!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.EventType!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.SourceNode!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.SourceName!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.Time.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.Severity!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.Message!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.ReceiveTime!.Timestamp, Is.EqualTo(eventState.ReceiveTime.Value));
+
+            var dataValue = new DataValue();
+            ServiceResult result = eventState.Message.ReadAttribute(
+                context, Attributes.Value, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dataValue.SourceTimestamp, Is.EqualTo(time));
         }
 
         /// <summary>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -78,7 +79,9 @@ namespace Opc.Ua.Di.Tests
 
             Mock<ISession> sessionMock = DiInProcessSessionBridge.Build(m_fixture);
             var client = new SoftwareUpdateClient(
-                sessionMock.Object, su.NodeId, NullTelemetry());
+                sessionMock.Object,
+                su.NodeId,
+                NullTelemetry());
 
             byte[] payload = MakeSequentialPayload(12_288);
             const string packageId = "upload-integration-1";
@@ -90,8 +93,12 @@ namespace Opc.Ua.Di.Tests
             Assert.That(uploaded, Is.EqualTo(payload.LongLength));
             byte[] stored = await ReadAllAsync(m_store, packageId)
                 .ConfigureAwait(false);
-            Assert.That(stored, Is.EqualTo(payload),
+            Assert.That(
+                stored,
+                Is.EqualTo(payload),
                 "Stored package bytes must match the uploaded payload.");
+            SoftwarePackage? metadata = await m_store.GetAsync(packageId).ConfigureAwait(false);
+            Assert.That(metadata!.Hash, Is.EqualTo(CoreUtils.ToHexString(SHA256.HashData(payload))));
         }
 
         [Test]
@@ -102,13 +109,17 @@ namespace Opc.Ua.Di.Tests
 
             Mock<ISession> sessionMock = DiInProcessSessionBridge.Build(m_fixture);
             var client = new SoftwareUpdateClient(
-                sessionMock.Object, su.NodeId, NullTelemetry());
+                sessionMock.Object,
+                su.NodeId,
+                NullTelemetry());
 
             byte[] payload = MakeSequentialPayload(5000);
             using var ms = new MemoryStream(payload, writable: false);
 
             long uploaded = await client.UploadPackageAsync(
-                ms, suggestedPackageId: "stream-upload", chunkSizeBytes: 1024)
+                ms,
+                suggestedPackageId: "stream-upload",
+                chunkSizeBytes: 1024)
                 .ConfigureAwait(false);
 
             Assert.That(uploaded, Is.EqualTo(payload.LongLength));
@@ -125,7 +136,9 @@ namespace Opc.Ua.Di.Tests
 
             Mock<ISession> sessionMock = DiInProcessSessionBridge.Build(m_fixture);
             var client = new SoftwareUpdateClient(
-                sessionMock.Object, su.NodeId, NullTelemetry());
+                sessionMock.Object,
+                su.NodeId,
+                NullTelemetry());
 
             long uploaded = await client
                 .UploadPackageAsync([], "empty-package")
@@ -145,22 +158,27 @@ namespace Opc.Ua.Di.Tests
             CreateDeviceWithSuAsync(string deviceName)
         {
             IDeviceBuilder<DeviceState> builder = await m_fixture.Manager
-                .CreateDeviceAsync(new QualifiedName(
-                    deviceName, m_fixture.Manager.DiNamespaceIndex))
+                .CreateDeviceAsync(
+                    new QualifiedName(
+                        deviceName,
+                        m_fixture.Manager.DiNamespaceIndex))
                 .ConfigureAwait(false);
             builder.WithSoftwareUpdate(m_store);
 
             ushort diNs = m_fixture.Manager.DiNamespaceIndex;
             ISystemContext ctx = m_fixture.Manager.SystemContext;
             NodeState su = builder.Device.FindChild(
-                ctx, new QualifiedName("SoftwareUpdate", diNs))!;
+                ctx,
+                new QualifiedName("SoftwareUpdate", diNs))!;
             var loading = (PackageLoadingState)su.FindChild(
-                ctx, new QualifiedName("Loading", diNs))!;
+                ctx,
+                new QualifiedName("Loading", diNs))!;
             return (su, loading);
         }
 
         private static async Task<byte[]> ReadAllAsync(
-            MemoryPackageStore store, string packageId)
+            MemoryPackageStore store,
+            string packageId)
         {
             // 'using' (sync dispose) instead of 'await using' so the
             // assertion helper compiles on net48 where System.IO.Stream

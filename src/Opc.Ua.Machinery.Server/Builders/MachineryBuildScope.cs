@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.Machinery.Server.Builders
 {
@@ -45,7 +46,8 @@ namespace Opc.Ua.Machinery.Server.Builders
         public MachineryBuildScope(
             IMachineryBuildContext buildContext,
             NodeState parent,
-            QualifiedName browseName)
+            QualifiedName browseName,
+            bool externallyRegistered = false)
         {
             BuildContext = buildContext ??
                 throw new ArgumentNullException(nameof(buildContext));
@@ -54,6 +56,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             EnsureContextMutable(buildContext);
             Context = buildContext.Context;
             BrowseName = browseName;
+            IsExternallyRegistered = externallyRegistered;
             m_rootBrowseNameReservation =
                 m_buildCoordinator.ReserveRootBrowseName(parent, browseName);
         }
@@ -69,6 +72,11 @@ namespace Opc.Ua.Machinery.Server.Builders
         internal NodeState Root { get; private set; } = null!;
 
         /// <summary>
+        /// Provider validation that must finish before any staged node is published.
+        /// </summary>
+        internal List<Func<CancellationToken, ValueTask>> PreRegistrationActions { get; } = [];
+
+        /// <summary>
         /// Asynchronous work that must run after the completed tree has been
         /// registered with the node manager — binding a result store to the
         /// transfer object, for example.
@@ -77,13 +85,17 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         /// <summary>
         /// Resources created during registration. They are released when the
-        /// build is rolled back, and handed to the node manager's coordinator
-        /// once the machine is registered, which releases them when the manager
-        /// is disposed.
+        /// build is rolled back, and handed to the registered root's lifetime.
+        /// Actual root removal or manager shutdown awaits their cleanup.
         /// </summary>
         internal List<IAsyncDisposable> RegisteredResources { get; } = [];
 
         internal bool IsRegistered { get; private set; }
+
+        /// <summary>
+        /// Gets whether another companion builder owns publication of this root.
+        /// </summary>
+        internal bool IsExternallyRegistered { get; }
 
         internal void AttachRoot(NodeState root)
         {
@@ -114,7 +126,7 @@ namespace Opc.Ua.Machinery.Server.Builders
         internal void EnsureMutable()
         {
             EnsureContextMutable(BuildContext);
-            if (m_registering || IsRegistered)
+            if (m_registering || IsRegistered || m_aborted)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInvalidState,
@@ -160,6 +172,12 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         internal async ValueTask RegisterAsync(CancellationToken cancellationToken)
         {
+            if (IsExternallyRegistered)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "An externally staged machine is completed by its registration owner, not BuildAsync.");
+            }
             EnsureMutable();
             if (Root == null)
             {
@@ -172,6 +190,10 @@ namespace Opc.Ua.Machinery.Server.Builders
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                for (int ii = 0; ii < PreRegistrationActions.Count; ii++)
+                {
+                    await PreRegistrationActions[ii](cancellationToken).ConfigureAwait(false);
+                }
                 VerifyNodeIds();
                 VerifyEnergyMainGrouping();
 
@@ -187,22 +209,105 @@ namespace Opc.Ua.Machinery.Server.Builders
                     await PostRegistrationActions[ii](cancellationToken).ConfigureAwait(false);
                 }
 
+                ArrayOf<IAsyncDisposable> resources = RegisteredResources.ToArrayOf();
+                RegisteredResources.Clear();
+                await m_buildCoordinator.AdoptResourcesAsync(Root, resources).ConfigureAwait(false);
                 IsRegistered = true;
                 for (int ii = 0; ii < m_facets.Count; ii++)
                 {
                     m_buildCoordinator.RecordFacet(m_facets[ii]);
                 }
-
-                // The machine is now part of the address space and lives as
-                // long as the node manager, and so do its resources.
-                m_buildCoordinator.AdoptResources(RegisteredResources);
-                RegisteredResources.Clear();
             }
             catch
             {
                 IsRegistered = false;
                 await RollbackRegistrationAsync().ConfigureAwait(false);
                 throw;
+            }
+            finally
+            {
+                ReleaseReservations();
+                m_registering = false;
+            }
+        }
+
+        /// <summary>
+        /// Validates an externally owned graph without publishing it.
+        /// </summary>
+        internal async ValueTask PrepareExternalAsync(CancellationToken cancellationToken)
+        {
+            EnsureMutable();
+            m_registering = true;
+            cancellationToken.ThrowIfCancellationRequested();
+            if (BuildContext.Manager.FindPredefinedNode(Root.NodeId) != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "A Machinery registration participant requires an unregistered root.");
+            }
+            MachineryBuilderUtilities.ClearModellingRules(Context, Root);
+            for (int ii = 0; ii < PreRegistrationActions.Count; ii++)
+            {
+                await PreRegistrationActions[ii](cancellationToken).ConfigureAwait(false);
+            }
+            VerifyNodeIds();
+            VerifyEnergyMainGrouping();
+        }
+
+        /// <summary>
+        /// Attaches bindings and an owned discovery reference after the owner's registration.
+        /// </summary>
+        internal async ValueTask BindExternalAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!ReferenceEquals(BuildContext.Manager.FindPredefinedNode(Root.NodeId), Root))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The registration owner has not published this Machinery root.");
+            }
+            CacheNodeBuilders();
+            for (int ii = 0; ii < PostRegistrationActions.Count; ii++)
+            {
+                await PostRegistrationActions[ii](cancellationToken).ConfigureAwait(false);
+            }
+            AddDiscoveryReferences();
+            m_previousStateChanged = Root.OnStateChangedAsync;
+            m_deleteHandler = OnRootChangedAsync;
+            Root.OnStateChangedAsync = m_deleteHandler;
+            NodeManagerBuilder lifetimeBuilder = BuildContext.Manager.CreateFluentBuilder(
+                BuildContext.InstanceNamespaceIndex);
+            lifetimeBuilder.Node<BaseObjectState>(Root.NodeId).Attach(
+                (_, _, _) => new ValueTask<IAsyncDisposable?>(new ExternalBindingLifetime(this)));
+            await lifetimeBuilder.SealAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Records only successfully bound facets; resource lifetime stays with the actual root.
+        /// </summary>
+        internal void CommitExternal()
+        {
+            IsRegistered = true;
+            for (int ii = 0; ii < m_facets.Count; ii++)
+            {
+                m_buildCoordinator.RecordFacet(m_facets[ii]);
+            }
+            ReleaseReservations();
+            m_registering = false;
+        }
+
+        /// <summary>
+        /// Unwinds only this participant, without deleting or reparenting the owning tree.
+        /// </summary>
+        internal async ValueTask AbortExternalAsync()
+        {
+            try
+            {
+                if (!IsRegistered)
+                {
+                    m_aborted = true;
+                    await ReleaseExternalAsync().ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -244,7 +349,8 @@ namespace Opc.Ua.Machinery.Server.Builders
                         node.NodeId);
                 }
                 NodeState? indexedNode = BuildContext.Manager.FindPredefinedNode(node.NodeId);
-                if (indexedNode != null && !ReferenceEquals(indexedNode, node))
+                if (indexedNode != null &&
+                    (IsExternallyRegistered || !ReferenceEquals(indexedNode, node)))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
@@ -391,19 +497,7 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         private async ValueTask RollbackRegistrationAsync()
         {
-            for (int ii = RegisteredResources.Count - 1; ii >= 0; ii--)
-            {
-                try
-                {
-                    await RegisteredResources[ii].DisposeAsync().ConfigureAwait(false);
-                }
-                catch (Exception)
-                {
-                    // A resource that fails to release must not mask the
-                    // original build failure that triggered the rollback.
-                }
-            }
-            RegisteredResources.Clear();
+            await ReleaseResourcesAsync().ConfigureAwait(false);
 
             if (Root == null)
             {
@@ -412,7 +506,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             try
             {
                 if (!Root.NodeId.IsNull &&
-                    BuildContext.Manager.FindPredefinedNode(Root.NodeId) != null)
+                    ReferenceEquals(BuildContext.Manager.FindPredefinedNode(Root.NodeId), Root))
                 {
                     await BuildContext.Manager.DeleteNodeAsync(
                         BuildContext.Manager.SystemContext,
@@ -426,10 +520,120 @@ namespace Opc.Ua.Machinery.Server.Builders
             }
         }
 
+        /// <summary>
+        /// Releases resources in reverse order without masking the original build failure.
+        /// </summary>
+        private async ValueTask ReleaseResourcesAsync()
+        {
+            for (int ii = RegisteredResources.Count - 1; ii >= 0; ii--)
+            {
+                try
+                {
+                    await RegisteredResources[ii].DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // A resource that fails to release must not mask the
+                    // original build failure that triggered the rollback.
+                }
+            }
+            RegisteredResources.Clear();
+        }
+
+        /// <summary>
+        /// Adds discovery links without changing the root's owning parent or reference type.
+        /// </summary>
+        private void AddDiscoveryReferences()
+        {
+            NodeId organizes = Opc.Ua.ReferenceTypeIds.Organizes;
+            m_forwardAdded = !Parent.ReferenceExists(organizes, false, Root.NodeId);
+            m_inverseAdded = !Root.ReferenceExists(organizes, true, Parent.NodeId);
+            if (m_forwardAdded)
+            {
+                Parent.AddReference(organizes, false, Root.NodeId);
+            }
+            if (m_inverseAdded)
+            {
+                Root.AddReference(organizes, true, Parent.NodeId);
+            }
+        }
+
+        /// <summary>
+        /// Releases bindings once, either during rollback or through the manager's attachment ledger.
+        /// </summary>
+        private async ValueTask ReleaseExternalAsync()
+        {
+            if (Interlocked.Exchange(ref m_externalDisposed, 1) != 0)
+            {
+                return;
+            }
+            if (Root.OnStateChangedAsync == m_deleteHandler)
+            {
+                Root.OnStateChangedAsync = m_previousStateChanged;
+            }
+            if (m_forwardAdded)
+            {
+                Parent.RemoveReference(Opc.Ua.ReferenceTypeIds.Organizes, false, Root.NodeId);
+            }
+            if (m_inverseAdded)
+            {
+                Root.RemoveReference(Opc.Ua.ReferenceTypeIds.Organizes, true, Parent.NodeId);
+            }
+            await ReleaseResourcesAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Releases per-root resources when the existing node lifecycle reports deletion.
+        /// </summary>
+        private async ValueTask OnRootChangedAsync(
+            ISystemContext context,
+            NodeState node,
+            NodeStateChangeMasks changes,
+            CancellationToken cancellationToken)
+        {
+            NodeStateChangedAsyncHandler? previous = m_previousStateChanged;
+            if ((changes & NodeStateChangeMasks.Deleted) != 0)
+            {
+                await ReleaseExternalAsync().ConfigureAwait(false);
+            }
+            if (previous != null)
+            {
+                await previous(context, node, changes, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Lets the manager's existing node-attachment ledger own externally bound resources.
+        /// </summary>
+        private sealed class ExternalBindingLifetime : IAsyncDisposable
+        {
+            /// <summary>
+            /// Creates the lifetime for one staged machine.
+            /// </summary>
+            public ExternalBindingLifetime(MachineryBuildScope scope)
+            {
+                m_scope = scope;
+            }
+
+            /// <inheritdoc/>
+            public ValueTask DisposeAsync()
+            {
+                return m_scope.ReleaseExternalAsync();
+            }
+
+            private readonly MachineryBuildScope m_scope;
+        }
+
         private readonly List<MachineryNodeBuilder> m_builders = [];
         private readonly List<MachineryFacet> m_facets = [];
         private readonly IMachineryBuildCoordinator m_buildCoordinator;
         private IDisposable? m_rootBrowseNameReservation;
+        private bool m_forwardAdded;
+        private bool m_inverseAdded;
+        private int m_externalDisposed;
+        private NodeStateChangedAsyncHandler? m_previousStateChanged;
+        private NodeStateChangedAsyncHandler? m_deleteHandler;
         private bool m_registering;
+        private bool m_aborted;
     }
 }

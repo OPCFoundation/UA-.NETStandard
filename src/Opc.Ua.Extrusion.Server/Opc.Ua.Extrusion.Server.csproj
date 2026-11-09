@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Extrusion.Server</AssemblyName>
+    <RootNamespace>Opc.Ua.Extrusion.Server</RootNamespace>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Extrusion.Server</PackageId>
+    <Description>Composable, provider-backed OPC 40084 parts 1 through 12 extrusion devices, production jobs, state and event behavior.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Extrusion.Tests" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.PlasticsRubber.Server\Opc.Ua.PlasticsRubber.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Extrusion\Opc.Ua.Extrusion.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+    <None Include="..\Opc.Ua.PlasticsRubber\Model\NOTICE.txt"
+          Pack="true" PackagePath="licenses\CompanionModels.NOTICE.txt" />
+  </ItemGroup>
+</Project>

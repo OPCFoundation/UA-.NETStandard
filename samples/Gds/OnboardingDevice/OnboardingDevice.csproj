@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>OnboardingDevice</AssemblyName>
+    <RootNamespace>OnboardingDevice</RootNamespace>
+    <Description>Connected OPC 10000-21 provisionable device sample.</Description>
+    <PublishAot>true</PublishAot>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds\Opc.Ua.Gds.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Server\Opc.Ua.Gds.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Client\Opc.Ua.Gds.Client.csproj" />
+    <Compile Include="..\OnboardingRegistrar\PushRegistrarCheckpointFiles.cs"
+             Link="Persistence\PushRegistrarCheckpointFiles.cs" />
+    <Compile Include="..\OnboardingClient\OnboardingDeviceCredentials.cs"
+             Link="Pull\OnboardingDeviceCredentials.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+</Project>

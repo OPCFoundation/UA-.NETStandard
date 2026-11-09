@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// </para>
     /// </summary>
     internal sealed class PartitionForwardingHandler
-        : ISubscriptionNotificationHandler, IDisposable
+        : ISubscriptionNotificationHandler, ISubscriptionNotificationMessageHandler, IDisposable
     {
         /// <summary>
         /// Construct a forwarding handler bound to the supplied user
@@ -88,6 +88,28 @@ namespace Opc.Ua.Client.Subscriptions
         {
             m_userHandler = userHandler ?? throw new ArgumentNullException(nameof(userHandler));
             m_logger = logger ?? NullLogger.Instance;
+        }
+
+        /// <summary>
+        /// Gets the forwarding message capability only when the user opted into it.
+        /// </summary>
+        internal ISubscriptionNotificationMessageHandler? MessageHandler =>
+            m_userHandler is ISubscriptionNotificationMessageHandler ? this : null;
+
+        /// <inheritdoc/>
+        public async ValueTask OnNotificationMessageAsync(
+            SubscriptionNotificationMessage message, CancellationToken ct = default)
+        {
+            await m_serialise.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await ((ISubscriptionNotificationMessageHandler)m_userHandler)
+                    .OnNotificationMessageAsync(message, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                ReleaseSerialise();
+            }
         }
 
         /// <summary>

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.Extrusion.Tests</RootNamespace>
+    <AssemblyName>Opc.Ua.Extrusion.Tests</AssemblyName>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="NUnit3TestAdapter" PrivateAssets="all" />
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Main.cs" />
+    <None Update="feature-matrix.json" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Server\Opc.Ua.Extrusion.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Client\Opc.Ua.Extrusion.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AMB.Client\Opc.Ua.AMB.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
+  </ItemGroup>
+</Project>

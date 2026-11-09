@@ -64,8 +64,8 @@ namespace Opc.Ua.Bindings
                 ClientHmac?.Dispose();
                 ClientHmac = null;
 
-                ServerAes.Dispose();
-                ClientAes.Dispose();
+                ServerCiphers.Dispose();
+                ClientCiphers.Dispose();
 
                 m_localNonce?.Dispose();
                 m_localNonce = null;
@@ -216,14 +216,16 @@ namespace Opc.Ua.Bindings
         internal HMAC? ClientHmac { get; set; }
 
         /// <summary>
-        /// The AES cache for <see cref="ServerEncryptingKey"/> with the CBC policies.
+        /// The keyed ciphers for <see cref="ServerEncryptingKey"/> and
+        /// <see cref="ServerInitializationVector"/>.
         /// </summary>
-        internal AesCache ServerAes { get; } = new();
+        internal SymmetricCipherCache ServerCiphers { get; } = new();
 
         /// <summary>
-        /// The AES cache for <see cref="ClientEncryptingKey"/> with the CBC policies.
+        /// The keyed ciphers for <see cref="ClientEncryptingKey"/> and
+        /// <see cref="ClientInitializationVector"/>.
         /// </summary>
-        internal AesCache ClientAes { get; } = new();
+        internal SymmetricCipherCache ClientCiphers { get; } = new();
 
         /// <summary>
         /// Takes ownership of the actual key-agreement objects while a reconnect is handed off.

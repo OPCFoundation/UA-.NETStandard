@@ -29,11 +29,14 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Server;
+using Opc.Ua.Server.FileSystem;
+using Opc.Ua.Machinery.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Vision.Server;
 using Opc.Ua.Vision.Server.Hosting;
@@ -50,6 +53,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// hosting glue.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public static IOpcUaServerBuilder AddVision(
             this IOpcUaServerBuilder builder,
             Action<VisionServerOptions>? configure = null)
@@ -58,20 +62,51 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            builder.Services.AddOptions<VisionServerOptions>();
-            if (configure != null)
+            foreach (ServiceDescriptor service in builder.Services)
             {
-                builder.Services.Configure(configure);
+                if (!service.IsKeyedService &&
+                    (service.ServiceType == typeof(VisionHostedNodeManagerFactory) ||
+                        (service.ServiceType == typeof(IMachineryModelProvider) &&
+                            (service.ImplementationType == typeof(VisionMachineryModelProvider) ||
+                                service.ImplementationInstance is VisionMachineryModelProvider))))
+                {
+                    throw new InvalidOperationException(
+                        "Vision namespaces already have an owner. Configure that owner instead of registering " +
+                        "another standalone AddVision manager.");
+                }
             }
+            var selected = new VisionServerOptions();
+            configure?.Invoke(selected);
+            selected.Validate();
+            if ((selected.MachineVisionParts & Opc.Ua.Vision.MachineVisionParts.Assets) != 0)
+            {
+                builder.Services.ClaimDiAddressSpace(
+                    nameof(AddVision),
+                    "Use AddVisionToMachinery and ConfigureVisionFor<MachineryNodeManager> " +
+                    "to compose Vision into that manager.");
+            }
+            builder.Services.AddOptions<VisionServerOptions>();
+            builder.Services.Configure<VisionServerOptions>(options =>
+            {
+                options.InstanceNamespaceUri = selected.InstanceNamespaceUri;
+                options.SpecificationVersion = selected.SpecificationVersion;
+                options.AdditionalFacets = selected.AdditionalFacets;
+                options.MachineVisionParts = selected.MachineVisionParts;
+            });
             builder.Services.TryAddEnumerable(
                 ServiceDescriptor.Singleton<IVisionModelProvider, VisionModelProvider>());
             builder.Services.TryAddSingleton<IVisionPostSetupRunner, VisionPostSetupRunner>();
+            builder.Services.TryAddSingleton<IFileTypeBinder, FileTypeBinder>();
             builder.Services.AddSingleton(static services =>
             {
                 VisionServerOptions options = services
                     .GetRequiredService<IOptions<VisionServerOptions>>()
                     .Value;
-                IVisionModelProvider[] providers = [.. services.GetServices<IVisionModelProvider>()];
+                Opc.Ua.ArrayOf<IVisionModelProvider> providers =
+                    (options.MachineVisionParts & Opc.Ua.Vision.MachineVisionParts.Assets) != 0
+                        ? services.GetDiModelProviders<IVisionModelProvider>(
+                            static plain => new VisionDiModelProviderAdapter(plain))
+                        : services.GetServices<IVisionModelProvider>().ToArray();
                 return new VisionNodeManagerFactory(
                     providers,
                     options,
@@ -82,7 +117,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 VisionServerOptions options = services
                     .GetRequiredService<IOptions<VisionServerOptions>>()
                     .Value;
-                IVisionModelProvider[] providers = [.. services.GetServices<IVisionModelProvider>()];
+                Opc.Ua.ArrayOf<IVisionModelProvider> providers =
+                    (options.MachineVisionParts & Opc.Ua.Vision.MachineVisionParts.Assets) != 0
+                        ? services.GetDiModelProviders<IVisionModelProvider>(
+                            static plain => new VisionDiModelProviderAdapter(plain))
+                        : services.GetServices<IVisionModelProvider>().ToArray();
                 return new VisionHostedNodeManagerFactory(
                     providers,
                     options,
@@ -306,8 +345,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// manager type.
         /// </summary>
         /// <typeparam name="TNodeManager">
-        /// The target Vision node manager type. Only
-        /// <see cref="VisionNodeManager"/> is currently supported.
+        /// The target node manager type. The stock Vision and Machinery managers are supported. Application-owned
+        /// DI managers use ConfigureVisionOnMachinery&lt;TNodeManager&gt;.
         /// </typeparam>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         /// <exception cref="NotSupportedException"></exception>
@@ -326,9 +365,13 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             if (typeof(TNodeManager) != typeof(VisionNodeManager))
             {
+                if (typeof(TNodeManager) == typeof(Opc.Ua.Machinery.Server.MachineryNodeManager))
+                {
+                    return builder.ConfigureVisionOnMachinery<Opc.Ua.Machinery.Server.MachineryNodeManager>(configure);
+                }
                 throw new NotSupportedException(
-                    "ConfigureVisionFor<TNodeManager> is supported only for VisionNodeManager. " +
-                    "Use ConfigureVision for the standalone manager.");
+                    "ConfigureVisionFor<TNodeManager> supports the stock Vision and Machinery managers. " +
+                    "Use ConfigureVisionOnMachinery<TNodeManager> for a custom Machinery manager.");
             }
             builder.Services.TryAddSingleton<IVisionPostSetupRunner, VisionPostSetupRunner>();
             builder.Services.AddSingleton<IVisionPostSetupConfigurator>(
@@ -336,8 +379,14 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Adapts a callback to the Vision post-setup contract.
+        /// </summary>
         private sealed class DelegateVisionConfigurator : IVisionPostSetupConfigurator
         {
+            /// <summary>
+            /// Creates a callback registration for the specified manager type.
+            /// </summary>
             public DelegateVisionConfigurator(
                 Type targetManagerType,
                 Func<IVisionBuildContext, CancellationToken, ValueTask> configure)
@@ -346,8 +395,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 m_configure = configure;
             }
 
+            /// <summary>
+            /// Gets the manager type matched by the post-setup runner.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Invokes the callback with the build context and its cancellation token.
+            /// </summary>
             public ValueTask RunAsync(IVisionBuildContext context)
             {
                 return m_configure(context, context.CancellationToken);

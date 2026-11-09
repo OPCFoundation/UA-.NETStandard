@@ -23,6 +23,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Client" />
     <InternalsVisibleTo Include="Opc.Ua.Configuration" />
     <InternalsVisibleTo Include="Opc.Ua.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Gds.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />
@@ -34,6 +35,8 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Extensions.Telemetry" />
+    <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
     <PackageReference Include="Microsoft.Bcl.TimeProvider" />
     <PackageReference Include="System.Threading.Channels" />
     <PackageReference Include="System.Threading.RateLimiting" />
@@ -49,6 +52,15 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="Programs\Model\OpcUaProgramsModel.xml" />
+    <AdditionalFiles Include="Programs\Model\OpcUaProgramsModel.csv" />
   </ItemGroup>
   <!-- Stack source generation -->
   <PropertyGroup>

@@ -42,6 +42,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [Category("WotCon")]
     public sealed class WotRegistryServiceCrudTests
     {
+        /// <summary>
+        /// Verifies that group creation succeeds once and rejects a duplicate identity.
+        /// </summary>
         [Test]
         public async Task TryCreateGroupCreatesThenFailsOnDuplicate()
         {
@@ -57,6 +60,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(second, Is.Null, "A second CreateGroup with the same id must fail.");
         }
 
+        /// <summary>
+        /// Verifies that deleting a group also removes its resources.
+        /// </summary>
         [Test]
         public async Task DeleteGroupRemovesGroupAndResources()
         {
@@ -76,6 +82,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(service.Current.FindResource("sensors", "a"), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that group deletion rejects a stale epoch.
+        /// </summary>
         [Test]
         public async Task DeleteGroupWithWrongEpochRejected()
         {
@@ -90,6 +99,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(service.Current.FindGroup("sensors"), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that resource lookup creates a placeholder only when the resource is absent.
+        /// </summary>
         [Test]
         public async Task GetOrCreateResourceCreatesPlaceholderThenReturnsExisting()
         {
@@ -107,6 +119,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(fetched.ResourceId, Is.EqualTo("a"));
         }
 
+        /// <summary>
+        /// Verifies that resource creation rejects an existing resource identity.
+        /// </summary>
         [Test]
         public async Task TryCreateResourceFailsWhenResourceExists()
         {
@@ -119,8 +134,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(duplicate, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that validate syntax reports unperformed policies.
+        /// </summary>
         [Test]
-        public async Task ValidateValidDocumentReportsSuccess()
+        public async Task ValidateSyntaxReportsUnperformedPolicies()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -133,13 +151,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             WoTValidationOutcomeDataType outcome = await service.ValidateResourceAsync("sensors", "a");
 
-            Assert.That(outcome.FormatValidated, Is.True);
-            Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(outcome.FormatValidated, Is.False);
+            Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
+            Assert.That(outcome.FormatReason, Is.Not.Empty);
             WotResource? resource = service.Current.FindResource("sensors", "a");
             Assert.That(resource!.Validation, Is.Not.Null);
-            Assert.That(resource.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(resource.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
         }
 
+        /// <summary>
+        /// Verifies that invalid document content produces a validation failure.
+        /// </summary>
         [Test]
         public async Task ValidateInvalidDocumentReportsFailure()
         {
@@ -157,6 +179,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
         }
 
+        /// <summary>
+        /// Verifies that validation rejects a resource without a default version.
+        /// </summary>
         [Test]
         public async Task ValidateNoDefaultVersionThrows()
         {
@@ -165,7 +190,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     "sensors", "empty", WoTDocumentKindEnum.ThingDescription)
                 .ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.ValidateResourceAsync("sensors", "empty"));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }

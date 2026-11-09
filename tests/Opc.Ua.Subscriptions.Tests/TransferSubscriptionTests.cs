@@ -98,7 +98,6 @@ namespace Opc.Ua.Subscriptions.Tests
         // ===== 1. Save → Load with transferSubscriptions = true =====
 
         [Test]
-        [Order(100)]
         [CancelAfter(60_000)]
         public async Task TransferViaSaveLoadV2Async(CancellationToken ct)
         {
@@ -267,8 +266,8 @@ namespace Opc.Ua.Subscriptions.Tests
         // ===== 2. Save → Load with transferSubscriptions = false (recreate fallback) =====
 
         [Test]
-        [Order(200)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(TransferViaSaveLoadV2Async), AllowFailure = true)]
         public async Task LoadWithoutTransferRecreatesSubscriptionV2Async(
             CancellationToken ct)
         {
@@ -395,8 +394,8 @@ namespace Opc.Ua.Subscriptions.Tests
         // ===== 3. WithTransferSubscriptionsOnRecreate propagates the option =====
 
         [Test]
-        [Order(300)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(LoadWithoutTransferRecreatesSubscriptionV2Async), AllowFailure = true)]
         public async Task BuilderTransferOnRecreateOptionV2Async(CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -448,8 +447,8 @@ namespace Opc.Ua.Subscriptions.Tests
         // ===== 4. Save → Load round-trips multiple items + triggering =====
 
         [Test]
-        [Order(400)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(BuilderTransferOnRecreateOptionV2Async), AllowFailure = true)]
         public async Task SaveLoadRoundTripWithMultipleItemsV2Async(
             CancellationToken ct)
         {

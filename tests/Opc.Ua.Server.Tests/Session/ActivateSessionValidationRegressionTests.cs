@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests
 
             if (expectedPolicyId == null)
             {
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session.ValidateBeforeActivateAsync(
                         context, new SignatureData(), token, new SignatureData(),
                         CancellationToken.None).ConfigureAwait(false));
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server.Tests
         /// not the channel-level Bad_SecurityChecksFailed of the shared check.
         /// </summary>
         [Test]
-        public void ClientSignatureWithUnexpectedAlgorithmIsApplicationSignatureInvalid()
+        public async Task ClientSignatureWithUnexpectedAlgorithmIsApplicationSignatureInvalid()
         {
             using Certificate clientCertificate =
                 CertificateBuilder.Create("CN=ActivateSessionValidationClient").CreateForRSA();
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Tests
                 Signature = new byte[] { 1, 2, 3, 4 }.ToByteString()
             };
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ValidateBeforeActivateAsync(
                     context, clientSignature, default, new SignatureData(),
                     CancellationToken.None).ConfigureAwait(false));
@@ -148,7 +148,7 @@ namespace Opc.Ua.Server.Tests
         /// than Bad_UserAccessDenied.
         /// </summary>
         [Test]
-        public void UndecodableIdentityTokenIsIdentityTokenInvalid()
+        public async Task UndecodableIdentityTokenIsIdentityTokenInvalid()
         {
             EndpointDescription endpoint = CreateEndpoint(
                 tokens: [new UserTokenPolicy { PolicyId = "anon", TokenType = UserTokenType.Anonymous }]);
@@ -156,7 +156,7 @@ namespace Opc.Ua.Server.Tests
             using OperationContext context = CreateContext(endpoint);
             var token = new ExtensionObject(new ExpandedNodeId(9999u, 1), "{}");
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ValidateBeforeActivateAsync(
                     context, new SignatureData(), token, new SignatureData(),
                     CancellationToken.None).ConfigureAwait(false));

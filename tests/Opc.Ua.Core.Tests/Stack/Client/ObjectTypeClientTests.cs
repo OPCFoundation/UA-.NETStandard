@@ -56,6 +56,108 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Throws.ArgumentNullException);
         }
 
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task CallWithStatusPreservesStatusAndOutputsWithoutRetry(int scenario)
+        {
+            StatusCode status = scenario switch
+            {
+                0 => StatusCodes.Good,
+                1 => StatusCodes.GoodClamped,
+                _ => StatusCodes.Uncertain
+            };
+            Mock<ISessionClient> session = CreateSession();
+            ArrayOf<Variant> expected = [new Variant(17)];
+            session.Setup(s => s.CallAsync(
+                    null, It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<CallResponse>(CreateCallResponse(status, expected)));
+            var client = new TestObjectTypeClient(session.Object, new NodeId(1000), NUnitTelemetryContext.Create());
+
+            (StatusCode callStatus, ArrayOf<Variant> outputs) = await client
+                .CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(callStatus, Is.EqualTo(status));
+            Assert.That(outputs, Is.EqualTo(expected));
+            session.Verify(s => s.CallAsync(
+                null, It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()), Times.Once());
+            session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                null, It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()), Times.Never());
+        }
+
+        [Test]
+        public async Task CallWithStatusThrowsBadBeforeReturningMalformedOutputsWithoutRetry()
+        {
+            Mock<ISessionClient> session = CreateSession();
+            session.Setup(s => s.CallAsync(
+                    null, It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<CallResponse>(
+                    CreateCallResponse(StatusCodes.BadUserAccessDenied, [new Variant("not an integer")])));
+            var client = new TestObjectTypeClient(session.Object, new NodeId(1000), NUnitTelemetryContext.Create());
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            session.Verify(s => s.CallAsync(
+                null, It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()), Times.Once());
+            session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                null, It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()), Times.Never());
+        }
+
+        [Test]
+        public async Task CallWithStatusDoesNotRetryTransportFailure()
+        {
+            Mock<ISessionClient> session = CreateSession();
+            var failure = new ServiceResultException(StatusCodes.BadConnectionClosed);
+            session.Setup(s => s.CallAsync(
+                    null, It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .Throws(failure);
+            var client = new TestObjectTypeClient(session.Object, new NodeId(1000), NUnitTelemetryContext.Create());
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(error, Is.SameAs(failure));
+            session.Verify(s => s.CallAsync(
+                null, It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()), Times.Once());
+            session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                null, It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()), Times.Never());
+        }
+
+        [Test]
+        public async Task CallWithStatusFallsBackAndCachesOnlyBadMethodInvalid()
+        {
+            Mock<ISessionClient> session = CreateSession();
+            session.SetupSequence(s => s.CallAsync(
+                    null, It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<CallResponse>(CreateCallResponse(StatusCodes.BadMethodInvalid, [])))
+                .Returns(new ValueTask<CallResponse>(CreateCallResponse(StatusCodes.Uncertain, [new Variant(7)])))
+                .Returns(new ValueTask<CallResponse>(CreateCallResponse(StatusCodes.Good, [new Variant(8)])));
+            session.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    null, It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(CreateTranslateResponse(new NodeId(3000))));
+            var client = new TestObjectTypeClient(session.Object, new NodeId(1000), NUnitTelemetryContext.Create());
+
+            var first = await client.CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false);
+            var second = await client.CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false);
+            ArrayOf<Variant> expectedFirst = [new Variant(7)];
+            ArrayOf<Variant> expectedSecond = [new Variant(8)];
+
+            Assert.That(first.CallStatus, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(first.OutputArguments, Is.EqualTo(expectedFirst));
+            Assert.That(second.CallStatus, Is.EqualTo(StatusCodes.Good));
+            Assert.That(second.OutputArguments, Is.EqualTo(expectedSecond));
+            session.Verify(s => s.CallAsync(
+                null, It.Is<ArrayOf<CallMethodRequest>>(r => r[0].MethodId == new NodeId(2000)),
+                It.IsAny<CancellationToken>()), Times.Once());
+            session.Verify(s => s.CallAsync(
+                null, It.Is<ArrayOf<CallMethodRequest>>(r => r[0].MethodId == new NodeId(3000)),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+            session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                null, It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()), Times.Once());
+        }
+
         [Test]
         public async Task CallMethodAsyncReturnsOutputArguments()
         {
@@ -84,7 +186,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
-        public void CallMethodAsyncThrowsForBadResultStatus()
+        public async Task CallMethodAsyncThrowsForBadResultStatus()
         {
             Mock<ISessionClient> session = CreateSession();
             session.Setup(s => s.CallAsync(
@@ -94,7 +196,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Returns(new ValueTask<CallResponse>(CreateCallResponse(StatusCodes.BadUserAccessDenied, [])));
             var client = new TestObjectTypeClient(session.Object, new NodeId(1000), NUnitTelemetryContext.Create());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.CallAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -184,6 +286,56 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(missingTarget.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// A denied child must not be misreported as an unselected optional feature.
+        /// </summary>
+        [Test]
+        public async Task ResolveChildPropagatesAccessDenied()
+        {
+            Mock<ISessionClient> session = CreateSession();
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    null,
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                    new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new BrowsePathResult { StatusCode = StatusCodes.BadUserAccessDenied }],
+                        DiagnosticInfos = []
+                    }));
+            var client = new TestObjectTypeClient(session.Object, new NodeId(1000), NUnitTelemetryContext.Create());
+
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ResolveAsync("urn:test", "Child", CancellationToken.None).ConfigureAwait(false)))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        /// <summary>
+        /// A truncated service response is an error rather than evidence of absent optional nodes.
+        /// </summary>
+        [Test]
+        public async Task ResolveChildRejectsMissingOperationResults()
+        {
+            Mock<ISessionClient> session = CreateSession();
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    null,
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                    new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [],
+                        DiagnosticInfos = []
+                    }));
+            var client = new TestObjectTypeClient(session.Object, new NodeId(1000), NUnitTelemetryContext.Create());
+
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ResolveAsync("urn:test", "Child", CancellationToken.None).ConfigureAwait(false));
+        }
+
         private static Mock<ISessionClient> CreateSession()
         {
             var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
@@ -246,6 +398,13 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 params Variant[] args)
             {
                 return CallMethodAsync(methodId, ct, args);
+            }
+
+            public ValueTask<(StatusCode CallStatus, ArrayOf<Variant> OutputArguments)> CallWithStatusAsync(
+                NodeId methodId,
+                CancellationToken ct)
+            {
+                return CallMethodWithStatusAsync(methodId, "urn:test", "Method", ct);
             }
 
             public ValueTask<ArrayOf<Variant>> CallWithFallbackAsync(

@@ -18,6 +18,12 @@ builder.Services.AddOpcUa()
         .AddUdpTransport());
 ```
 
+The UDP-UADP transport profile supports both `opc.udp://` and the DTLS-protected
+unicast `opc.dtls://` scheme. DTLS still requires explicit
+`AddUdpTransport().WithDtls(...)` registration, certificate configuration, and
+peer validation. Accepting the DTLS scheme during configuration validation does
+not enable DTLS automatically or fall back to plaintext UDP.
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`, `net10.0`.

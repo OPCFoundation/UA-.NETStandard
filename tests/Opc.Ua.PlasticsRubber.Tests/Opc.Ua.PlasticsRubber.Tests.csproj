@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.PlasticsRubber.Tests</RootNamespace>
+    <AssemblyName>Opc.Ua.PlasticsRubber.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.PlasticsRubber\Opc.Ua.PlasticsRubber.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion\Opc.Ua.Extrusion.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\src\Opc.Ua.PlasticsRubber\Model\Opc.Ua.PlasticsRubber.NodeSet2.xml"
+             Link="Model\Opc.Ua.PlasticsRubber.NodeSet2.xml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\Opc.Ua.Extrusion\*\Model\*.NodeSet2.xml"
+             Link="Model\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\Opc.Ua.PlasticsRubber\GranulateDrying\Model\Opc.Ua.GranulateDrying.NodeSet2.xml"
+             Link="Model\Opc.Ua.GranulateDrying.NodeSet2.xml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\Opc.Ua.PlasticsRubber\Model\companion-models.json"
+             Link="Model\companion-models.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

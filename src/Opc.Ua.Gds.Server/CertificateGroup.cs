@@ -39,6 +39,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
@@ -1179,7 +1180,9 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 1, Level = LogLevel.Information,
             Message = "InitializeCertificateGroup: {SubjectName}")]
-        public static partial void InitializeCertificateGroup(this ILogger logger, string? subjectName);
+        public static partial void InitializeCertificateGroup(
+            this ILogger logger,
+            [ApplicationIdentity] string? subjectName);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 2, Level = LogLevel.Information,
             Message = "Create new CA Certificate: {SubjectName}, CertificateType {CertificateType}  " +
@@ -1187,7 +1190,7 @@ namespace Opc.Ua.Gds.Server
                 "HashSize: {HashSize}, LifeTime: {LifeTime} months")]
         public static partial void CreateNewCaCertificate(
             this ILogger logger,
-            string? subjectName,
+            [ApplicationIdentity] string? subjectName,
             NodeId certificateType,
             ushort keySize,
             ushort hashSize,
@@ -1195,10 +1198,14 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 3, Level = LogLevel.Information,
             Message = "Created CA certificate {Certificate}")]
-        public static partial void CreatedCaCertificate(this ILogger logger, Certificate? certificate);
+        public static partial void CreatedCaCertificate(
+            this ILogger logger,
+            [ApplicationIdentity] Certificate? certificate);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 4, Level = LogLevel.Warning,
             Message = "Multiple CRLs found for CA certificate {CertificateSubject}. The most recent one will be used.")]
-        public static partial void MultipleCrlsFound(this ILogger logger, string certificateSubject);
+        public static partial void MultipleCrlsFound(
+            this ILogger logger,
+            [ApplicationIdentity] string certificateSubject);
     }
 }

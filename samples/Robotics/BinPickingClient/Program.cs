@@ -47,6 +47,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 #if BINPICKING_CLIENT_MCP
 using Opc.Ua.Mcp;
+using Opc.Ua.Samples.Robotics;
 #endif
 using Opc.Ua.OpenUsd.Client;
 using Opc.Ua.Robotics.Client;
@@ -65,7 +66,7 @@ namespace BinPickingClient
         [STAThread]
         public static async Task<int> Main(string[] args)
         {
-            BinPickingClientOptions options = BinPickingClientOptions.Parse(args);
+            var options = BinPickingClientOptions.Parse(args);
             if (options.Transport is not null &&
                 !BinPickingClientOptions.TryParseMcpTransport(options.Transport, out _))
             {
@@ -93,6 +94,7 @@ namespace BinPickingClient
             // works. Errors go to stderr so stdout stays clean for MCP stdio transport.
             LogLevel minimumLevel = options.Verbose ? LogLevel.Debug : LogLevel.Information;
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder
+                .EnableOpcUaRedaction()
                 .SetMinimumLevel(minimumLevel)
                 .AddFilter(level => level >= minimumLevel)
                 .AddConsole(console => console.LogToStandardErrorThreshold = LogLevel.Trace));
@@ -399,8 +401,7 @@ namespace BinPickingClient
             // Thread telemetry in: without it the connector logs to NullLogger, so a live
             // stream that binds nothing, or that leaves every target unresolved, looks
             // exactly like one that is working.
-            var connector = new OpenUsdConnector(
-                session, sink, new OpenUsdConnectorOptions { EnableCommands = false }, telemetry);
+            OpenUsdConnector connector = CreateViewportConnector(session, sink, telemetry: telemetry);
             await using (connector.ConfigureAwait(false))
             {
                 await connector.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -423,6 +424,22 @@ namespace BinPickingClient
         }
 
         /// <summary>
+        /// Creates the remote live-stream connector without granting structural viewport authority.
+        /// </summary>
+        internal static OpenUsdConnector CreateViewportConnector(
+            ISession session,
+            IUsdSink sink,
+            OpenUsdConnectorOptions? options = null,
+            ITelemetryContext? telemetry = null)
+        {
+            return new OpenUsdConnector(
+                session,
+                new UsdViewportValueSink(sink),
+                options ?? new OpenUsdConnectorOptions { EnableCommands = false },
+                telemetry);
+        }
+
+        /// <summary>
         /// Keeps the client doing work for as long as the viewport is open.
         /// </summary>
         /// <remarks>
@@ -442,7 +459,7 @@ namespace BinPickingClient
         {
             var serverStatus = new ReadValueId
             {
-                NodeId = global::Opc.Ua.VariableIds.Server_ServerStatus_CurrentTime,
+                NodeId = VariableIds.Server_ServerStatus_CurrentTime,
                 AttributeId = Attributes.Value
             };
             ArrayOf<ReadValueId> nodesToRead = [serverStatus];
@@ -544,11 +561,14 @@ namespace BinPickingClient
             return host;
         }
 
-        private static IHost BuildStdioMcpHost()
+        /// <summary>
+        /// Composes the Vision and Robotics MCP tools over stdio without an HTTP listener.
+        /// </summary>
+        internal static IHost BuildStdioMcpHost()
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             ConfigureMcpLogging(builder.Logging, useStdioTransport: true);
-            ConfigureMcpServices(builder.Services);
+            ConfigureMcpServices(builder.Services, useStdioTransport: true);
 
             IMcpServerBuilder mcpServerBuilder = builder.Services
                 .AddMcpServer()
@@ -557,27 +577,33 @@ namespace BinPickingClient
             return builder.Build();
         }
 
-        private static WebApplication BuildHttpMcpHost(int port)
+        /// <summary>
+        /// Composes the Vision and Robotics MCP tools behind the loopback HTTP request guard.
+        /// </summary>
+        internal static WebApplication BuildHttpMcpHost(int port)
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder();
             ConfigureMcpLogging(builder.Logging, useStdioTransport: false);
-            ConfigureMcpServices(builder.Services);
+            ConfigureMcpServices(builder.Services, useStdioTransport: false);
 
             IMcpServerBuilder mcpServerBuilder = builder.Services
                 .AddMcpServer()
                 .WithHttpTransport();
             ConfigureVisionAndRoboticsTools(mcpServerBuilder);
 
-            WebApplication app = builder.Build();
+            WebApplication app = SampleMcpHttpHost.Build(builder, port, "bin-picking");
             app.MapMcp("/mcp");
-            app.Urls.Add($"http://localhost:{port}");
             return app;
         }
 
-        private static void ConfigureMcpServices(IServiceCollection services)
+        private static void ConfigureMcpServices(IServiceCollection services, bool useStdioTransport)
         {
             McpToolProfileSet profiles = new McpToolProfileSet(McpToolProfile.Vision).With(McpToolProfile.Robotics);
-            services.AddOpcUaMcpCore(new OpcUaMcpOptions { ToolProfiles = profiles });
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions
+            {
+                ToolProfiles = profiles,
+                Execution = SampleMcpHttpHost.CreateExecutionOptions("bin-picking", useStdioTransport)
+            });
             services.AddOpcUaMcpVision();
             services.AddOpcUaMcpRobotics();
         }
@@ -595,6 +621,7 @@ namespace BinPickingClient
         private static void ConfigureMcpLogging(ILoggingBuilder logging, bool useStdioTransport)
         {
             logging.ClearProviders();
+            logging.EnableOpcUaRedaction();
             logging.SetMinimumLevel(LogLevel.Information);
             logging.AddSimpleConsole(options =>
             {

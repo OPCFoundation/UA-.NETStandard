@@ -53,7 +53,7 @@ dotnet run --project samples/Robotics/IntentEnabledRobot -- --host localhost --p
 
 ## `IntentViewerClient`
 
-The reason the intent surface exists, made visible. The client connects, discovers
+The client connects, discovers
 `Server/RobotIntent/Controllers`, reads the controller's capabilities, opens the OpenUSD viewport on the
 served stage, and streams live joint and tool-centre-point values into the picture. **Click one of the
 four target pucks on the bench** and the client submits a linear-move intent to that location, then
@@ -131,7 +131,7 @@ Renderer-backed picking works: the OpenUSD viewer owns input handling, DPI scali
 conversion and stale-revision retry, and reports hits through the host callback. Misses do not submit
 intents. The gaps this used to work around were filed as `marcschier/openusd-dotnet` issues #1, #5, #8,
 #9, #10 and #11, and all are fixed in the package version this sample ships against. The command-prim
-path remains supported, and is what makes picking work headlessly — which is also how an
+path remains supported and lets picking work headlessly — which is also how an
 [MCP agent](IntentViewerClient/README.md) drives the same robot.
 
 ## Prerequisites

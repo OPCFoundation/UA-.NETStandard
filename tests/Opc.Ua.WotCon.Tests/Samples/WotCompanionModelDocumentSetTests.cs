@@ -75,7 +75,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Path.Combine(
                     RepositoryRoot,
                     "samples",
-                    "DI",
+                    "Di",
                     "PumpDeviceIntegrationServer",
                     "Model",
                     "Opc.Ua.Machinery.NodeSet2.xml"),
@@ -90,7 +90,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Path.Combine(
                     RepositoryRoot,
                     "samples",
-                    "DI",
+                    "Di",
                     "PumpDeviceIntegrationServer",
                     "Model",
                     "Opc.Ua.Pumps.NodeSet2.xml"),

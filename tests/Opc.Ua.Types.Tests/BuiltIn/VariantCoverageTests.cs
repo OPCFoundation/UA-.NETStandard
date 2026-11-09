@@ -455,6 +455,61 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void CopySharesEmptyArraysOfMutableElements()
+        {
+            Variant[] empties =
+            [
+                new Variant(ArrayOf.Empty<ExtensionObject>()),
+                new Variant(ArrayOf.Empty<DataValue>()),
+                new Variant(ArrayOf.Empty<Variant>())
+            ];
+            foreach (Variant empty in empties)
+            {
+                Variant copy = empty.Copy();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(copy, Is.EqualTo(empty));
+                    Assert.That(copy.TypeInfo, Is.EqualTo(empty.TypeInfo));
+                    Assert.That(copy.IsNull, Is.False);
+                });
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(empties[0].Copy().GetExtensionObjectArray().IsNull, Is.False);
+                Assert.That(empties[0].Copy().GetExtensionObjectArray().Count, Is.Zero);
+                Assert.That(empties[1].Copy().GetDataValueArray().Count, Is.Zero);
+                Assert.That(empties[2].Copy().GetVariantArray().Count, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void CopyKeepsNullExtensionObjectArrayNull()
+        {
+            var nullArray = new Variant(default(ArrayOf<ExtensionObject>));
+            Assert.That(nullArray.Copy().GetExtensionObjectArray().IsNull, Is.EqualTo(nullArray.GetExtensionObjectArray().IsNull));
+        }
+
+        [Test]
+        public void TryGetStructureOfEmptyArrayIsEmptyNotNull()
+        {
+            bool ok = new Variant(ArrayOf.Empty<ExtensionObject>()).TryGetStructure(out ArrayOf<Argument> empty);
+            bool nullOk = new Variant(default(ArrayOf<ExtensionObject>)).TryGetStructure(out ArrayOf<Argument> none);
+            bool oneOk = new Variant(ArrayOf.Wrapped(new ExtensionObject(new Argument { Name = "a" })))
+                .TryGetStructure(out ArrayOf<Argument> one);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ok, Is.True);
+                Assert.That(empty.IsNull, Is.False);
+                Assert.That(empty.Count, Is.Zero);
+                Assert.That(nullOk, Is.True);
+                Assert.That(none.IsNull, Is.True);
+                Assert.That(oneOk, Is.True);
+                Assert.That(one.Count, Is.EqualTo(1));
+                Assert.That(one[0].Name, Is.EqualTo("a"));
+            });
+        }
+
+        [Test]
         public void CopyClonesDataValueArray()
         {
             Variant copy = new Variant(ArrayOf.Wrapped(new DataValue(1), new DataValue(2))).Copy();

@@ -37,6 +37,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Server.FileSystem;
 
 namespace Opc.Ua.AMB.Server.Configuration
@@ -349,12 +350,18 @@ namespace Opc.Ua.AMB.Server.Configuration
             EventId = AmbServerEventIds.AssetConfigurationStore + 0,
             Level = LogLevel.Warning,
             Message = "Asset configuration document {Path} cannot be read and is ignored.")]
-        public static partial void UnreadableDocument(this ILogger logger, Exception exception, string path);
+        public static partial void UnreadableDocument(
+            this ILogger logger,
+            Exception exception,
+            [FilePath] string path);
 
         [LoggerMessage(
             EventId = AmbServerEventIds.AssetConfigurationStore + 1,
             Level = LogLevel.Warning,
             Message = "Asset configuration document {Path} does not belong to {ProductInstanceUri} and is ignored.")]
-        public static partial void ForeignDocument(this ILogger logger, string path, string productInstanceUri);
+        public static partial void ForeignDocument(
+            this ILogger logger,
+            [FilePath] string path,
+            string productInstanceUri);
     }
 }

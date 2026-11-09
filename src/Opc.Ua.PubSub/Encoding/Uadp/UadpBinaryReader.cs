@@ -325,7 +325,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int read;
             Variant result;
             using (var decoder = new BinaryDecoder(
-                m_buffer, m_origin + m_position, Remaining, context))
+                m_buffer,
+                m_origin + m_position,
+                Remaining,
+                context))
             {
                 result = decoder.ReadVariant(null);
                 read = decoder.Position;
@@ -350,7 +353,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int read;
             DataValue result;
             using (var decoder = new BinaryDecoder(
-                m_buffer, m_origin + m_position, Remaining, context))
+                m_buffer,
+                m_origin + m_position,
+                Remaining,
+                context))
             {
                 result = decoder.ReadDataValue(null);
                 read = decoder.Position;
@@ -373,7 +379,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             IServiceMessageContext context)
         {
             return ReadRawScalar(
-                builtInType, valueRank,
+                builtInType,
+                valueRank,
                 maxStringLength: 0,
                 arrayDimensions: default,
                 context);
@@ -398,7 +405,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="builtInType">Built-in type from metadata.</param>
         /// <param name="valueRank">Value rank from metadata.</param>
         /// <param name="maxStringLength">Per-field <c>MaxStringLength</c>; 0 disables padding.</param>
-        /// <param name="arrayDimensions">Per-field <c>ArrayDimensions</c>; <c>default</c> / empty disables array padding.</param>
+        /// <param name="arrayDimensions">
+        /// Per-field <c>ArrayDimensions</c>; <c>default</c> / empty disables array padding.
+        /// </param>
         /// <param name="context">Stack service message context.</param>
         /// <returns>The decoded value as a <see cref="Variant"/>.</returns>
         /// <exception cref="ArgumentNullException"></exception>
@@ -414,6 +423,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 throw new ArgumentNullException(nameof(context));
             }
 
+            if (valueRank > 1)
+            {
+                return UadpRawMatrix.Read(
+                    ref this,
+                    builtInType,
+                    valueRank,
+                    maxStringLength,
+                    arrayDimensions,
+                    context);
+            }
+
             if (valueRank == ValueRanks.Scalar &&
                 maxStringLength > 0 &&
                 TryReadPaddedScalar(builtInType, maxStringLength, out Variant scalar))
@@ -424,7 +444,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (valueRank != ValueRanks.Scalar &&
                 TryComputePaddedArrayCount(arrayDimensions, out int expectedCount) &&
                 TryReadPaddedArray(
-                    builtInType, arrayDimensions, expectedCount, maxStringLength,
+                    builtInType,
+                    arrayDimensions,
+                    expectedCount,
+                    maxStringLength,
                     out Variant array))
             {
                 return array;
@@ -433,7 +456,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int read;
             Variant result;
             using (var decoder = new BinaryDecoder(
-                m_buffer, m_origin + m_position, Remaining, context))
+                m_buffer,
+                m_origin + m_position,
+                Remaining,
+                context))
             {
                 result = valueRank == ValueRanks.Scalar
                     ? ReadRawScalarCore(decoder, builtInType)
@@ -445,7 +471,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         private static bool TryComputePaddedArrayCount(
-            ArrayOf<uint> arrayDimensions, out int count)
+            ArrayOf<uint> arrayDimensions,
+            out int count)
         {
             count = 0;
             if (arrayDimensions.IsNull || arrayDimensions.Count == 0)
@@ -471,13 +498,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         private bool TryReadPaddedScalar(
-            BuiltInType builtInType, uint maxStringLength, out Variant value)
+            BuiltInType builtInType,
+            uint maxStringLength,
+            out Variant value)
         {
             switch (builtInType)
             {
                 case BuiltInType.String:
                     string? s = ReadPaddedUtf8(maxStringLength);
-                    value = s is null ? Variant.Null : new Variant(s);
+                    value = StringVariant(s);
                     return true;
                 case BuiltInType.ByteString:
                     ByteString bs = ReadPaddedBytes(maxStringLength);
@@ -503,7 +532,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 < 0 => null,
                 0 => string.Empty,
                 _ => SysText.Encoding.UTF8.GetString(
-                    m_buffer, m_origin + m_position + 4, length)
+                    m_buffer,
+                    m_origin + m_position + 4,
+                    length)
             };
             m_position += total;
             return result;
@@ -936,7 +967,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 BuiltInType.UInt64 => new Variant(decoder.ReadUInt64(null)),
                 BuiltInType.Float => new Variant(decoder.ReadFloat(null)),
                 BuiltInType.Double => new Variant(decoder.ReadDouble(null)),
-                BuiltInType.String => new Variant(decoder.ReadString(null) ?? string.Empty),
+                BuiltInType.String => StringVariant(decoder.ReadString(null)),
                 BuiltInType.DateTime => new Variant(decoder.ReadDateTime(null)),
                 BuiltInType.Guid => new Variant(decoder.ReadGuid(null)),
                 BuiltInType.ByteString => new Variant(decoder.ReadByteString(null)),
@@ -953,8 +984,20 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             };
         }
 
+        private static Variant StringVariant(string? value)
+        {
+            return value is null ? Variant.CreateDefault(TypeInfo.Scalars.String) : new Variant(value);
+        }
+
         private static Variant ReadRawArrayCore(BinaryDecoder decoder, BuiltInType builtInType)
         {
+            if (builtInType is BuiltInType.DateTime or BuiltInType.Guid or BuiltInType.ByteString or
+                BuiltInType.XmlElement or BuiltInType.NodeId or BuiltInType.ExpandedNodeId or
+                BuiltInType.StatusCode or BuiltInType.QualifiedName or BuiltInType.LocalizedText or
+                BuiltInType.ExtensionObject or BuiltInType.DataValue)
+            {
+                return decoder.ReadVariantValue(null, TypeInfo.Create(builtInType, ValueRanks.OneDimension));
+            }
             return builtInType switch
             {
                 BuiltInType.Boolean => new Variant(decoder.ReadBooleanArray(null)),

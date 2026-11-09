@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Server;
@@ -48,12 +49,17 @@ namespace Opc.Ua.Mcp.Tools
         /// Read attributes of one or more nodes.
         /// </summary>
         [McpServerTool(Name = "Read")]
-        [Description("Read attributes of one or more nodes. Returns the values, status codes, and timestamps for the specified node attributes.")]
+        [Description(
+            "Read attributes of one or more nodes. Returns the values, status codes, and timestamps " +
+            "for the specified node attributes.")]
         public static async Task<string> ReadAsync(
             OpcUaSessionManager sessionManager,
             [Description("Array of node IDs to read, e.g. ['ns=2;s=MyVariable', 'i=2258']")] string[] nodeIds,
-            [Description("Attribute to read: 'Value' (default), 'DisplayName', 'BrowseName', 'NodeClass', 'DataType', etc.")] string? attributeId = null,
-            [Description("Max age of cached value in milliseconds (0 = read from device, default: 0)")] double maxAge = 0,
+            [Description(
+                "Attribute to read: 'Value' (default), 'DisplayName', 'BrowseName', 'NodeClass', 'DataType', etc.")]
+            string? attributeId = null,
+            [Description("Max age of cached value in milliseconds (0 = read from device, default: 0)")]
+            double maxAge = 0,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -82,7 +88,7 @@ namespace Opc.Ua.Mcp.Tools
                     results.Add(new Dictionary<string, object?>
                     {
                         ["nodeId"] = nodeIds[i],
-                        ["result"] = OpcUaJsonHelper.DataValueToDict(response.Results[i])
+                        ["result"] = OpcUaJsonHelper.DataValueToDict(response.Results[i], session.MessageContext)
                     });
                 }
 
@@ -114,15 +120,21 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> WriteAsync(
             OpcUaSessionManager sessionManager,
             [Description("Array of node IDs to write, e.g. ['ns=2;s=MyVariable']")] string[] nodeIds,
-            [Description("Array of values to write as strings, matched by index with nodeIds, e.g. ['72.5', 'true']")] string[] values,
+            [Description("Array of values to write as strings, matched by index with nodeIds, e.g. ['72.5', 'true']")]
+            string[] values,
             [Description("Attribute to write (default: 'Value')")] string? attributeId = null,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
 
             try
             {
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                Client.ISession session = sessionInfo.Session;
                 uint attrId = OpcUaJsonHelper.ParseAttributeId(attributeId);
 
                 ArrayOf<WriteValue> nodesToWrite = nodeIds.Select((nodeIdStr, i) => new WriteValue
@@ -132,6 +144,9 @@ namespace Opc.Ua.Mcp.Tools
                     Value = new DataValue(new Variant(values[i]))
                 }).ToArray();
 
+                await sessionManager.UaOperationGuard.AuthorizeWritesAsync(sessionInfo, nodesToWrite, ct)
+                    .ConfigureAwait(false);
+                operation.VerifyBeforeDispatch(ct);
                 WriteResponse response = await session.WriteAsync(
                     null,
                     nodesToWrite,
@@ -209,7 +224,7 @@ namespace Opc.Ua.Mcp.Tools
                     if (histResult.HistoryData.TryGetValue(out HistoryData? historyData))
                     {
                         resultDict["dataValues"] = historyData.DataValues
-                            .ToArray()!.Select(OpcUaJsonHelper.DataValueToDict)
+                            .ToArray()!.Select(value => OpcUaJsonHelper.DataValueToDict(value, session.MessageContext))
                             .ToList();
                     }
 
@@ -243,16 +258,27 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> HistoryUpdateAsync(
             OpcUaSessionManager sessionManager,
             [Description("Node ID to update history for")] string nodeId,
-            [Description("Array of ISO 8601 timestamps for the data points, e.g. ['2024-01-01T00:00:00Z', '2024-01-01T00:01:00Z']")] string[] timestamps,
-            [Description("Array of values for the data points, matched by index with timestamps, e.g. ['21.5', '22.0']")] string[] values,
-            [Description("Update type: 'Insert', 'Replace', or 'Update' (default: 'Update')")] string updateType = "Update",
+            [Description(
+                "Array of ISO 8601 timestamps for the data points, " +
+                "e.g. ['2024-01-01T00:00:00Z', '2024-01-01T00:01:00Z']")]
+            string[] timestamps,
+            [Description(
+                "Array of values for the data points, matched by index with timestamps, e.g. ['21.5', '22.0']")]
+            string[] values,
+            [Description("Update type: 'Insert', 'Replace', or 'Update' (default: 'Update')")]
+            string updateType = "Update",
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
 
             try
             {
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                Client.ISession session = sessionInfo.Session;
                 PerformUpdateType performUpdate = updateType.ToUpperInvariant() switch
                 {
                     "INSERT" => PerformUpdateType.Insert,
@@ -277,6 +303,9 @@ namespace Opc.Ua.Mcp.Tools
                     new ExtensionObject(updateDetails)
                 ];
 
+                await sessionManager.UaOperationGuard.AuthorizeNodesAsync(sessionInfo, [updateDetails.NodeId], ct)
+                    .ConfigureAwait(false);
+                operation.VerifyBeforeDispatch(ct);
                 HistoryUpdateResponse response = await session.HistoryUpdateAsync(
                     null,
                     historyUpdateDetails,

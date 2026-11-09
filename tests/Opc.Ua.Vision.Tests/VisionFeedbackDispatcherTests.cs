@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -67,7 +67,7 @@ namespace Opc.Ua.Vision.Tests
 
             SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
-                detections: ArrayOf<VisionDetectionDataType>.Empty,
+                detections: [],
                 frameReference: new VisionImageReferenceDataType(),
                 inlineImage: default).ConfigureAwait(false);
 
@@ -87,7 +87,7 @@ namespace Opc.Ua.Vision.Tests
                 });
             var harness = new FeedbackHarness(pipelineId: 602, feedbackSink: sink.Object);
             var frameRef = new VisionImageReferenceDataType { Uri = "opc.tcp://cam/frame/42" };
-            ByteString inline = ByteString.From(new byte[] { 1, 2, 3, 4 });
+            var inline = ByteString.From(new byte[] { 1, 2, 3, 4 });
             ArrayOf<VisionDetectionDataType> detections = OneDetection();
 
             SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
@@ -116,7 +116,7 @@ namespace Opc.Ua.Vision.Tests
 
             SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
-                detections: ArrayOf<VisionDetectionDataType>.Empty,
+                detections: [],
                 frameReference: new VisionImageReferenceDataType(),
                 inlineImage: default).ConfigureAwait(false);
 
@@ -167,8 +167,8 @@ namespace Opc.Ua.Vision.Tests
             SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
                 resultId: "r-1",
                 purpose: VisionFeedbackPurposeEnum.Overlay,
-                correctedDetections: ArrayOf<VisionDetectionDataType>.Empty,
-                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                correctedDetections: [],
+                correctedCharacteristics: [],
                 reason: new LocalizedText("en", "test"),
                 inlineImage: default).ConfigureAwait(false);
 
@@ -192,7 +192,7 @@ namespace Opc.Ua.Vision.Tests
                 resultId: "r-42",
                 purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
                 correctedDetections: OneDetection(),
-                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                correctedCharacteristics: [],
                 reason: new LocalizedText("en", "manual correction"),
                 inlineImage: default).ConfigureAwait(false);
 
@@ -222,8 +222,8 @@ namespace Opc.Ua.Vision.Tests
             SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
                 resultId: null!,
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
-                correctedDetections: ArrayOf<VisionDetectionDataType>.Empty,
-                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                correctedDetections: [],
+                correctedCharacteristics: [],
                 reason: new LocalizedText("en", "no result-id supplied"),
                 inlineImage: default).ConfigureAwait(false);
 
@@ -232,7 +232,7 @@ namespace Opc.Ua.Vision.Tests
             // sink is never called.
             Assert.Multiple(() =>
             {
-                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(captured, Is.Null);
             });
         }
@@ -249,7 +249,7 @@ namespace Opc.Ua.Vision.Tests
                 resultId: "r-1",
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
                 correctedDetections: OneDetection(),
-                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                correctedCharacteristics: [],
                 reason: default,
                 inlineImage: default).ConfigureAwait(false);
 
@@ -268,7 +268,7 @@ namespace Opc.Ua.Vision.Tests
                 resultId: "r-1",
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
                 correctedDetections: OneDetection(),
-                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                correctedCharacteristics: [],
                 reason: default,
                 inlineImage: default).ConfigureAwait(false);
 
@@ -282,7 +282,7 @@ namespace Opc.Ua.Vision.Tests
 
             SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
-                detections: ArrayOf<VisionDetectionDataType>.Empty,
+                detections: [],
                 frameReference: new VisionImageReferenceDataType(),
                 inlineImage: default).ConfigureAwait(false);
 
@@ -301,12 +301,12 @@ namespace Opc.Ua.Vision.Tests
             // proves the sink is never consulted - the dispatcher owns this rule.
             SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
                 purpose: VisionFeedbackPurposeEnum.Reconciliation,
-                detections: ArrayOf<VisionDetectionDataType>.Empty,
+                detections: [],
                 frameReference: new VisionImageReferenceDataType(),
                 inlineImage: default).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -326,7 +326,7 @@ namespace Opc.Ua.Vision.Tests
             // condition of a bin-picking task and a valid negative training label.
             SubmitDetectionsMethodStateResult result = await harness.InvokeSubmitDetections(
                 purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
-                detections: ArrayOf<VisionDetectionDataType>.Empty,
+                detections: [],
                 frameReference: new VisionImageReferenceDataType(),
                 inlineImage: default,
                 sceneIsEmpty: true).ConfigureAwait(false);
@@ -357,7 +357,7 @@ namespace Opc.Ua.Vision.Tests
                 sceneIsEmpty: true).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -371,13 +371,13 @@ namespace Opc.Ua.Vision.Tests
             SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
                 resultId: "r-1",
                 purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
-                correctedDetections: ArrayOf<VisionDetectionDataType>.Empty,
-                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                correctedDetections: [],
+                correctedCharacteristics: [],
                 reason: default,
                 inlineImage: default).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -399,8 +399,8 @@ namespace Opc.Ua.Vision.Tests
             SubmitCorrectionMethodStateResult result = await harness.InvokeSubmitCorrection(
                 resultId: "r-1",
                 purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
-                correctedDetections: ArrayOf<VisionDetectionDataType>.Empty,
-                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                correctedDetections: [],
+                correctedCharacteristics: [],
                 reason: default,
                 inlineImage: default,
                 retractAll: true).ConfigureAwait(false);
@@ -425,13 +425,13 @@ namespace Opc.Ua.Vision.Tests
                 resultId: "r-1",
                 purpose: VisionFeedbackPurposeEnum.GroundTruthLabel,
                 correctedDetections: OneDetection(),
-                correctedCharacteristics: ArrayOf<VisionCharacteristicDataType>.Empty,
+                correctedCharacteristics: [],
                 reason: default,
                 inlineImage: default,
                 retractAll: true).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -449,7 +449,7 @@ namespace Opc.Ua.Vision.Tests
                 inlineImage: default).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         private static ArrayOf<VisionDetectionDataType> OneDetection()

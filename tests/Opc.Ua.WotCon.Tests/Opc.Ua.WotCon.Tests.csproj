@@ -4,9 +4,12 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.WotCon.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
+    <!-- Lifecycle compatibility cases intentionally exercise the one-release obsolete extension shims.
+         TODO: Remove CS0618 when those compatibility tests and shims are retired. -->
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CS0618</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Using Include="Opc.Ua.Server.NodeManagerLifecycleExtensions" Static="true" />
     <PackageReference Include="BenchmarkDotNet" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
@@ -26,6 +29,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Common\WotSpecVectors.cs" />
+    <EmbeddedResource Include="..\Opc.Ua.Types.Tests\Wot\Assets\wot-binding-vectors.json">
+      <LogicalName>wot-binding-vectors.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
@@ -52,5 +59,28 @@
       <Link>Wot\Assets\wot-spec-requirements.json</Link>
       <LogicalName>wot-spec-requirements.json</LogicalName>
     </EmbeddedResource>
+    <Compile Include="..\Opc.Ua.Types.Tests\Wot\WotTraceabilityLedger.cs">
+      <Link>Wot\WotTraceabilityLedger.cs</Link>
+    </Compile>
+    <EmbeddedResource Include="..\Opc.Ua.Types.Tests\Wot\Assets\wot-binding-traceability.json">
+      <Link>Wot\Assets\wot-binding-traceability.json</Link>
+      <LogicalName>wot-binding-traceability.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The authoritative model sources, linked (not duplicated) into the test
+         output so the parity tests also run from an external artifacts path. -->
+    <Content Include="..\..\src\Opc.Ua.WotCon\Design\Opc.Ua.WotCon.NodeSet2.xml">
+      <Link>Models\Opc.Ua.WotCon.NodeSet2.xml</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\src\Opc.Ua.WotCon\Design\Opc.Ua.WotCon.NodeSet2.csv">
+      <Link>Models\Opc.Ua.WotCon.NodeSet2.csv</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\src\Opc.Ua.XRegistry\Opc.Ua.XRegistry.NodeSet2.xml">
+      <Link>Models\Opc.Ua.XRegistry.NodeSet2.xml</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

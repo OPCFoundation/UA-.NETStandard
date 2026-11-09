@@ -36,6 +36,7 @@ using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Di.Server.Hosting;
+using Opc.Ua.Machinery.Server;
 using Opc.Ua.Pumps.Client;
 using Opc.Ua.Pumps.Server;
 using Opc.Ua.Pumps.Server.Hosting;
@@ -55,6 +56,37 @@ namespace Opc.Ua.Pumps.Tests
     [Category("Hosting")]
     public sealed class PumpsHostingTests
     {
+        [Test]
+        public void ComposedPumpsKeepTheMachineryOwnerAndRegisterOneModelProvider()
+        {
+            IOpcUaServerBuilder builder = CreateServerBuilder();
+            builder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
+                .AddPumpsToMachinery()
+                .AddPumpsToMachinery();
+
+            using ServiceProvider provider = builder.Services.BuildServiceProvider();
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.GetServices<DiAddressSpaceOwnership>().Single().OwnerName,
+                    Is.EqualTo("AddMachinery"));
+                Assert.That(provider.GetServices<IMachineryModelProvider>()
+                    .Count(model => model is PumpsMachineryModelProvider), Is.EqualTo(1));
+                Assert.That(provider.GetService<PumpsNodeManagerFactory>(), Is.Null);
+            });
+        }
+
+        [Test]
+        public void CompositionRejectsInvalidRegistration()
+        {
+            IOpcUaServerBuilder builder = CreateServerBuilder();
+            Assert.Throws<InvalidOperationException>(() => builder.AddPumpsToMachinery());
+            Assert.Throws<ArgumentNullException>(() => OpcUaPumpsCompositionExtensions.AddPumpsToMachinery(null!));
+            Assert.Throws<ArgumentNullException>(() => builder.ConfigurePumpsFor<MachineryNodeManager>(null!));
+            builder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks);
+            Assert.Throws<ArgumentException>(
+                () => builder.AddPumpsToMachinery(options => options.AdditionalNamespaceUris = [string.Empty]));
+        }
+
         [Test]
         public void AddPumpsRegistersTheNodeManagerFactoryAndClaimsDi()
         {

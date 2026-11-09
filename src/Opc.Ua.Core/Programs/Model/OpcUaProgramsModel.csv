@@ -1,0 +1,11 @@
+ManagedProgramType,1001,ObjectType
+ManagedProgramTransitionEventType,1002,ObjectType
+ManagedProgramAuditEventType,1003,ObjectType
+ManagedProgramType_Start,2001,Method
+ManagedProgramType_Suspend,2002,Method
+ManagedProgramType_Resume,2003,Method
+ManagedProgramType_Halt,2004,Method
+ManagedProgramType_Reset,2005,Method
+ManagedProgramType_Create,2006,Method
+ManagedProgramType_Create_InputArguments,3001,Variable
+ManagedProgramType_Create_OutputArguments,3002,Variable

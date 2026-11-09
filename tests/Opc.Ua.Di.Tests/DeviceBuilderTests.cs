@@ -168,10 +168,10 @@ namespace Opc.Ua.Di.Tests
                 .CreateDeviceAsync(new QualifiedName("DeviceDup", ns))
                 .ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_fixture.Manager
                         .CreateDeviceAsync(new QualifiedName("DeviceDup", ns))
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode,
                 Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "scenario": "combined",
+  "seed": 104729,
+  "windows": [
+    {
+      "startTick": 8,
+      "endTick": 24,
+      "sorterRecoveryPermille": 250,
+      "electricalSupplyPermille": 500,
+      "thermalSupplyPermille": 200
+    }
+  ],
+  "equipmentFaults": [
+    { "stage": "feed-conveyor", "kind": "Jam", "startTick": 12, "endTick": 16 },
+    { "stage": "primary-shredding", "kind": "Jam", "startTick": 22, "endTick": 25 },
+    { "stage": "pelletizing", "kind": "StrandBreak", "startTick": 48, "endTick": 51 }
+  ]
+}

@@ -86,7 +86,9 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             ITelemetryContext telemetry,
             TimeProvider? timeProvider = null)
         {
-            m_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            m_configuration = configuration is null
+                ? throw new ArgumentNullException(nameof(configuration))
+                : (PublishedDataSetDataType)configuration.Clone();
             m_strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
             m_metaDataBuilder = metaDataBuilder
                 ?? throw new ArgumentNullException(nameof(metaDataBuilder));
@@ -104,13 +106,20 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
         private void OnMetaDataChanged(object? sender, EventArgs e)
         {
-            MetaDataChanged?.Invoke(this, EventArgs.Empty);
+            if (!Volatile.Read(ref m_disposed))
+            {
+                MetaDataChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         /// <inheritdoc/>
         public DataSetMetaDataType BuildMetaData()
         {
-            return m_metaDataBuilder.BuildMetaData();
+            lock (m_lifetimeGate)
+            {
+                ThrowIfDisposed();
+                return m_metaDataBuilder.BuildMetaData();
+            }
         }
 
         /// <inheritdoc/>
@@ -119,9 +128,17 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lifetimeGate)
+            {
+                ThrowIfDisposed();
+            }
 
             await EnsureMetaDataResolvedAsync(cancellationToken).ConfigureAwait(false);
 
+            lock (m_lifetimeGate)
+            {
+                ThrowIfDisposed();
+            }
             ArrayOf<PublishedVariableDataType> publishedData =
                 GetPublishedVariables(m_configuration);
 
@@ -157,15 +174,56 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                         StatusCode = value.StatusCode,
                         SourceTimestamp = value.SourceTimestamp == DateTime.MinValue
                             ? default
-                            : DateTimeUtc.From(value.SourceTimestamp)
+                            : value.SourceTimestamp,
+                        SourcePicoSeconds = value.SourcePicoseconds,
+                        ServerTimestamp = value.ServerTimestamp == DateTime.MinValue
+                            ? default
+                            : value.ServerTimestamp,
+                        ServerPicoSeconds = value.ServerPicoseconds
                     });
                 }
             }
 
-            return new PublishedDataSetSnapshot(
-                metaData?.ConfigurationVersion ?? new ConfigurationVersionDataType(),
-                fields,
-                DateTimeUtc.From(m_timeProvider.GetUtcNow()));
+            lock (m_lifetimeGate)
+            {
+                ThrowIfDisposed();
+                return new PublishedDataSetSnapshot(
+                    metaData?.ConfigurationVersion ?? new ConfigurationVersionDataType(),
+                    fields,
+                    DateTimeUtc.From(m_timeProvider.GetUtcNow()));
+            }
+        }
+
+        /// <summary>
+        /// Retires the source so an application still holding it cannot export its withdrawn definition.
+        /// The read strategy and metadata builder remain owned by the adapter binding.
+        /// </summary>
+        internal void Retire()
+        {
+            lock (m_lifetimeGate)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                m_metaDataBuilder.MetaDataChanged -= OnMetaDataChanged;
+                MetaDataChanged = null;
+            }
+        }
+
+        /// <summary>
+        /// Rejects samples and metadata from a withdrawn source while the lifetime gate is held.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">
+        /// The published data set source has been retired.
+        /// </exception>
+        private void ThrowIfDisposed()
+        {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(ServerPublishedDataSetSource));
+            }
         }
 
         private async ValueTask EnsureMetaDataResolvedAsync(CancellationToken cancellationToken)
@@ -215,6 +273,16 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             }
             return [];
         }
+
+        /// <summary>
+        /// Serializes retirement with a snapshot's final export boundary.
+        /// </summary>
+        private readonly Lock m_lifetimeGate = new();
+
+        /// <summary>
+        /// Whether this source's configuration has been withdrawn.
+        /// </summary>
+        private bool m_disposed;
     }
 
     /// <summary>

@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -629,7 +630,7 @@ namespace Opc.Ua
         public static partial void EndpointBaseLogMessage3(
             this ILogger logger,
             global::System.Exception? exception,
-            string? message);
+            [SensitiveText] string? message);
     }
 
 }

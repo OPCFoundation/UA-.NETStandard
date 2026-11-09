@@ -53,15 +53,44 @@ should publish those, not 3000 mostly empty variables.
 `IPumpGroupBuilder` addresses everything below them by browse name — `Add`,
 `Set`, `SetAnalog`, `SetDiscrete`, `With`, `Nested`. Children are created
 through the model's own `CreateChild`, so each one gets the type, data type,
-access level and default value the specification declares; a name the group
-does not declare is rejected rather than quietly creating a non-conforming
-node. Pass the generated `Opc.Ua.Pumps.BrowseNames` constants and a rename in
-the model breaks the build.
+access level and default value the specification declares. Names the group
+does not declare are rejected. Pass the generated `Opc.Ua.Pumps.BrowseNames`
+constants and a rename in the model breaks the build.
 
 `SetDiscrete` handles both shapes OPC 40223 uses for a boolean: the
 `TwoStateDiscreteType` variables of the supervision groups, and the
 `DiscreteInput`/`DiscreteOutputObjectType` objects of the signal and actuation
 groups whose value sits one level down.
+
+## Retained identity, conditions and history
+
+`PumpsRuntime.WithRetainedIdentificationAsync` binds `AssetId`,
+`ComponentName` and `Location` to a persistent `IAssetConfigurationStore`
+with explicit role permissions and a stable `ProductInstanceUri`.
+Storage commits precede accepted writes; the shared AMB binding restores the
+values on restart, including the component-name locale.
+
+`AddDiagnosticAlarmAsync` maps a supervision input to an explicit DI NE107
+category. `AddMeasurementAlarmAsync` creates an exclusive limit condition.
+Publish readings, then await each binding's `EvaluateAsync`; acknowledgment
+and retained refresh use the standard condition implementation.
+
+`HistorizeAsync` and `HistorizeEventsAsync` select an already configured
+shared Part 11 provider. No fallback archive or physical pump controller is
+created. `BindDocumentationFile` and `BindMarkingFile` reuse the session-owned
+`IFileTypeBinder`. These extensions accept direct services or services resolved
+inside either hosting configurator. The address-space owner releases capture
+and file bindings; the application or DI container owns storage providers.
+
+Neither Pumps profile URI is advertised automatically. The Advanced profile's
+published Base dependency has conflicting Pumps/CAS URIs; see the guide for
+the unresolved reference and mandatory inherited facets.
+
+The standalone and composed runtime contributes the Table 152 native units
+from live registered nodes, bound conditions and historian routes. Titles
+use the Pumps model namespace to avoid collisions with other companions'
+generic unit names. Removing required nodes, conditions or routes withdraws
+their units; disposal withdraws the runtime's contribution.
 
 ## Typed fluent accessors
 
@@ -73,9 +102,29 @@ friends are available to servers that wire per-node callbacks directly.
 
 `AddPumps` claims the Device Integration address space, so it cannot be
 combined with `AddOpcUaDi` or another DI-owning registration. A server that
-already has a DI manager loads the model into it with
-`nodes.AddOpcUaPumps(context)` and configures it through
-`ConfigureDevicesFor<TNodeManager>()`.
+uses the stock Machinery owner composes Pumps additively:
+
+```csharp
+services.AddOpcUa().AddServer<StandardServer>(ConfigureServer)
+    .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
+    .AddPumpsToMachinery()
+    .ConfigurePumpsFor<MachineryNodeManager>(async (context, ct) =>
+    {
+        var pump = await context.Runtime.CreatePumpAsync(
+            new QualifiedName("FeedPump", context.Runtime.InstanceNamespaceIndex), ct);
+        pump.Measurements.SetAnalog(Opc.Ua.Pumps.BrowseNames.MassFlow, 12.5);
+    });
+```
+
+The shared `PumpsRuntime` preserves lazy groups and live updates, with all
+instances in the Machinery owner's application namespace. It can coexist with
+`AddScalesToMachinery()` and the AMB sidecar. For direct construction, supply
+`PumpsMachineryModelProvider` to `MachineryNodeManager` and call
+`owner.CreatePumpsRuntime()` after its address space is ready. The owner disposes
+the runtime on shutdown. Existing standalone APIs remain unchanged.
+
+See the [Pumps guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Pumps.md)
+for model ordering, service injection, asset registration and custom-owner lifetime.
 
 For the client side use `Opc.Ua.Pumps.Client`; the model and the shared
 snapshot contracts live in `Opc.Ua.Pumps`.

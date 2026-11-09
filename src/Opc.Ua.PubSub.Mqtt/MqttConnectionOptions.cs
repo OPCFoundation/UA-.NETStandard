@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+#if NET8_0_OR_GREATER
+using MQTTnet.Channel;
+#endif
 
 namespace Opc.Ua.PubSub.Mqtt
 {
@@ -55,6 +58,12 @@ namespace Opc.Ua.PubSub.Mqtt
     public sealed class MqttConnectionOptions
     {
         /// <summary>
+        /// Gets or sets whether the transport installs the standard wildcard discovery subscriptions.
+        /// Restricted hosts can disable these and use only explicit reader topics.
+        /// </summary>
+        public bool IncludeDiscoverySubscriptions { get; set; } = true;
+
+        /// <summary>
         /// Broker endpoint URL — <c>mqtt://host[:port]</c> for
         /// plaintext (port 1883 default) or
         /// <c>mqtts://host[:port]</c> for TLS (port 8883 default).
@@ -62,9 +71,10 @@ namespace Opc.Ua.PubSub.Mqtt
         public string Endpoint { get; set; } = string.Empty;
 
         /// <summary>
-        /// Optional MQTT <c>ClientID</c>; when
-        /// <see langword="null"/> the transport derives one from the
-        /// PubSubConnection's PublisherId per Part 14 §7.3.4.4.
+        /// Optional MQTT <c>ClientID</c>; when <see langword="null"/> or
+        /// empty the MQTT client library generates a random one for each
+        /// connection. Set it explicitly when the broker needs a stable
+        /// client id, for example for persistent sessions.
         /// </summary>
         public string? ClientId { get; set; }
 
@@ -130,7 +140,8 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <summary>
         /// TLS options. <see langword="null"/> picks up scheme-derived
         /// defaults (TLS off for <c>mqtt://</c>, on for
-        /// <c>mqtts://</c>).
+        /// <c>mqtts://</c>). A non-null options object cannot disable
+        /// the TLS protection required by <c>mqtts://</c> or <c>wss://</c>.
         /// </summary>
         public MqttTlsOptions? Tls { get; set; }
 
@@ -185,5 +196,50 @@ namespace Opc.Ua.PubSub.Mqtt
         /// Encoded Last-Will payload populated by publisher presence scheduling.
         /// </summary>
         internal byte[]? WillPayload { get; set; }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Gets the programmatic TCP connector without exposing a bindable configuration property.
+        /// MQTTnet applies TLS using the original broker hostname after this connector opens the stream.
+        /// </summary>
+        public IMqttClientStreamProvider? GetStreamProvider()
+        {
+            return m_streamProvider;
+        }
+
+        /// <summary>
+        /// Installs a programmatic TCP connector without exposing it to generated configuration binding.
+        /// The connector is retained when a transport factory snapshots endpoint-specific options.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public MqttConnectionOptions WithStreamProvider(IMqttClientStreamProvider provider)
+        {
+            m_streamProvider = provider ?? throw new ArgumentNullException(nameof(provider));
+            return this;
+        }
+#endif
+
+        /// <summary>
+        /// Gets programmatic topic authority without exposing it to configuration binding or serialization.
+        /// </summary>
+        public IMqttTopicPolicy? GetTopicPolicy()
+        {
+            return m_topicPolicy;
+        }
+
+        /// <summary>
+        /// Installs programmatic topic authority without accepting a policy implementation from configuration data.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public MqttConnectionOptions WithTopicPolicy(IMqttTopicPolicy policy)
+        {
+            m_topicPolicy = policy ?? throw new ArgumentNullException(nameof(policy));
+            return this;
+        }
+
+#if NET8_0_OR_GREATER
+        private IMqttClientStreamProvider? m_streamProvider;
+#endif
+        private IMqttTopicPolicy? m_topicPolicy;
     }
 }

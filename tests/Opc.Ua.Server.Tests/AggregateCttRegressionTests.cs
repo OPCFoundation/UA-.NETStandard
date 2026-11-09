@@ -228,21 +228,19 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that the value-based status counts Uncertain values as Good when
-        /// TreatUncertainAsBad is false and as Bad otherwise (Part 13 §4.2.1.2, §5.4.3.2.1).
+        /// Verifies that Count counts only Good values and that an Uncertain value makes the value-based
+        /// status non-Good whatever TreatUncertainAsBad is: the definition wins over §4.2.1.2
+        /// (Part 13 §5.4.3.19, Mantis 11495 ~0025874).
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task DirectAndLiveCountValueBasedStatusHonorsTreatUncertainAsBadAsync(
+        public async Task DirectAndLiveCountExcludesUncertainValuesAsync(
             bool treatUncertainAsBad)
         {
-            // Two Good values and one Uncertain value: without TreatUncertainAsBad the
-            // Uncertain value is equivalent to Good, so it is counted and the interval is
-            // 100% Good; otherwise it is excluded, 67% Good and 33% Bad meets neither threshold.
-            StatusCode expectedCodeBits = treatUncertainAsBad
-                ? StatusCodes.UncertainDataSubNormal
-                : StatusCodes.Good;
-            int expectedCount = treatUncertainAsBad ? 2 : 3;
+            // Two Good values and one Uncertain value: the Uncertain value is not counted, and
+            // 67% Good and 33% non-Good meets neither threshold.
+            StatusCode expectedCodeBits = StatusCodes.UncertainDataSubNormal;
+            int expectedCount = 2;
             List<DataValue> rawValues =
             [
                 CreateValue(1, StatusCodes.Good, 0),
@@ -276,6 +274,65 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(results[0].WrappedValue.TryGetValue(out int count), Is.True);
                 Assert.That(count, Is.EqualTo(expectedCount));
                 Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(expectedCodeBits));
+                Assert.That(results[0].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that Delta, StandardDeviation and Variance use only Good values and report
+        /// UncertainDataSubNormal for a skipped Uncertain value whatever TreatUncertainAsBad is:
+        /// their definitions speak of Good values and win over §4.2.1.2 (Part 13 §5.4.3.27,
+        /// §5.4.3.37–§5.4.3.40, Mantis 11495 ~0025874).
+        /// </summary>
+        [TestCase("Delta", false, 3.0)]
+        [TestCase("Delta", true, 3.0)]
+        [TestCase("VarianceSample", false, 4.5)]
+        [TestCase("VarianceSample", true, 4.5)]
+        [TestCase("StandardDeviationPopulation", false, 1.5)]
+        [TestCase("StandardDeviationPopulation", true, 1.5)]
+        public async Task DirectAndLiveGoodValueAggregatesExcludeUncertainValuesAsync(
+            string aggregateName,
+            bool treatUncertainAsBad,
+            double expected)
+        {
+            // Good 1 and 4, then an Uncertain 7 as the last value in the interval: the Good values
+            // alone give Delta 4 - 1, sample variance 4.5 and population deviation 1.5. The value
+            // after the interval completes it (no Partial bit).
+            NodeId aggregateId = GetAggregateId(aggregateName);
+            List<DataValue> rawValues =
+            [
+                CreateValue(1, StatusCodes.Good, 0),
+                CreateValue(4, StatusCodes.Good, 5),
+                CreateValue(7, StatusCodes.UncertainSubstituteValue, 8),
+                CreateValue(9, StatusCodes.Good, 12)
+            ];
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad);
+            DateTimeUtc endTime = AtSeconds(10);
+
+            List<DataValue> direct = RunDirect(
+                aggregateId,
+                rawValues,
+                s_baseTime,
+                endTime,
+                10_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                aggregateId,
+                rawValues,
+                s_baseTime,
+                endTime,
+                10_000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(
+                    results[0].WrappedValue.ConvertToDouble().GetDouble(),
+                    Is.EqualTo(expected).Within(0.000_001));
+                Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
                 Assert.That(results[0].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
             }
         }
@@ -1200,6 +1257,9 @@ namespace Opc.Ua.Server.Tests
                 "DurationInStateNonZero" => ObjectIds.AggregateFunction_DurationInStateNonZero,
                 "DurationGood" => ObjectIds.AggregateFunction_DurationGood,
                 "DurationBad" => ObjectIds.AggregateFunction_DurationBad,
+                "Delta" => ObjectIds.AggregateFunction_Delta,
+                "VarianceSample" => ObjectIds.AggregateFunction_VarianceSample,
+                "StandardDeviationPopulation" => ObjectIds.AggregateFunction_StandardDeviationPopulation,
                 _ => throw new ArgumentOutOfRangeException(nameof(aggregateName))
             };
         }

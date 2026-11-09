@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate certificate = CertificateBuilder.Create("CN=Disposed Registry").CreateForRSA();
             using var chain = new CertificateCollection();
             await manager.DisposeAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
             {
                 if (operation == "replace")
                 {

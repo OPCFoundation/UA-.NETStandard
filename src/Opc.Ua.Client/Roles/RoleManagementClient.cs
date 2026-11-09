@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.Roles
 {
@@ -47,14 +46,35 @@ namespace Opc.Ua.Client.Roles
         /// <c>Server.ServerCapabilities.RoleSet</c> (NodeId i=15606).
         /// </summary>
         public RoleManagementClient(ISession session)
+            : this(session, 0)
+        {
+        }
+
+        /// <summary>
+        /// Creates a client with an optional bound on each identity, application and endpoint mapping collection.
+        /// Zero preserves the legacy unbounded behavior. The bound is checked before decoded-array or list copies.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public RoleManagementClient(ISession session, int maxMappingEntries)
         {
             Session = session ?? throw new ArgumentNullException(nameof(session));
+            if (maxMappingEntries < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxMappingEntries));
+            }
+            MaxMappingEntries = maxMappingEntries;
         }
 
         /// <summary>
         /// The session used for all service calls.
         /// </summary>
         public ISession Session { get; }
+
+        /// <summary>
+        /// Gets the maximum entries per mapping collection, or zero for no client-side limit.
+        /// </summary>
+        public int MaxMappingEntries { get; }
 
         private static NodeId RoleSetId => ObjectIds.Server_ServerCapabilities_RoleSet;
 
@@ -281,16 +301,16 @@ namespace Opc.Ua.Client.Roles
                 switch (propertyNames[i])
                 {
                     case BrowseNames.Identities:
-                        identities = ReadStructureArray<IdentityMappingRuleType>(dv);
+                        identities = ReadStructureArray<IdentityMappingRuleType>(dv, MaxMappingEntries);
                         break;
                     case BrowseNames.Applications:
-                        applications = ReadStringArray(dv);
+                        applications = ReadStringArray(dv, MaxMappingEntries);
                         break;
                     case BrowseNames.ApplicationsExclude:
                         applicationsExclude = ReadOptionalBool(dv, defaultValue: true);
                         break;
                     case BrowseNames.Endpoints:
-                        endpoints = ReadStructureArray<EndpointType>(dv);
+                        endpoints = ReadStructureArray<EndpointType>(dv, MaxMappingEntries);
                         break;
                     case BrowseNames.EndpointsExclude:
                         endpointsExclude = ReadOptionalBool(dv, defaultValue: true);
@@ -565,11 +585,15 @@ namespace Opc.Ua.Client.Roles
             }
         }
 
-        private static List<T> ReadStructureArray<T>(DataValue dv) where T : class, IEncodeable, new()
+        private static List<T> ReadStructureArray<T>(DataValue dv, int maxEntries) where T : class, IEncodeable, new()
         {
             if (StatusCode.IsBad(dv.StatusCode))
             {
                 return [];
+            }
+            if (dv.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> incoming))
+            {
+                ValidateMappingCount(incoming.Count, maxEntries);
             }
             if (dv.WrappedValue.TryGetStructure(out ArrayOf<T> typed))
             {
@@ -599,7 +623,7 @@ namespace Opc.Ua.Client.Roles
             return [];
         }
 
-        private static List<string> ReadStringArray(DataValue dv)
+        private static List<string> ReadStringArray(DataValue dv, int maxEntries)
         {
             if (StatusCode.IsBad(dv.StatusCode))
             {
@@ -609,12 +633,26 @@ namespace Opc.Ua.Client.Roles
             {
                 return [];
             }
+            ValidateMappingCount(arr.Count, maxEntries);
             var list = new List<string>(arr.Count);
             foreach (string s in arr)
             {
                 list.Add(s);
             }
             return list;
+        }
+
+        /// <summary>
+        /// Rejects oversized mappings before allocating a client-side copy.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void ValidateMappingCount(int count, int maxEntries)
+        {
+            if (maxEntries > 0 && count > maxEntries)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingLimitsExceeded, "The role mapping exceeds the configured entry limit.");
+            }
         }
 
         private static bool ReadOptionalBool(DataValue dv, bool defaultValue)

@@ -119,7 +119,7 @@ namespace Opc.Ua.Configuration
             configuration.ApplicationType = Application.ApplicationType;
             if (certificateManager != null)
             {
-                configuration.CertificateManager = certificateManager;
+                configuration.SetBorrowedCertificateManager(certificateManager);
             }
 
             ArrayOf<CertificateIdentifier> certificates =
@@ -179,13 +179,22 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            GC.SuppressFinalize(this);
+            lock (m_lock)
             {
-                return;
+                Volatile.Write(ref m_disposed, 1);
+                m_disposeTask ??= DisposeCoreAsync();
+                return new ValueTask(m_disposeTask);
             }
+        }
 
+        /// <summary>
+        /// Waits for initialization before releasing the application, preserving initialization and cleanup errors.
+        /// </summary>
+        private async Task DisposeCoreAsync()
+        {
             Task<ApplicationConfiguration>? createTask;
             lock (m_lock)
             {
@@ -199,11 +208,19 @@ namespace Opc.Ua.Configuration
                     await createTask.ConfigureAwait(false);
                 }
             }
-            finally
+            catch (Exception failure)
             {
-                await Application.DisposeAsync().ConfigureAwait(false);
-                GC.SuppressFinalize(this);
+                try
+                {
+                    await Application.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException(failure, cleanupFailure);
+                }
+                throw;
             }
+            await Application.DisposeAsync().ConfigureAwait(false);
         }
 
         private async Task<ApplicationConfiguration> CreateAsync()
@@ -252,6 +269,11 @@ namespace Opc.Ua.Configuration
         private readonly IApplicationConfigurationBuilderCreate m_builder;
         private readonly Lock m_lock = new();
         private Task<ApplicationConfiguration>? m_createTask;
+
+        /// <summary>
+        /// The cleanup task awaited by every disposal caller.
+        /// </summary>
+        private Task? m_disposeTask;
         private int m_disposed;
     }
 }

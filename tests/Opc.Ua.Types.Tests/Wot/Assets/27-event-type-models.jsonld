@@ -16,7 +16,7 @@
   "uav:bindingVersion": "1.1",
   "uav:profile": ["WoT-Modeller", "WoT-EventMapping"],
   "uav:browseName": "pump:PumpAlarmsType",
-  "uav:id": "nsu=http://example.com/demo/pump;i=1005",
+  "uav:id": "nsu=http://example.com/demo/pump;i=1099",
   "events": {
     "highTemperatureAlarm": {
       "@id": "evt:highTemperatureAlarm",

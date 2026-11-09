@@ -72,7 +72,7 @@ namespace Opc.Ua.Client.Tests.WebApi
                 using var client = new WebApiClient(http, new WebApiClientOptions { MessageContext = context });
                 if (excess > 0)
                 {
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     {
                         await client.ReadAsync(new ReadRequest()).ConfigureAwait(false);
                     });
@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.Tests.WebApi
                     .ConfigureAwait(false);
                 Assert.That(completed, Is.SameAs(pending));
                 // The elapsed request timeout is reported as BadRequestTimeout.
-                ServiceResultException? timeout = Assert.CatchAsync<ServiceResultException>(() => pending);
+                ServiceResultException? timeout = await Assert.CatchAsync<ServiceResultException>(() => pending);
                 Assert.That(timeout!.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
                 Assert.That(timeout.InnerException, Is.InstanceOf<OperationCanceledException>());
                 Assert.That(content.IsDisposed, Is.True);

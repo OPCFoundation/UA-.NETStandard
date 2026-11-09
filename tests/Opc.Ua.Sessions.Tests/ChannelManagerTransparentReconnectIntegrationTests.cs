@@ -66,7 +66,6 @@ namespace Opc.Ua.Sessions.Tests
         ];
 
         [Test]
-        [Order(100)]
         [CancelAfter(120_000)]
         public async Task ChannelManagerReconnectDoesNotChurnOuterManagedSessionStateAsync(
             CancellationToken ct)
@@ -124,8 +123,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(150)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ChannelManagerReconnectDoesNotChurnOuterManagedSessionStateAsync), AllowFailure = true)]
         public async Task AnonymousSignChannelManagerReconnectRecreatesSessionAsync(
             CancellationToken ct)
         {
@@ -164,8 +163,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [TestCaseSource(nameof(s_reactivationSecurityFailureStatusCodes))]
-        [Order(175)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(AnonymousSignChannelManagerReconnectRecreatesSessionAsync), AllowFailure = true)]
         public async Task ReactivationSecurityFailureRecreatesSessionAsync(
             StatusCode statusCode,
             CancellationToken ct)
@@ -211,8 +210,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ReactivationSecurityFailureRecreatesSessionAsync), AllowFailure = true)]
         public async Task ChannelManagerExhaustionEscalatesAndRecoversWhenServerReturns(
             CancellationToken ct)
         {

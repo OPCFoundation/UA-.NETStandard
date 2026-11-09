@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -322,6 +323,6 @@ namespace Opc.Ua.Bindings
     {
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsServiceHost + 0, Level = LogLevel.Error,
             Message = "Failed to create endpoint {Uri} because the transport profile is unsupported.")]
-        public static partial void FailedToCreateEndpoint(this ILogger logger, UriBuilder uri);
+        public static partial void FailedToCreateEndpoint(this ILogger logger, [NetworkAddress] UriBuilder uri);
     }
 }

@@ -136,23 +136,22 @@ namespace Opc.Ua.History.Tests
         /// Verifies that a raw-history request specifying only a value count fails with BadHistoryOperationInvalid.
         /// </summary>
         [Test]
-        public Task ReadRaw004RejectsNumValuesOnlyAsync()
+        public async Task ReadRaw004RejectsNumValuesOnlyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await HistoryReadRawAsync(
                         nodeId,
                         DateTime.MinValue,
                         DateTime.MinValue,
                         5,
-                        false).ConfigureAwait(false))!;
+                        false).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
                 Is.EqualTo(StatusCodes.BadHistoryOperationInvalid));
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -426,7 +425,7 @@ namespace Opc.Ua.History.Tests
         /// Verifies that selecting neither timestamp fails with BadTimestampsToReturnInvalid.
         /// </summary>
         [Test]
-        public Task ReadRaw014ReadWithTimestampsToReturnNeitherAsync()
+        public async Task ReadRaw014ReadWithTimestampsToReturnNeitherAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
             DateTime endTime = DateTime.UtcNow;
@@ -434,7 +433,7 @@ namespace Opc.Ua.History.Tests
 
             // TimestampsToReturn.Neither is invalid for HistoryRead: historical values always
             // carry a source/server timestamp (OPC UA Part 11; CTT HA Read Raw Err-002).
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await Session.HistoryReadAsync(
                     null,
                     new ExtensionObject(new ReadRawModifiedDetails
@@ -451,10 +450,9 @@ namespace Opc.Ua.History.Tests
                     {
                         new() { NodeId = nodeId }
                     }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimestampsToReturnInvalid));
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -1275,23 +1273,22 @@ namespace Opc.Ua.History.Tests
         /// Verifies that omitting both the time range and value limit fails with BadHistoryOperationInvalid.
         /// </summary>
         [Test]
-        public Task ReadRawErr018NoTimeRangeNoNumValuesAsync()
+        public async Task ReadRawErr018NoTimeRangeNoNumValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await HistoryReadRawAsync(
                         nodeId,
                         DateTime.MinValue,
                         DateTime.MinValue,
                         0,
-                        false).ConfigureAwait(false))!;
+                        false).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
                 Is.EqualTo(StatusCodes.BadHistoryOperationInvalid));
-            return Task.CompletedTask;
         }
 
         /// <summary>

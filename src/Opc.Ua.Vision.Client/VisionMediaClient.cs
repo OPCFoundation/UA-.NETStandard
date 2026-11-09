@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Client
 {
@@ -87,9 +88,9 @@ namespace Opc.Ua.Vision.Client
                 .ConfigureAwait(false);
             for (int ii = 0; ii < refs.Count; ii++)
             {
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     refs[ii].NodeId, m_operations.Session.NamespaceUris);
-                NodeId typeDef = ExpandedNodeId.ToNodeId(
+                var typeDef = ExpandedNodeId.ToNodeId(
                     refs[ii].TypeDefinition, m_operations.Session.NamespaceUris);
                 if (!nodeId.IsNull && !typeDef.IsNull)
                 {
@@ -119,9 +120,9 @@ namespace Opc.Ua.Vision.Client
                 .ConfigureAwait(false);
             for (int ii = 0; ii < refs.Count; ii++)
             {
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     refs[ii].NodeId, m_operations.Session.NamespaceUris);
-                NodeId typeDef = ExpandedNodeId.ToNodeId(
+                var typeDef = ExpandedNodeId.ToNodeId(
                     refs[ii].TypeDefinition, m_operations.Session.NamespaceUris);
                 if (!nodeId.IsNull && !typeDef.IsNull)
                 {
@@ -208,8 +209,8 @@ namespace Opc.Ua.Vision.Client
             }
             string[] members =
             [
-                BrowseNames.LatestClip,
-                BrowseNames.LatestClipMetadata
+                Perception.BrowseNames.LatestClip,
+                Perception.BrowseNames.LatestClipMetadata
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 clipEndpointNodeId, members, cancellationToken).ConfigureAwait(false);
@@ -283,7 +284,7 @@ namespace Opc.Ua.Vision.Client
             }
             NodeId node = await m_operations.ResolveChildAsync(
                 clipEndpointNodeId,
-                BrowseNames.LatestClipMetadata,
+                Perception.BrowseNames.LatestClipMetadata,
                 cancellationToken).ConfigureAwait(false);
             return await m_operations
                 .TryReadStructureAsync<VisionImageReferenceDataType>(node, cancellationToken)

@@ -74,8 +74,8 @@ namespace Opc.Ua.Scales.Server
         public double ZeroSettingRange { get; set; } = 0.04;
 
         /// <summary>
-        /// Gets or sets extra namespace URIs the node manager registers, for a
-        /// subclass that composes further models into the same address space.
+        /// Gets or sets extra model or vendor-extension namespace URIs the owner registers.
+        /// For composed hosting, configure the instance namespace on the Machinery owner instead.
         /// </summary>
         public ArrayOf<string> AdditionalNamespaceUris { get; set; }
 

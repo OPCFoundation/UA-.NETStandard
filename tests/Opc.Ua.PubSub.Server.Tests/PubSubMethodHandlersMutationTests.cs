@@ -245,7 +245,13 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-                Assert.That(outputs, Has.Count.EqualTo(3));
+                Assert.That(outputs, Has.Count.EqualTo(2));
+                Assert.That(outputs[0].TryGetValue(out ExtensionObject configurationVersion), Is.True);
+                Assert.That(
+                    configurationVersion.TryGetValue(out ConfigurationVersionDataType? _),
+                    Is.True);
+                Assert.That(outputs[1].TryGetValue(out NodeId dataSetId), Is.True);
+                Assert.That(dataSetId.IsNull, Is.False);
                 Assert.That(configuration.PublishedDataSets[0].DataSetSource.TryGetValue(
                     out PublishedEventsDataType? _), Is.True);
             });

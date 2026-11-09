@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// path into the directory.
     /// </para>
     /// </remarks>
-    internal sealed class BlobDirectoryResourceStore : IXRegistryResourceStore
+    internal sealed class BlobDirectoryResourceStore : IWotRegistryContentLeaseProvider
     {
         /// <summary>
         /// Initializes the adapter over a blob directory.
@@ -70,6 +70,40 @@ namespace Opc.Ua.WotCon.Server.Registry
                 throw new ArgumentException("A blobs folder is required.", nameof(blobsFolder));
             }
             m_blobsFolder = blobsFolder;
+        }
+
+        /// <summary>
+        /// Gets whether leases protect the authoritative resource-key mapping and bytes against
+        /// overwrite, replacement and deletion until disposal, including other storage writers.
+        /// Providers that cannot establish this guarantee must return false.
+        /// </summary>
+        /// <inheritdoc/>
+        public bool SupportsImmutableContentLeases => WotFileContentLease.IsSupported;
+
+        /// <summary>
+        /// Acquires the immutable content version currently addressed by the resource key.
+        /// A missing resource is an error; an old digest or mutable byte copy is not a substitute.
+        /// </summary>
+        /// <inheritdoc/>
+        /// <param name="resourceKey">The resource key.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        public async ValueTask<IWotRegistryContentLease> AcquireContentLeaseAsync(
+            string resourceKey,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            IWotRegistryContentLease? lease = null;
+            try
+            {
+                lease = WotFileContentLease.Open(PathFor(resourceKey), resourceKey);
+                var result = new ValueTask<IWotRegistryContentLease>(lease);
+                lease = null;
+                return await result.ConfigureAwait(false);
+            }
+            finally
+            {
+                lease?.Dispose();
+            }
         }
 
         /// <inheritdoc/>

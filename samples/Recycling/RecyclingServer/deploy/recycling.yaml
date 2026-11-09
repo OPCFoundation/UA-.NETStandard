@@ -1,0 +1,1297 @@
+# One replica per role. Provision trust and user identities before starting production.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: recycling-sample
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-coordinator
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: coordinator
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-coordinator
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: coordinator
+spec:
+  serviceName: recycling-coordinator
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --role
+        - coordinator
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-collection
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: collection
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-collection
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: collection
+spec:
+  serviceName: recycling-collection
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - collection
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-collection:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-collection
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-sorting
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: sorting
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-sorting
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: sorting
+spec:
+  serviceName: recycling-sorting
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - sorting
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-sorting:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-sorting
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-shredding
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: shredding
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-shredding
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: shredding
+spec:
+  serviceName: recycling-shredding
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - shredding
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-shredding:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-shredding
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-washing
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: washing
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-washing
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: washing
+spec:
+  serviceName: recycling-washing
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - washing
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-washing:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-washing
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-density-separation
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: density-separation
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-density-separation
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: density-separation
+spec:
+  serviceName: recycling-density-separation
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - density-separation
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-density-separation:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-density-separation
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-drying
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: drying
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-drying
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: drying
+spec:
+  serviceName: recycling-drying
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - drying
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-drying:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-drying
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-extrusion
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: extrusion
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-extrusion
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: extrusion
+spec:
+  serviceName: recycling-extrusion
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - extrusion
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-extrusion:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-extrusion
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-melt-filtration
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: melt-filtration
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-melt-filtration
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: melt-filtration
+spec:
+  serviceName: recycling-melt-filtration
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - melt-filtration
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-melt-filtration:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-melt-filtration
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-pelletizing
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: pelletizing
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-pelletizing
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: pelletizing
+spec:
+  serviceName: recycling-pelletizing
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - pelletizing
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-pelletizing:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-pelletizing
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycling-bagging
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: bagging
+spec:
+  clusterIP: None
+  selector: *id001
+  ports:
+  - name: opc-tcp
+    port: 62570
+    targetPort: opc-tcp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: recycling-bagging
+  namespace: recycling-sample
+  labels: &id001
+    app.kubernetes.io/name: recycling-sample
+    app.kubernetes.io/component: bagging
+spec:
+  serviceName: recycling-bagging
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+      containers:
+      - name: server
+        image: recycling-server:local
+        imagePullPolicy: IfNotPresent
+        args:
+        - --process
+        - bagging
+        - --line-id
+        - line-1
+        - --endpoint
+        - opc.tcp://recycling-bagging:62570/Recycling
+        - --identities
+        - /config/identities.json
+        - --pki-root
+        - /data/pki
+        - --state-root
+        - /data/state
+        - --coordinator
+        - opc.tcp://recycling-coordinator:62570/Recycling
+        - --identity-store
+        - /data/users
+        - --identity-subject
+        - CN=Recycling-line-1-bagging
+        ports:
+        - name: opc-tcp
+          containerPort: 62570
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: opc-tcp
+          periodSeconds: 10
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: identities
+          mountPath: /config
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+      volumes:
+      - name: identities
+        configMap:
+          name: recycling-identities
+      - name: temporary
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi

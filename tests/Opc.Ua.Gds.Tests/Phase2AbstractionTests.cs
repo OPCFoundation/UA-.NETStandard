@@ -146,7 +146,7 @@ namespace Opc.Ua.Gds.Tests
                 AppUri, [1], 0, CancellationToken.None).ConfigureAwait(false);
 
             // Try to write with stale version 0 → should fail
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_store.WriteConfigurationAsync(
                     AppUri, [2], 0, CancellationToken.None).ConfigureAwait(false));
 
@@ -161,14 +161,14 @@ namespace Opc.Ua.Gds.Tests
             uint version = await m_store.WriteConfigurationAsync(
                 AppUri, [1], 0, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await m_store.ConfirmUpdateAsync(AppUri, version, CancellationToken.None).ConfigureAwait(false));
         }
 
         [Test]
-        public void ConfirmUpdateRejectsUnknownApp()
+        public async Task ConfirmUpdateRejectsUnknownApp()
         {
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_store.ConfirmUpdateAsync("urn:unknown", 1, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
@@ -182,7 +182,7 @@ namespace Opc.Ua.Gds.Tests
             await m_store.WriteConfigurationAsync(
                 AppUri, [1], 0, CancellationToken.None).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_store.ConfirmUpdateAsync(AppUri, 999, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
@@ -355,7 +355,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public Task StubProviderReturnsBadNotSupported()
+        public async Task StubProviderReturnsBadNotSupported()
         {
             // Verify that when no provider is configured, the
             // expected pattern is to check for null and throw.
@@ -365,7 +365,7 @@ namespace Opc.Ua.Gds.Tests
             if (provider == null)
 #pragma warning restore CA1508
             {
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     await Task.CompletedTask.ConfigureAwait(false);
                     throw new ServiceResultException(StatusCodes.BadNotSupported);
@@ -373,8 +373,6 @@ namespace Opc.Ua.Gds.Tests
 
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             }
-
-            return Task.CompletedTask;
         }
     }
 

@@ -183,6 +183,37 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void EnsureMaximumRetainedRaisesTheBoundAndNeverLowersIt()
+        {
+            var activator = new TestPooledActivator(maximumRetained: 2);
+            activator.EnsureMaximumRetained(5);
+            activator.EnsureMaximumRetained(3);
+            Assert.That(activator.MaximumRetained, Is.EqualTo(5));
+
+            var rented = new TestPooled[8];
+            for (int i = 0; i < rented.Length; i++)
+            {
+                rented[i] = (TestPooled)activator.CreateInstance();
+            }
+            for (int i = 0; i < rented.Length; i++)
+            {
+                rented[i].Reuse();
+            }
+
+            // five returned instances are retained under the raised bound, not two.
+            int matched = 0;
+            for (int i = 0; i < rented.Length; i++)
+            {
+                var instance = (TestPooled)activator.CreateInstance();
+                if (Array.IndexOf(rented, instance) >= 0)
+                {
+                    matched++;
+                }
+            }
+            Assert.That(matched, Is.EqualTo(5));
+        }
+
+        [Test]
         public void PooledActivatorConstructorRejectsNonPositiveBound()
         {
             Assert.That(() => new TestPooledActivator(maximumRetained: 0),

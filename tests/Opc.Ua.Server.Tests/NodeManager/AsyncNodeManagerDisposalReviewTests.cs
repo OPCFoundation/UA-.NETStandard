@@ -108,6 +108,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Verifies that a nested operation admitted after disposal started keeps cleanup waiting until it exits.
+        /// </summary>
+        [Test]
+        public async Task NestedAdmissionAfterDisposalKeepsCleanupWaitingUntilItExitsAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var manager = new CleanupNodeManager(server.Object);
+                IDisposable parent = manager.BeginOperation();
+                manager.Dispose();
+                // Admitted after disposal started because the flow holds an active operation.
+                IDisposable child = manager.BeginOperation();
+                Task disposal = manager.DisposeAsync().AsTask();
+
+                parent.Dispose();
+                await Task.Delay(100).ConfigureAwait(false);
+                Assert.That(manager.CleanupCalls, Is.Zero,
+                    "Cleanup must wait for a nested operation admitted after disposal started.");
+                Assert.That(manager.FindCachedNode(), Is.SameAs(manager.CachedNode));
+
+                child.Dispose();
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(manager.CleanupCalls, Is.EqualTo(1));
+                Assert.That(() => manager.BeginOperation(), Throws.TypeOf<ObjectDisposedException>());
+            }
+        }
+
+        /// <summary>
         /// Verifies that synchronous owned cleanup can join a worker that must observe closed admission to finish.
         /// </summary>
         [Test]
@@ -257,7 +286,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// disposal.
         /// </summary>
         [Test]
-        public void CleanupFailuresAreReportedAfterOwnedResourcesAreReleased()
+        public async Task CleanupFailuresAreReportedAfterOwnedResourcesAreReleased()
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
@@ -270,10 +299,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     OwnedCleanup = () => throw ownedFailure
                 };
 
-                AggregateException failure = Assert.ThrowsAsync<AggregateException>(
+                AggregateException failure = await Assert.ThrowsAsync<AggregateException>(
                     async () => await manager.DisposeAsync().ConfigureAwait(false));
                 Assert.That(failure.InnerExceptions, Is.EqualTo(new[] { coreFailure, ownedFailure }));
-                AggregateException repeated = Assert.ThrowsAsync<AggregateException>(
+                AggregateException repeated = await Assert.ThrowsAsync<AggregateException>(
                     async () => await manager.DisposeAsync().ConfigureAwait(false));
 
                 Assert.That(repeated, Is.SameAs(failure));
@@ -357,6 +386,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public NodeState FindCachedNode()
             {
                 return LookupNodeInComponentCache(SystemContext, m_handle)!;
+            }
+
+            /// <summary>
+            /// Admits an operation in the caller's flow, nested in any operation the flow already holds.
+            /// </summary>
+            public IDisposable BeginOperation()
+            {
+                return BeginNodeManagerOperation();
             }
 
             /// <summary>

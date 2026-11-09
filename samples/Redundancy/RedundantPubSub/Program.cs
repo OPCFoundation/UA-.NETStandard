@@ -445,6 +445,7 @@ namespace RedundantPubSub
         private static void ConfigureLogging(HostApplicationBuilder builder)
         {
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddSimpleConsole(o =>
             {
                 o.SingleLine = true;

@@ -57,6 +57,19 @@ namespace Opc.Ua.AMB.Client
     /// none is passed, the default one of a <see cref="ManagedSession"/> is
     /// used.
     /// </para>
+    /// <para>
+    /// Pass <see cref="AmbClientOptions"/> to opt into bounded, strictly validated
+    /// discovery, address-space reads, AssetId/link writes and documentation
+    /// methods. Read records then expose original <see cref="AssetReadValue"/>
+    /// evidence alongside their normalized convenience properties. Check
+    /// <see cref="AssetReadValue.IsAbsent"/> rather than treating an empty
+    /// string, false Boolean or null structure as an absent variable.
+    /// </para>
+    /// <para>
+    /// Strict clients never implicitly invoke a condition refresh: an absent
+    /// DeviceHealthAlarms folder makes condition reads fail with BadNotSupported.
+    /// Event observation and acknowledgement retain their existing contracts.
+    /// </para>
     /// </remarks>
     public sealed partial class AmbClient
     {
@@ -71,6 +84,20 @@ namespace Opc.Ua.AMB.Client
             Session = session ?? throw new ArgumentNullException(nameof(session));
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             AmbEncodeableRegistration.Register(session);
+        }
+
+        /// <summary>
+        /// Creates a bounded, strictly validated client on a borrowed session.
+        /// Existing two-argument construction retains its tolerant behavior.
+        /// </summary>
+        /// <param name="session">The borrowed session, never disposed by this client.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="options">The immutable traversal limits.</param>
+        public AmbClient(ISession session, ITelemetryContext telemetry, AmbClientOptions options)
+            : this(session, telemetry)
+        {
+            m_options = options ?? throw new ArgumentNullException(nameof(options));
+            options.Validate();
         }
 
         /// <summary>
@@ -111,9 +138,21 @@ namespace Opc.Ua.AMB.Client
         /// <summary>
         /// Resolves an identifier of a model against the session.
         /// </summary>
-        internal NodeId ToNodeId(ExpandedNodeId nodeId)
+        internal NodeId ToNodeId(ExpandedNodeId nodeId, bool requireLocal = false)
         {
-            return ExpandedNodeId.ToNodeId(nodeId, Session.NamespaceUris);
+            bool strict = m_options is not null || requireLocal;
+            if (strict && nodeId.ServerIndex != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported, "A local AMB target is required.");
+            }
+            NodeId local = ExpandedNodeId.ToNodeId(nodeId, Session.NamespaceUris);
+            if (strict && !nodeId.IsNull &&
+                (local.IsNull || local.NamespaceIndex >= Session.NamespaceUris.Count))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid, "The AMB target namespace is not in the session's namespace table.");
+            }
+            return local;
         }
 
         /// <summary>
@@ -138,12 +177,25 @@ namespace Opc.Ua.AMB.Client
         /// <param name="start">The node the paths start at.</param>
         /// <param name="paths">The browse names of each path.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="requireComplete">
+        /// Whether history requires complete targets and reports translation failures.
+        /// </param>
         /// <returns>The targets; <see cref="NodeId.Null"/> where a path does not resolve.</returns>
         internal async ValueTask<NodeId[]> ResolveAsync(
             NodeId start,
             IReadOnlyList<QualifiedName[]> paths,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool requireComplete = false)
         {
+            bool strict = m_options is not null || requireComplete;
+            if (strict)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            if (strict && start.IsNull && paths.Count != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "An AMB starting node is required.");
+            }
             var results = new NodeId[paths.Count];
             if (start.IsNull || paths.Count == 0)
             {
@@ -174,9 +226,36 @@ namespace Opc.Ua.AMB.Client
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths.ToArrayOf(), cancellationToken)
                 .ConfigureAwait(false);
+            ValidateResponse(
+                response.ResponseHeader, response.Results.Count, results.Length, response.DiagnosticInfos.Count,
+                requireValid: requireComplete);
             for (int ii = 0; ii < response.Results.Count && ii < results.Length; ii++)
             {
                 BrowsePathResult result = response.Results[ii];
+                if (strict)
+                {
+                    if (result is null ||
+                        (result.StatusCode == StatusCodes.BadNoMatch && result.Targets.Count != 0))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError, "An invalid AMB path was returned.");
+                    }
+                    if (result.StatusCode == StatusCodes.BadNoMatch)
+                    {
+                        continue;
+                    }
+                    RequireGoodResponse(result.StatusCode);
+                    if (result.Targets.Count != 1 ||
+                        result.Targets[0] is null ||
+                        result.Targets[0].RemainingPathIndex != uint.MaxValue ||
+                        result.Targets[0].TargetId.IsNull)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError, "An AMB path must resolve completely to exactly one target.");
+                    }
+                    results[ii] = ToNodeId(result.Targets[0].TargetId, requireLocal: requireComplete);
+                    continue;
+                }
                 results[ii] = StatusCode.IsGood(result.StatusCode) && result.Targets.Count > 0
                     ? ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris)
                     : NodeId.Null;
@@ -203,8 +282,18 @@ namespace Opc.Ua.AMB.Client
         internal async ValueTask<DataValue[]> ReadAsync(
             IReadOnlyList<NodeId> nodes,
             uint attributeId,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool requireGoodStatus = false)
         {
+            bool strict = m_options is not null || requireGoodStatus;
+            if (strict)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            if (m_options is not null && nodes.Count > Math.Max(64, m_options.MaximumBrowseReferences))
+            {
+                throw LimitExceeded("The AMB read node limit was exceeded.");
+            }
             var values = new DataValue[nodes.Count];
             var requests = new List<ReadValueId>();
             var positions = new List<int>();
@@ -212,7 +301,8 @@ namespace Opc.Ua.AMB.Client
             {
                 if (nodes[ii].IsNull)
                 {
-                    values[ii] = DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+                    values[ii] = DataValue.FromStatusCode(
+                        m_options is null ? StatusCodes.BadNodeIdUnknown : StatusCodes.BadNoMatch);
                     continue;
                 }
                 requests.Add(new ReadValueId { NodeId = nodes[ii], AttributeId = attributeId });
@@ -223,14 +313,32 @@ namespace Opc.Ua.AMB.Client
                 return values;
             }
 
-            ReadResponse response = await Session
-                .ReadAsync(null, 0, TimestampsToReturn.Source, requests.ToArrayOf(), cancellationToken)
-                .ConfigureAwait(false);
-            for (int ii = 0; ii < positions.Count; ii++)
+            int batchSize = m_options is null ? requests.Count : 64;
+            for (int offset = 0; offset < requests.Count; offset += batchSize)
             {
-                values[positions[ii]] = ii < response.Results.Count
-                    ? response.Results[ii]
-                    : DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
+                int count = Math.Min(batchSize, requests.Count - offset);
+                ReadResponse response = await Session.ReadAsync(
+                    null,
+                    0,
+                    m_options is null ? TimestampsToReturn.Source : TimestampsToReturn.Both,
+                    requests.GetRange(offset, count).ToArrayOf(),
+                    cancellationToken).ConfigureAwait(false);
+                ValidateResponse(
+                    response.ResponseHeader, response.Results.Count, count, response.DiagnosticInfos.Count,
+                    requireValid: requireGoodStatus);
+                for (int ii = 0; ii < count; ii++)
+                {
+                    DataValue value = ii < response.Results.Count
+                        ? response.Results[ii]
+                        : DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
+                    int position = positions[offset + ii];
+                    if (strict && !StatusCode.IsGood(value.StatusCode))
+                    {
+                        throw new AmbValueReadException(
+                            value.StatusCode, new AssetReadValue(nodes[position], [], attributeId, value));
+                    }
+                    values[position] = value;
+                }
             }
             return values;
         }
@@ -256,17 +364,40 @@ namespace Opc.Ua.AMB.Client
         /// <summary>
         /// Browses the references of a node, following continuation points.
         /// </summary>
-        internal async ValueTask<List<ReferenceDescription>> BrowseAsync(
+        internal ValueTask<List<ReferenceDescription>> BrowseAsync(
             NodeId node,
             NodeId referenceTypeId,
             BrowseDirection direction,
             CancellationToken cancellationToken,
             NodeClass nodeClassMask = NodeClass.Unspecified)
         {
+            return BrowseWithBudgetAsync(
+                node, referenceTypeId, direction, nodeClassMask, CreateBrowseBudget(), cancellationToken);
+        }
+
+        private async ValueTask<List<ReferenceDescription>> BrowseWithBudgetAsync(
+            NodeId node,
+            NodeId referenceTypeId,
+            BrowseDirection direction,
+            NodeClass nodeClassMask,
+            BrowseBudget budget,
+            CancellationToken cancellationToken,
+            bool requireComplete = false)
+        {
+            bool strict = m_options is not null || requireComplete;
+            if (strict)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
             var references = new List<ReferenceDescription>();
             if (node.IsNull)
             {
                 return references;
+            }
+            if (strict)
+            {
+                return await BrowseBoundedAsync(
+                    node, referenceTypeId, direction, nodeClassMask, budget, cancellationToken).ConfigureAwait(false);
             }
 
             var browser = new Browser(Session, new BrowserOptions
@@ -329,5 +460,7 @@ namespace Opc.Ua.AMB.Client
         {
             return value.TryGetValue(out LocalizedText text) && !text.IsNullOrEmpty ? text : default;
         }
+
+        private readonly AmbClientOptions? m_options;
     }
 }

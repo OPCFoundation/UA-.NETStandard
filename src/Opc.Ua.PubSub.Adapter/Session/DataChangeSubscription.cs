@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
     /// dynamically and the latest value of each is surfaced through the
     /// <see cref="DataChanged"/> event.
     /// </summary>
-    internal sealed class DataChangeSubscription : IDataChangeSubscription
+    internal sealed class DataChangeSubscription : IRangedDataChangeSubscription
     {
         private static readonly TimeSpan s_applyPollInterval = TimeSpan.FromMilliseconds(25);
 
@@ -104,6 +104,17 @@ namespace Opc.Ua.PubSub.Adapter.Session
             double samplingIntervalMs,
             CancellationToken ct = default)
         {
+            return AddMonitoredItemAsync(nodeId, attributeId, null, samplingIntervalMs, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<uint> AddMonitoredItemAsync(
+            NodeId nodeId,
+            uint attributeId,
+            string? indexRange,
+            double samplingIntervalMs,
+            CancellationToken ct = default)
+        {
             ThrowIfDisposed();
             if (nodeId.IsNull)
             {
@@ -116,6 +127,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             {
                 StartNodeId = nodeId,
                 AttributeId = attributeId,
+                IndexRange = NumericRange.Parse(indexRange ?? string.Empty).ToString(),
                 SamplingInterval = samplingIntervalMs >= 0
                     ? TimeSpan.FromMilliseconds(samplingIntervalMs)
                     : TimeSpan.FromMilliseconds(-1)

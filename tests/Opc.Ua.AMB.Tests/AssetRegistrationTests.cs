@@ -351,7 +351,7 @@ namespace Opc.Ua.AMB.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await handle!.UnregisterAsync(cancellation.Token).ConfigureAwait(false));
             bool registered = handle!.IsRegistered;
             ArrayOf<AliasNameDataType> listed = await server

@@ -235,28 +235,20 @@ namespace Opc.Ua.WotCon.Client
         /// Enumerates all currently registered asset entries below the
         /// management object using <c>Browse</c>.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async IAsyncEnumerable<WotAssetEntry> EnumerateAssetsAsync(
             [EnumeratorCancellation] CancellationToken ct = default)
         {
-            (_, _, ArrayOf<ReferenceDescription> references) = await Session.BrowseAsync(
-                requestHeader: null,
-                view: null,
-                ManagementObjectId,
-                maxResultsToReturn: 0,
-                BrowseDirection.Forward,
-                Ua.ReferenceTypeIds.Organizes,
-                includeSubtypes: true,
-                (uint)NodeClass.Object,
-                ct).ConfigureAwait(false);
-            var snapshot = new ReferenceDescription[references.Count];
-            for (int i = 0; i < references.Count; i++)
+            await foreach (ReferenceDescription reference in Session.EnumerateReferencesAsync(
+                ManagementObjectId, Ua.ReferenceTypeIds.Organizes, nodeClassMask: (uint)NodeClass.Object, ct: ct)
+                .ConfigureAwait(false))
             {
-                snapshot[i] = references[i];
-            }
-            foreach (ReferenceDescription reference in snapshot)
-            {
-                ct.ThrowIfCancellationRequested();
                 var targetId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                if (reference.NodeId.ServerIndex != 0 || targetId.IsNull)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        "The asset reference does not identify a node in the current session.");
+                }
                 yield return new WotAssetEntry(targetId, reference.DisplayName.Text ?? string.Empty);
             }
         }

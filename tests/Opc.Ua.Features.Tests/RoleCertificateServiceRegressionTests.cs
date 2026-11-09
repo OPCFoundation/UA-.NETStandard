@@ -64,44 +64,75 @@ namespace Opc.Ua.Features.Tests
             UserIdentity identity = await UserIdentity.CreateAsync(
                 new CertificateIdentifier { RawData = userCertificate.RawData },
                 Mock.Of<ICertificatePasswordProvider>(), provider.Object).ConfigureAwait(false);
-            using Client.ISession client = await OpenAuxSessionAsync(SecurityPolicies.Basic256Sha256, identity)
-                .ConfigureAwait(false);
-            Server.ISession serverSession = ReferenceServer.CurrentInstance.SessionManager.GetSessions()
-                .Single(value => value.Id == client.SessionId);
-            Certificate application = serverSession.ClientCertificate;
-            Assert.That(application.RawData, Is.Not.EqualTo(userCertificate.RawData));
-            var userRule = new IdentityMappingRuleType
-            {
-                CriteriaType = type,
-                Criteria = type == IdentityCriteriaType.Thumbprint ? userCertificate.Thumbprint : "CN=\"Regression User\""
-            };
-            var applicationRule = new IdentityMappingRuleType
-            {
-                CriteriaType = type,
-                Criteria = type == IdentityCriteriaType.Thumbprint
-                    ? application.Thumbprint
-                    : Server.IdentityRuleValidator.NormaliseX509Subject(application.Subject)
-            };
-            Server.IRoleManager roles = ReferenceServer.CurrentInstance.RoleManager;
+            await AddTrustedUserCertificateAsync(userCertificate).ConfigureAwait(false);
             try
             {
-                Assert.That(roles.AddIdentity(ObjectIds.WellKnownRole_Operator, userRule).StatusCode,
-                    Is.EqualTo(StatusCodes.Good));
-                Assert.That(roles.AddIdentity(ObjectIds.WellKnownRole_Engineer, applicationRule).StatusCode,
-                    Is.EqualTo(StatusCodes.Good));
-                DataValue read = await client.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
-                Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(serverSession.EffectiveIdentity.GrantedRoleIds.ToArray(),
-                    Has.Member(ObjectIds.WellKnownRole_Operator));
-                Assert.That(serverSession.EffectiveIdentity.GrantedRoleIds.ToArray(),
-                    Has.No.Member(ObjectIds.WellKnownRole_Engineer));
+                using Client.ISession client = await OpenAuxSessionAsync(SecurityPolicies.Basic256Sha256, identity)
+                    .ConfigureAwait(false);
+                Server.ISession serverSession = ReferenceServer.CurrentInstance.SessionManager.GetSessions()
+                    .Single(value => value.Id == client.SessionId);
+                Certificate application = serverSession.ClientCertificate;
+                Assert.That(application.RawData, Is.Not.EqualTo(userCertificate.RawData));
+                var userRule = new IdentityMappingRuleType
+                {
+                    CriteriaType = type,
+                    Criteria = type == IdentityCriteriaType.Thumbprint
+                        ? userCertificate.Thumbprint
+                        : "CN=\"Regression User\""
+                };
+                var applicationRule = new IdentityMappingRuleType
+                {
+                    CriteriaType = type,
+                    Criteria = type == IdentityCriteriaType.Thumbprint
+                        ? application.Thumbprint
+                        : Server.IdentityRuleValidator.NormaliseX509Subject(application.Subject)
+                };
+                Server.IRoleManager roles = ReferenceServer.CurrentInstance.RoleManager;
+                try
+                {
+                    Assert.That(roles.AddIdentity(ObjectIds.WellKnownRole_Operator, userRule).StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
+                    Assert.That(roles.AddIdentity(ObjectIds.WellKnownRole_Engineer, applicationRule).StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
+                    DataValue read = await client.ReadValueAsync(VariableIds.Server_ServerStatus_State)
+                        .ConfigureAwait(false);
+                    Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(serverSession.EffectiveIdentity.GrantedRoleIds.ToArray(),
+                        Has.Member(ObjectIds.WellKnownRole_Operator));
+                    Assert.That(serverSession.EffectiveIdentity.GrantedRoleIds.ToArray(),
+                        Has.No.Member(ObjectIds.WellKnownRole_Engineer));
+                }
+                finally
+                {
+                    roles.RemoveIdentity(ObjectIds.WellKnownRole_Operator, userRule);
+                    roles.RemoveIdentity(ObjectIds.WellKnownRole_Engineer, applicationRule);
+                    await client.CloseAsync(5000, true).ConfigureAwait(false);
+                }
             }
             finally
             {
-                roles.RemoveIdentity(ObjectIds.WellKnownRole_Operator, userRule);
-                roles.RemoveIdentity(ObjectIds.WellKnownRole_Engineer, applicationRule);
-                await client.CloseAsync(5000, true).ConfigureAwait(false);
+                await RemoveTrustedUserCertificateAsync(userCertificate).ConfigureAwait(false);
             }
+        }
+
+        private async Task AddTrustedUserCertificateAsync(Certificate certificate)
+        {
+            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration?.TrustedUserCertificates
+                ?? throw new ServiceResultException(StatusCodes.BadConfigurationError);
+            using ICertificateStore certificateStore = store.OpenStore(Telemetry);
+            using Certificate trusted = Certificate.FromRawData(certificate.RawData);
+            await certificateStore.AddAsync(trusted).ConfigureAwait(false);
+        }
+
+        private async Task RemoveTrustedUserCertificateAsync(Certificate certificate)
+        {
+            CertificateTrustList? store = ServerFixture.Config?.SecurityConfiguration?.TrustedUserCertificates;
+            if (store is null)
+            {
+                return;
+            }
+            using ICertificateStore certificateStore = store.OpenStore(Telemetry);
+            await certificateStore.DeleteAsync(certificate.Thumbprint).ConfigureAwait(false);
         }
 
         /// <summary>

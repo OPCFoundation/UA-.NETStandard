@@ -323,6 +323,116 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Optional classification that also returns the evidence it was derived from, so the
+    /// request queue can confirm an unchanged classification at dispatch without repeating
+    /// the owner, session and classifier lookups for every request.
+    /// </summary>
+    internal interface IResourceIsolationAdmissionEvidence
+    {
+        /// <summary>
+        /// Classifies like <see cref="IServerResourceIsolationProvider.Classify"/>. The
+        /// evidence is <c>null</c> when the classification cannot be confirmed cheaply later;
+        /// the caller then revalidates it in full.
+        /// </summary>
+        ResourceIsolationOwner Classify(
+            SecureChannelContext channelContext,
+            NodeId authenticationToken,
+            bool sessionEstablishment,
+            bool controlRequest,
+            out ResourceIsolationAdmissionEvidence? evidence);
+
+        /// <summary>
+        /// Returns <c>true</c> only when the evidence returned with the classification of this
+        /// request still holds, so a full revalidation would return Good. <c>false</c> means
+        /// only that the caller must revalidate in full, which determines the status.
+        /// </summary>
+        bool IsAdmissionCurrent(ResourceIsolationAdmissionEvidence evidence, SecureChannelContext channelContext);
+    }
+
+    /// <summary>
+    /// The inputs a provider derived a classification from, which it can confirm cheaply at
+    /// dispatch. Only the issuing provider interprets it; the request queue keeps it with the
+    /// request and hands it back.
+    /// </summary>
+    internal abstract record ResourceIsolationAdmissionEvidence;
+
+    /// <summary>
+    /// Reports a stage's aggregate capacity including protected floors, so the request queue can
+    /// size its physical bound to match the provider's envelope.
+    /// </summary>
+    internal interface IResourceIsolationCapacitySource
+    {
+        /// <summary>
+        /// Gets the aggregate capacity of a stage, including every reserved floor.
+        /// </summary>
+        long GetStageCapacity(ResourceIsolationStage stage);
+    }
+
+    /// <summary>
+    /// Admission that returns a reservation by value instead of a lease object, so the request
+    /// queue holds the stages of a request without one allocation per stage.
+    /// </summary>
+    /// <remarks>
+    /// A reservation is not idempotent: its holder releases it exactly once, with the stage,
+    /// owner and amount it was reserved with.
+    /// </remarks>
+    internal interface IResourceIsolationReservations
+    {
+        /// <summary>
+        /// Attempts immediate admission like <see cref="IServerResourceIsolationProvider.TryAcquire"/>.
+        /// </summary>
+        bool TryReserve(
+            ResourceIsolationStage stage,
+            ResourceIsolationOwner owner,
+            long amount,
+            out ResourceIsolationReservation reservation);
+
+        /// <summary>
+        /// Returns a successful reservation; called exactly once per reservation.
+        /// </summary>
+        void Release(
+            ResourceIsolationStage stage,
+            ResourceIsolationOwner owner,
+            long amount,
+            in ResourceIsolationReservation reservation);
+    }
+
+    /// <summary>
+    /// The accounting of one admitted stage beyond its stage, owner and amount. Only the
+    /// issuing provider interprets it.
+    /// </summary>
+    internal readonly struct ResourceIsolationReservation
+    {
+        /// <summary>
+        /// Captures a successful reservation.
+        /// </summary>
+        public ResourceIsolationReservation(
+            object accounting,
+            ResourceIsolationClass accountingClass,
+            long reserved)
+        {
+            Accounting = accounting;
+            AccountingClass = accountingClass;
+            Reserved = reserved;
+        }
+
+        /// <summary>
+        /// The provider's accounting state charged by the reservation.
+        /// </summary>
+        public object Accounting { get; }
+
+        /// <summary>
+        /// The owner-table class the reservation counts against.
+        /// </summary>
+        public ResourceIsolationClass AccountingClass { get; }
+
+        /// <summary>
+        /// Portion of the amount taken from a protected floor.
+        /// </summary>
+        public long Reserved { get; }
+    }
+
+    /// <summary>
     /// Optional capability exposed by server transport callbacks.
     /// </summary>
     public interface IResourceIsolationProviderSource

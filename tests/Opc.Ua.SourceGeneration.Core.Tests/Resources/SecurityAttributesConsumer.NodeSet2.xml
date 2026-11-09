@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>urn:test:security-consumer</Uri>
+    <Uri>urn:test:security-nodes</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="urn:test:security-consumer" Version="1.0.0" PublicationDate="2026-01-01T00:00:00Z">
+      <RequiredModel ModelUri="urn:test:security-nodes" Version="1.0.0">
+        <RequiredModel ModelUri="http://opcfoundation.org/UA/" />
+      </RequiredModel>
+    </Model>
+  </Models>
+  <UAObject NodeId="ns=1;i=5000" BrowseName="1:ConsumerDevice">
+    <References>
+      <Reference ReferenceType="i=40">ns=2;i=1000</Reference>
+      <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5001" BrowseName="1:ConsumerOverride">
+    <References>
+      <Reference ReferenceType="i=40">ns=2;i=1100</Reference>
+      <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>

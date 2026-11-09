@@ -25,11 +25,16 @@
     <PackageReference Include="System.Threading.Tasks.Extensions" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />
     <PackageReference Include="System.Text.Json" />
+    <!-- Runtime dependency of Opc.Ua.Core (redaction-aware logging): the emitted probes load the
+         stack from the Opc.Ua.Server output, whose package dependencies are not copied here. -->
+    <PackageReference Include="Microsoft.Extensions.Telemetry" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration.Core\Opc.Ua.SourceGeneration.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>

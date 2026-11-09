@@ -57,6 +57,9 @@ namespace Opc.Ua.Positioning.Tests
             });
         }
 
+        /// <summary>
+        /// Checks published declarations and distinct inherited identities across both models.
+        /// </summary>
         [Test]
         public void GeneratedLoadersPopulateBothModels()
         {
@@ -64,14 +67,19 @@ namespace Opc.Ua.Positioning.Tests
             {
                 NamespaceUris = new NamespaceTable()
             };
-            context.NamespaceUris.GetIndexOrAppend(Rsl.Namespaces.RSL);
-            context.NamespaceUris.GetIndexOrAppend(Gpos.Namespaces.GPOS);
+            ushort rslIndex = context.NamespaceUris.GetIndexOrAppend(Rsl.Namespaces.RSL);
+            ushort gposIndex = context.NamespaceUris.GetIndexOrAppend(Gpos.Namespaces.GPOS);
             var nodes = new NodeStateCollection();
 
             nodes.AddOpcUaRsl(context);
             int rslCount = CountNodes(context, nodes);
             nodes.AddOpcUaGpos(context);
             int totalCount = CountNodes(context, nodes);
+            NodeState locationType = nodes.Single(node =>
+                node.NodeId == new NodeId(Gpos.VariableTypes.GlobalLocationType, gposIndex));
+            BaseInstanceState? inheritedBase = locationType.FindChild(
+                context, new QualifiedName(Rsl.BrowseNames.Base, rslIndex));
+            Assert.That(inheritedBase, Is.Not.Null);
 
             Assert.Multiple(() =>
             {
@@ -80,7 +88,11 @@ namespace Opc.Ua.Positioning.Tests
                 // OPCXmlSchema). Both are linked to their ns=0 parent only by an
                 // inverse HasComponent and used to be dropped by the NodeSet import.
                 Assert.That(rslCount, Is.EqualTo(54));
-                Assert.That(totalCount, Is.EqualTo(123));
+                // The inherited Base must not borrow RSL's 6002 in GPOS, where it identifies NamespaceUri.
+                Assert.That(totalCount, Is.EqualTo(124));
+                Assert.That(inheritedBase!.NodeId.IdType, Is.EqualTo(IdType.String));
+                Assert.That(inheritedBase.NodeId.NamespaceIndex, Is.EqualTo(gposIndex));
+                Assert.That(inheritedBase.NodeId, Is.Not.EqualTo(new NodeId(6002, gposIndex)));
                 Assert.That(
                     nodes.Any(node => node.NodeId == NodeId.Create(
                         Rsl.Objects.RelativeSpatialLocations,
@@ -96,11 +108,14 @@ namespace Opc.Ua.Positioning.Tests
             });
         }
 
+        /// <summary>
+        /// Counts unique declarations without hiding conflicting identifiers.
+        /// </summary>
         private static int CountNodes(
             ISystemContext context,
             NodeStateCollection roots)
         {
-            var visited = new HashSet<NodeId>();
+            var visited = new Dictionary<NodeId, NodeState>();
             foreach (NodeState root in roots)
             {
                 CountNode(context, root, visited);
@@ -108,15 +123,24 @@ namespace Opc.Ua.Positioning.Tests
             return visited.Count;
         }
 
+        /// <summary>
+        /// Traverses child declarations and validates repeated references to a node.
+        /// </summary>
         private static void CountNode(
             ISystemContext context,
             NodeState node,
-            HashSet<NodeId> visited)
+            Dictionary<NodeId, NodeState> visited)
         {
-            if (!visited.Add(node.NodeId))
+            if (visited.TryGetValue(node.NodeId, out NodeState? prior))
             {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(node.NodeClass, Is.EqualTo(prior.NodeClass), node.NodeId.ToString());
+                    Assert.That(node.BrowseName, Is.EqualTo(prior.BrowseName), node.NodeId.ToString());
+                });
                 return;
             }
+            visited.Add(node.NodeId, node);
 
             var children = new List<BaseInstanceState>();
             node.GetChildren(context, children);

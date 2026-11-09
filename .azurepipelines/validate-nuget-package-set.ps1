@@ -171,7 +171,7 @@ if ($orphanedSymbols.Count -gt 0) {
 }
 
 $debugPackages = @($normalPackages | Where-Object {
-    $_.id.EndsWith('.Debug', [System.StringComparison]::OrdinalIgnoreCase)
+    Test-DebugPackageId -PackageId $_.id
 })
 if ($RequireDebug -and $debugPackages.Count -eq 0) {
     throw 'The package set does not contain any .Debug package IDs.'

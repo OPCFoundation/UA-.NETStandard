@@ -34,7 +34,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using Opc.Ua.OpenUsd.Scene;
 
 namespace Opc.Ua.OpenUsd.Scene.Conversion
 {
@@ -244,7 +243,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             // Layer metadata is read from the raw text: the '#usda 1.0 ( ... )' header is a magic
             // token, not a comment, and the paren scan is string-aware, so it survives untouched.
             // Comments are then stripped only from the prim body that follows.
-            string rawBody = ReadLayerMetadata(rawText, out var meta);
+            string rawBody = ReadLayerMetadata(rawText, out LayerMeta meta);
             string body = StripComments(rawBody);
 
             var stage = new UsdStage(stageName)
@@ -341,11 +340,11 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     int closeParen = ScanPrimMetaClose(ln, ref metaDepth);
                     if (closeParen >= 0)
                     {
-                        metaLines.Add(ln.Substring(0, closeParen));
+                        metaLines.Add(ln[..closeParen]);
                         inMeta = false;
                         ApplyPrimMeta(pending, metaLines);
-                        metaLines = new List<string>();
-                        if (FindUnquoted(ln.Substring(closeParen + 1), '{') >= 0)
+                        metaLines = [];
+                        if (FindUnquoted(ln[(closeParen + 1)..], '{') >= 0)
                         {
                             Attach(stage, stack, pending);
                             pending = null;
@@ -377,15 +376,15 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     if (paren || FindUnquoted(ln, '(') >= 0)
                     {
                         int openParen = FindUnquoted(ln, '(');
-                        string after = openParen >= 0 ? ln.Substring(openParen + 1) : string.Empty;
+                        string after = openParen >= 0 ? ln[(openParen + 1)..] : string.Empty;
                         metaDepth = 0;
                         int closeParen = ScanPrimMetaClose(after, ref metaDepth);
                         if (closeParen >= 0)
                         {
-                            metaLines = new List<string> { after.Substring(0, closeParen) };
+                            metaLines = [after[..closeParen]];
                             ApplyPrimMeta(pending, metaLines);
-                            metaLines = new List<string>();
-                            if (FindUnquoted(after.Substring(closeParen + 1), '{') >= 0)
+                            metaLines = [];
+                            if (FindUnquoted(after[(closeParen + 1)..], '{') >= 0)
                             {
                                 Attach(stage, stack, pending);
                                 pending = null;
@@ -394,7 +393,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                         else
                         {
                             inMeta = true;
-                            metaLines = new List<string> { after };
+                            metaLines = [after];
                         }
                     }
                     else if (ContainsChar(ln, '{'))
@@ -418,7 +417,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     if (vsm.Success)
                     {
                         string setName = vsm.Groups[1].Value;
-                        UsdPrim owner = stack[stack.Count - 1];
+                        UsdPrim owner = stack[^1];
                         UsdVariantSet? set = owner.VariantSets.FirstOrDefault(
                             v => string.Equals(v.SetName, setName, StringComparison.Ordinal));
                         if (set == null)
@@ -444,7 +443,8 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     }
                 }
 
-                if (ContainsChar(ln, '}'))
+                int scopeClose = FindUnquoted(ln, '}');
+                if (scopeClose >= 0)
                 {
                     // A single-line '.timeSamples = { ... }' declaration carries a '}' that closes
                     // the sample block, not a prim scope; route it to attribute handling below
@@ -453,14 +453,15 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     if (!tsm.Success
                         || !string.Equals(tsm.Groups[5].Value, ".timeSamples", StringComparison.Ordinal))
                     {
-                        int count = ln.Count(c => c == '}');
-                        for (int i = 0; i < count; i++)
+                        do
                         {
                             if (stack.Count > 0)
                             {
                                 stack.RemoveAt(stack.Count - 1);
                             }
+                            scopeClose = FindUnquoted(ln, '}', scopeClose + 1);
                         }
+                        while (scopeClose >= 0);
                         continue;
                     }
                 }
@@ -470,7 +471,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     continue;
                 }
 
-                UsdPrim cur = stack[stack.Count - 1];
+                UsdPrim cur = stack[^1];
 
                 Match rm = RelRegex().Match(ln);
                 if (rm.Success)
@@ -507,11 +508,11 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                         UsdAttribute target = FindOrCreateAttribute(cur, attrName, typeName, uniform, custom);
                         string block = valueText ?? string.Empty;
                         int open = FindUnquoted(block, '{');
-                        string afterOpen = open >= 0 ? block.Substring(open + 1) : string.Empty;
+                        string afterOpen = open >= 0 ? block[(open + 1)..] : string.Empty;
                         int close = FindUnquoted(afterOpen, '}');
                         if (close >= 0)
                         {
-                            ParseTimeSamples(afterOpen.Substring(0, close), target);
+                            ParseTimeSamples(afterOpen[..close], target);
                         }
                         else
                         {
@@ -548,7 +549,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         {
             if (stack.Count > 0)
             {
-                stack[stack.Count - 1].AddChild(prim);
+                stack[^1].AddChild(prim);
             }
             else
             {
@@ -638,7 +639,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 {
                     break;
                 }
-                string branchName = blockContent.Substring(nameStart, nameEnd - nameStart);
+                string branchName = blockContent[nameStart..nameEnd];
 
                 int j = nameEnd + 1;
                 while (j < n && char.IsWhiteSpace(blockContent[j]))
@@ -667,7 +668,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 {
                     break;
                 }
-                string body = blockContent.Substring(bodyStart, bodyEnd - bodyStart);
+                string body = blockContent[bodyStart..bodyEnd];
 
                 var temp = new UsdStage("variant");
                 ParseBody("def \"" + branchName + "\" {\n" + body + "\n}", temp);
@@ -683,37 +684,56 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
 
         /// <summary>
         /// Returns the index just past the matching close delimiter for the open delimiter at
-        /// <paramref name="start"/>, honouring double-quoted and <c>@asset@</c> spans.
+        /// <paramref name="start"/>, honoring escaped quoted literals and <c>@asset@</c> spans.
         /// </summary>
         private static int SkipBalanced(string text, int start, char open, char close)
         {
             int depth = 0;
             bool inQuote = false;
+            char quote = '\0';
             bool inAsset = false;
             for (int k = start; k < text.Length; k++)
             {
                 char ch = text[k];
-                if (ch == '"' && !inAsset)
+                if (inQuote)
                 {
-                    inQuote = !inQuote;
-                }
-                else if (ch == '@' && !inQuote)
-                {
-                    inAsset = !inAsset;
-                }
-                else if (!inQuote && !inAsset)
-                {
-                    if (ch == open)
+                    if (ch == '\\')
                     {
-                        depth++;
+                        k++;
                     }
-                    else if (ch == close)
+                    else if (ch == quote)
                     {
-                        depth--;
-                        if (depth == 0)
-                        {
-                            return k + 1;
-                        }
+                        inQuote = false;
+                    }
+                    continue;
+                }
+                if (inAsset)
+                {
+                    if (ch == '@')
+                    {
+                        inAsset = false;
+                    }
+                    continue;
+                }
+                if (ch is '"' or '\'')
+                {
+                    inQuote = true;
+                    quote = ch;
+                }
+                else if (ch == '@')
+                {
+                    inAsset = true;
+                }
+                else if (ch == open)
+                {
+                    depth++;
+                }
+                else if (ch == close)
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return k + 1;
                     }
                 }
             }
@@ -721,8 +741,8 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         }
 
         /// <summary>
-        /// Removes <c>#</c> line comments, honouring double-quoted spans (port of
-        /// <c>_strip_comments</c>). Quote state is tracked per line, matching the reference.
+        /// Removes <c>#</c> line comments while honoring escaped quoted literals and asset paths.
+        /// Literal state is tracked per line.
         /// </summary>
         /// <param name="text">The raw layer text.</param>
         /// <returns>The text with comments removed.</returns>
@@ -732,21 +752,8 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             foreach (string rawLine in text.Split('\n'))
             {
                 string line = rawLine.TrimEnd('\r');
-                bool inQuote = false;
-                var sb = new StringBuilder(line.Length);
-                foreach (char ch in line)
-                {
-                    if (ch == '"')
-                    {
-                        inQuote = !inQuote;
-                    }
-                    if (ch == '#' && !inQuote)
-                    {
-                        break;
-                    }
-                    sb.Append(ch);
-                }
-                outLines.Add(sb.ToString());
+                int commentStart = FindUnquoted(line, '#');
+                outLines.Add(commentStart >= 0 ? line[..commentStart] : line);
             }
             return string.Join("\n", outLines);
         }
@@ -772,13 +779,13 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             {
                 return UsdValue.Null;
             }
-            if (v.Length >= 2 && v[0] == '<' && v[v.Length - 1] == '>')
+            if (v.Length >= 2 && v[0] == '<' && v[^1] == '>')
             {
-                return UsdValue.FromPathReference(v.Substring(1, v.Length - 2));
+                return UsdValue.FromPathReference(v[1..^1]);
             }
-            if (v.Length >= 2 && v[0] == '@' && v[v.Length - 1] == '@')
+            if (v.Length >= 2 && v[0] == '@' && v[^1] == '@')
             {
-                return UsdValue.FromAssetPath(v.Substring(1, v.Length - 2));
+                return UsdValue.FromAssetPath(v[1..^1]);
             }
             if (string.Equals(v, "true", StringComparison.Ordinal))
             {
@@ -860,7 +867,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             }
             if (parsed.TryGetArray(out ArrayOf<UsdValue> list))
             {
-                System.ReadOnlySpan<UsdValue> items = list.Span;
+                ReadOnlySpan<UsdValue> items = list.Span;
                 for (int ii = 0; ii < items.Length; ii++)
                 {
                     if (items[ii].TryGetText(out string s))
@@ -1024,7 +1031,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 // No 'timeCode: value' separator: an empty entry (trailing comma) or malformed.
                 return;
             }
-            string timeText = inner.Substring(start, colon - start).Trim();
+            string timeText = inner[start..colon].Trim();
             string valueText = inner.Substring(colon + 1, end - colon - 1).Trim();
             if (timeText.Length == 0
                 || !double.TryParse(timeText, NumberStyles.Float, CultureInfo.InvariantCulture, out double timeCode))
@@ -1104,15 +1111,15 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             return -1;
         }
 
-        // Returns the index of the first occurrence of <paramref name="target"/> that is not inside
-        // a double/single-quoted span or an '@…@' asset delimiter, or -1. Used to find a
-        // '.timeSamples' block's closing brace without tripping on a braced character in a string.
-        private static int FindUnquoted(string line, char target)
+        /// <summary>
+        /// Finds the next delimiter outside quoted and asset literals, starting outside a literal.
+        /// </summary>
+        private static int FindUnquoted(string line, char target, int startIndex = 0)
         {
             bool inQuote = false;
             char quote = '\0';
             bool inAsset = false;
-            for (int i = 0; i < line.Length; i++)
+            for (int i = startIndex; i < line.Length; i++)
             {
                 char c = line[i];
                 if (inQuote)
@@ -1135,7 +1142,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     }
                     continue;
                 }
-                if (c == '"' || c == '\'')
+                if (c is '"' or '\'')
                 {
                     inQuote = true;
                     quote = c;
@@ -1151,8 +1158,6 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             }
             return -1;
         }
-
-        // ----- literal parsing (numbers / quoted strings / tuples / arrays) -----
 
         private static bool TryParseLiteral(string s, out UsdValue result)
         {
@@ -1182,7 +1187,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             {
                 return TryParseSequence(s, ref pos, ']', asTuple: false, out result);
             }
-            if (c == '"' || c == '\'')
+            if (c is '"' or '\'')
             {
                 return TryParseQuoted(s, ref pos, out result);
             }
@@ -1194,7 +1199,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             {
                 return TryParsePathReference(s, ref pos, out result);
             }
-            if (c == '-' || c == '+' || c == '.' || (c >= '0' && c <= '9'))
+            if (c is '-' or '+' or '.' or >= '0' and <= '9')
             {
                 return TryParseNumber(s, ref pos, out result);
             }
@@ -1280,7 +1285,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
 
         private static UsdValue Compose(List<UsdValue> items, bool asTuple)
         {
-            ArrayOf<UsdValue> values = items.ToArrayOf();
+            var values = items.ToArrayOf();
             return asTuple ? UsdValue.FromTuple(values) : UsdValue.FromArray(values);
         }
 
@@ -1325,14 +1330,14 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             while (pos < s.Length)
             {
                 char c = s[pos];
-                if ((c >= '0' && c <= '9') || c == '+' || c == '-' || c == '.' || c == 'e' || c == 'E')
+                if (c is >= '0' and <= '9' or '+' or '-' or '.' or 'e' or 'E')
                 {
                     pos++;
                     continue;
                 }
                 break;
             }
-            string token = s.Substring(start, pos - start);
+            string token = s[start..pos];
             if (IntRegex().IsMatch(token))
             {
                 result = ParseIntegral(token);
@@ -1411,7 +1416,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 ExtractNumber(block, "startTimeCode"),
                 ExtractNumber(block, "endTimeCode"));
 
-            return text.Substring(close + 1);
+            return text[(close + 1)..];
         }
 
         private static bool TryFindMatchingParen(string text, int openIndex, out int closeIndex)
@@ -1501,43 +1506,47 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             return null;
         }
 
-        // ----- prim metadata -----
-
+        /// <summary>
+        /// Applies top-level prim metadata without reinterpreting syntax-looking text in its values.
+        /// </summary>
         private static void ApplyPrimMeta(UsdPrim prim, List<string> metaLines)
         {
             string block = string.Join("\n", metaLines);
+            List<(string Key, string Text)> entries = ReadPrimMetadataEntries(block);
+            string documentation = SelectPrimMetadataEntries(entries, "doc");
 
-            Match doc = DocTripleRegex().Match(block);
+            Match doc = DocTripleRegex().Match(documentation);
             if (doc.Success)
             {
                 prim.Documentation = doc.Groups[1].Value.Trim();
             }
             else
             {
-                Match docSingle = DocSingleRegex().Match(block);
+                Match docSingle = DocSingleRegex().Match(documentation);
                 if (docSingle.Success)
                 {
                     prim.Documentation = docSingle.Groups[1].Value.Trim();
                 }
             }
 
-            Match kind = KindRegex().Match(block);
+            Match kind = KindRegex().Match(SelectPrimMetadataEntries(entries, "kind"));
             if (kind.Success)
             {
                 prim.Kind = ParseKind(kind.Groups[1].Value);
             }
 
-            Match active = ActiveRegex().Match(block);
+            Match active = ActiveRegex().Match(SelectPrimMetadataEntries(entries, "active"));
             if (active.Success)
             {
                 prim.Active = string.Equals(active.Groups[1].Value, "true", StringComparison.Ordinal);
             }
 
-            Match instance = InstanceableRegex().Match(block);
-            bool instanceable = instance.Success && string.Equals(instance.Groups[1].Value, "true", StringComparison.Ordinal);
+            Match instance = InstanceableRegex().Match(SelectPrimMetadataEntries(entries, "instanceable"));
+            bool instanceable = instance.Success &&
+                string.Equals(instance.Groups[1].Value, "true", StringComparison.Ordinal);
             prim.Instanceable = instanceable;
 
-            Match apis = ApiSchemasRegex().Match(block);
+            Match apis = ApiSchemasRegex().Match(SelectPrimMetadataEntries(entries, "apiSchemas"));
             if (apis.Success)
             {
                 foreach (Match schema in QuotedTokenRegex().Matches(apis.Groups[1].Value))
@@ -1546,7 +1555,9 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 }
             }
 
-            foreach (Match arc in ArcRegex().Matches(block))
+            string composition = SelectPrimMetadataEntries(
+                entries, "references", "payload", "inherits", "specializes");
+            foreach (Match arc in ArcRegex().Matches(composition))
             {
                 UsdArcKindEnum arcKind = arc.Groups[2].Value switch
                 {
@@ -1563,7 +1574,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 });
             }
 
-            foreach (Match variant in VariantRegex().Matches(block))
+            foreach (Match variant in VariantRegex().Matches(SelectPrimMetadataEntries(entries, "variants")))
             {
                 prim.VariantSets.Add(new UsdVariantSet(variant.Groups[1].Value, variant.Groups[2].Value));
             }
@@ -1571,7 +1582,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             if (instanceable)
             {
                 UsdCompositionArc? reference = prim.Composition.FirstOrDefault(
-                    a => a.ArcKind == UsdArcKindEnum.Reference || a.ArcKind == UsdArcKindEnum.Payload);
+                    a => a.ArcKind is UsdArcKindEnum.Reference or UsdArcKindEnum.Payload);
                 if (reference != null)
                 {
                     prim.Composition.Add(new UsdCompositionArc(UsdArcKindEnum.Instance)
@@ -1586,17 +1597,55 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             ApplyCustomPrimMeta(prim, block);
         }
 
+        /// <summary>
+        /// Separates actual top-level metadata fields from syntax-looking text inside their values.
+        /// </summary>
+        private static List<(string Key, string Text)> ReadPrimMetadataEntries(string block)
+        {
+            var entries = new List<(string Key, string Text)>();
+            int position = 0;
+            while (position < block.Length)
+            {
+                int start = position;
+                if (!TryReadMetaEntry(block, ref position, out string key, out _, out _))
+                {
+                    break;
+                }
+                if (key.Length > 0)
+                {
+                    entries.Add((key, block[start..position]));
+                }
+            }
+            return entries;
+        }
+
+        /// <summary>
+        /// Restricts typed metadata recognizers to their own fields, retaining authored order.
+        /// </summary>
+        private static string SelectPrimMetadataEntries(
+            List<(string Key, string Text)> entries, params string[] keys)
+        {
+            var text = new StringBuilder();
+            foreach ((string Key, string Text) in entries)
+            {
+                if (Array.IndexOf(keys, Key) >= 0)
+                {
+                    text.Append(Text).Append('\n');
+                }
+            }
+            return text.ToString();
+        }
+
         // Metadata field keys the reader already binds to typed prim state above; they are excluded
         // from the §6.3 custom-metadata dictionary so a round trip re-emits them from that typed
         // state, not twice. A list-op arc (prepend/append/delete references/payload/… and
         // apiSchemas/variantSets) is excluded by its qualifier rather than by name.
-        private static readonly HashSet<string> s_wellKnownPrimMeta = new HashSet<string>(
-            new[]
-            {
+        private static readonly HashSet<string> s_wellKnownPrimMeta = new(
+            [
                 "doc", "documentation", "kind", "active", "instanceable",
                 "apiSchemas", "references", "payload", "inherits", "specializes",
                 "variants", "variantSets", "typeName", "specifier",
-            }, StringComparer.Ordinal);
+            ], StringComparer.Ordinal);
 
         /// <summary>
         /// Populates <see cref="UsdPrim.Metadata"/> with the §6.3 custom (non-well-known) metadata
@@ -1649,12 +1698,12 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     sawEquals = true;
                     break;
                 }
-                if (c == '\n' || c == ',' || c == ';')
+                if (c is '\n' or ',' or ';')
                 {
                     pos++;
                     break;
                 }
-                if (c == ' ' || c == '\t' || c == '\r')
+                if (c is ' ' or '\t' or '\r')
                 {
                     if (word.Length > 0)
                     {
@@ -1664,7 +1713,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     pos++;
                     continue;
                 }
-                if (c == '{' || c == '(' || c == '<' || c == '@' || c == '"' || c == '\'')
+                if (c is '{' or '(' or '<' or '@' or '"' or '\'')
                 {
                     // A value token before any '=' is leftover from a preceding entry (for example a
                     // bare '<Path>' after a list-op arc). Consume and ignore it so scanning advances.
@@ -1684,7 +1733,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 return true;
             }
 
-            key = words[words.Count - 1];
+            key = words[^1];
             for (int i = 0; i < words.Count - 1; i++)
             {
                 if (string.Equals(words[i], "prepend", StringComparison.Ordinal)
@@ -1758,7 +1807,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     pos++;
                     continue;
                 }
-                if (c == '"' || c == '\'')
+                if (c is '"' or '\'')
                 {
                     inQuote = true;
                     quote = c;
@@ -1771,13 +1820,13 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     pos++;
                     continue;
                 }
-                if (c == '(' || c == '[' || c == '{')
+                if (c is '(' or '[' or '{')
                 {
                     depth++;
                     pos++;
                     continue;
                 }
-                if (c == ')' || c == ']' || c == '}')
+                if (c is ')' or ']' or '}')
                 {
                     if (depth > 0)
                     {
@@ -1792,7 +1841,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 }
                 pos++;
             }
-            return ParseValue(s.Substring(valueStart, pos - valueStart).Trim());
+            return ParseValue(s[valueStart..pos].Trim());
         }
 
         private static void SkipMetaSeparators(string s, ref int pos)
@@ -1800,7 +1849,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             while (pos < s.Length)
             {
                 char c = s[pos];
-                if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == ',' || c == ';')
+                if (c is ' ' or '\t' or '\r' or '\n' or ',' or ';')
                 {
                     pos++;
                     continue;

@@ -51,8 +51,21 @@ interpretable. That costs one extra round trip per group; pass
 ## Supervision
 
 `PumpSupervisionStatus.ActiveSignals` collapses the roughly 150 boolean fault
-signals across the seven categories into just the ones currently raised —
-which is normally the question being asked.
+signals across the seven categories into just the ones currently raised.
+
+## Writes and shared services
+
+`WriteAssetIdAsync`, `WriteComponentNameAsync` and `WriteLocationAsync`
+resolve namespace-qualified identity members and require one complete local
+target per resolution step, followed by one Good write result under a Good
+service response. These checks also apply to clients created without a browse limit.
+The server controls authorization and durable storage. These methods do not
+write pump control signals.
+
+Use `pumps.Session.Historian()` for raw, processed and event history and
+`session.GetAlarmClient(telemetry)` for standard condition operations. The
+Pumps client reuses those shared services rather than defining a second
+historian or alarm protocol.
 
 ## Hosting
 

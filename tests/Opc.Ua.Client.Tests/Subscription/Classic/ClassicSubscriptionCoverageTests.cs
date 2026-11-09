@@ -464,77 +464,77 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CreateAsyncWithoutSessionThrowsInvalidState()
+        public async Task CreateAsyncWithoutSessionThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.CreateAsync());
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void CreateItemsAsyncWithoutSessionThrowsInvalidState()
+        public async Task CreateItemsAsyncWithoutSessionThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.CreateItemsAsync());
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void ModifyAsyncWhenNotCreatedThrowsInvalidState()
+        public async Task ModifyAsyncWhenNotCreatedThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.ModifyAsync());
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void SetPublishingModeAsyncWhenNotCreatedThrowsInvalidState()
+        public async Task SetPublishingModeAsyncWhenNotCreatedThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.SetPublishingModeAsync(true));
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void ResolveItemNodeIdsAsyncWhenNotCreatedThrowsInvalidState()
+        public async Task ResolveItemNodeIdsAsyncWhenNotCreatedThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.ResolveItemNodeIdsAsync());
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void ModifyItemsAsyncWhenNotCreatedThrowsInvalidState()
+        public async Task ModifyItemsAsyncWhenNotCreatedThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.ModifyItemsAsync());
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void DeleteItemsAsyncWhenNotCreatedThrowsInvalidState()
+        public async Task DeleteItemsAsyncWhenNotCreatedThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.DeleteItemsAsync());
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
@@ -581,7 +581,7 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(item);
             subscription.RemoveItem(item);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.DeleteItemsAsync());
             ArrayOf<MonitoredItem> deleted = await subscription.DeleteItemsAsync()
                 .ConfigureAwait(false);
@@ -641,55 +641,55 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ResendDataAsyncWhenNotCreatedThrowsInvalidState()
+        public async Task ResendDataAsyncWhenNotCreatedThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.ResendDataAsync());
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void ConditionRefreshAsyncWhenNotCreatedThrowsInvalidState()
+        public async Task ConditionRefreshAsyncWhenNotCreatedThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.ConditionRefreshAsync());
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void RepublishAsyncWhenNotCreatedThrowsInvalidState()
+        public async Task RepublishAsyncWhenNotCreatedThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.RepublishAsync(1));
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void SetMonitoringModeAsyncWhenNotCreatedThrowsInvalidState()
+        public async Task SetMonitoringModeAsyncWhenNotCreatedThrowsInvalidState()
         {
             using Subscription subscription = CreateSubscription();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => subscription.SetMonitoringModeAsync(MonitoringMode.Reporting, []));
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void DeleteAsyncSilentWhenNotCreatedDoesNotThrow()
+        public async Task DeleteAsyncSilentWhenNotCreatedDoesNotThrow()
         {
             using Subscription subscription = CreateSubscription();
 
-            Assert.DoesNotThrowAsync(() => subscription.DeleteAsync(true));
+            await Assert.DoesNotThrowAsync(() => subscription.DeleteAsync(true));
             Assert.That(subscription.Created, Is.False);
         }
 
@@ -1185,6 +1185,43 @@ namespace Opc.Ua.Client.Tests
                 It.IsAny<uint>(),
                 It.IsAny<bool>(),
                 It.IsAny<byte>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Legacy unknown target metadata is not an obstacle to adopting and maintaining an item.
+        /// </summary>
+        [Test]
+        public async Task RestoredRelativePathItemAllowsApplyWithoutTranslationAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            MonitoredItem item = CreateItem(500u, "RestoredPath");
+            item.Restore(new MonitoredItemState
+            {
+                StartNodeId = ObjectIds.ObjectsFolder,
+                RelativePath = "/Child",
+                ServerId = 55,
+                ClientId = 500
+            });
+            subscription.AddItem(item);
+            Mock<ISession> session = CreateGetMonitoredItemsSession([55u], [500u]);
+            subscription.Session = session.Object;
+            Assert.That(await subscription.TransferAsync(session.Object, 9, []).ConfigureAwait(false), Is.True);
+
+            await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            await subscription.ResolveItemNodeIdsAsync().ConfigureAwait(false);
+
+            Assert.That(item.ServerId, Is.EqualTo(55u));
+            Assert.That(item.ResolvedNodeId.IsNull, Is.True);
+            session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<ArrayOf<BrowsePath>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(s => s.CreateMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<uint>(),
+                It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
                 It.IsAny<CancellationToken>()), Times.Never);
         }
 

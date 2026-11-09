@@ -65,7 +65,8 @@ namespace Opc.Ua.PubSub.Application
         IReadOnlyList<IPubSubConnection> Connections { get; }
 
         /// <summary>
-        /// Shared metadata registry.
+        /// Host-trusted metadata shared by connections. Received announcements
+        /// remain in the receiving connection's metadata scope.
         /// </summary>
         IDataSetMetaDataRegistry MetaDataRegistry { get; }
 

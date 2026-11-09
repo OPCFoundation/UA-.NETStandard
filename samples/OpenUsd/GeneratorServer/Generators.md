@@ -72,7 +72,7 @@ I      = S / (√3 · V_LL)                   line current    [A]
 f      = N · p / 120                       frequency       [Hz]
 ```
 
-This is not a stylistic choice. When each measurement is an independent
+When each measurement is an independent
 oscillator — as the pump sample's simulation once was — a server happily
 publishes a duty point that no real machine could occupy, and no test can catch
 it because there is nothing for the values to be inconsistent *with*. Deriving
@@ -86,9 +86,9 @@ simulation all read the same constants, so they cannot drift apart.
 ## Control surfaces
 
 The specification defines three ways to observe and command a set, and all three
-are driven from the **same** decider: the simulation's operating state. This is
-the design point worth copying. A state machine advanced independently of the
-physics that produced it will eventually report a machine as running while the
+are driven from the **same** decider: the simulation's operating state. A state
+machine advanced independently of the physics that produced it will eventually
+report a machine as running while the
 simulation says it is stopped — and because both halves are internally consistent,
 nothing at run time notices.
 
@@ -136,9 +136,10 @@ protections.** The datasheet curves are bounded inside every trip point by
 construction, so a faithful simulation of a healthy machine leaves the entire
 protection path — alarms, shutdown class, `ResetFaults`, the `Fault` branch of the
 state machine — as dead code, while the documentation describes it as working. The
-sample therefore injects a deviation into the *measurement* rather than the curve,
-which is what a real fault is, and rotates it so a long run exercises every
-protection. The lesson generalises: when the model says a thing cannot happen, the
+sample therefore injects measurement deviations while leaving the healthy
+characteristic curves unchanged. It rotates those deviations to exercise the
+protection paths; this is a test fault model, not a complete model of physical
+failure. When the model says a thing cannot happen, the
 code that handles it needs a deliberate way to be reached, or it is untested.
 
 **Trip after evaluating, not during.** Stopping the set inside the evaluation loop
@@ -165,7 +166,7 @@ only on change. A shutdown-class trip stops the machine; a warning does not —
 reporting a trip without stopping the set would publish a generator that is on fire
 and still loaded.
 
-One trap worth naming: supervising low oil pressure during cranking trips every set
+Supervising low oil pressure during cranking trips every set
 the moment it tries to start, because pressure has not built yet. Real sets bypass
 that trip for exactly this reason.
 
@@ -188,14 +189,15 @@ on their own threads, and both drive state transitions and write the same
 address-space nodes. They are serialised by a single gate held across the whole
 tick and across every method handler.
 
-This matters more than it looks. Without it, a tick moving a set to `Cooldown` and
-a concurrent `EmergencyStop` both fire the state-change callback, and the paired
+Without it, a tick moving a set to `Cooldown` and a concurrent `EmergencyStop`
+both fire the state-change callback, and the paired
 `CurrentState` / `CurrentState.Id` writes interleave — leaving a client with a
 state *name* from one transition and a state *node* from the other. That is the
 precise failure the paired write exists to prevent, reintroduced by the threading
-model rather than by the write itself. One gate for the whole plant rather than one
-per set: a tick is microseconds of arithmetic, so the contention is irrelevant, and
-a single gate cannot be acquired in the wrong order.
+model rather than by the write itself. The sample uses one gate for the whole plant
+rather than one per set. This avoids ordering multiple per-set gates, but serializes
+ticks and method handlers; contention depends on tick work and concurrent request
+load and should be measured before increasing the simulated plant size.
 
 ## Cross-server composition
 

@@ -63,7 +63,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             using var client = new ModbusTcpClient("127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
             await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ModbusException>(async () =>
+            await Assert.ThrowsAsync<ModbusException>(async () =>
                 await client.ReadHoldingRegistersAsync(1, 0, 2, CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -80,7 +80,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             using var client = new ModbusTcpClient("127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
             await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ModbusException>(async () =>
+            await Assert.ThrowsAsync<ModbusException>(async () =>
                 await client.ReadCoilsAsync(1, 0, 9, CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -102,7 +102,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
 
             // The silent server causes the request to time out.
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
 
             // The connection is now faulted, so the next operation opens a fresh
@@ -129,12 +129,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             server.RejectConnections = true;
             server.DisconnectClients();
 
-            Exception? dropped = Assert.CatchAsync<Exception>(async () =>
+            Exception? dropped = await Assert.CatchAsync<Exception>(async () =>
                 await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
             Assert.That(dropped, Is.TypeOf<ModbusException>().Or.TypeOf<System.IO.IOException>());
 
             int acceptedBeforeReconnect = server.AcceptedConnectionCount;
-            Exception? rejected = Assert.CatchAsync<Exception>(async () =>
+            Exception? rejected = await Assert.CatchAsync<Exception>(async () =>
                 await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
             Assert.That(rejected, Is.TypeOf<ModbusException>().Or.TypeOf<System.IO.IOException>());
             Assert.That(
@@ -172,12 +172,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void WriteMultipleCoilsRejectsQuantityAboveProtocolMaximum()
+        public async Task WriteMultipleCoilsRejectsQuantityAboveProtocolMaximum()
         {
             using var client = new ModbusTcpClient(
                 "127.0.0.1", 502, TimeSpan.FromSeconds(2));
 
-            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            ArgumentOutOfRangeException? exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await client
                     .WriteMultipleCoilsAsync(1, 0, new bool[1969], CancellationToken.None)
                     .ConfigureAwait(false));
@@ -195,7 +195,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
             await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
 
-            ModbusException? exception = Assert.ThrowsAsync<ModbusException>(
+            ModbusException? exception = await Assert.ThrowsAsync<ModbusException>(
                 async () => await client
                     .WriteSingleCoilAsync(1, 0, true, CancellationToken.None)
                     .ConfigureAwait(false));
@@ -213,7 +213,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
             await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
 
-            ModbusException? exception = Assert.ThrowsAsync<ModbusException>(
+            ModbusException? exception = await Assert.ThrowsAsync<ModbusException>(
                 async () => await client
                     .WriteMultipleCoilsAsync(1, 0, [true, false], CancellationToken.None)
                     .ConfigureAwait(false));

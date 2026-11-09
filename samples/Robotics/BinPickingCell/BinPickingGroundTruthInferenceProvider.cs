@@ -30,13 +30,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Vision.BinPickingCell
@@ -339,7 +338,7 @@ namespace Vision.BinPickingCell
                 FrameId = target.CameraFrameId,
                 Position = new[] { xc, yc, zc }.ToArrayOf(),
                 Orientation = s_identityOrientation.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
             var boundingBox3D = new VisionBoundingBox3DDataType
             {
@@ -368,7 +367,7 @@ namespace Vision.BinPickingCell
                     FrameId = target.CameraFrameId,
                     Position = new[] { xc, yc, zc }.ToArrayOf(),
                     Orientation = s_identityOrientation.ToArrayOf(),
-                    Covariance = ArrayOf<double>.Empty
+                    Covariance = []
                 },
                 TrackId = snapshot.Part.ClassLabel
             };
@@ -468,14 +467,8 @@ namespace Vision.BinPickingCell
             DetectionResultState state = context.CreateInstanceOfDetectionResultType(
                 target.ResultsFolder, qualifiedName);
             state.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
-            if (state.ResultId != null)
-            {
-                state.ResultId.Value = resultId;
-            }
-            if (state.CreationTime != null)
-            {
-                state.CreationTime.Value = timestamp;
-            }
+            state.ResultId?.Value = resultId;
+            state.CreationTime?.Value = timestamp;
             state.CreateOrReplaceSensor(context, null).Value = request.Sensor;
             state.CreateOrReplacePipeline(context, null).Value = request.Pipeline;
             state.CreateOrReplaceModelVersionUsed(context, null).Value = ModelVersion;
@@ -496,15 +489,9 @@ namespace Vision.BinPickingCell
                 SizeBytes = 0u,
                 Timestamp = timestamp
             };
-            if (state.Detections != null)
-            {
-                state.Detections.Value = detections;
-            }
+            state.Detections?.Value = detections;
             state.AddFrameId(context, NodeId.Null);
-            if (state.FrameId != null)
-            {
-                state.FrameId.Value = target.CameraFrameId;
-            }
+            state.FrameId?.Value = target.CameraFrameId;
             state.NodeId = context.RequireNodeIdFactory().New(context, state);
             context.AssignInstanceChildNodeIds(state, state.NodeId);
             target.ResultsFolder.AddChild(state);

@@ -175,12 +175,20 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         /// <param name="selectedBindingIds">Explicit binder id / key pins on the resource.</param>
         /// <param name="selectedBindingUris">Explicit binding vocabulary URI pins on the resource.</param>
+        /// <param name="processingMode">The explicitly selected Binding processing mode.</param>
         public WotBindingSelectionContext(
             ImmutableArray<string> selectedBindingIds,
-            ImmutableArray<string> selectedBindingUris)
+            ImmutableArray<string> selectedBindingUris,
+            WotBindingProcessingMode processingMode = WotBindingProcessingMode.Current)
         {
+            if (processingMode is not (
+                WotBindingProcessingMode.Current or WotBindingProcessingMode.PublishedOneZero))
+            {
+                throw new ArgumentOutOfRangeException(nameof(processingMode));
+            }
             SelectedBindingIds = selectedBindingIds.IsDefault ? [] : selectedBindingIds;
             SelectedBindingUris = selectedBindingUris.IsDefault ? [] : selectedBindingUris;
+            ProcessingMode = processingMode;
         }
 
         /// <summary>
@@ -192,6 +200,11 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets the binding vocabulary URI pins explicitly selected on the resource.
         /// </summary>
         public ImmutableArray<string> SelectedBindingUris { get; }
+
+        /// <summary>
+        /// Gets the explicitly selected Binding processing mode.
+        /// </summary>
+        public WotBindingProcessingMode ProcessingMode { get; }
 
         /// <summary>
         /// Gets whether the identity is explicitly pinned by id, key or URI.
@@ -215,6 +228,22 @@ namespace Opc.Ua.WotCon.Bindings
             }
             return false;
         }
+    }
+
+    /// <summary>
+    /// Selects how a consumer interprets OPC UA WoT Binding documents.
+    /// </summary>
+    public enum WotBindingProcessingMode
+    {
+        /// <summary>
+        /// Uses the current Binding processing rules.
+        /// </summary>
+        Current,
+
+        /// <summary>
+        /// Uses the published OPC 10101 v1.00 consumer rules.
+        /// </summary>
+        PublishedOneZero
     }
 
     /// <summary>

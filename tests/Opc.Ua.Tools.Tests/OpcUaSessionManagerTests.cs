@@ -30,10 +30,17 @@
 
 #if NET10_0
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Client;
+using Opc.Ua.Identity;
 using Opc.Ua.Mcp;
 using Opc.Ua.Security.Certificates;
 
@@ -42,6 +49,107 @@ namespace Opc.Ua.Tools.Tests
     [TestFixture]
     public class OpcUaSessionManagerTests
     {
+        /// <summary>
+        /// A named host identity resolves through the real certificate store and standard token-policy selection.
+        /// </summary>
+        [Test]
+        public async Task CertificateIdentityUsesTheConfiguredStoreAndPolicyAsync()
+        {
+            using var telemetry = (DefaultTelemetry)DefaultTelemetry.Create(static _ => { });
+            string root = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory, "mcp-cert-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                using Certificate certificate = CertificateBuilder.Create("CN=McpNamedUser")
+                    .SetHashAlgorithm(HashAlgorithmName.SHA256)
+                    .SetRSAKeySize(2048)
+                    .CreateForRSA();
+                using (var store = new DirectoryCertificateStore(telemetry))
+                {
+                    store.Open(root, noPrivateKeys: false);
+                    await store.AddAsync(certificate).ConfigureAwait(false);
+                }
+                var configurationValues = new Dictionary<string, string?>
+                {
+                    ["McpServer:CertificateIdentities:operator:StoreType"] = CertificateStoreType.Directory,
+                    ["McpServer:CertificateIdentities:operator:StorePath"] = root,
+                    ["McpServer:CertificateIdentities:operator:Thumbprint"] = certificate.Thumbprint
+                };
+                IConfiguration host = new ConfigurationBuilder().AddInMemoryCollection(configurationValues).Build();
+                OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(host, "services");
+                var services = new ServiceCollection();
+                services.AddOpcUaMcpCore(options);
+                await using ServiceProvider provider = services.BuildServiceProvider();
+                OpcUaSessionManager sessions = provider.GetRequiredService<OpcUaSessionManager>();
+                ApplicationConfiguration configuration = CreateConfiguration(telemetry, out CertificateManager manager);
+                using (manager)
+                {
+                    IClientIdentityProvider identityProvider =
+                        sessions.CreateCertificateIdentityProvider("operator", configuration);
+                    var endpoint = new EndpointDescription
+                    {
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                        UserIdentityTokens =
+                        [
+                            new UserTokenPolicy
+                            {
+                                PolicyId = "certificate-policy",
+                                TokenType = UserTokenType.Certificate
+                            }
+                        ]
+                    };
+                    IUserIdentity identity = await identityProvider.AcquireIdentityAsync(
+                        endpoint, ServiceMessageContext.Create(telemetry)).ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(options.CertificateIdentities.Count, Is.EqualTo(1));
+                        Assert.That(identity.TokenType, Is.EqualTo(UserTokenType.Certificate));
+                        Assert.That(identity.PolicyId, Is.EqualTo("certificate-policy"));
+                        Assert.That(identity.TokenHandler, Is.InstanceOf<X509IdentityTokenHandler>());
+                    });
+                }
+            }
+            finally
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+
+        /// <summary>
+        /// Missing, unapproved and duplicate identity references never silently fall back to another user.
+        /// </summary>
+        [TestCase(null, false)]
+        [TestCase("", false)]
+        [TestCase("unconfigured", false)]
+        [TestCase("Operator", false)]
+        [TestCase("operator", true)]
+        public async Task CertificateIdentityReferencesFailClosedAsync(string? reference, bool duplicate)
+        {
+            using var telemetry = (DefaultTelemetry)DefaultTelemetry.Create(static _ => { });
+            var named = new McpCertificateIdentity("operator", new X509ClientIdentityOptions
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = "not-opened",
+                SubjectName = "CN=NotLoaded"
+            });
+            var options = new OpcUaMcpOptions { CertificateIdentities = duplicate ? [named, named] : [named] };
+            var services = new ServiceCollection();
+            services.AddOpcUaMcpCore(options);
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            OpcUaSessionManager sessions = provider.GetRequiredService<OpcUaSessionManager>();
+            ApplicationConfiguration configuration = CreateConfiguration(telemetry, out CertificateManager manager);
+            using (manager)
+            {
+                ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                    sessions.CreateCertificateIdentityProvider(reference, configuration))!;
+                Assert.That(error.StatusCode, Is.EqualTo(
+                    duplicate ? StatusCodes.BadConfigurationError : StatusCodes.BadIdentityTokenRejected));
+                Assert.That(sessions.GetAllSessions(), Is.Empty);
+            }
+        }
+
         [Test]
         public async Task ConcurrentAutoAcceptContextsUseIndependentCertificateManagersAsync()
         {

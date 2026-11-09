@@ -41,12 +41,21 @@ namespace Opc.Ua.Server.FileSystem
     /// many readers per the spec) and dispenses the integer
     /// file-handle values returned to OPC UA clients.
     /// </summary>
-    internal sealed class FileHandle : IDisposable
+    internal sealed class FileHandle : IDisposable, IAsyncDisposable
     {
-        public FileHandle(IFileSystemProvider provider, string providerPath)
+        /// <summary>
+        /// Creates a handle bag with an optional admission check for the hosting session lifecycle.
+        /// </summary>
+        public FileHandle(
+            IFileSystemProvider provider,
+            string providerPath,
+            Func<NodeId, bool>? isSessionTerminated = null,
+            Action? openCountChanged = null)
         {
             m_provider = provider;
             ProviderPath = providerPath;
+            m_isSessionTerminated = isSessionTerminated;
+            m_openCountChanged = openCountChanged;
         }
 
         public string ProviderPath { get; }
@@ -60,10 +69,10 @@ namespace Opc.Ua.Server.FileSystem
             {
                 lock (m_lock)
                 {
-                    int count = m_write?.Stream != null ? 1 : 0;
+                    int count = m_write is { Stream: not null, Closing: false } ? 1 : 0;
                     foreach (OpenFile file in m_reads.Values)
                     {
-                        if (file.Stream != null)
+                        if (file.Stream != null && !file.Closing)
                         {
                             count++;
                         }
@@ -130,13 +139,36 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <summary>
+        /// Gets or sets the maximum lifecycle wait. Expiry never releases an unfinished reservation.
+        /// </summary>
+        public TimeSpan CloseTimeout
+        {
+            get => m_closeTimeout;
+            set => m_closeTimeout = ValidateCloseTimeout(value);
+        }
+
+        /// <summary>
+        /// Returns all cleanup outcomes, including work that outlived an earlier deadline.
+        /// </summary>
+        internal Task CleanupCompletion
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return Task.WhenAll(m_cleanup);
+                }
+            }
+        }
+
+        /// <summary>
         /// Returns a session-owned stream only when its open mode includes all requested access bits.
         /// </summary>
         public Stream? GetStream(NodeId sessionId, uint fileHandle, byte requiredMode = 0)
         {
             lock (m_lock)
             {
-                if (m_write != null &&
+                if (m_write != null && !m_write.Closing &&
                     fileHandle == m_write.Handle &&
                     m_write.SessionId.Equals(sessionId) &&
                     (m_write.Mode & requiredMode) == requiredMode)
@@ -144,7 +176,7 @@ namespace Opc.Ua.Server.FileSystem
                     return m_write.Stream;
                 }
                 if (m_reads.TryGetValue(fileHandle, out OpenFile? openFile) &&
-                    openFile.SessionId.Equals(sessionId) &&
+                    !openFile.Closing && openFile.SessionId.Equals(sessionId) &&
                     (openFile.Mode & requiredMode) == requiredMode)
                 {
                     return openFile.Stream;
@@ -169,10 +201,7 @@ namespace Opc.Ua.Server.FileSystem
             bool accepted = false;
             try
             {
-                stream = (mode & 1) != 0
-                    ? m_provider.OpenReadAsync(ProviderPath, CancellationToken.None).AsTask().GetAwaiter().GetResult()
-                    : m_provider.OpenWriteAsync(ProviderPath, GetWriteMode(mode), CancellationToken.None)
-                        .AsTask().GetAwaiter().GetResult();
+                stream = OpenProviderAsync(mode, pending!.Lifetime.Token).AsTask().GetAwaiter().GetResult();
                 error = CompleteOpen(pending!, stream);
                 accepted = ServiceResult.IsGood(error);
                 if (accepted)
@@ -197,9 +226,21 @@ namespace Opc.Ua.Server.FileSystem
             {
                 if (!accepted)
                 {
-                    CancelOpen(pending!);
-                    stream?.Dispose();
+                    try
+                    {
+                        DisposeRejectedStream(pending!, stream);
+                    }
+                    finally
+                    {
+                        lock (m_lock)
+                        {
+                            pending!.Closing = true;
+                        }
+                        pending.Opened.TrySetResult(true);
+                        TrackCleanup(pending);
+                    }
                 }
+                pending!.Opened.TrySetResult(true);
             }
         }
 
@@ -212,18 +253,18 @@ namespace Opc.Ua.Server.FileSystem
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!TryReserveOpen(sessionId, mode, out OpenFile? pending, out ServiceResult error))
+            if (!TryReserveOpen(sessionId, mode, out OpenFile? pending, out ServiceResult error,
+                linkedOpenCancellation: true))
             {
                 return (error, 0);
             }
             Stream? stream = null;
             bool accepted = false;
+            var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, pending!.Lifetime.Token);
             try
             {
-                stream = (mode & 1) != 0
-                    ? await m_provider.OpenReadAsync(ProviderPath, cancellationToken).ConfigureAwait(false)
-                    : await m_provider.OpenWriteAsync(ProviderPath, GetWriteMode(mode), cancellationToken)
-                        .ConfigureAwait(false);
+                stream = await OpenProviderAsync(mode, linked.Token).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 error = CompleteOpen(pending!, stream);
                 accepted = ServiceResult.IsGood(error);
@@ -241,14 +282,94 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return (ServiceResult.Create(ex, StatusCodes.BadInvalidState, "Failed to open file"), 0);
             }
+            catch (OperationCanceledException) when (
+                pending.Lifetime.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                return (StatusCodes.BadSessionClosed, 0);
+            }
             finally
             {
-                if (!accepted)
+                try
                 {
-                    CancelOpen(pending!);
-                    stream?.Dispose();
+                    if (!accepted)
+                    {
+                        try
+                        {
+                            await DisposeRejectedStreamAsync(pending, stream).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            lock (m_lock)
+                            {
+                                pending.Closing = true;
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    // Inline shutdown may treat an opened handle as idle once this signal is set.
+                    linked.Dispose();
+                    pending!.Opened.TrySetResult(true);
+                    if (!accepted)
+                    {
+                        await TrackCleanup(pending, defer: true).ConfigureAwait(false);
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// Records unsuccessful stream disposal without releasing the exclusive reservation.
+        /// </summary>
+        private static void DisposeRejectedStream(OpenFile pending, Stream? stream)
+        {
+            try
+            {
+                stream?.Dispose();
+            }
+            catch (Exception exception)
+            {
+                pending.OpenCleanupError = exception;
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Records unsuccessful asynchronous stream disposal without releasing the exclusive reservation.
+        /// </summary>
+        private static async ValueTask DisposeRejectedStreamAsync(OpenFile pending, Stream? stream)
+        {
+            try
+            {
+                if (stream != null)
+                {
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+                    await stream.DisposeAsync().ConfigureAwait(false);
+#else
+                    stream.Dispose();
+#endif
+                }
+            }
+            catch (Exception exception)
+            {
+                pending.OpenCleanupError = exception;
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Selects one provider stream for the accepted access bits.
+        /// </summary>
+        private ValueTask<Stream> OpenProviderAsync(byte mode, CancellationToken ct)
+        {
+            if ((mode & 3) == 3)
+            {
+                return ((IFileSystemReadWriteProvider)m_provider).OpenReadWriteAsync(
+                    ProviderPath, GetWriteMode(mode), ct);
+            }
+            return (mode & 1) != 0 ? m_provider.OpenReadAsync(ProviderPath, ct) :
+                m_provider.OpenWriteAsync(ProviderPath, GetWriteMode(mode), ct);
         }
 
         /// <summary>
@@ -258,7 +379,8 @@ namespace Opc.Ua.Server.FileSystem
             NodeId sessionId,
             byte mode,
             out OpenFile? pending,
-            out ServiceResult error)
+            out ServiceResult error,
+            bool linkedOpenCancellation = false)
         {
             pending = null;
             if (sessionId.IsNull)
@@ -288,7 +410,7 @@ namespace Opc.Ua.Server.FileSystem
                     "FileType.Open mode setting is invalid.");
                 return false;
             }
-            if (wantsRead && wantsWrite)
+            if (wantsRead && wantsWrite && m_provider is not IFileSystemReadWriteProvider)
             {
                 // Read and Write are independent mode bits, so the mode is valid (Part 20
                 // 4.2.2); IFileSystemProvider only hands out read-only or write-only streams.
@@ -305,52 +427,62 @@ namespace Opc.Ua.Server.FileSystem
                 return false;
             }
 
-            lock (m_lock)
+            while (true)
             {
-                if (m_disposed)
+                int epoch = Volatile.Read(ref m_closeEpoch);
+                bool terminated = m_isSessionTerminated?.Invoke(sessionId) == true;
+                lock (m_lock)
                 {
-                    error = StatusCodes.BadShutdown;
-                    return false;
-                }
-                if (m_openBlocks != 0)
-                {
-                    // A Delete or MoveOrCopy of this file or an ancestor directory is running,
-                    // so the file is locked. Part 20 4.2.2 result table: Bad_NotReadable "File
-                    // might be locked and thus not readable" for a read open, Bad_InvalidState
-                    // "The file is locked and thus not writable" for a write open.
-                    error = wantsWrite
-                        ? ServiceResult.Create(StatusCodes.BadInvalidState,
-                            "The file is being deleted or moved and thus not writable.")
-                        : ServiceResult.Create(StatusCodes.BadNotReadable,
-                            "The file is being deleted or moved and thus not readable.");
-                    return false;
-                }
-                if (m_write != null && !wantsWrite)
-                {
-                    // Part 20 4.2.2: a file open for writing cannot be opened for reading.
-                    error = ServiceResult.Create(StatusCodes.BadNotReadable,
-                        "The file is locked for writing and thus not readable.");
-                    return false;
-                }
-                if (m_write != null || (wantsWrite && m_reads.Count != 0))
-                {
-                    // Part 20 4.2.2 result table: the file is locked and thus not writable.
-                    error = ServiceResult.Create(StatusCodes.BadInvalidState,
-                        "File already open with incompatible access.");
-                    return false;
-                }
-                pending = new OpenFile(CreateFileHandle(), sessionId, mode);
-                if (wantsWrite)
-                {
-                    m_write = pending;
-                }
-                else
-                {
-                    m_reads.Add(pending.Handle, pending);
+                    // Session registry callbacks can acquire the server's event gate. Call them outside
+                    // this bag's lock and retry if a session-close snapshot passed us in the meantime.
+                    if (epoch != m_closeEpoch)
+                    {
+                        continue;
+                    }
+                    if (m_disposed)
+                    {
+                        error = StatusCodes.BadShutdown;
+                        return false;
+                    }
+                    if (terminated)
+                    {
+                        error = StatusCodes.BadSessionClosed;
+                        return false;
+                    }
+                    if (m_openBlocks != 0)
+                    {
+                        error = wantsWrite
+                            ? ServiceResult.Create(StatusCodes.BadInvalidState,
+                                "The file is being deleted or moved and thus not writable.")
+                            : ServiceResult.Create(StatusCodes.BadNotReadable,
+                                "The file is being deleted or moved and thus not readable.");
+                        return false;
+                    }
+                    if (m_write != null && !wantsWrite)
+                    {
+                        error = ServiceResult.Create(StatusCodes.BadNotReadable,
+                            "The file is locked for writing and thus not readable.");
+                        return false;
+                    }
+                    if (m_write != null || (wantsWrite && m_reads.Count != 0))
+                    {
+                        error = ServiceResult.Create(StatusCodes.BadInvalidState,
+                            "File already open with incompatible access.");
+                        return false;
+                    }
+                    pending = new OpenFile(CreateFileHandle(), sessionId, mode, linkedOpenCancellation);
+                    if (wantsWrite)
+                    {
+                        m_write = pending;
+                    }
+                    else
+                    {
+                        m_reads.Add(pending.Handle, pending);
+                    }
+                    error = ServiceResult.Good;
+                    return true;
                 }
             }
-            error = ServiceResult.Good;
-            return true;
         }
 
         /// <summary>
@@ -360,11 +492,17 @@ namespace Opc.Ua.Server.FileSystem
         {
             lock (m_lock)
             {
-                if (!ReferenceEquals(m_write, pending) &&
-                    (!m_reads.TryGetValue(pending.Handle, out OpenFile? current) || !ReferenceEquals(current, pending)))
+                if (pending.Closing || (!ReferenceEquals(m_write, pending) &&
+                    (!m_reads.TryGetValue(pending.Handle, out OpenFile? current) ||
+                    !ReferenceEquals(current, pending))))
                 {
                     return ServiceResult.Create(StatusCodes.BadSessionClosed,
                         "The file open was closed before the provider completed.");
+                }
+                if ((pending.Mode & 3) == 3 && (!stream.CanRead || !stream.CanWrite || !stream.CanSeek))
+                {
+                    return ServiceResult.Create(StatusCodes.BadNotSupported,
+                        "Combined access requires one seekable, readable and writable stream.");
                 }
                 pending.Stream = stream;
                 return ServiceResult.Good;
@@ -382,7 +520,8 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     m_write = null;
                 }
-                else if (m_reads.TryGetValue(pending.Handle, out OpenFile? current) && ReferenceEquals(current, pending))
+                else if (m_reads.TryGetValue(pending.Handle, out OpenFile? current) &&
+                    ReferenceEquals(current, pending))
                 {
                     m_reads.Remove(pending.Handle);
                 }
@@ -401,92 +540,369 @@ namespace Opc.Ua.Server.FileSystem
             return (mode & 8) != 0 ? FileWriteMode.Append : FileWriteMode.OpenOrCreate;
         }
 
-        public bool Close(NodeId sessionId, uint fileHandle)
+        /// <summary>
+        /// Validates lifecycle timeout values consistently on .NET Framework and modern .NET.
+        /// </summary>
+        internal static TimeSpan ValidateCloseTimeout(TimeSpan timeout)
         {
-            Stream? stream = null;
-            lock (m_lock)
+            if ((timeout < TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan) ||
+                timeout.TotalMilliseconds > int.MaxValue)
             {
-                if (m_write != null &&
-                    fileHandle == m_write.Handle &&
-                    m_write.SessionId.Equals(sessionId))
-                {
-                    stream = m_write.Stream;
-                    m_write = null;
-                }
-                else if (m_reads.TryGetValue(fileHandle, out OpenFile? openFile) &&
-                    openFile.SessionId.Equals(sessionId))
-                {
-                    stream = openFile.Stream;
-                    m_reads.Remove(fileHandle);
-                }
+                throw new ArgumentOutOfRangeException(nameof(timeout));
             }
-            stream?.Dispose();
-            return stream != null;
+            return timeout;
         }
 
         /// <summary>
-        /// Cancels a session's pending opens and disposes all streams already opened by that session.
+        /// Admits an operation before waiting for its turn at the handle's single cursor.
         /// </summary>
-        public void CloseSession(NodeId sessionId)
+        public async ValueTask<Operation?> AcquireAsync(
+            NodeId sessionId, uint fileHandle, byte mode, CancellationToken ct)
         {
-            List<Stream> streamsToClose = [];
+            OpenFile? file = Admit(sessionId, fileHandle, mode);
+            if (file == null)
+            {
+                return null;
+            }
+            var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, file.Lifetime.Token);
+            try
+            {
+                await file.Gate.WaitAsync(linked.Token).ConfigureAwait(false);
+                return new Operation(file.Stream!, linked, () =>
+                {
+                    file.Gate.Release();
+                    CompleteOperation(file);
+                });
+            }
+            catch
+            {
+                linked.Dispose();
+                CompleteOperation(file);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Admits a synchronous compatibility callback without exposing the stream outside its lease.
+        /// </summary>
+        public Operation? Acquire(NodeId sessionId, uint fileHandle, byte mode)
+        {
+            OpenFile? file = Admit(sessionId, fileHandle, mode);
+            if (file == null)
+            {
+                return null;
+            }
+            var linked = CancellationTokenSource.CreateLinkedTokenSource(file.Lifetime.Token);
+            try
+            {
+                file.Gate.Wait(linked.Token);
+                return new Operation(file.Stream!, linked, () =>
+                {
+                    file.Gate.Release();
+                    CompleteOperation(file);
+                });
+            }
+            catch
+            {
+                linked.Dispose();
+                CompleteOperation(file);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Closes admission and starts draining a synchronous compatibility close.
+        /// </summary>
+        public bool Close(NodeId sessionId, uint fileHandle)
+        {
+            OpenFile? file;
             lock (m_lock)
             {
-                if (m_write != null && m_write.SessionId.Equals(sessionId))
+                file = Find(sessionId, fileHandle, 0);
+                if (file == null || file.Closing)
                 {
-                    if (m_write.Stream != null)
-                    {
-                        streamsToClose.Add(m_write.Stream);
-                    }
-                    m_write = null;
+                    return false;
                 }
+                file.Closing = true;
+            }
+            TrackCleanup(file);
+            return true;
+        }
 
-                var handlesToClose = new List<uint>();
-                foreach (KeyValuePair<uint, OpenFile> entry in m_reads)
+        /// <summary>
+        /// Stops admission and drains admitted operations before closing the stream.
+        /// </summary>
+        public async ValueTask<bool> CloseAsync(NodeId sessionId, uint fileHandle)
+        {
+            OpenFile? file;
+            bool accepted;
+            lock (m_lock)
+            {
+                file = Find(sessionId, fileHandle, 0);
+                if (file == null)
                 {
-                    if (entry.Value.SessionId.Equals(sessionId))
-                    {
-                        if (entry.Value.Stream != null)
-                        {
-                            streamsToClose.Add(entry.Value.Stream);
-                        }
-                        handlesToClose.Add(entry.Key);
-                    }
+                    return false;
                 }
+                accepted = !file.Closing;
+                file.Closing = true;
+            }
+            await TrackCleanup(file, defer: true).ConfigureAwait(false);
+            return accepted;
+        }
 
-                foreach (uint fileHandle in handlesToClose)
+        /// <summary>
+        /// Joins lifecycle cleanup already requested for a handle, without starting a new close.
+        /// </summary>
+        internal async ValueTask WaitForCloseAsync(NodeId sessionId, uint fileHandle)
+        {
+            OpenFile? file;
+            lock (m_lock)
+            {
+                file = Find(sessionId, fileHandle, 0);
+                if (file?.Closing != true)
                 {
-                    m_reads.Remove(fileHandle);
+                    return;
                 }
             }
-
-            DisposeStreams(streamsToClose);
+            await TrackCleanup(file, defer: true).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Requests cancellation and retains cleanup ownership after the lifecycle deadline.
+        /// </summary>
+        /// <param name="sessionId">The session whose handles must close.</param>
+        /// <param name="defer">Whether to defer provider disposal rather than starting it on the calling thread.</param>
+        public void CloseSession(NodeId sessionId, bool defer = true)
+        {
+            _ = BeginShutdown(sessionId, defer: defer);
+        }
+
+        /// <summary>
+        /// Requests cancellation and waits up to the configured lifecycle deadline.
+        /// </summary>
+        public ValueTask CloseSessionAsync(NodeId sessionId) => WaitForCleanupAsync(BeginShutdown(sessionId));
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            List<Stream> streamsToClose;
+            _ = BeginShutdown(default, all: true, defer: false);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync() => WaitForCleanupAsync(BeginShutdown(default, all: true));
+
+        /// <summary>
+        /// Requests shutdown without invoking arbitrary provider disposal on the lifecycle caller's thread.
+        /// </summary>
+        internal Task RequestShutdown() => BeginShutdown(default, all: true);
+
+        private OpenFile? Find(NodeId session, uint id, byte mode)
+        {
+            OpenFile? file = m_write?.Handle == id ? m_write :
+                m_reads.TryGetValue(id, out OpenFile? read) ? read : null;
+            return file != null && file.SessionId == session && (file.Mode & mode) == mode ? file : null;
+        }
+
+        private OpenFile? Admit(NodeId session, uint id, byte mode)
+        {
             lock (m_lock)
             {
-                m_disposed = true;
-                streamsToClose = new List<Stream>(m_reads.Count + (m_write != null ? 1 : 0));
-                if (m_write?.Stream != null)
+                OpenFile? file = Find(session, id, mode);
+                if (file == null || file.Closing || file.Stream == null)
                 {
-                    streamsToClose.Add(m_write.Stream);
+                    return null;
                 }
-                m_write = null;
-                foreach (OpenFile openFile in m_reads.Values)
+                file.Active++;
+                return file;
+            }
+        }
+
+        private void CompleteOperation(OpenFile file)
+        {
+            lock (m_lock)
+            {
+                file.Active--;
+                if (file.Closing && file.Active == 0)
                 {
-                    if (openFile.Stream != null)
+                    file.Drained.TrySetResult(true);
+                }
+            }
+        }
+
+        private Task BeginShutdown(NodeId session, bool all = false, bool defer = true)
+        {
+            List<OpenFile> files = [];
+            lock (m_lock)
+            {
+                m_closeEpoch++;
+                if (all)
+                {
+                    m_disposed = true;
+                }
+                if (m_write != null && (all || m_write.SessionId == session))
+                {
+                    files.Add(m_write);
+                }
+                foreach (OpenFile file in m_reads.Values)
+                {
+                    if (all || file.SessionId == session)
                     {
-                        streamsToClose.Add(openFile.Stream);
+                        files.Add(file);
                     }
                 }
-                m_reads.Clear();
+                foreach (OpenFile file in files)
+                {
+                    file.Closing = true;
+                }
             }
+            foreach (OpenFile file in files)
+            {
+                // Cancellation callbacks are provider code; never run them under the bag lock.
+                TrackCleanup(file, cancel: true, defer);
+            }
+            return CleanupCompletion;
+        }
 
-            DisposeStreams(streamsToClose);
+        private Task TrackCleanup(OpenFile file, bool cancel = false, bool defer = false)
+        {
+            TaskCompletionSource<bool>? completion = null;
+            TaskCompletionSource<bool>? cancellation = null;
+            lock (m_lock)
+            {
+                // Inline idle cleanup has no provider request left to cancel. In particular, do not
+                // queue the legacy CancelAsync polyfill before releasing an already-drained reservation.
+                if (cancel && (defer || m_disposed || !file.LinkedOpenCancellation ||
+                    file.Active != 0 || !file.Opened.Task.IsCompleted) &&
+                    !file.Finished && file.Cancellation == null)
+                {
+                    cancellation = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    file.Cancellation = cancellation.Task;
+                }
+                if (file.Active == 0)
+                {
+                    file.Drained.TrySetResult(true);
+                }
+                if (file.Cleanup == null)
+                {
+                    completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    file.Cleanup = completion.Task;
+                    m_cleanup.Add(file.Cleanup);
+                }
+            }
+            if (cancellation != null)
+            {
+                _ = CancelLifetimeAsync(file, cancellation);
+            }
+            if (completion != null)
+            {
+                _ = CleanupAsync(file, completion, defer);
+            }
+            return file.Cleanup;
+        }
+
+        private static async Task CancelLifetimeAsync(OpenFile file, TaskCompletionSource<bool> completion)
+        {
+            try
+            {
+                await file.Lifetime.CancelAsync().ConfigureAwait(false);
+                completion.TrySetResult(true);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+        }
+
+        private async Task CleanupAsync(OpenFile file, TaskCompletionSource<bool> completion, bool defer)
+        {
+            if (defer)
+            {
+                await Task.Yield();
+            }
+            Exception? error = null;
+            try
+            {
+                await file.Opened.Task.ConfigureAwait(false);
+                await file.Drained.Task.ConfigureAwait(false);
+                if (file.OpenCleanupError != null)
+                {
+                    throw file.OpenCleanupError;
+                }
+                if (file.Stream != null)
+                {
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+                    await file.Stream.DisposeAsync().ConfigureAwait(false);
+#else
+                    file.Stream.Dispose();
+#endif
+                }
+            }
+            catch (Exception exception)
+            {
+                error = exception;
+            }
+            finally
+            {
+                lock (m_lock)
+                {
+                    file.Finished = true;
+                }
+            }
+            try
+            {
+                if (file.Cancellation != null)
+                {
+                    await file.Cancellation.ConfigureAwait(false);
+                }
+            }
+            catch (Exception exception)
+            {
+                error = error == null ? exception : new AggregateException(error, exception);
+            }
+            finally
+            {
+                file.Lifetime.Dispose();
+                file.Gate.Dispose();
+            }
+            if (error == null)
+            {
+                lock (m_lock)
+                {
+                    CancelOpen(file);
+                }
+                try
+                {
+                    m_openCountChanged?.Invoke();
+                    lock (m_lock)
+                    {
+                        m_cleanup.Remove(completion.Task);
+                    }
+                    completion.TrySetResult(true);
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            }
+            else
+            {
+                completion.TrySetException(error);
+            }
+        }
+
+        private async ValueTask WaitForCleanupAsync(Task cleanup)
+        {
+            if (await Task.WhenAny(cleanup, Task.Delay(CloseTimeout)).ConfigureAwait(false) == cleanup)
+            {
+                try
+                {
+                    await cleanup.ConfigureAwait(false);
+                }
+                catch
+                {
+                    throw cleanup.Exception ?? new AggregateException("File cleanup failed.");
+                }
+            }
         }
 
         /// <summary>
@@ -497,7 +913,7 @@ namespace Opc.Ua.Server.FileSystem
         {
             lock (m_lock)
             {
-                if (m_write != null || m_reads.Count != 0)
+                if (m_write != null || m_reads.Count != 0 || m_cleanup.Count != 0)
                 {
                     return false;
                 }
@@ -567,17 +983,20 @@ namespace Opc.Ua.Server.FileSystem
             return fileHandle;
         }
 
-        private static void DisposeStreams(List<Stream> streams)
-        {
-            foreach (Stream stream in streams)
-            {
-                stream.Dispose();
-            }
-        }
-
         private readonly Lock m_lock = new();
+        private readonly List<Task> m_cleanup = [];
+
+        /// <summary>Bounds lifecycle waiting without shortening stream ownership.</summary>
+        private TimeSpan m_closeTimeout = TimeSpan.FromSeconds(10);
         private readonly Dictionary<uint, OpenFile> m_reads = [];
         private readonly IFileSystemProvider m_provider;
+
+        /// <summary>Rejects a late reservation after its session's close notification has already run.</summary>
+        private readonly Func<NodeId, bool>? m_isSessionTerminated;
+
+        /// <summary>Publishes the count after asynchronous stream cleanup.</summary>
+        private readonly Action? m_openCountChanged;
+
         private OpenFile? m_write;
 
         /// <summary>
@@ -590,6 +1009,9 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         private int m_openBlocks;
 
+        /// <summary>Detects session closure while admission checks the external session registry.</summary>
+        private int m_closeEpoch;
+
         /// <summary>
         /// Retains a session-owned open reservation and its eventual provider stream.
         /// </summary>
@@ -598,11 +1020,12 @@ namespace Opc.Ua.Server.FileSystem
             /// <summary>
             /// Creates an open reservation for a session with the requested FileType mode bits.
             /// </summary>
-            public OpenFile(uint handle, NodeId sessionId, byte mode)
+            public OpenFile(uint handle, NodeId sessionId, byte mode, bool linkedOpenCancellation)
             {
                 Handle = handle;
                 SessionId = sessionId;
                 Mode = mode;
+                LinkedOpenCancellation = linkedOpenCancellation;
             }
 
             /// <summary>
@@ -621,9 +1044,106 @@ namespace Opc.Ua.Server.FileSystem
             public byte Mode { get; }
 
             /// <summary>
+            /// Gets whether completed provider-open cancellation is detached from the handle lifetime.
+            /// </summary>
+            public bool LinkedOpenCancellation { get; }
+
+            /// <summary>
             /// Gets or sets the opened stream, or null while the provider open is still pending.
             /// </summary>
             public Stream? Stream { get; set; }
+
+            /// <summary>
+            /// Gets or sets the failure of rejected provider-stream cleanup.
+            /// </summary>
+            public Exception? OpenCleanupError { get; set; }
+
+            /// <summary>
+            /// Serializes access to the stream cursor.
+            /// </summary>
+            public SemaphoreSlim Gate { get; } = new(1, 1);
+
+            /// <summary>
+            /// Cancels provider requests when session or server lifetime ends.
+            /// </summary>
+            public CancellationTokenSource Lifetime { get; } = new();
+
+            /// <summary>
+            /// Signals completion of provider open and any rejected-stream cleanup.
+            /// </summary>
+            public TaskCompletionSource<bool> Opened { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Signals that all admitted operations have left the stream.
+            /// </summary>
+            public TaskCompletionSource<bool> Drained { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets or sets the number of admitted operations.
+            /// </summary>
+            public int Active { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether operation admission has stopped.
+            /// </summary>
+            public bool Closing { get; set; }
+
+            /// <summary>
+            /// Gets or sets the retained stream cleanup task.
+            /// </summary>
+            public Task? Cleanup { get; set; }
+
+            /// <summary>
+            /// Gets or sets the asynchronous cancellation notification.
+            /// </summary>
+            public Task? Cancellation { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether stream cleanup has finished.
+            /// </summary>
+            public bool Finished { get; set; }
+        }
+
+        /// <summary>
+        /// Owns one serialized stream operation, including its request and lifetime cancellation.
+        /// </summary>
+        internal sealed class Operation : IDisposable
+        {
+            /// <summary>
+            /// Creates an admitted operation after acquiring its cursor semaphore.
+            /// </summary>
+            internal Operation(Stream stream, CancellationTokenSource cancellation, Action complete)
+            {
+                Stream = stream;
+                m_complete = complete;
+                m_cancellation = cancellation;
+            }
+
+            /// <summary>
+            /// Gets the stream while this operation owns its cursor.
+            /// </summary>
+            public Stream Stream { get; }
+
+            /// <summary>
+            /// Gets the combined request and handle-lifetime cancellation token.
+            /// </summary>
+            public CancellationToken CancellationToken => m_cancellation.Token;
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    m_cancellation.Dispose();
+                    m_complete();
+                }
+            }
+
+            private readonly Action m_complete;
+            private readonly CancellationTokenSource m_cancellation;
+            private int m_disposed;
         }
     }
 }

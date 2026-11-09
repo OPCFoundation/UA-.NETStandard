@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -171,6 +170,13 @@ namespace Opc.Ua.Server.Historian
                     return ServiceResult.Good;
                 }
 
+                if (claim is not null)
+                {
+                    provider = claim.State.Provider;
+                    node = claim.State.SourceNode ?? node;
+                    timestampsToReturn = claim.State.TimestampsToReturn;
+                    nodeToRead = RestoreReadParameters(claim.State, nodeToRead);
+                }
                 if (claim == null &&
                     !await IsHistorizedAsync(provider, node, cancellationToken).ConfigureAwait(false))
                 {
@@ -566,9 +572,7 @@ namespace Opc.Ua.Server.Historian
         /// implement <see cref="IHistorianProcessedProvider"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via " +
-                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+#pragma warning disable CA2000 // State transfers to the session continuation or is disposed inline.
         public static async ValueTask<ServiceResult> DispatchProcessedReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -674,6 +678,7 @@ namespace Opc.Ua.Server.Historian
                     cancellationToken).ConfigureAwait(false);
             }
         }
+#pragma warning restore CA2000
 
         /// <summary>
         /// Validates aggregate inputs and pages processed history through the provider or a local aggregate calculator.
@@ -693,6 +698,13 @@ namespace Opc.Ua.Server.Historian
             CancellationToken cancellationToken)
         {
             HistorianContinuationState? cont = claim?.State;
+            if (cont is not null)
+            {
+                provider = cont.Provider;
+                node = cont.SourceNode ?? node;
+                timestampsToReturn = cont.TimestampsToReturn;
+                nodeToRead = RestoreReadParameters(cont, nodeToRead);
+            }
             aggregateId = cont?.ProcessedRequest?.AggregateId ?? aggregateId;
             if (systemContext.Server?.AggregateManager is { } aggregateManager &&
                 !aggregateManager.IsSupported(aggregateId))
@@ -834,6 +846,8 @@ namespace Opc.Ua.Server.Historian
                             Id = Guid.NewGuid(),
                             Provider = provider,
                             NodeId = node.NodeId,
+                            OriginNodeId = nodeToRead.NodeId,
+                            SourceNode = node,
                             Kind = HistorianReadKind.Processed,
                             ResumeToken = page.NextToken,
                             ProcessedRequest = processedRequest,
@@ -1068,6 +1082,8 @@ namespace Opc.Ua.Server.Historian
                     Id = Guid.NewGuid(),
                     Provider = provider,
                     NodeId = node.NodeId,
+                    OriginNodeId = nodeToRead.NodeId,
+                    SourceNode = node,
                     Kind = HistorianReadKind.Processed,
                     ResumeToken = default,
                     ProcessedRequest = processedRequest,
@@ -1164,9 +1180,7 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="IHistorianAnnotationProvider"/>; otherwise the aggregate is reported as
         /// unsupported for the node.
         /// </summary>
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via " +
-                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+#pragma warning disable CA2000 // State transfers to the session continuation or is disposed inline.
         private static async ValueTask<ServiceResult> ComputeAnnotationCountAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1305,6 +1319,8 @@ namespace Opc.Ua.Server.Historian
                 Id = Guid.NewGuid(),
                 Provider = provider,
                 NodeId = node.NodeId,
+                OriginNodeId = nodeToRead.NodeId,
+                SourceNode = node,
                 Kind = HistorianReadKind.Processed,
                 ResumeToken = default,
                 ProcessedRequest = processedRequest,
@@ -1325,6 +1341,7 @@ namespace Opc.Ua.Server.Historian
                 cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
         }
+#pragma warning restore CA2000
 
         private const int kProcessedPageSize = 1000;
 
@@ -1512,11 +1529,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         public static async ValueTask<ServiceResult> DispatchAnnotationReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1566,6 +1579,13 @@ namespace Opc.Ua.Server.Historian
                     result.StatusCode = StatusCodes.BadContinuationPointInvalid;
                     result.ContinuationPoint = ByteString.Empty;
                     return ServiceResult.Good;
+                }
+                if (claim is not null)
+                {
+                    provider = claim.State.Provider;
+                    parentVariable = claim.State.SourceNode as BaseVariableState ?? parentVariable;
+                    timestampsToReturn = claim.State.TimestampsToReturn;
+                    nodeToRead = RestoreReadParameters(claim.State, nodeToRead);
                 }
                 if (provider is not IHistorianAnnotationProvider annotations)
                 {
@@ -1651,6 +1671,8 @@ namespace Opc.Ua.Server.Historian
                             Id = Guid.NewGuid(),
                             Provider = provider,
                             NodeId = nodeToRead.NodeId,
+                            OriginNodeId = nodeToRead.NodeId,
+                            SourceNode = parentVariable,
                             Kind = HistorianReadKind.Annotations,
                             ResumeToken = timestampedPage.NextToken,
                             AnnotationRequest = request,
@@ -1691,6 +1713,8 @@ namespace Opc.Ua.Server.Historian
                         Id = Guid.NewGuid(),
                         Provider = provider,
                         NodeId = nodeToRead.NodeId,
+                        OriginNodeId = nodeToRead.NodeId,
+                        SourceNode = parentVariable,
                         Kind = HistorianReadKind.Annotations,
                         ResumeToken = page.NextToken,
                         AnnotationRequest = request,
@@ -1719,6 +1743,7 @@ namespace Opc.Ua.Server.Historian
                 }
             }
         }
+#pragma warning restore CA2000
 
         /// <summary>
         /// Dispatches a HistoryUpdate on an Annotations property by
@@ -2060,11 +2085,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         public static async ValueTask<ServiceResult> DispatchEventReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2115,6 +2136,12 @@ namespace Opc.Ua.Server.Historian
                     result.ContinuationPoint = ByteString.Empty;
                     return ServiceResult.Good;
                 }
+                if (claim is not null)
+                {
+                    provider = claim.State.Provider;
+                    node = claim.State.SourceNode ?? node;
+                    nodeToRead = RestoreReadParameters(claim.State, nodeToRead);
+                }
                 if (provider is not IHistorianEventProvider events)
                 {
                     claim?.Retire();
@@ -2159,7 +2186,7 @@ namespace Opc.Ua.Server.Historian
                             details.NumValuesPerNode,
                             capabilities.MaxReturnEventValues),
                         IsForward = isForward,
-                        Filter = details.Filter
+                        Filter = (EventFilter)details.Filter.Clone()
                     };
                     token = default;
                 }
@@ -2183,12 +2210,22 @@ namespace Opc.Ua.Server.Historian
                     systemContext.OperationContext,
                     serverInternal.Telemetry);
 
+                // Part 3 8.55: a client only receives an event, live or historical, when
+                // ReceiveEvents is granted on its EventType and SourceNode. Every page,
+                // including continuation pages, is authorized for the current request
+                // before any client filter sees a record.
+                ArrayOf<HistorianEventRecord> authorized = await AuthorizeHistoricalEventsAsync(
+                    systemContext,
+                    node.NodeId,
+                    page.Values,
+                    cancellationToken).ConfigureAwait(false);
+
                 EventFilter filter = request.Filter;
-                ArrayOf<HistorianEventRecord> filtered = page.Values;
+                ArrayOf<HistorianEventRecord> filtered = authorized;
                 if (filter.WhereClause.Elements.Count > 0)
                 {
-                    var keep = new List<HistorianEventRecord>(page.Values.Count);
-                    foreach (HistorianEventRecord record in page.Values)
+                    var keep = new List<HistorianEventRecord>(authorized.Count);
+                    foreach (HistorianEventRecord record in authorized)
                     {
                         var target = new HistorianEventFilterTarget(record);
                         var evaluator = new FilterEvaluator(
@@ -2225,6 +2262,8 @@ namespace Opc.Ua.Server.Historian
                         Id = Guid.NewGuid(),
                         Provider = provider,
                         NodeId = nodeToRead.NodeId,
+                        OriginNodeId = nodeToRead.NodeId,
+                        SourceNode = node,
                         Kind = HistorianReadKind.Events,
                         ResumeToken = page.NextToken,
                         EventRequest = request,
@@ -2253,6 +2292,178 @@ namespace Opc.Ua.Server.Historian
                     await claim.DisposeAsync().ConfigureAwait(false);
                 }
             }
+        }
+#pragma warning restore CA2000
+
+        /// <summary>
+        /// Keeps the stored events whose EventType and SourceNode grant
+        /// <see cref="PermissionType.ReceiveEvents"/> to the caller of the current request,
+        /// in their original order. A missing or malformed stored identity, an unknown node
+        /// or a failed permission lookup excludes the event. Only a trusted in-process read
+        /// without an operation context sees every stored event.
+        /// </summary>
+        internal static async ValueTask<ArrayOf<HistorianEventRecord>> AuthorizeHistoricalEventsAsync(
+            ServerSystemContext systemContext,
+            NodeId notifierId,
+            ArrayOf<HistorianEventRecord> records,
+            CancellationToken cancellationToken)
+        {
+            OperationContext? operationContext = systemContext.OperationContext;
+            if (operationContext == null || records.Count == 0)
+            {
+                return records;
+            }
+
+            var verdicts = new Dictionary<NodeId, bool>();
+            var allowed = new List<HistorianEventRecord>(records.Count);
+            for (int index = 0; index < records.Count; index++)
+            {
+                HistorianEventRecord record = records[index];
+                if (record == null ||
+                    !TryGetStoredEventIdentity(record, notifierId, out NodeId eventType, out NodeId sourceNode))
+                {
+                    continue;
+                }
+
+                if (await IsReceiveEventsGrantedAsync(
+                        systemContext,
+                        operationContext,
+                        eventType,
+                        verdicts,
+                        cancellationToken).ConfigureAwait(false) &&
+                    await IsReceiveEventsGrantedAsync(
+                        systemContext,
+                        operationContext,
+                        sourceNode,
+                        verdicts,
+                        cancellationToken).ConfigureAwait(false))
+                {
+                    allowed.Add(record);
+                }
+            }
+
+            return allowed.Count == records.Count ? records : allowed.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Reads the server-stored identity of a historical event. A record without a stored
+        /// SourceNode was captured or inserted for the notifier itself; a stored SourceNode that
+        /// is not a non-null NodeId, or a null EventType, is malformed.
+        /// </summary>
+        private static bool TryGetStoredEventIdentity(
+            HistorianEventRecord record,
+            NodeId notifierId,
+            out NodeId eventType,
+            out NodeId sourceNode)
+        {
+            eventType = record.EventType;
+            sourceNode = default;
+            if (eventType.IsNull)
+            {
+                return false;
+            }
+
+            var sourceKey = new HistorianEventFieldKey(
+                ObjectTypeIds.BaseEventType,
+                [new QualifiedName(BrowseNames.SourceNode)],
+                Attributes.Value,
+                null);
+            if (!record.TryGetQualifiedField(sourceKey, out Variant stored) &&
+                !record.TryGetField(BrowseNames.SourceNode, out stored))
+            {
+                sourceNode = notifierId;
+                return !sourceNode.IsNull;
+            }
+
+            return stored.TryGetValue(out sourceNode) && !sourceNode.IsNull;
+        }
+
+        /// <summary>
+        /// Validates ReceiveEvents (role permissions and access restrictions, with the
+        /// namespace defaults of the owning node manager) on a node for the current request.
+        /// </summary>
+        private static async ValueTask<bool> IsReceiveEventsGrantedAsync(
+            ServerSystemContext systemContext,
+            OperationContext operationContext,
+            NodeId nodeId,
+            Dictionary<NodeId, bool> verdicts,
+            CancellationToken cancellationToken)
+        {
+            if (verdicts.TryGetValue(nodeId, out bool granted))
+            {
+                return granted;
+            }
+
+            granted = false;
+            try
+            {
+                bool? verdict = await TryGetReceiveEventsVerdictAsync(
+                    systemContext,
+                    operationContext,
+                    nodeId,
+                    cancellationToken).ConfigureAwait(false);
+                if (verdict == null)
+                {
+                    // A resumed page routes only to the owners its continuation retained. The EventType
+                    // and SourceNode of a stored event can belong to other owners, so a node the
+                    // retained routing cannot resolve is checked against the live routing instead.
+                    verdict = await TryGetReceiveEventsVerdictAsync(
+                        systemContext,
+                        operationContext,
+                        nodeId,
+                        cancellationToken,
+                        useLiveRouting: true).ConfigureAwait(false);
+                }
+                granted = verdict == true;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                granted = false;
+            }
+
+            verdicts[nodeId] = granted;
+            return granted;
+        }
+
+        /// <summary>
+        /// Validates ReceiveEvents on a node through request routing or, when requested, current routing.
+        /// </summary>
+        /// <returns>The verdict, or null if the selected routing has no owner for the node.</returns>
+        private static async ValueTask<bool?> TryGetReceiveEventsVerdictAsync(
+            ServerSystemContext systemContext,
+            OperationContext operationContext,
+            NodeId nodeId,
+            CancellationToken cancellationToken,
+            bool useLiveRouting = false)
+        {
+            IMasterNodeManager master = systemContext.Server.NodeManager;
+            (object? handle, IAsyncNodeManager? nodeManager) = useLiveRouting
+                ? await master.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false)
+                : await master.ResolveManagerHandleAsync(operationContext, nodeId, cancellationToken)
+                    .ConfigureAwait(false);
+            if (handle == null || nodeManager == null)
+            {
+                return null;
+            }
+
+            NodeMetadata? metadata = await nodeManager.GetNodeMetadataAsync(
+                operationContext,
+                handle,
+                BrowseResultMask.All,
+                cancellationToken).ConfigureAwait(false);
+            return metadata != null &&
+                !ServiceResult.IsBad(MasterNodeManager.ValidateRolePermissions(
+                    operationContext,
+                    metadata,
+                    PermissionType.ReceiveEvents)) &&
+                !ServiceResult.IsBad(MasterNodeManager.ValidateAccessRestrictions(
+                    operationContext,
+                    metadata,
+                    PermissionType.ReceiveEvents));
         }
 
         /// <summary>
@@ -2671,8 +2882,16 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadContinuationPointInvalid;
             }
 
-            return systemContext.OperationContext?.Session?.ContinuationPoints
-                .ReleaseHistory(nodeToRead.ContinuationPoint) == true
+            ISessionContinuationPoints? points = systemContext.OperationContext?.Session?.ContinuationPoints;
+            IHistoryContinuationPoint? restored = points?.RestoreHistory(nodeToRead.ContinuationPoint);
+            if (restored != null)
+            {
+                bool matches = restored is HistorianContinuationState state &&
+                    (state.OriginNodeId.IsNull ? state.NodeId : state.OriginNodeId) == nodeToRead.NodeId;
+                restored.Dispose();
+                return matches ? ServiceResult.Good : StatusCodes.BadContinuationPointInvalid;
+            }
+            return points?.ReleaseHistory(nodeToRead.ContinuationPoint) == true
                 ? ServiceResult.Good
                 : StatusCodes.BadContinuationPointInvalid;
         }
@@ -2710,20 +2929,18 @@ namespace Opc.Ua.Server.Historian
                     nodeToRead.ContinuationPoint,
                     cancellationToken)
                 .ConfigureAwait(false);
-            if (state != null)
+            if (state is HistorianContinuationState history &&
+                (history.OriginNodeId.IsNull ? history.NodeId : history.OriginNodeId) == nodeToRead.NodeId)
             {
                 state.Dispose();
                 return ServiceResult.Good;
             }
+            state?.Dispose();
             return StatusCodes.BadContinuationPointInvalid;
         }
 
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         private static async ValueTask<ServiceResult> ReadRawPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2809,6 +3026,8 @@ namespace Opc.Ua.Server.Historian
                     Id = Guid.NewGuid(),
                     Provider = provider,
                     NodeId = node.NodeId,
+                    OriginNodeId = nodeToRead.NodeId,
+                    SourceNode = node,
                     Kind = HistorianReadKind.Raw,
                     ResumeToken = page.NextToken,
                     RawRequest = request,
@@ -2836,13 +3055,10 @@ namespace Opc.Ua.Server.Historian
 
             return ServiceResult.Good;
         }
+#pragma warning restore CA2000
 
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         private static async ValueTask<ServiceResult> ReadModifiedPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2918,6 +3134,8 @@ namespace Opc.Ua.Server.Historian
                     Id = Guid.NewGuid(),
                     Provider = provider,
                     NodeId = node.NodeId,
+                    OriginNodeId = nodeToRead.NodeId,
+                    SourceNode = node,
                     Kind = HistorianReadKind.Modified,
                     ResumeToken = page.NextToken,
                     ModifiedRequest = request,
@@ -2945,6 +3163,7 @@ namespace Opc.Ua.Server.Historian
 
             return ServiceResult.Good;
         }
+#pragma warning restore CA2000
 
         private static async ValueTask<HistorianContinuationClaim?>
             TryClaimContinuationAsync(
@@ -2994,7 +3213,7 @@ namespace Opc.Ua.Server.Historian
                     annotationProviderNodeMatches;
                 if (state.Kind != expectedKind ||
                     !annotationProviderNodeMatches ||
-                    (state.NodeId != nodeToRead.NodeId &&
+                    ((state.OriginNodeId.IsNull ? state.NodeId : state.OriginNodeId) != nodeToRead.NodeId &&
                         !legacyAnnotationNodeMatches))
                 {
                     claim.Retire();
@@ -3092,6 +3311,7 @@ namespace Opc.Ua.Server.Historian
                     return;
                 }
                 if (!await TrySaveHistoryContinuationAsync(
+                        systemContext,
                         continuationPoints,
                         initialState,
                         result,
@@ -3108,13 +3328,32 @@ namespace Opc.Ua.Server.Historian
         }
 
         private static async ValueTask<bool> TrySaveHistoryContinuationAsync(
+            ServerSystemContext systemContext,
             ISessionContinuationPoints continuationPoints,
             HistorianContinuationState state,
             HistoryReadResult result,
             CancellationToken cancellationToken)
         {
+            bool transferred = false;
             try
             {
+                ServiceResult admission = ServiceResult.Good;
+                if (systemContext.Server?.NodeManager is MasterNodeManager master)
+                {
+                    admission = await master.CaptureHistoryContinuationAsync(
+                        systemContext.OperationContext!, state, validateSource: false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                if (ServiceResult.IsBad(admission))
+                {
+                    state.Dispose();
+                    result.StatusCode = admission.StatusCode;
+                    result.HistoryData = default;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return false;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                transferred = true;
                 await continuationPoints.SaveHistoryAsync(
                     state,
                     cancellationToken).ConfigureAwait(false);
@@ -3138,6 +3377,27 @@ namespace Opc.Ua.Server.Historian
                 result.ContinuationPoint = ByteString.Empty;
                 return false;
             }
+            finally
+            {
+                if (!transferred)
+                {
+                    state.Dispose();
+                }
+            }
+        }
+
+        private static HistoryReadValueId RestoreReadParameters(
+            HistorianContinuationState state,
+            HistoryReadValueId current)
+        {
+            return new HistoryReadValueId
+            {
+                NodeId = current.NodeId,
+                ContinuationPoint = current.ContinuationPoint,
+                IndexRange = state.IndexRange.ToString(),
+                ParsedIndexRange = state.IndexRange,
+                DataEncoding = state.DataEncoding
+            };
         }
 
         private static void FillHistoryData(

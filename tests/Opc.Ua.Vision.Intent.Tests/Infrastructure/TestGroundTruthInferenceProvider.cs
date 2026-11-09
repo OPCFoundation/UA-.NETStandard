@@ -30,10 +30,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
@@ -107,7 +106,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                     FrameId = target.CameraFrameId,
                     Position = new[] { xc, yc, zc }.ToArrayOf(),
                     Orientation = s_identityOrientation.ToArrayOf(),
-                    Covariance = ArrayOf<double>.Empty
+                    Covariance = []
                 };
                 var box3D = new VisionBoundingBox3DDataType
                 {
@@ -201,15 +200,9 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             var qualifiedName = new QualifiedName(resultId, target.InstanceNamespaceIndex);
             DetectionResultState state = context.CreateInstanceOfDetectionResultType(
                 target.ResultsFolder, qualifiedName);
-            state.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
-            if (state.ResultId != null)
-            {
-                state.ResultId.Value = resultId;
-            }
-            if (state.CreationTime != null)
-            {
-                state.CreationTime.Value = timestamp;
-            }
+            state.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            state.ResultId?.Value = resultId;
+            state.CreationTime?.Value = timestamp;
             state.CreateOrReplaceSensor(context, null).Value = request.Sensor;
             state.CreateOrReplacePipeline(context, null).Value = request.Pipeline;
             state.CreateOrReplaceModelVersionUsed(context, null).Value = ModelVersion;
@@ -230,15 +223,9 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 SizeBytes = 0u,
                 Timestamp = timestamp
             };
-            if (state.Detections != null)
-            {
-                state.Detections.Value = detections;
-            }
+            state.Detections?.Value = detections;
             state.AddFrameId(context, NodeId.Null);
-            if (state.FrameId != null)
-            {
-                state.FrameId.Value = target.CameraFrameId;
-            }
+            state.FrameId?.Value = target.CameraFrameId;
             state.NodeId = context.RequireNodeIdFactory().New(context, state);
             context.AssignInstanceChildNodeIds(state, state.NodeId);
             target.ResultsFolder.AddChild(state);

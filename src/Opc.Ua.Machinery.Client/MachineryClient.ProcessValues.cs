@@ -59,21 +59,23 @@ namespace Opc.Ua.Machinery.Client
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             if (!TryGetNamespaceIndex(
-                Opc.Ua.Machinery.ProcessValues.Namespaces.MachineryProcessValues,
+                ProcessValues.Namespaces.MachineryProcessValues,
                 out ushort namespaceIndex))
             {
                 yield break;
             }
             var processValueTypeId = new NodeId(
-                Opc.Ua.Machinery.ProcessValues.ObjectTypes.ProcessValueType,
+                ProcessValues.ObjectTypes.ProcessValueType,
                 namespaceIndex);
 
             // A process value below the item may also be organized by or be
             // an event source of its Monitoring, so it is reported once.
             var seen = new HashSet<NodeId>();
+            BrowseBudget? budget = m_options is null ? null : new BrowseBudget(m_options);
             await foreach (MachineEntry entry in EnumerateProcessValuesBelowAsync(
                     machineryItem,
                     processValueTypeId,
+                    budget,
                     cancellationToken).ConfigureAwait(false))
             {
                 seen.Add(entry.NodeId);
@@ -81,7 +83,7 @@ namespace Opc.Ua.Machinery.Client
             }
 
             if (!TryGetNamespaceIndex(
-                Opc.Ua.Machinery.Namespaces.Machinery,
+                Namespaces.Machinery,
                 out ushort machineryNamespaceIndex))
             {
                 yield break;
@@ -97,6 +99,7 @@ namespace Opc.Ua.Machinery.Client
             await foreach (MachineEntry entry in EnumerateProcessValuesBelowAsync(
                     monitoring,
                     processValueTypeId,
+                    budget,
                     cancellationToken).ConfigureAwait(false))
             {
                 if (seen.Add(entry.NodeId))
@@ -117,6 +120,7 @@ namespace Opc.Ua.Machinery.Client
         /// </remarks>
         /// <param name="processValue">The process value to read.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
+        /// <exception cref="MachineryReadException"></exception>
         public async ValueTask<MachineryProcessValue?> ReadProcessValueAsync(
             NodeId processValue,
             CancellationToken cancellationToken = default)
@@ -125,9 +129,16 @@ namespace Opc.Ua.Machinery.Client
             {
                 return null;
             }
-            ushort padimNamespaceIndex = NamespaceIndexOf(Opc.Ua.PADIM.Namespaces.PADIM);
+            if (m_options is not null &&
+                !TryGetNamespaceIndex(
+                    ProcessValues.Namespaces.MachineryProcessValues, out _))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return null;
+            }
+            ushort padimNamespaceIndex = NamespaceIndexOf(PADIM.Namespaces.PADIM);
             ushort processValueNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.ProcessValues.Namespaces.MachineryProcessValues);
+                ProcessValues.Namespaces.MachineryProcessValues);
 
             var signalName = new QualifiedName(
                 PadimBrowseNames.AnalogSignal,
@@ -136,6 +147,13 @@ namespace Opc.Ua.Machinery.Client
                 .ConfigureAwait(false);
             if (signal.IsNull)
             {
+                if (m_options is not null)
+                {
+                    throw ReadFailure(
+                        StatusCodes.BadNoMatch,
+                        UnresolvedField(processValue, [signalName], StatusCodes.BadNoMatch, isAbsent: true),
+                        "A process value must publish AnalogSignal.");
+                }
                 return null;
             }
 
@@ -149,11 +167,20 @@ namespace Opc.Ua.Machinery.Client
                 ProcessValueBrowseNames.AlarmSuppression,
                 processValueNamespaceIndex);
 
-            Dictionary<QualifiedName, Variant> objectValues = await ReadChildValuesAsync(
+            var samples = new Dictionary<QualifiedName, DataValue>();
+            ReadValueSet objectValues = await ReadChildValuesAsync(
                 processValue,
                 [signalName, setpointName, statusName, suppressionName],
-                Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
-                cancellationToken).ConfigureAwait(false);
+                ReferenceTypeIds.HierarchicalReferences,
+                cancellationToken,
+                samples).ConfigureAwait(false);
+            objectValues.RequirePresent(signalName);
+            if (!samples.TryGetValue(signalName, out DataValue sample))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotFound,
+                    "The process value's AnalogSignal disappeared while reading its sample.");
+            }
 
             var lowLowName = new QualifiedName(
                 ProcessValueBrowseNames.LowLowLimit,
@@ -170,10 +197,10 @@ namespace Opc.Ua.Machinery.Client
             var percentageName = new QualifiedName(
                 ProcessValueBrowseNames.PercentageValue,
                 processValueNamespaceIndex);
-            var unitsName = new QualifiedName(Opc.Ua.BrowseNames.EngineeringUnits);
-            var rangeName = new QualifiedName(Opc.Ua.BrowseNames.EURange);
+            var unitsName = new QualifiedName(Ua.BrowseNames.EngineeringUnits);
+            var rangeName = new QualifiedName(Ua.BrowseNames.EURange);
 
-            Dictionary<QualifiedName, Variant> signalValues = await ReadChildValuesAsync(
+            ReadValueSet signalValues = await ReadChildValuesAsync(
                 signal,
                 [
                     lowLowName,
@@ -184,22 +211,24 @@ namespace Opc.Ua.Machinery.Client
                     unitsName,
                     rangeName
                 ],
-                Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                ReferenceTypeIds.HierarchicalReferences,
                 cancellationToken).ConfigureAwait(false);
 
             return new MachineryProcessValue
             {
+                Values = CombineEvidence(objectValues.Values, signalValues.Values),
                 NodeId = processValue,
                 SignalNodeId = signal,
-                Value = AsDouble(objectValues, signalName),
-                Setpoint = AsDouble(objectValues, setpointName),
+                Sample = sample,
+                Value = AsProcessNumber(objectValues, signalName, allowArray: true),
+                Setpoint = AsProcessNumber(objectValues, setpointName, allowArray: true),
                 Status = AsUInt16(objectValues, statusName),
                 AlarmSuppression = AsUInt16(objectValues, suppressionName),
-                LowLowLimit = AsDouble(signalValues, lowLowName),
-                LowLimit = AsDouble(signalValues, lowName),
-                HighLimit = AsDouble(signalValues, highName),
-                HighHighLimit = AsDouble(signalValues, highHighName),
-                PercentageValue = AsDouble(signalValues, percentageName),
+                LowLowLimit = AsProcessNumber(signalValues, lowLowName),
+                LowLimit = AsProcessNumber(signalValues, lowName),
+                HighLimit = AsProcessNumber(signalValues, highName),
+                HighHighLimit = AsProcessNumber(signalValues, highHighName),
+                PercentageValue = AsPercentage(signalValues, percentageName),
                 EngineeringUnits = AsEngineeringUnits(signalValues, unitsName),
                 EuRange = AsRange(signalValues, rangeName)
             };
@@ -223,7 +252,7 @@ namespace Opc.Ua.Machinery.Client
             NodeId processValue,
             CancellationToken cancellationToken = default)
         {
-            ushort padimNamespaceIndex = NamespaceIndexOf(Opc.Ua.PADIM.Namespaces.PADIM);
+            ushort padimNamespaceIndex = NamespaceIndexOf(PADIM.Namespaces.PADIM);
             NodeId method = await ResolveChildAsync(
                 processValue,
                 new QualifiedName(
@@ -258,8 +287,25 @@ namespace Opc.Ua.Machinery.Client
         private async IAsyncEnumerable<MachineEntry> EnumerateProcessValuesBelowAsync(
             NodeId parent,
             NodeId processValueTypeId,
+            BrowseBudget? budget,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            if (budget is not null)
+            {
+                ArrayOf<MachineEntry> entries = await BrowseBoundedAsync(
+                    parent, NodeClass.Object, ReferenceTypeIds.HierarchicalReferences, budget, cancellationToken)
+                    .ConfigureAwait(false);
+                for (int ii = 0; ii < entries.Count; ii++)
+                {
+                    MachineEntry entry = entries[ii];
+                    if (await Session.NodeCache.IsTypeOfAsync(
+                        entry.TypeDefinitionId, processValueTypeId, cancellationToken).ConfigureAwait(false))
+                    {
+                        yield return entry;
+                    }
+                }
+                yield break;
+            }
             await foreach (MachineEntry entry in EnumerateChildObjectsAsync(
                     parent,
                     cancellationToken).ConfigureAwait(false))
@@ -275,13 +321,48 @@ namespace Opc.Ua.Machinery.Client
         }
 
         private static ushort? AsUInt16(
-            Dictionary<QualifiedName, Variant> values,
+            ReadValueSet values,
             QualifiedName name)
         {
-            return values.TryGetValue(name, out Variant value) &&
-                value.TryGetValue(out ushort number)
-                ? number
-                : null;
+            values.TryGetValue(name, out Variant value);
+            bool valid = value.TryGetValue(out ushort number);
+            values.RequireType(name, valid && HasType(value, BuiltInType.UInt16));
+            return valid ? number : null;
+        }
+
+        private double? AsProcessNumber(ReadValueSet values, QualifiedName name, bool allowArray = false)
+        {
+            if (m_options is null)
+            {
+                return AsDouble(values, name);
+            }
+            values.TryGetValue(name, out Variant value);
+            bool numeric = HasNumericType(value);
+            values.RequireType(name, numeric && (allowArray || value.TypeInfo.ValueRank == ValueRanks.Scalar));
+            if (value.TypeInfo.ValueRank >= ValueRanks.OneDimension)
+            {
+                ValidateVariantArrays(
+                    value, new ReadArrayBudget(m_options, values.EvidenceOf(name)[0]), CancellationToken.None);
+                // AnalogSignal and Setpoint allow Number arrays. Their
+                // scalar convenience projection is null; Values retains the array.
+                return null;
+            }
+            if (value.TryGetValue(out double number))
+            {
+                return number;
+            }
+            if (value.TryGetValue(out float single))
+            {
+                return single;
+            }
+            return value.TryGetDecimal(out decimal integer) ? (double)integer : null;
+        }
+
+        private static double? AsPercentage(ReadValueSet values, QualifiedName name)
+        {
+            values.TryGetValue(name, out Variant value);
+            values.RequireType(name, HasType(value, BuiltInType.Double));
+            return AsDouble(values, name);
         }
 
         /// <summary>
@@ -291,23 +372,31 @@ namespace Opc.Ua.Machinery.Client
         /// the session already knows the type.
         /// </summary>
         private EUInformation? AsEngineeringUnits(
-            Dictionary<QualifiedName, Variant> values,
+            ReadValueSet values,
             QualifiedName name)
         {
-            return values.TryGetValue(name, out Variant value) &&
-                value.TryGetStructure<EUInformation>(Session.MessageContext, out EUInformation? units)
-                ? units
-                : null;
+            values.TryGetValue(name, out Variant value);
+            if (m_options is not null)
+            {
+                return DecodeStructure<EUInformation>(value, values.EvidenceOf(name)[0]);
+            }
+            bool valid = value.TryGetStructure<EUInformation>(Session.MessageContext, out EUInformation? units);
+            values.RequireType(name, valid);
+            return valid ? units : null;
         }
 
-        private Opc.Ua.Range? AsRange(
-            Dictionary<QualifiedName, Variant> values,
+        private Range? AsRange(
+            ReadValueSet values,
             QualifiedName name)
         {
-            return values.TryGetValue(name, out Variant value) &&
-                value.TryGetStructure<Opc.Ua.Range>(Session.MessageContext, out Opc.Ua.Range? range)
-                ? range
-                : null;
+            values.TryGetValue(name, out Variant value);
+            if (m_options is not null)
+            {
+                return DecodeStructure<Range>(value, values.EvidenceOf(name)[0]);
+            }
+            bool valid = value.TryGetStructure<Range>(Session.MessageContext, out Range? range);
+            values.RequireType(name, valid);
+            return valid ? range : null;
         }
     }
 }

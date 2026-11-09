@@ -29,7 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using Opc.Ua.Vision;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server
 {
@@ -43,8 +46,82 @@ namespace Opc.Ua.Vision.Server
     /// (<see cref="VisionFacetCalculator"/>), coordinate-frame math and
     /// method-dispatch to the injected providers.
     /// </remarks>
-    internal sealed class VisionRegistry
+    internal sealed class VisionRegistry : IConformanceContributor
     {
+        /// <inheritdoc/>
+        public ArrayOf<QualifiedName> ConformanceUnits
+        {
+            get
+            {
+                IConformanceContributor[] contributors;
+                lock (m_resourceGate)
+                {
+                    contributors = [.. m_machineVisionContributors];
+                }
+                var units = new List<QualifiedName>();
+                foreach (IConformanceContributor contributor in contributors)
+                {
+                    foreach (QualifiedName unit in contributor.ConformanceUnits)
+                    {
+                        if (!units.Contains(unit))
+                        {
+                            units.Add(unit);
+                        }
+                    }
+                }
+                return units.ToArrayOf();
+            }
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<string> ServerProfiles => [];
+
+        /// <summary>
+        /// Gives a released control or asset runtime the lifetime of its owning manager.
+        /// </summary>
+        internal void AdoptMachineVisionResource(IAsyncDisposable resource)
+        {
+            lock (m_resourceGate)
+            {
+                m_machineVisionResources.Add(resource);
+                if (resource is IConformanceContributor contributor)
+                {
+                    m_machineVisionContributors.Add(contributor);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases all released-model runtimes and removes their conformance contributions.
+        /// </summary>
+        /// <exception cref="AggregateException"></exception>
+        internal async ValueTask DisposeMachineVisionResourcesAsync()
+        {
+            IAsyncDisposable[] resources;
+            lock (m_resourceGate)
+            {
+                resources = [.. m_machineVisionResources];
+                m_machineVisionResources.Clear();
+                m_machineVisionContributors.Clear();
+            }
+            List<Exception>? failures = null;
+            for (int ii = resources.Length - 1; ii >= 0; ii--)
+            {
+                try
+                {
+                    await resources[ii].DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    (failures ??= []).Add(exception);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException("Machine Vision resource disposal failed.", failures);
+            }
+        }
+
         public IReadOnlyDictionary<string, SensorRegistration> Sensors => m_sensorsByBrowseName;
 
         public IReadOnlyDictionary<NodeId, SensorRegistration> SensorsByNodeId => m_sensorsByNodeId;
@@ -203,9 +280,12 @@ namespace Opc.Ua.Vision.Server
         }
 
         private readonly Dictionary<string, SensorRegistration> m_sensorsByBrowseName = new(StringComparer.Ordinal);
-        private readonly Dictionary<NodeId, SensorRegistration> m_sensorsByNodeId = new();
+        private readonly Lock m_resourceGate = new();
+        private readonly List<IAsyncDisposable> m_machineVisionResources = [];
+        private readonly List<IConformanceContributor> m_machineVisionContributors = [];
+        private readonly Dictionary<NodeId, SensorRegistration> m_sensorsByNodeId = [];
         private readonly Dictionary<string, PipelineRegistration> m_pipelinesByBrowseName = new(StringComparer.Ordinal);
-        private readonly Dictionary<NodeId, PipelineRegistration> m_pipelinesByNodeId = new();
+        private readonly Dictionary<NodeId, PipelineRegistration> m_pipelinesByNodeId = [];
         private readonly Dictionary<string, FrameRegistration> m_framesByBrowseName = new(StringComparer.Ordinal);
         private readonly Dictionary<string, FrameRegistration> m_framesByFrameId = new(StringComparer.Ordinal);
         private readonly List<DeferredExtrinsic> m_deferredExtrinsicResolutions = [];

@@ -43,11 +43,11 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for custom nodes.
     /// </summary>
-    public abstract class NodeState : IFormattable, ICloneable
+    public abstract partial class NodeState : IFormattable, ICloneable
     {
         /// <summary>
         /// Creates an empty object.
-        /// </summary>G
+        /// </summary>
         /// <param name="nodeClass">The node class.</param>
         protected NodeState(NodeClass nodeClass)
         {
@@ -63,6 +63,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="node">The node state.</param>
         public virtual bool DeepEquals(NodeState node)
         {
             // Compare references and children
@@ -99,13 +100,10 @@ namespace Opc.Ua
                 NodeSetDocumentation == node.NodeSetDocumentation &&
                 DesignToolOnly == node.DesignToolOnly)
             {
-                lock (m_referencesLock)
+                if (!ArrayEqualityComparer<IReference>.Default.Equals(
+                    GetReferenceKeys(), node.GetReferenceKeys()))
                 {
-                    if (!ArrayEqualityComparer<IReference>.Default.Equals(
-                        m_references?.Keys.ToArray(), node.m_references?.Keys.ToArray()))
-                    {
-                        return false;
-                    }
+                    return false;
                 }
 
                 lock (m_childrenLock)
@@ -197,16 +195,13 @@ namespace Opc.Ua
             target.m_writeMask = m_writeMask;
             target.m_userWriteMask = m_userWriteMask;
 
-            target.RolePermissions = RolePermissions;
-            target.UserRolePermissions = UserRolePermissions;
+            // the copy is new: storing the permissions does not change those of any node.
+            target.InitializeRolePermissions(RolePermissions, UserRolePermissions);
             target.AccessRestrictions = AccessRestrictions;
 
-            lock (m_referencesLock)
+            if (GetReferenceKeys() is { } references)
             {
-                if (m_references != null)
-                {
-                    target.AddReferences([.. m_references.Keys]);
-                }
+                target.AddReferences(references);
             }
 
             List<BaseInstanceState>? children;
@@ -367,7 +362,7 @@ namespace Opc.Ua
             m_description = source.m_description;
             m_writeMask = source.m_writeMask;
             m_children = null;
-            m_references = null;
+            ResetReferences();
             m_changeMasks = NodeStateChangeMasks.None;
 
             // Note: unlike CopyTo, this deliberately does not carry over
@@ -642,7 +637,11 @@ namespace Opc.Ua
                 NodeStateSecurityData? data = value.IsNull
                     ? Volatile.Read(ref m_securityData)
                     : GetOrCreateSecurityData();
-                data?.UserRolePermissions = value;
+                if (data != null && data.UserRolePermissions != value)
+                {
+                    data.UserRolePermissions = value;
+                    Interlocked.Increment(ref s_rolePermissionsVersion);
+                }
             }
         }
 
@@ -1486,15 +1485,16 @@ namespace Opc.Ua
         /// <param name="encoder">The encoder wrapping the stream to write.</param>
         public void SaveReferences(ISystemContext context, BinaryEncoder encoder)
         {
-            if (m_references == null || m_references.Count == 0)
+            IReference[]? references = GetReferenceKeys();
+            if (references == null || references.Length == 0)
             {
                 encoder.WriteInt32(null, -1);
                 return;
             }
 
-            encoder.WriteInt32(null, m_references.Count);
+            encoder.WriteInt32(null, references.Length);
 
-            foreach (IReference reference in m_references.Keys)
+            foreach (IReference reference in references)
             {
                 encoder.WriteNodeId(null, reference.ReferenceTypeId);
                 encoder.WriteBoolean(null, reference.IsInverse);
@@ -1525,11 +1525,11 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                m_references ??= [];
+                ReferenceDictionary<object?> table = GetWritableReferences();
 
                 foreach (NodeStateReference reference in references)
                 {
-                    m_references[reference] = null;
+                    table[reference] = null;
                 }
             }
         }
@@ -1824,7 +1824,8 @@ namespace Opc.Ua
         /// <param name="encoder">The encoder wrapping the stream to write.</param>
         public void SaveReferences(ISystemContext context, XmlEncoder encoder)
         {
-            if (m_references == null || m_references.Count == 0)
+            IReference[]? references = GetReferenceKeys();
+            if (references == null || references.Length == 0)
             {
                 return;
             }
@@ -1835,7 +1836,7 @@ namespace Opc.Ua
             {
                 encoder.Push("References", Namespaces.OpcUaXsd);
 
-                foreach (IReference reference in m_references.Keys)
+                foreach (IReference reference in references)
                 {
                     encoder.Push("Reference", Namespaces.OpcUaXsd);
 
@@ -1892,12 +1893,7 @@ namespace Opc.Ua
         /// <param name="decoder">The decoder wrapping the stream to read.</param>
         public virtual void UpdateReferences(ISystemContext context, XmlDecoder decoder)
         {
-            // remove existing references.
-            if (m_references != null)
-            {
-                m_references.Clear();
-                m_changeMasks |= NodeStateChangeMasks.References;
-            }
+            var references = new ReferenceDictionary<object?>();
 
             // check if the table exists.
             decoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -1905,6 +1901,7 @@ namespace Opc.Ua
             if (!decoder.Peek("References"))
             {
                 decoder.PopNamespace();
+                ReplaceReferences();
                 return;
             }
 
@@ -1934,12 +1931,7 @@ namespace Opc.Ua
                     targetId = decoder.ReadExpandedNodeId("TargetId");
                 }
 
-                // create table if it does not already exist.
-                m_references ??= [];
-
-                // create reference.
-                m_references[new NodeStateReference(referenceTypeId, isInverse, targetId)] = null;
-                m_changeMasks |= NodeStateChangeMasks.References;
+                references[new NodeStateReference(referenceTypeId, isInverse, targetId)] = null;
 
                 decoder.Skip(new XmlQualifiedName("Reference", Namespaces.OpcUaXsd));
             }
@@ -1947,6 +1939,21 @@ namespace Opc.Ua
             decoder.Skip(new XmlQualifiedName("References", Namespaces.OpcUaXsd));
 
             decoder.PopNamespace();
+            ReplaceReferences();
+
+            void ReplaceReferences()
+            {
+                lock (m_referencesLock)
+                {
+                    EnsureReferencesMutable();
+                    m_referenceRevision++;
+                    if (m_references is not null || references.Count != 0)
+                    {
+                        m_references = references;
+                        m_changeMasks |= NodeStateChangeMasks.References;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -2902,9 +2909,32 @@ namespace Opc.Ua
         /// <summary>
         /// Reports an event produced by the node.
         /// </summary>
+        /// <remarks>
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while reporting an event, synchronous sinks must not
+        /// block on work that needs the same gate. The synchronous path also waits for asynchronous sinks,
+        /// which must not await such work.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
+        {
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
+            {
+                if (!entered)
+                {
+                    return;
+                }
+                ReportEventCore(context, e);
+            }
+        }
+
+        /// <summary>
+        /// Reports one visited node to its sinks and inverse notifiers within the current event propagation.
+        /// </summary>
+        protected void ReportEventCore(ISystemContext context, IFilterTarget e)
         {
             OnReportEvent?.Invoke(context, this, e);
 
@@ -2961,10 +2991,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronously reports an event produced by the node, awaiting an asynchronous report
-        /// sink (see <see cref="OnReportEventAsync"/>) so the caller is never blocked. A synchronous
-        /// sink is invoked as well.
+        /// Reports an event through the asynchronous path, awaiting asynchronous report sinks
+        /// (see <see cref="OnReportEventAsync"/>) and inverse notifiers. Synchronous sinks are
+        /// still invoked directly.
         /// </summary>
+        /// <remarks>
+        /// This method does not invoke overrides of <see cref="ReportEvent"/>. A subclass that
+        /// customizes synchronous event reporting must also override this method to apply that
+        /// customization to asynchronous calls.
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while invoking or awaiting this method, report-event sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -2972,6 +3011,26 @@ namespace Opc.Ua
             ISystemContext context,
             IFilterTarget e,
             CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
+            {
+                if (!entered)
+                {
+                    return;
+                }
+                await ReportEventCoreAsync(context, e, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Awaits one visited node's sinks and inverse notifiers within the current event propagation.
+        /// </summary>
+        protected async ValueTask ReportEventCoreAsync(
+            ISystemContext context,
+            IFilterTarget e,
+            CancellationToken cancellationToken)
         {
             OnReportEvent?.Invoke(context, this, e);
 
@@ -3251,6 +3310,11 @@ namespace Opc.Ua
         /// <summary>
         /// Clears the change masks.
         /// </summary>
+        /// <remarks>
+        /// When the caller retains a serialization gate while clearing change masks, synchronous sinks must not block
+        /// on work that needs the same gate. This method also waits for asynchronous sinks, which must not await such
+        /// work.
+        /// </remarks>
         /// <param name="context">The context that describes how access the system containing the data..</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children..</param>
         public void ClearChangeMasks(ISystemContext context, bool includeChildren)
@@ -3360,17 +3424,46 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronously clears the change masks, awaiting any asynchronous state-changed sinks
-        /// (see <see cref="OnStateChangedAsync"/> / <see cref="StateChangedAsync"/>) so the caller
-        /// is never blocked. Synchronous sinks are invoked as well.
+        /// Asynchronously clears the change masks, awaiting asynchronous state-changed sinks
+        /// (see <see cref="OnStateChangedAsync"/> / <see cref="StateChangedAsync"/>). Synchronous sinks run inline
+        /// and may block the caller.
         /// </summary>
+        /// <remarks>
+        /// When the caller retains a serialization gate while invoking or awaiting this method, state-change sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// Nodes bound for asynchronous notification dispatch retain notification admission throughout each
+        /// traversal, even when no masks were pending at entry. Their dispatch rejects synchronous writes and
+        /// permits nested asynchronous writes from the state-change sink.
+        /// </remarks>
         /// <param name="context">The context that describes how to access the system containing the data.</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask ClearChangeMasksAsync(
+        public ValueTask ClearChangeMasksAsync(
             ISystemContext context,
             bool includeChildren,
             CancellationToken cancellationToken = default)
+        {
+            if (m_writeOperationExecutor is { } executor &&
+                Volatile.Read(ref m_asynchronousChangeMaskNotifications) != 0)
+            {
+                return executor.ExecuteNotificationsAsync(
+                    ct => ClearChangeMasksCoreAsync(context, includeChildren, ct),
+                    cancellationToken);
+            }
+
+            return ClearChangeMasksCoreAsync(context, includeChildren, cancellationToken);
+        }
+
+        /// <summary>
+        /// Clears change masks and awaits state-change sinks without acquiring notification admission.
+        /// </summary>
+        /// <param name="context">The context that describes how to access the system containing the data.</param>
+        /// <param name="includeChildren">Whether to clear masks recursively for all children.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask ClearChangeMasksCoreAsync(
+            ISystemContext context,
+            bool includeChildren,
+            CancellationToken cancellationToken)
         {
             if (includeChildren)
             {
@@ -3994,9 +4087,9 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // index any references.
-                if (m_references != null)
+                if (m_references is { } table)
                 {
-                    foreach (IReference reference in m_references.Keys)
+                    foreach (IReference reference in table.Keys)
                     {
                         var targetId = ExpandedNodeId.ToNodeId(
                             reference.TargetId,
@@ -4055,13 +4148,14 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
+                EnsureReferencesMutable();
                 // check if there are references to update.
-                if (m_references != null)
+                if (m_references is { } table)
                 {
                     var referencesToAdd = new List<IReference>();
                     var referencesToRemove = new List<IReference>();
 
-                    foreach (IReference reference in m_references.Keys)
+                    foreach (IReference reference in table.Keys)
                     {
                         // check for absolute id.
                         var oldId = ExpandedNodeId.ToNodeId(
@@ -4085,10 +4179,15 @@ namespace Opc.Ua
                         }
                     }
 
+                    if (referencesToRemove.Count != 0)
+                    {
+                        m_referenceRevision++;
+                    }
+
                     // remove old references.
                     for (int ii = 0; ii < referencesToRemove.Count; ii++)
                     {
-                        if (m_references.Remove(referencesToRemove[ii]))
+                        if (table.Remove(referencesToRemove[ii]))
                         {
                             m_changeMasks |= NodeStateChangeMasks.References;
                         }
@@ -4097,7 +4196,7 @@ namespace Opc.Ua
                     // add new references.
                     for (int ii = 0; ii < referencesToAdd.Count; ii++)
                     {
-                        m_references[referencesToAdd[ii]] = null;
+                        table[referencesToAdd[ii]] = null;
                         m_changeMasks |= NodeStateChangeMasks.References;
                     }
                 }
@@ -4204,11 +4303,11 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // add any arbitrary references.
-                if (m_references != null)
+                if (m_references is { } table)
                 {
                     if (referenceTypeId.IsNull)
                     {
-                        foreach (IReference reference in m_references.Keys)
+                        foreach (IReference reference in table.Keys)
                         {
                             if (reference.IsInverse)
                             {
@@ -4232,14 +4331,14 @@ namespace Opc.Ua
                         {
                             if (browserIncludeSubtypes)
                             {
-                                references = m_references.Find(
+                                references = table.Find(
                                     browserReferenceType,
                                     false,
                                     context.TypeTable);
                             }
                             else
                             {
-                                references = m_references.Find(browserReferenceType, false);
+                                references = table.Find(browserReferenceType, false);
                             }
 
                             for (int ii = 0; ii < references.Count; ii++)
@@ -4252,14 +4351,14 @@ namespace Opc.Ua
                         {
                             if (browserIncludeSubtypes)
                             {
-                                references = m_references.Find(
+                                references = table.Find(
                                     browserReferenceType,
                                     true,
                                     context.TypeTable);
                             }
                             else
                             {
-                                references = m_references.Find(browserReferenceType, true);
+                                references = table.Find(browserReferenceType, true);
                             }
 
                             for (int ii = 0; ii < references.Count; ii++)
@@ -4820,6 +4919,11 @@ namespace Opc.Ua
             NumericRange indexRange,
             DataValue value)
         {
+            if (attributeId == Attributes.Value && m_writeOperationExecutor is { } executor)
+            {
+                return executor.ExecuteSynchronously(
+                    () => WriteAttributeCore(context, attributeId, indexRange, value));
+            }
             return WriteAttributeCore(context, attributeId, indexRange, value);
         }
 
@@ -4827,11 +4931,10 @@ namespace Opc.Ua
         /// Writes an attribute.
         /// </summary>
         /// <remarks>
-        /// Deliberately takes no node-wide lock, for the same reason as the read path:
-        /// writing dispatches to caller-supplied handlers (<c>OnWriteValue</c> and its
-        /// siblings) which may take locks of their own, and holding a lock on the node
-        /// across one gives the node no fixed place in the lock order. The individual
-        /// attribute fields guard themselves.
+        /// The node does not take a node-wide lock around caller-supplied handlers because
+        /// those handlers may take locks of their own. Individual attribute fields guard
+        /// themselves. A runtime may bind an internal operation executor to coordinate a
+        /// complete Value write without exposing its synchronization mechanism.
         /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
@@ -5025,27 +5128,105 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronous sibling of
         /// <see cref="WriteAttribute(ISystemContext, uint, NumericRange, DataValue)"/>.
-        /// The default implementation wraps the synchronous call so behaviour is
-        /// bit-identical for every
-        /// <see cref="NodeState"/> that does not override it. Derived
-        /// types (notably <see cref="BaseVariableState"/>) can override
-        /// this method to dispatch to true asynchronous write hooks
-        /// without blocking a thread.
+        /// Derived types customize Value writes through <see cref="WriteAttributeCoreAsync"/>.
         /// </summary>
+        /// <remarks>
+        /// This public entrypoint is non-virtual so it can admit a complete Value write before virtual core
+        /// dispatch. Non-Value attributes dispatch to the core without Value-write admission.
+        /// Derived implementations must override <see cref="WriteAttributeCoreAsync"/> instead.
+        /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="indexRange">The index range.</param>
         /// <param name="value">The value to write.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        public virtual ValueTask<ServiceResult> WriteAttributeAsync(
+        public ValueTask<ServiceResult> WriteAttributeAsync(
             ISystemContext context,
             uint attributeId,
             NumericRange indexRange,
             DataValue value,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result = WriteAttribute(context, attributeId, indexRange, value);
-            return new ValueTask<ServiceResult>(result);
+            if (attributeId != Attributes.Value)
+            {
+                return WriteAttributeCoreAsync(context, attributeId, indexRange, value, cancellationToken);
+            }
+
+            if (m_writeOperationExecutor is not { } executor)
+            {
+                return WriteAttributeCoreAsync(context, attributeId, indexRange, value, cancellationToken);
+            }
+
+            return executor.ExecuteAsynchronouslyAsync(
+                ct => WriteAttributeCoreAsync(context, attributeId, indexRange, value, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs the asynchronous Value-write core.
+        /// </summary>
+        /// <remarks>
+        /// Derived implementations that need to retain native validation, callbacks, and cache commit must call
+        /// this method with <see langword="base"/>. The public <see cref="WriteAttributeAsync"/> method admits
+        /// a complete Value write before calling this virtual method. A Value-write core must not await another
+        /// public Value write for the same node; that call waits behind the current admission until it is
+        /// cancelled, while the outer write retains admission.
+        /// The base implementation returns BadNotSupported for executor-bound Value writes without invoking
+        /// synchronous validation, write handlers, or cache updates. Unbound Value writes and non-Value
+        /// attributes retain the ordinary synchronous fallback.
+        /// </remarks>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="indexRange">The elements to write, or a null range for the complete value.</param>
+        /// <param name="value">The value, status, and timestamp to write.</param>
+        /// <param name="cancellationToken">The operation cancellation token.</param>
+        /// <returns>The validation, callback, and cache-commit result.</returns>
+        protected virtual ValueTask<ServiceResult> WriteAttributeCoreAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            if (attributeId == Attributes.Value && m_writeOperationExecutor != null)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Create(
+                    StatusCodes.BadNotSupported,
+                    "Executor-bound asynchronous Value writes require a native asynchronous implementation."));
+            }
+            return new ValueTask<ServiceResult>(WriteAttributeCore(context, attributeId, indexRange, value));
+        }
+
+        /// <summary>
+        /// Binds an internal executor for complete Value writes on this node.
+        /// </summary>
+        /// <param name="executor">The operation executor.</param>
+        /// <param name="asynchronousChangeMaskNotifications">
+        /// Whether asynchronous clears retain notification admission throughout dispatch.
+        /// </param>
+        internal void BindWriteOperationExecutor(
+            NodeWriteOperationExecutor executor,
+            bool asynchronousChangeMaskNotifications = false)
+        {
+            m_writeOperationExecutor = executor ?? throw new ArgumentNullException(nameof(executor));
+            if (asynchronousChangeMaskNotifications)
+            {
+                Volatile.Write(ref m_asynchronousChangeMaskNotifications, 1);
+            }
+        }
+
+        /// <summary>
+        /// Marks change-mask notifications for dispatch after an executor-bound Value write releases admission.
+        /// </summary>
+        protected bool DeferChangeMaskNotificationsUntilWriteAdmissionEnds()
+        {
+            if (m_writeOperationExecutor is null)
+            {
+                return false;
+            }
+
+            Volatile.Write(ref m_asynchronousChangeMaskNotifications, 1);
+            return true;
         }
 
         /// <summary>
@@ -6085,12 +6266,13 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references == null || referenceTypeId.IsNull || targetId.IsNull)
+                ReferenceDictionary<object?>? references = m_references;
+                if (references == null || referenceTypeId.IsNull || targetId.IsNull)
                 {
                     return false;
                 }
 
-                return m_references.ContainsKey(
+                return references.ContainsKey(
                     new NodeStateReference(referenceTypeId, isInverse, targetId));
             }
         }
@@ -6116,7 +6298,7 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                (m_references ??= []).Add(
+                GetWritableReferences().Add(
                     new NodeStateReference(referenceTypeId, isInverse, targetId),
                     null);
             }
@@ -6160,14 +6342,14 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                m_references ??= [];
+                ReferenceDictionary<object?> references = GetWritableReferences();
 
-                if (m_references.ContainsKey(reference))
+                if (references.ContainsKey(reference))
                 {
                     return false;
                 }
 
-                m_references.Add(reference, null);
+                references.Add(reference, null);
             }
 
             m_changeMasks |= NodeStateChangeMasks.References;
@@ -6200,9 +6382,13 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                removed = m_references != null &&
-                    m_references.Remove(
-                        new NodeStateReference(referenceTypeId, isInverse, targetId));
+                EnsureReferencesMutable();
+                removed = m_references?.Remove(
+                    new NodeStateReference(referenceTypeId, isInverse, targetId)) == true;
+                if (removed)
+                {
+                    m_referenceRevision++;
+                }
             }
 
             if (!removed)
@@ -6237,13 +6423,13 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                m_references ??= [];
+                ReferenceDictionary<object?> table = GetWritableReferences();
 
                 for (int ii = 0; ii < references.Count; ii++)
                 {
-                    if (!m_references.ContainsKey(references[ii]))
+                    if (!table.ContainsKey(references[ii]))
                     {
-                        m_references.Add(references[ii], null);
+                        table.Add(references[ii], null);
                         addedReferences.Add(references[ii]);
                     }
                 }
@@ -6274,25 +6460,38 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
 
-            List<IReference>? refsToRemove = null;
+            List<IReference> refsToRemove;
 
             lock (m_referencesLock)
             {
-                if (m_references == null)
+                EnsureReferencesMutable();
+                if (m_references is not { } references)
                 {
                     return false;
                 }
 
                 refsToRemove =
                 [
-                    .. m_references
+                    .. references
                         .Select(r => r.Key)
                         .Where(
                             r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
                 ];
+                foreach (IReference reference in refsToRemove)
+                {
+                    references.Remove(reference);
+                }
+                if (refsToRemove.Count != 0)
+                {
+                    m_referenceRevision++;
+                    m_changeMasks |= NodeStateChangeMasks.References;
+                }
             }
 
-            refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
+            foreach (IReference reference in refsToRemove)
+            {
+                OnReferenceRemoved?.Invoke(this, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+            }
 
             return refsToRemove.Count != 0;
         }
@@ -6339,9 +6538,9 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references != null)
+                if (m_references is { } table)
                 {
-                    foreach (IReference reference in m_references.Keys)
+                    foreach (IReference reference in table.Keys)
                     {
                         references.Add(reference);
                     }
@@ -6352,6 +6551,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns any references with the specified reference type and direction.
         /// </summary>
+        /// <param name="context">The context for accessing the node.</param>
+        /// <param name="references">The destination for matching references.</param>
+        /// <param name="referenceTypeId">The reference type identifier.</param>
+        /// <param name="isInverse">The inverse flag supplied by the caller.</param>
         public virtual void GetReferences(
             ISystemContext context,
             IList<IReference> references,
@@ -6360,9 +6563,9 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references != null)
+                if (m_references is { } table)
                 {
-                    foreach (IReference reference in m_references.Keys)
+                    foreach (IReference reference in table.Keys)
                     {
                         if (isInverse == reference.IsInverse &&
                             reference.ReferenceTypeId == referenceTypeId)
@@ -6775,8 +6978,56 @@ namespace Opc.Ua
             NodeStateSecurityData? data = value.IsNull
                 ? Volatile.Read(ref m_securityData)
                 : GetOrCreateSecurityData();
-            data?.RolePermissions = value;
+            if (data != null && data.RolePermissions != value)
+            {
+                data.RolePermissions = value;
+                Interlocked.Increment(ref s_rolePermissionsVersion);
+            }
         }
+
+        /// <summary>
+        /// Stores the role permissions of a node that was just created, such as a copy or an
+        /// event field, without moving <see cref="RolePermissionsVersion"/>.
+        /// </summary>
+        /// <remarks>
+        /// No permission check has seen the new node yet, so no cached verdict depends on its
+        /// permissions; the permissions it copies changed the version when they were set on
+        /// their own node. Moving the version here would retire every cached verdict of the
+        /// server each time an event or a snapshot is created.
+        /// </remarks>
+        /// <param name="rolePermissions">The role permissions.</param>
+        /// <param name="userRolePermissions">The user role permissions.</param>
+        internal void InitializeRolePermissions(
+            ArrayOf<RolePermissionType> rolePermissions,
+            ArrayOf<RolePermissionType> userRolePermissions)
+        {
+            NodeStateSecurityData? data = rolePermissions.IsNull && userRolePermissions.IsNull
+                ? Volatile.Read(ref m_securityData)
+                : GetOrCreateSecurityData();
+            if (data != null)
+            {
+                data.RolePermissions = rolePermissions;
+                data.UserRolePermissions = userRolePermissions;
+            }
+        }
+
+        /// <summary>
+        /// Changes when role-permission attributes change or address-space membership may
+        /// replace the node resolved for a NodeId.
+        /// Cached permission verdicts use this version without retaining every resolved node.
+        /// </summary>
+        internal static long RolePermissionsVersion => Interlocked.Read(ref s_rolePermissionsVersion);
+
+        /// <summary>
+        /// Advances the permission cache version around node-management operations that can
+        /// replace the node resolved for a NodeId.
+        /// </summary>
+        internal static void InvalidateRolePermissionsCache()
+        {
+            Interlocked.Increment(ref s_rolePermissionsVersion);
+        }
+
+        private static long s_rolePermissionsVersion;
 
         private void SetAccessRestrictions(AccessRestrictionType? value)
         {
@@ -6831,6 +7082,16 @@ namespace Opc.Ua
 
         private bool m_initializedFromSource;
 
+        /// <summary>
+        /// The executor for complete Value-write operations, when one is bound.
+        /// </summary>
+        private NodeWriteOperationExecutor? m_writeOperationExecutor;
+
+        /// <summary>
+        /// Whether asynchronous mask clearing must retain notification admission for this node's lifetime.
+        /// </summary>
+        private int m_asynchronousChangeMaskNotifications;
+
         /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
         private Lock? m_notifiersLock;
 
@@ -6847,7 +7108,6 @@ namespace Opc.Ua
         private AttributeWriteMask m_writeMask;
         private AttributeWriteMask m_userWriteMask;
         private NodeStateSecurityData? m_securityData;
-        private ReferenceDictionary<object?>? m_references;
         private int m_areEventsMonitored;
         private List<Notifier>? m_notifiers;
         private NodeStateDesignMetadata? m_designMetadata;
@@ -7081,7 +7341,31 @@ namespace Opc.Ua
     /// </summary>
     /// <param name="Result">Operation result.</param>
     public readonly record struct AttributeWriteResult(
-        ServiceResult Result);
+        ServiceResult Result)
+    {
+        /// <summary>
+        /// Gets whether the handler or an external publisher owns updates to the cached value,
+        /// quality, source timestamp and value-change mask after a successful write.
+        /// </summary>
+        /// <remarks>
+        /// The default is false, preserving ordinary write-through behavior. When true, the
+        /// asynchronous write pipeline returns <see cref="Result"/> without updating the cache.
+        /// Access, type, status and timestamp validation still apply. For indexed writes, the
+        /// handler remains responsible for applying the requested range to its authoritative data.
+        /// </remarks>
+        public bool SuppressCacheUpdate { get; init; }
+
+        /// <summary>
+        /// Gets whether the native core owns an ordinary cache write, including copying and range rejection.
+        /// </summary>
+        internal bool UseOrdinaryCacheWrite { get; init; }
+
+        /// <summary>
+        /// Gets the mandatory dependent-state update run after an ordinary cache commit, outside its lock.
+        /// Exceptions report a failed operation without rolling back the committed cache.
+        /// </summary>
+        internal Action? AfterOrdinaryCacheCommit { get; init; }
+    }
 
     /// <summary>
     /// Asynchronous sibling of <see cref="NodeValueEventHandler"/> for the

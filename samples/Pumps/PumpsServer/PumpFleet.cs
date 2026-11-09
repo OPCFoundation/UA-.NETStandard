@@ -29,13 +29,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
+using Opc.Ua.AMB.Server.Configuration;
+using Opc.Ua.Di;
 using Opc.Ua.Pumps;
 using Opc.Ua.Pumps.Server;
 using Opc.Ua.Pumps.Server.Builders;
 using Opc.Ua.Pumps.Server.Hosting;
+using Opc.Ua.Server.FileSystem;
+using Opc.Ua.Server.Historian;
+using Opc.Ua.Server.Historian.InMemory;
 using static PumpsSample.PumpDatasheet;
 using BrowseNames = Opc.Ua.Pumps.BrowseNames;
 using Range = Opc.Ua.Range;
@@ -54,6 +60,19 @@ namespace PumpsSample
     /// </remarks>
     internal sealed class PumpFleet
     {
+        /// <summary>
+        /// Uses explicitly configured shared services; retained identity is opt-in.
+        /// </summary>
+        public PumpFleet(
+            InMemoryHistorianProvider historian,
+            IFileTypeBinder files,
+            IAssetConfigurationStore? identity = null)
+        {
+            m_historian = historian;
+            m_files = files;
+            m_identity = identity;
+        }
+
         /// <summary>
         /// The pumps, once <see cref="ConfigureAsync"/> ran.
         /// </summary>
@@ -78,7 +97,7 @@ namespace PumpsSample
             Volatile.Write(ref m_units, [duty, standby]);
         }
 
-        private static async ValueTask<PumpUnit> CreatePumpAsync(
+        private async ValueTask<PumpUnit> CreatePumpAsync(
             PumpsNodeManager manager,
             string name,
             string serialNumber,
@@ -101,6 +120,7 @@ namespace PumpsSample
                 Model = new LocalizedText("en", Model),
                 ProductCode = "CW-80-11",
                 SerialNumber = serialNumber,
+                ProductInstanceUri = "urn:opcfoundation:sample:pump:" + serialNumber,
                 HardwareRevision = "B",
                 SoftwareRevision = "2.4.1",
                 DeviceClass = "Centrifugal pump",
@@ -113,11 +133,31 @@ namespace PumpsSample
                 TypeOfProduct = "Single-stage volute casing pump",
                 CountryOfOrigin = "DE"
             });
+            if (m_identity is not null)
+            {
+                await manager.Runtime.WithRetainedIdentificationAsync(
+                    pump,
+                    m_identity,
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = Opc.Ua.ObjectIds.WellKnownRole_Anonymous,
+                            Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
+                        },
+                        new RolePermissionType
+                        {
+                            RoleId = Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
+                            Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.Write)
+                        }
+                    ],
+                    cancellationToken).ConfigureAwait(false);
+            }
 
             // Configuration: what the pump is built for (Design), how it was
             // installed (Implementation) and what the plant asks of it
             // (SystemRequirements). Static, so set once.
             pump.Design
+                .Set(BrowseNames.PumpClass, Variant.From(DeviceTypeEnum.RotodynamicPump))
                 .SetAnalog(
                     BrowseNames.MaximumAllowableWorkingPressure,
                     MaximumAllowableWorkingPressure,
@@ -173,7 +213,7 @@ namespace PumpsSample
             IPumpGroupBuilder mechanics = pump.Supervision(BrowseNames.SupervisionMechanics)
                 .SetDiscrete(BrowseNames.ExcessVibration, false)
                 .SetDiscrete(BrowseNames.BearingFault, false);
-            pump.Supervision(BrowseNames.SupervisionPumpOperation)
+            IPumpGroupBuilder operation = pump.Supervision(BrowseNames.SupervisionPumpOperation)
                 .SetDiscrete(BrowseNames.MotorOverheat, false);
 
             // MultiPump describes this pump's role in the duty/standby pair.
@@ -212,11 +252,44 @@ namespace PumpsSample
                 .SetAnalog(BrowseNames.MotorCurrent, 0, Units.Ampere)
                 .SetAnalog(BrowseNames.MotorTemperature, 25, Units.DegreeCelsius);
 
-            // Documentation: the links only. Serving the files themselves
-            // would mean implementing the FileType methods.
             pump.Documentation
                 .Set(BrowseNames.OperationManualLink, Variant.From(OperationManual))
                 .Set(BrowseNames.TechnicalDataLink, Variant.From(TechnicalData));
+            manager.Runtime.BindDocumentationFile(
+                pump,
+                BrowseNames.OperationManual,
+                ByteString.From(Encoding.UTF8.GetBytes("Demonstration pump; no physical actuation.").AsSpan()),
+                m_files);
+            manager.Runtime.BindMarkingFile(
+                pump,
+                "SampleMarking",
+                ByteString.From(Encoding.UTF8.GetBytes("SAMPLE - NOT A PRODUCT CERTIFICATION").AsSpan()),
+                m_files);
+
+            var flow = (BaseVariableState)measurements.Child(BrowseNames.MassFlow)!;
+            m_historian.Register(flow.NodeId);
+            m_historian.Register(pump.NodeId, HistorianNodeCapabilities.EventReadWrite);
+            await manager.Runtime.HistorizeAsync(pump, [flow], m_historian,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            await manager.Runtime.HistorizeEventsAsync(pump, m_historian,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            ArrayOf<PumpAlarmBinding> alarms =
+            [
+                await DiagnosticAsync(processFluid, BrowseNames.Cavitation,
+                    DeviceHealthEnumeration.OFF_SPEC).ConfigureAwait(false),
+                await DiagnosticAsync(processFluid, BrowseNames.Dry,
+                    DeviceHealthEnumeration.FAILURE).ConfigureAwait(false),
+                await DiagnosticAsync(mechanics, BrowseNames.ExcessVibration,
+                    DeviceHealthEnumeration.OFF_SPEC).ConfigureAwait(false),
+                await DiagnosticAsync(mechanics, BrowseNames.BearingFault,
+                    DeviceHealthEnumeration.MAINTENANCE_REQUIRED).ConfigureAwait(false),
+                await DiagnosticAsync(operation, BrowseNames.MotorOverheat,
+                    DeviceHealthEnumeration.FAILURE).ConfigureAwait(false),
+                await manager.Runtime.AddMeasurementAlarmAsync(
+                    measurements, (BaseVariableState)measurements.Child(BrowseNames.BearingTemperature)!,
+                    "BearingTemperatureLimit", new PumpMeasurementLimits { High = 75, HighHigh = 90 },
+                    cancellationToken).ConfigureAwait(false)
+            ];
 
             return new PumpUnit(
                 name,
@@ -227,9 +300,29 @@ namespace PumpsSample
                 mechanics,
                 multiPump,
                 general,
-                motor);
+                motor,
+                alarms);
+
+            ValueTask<PumpAlarmBinding> DiagnosticAsync(
+                IPumpGroupBuilder group, string field, DeviceHealthEnumeration category)
+            {
+                return manager.Runtime.AddDiagnosticAlarmAsync(
+                    group, (BaseVariableState)group.Child(field)!, field + "Condition", category,
+                    new PumpAlarmOptions
+                    {
+                        ActiveSeverity = category == DeviceHealthEnumeration.FAILURE
+                            ? EventSeverity.High : EventSeverity.Medium,
+                        Suppression = true,
+                        Shelving = true,
+                        MaximumShelvingTime = TimeSpan.FromMinutes(5)
+                    },
+                    cancellationToken: cancellationToken);
+            }
         }
 
+        private readonly InMemoryHistorianProvider m_historian;
+        private readonly IFileTypeBinder m_files;
+        private readonly IAssetConfigurationStore? m_identity;
         private IReadOnlyList<PumpUnit> m_units = [];
     }
 
@@ -253,7 +346,8 @@ namespace PumpsSample
             IPumpGroupBuilder mechanics,
             IPumpGroupBuilder multiPump,
             IPumpGroupBuilder generalMaintenance,
-            IPumpGroupBuilder motor)
+            IPumpGroupBuilder motor,
+            ArrayOf<PumpAlarmBinding> alarms)
         {
             Name = name;
             Measurements = measurements;
@@ -264,6 +358,7 @@ namespace PumpsSample
             MultiPump = multiPump;
             GeneralMaintenance = generalMaintenance;
             Motor = motor;
+            m_alarms = alarms;
         }
 
         public string Name { get; }
@@ -275,6 +370,17 @@ namespace PumpsSample
         public IPumpGroupBuilder MultiPump { get; }
         public IPumpGroupBuilder GeneralMaintenance { get; }
         public IPumpGroupBuilder Motor { get; }
+
+        /// <summary>
+        /// Evaluates configured conditions after publishing this simulation tick's inputs.
+        /// </summary>
+        public async ValueTask EvaluateAlarmsAsync(CancellationToken cancellationToken)
+        {
+            for (int i = 0; i < m_alarms.Count; i++)
+            {
+                await m_alarms[i].EvaluateAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
 
         /// <summary>
         /// Writes an analog reading, rounded for display.
@@ -301,5 +407,7 @@ namespace PumpsSample
         {
             group.SetDiscrete(browseName, value);
         }
+
+        private readonly ArrayOf<PumpAlarmBinding> m_alarms;
     }
 }

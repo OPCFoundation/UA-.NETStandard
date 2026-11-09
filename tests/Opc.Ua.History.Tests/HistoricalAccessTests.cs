@@ -901,7 +901,7 @@ namespace Opc.Ua.History.Tests
                 Session.OperationLimits.MaxNodesPerHistoryUpdateData = 0;
                 Session.OperationLimits.MaxNodesPerHistoryUpdateEvents = 0;
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await Session.HistoryUpdateAsync(
                         null,
                         details.ToArrayOf(),
@@ -940,7 +940,7 @@ namespace Opc.Ua.History.Tests
                 Session.OperationLimits.MaxNodesPerHistoryUpdateData = 0;
                 Session.OperationLimits.MaxNodesPerHistoryUpdateEvents = 0;
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await Session.HistoryUpdateAsync(
                         null,
                         details.ToArrayOf(),

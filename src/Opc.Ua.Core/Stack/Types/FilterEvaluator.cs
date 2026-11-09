@@ -50,7 +50,6 @@ namespace Opc.Ua
             m_filter = filter;
             m_context = context;
             m_target = target;
-            m_logger = context.Telemetry.CreateLogger<FilterEvaluator>();
         }
 
         /// <summary>
@@ -977,7 +976,7 @@ namespace Opc.Ua
                 ArgumentException or
                 NullReferenceException)
             {
-                m_logger.ConversionFailed(ex, targetType);
+                Logger.ConversionFailed(ex, targetType);
                 return default;
             }
         }
@@ -1131,7 +1130,7 @@ namespace Opc.Ua
                 ex is not OutOfMemoryException and not StackOverflowException and
                     not AccessViolationException and not OperationCanceledException)
             {
-                m_logger.TargetEvaluationFailed(ex);
+                Logger.TargetEvaluationFailed(ex);
                 return false;
             }
             finally
@@ -1140,10 +1139,16 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// The logger, created when a failure is logged: a filter is evaluated for every
+        /// event and monitored item, and creating a logger each time is not free.
+        /// </summary>
+        private ILogger Logger => m_logger ??= m_context.Telemetry.CreateLogger<FilterEvaluator>();
+
         private readonly ContentFilter m_filter;
         private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
-        private readonly ILogger m_logger;
+        private ILogger? m_logger;
         private Variant[]? m_results;
         private bool[]? m_evaluated;
         private Variant[]? m_leftValues;
@@ -1174,7 +1179,12 @@ namespace Opc.Ua
             IFilterContext context,
             IFilterTarget target)
         {
-            // check if nothing to do.
+            // check if nothing to do: an empty filter passes every target.
+            if (filter.Elements.Count == 0)
+            {
+                return true;
+            }
+
             var evaluator = new FilterEvaluator(filter, context, target);
             return evaluator.Result;
         }

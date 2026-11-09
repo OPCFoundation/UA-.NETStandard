@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// The table of all reference types known to the server.
+    /// The parameters, state, and generation ownership of a resumable Browse operation.
     /// </summary>
     /// <remarks>This class is thread safe.</remarks>
     public class ContinuationPoint : IDisposable
@@ -54,13 +55,48 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Releases the Browse data and session ownership once. Overrides must call the base implementation.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
-                (Data as IDisposable)?.Dispose();
+                Action? owner = Interlocked.Exchange(ref m_ownerRelease, s_disposedOwner);
+                if (ReferenceEquals(owner, s_disposedOwner))
+                {
+                    return;
+                }
+                try
+                {
+                    (Data as IDisposable)?.Dispose();
+                }
+                finally
+                {
+                    Generation = null;
+                    owner?.Invoke();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Registers the callback that releases the owning session slot when the continuation point is
+        /// disposed.
+        /// </summary>
+        /// <param name="releaseOwner">The callback invoked once when the continuation point is disposed.</param>
+        internal void SetOwnerRelease(Action releaseOwner)
+        {
+            if (releaseOwner is null)
+            {
+                throw new ArgumentNullException(nameof(releaseOwner));
+            }
+            Action? previous = Interlocked.CompareExchange(ref m_ownerRelease, releaseOwner, null);
+            if (ReferenceEquals(previous, s_disposedOwner))
+            {
+                throw new ObjectDisposedException(nameof(ContinuationPoint));
+            }
+            if (previous is not null)
+            {
+                throw new InvalidOperationException("The continuation point already has a session owner.");
             }
         }
 
@@ -72,7 +108,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the continuation point.
         /// </summary>
-        public IAsyncNodeManager Manager { get; set; } = null!;
+        public IAsyncNodeManager Manager
+        {
+            get => Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
+                generation is not null
+                ? generation.NodeManager
+                : null!;
+            set
+            {
+                if (value is null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                Generation = NodeManagerGenerationRegistry.GetOrCreate(value).Reference;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the weak identity of the generation that issued this continuation.
+        /// It does not keep the generation or its manager alive.
+        /// </summary>
+        internal NodeManagerGenerationReference? Generation { get; set; }
 
         /// <summary>
         /// The view being browsed.
@@ -193,5 +249,8 @@ namespace Opc.Ua.Server
                     ) != 0;
             }
         }
+
+        private static readonly Action s_disposedOwner = static () => { };
+        private Action? m_ownerRelease;
     }
 }

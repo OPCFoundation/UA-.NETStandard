@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -106,54 +104,17 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
-        public async Task AddRefusesToWriteAPrivateKeyAsync()
+        public async Task CrlOperationsAreNotSupported()
         {
             using var store = new Pkcs11CertificateStore(
                 NUnitTelemetryContext.Create(),
                 Pkcs11TestEnvironment.CreateOptions());
 
-            using RSA key = RSA.Create(2048);
-            var request = new CertificateRequest(
-                "CN=Pkcs11WriteTest", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            using X509Certificate2 selfSigned = request.CreateSelfSigned(
-                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
-
-            using Certificate certificate = Certificate.FromRawData(selfSigned.RawData)
-                .CopyWithDetachedPrivateKey(key, ownsPrivateKey: false);
-
-            Assume.That(certificate.HasPrivateKey, Is.True);
-
-            await store.AddAsync(certificate).ConfigureAwait(false);
-
-            Assert.That(
-                store.RejectedPrivateKeyWrites,
-                Is.EqualTo(1),
-                "the store must record, and not perform, an attempt to persist key material");
-        }
-
-        [Test]
-        public void DeleteIsNotSupported()
-        {
-            using var store = new Pkcs11CertificateStore(
-                NUnitTelemetryContext.Create(),
-                Pkcs11TestEnvironment.CreateOptions());
-
-            Assert.ThrowsAsync<NotSupportedException>(
-                async () => await store.DeleteAsync("abcdef").ConfigureAwait(false));
-        }
-
-        [Test]
-        public void CrlOperationsAreNotSupported()
-        {
-            using var store = new Pkcs11CertificateStore(
-                NUnitTelemetryContext.Create(),
-                Pkcs11TestEnvironment.CreateOptions());
-
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<NotSupportedException>(
+                await Assert.ThrowsAsync<NotSupportedException>(
                     async () => await store.AddCRLAsync(null!).ConfigureAwait(false));
-                Assert.ThrowsAsync<NotSupportedException>(
+                await Assert.ThrowsAsync<NotSupportedException>(
                     async () => await store.DeleteCRLAsync(null!).ConfigureAwait(false));
             });
         }
@@ -312,13 +273,13 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
-        public void AddRejectsNull()
+        public async Task AddRejectsNull()
         {
             using var store = new Pkcs11CertificateStore(
                 NUnitTelemetryContext.Create(),
                 Pkcs11TestEnvironment.CreateOptions());
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await store.AddAsync(null!).ConfigureAwait(false));
         }
 

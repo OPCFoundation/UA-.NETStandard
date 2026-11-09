@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.Tests.Alarms
         [Test]
         public async Task GetShelvingStateAsyncReturnsBadNotFoundWhenNoBrowsePathsResolve()
         {
-            SetupTranslate(allEmpty: true, capture: null);
+            SetupMissingTranslate();
 
             FiniteStateSnapshot snapshot = await m_client
                 .GetShelvingStateAsync(m_conditionId).ConfigureAwait(false);
@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.Tests.Alarms
         [Test]
         public async Task ObserveShelvingTransitionsAsyncReturnsNonNullEnumerableForFakeStream()
         {
-            SetupTranslate(allEmpty: true, capture: null);
+            SetupMissingTranslate();
             var streaming = new EmptyStreamingSubscription();
 
             IAsyncEnumerable<FiniteStateSnapshot> enumerable =
@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.Tests.Alarms
         [Test]
         public void ObserveShelvingTransitionsAsyncReturnsEmptyWhenShelvingStateIsAbsent()
         {
-            SetupTranslate(allEmpty: true, capture: null);
+            SetupMissingTranslate();
 
             IAsyncEnumerable<FiniteStateSnapshot> enumerable =
                 m_client.ObserveShelvingTransitionsAsync(
@@ -199,38 +199,26 @@ namespace Opc.Ua.Client.Tests.Alarms
                 Throws.Nothing);
         }
 
-        private void SetupTranslate(
-            bool allEmpty,
-            Action<ArrayOf<BrowsePath>>? capture)
-        {
-            var results = ArrayOf.Wrapped(
-            [
-                MakeEmptyResult(),
-                MakeEmptyResult(),
-                MakeEmptyResult(),
-                MakeEmptyResult()
-            ]);
-            _ = allEmpty;
-            SetupTranslate(results, capture);
-        }
-
-        private void SetupTranslate(
-            ArrayOf<BrowsePathResult> results,
-            Action<ArrayOf<BrowsePath>>? capture)
+        private void SetupMissingTranslate()
         {
             m_sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
                     It.IsAny<RequestHeader>(),
                     It.IsAny<ArrayOf<BrowsePath>>(),
                     It.IsAny<CancellationToken>()))
-                .Callback<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
-                    (_, r, _) => capture?.Invoke(r))
-                .Returns(new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
-                    new TranslateBrowsePathsToNodeIdsResponse
+                .Returns<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>((_, paths, _) =>
+                {
+                    var results = new BrowsePathResult[paths.Count];
+                    for (int index = 0; index < results.Length; index++)
+                    {
+                        results[index] = MakeEmptyResult();
+                    }
+                    return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
                         Results = results,
                         DiagnosticInfos = []
-                    }));
+                    });
+                });
         }
 
         private void SetupShelvingTranslate(
@@ -277,7 +265,7 @@ namespace Opc.Ua.Client.Tests.Alarms
         {
             return new()
             {
-                StatusCode = StatusCodes.Good,
+                StatusCode = StatusCodes.BadNoMatch,
                 Targets = default
             };
         }

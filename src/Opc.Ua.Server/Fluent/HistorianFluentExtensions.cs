@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
@@ -239,44 +241,87 @@ namespace Opc.Ua.Server.Fluent
             HistorianCaptureOptions? captureOptions,
             bool? historizing)
         {
-            if (historizing == false)
-            {
-                variable.Historizing = false;
-            }
-
             if (perCallProvider != null)
             {
                 IServerInternal serverForBinding = GetServer(nodeManagerBuilder);
                 IHistorianRegistryProvider registryHost = RequireRegistryHost(serverForBinding);
-
-                // The server lifecycle owns this builder and drains its
-                // capture pipeline during shutdown. A dedicated builder keeps
-                // the per-call provider isolated from the cached manager-wide
-                // default, so reads and automatic capture use the same adapter.
+                IHistorianProviderRegistry providerRegistry = registryHost.HistorianRegistry;
+                IHistorianNodeReplacement? replacement =
+                    BeginReplacement(providerRegistry, variable, perCallProvider);
+                HistorianBuilder? scope = null;
+                try
+                {
+                    // The server lifecycle owns this builder and drains its
+                    // capture pipeline during shutdown. A dedicated builder keeps
+                    // the per-call provider isolated from the cached manager-wide
+                    // default, so reads and automatic capture use the same adapter.
 #pragma warning disable CA2000
-                HistorianBuilder scope =
-                    new HistorianBuilder(serverForBinding)
+                    scope = new HistorianBuilder(serverForBinding)
                         .UseProvider(perCallProvider);
 #pragma warning restore CA2000
-                scope.Historize(
-                    variable,
-                    historyAccessLevel,
-                    setHistorizing: historizing == true,
-                    systemContext: nodeManagerBuilder.Context,
-                    capabilities: capabilities,
-                    autoCapture: autoCapture,
-                    captureOptions: captureOptions);
-                registryHost.HistorianRegistry.RegisterForNode(
-                    variable.NodeId,
-                    perCallProvider);
+                    if (historizing == false)
+                    {
+                        variable.Historizing = false;
+                    }
+                    scope.Historize(
+                        variable,
+                        historyAccessLevel,
+                        setHistorizing: historizing == true,
+                        systemContext: nodeManagerBuilder.Context,
+                        capabilities: capabilities,
+                        autoCapture: autoCapture,
+                        captureOptions: captureOptions);
+                    if (replacement == null)
+                    {
+                        providerRegistry.RegisterForNode(variable.NodeId, perCallProvider);
+                    }
+                    else
+                    {
+                        replacement.Commit();
+                    }
+                }
+                catch (Exception failure)
+                {
+                    List<Exception> failures = [failure];
+                    try
+                    {
+                        scope?.AbortRawCapture();
+                    }
+                    catch (Exception cleanupFailure)
+                    {
+                        failures.Add(cleanupFailure);
+                    }
+                    try
+                    {
+                        replacement?.Dispose();
+                    }
+                    catch (Exception rollbackFailure)
+                    {
+                        failures.Add(rollbackFailure);
+                    }
+                    if (failures.Count > 1)
+                    {
+                        throw new AggregateException(
+                            "Historian setup and cleanup failed.", failures);
+                    }
+                    throw;
+                }
+                replacement?.Dispose();
                 return;
+            }
+
+            if (historizing == false)
+            {
+                variable.Historizing = false;
             }
 
             IServerInternal server = GetServer(nodeManagerBuilder);
             IHistorianRegistryProvider registry = RequireRegistryHost(server);
             HistorianBuilder managerBuilder = GetOrCreateBuilder(nodeManagerBuilder);
             IHistorianProvider? resolved =
-                registry.HistorianRegistry.Resolve(variable.NodeId);
+                registry.HistorianRegistry is StagedHistorianProviderRegistry candidateRegistry
+                    ? candidateRegistry.ResolveForHistorization(variable.NodeId)
+                    : registry.HistorianRegistry.Resolve(variable.NodeId);
             if (resolved != null &&
                 !ReferenceEquals(resolved, managerBuilder.Provider))
             {
@@ -315,6 +360,33 @@ namespace Opc.Ua.Server.Fluent
                 captureOptions: captureOptions);
         }
 
+        /// <summary>
+        /// Reserves replacement ownership without excluding unrelated nodes on a scoped custom registry.
+        /// </summary>
+        private static IHistorianNodeReplacement? BeginReplacement(
+            IHistorianProviderRegistry registry,
+            BaseVariableState variable,
+            IHistorianProvider provider)
+        {
+            if (registry is IHistorianNodeReplacementRegistry replacements)
+            {
+                return replacements.BeginNodeReplacement(variable, provider);
+            }
+            if (registry is not IHistorianNodeBindingRegistry scoped)
+            {
+                return null;
+            }
+            if (!scoped.TryRegisterForNode(variable, provider, out IDisposable? binding))
+            {
+                throw new NotSupportedException(
+                    "Replacing an existing exact-node binding on this scoped registry requires " +
+                    "IHistorianNodeReplacementRegistry. Configure the binding directly or provide that capability.");
+            }
+            return new NewNodeReplacement(binding ??
+                throw new InvalidOperationException(
+                    "The scoped registry returned a successful binding without ownership."));
+        }
+
         private static HistorianBuilder GetOrCreateBuilder(INodeManagerBuilder builder)
         {
             return s_builders.GetValue(
@@ -346,6 +418,35 @@ namespace Opc.Ua.Server.Fluent
             throw new InvalidOperationException(
                 "The server does not implement IHistorianRegistryProvider; " +
                 "the fluent historian extensions require the standard ServerInternalData host.");
+        }
+
+        /// <summary>
+        /// Releases a newly acquired scoped binding only if setup did not commit it.
+        /// </summary>
+        private sealed class NewNodeReplacement : IHistorianNodeReplacement
+        {
+            /// <summary>
+            /// Owns the newly added exact-node binding until setup succeeds.
+            /// </summary>
+            public NewNodeReplacement(IDisposable binding)
+            {
+                m_binding = binding;
+            }
+
+            /// <inheritdoc/>
+            public void Commit()
+            {
+                Interlocked.Exchange(ref m_binding, null);
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_binding, null)?.Dispose();
+            }
+
+            /// <summary>The uncommitted registration, or null once setup has completed.</summary>
+            private IDisposable? m_binding;
         }
 
         // IDE0028 (collection expression) is suppressed: ConditionalWeakTable does not

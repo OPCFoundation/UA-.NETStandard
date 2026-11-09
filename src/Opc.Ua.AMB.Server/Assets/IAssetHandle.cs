@@ -369,4 +369,19 @@ namespace Opc.Ua.AMB.Server.Assets
         /// <exception cref="ArgumentException">An argument is null.</exception>
         IAssetBuilder RelatesTo(NodeId referenceTypeId, NodeId target);
     }
+
+    /// <summary>
+    /// Optional capability for asset builders that override AMB history
+    /// configuration.
+    /// </summary>
+    public interface IAssetHistoryBuilder
+    {
+        /// <summary>
+        /// Overrides the registry's history configuration for this asset.
+        /// Null disables AMB history; existing owner-provided history is left unchanged.
+        /// </summary>
+        /// <param name="history">The history configuration, or null to disable AMB history.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        IAssetBuilder WithHistory(AssetHistoryOptions? history);
+    }
 }

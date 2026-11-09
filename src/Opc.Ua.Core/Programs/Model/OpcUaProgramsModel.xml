@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+-->
+<opc:ModelDesign
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns="http://opcfoundation.org/UA/SDK/Programs/"
+  TargetNamespace="http://opcfoundation.org/UA/SDK/Programs/"
+  TargetXmlNamespace="http://opcfoundation.org/UA/SDK/Programs/Types.xsd"
+  TargetVersion="1.0.0"
+  TargetPublicationDate="2026-10-14T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUaPrograms" Prefix="Opc.Ua.Programs"
+      XmlNamespace="http://opcfoundation.org/UA/SDK/Programs/Types.xsd"
+      XmlPrefix="Programs">http://opcfoundation.org/UA/SDK/Programs/</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" Version="1.05.07"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:ObjectType SymbolicName="ManagedProgramType" BaseType="ua:ProgramStateMachineType">
+    <opc:Description>A managed Program invocation with optional control methods and inherited diagnostics and results.</opc:Description>
+    <opc:Children>
+      <opc:Method SymbolicName="ua:Start" ModellingRule="Optional">
+        <opc:Description>Starts an invocation in Ready. This default signature has no arguments.</opc:Description>
+      </opc:Method>
+      <opc:Method SymbolicName="ua:Suspend" ModellingRule="Optional">
+        <opc:Description>Suspends an invocation in Running.</opc:Description>
+      </opc:Method>
+      <opc:Method SymbolicName="ua:Resume" ModellingRule="Optional">
+        <opc:Description>Resumes an invocation in Suspended without starting a new run.</opc:Description>
+      </opc:Method>
+      <opc:Method SymbolicName="ua:Halt" ModellingRule="Optional">
+        <opc:Description>Halts an invocation in Ready, Running or Suspended.</opc:Description>
+      </opc:Method>
+      <opc:Method SymbolicName="ua:Reset" ModellingRule="Optional">
+        <opc:Description>Resets an invocation from Halted to Ready.</opc:Description>
+      </opc:Method>
+      <opc:Method SymbolicName="Create" ModellingRule="None">
+        <opc:Description>Creates an invocation of this registered concrete Program type under the requested parent.</opc:Description>
+        <opc:InputArguments>
+          <opc:Argument Name="ParentId" DataType="ua:NodeId" />
+          <opc:Argument Name="BrowseName" DataType="ua:QualifiedName" />
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="InvocationId" DataType="ua:NodeId" />
+        </opc:OutputArguments>
+      </opc:Method>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="ManagedProgramTransitionEventType"
+    BaseType="ua:ProgramTransitionEventType" IsAbstract="false">
+    <opc:Description>A concrete Program transition event carrying a snapshot of intermediate results.</opc:Description>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="ManagedProgramAuditEventType"
+    BaseType="ua:AuditProgramTransitionEventType" IsAbstract="false">
+    <opc:Description>A concrete Program transition audit event.</opc:Description>
+  </opc:ObjectType>
+</opc:ModelDesign>

@@ -40,7 +40,8 @@ namespace Opc.Ua.Aot.Tests
         {
             Node node = await fixture.Session.NodeCache
                 .FetchNodeAsync(ObjectIds.Server, CancellationToken.None)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false) ??
+                throw new InvalidOperationException("The server node was not found.");
 
             await Assert.That(node).IsNotNull();
             await Assert.That(node.NodeId.IsNull).IsFalse();
@@ -57,16 +58,16 @@ namespace Opc.Ua.Aot.Tests
                 ObjectIds.TypesFolder
             ];
 
-            ArrayOf<Node> nodes = await fixture.Session.NodeCache
+            ArrayOf<Node?> nodes = await fixture.Session.NodeCache
                 .FetchNodesAsync(nodeIds, CancellationToken.None)
                 .ConfigureAwait(false);
 
             await Assert.That(nodes.Count).IsEqualTo(nodeIds.Count);
 
-            foreach (Node node in nodes.ToList())
+            foreach (Node? node in nodes.ToList())
             {
                 await Assert.That(node).IsNotNull();
-                await Assert.That(node.NodeId.IsNull).IsFalse();
+                await Assert.That(node!.NodeId.IsNull).IsFalse();
             }
         }
 

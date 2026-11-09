@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Https.WebApi.Tests" />
   </ItemGroup>

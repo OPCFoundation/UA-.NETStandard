@@ -29,7 +29,7 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using ModelContextProtocol.Server;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.PubSub.Pcap;
 
@@ -65,6 +65,7 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(services);
 
             services.AddPubSubPcap();
+            services.TryAddSingleton<McpCallerContext>();
             return services;
         }
 
@@ -97,12 +98,14 @@ namespace Opc.Ua.Mcp
             bool diagnosticsToolsEnabled = false)
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
 
             switch (toolProfile)
             {
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Full:
-                    mcpServerBuilder.WithRequestFilters(filters => filters.AddCallToolFilter(PubSubPcapMcpFilters.SurfaceDiagnosticsErrors));
+                    mcpServerBuilder.WithRequestFilters(filters =>
+                        filters.AddCallToolFilter(PubSubPcapMcpFilters.SurfaceDiagnosticsErrors));
                     mcpServerBuilder.WithTools<PubSubCaptureTools>();
 
                     if (diagnosticsToolsEnabled)
@@ -117,6 +120,21 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Robotics:
                 case McpToolProfile.Vision:
+                case McpToolProfile.Amb:
+                case McpToolProfile.Machinery:
+                case McpToolProfile.Scales:
+                case McpToolProfile.Pumps:
+                case McpToolProfile.Di:
+                case McpToolProfile.Isa95:
+                case McpToolProfile.Positioning:
+                case McpToolProfile.Wot:
+                case McpToolProfile.XRegistry:
+                case McpToolProfile.WotDocuments:
+                case McpToolProfile.MachineTool:
+                case McpToolProfile.Gms:
+                case McpToolProfile.CranesHoists:
+                case McpToolProfile.AutoId:
+                case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -161,6 +179,7 @@ namespace Opc.Ua.Mcp
                 return mcpServerBuilder;
             }
 
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
             mcpServerBuilder.WithTools<PubSubCaptureTools>();
             if (diagnosticsToolsEnabled)
             {

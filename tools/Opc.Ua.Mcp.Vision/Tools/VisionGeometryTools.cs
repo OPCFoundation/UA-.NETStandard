@@ -32,8 +32,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Server;
 using Opc.Ua.Mcp.Serialization;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Mcp.Tools
 {

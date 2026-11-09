@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 Endpoint = "mqtt://127.0.0.1:1883"
             };
 
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await adapter.ConnectAsync(options, cancellationToken)
                     .ConfigureAwait(false));
         }
@@ -242,7 +242,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 new("test/topic", MqttQualityOfService.AtMostOnce)
             };
 
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await adapter.SubscribeAsync(filters, cancellationToken)
                     .ConfigureAwait(false));
         }
@@ -258,7 +258,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
 
             var topics = new List<string> { "test/topic" };
 
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await adapter.UnsubscribeAsync(topics, cancellationToken)
                     .ConfigureAwait(false));
         }
@@ -280,7 +280,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 ContentType: null,
                 ResponseTopic: null);
 
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await adapter.PublishAsync(message, cancellationToken)
                     .ConfigureAwait(false));
         }
@@ -302,7 +302,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 ContentType: null,
                 ResponseTopic: null);
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await adapter.PublishAsync(badMessage, cancellationToken)
                     .ConfigureAwait(false));
         }

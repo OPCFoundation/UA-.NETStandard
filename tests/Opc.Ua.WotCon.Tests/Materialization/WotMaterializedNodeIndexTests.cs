@@ -47,6 +47,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotMaterializedNodeIndexTests
     {
+        /// <summary>
+        /// Verifies that constructor rejects <see langword="null"/> arguments.
+        /// </summary>
         [Test]
         public void ConstructorRejectsNullArguments()
         {
@@ -61,6 +64,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 () => new WotMaterializedNodeIndex(WotRegistrySnapshot.Empty, namespaces, null!));
         }
 
+        /// <summary>
+        /// Verifies that an affordance of an unknown source is not located.
+        /// </summary>
         [Test]
         public async Task AnAffordanceOfAnUnknownSourceIsNotLocated()
         {
@@ -74,6 +80,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an affordance whose source has no root is not located.
+        /// </summary>
         [Test]
         public async Task AnAffordanceWhoseSourceHasNoRootIsNotLocated()
         {
@@ -85,6 +94,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A source that was never materialized has no Node to organize.");
         }
 
+        /// <summary>
+        /// Verifies that an affordance is located by its derived name when no ID is authored.
+        /// </summary>
         [Test]
         public async Task AnAffordanceIsLocatedByItsDerivedNameWhenNoIdIsAuthored()
         {
@@ -95,6 +107,33 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located, Is.EqualTo(new NodeId("Sources/A/alpha", 3)));
         }
 
+        /// <summary>
+        /// Verifies that captured membership validates derived names.
+        /// </summary>
+        /// <param name="refusedAuthoredId">The refused-authored-ID flag for this test case.</param>
+        /// <param name="present">The present flag for this test case.</param>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task CapturedMembershipValidatesDerivedNames(bool present, bool refusedAuthoredId)
+        {
+            var member = new NodeId("Sources/A/alpha", 3);
+            WotMaterializedNodeIndex index = await IndexAsync(
+                s_root, [present ? member : new NodeId("Sources/A/beta", 3)]).ConfigureAwait(false);
+            ExpandedNodeId authored = refusedAuthoredId
+                ? new ExpandedNodeId(new NodeId("Sources/B/alpha", 3))
+                : ExpandedNodeId.Null;
+
+            NodeId located = index.Locate(Reference(authored));
+
+            Assert.That(located, Is.EqualTo(present ? member : NodeId.Null),
+                "A derived candidate needs the same captured source ownership evidence as an authored candidate.");
+        }
+
+        /// <summary>
+        /// Verifies that an authored ID beneath the source root is honoured.
+        /// </summary>
         [Test]
         public async Task AnAuthoredIdBeneathTheSourceRootIsHonoured()
         {
@@ -106,6 +145,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located, Is.EqualTo(new NodeId("Sources/A/Custom", 3)));
         }
 
+        /// <summary>
+        /// Verifies that the source root itself is an acceptable authored ID.
+        /// </summary>
         [Test]
         public async Task TheSourceRootItselfIsAnAcceptableAuthoredId()
         {
@@ -117,6 +159,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located, Is.EqualTo(s_root));
         }
 
+        /// <summary>
+        /// Verifies that an authored ID outside the source root is refused.
+        /// </summary>
         [Test]
         public async Task AnAuthoredIdOutsideTheSourceRootIsRefused()
         {
@@ -131,6 +176,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "The out-of-bounds id is refused and the derived name is used instead.");
         }
 
+        /// <summary>
+        /// Verifies that an authored ID in another namespace is refused.
+        /// </summary>
         [Test]
         public async Task AnAuthoredIdInAnotherNamespaceIsRefused()
         {
@@ -142,6 +190,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located, Is.EqualTo(new NodeId("Sources/A/alpha", 3)));
         }
 
+        /// <summary>
+        /// Verifies that an authored numeric ID is refused.
+        /// </summary>
         [Test]
         public async Task AnAuthoredNumericIdIsRefused()
         {
@@ -155,6 +206,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located, Is.EqualTo(new NodeId("Sources/A/alpha", 3)));
         }
 
+        /// <summary>
+        /// Verifies that an ID sharing only a prefix string is refused.
+        /// </summary>
         [Test]
         public async Task AnIdSharingOnlyAPrefixStringIsRefused()
         {
@@ -167,6 +221,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located, Is.EqualTo(new NodeId("Sources/A/alpha", 3)));
         }
 
+        /// <summary>
+        /// Verifies that an affordance with no name and no ID is not located.
+        /// </summary>
         [Test]
         public async Task AnAffordanceWithNoNameAndNoIdIsNotLocated()
         {
@@ -179,6 +236,63 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that captured membership honors every authored identifier kind.
+        /// </summary>
+        /// <param name="rootId">The root ID used by this test case.</param>
+        /// <param name="memberId">The member ID used by this test case.</param>
+        [TestCase("i=100", "i=101")]
+        [TestCase("g=00000000-0000-0000-0000-000000000100", "g=00000000-0000-0000-0000-000000000101")]
+        [TestCase("b=AQ==", "b=Ag==")]
+        [TestCase("s=Sources/A", "s=DetachedMember")]
+        public async Task CapturedMembershipHonorsEveryAuthoredIdentifierKind(string rootId, string memberId)
+        {
+            NodeId root = NodeId.Parse("ns=3;" + rootId);
+            NodeId member = NodeId.Parse("ns=3;" + memberId);
+            WotMaterializedNodeIndex index = await IndexAsync(root, [member]).ConfigureAwait(false);
+
+            NodeId located = index.Locate(Reference(new ExpandedNodeId(member)));
+
+            Assert.That(located, Is.EqualTo(member));
+        }
+
+        /// <summary>
+        /// Verifies that captured membership rejects unowned numeric identity in the same namespace.
+        /// </summary>
+        [Test]
+        public async Task CapturedMembershipRejectsUnownedNumericIdentityInTheSameNamespace()
+        {
+            var member = new NodeId(101u, 3);
+            WotMaterializedNodeIndex index = await IndexAsync(new NodeId(100u, 3), [member]).ConfigureAwait(false);
+
+            NodeId located = index.Locate(Reference(new ExpandedNodeId(new NodeId(201u, 3))));
+
+            Assert.That(located.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that captured membership does not invent a materialized source.
+        /// </summary>
+        /// <param name="unknown">The unknown flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CapturedMembershipDoesNotInventAMaterializedSource(bool unknown)
+        {
+            var member = new NodeId(101u, 3);
+            WotMaterializedNodeIndex index = await IndexAsync(
+                unknown ? new NodeId(100u, 3) : NodeId.Null, [member]).ConfigureAwait(false);
+            var reference = new WotMaterializedAffordanceRef(
+                unknown ? "urn:absent-source" : SourceHref, WotAffordanceKind.Property, "alpha",
+                new ExpandedNodeId(member));
+
+            NodeId located = index.Locate(reference);
+
+            Assert.That(located.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a numeric source root cannot derive a name.
+        /// </summary>
         [Test]
         public async Task ANumericSourceRootCannotDeriveAName()
         {
@@ -196,7 +310,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 SourceHref, WotAffordanceKind.Property, "alpha", authoredId);
         }
 
-        private static async Task<WotMaterializedNodeIndex> IndexAsync(NodeId rootForSource)
+        private static async Task<WotMaterializedNodeIndex> IndexAsync(
+            NodeId rootForSource, ArrayOf<NodeId> capturedNodes = default)
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -215,7 +330,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(resource, Is.Not.Null, "The source must be registered.");
                 roots[resource!.Xid] = rootForSource;
             }
-            return new WotMaterializedNodeIndex(snapshot, new NamespaceTable(), roots);
+            if (capturedNodes.IsNull)
+            {
+                return new WotMaterializedNodeIndex(snapshot, new NamespaceTable(), roots);
+            }
+            var nodes = new HashSet<NodeId>(capturedNodes.ToArray()!);
+            string xid = WotDependencyGraph.Resolve(snapshot, SourceHref)!.Xid;
+            return new WotMaterializedNodeIndex(
+                snapshot, new NamespaceTable(), roots,
+                (sourceXid, nodeId) => sourceXid == xid && nodes.Contains(nodeId));
         }
 
         private static readonly NodeId s_root = new("Sources/A", 3);

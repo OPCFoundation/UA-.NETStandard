@@ -34,6 +34,7 @@ paths that match your application, or use the contents list to find a feature.
 - [7. Draft and experimental capabilities](#7-draft-and-experimental-capabilities)
 - [Reference and upgrade](#reference-and-upgrade)
 - [Contributing and maintaining the SDK](#contributing-and-maintaining-the-sdk)
+- [UaLens NodeSet2 explorer](UaLens.md#opening-nodeset2-files)
 
 ## How to use this index
 
@@ -65,6 +66,9 @@ Run a client and server, then learn the terms that the other guides use.
   started server, then read, write, and call it from the client.
 - [Sample catalogue](Samples.md) — minimal, reference, PubSub, and
   companion-model applications.
+- [UaLens desktop engineering workspace](UaLens.md) — connection, exploration,
+  monitoring, administration and saved workspaces, with guided companion
+  workflows, configuration prerequisites and safety limits.
 - [Packages and supported platforms](DeveloperGuide.md#packages-platform-support-and-versioning)
   — choose packages and target frameworks.
 
@@ -89,6 +93,9 @@ Assumes [Getting started](GettingStarted.md).
    operation, and call methods through a client generated from the model.
 4. [Subscriptions](Subscriptions.md) — callback subscriptions for long-lived
    monitoring and streams for short observations.
+5. [Generation-bound requests](Sessions.md#generation-bound-client-requests) — retain remote file
+   handles, history cursors and target classifications without following a
+   replacement connection.
 
 ### Server path
 
@@ -98,12 +105,16 @@ Assumes [Getting started](GettingStarted.md).
    — host a server and configure its endpoints, security, and node managers.
 2. [Node managers: start with a model](NodeManagers.md#start-with-a-model) —
    generate a node manager from your model and attach callbacks.
+   [Complete method invocation results](NodeManagers.md#complete-method-results-and-diagnostic-forwarding) covers
+   ordered output values and resolved operation/input diagnostics.
    [Your first information model](FirstModel.md) is a complete example.
 3. [Runtime NodeSets](RuntimeNodeSets.md#quick-start-examples) — load NodeSet2
    models without generated code when models change independently of your
    application.
 4. [Asynchronous server support](AsyncServerSupport.md) — implement service and
    node-manager callbacks asynchronously.
+5. [NodeManager change sets](NodeManagers.md#lifecycle-change-sets) — publish slot-targeted
+   changes, inspect committed issues, and await physical retirement independently.
 
 ### PubSub path
 
@@ -141,6 +152,8 @@ needs.
 
 - [State machines](StateMachines.md) — define, drive, and observe state
   transitions.
+- [Programs](Programs.md) — host and control Part 10 invocations, monitor
+  captured transition results, and manage diagnostics and lifetime.
 - [Alarms and conditions](AlarmsAndConditions.md) — raise, acknowledge, and
   stream alarms. Alarm conditions use state machines, for example for shelving.
 - [Historical access](HistoricalAccess.md) — store and read value and event
@@ -150,8 +163,12 @@ needs.
 - [File system client](FileSystemClient.md) — transfer files through the
   standard file objects.
 - [Alias names](AliasNames.md) — find nodes through named aliases.
+- [Base Network Model](BaseNetworkModel.md) — provider-backed interfaces,
+  priority mappings, TSN streams and LLDP, with a simulated server/client example.
 - [Node management](NodeManagement.md) — let clients add and delete nodes and
   references.
+- [Final-value publication](NodeManagers.md#final-value-publication-before-node-removal) — await terminal Value
+  notifications in real Publish responses before removing dynamic subtrees.
 - [Model change tracking](ModelChangeTracking.md) — keep client caches current
   when the address space changes.
 - [NodeSet export](NodeSetExport.md) — export a server's address space to
@@ -167,8 +184,8 @@ models that each model depends on.
 
 - [Device Integration](DeviceIntegration.md) (OPC 10000-100) —
   devices, topology, and locking.
-- [Asset Management Basics](AMB.md) (OPC 10000-110; preview
-  package) — make devices, machines, pumps or scales manageable assets:
+- [Asset Management Basics](AMB.md) (OPC 10000-110) — make devices,
+  machines, pumps or scales manageable assets:
   discovery, identification, health alarms, maintenance, documentation links
   and locations. Read Device Integration first.
 - [Software update](SoftwareUpdate.md) (OPC 10000-100) —
@@ -178,23 +195,75 @@ models that each model depends on.
   model and job control.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.
-- [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101; preview
-  package) — machines with identification, server-driven state machines,
+- [Industrial Automation](IndustrialAutomation.md) (OPC 10000-200) —
+  provider-backed stacklights, aggregate/rolling statistics, and
+  calibration-target information on an existing DI or companion owner.
+- [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101) —
+  machines with identification, server-driven state machines,
   process values, job management, energy and result transfer, based on the
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
-- [Pumps](Pumps.md) (OPC 40223; preview package) — pumps and vacuum pumps,
+- [Pumps](Pumps.md) (OPC 40223) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
-- [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
+- [Energy Consumption Management](ECM.md) (OPC 34100) — provider-backed
+  standalone E0, E1, E2, E3, D0 and D1 measurements, standby and simulated
+  WOL sleep. Statistics reuse the shared Industrial Automation runtime.
+- [PA-DIM](PADIM.md) (OPC 30081) — standalone provider-backed devices,
+  typed process signals and analysers, with generated-proxy clients.
+- [Composing DI companions](DeviceIntegration.md#composing-companion-models) — add several DI device
+  families and their models to one server's `DeviceSet`.
+- [AutoID Devices](AutoID.md) (OPC 30010) — RFID, OCR, optical, optical
+  verifier and RTLS readers: model, server hosting with a provider contract for
+  the reader hardware, provider-backed runtime parameters, variable-triggered
+  scanning, read-only Diagnostics, typed Data Access clients, MCP tools and a
+  simulated RFID reader sample, based on the Device Integration model. Published
+  optical-verifier/RTLS contract discrepancies keep specification support Partial.
+- [Laboratory and Analytical Devices](LADS.md) (OPC 30500-1, LADS): model,
+  server hosting on Machinery with functions, programs, results and maintenance
+  tasks, optional cooperative running operations, stored-data restoration,
+  typed client and a shaking incubator sample. Restart never resumes interrupted
+  physical execution.
+- [Machine Vision](Vision.md) (OPC 40100-1 and OPC 40100-2) —
+  released control, recipes, configurations, results, assets, and condition monitoring,
+  with Vision/Perception composition and Machinery hosting.
+- [MachineTool and wireless peripherals](MachineTool.md) (OPC 40501-1 and
+  OPC 40505) — machine monitoring, tools, production/jobs/files and independently
+  hosted wireless measurements, configuration and records in one package family.
+- [Geometric Measurement Systems](GMS.md) (OPC 40210) — native measurement
+  equipment, qualification/calibration, production observations and results.
+  The guide documents the upstream undefined Production-statistics CU exception.
+- [Cranes and Hoists](CranesHoists.md) (OPC 40020-1; preview packages) —
+  Robotics-derived crane systems, equipment observations and explicitly
+  authorized speed-limit requests.
+- [Scales](Scales.md) (OPC 40200 and OPC 30050) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.
+- [Plastics and rubber capabilities](PlasticsRubber.md) (OPC 40083 and OPC 40082-6) —
+  shared machine configuration, control and monitoring, with
+  [production dataset transfer](PlasticsRubber.md#production-dataset-protocol) and
+  [granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6).
+- [Extrusion](Extrusion.md) (OPC 40084-1 through -12) — the extrusion line
+  and its device families, optional capabilities, typed clients and composition.
 - [Robotics](Robotics.md) (OPC 40010-1; preview package) — motion-device
   systems, based on the Industrial Automation and Device Integration models.
   The guide's draft Robot Intent model is listed in [stage 7](#7-draft-and-experimental-capabilities).
-- [WoT connectivity](WoTConnectivity.md) (OPC 10100-1; preview package) —
+- [WoT connectivity](WotCon.md) (OPC 10100-1; preview package) —
   connect Web of Things assets. Its registry extension is listed in stage 7.
 
 For more examples, including the Pumps and Machinery models, see the
 [companion-model samples](Samples.md#companion-model-samples).
+The [generic recycling simulation](../samples/Recycling/README.md) combines a causal production
+model with separately hosted process views; its guide identifies the remaining companion
+integration limits.
+The optional [recycling operator console](../samples/Recycling/README.md#operator-console) adds a local ASP.NET Core 10
+browser schematic, strict UA trust and role-limited commands; its guide covers standalone and
+Compose setup, image publication and the synthetic sample's operational/security limits.
+
+To expose these typed client interfaces to an agent, use the
+[industrial companion MCP tools](McpServer.md#industrial-companion-tools). Select one family or
+compose several profiles without enabling the entire tool catalog.
+The [WoT and xRegistry profiles](McpServer.md#wot-and-registry-tools) cover
+asset/registry management and document conversion; the document profile does
+not require a UA connection.
 
 ## 5. Prepare for production
 
@@ -245,10 +314,14 @@ Assumes the client or server path.
 - [PubSub transcoding](PubSub.md#transcoding) — convert encodings, values, and
   metadata between PubSub messages.
 - [MCP server](McpServer.md) — let AI agents browse, read, write, and diagnose
-  OPC UA servers.
-- [WoT / NodeSet conversion](WoTNodeSetConversion.md) and
+  OPC UA servers. [Stack workflow profiles](McpServer.md#stack-workflow-tools)
+  add GDS/credential issuance, roles/users, files, alarms, history, schemas,
+  policy-controlled PubSub and live WoT execution.
+- [WoT / NodeSet conversion](WotNodeSetConversion.md) and
   [WoT protocol bindings](WotBindings.md) — convert Thing Descriptions and add
-  protocol bindings. Read WoT connectivity first.
+  protocol bindings. The conversion guide also covers
+  [resolver ownership and DataType declaration inputs](WotNodeSetConversion.md#conversion-providers).
+  Read WoT connectivity first.
 
 ### Session recovery and performance
 
@@ -259,7 +332,10 @@ The subscription guides assume the client path; the sizing guides assume
   to a new session.
 - [Durable subscriptions](DurableSubscription.md) — keep subscriptions and
   queued notifications while clients are disconnected.
-- [Server scalability](ServerScalability.md) — sizing limits and bottlenecks.
+- [Generation-bound session clients](SessionBindings.md) — capture dispatch,
+  session identity and mapping snapshots without reconnecting to a replacement peer.
+- [Server scalability](ServerScalability.md) — sizing limits, bottlenecks, and
+  runtime settings for servers under load (Server GC, hybrid CPUs, warm-up).
 - [Benchmarks](Benchmarks.md) — measured performance and methodology.
 
 <a id="global-discovery-server-gds"></a>
@@ -316,15 +392,18 @@ guide describes its current limitations.
   registry base model, resource storage, and federation.
 - [AI model management](AI.md) (draft model; preview package) — model
   catalogues, deployments, inference, and learning jobs. Builds on xRegistry.
-- [Vision](Vision.md) (draft model; preview package) — perception, media,
+- [Perception model](Vision.md#perception-model) (draft model; optional OpenUSD renderer is preview-only) — capture, media,
   feedback, and client workflows.
 - [Robot Intent](Robotics.md#robot-intent) (draft model; preview package) —
   task-level motion commands. Does not require the Robotics model.
 - [OpenUSD](OpenUsd.md) (draft models; preview package) — bind values to OpenUSD
   scenes and materialize scenes in the address space.
-- [WoT Connectivity 1.1 registry](WoTConnectivity.md#11-wot-connectivity-11-registry-and-materialization-preview)
-  (draft model; preview package) — registry and materialization. Read WoT
-  connectivity first.
+- [WoT Connectivity registry](WotCon.md#hosting-the-registry)
+  (draft model; preview package) — hosting, document provisioning, and refresh.
+- [WoT-Con 1.02 compatibility](WotCon.md#wot-con-102-compatibility) —
+  existing-type bindings, declarations, and original document preservation.
+- [WoT runtime provider contracts](WotCon.md#13-runtime-provider-contracts) —
+  exact-Version dependencies and leases, prepared storage/publication, and recovery.
 - [KeyCredential issued-token bridge](KeyCredentialService.md#experimental-keycredential-issued-token-bridge)
   (experimental).
 

@@ -374,6 +374,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes a new <c>NodeStateReference</c> instance.
+        /// </summary>
+        /// <param name="referenceTypeId">The reference type ID used to initialize the instance.</param>
+        /// <param name="isInverse">The inverse flag used to initialize <c>NodeStateReference</c>.</param>
+        /// <param name="targetId">The target ID used to initialize the instance.</param>
+        /// <param name="target">The node state used to initialize the instance.</param>
+        internal NodeStateReference(
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            NodeState? target)
+        {
+            ReferenceTypeId = referenceTypeId;
+            IsInverse = isInverse;
+            TargetId = targetId;
+            Target = target;
+        }
+
+        /// <summary>
         /// The internal target of the reference.
         /// </summary>
         public NodeState? Target { get; }

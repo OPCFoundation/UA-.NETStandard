@@ -39,6 +39,7 @@ using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Mqtt.Internal;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Mqtt
 {
@@ -175,6 +176,7 @@ namespace Opc.Ua.PubSub.Mqtt
             TransportProfileUri = DetermineTransportProfileUri(connection);
             m_topicQos = BuildTopicQosMap(connection, Options, TransportProfileUri);
             AddDefaultSubscriptions();
+            AddConfiguredReaderSubscriptions();
         }
 
         /// <inheritdoc/>
@@ -268,6 +270,10 @@ namespace Opc.Ua.PubSub.Mqtt
                     foreach (MqttTopicFilter filter in topicList)
                     {
                         ValidateTopic(filter.Topic, allowWildcards: true);
+                    }
+                    foreach (MqttTopicFilter topic in topicList)
+                    {
+                        Options.GetTopicPolicy()?.RequireSubscribe(topic.Topic);
                     }
                     await adapter.SubscribeAsync(topicList, cancellationToken).ConfigureAwait(false);
                 }
@@ -381,6 +387,7 @@ namespace Opc.Ua.PubSub.Mqtt
                     nameof(topic));
             }
             ValidateTopic(topic, allowWildcards: false);
+            Options.GetTopicPolicy()?.RequirePublish(topic, payload.Length);
 
             IMqttClientAdapter? adapter;
             lock (m_sync)
@@ -452,6 +459,12 @@ namespace Opc.Ua.PubSub.Mqtt
                 return;
             }
             await CloseAsync().ConfigureAwait(false);
+            byte[]? password = Options.PasswordBytes;
+            Options.PasswordBytes = null;
+            if (password is not null)
+            {
+                CryptoUtils.ZeroMemory(password);
+            }
         }
 
         private bool HasReceiveDirection =>
@@ -470,6 +483,12 @@ namespace Opc.Ua.PubSub.Mqtt
 
         private void OnIncomingMessage(object? sender, MqttIncomingMessageEventArgs e)
         {
+            if (e.Message.Payload.Length > Options.MaxNetworkMessageSize ||
+                Options.GetTopicPolicy()?.AcceptReceive(e.Message.Topic, e.Message.Payload.Length) == false)
+            {
+                m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                return;
+            }
             Channel<PubSubTransportFrame>? channel;
             lock (m_sync)
             {
@@ -591,6 +610,7 @@ namespace Opc.Ua.PubSub.Mqtt
         public void ConfigureLastWill(string topic, ReadOnlyMemory<byte> payload, bool retain)
         {
             ValidateTopic(topic, allowWildcards: false);
+            Options.GetTopicPolicy()?.RequirePublish(topic, payload.Length);
             Options.WillTopic = topic;
             Options.WillPayload = payload.ToArray();
             Options.WillRetain = retain;
@@ -599,7 +619,7 @@ namespace Opc.Ua.PubSub.Mqtt
 
         private void AddDefaultSubscriptions()
         {
-            if (!HasReceiveDirection)
+            if (!HasReceiveDirection || !Options.IncludeDiscoverySubscriptions)
             {
                 return;
             }
@@ -611,6 +631,44 @@ namespace Opc.Ua.PubSub.Mqtt
             AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/endpoints/#", qos);
             AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/status/#", qos);
             AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/connection/#", qos);
+        }
+
+        /// <summary>
+        /// Binds the actual configured reader queues, including when broad discovery subscriptions are disabled.
+        /// </summary>
+        private void AddConfiguredReaderSubscriptions()
+        {
+            if (!HasReceiveDirection)
+            {
+                return;
+            }
+            foreach (ReaderGroupDataType group in m_connection.ReaderGroups)
+            {
+                foreach (DataSetReaderDataType reader in group.DataSetReaders)
+                {
+                    if (!reader.TransportSettings.TryGetValue(out BrokerDataSetReaderTransportDataType? settings) ||
+                        settings is null)
+                    {
+                        continue;
+                    }
+                    MqttQualityOfService qos = settings.RequestedDeliveryGuarantee switch
+                    {
+                        BrokerTransportQualityOfService.AtLeastOnce => MqttQualityOfService.AtLeastOnce,
+                        BrokerTransportQualityOfService.ExactlyOnce => MqttQualityOfService.ExactlyOnce,
+                        BrokerTransportQualityOfService.AtMostOnce or BrokerTransportQualityOfService.BestEffort =>
+                            MqttQualityOfService.AtMostOnce,
+                        _ => Options.Topics.DefaultQos
+                    };
+                    if (!string.IsNullOrEmpty(settings.QueueName))
+                    {
+                        AddSubscription(settings.QueueName, qos);
+                    }
+                    if (!string.IsNullOrEmpty(settings.MetaDataQueueName))
+                    {
+                        AddSubscription(settings.MetaDataQueueName, qos);
+                    }
+                }
+            }
         }
 
         private void AddSubscription(string topic, MqttQualityOfService qos)
@@ -897,7 +955,7 @@ namespace Opc.Ua.PubSub.Mqtt
         public static partial void MqttTransportOpened(
             this ILogger logger,
             string? connection,
-            MqttEndpoint endpoint,
+            [NetworkAddress] MqttEndpoint endpoint,
             PubSubTransportDirection direction,
             string profile);
 
@@ -912,5 +970,4 @@ namespace Opc.Ua.PubSub.Mqtt
             Message = "Dropped inbound MQTT frame for connection '{Connection}': receive queue full.")]
         public static partial void DroppedInboundMqttFrame(this ILogger logger, string? connection);
     }
-
 }

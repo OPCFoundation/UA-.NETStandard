@@ -38,6 +38,7 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Server.UserDatabase
 {
@@ -376,11 +377,16 @@ namespace Opc.Ua.Server.UserDatabase
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.JsonUserDatabase + 1, Level = LogLevel.Error,
             Message = "Failed to load user database {FileName}.")]
-        public static partial void UserDatabaseLoadFailed(this ILogger logger, Exception ex, string fileName);
+        public static partial void UserDatabaseLoadFailed(
+            this ILogger logger,
+            Exception ex,
+            [FilePath] string fileName);
 
         [LoggerMessage(EventId = ServerEventIds.JsonUserDatabase + 0, Level = LogLevel.Warning,
             Message = "User database {FileName} was not found.")]
-        public static partial void UserDatabaseFileNameWasNotFound(this ILogger logger, string? fileName);
+        public static partial void UserDatabaseFileNameWasNotFound(
+            this ILogger logger,
+            [FilePath] string? fileName);
     }
 
 }

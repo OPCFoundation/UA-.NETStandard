@@ -28,6 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using Opc.Ua.Di.Server;
+using Opc.Ua.Vision.MachineVision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server
 {
@@ -40,26 +44,20 @@ namespace Opc.Ua.Vision.Server
     /// vendor extensions or pre-materialised instances that are known at
     /// startup.
     /// </remarks>
-    public interface IVisionModelProvider
+    public interface IVisionModelProvider : IDiModelProvider
     {
-        /// <summary>
-        /// Gets the deterministic provider execution order. Providers run in
-        /// ascending order; the built-in provider uses <c>int.MinValue</c> so
-        /// application providers run afterwards by default.
-        /// </summary>
-        int Order { get; }
+    }
 
-        /// <summary>
-        /// Gets the namespace URIs contributed by this provider. Providers
-        /// that replace the built-in provider must advertise the Vision
-        /// namespace URI.
-        /// </summary>
-        ArrayOf<string> NamespaceUris { get; }
-
-        /// <summary>
-        /// Adds predefined nodes into <paramref name="nodes"/>.
-        /// </summary>
-        void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context);
+    /// <summary>
+    /// Loads dependencies required by companion providers on a Vision owner.
+    /// </summary>
+    /// <remarks>
+    /// Dependency providers run after the built-in Vision model and before other providers,
+    /// regardless of their <see cref="IDiModelProvider.Order"/>. Dependencies are ordered
+    /// among themselves by priority, type name and registration order.
+    /// </remarks>
+    public interface IVisionDependencyModelProvider : IVisionModelProvider
+    {
     }
 
     /// <summary>
@@ -67,14 +65,47 @@ namespace Opc.Ua.Vision.Server
     /// </summary>
     public sealed class VisionModelProvider : IVisionModelProvider
     {
+        /// <summary>
+        /// Creates the backwards-compatible draft-only model provider.
+        /// </summary>
+        public VisionModelProvider()
+            : this(MachineVisionParts.None)
+        {
+        }
+
+        /// <summary>
+        /// Creates a provider including the selected released models and their dependencies.
+        /// </summary>
+        public VisionModelProvider(MachineVisionParts parts)
+        {
+            if ((parts & ~MachineVisionParts.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(parts));
+            }
+            Parts = parts;
+        }
+
+        /// <summary>
+        /// Gets the released models contributed by this provider.
+        /// </summary>
+        public MachineVisionParts Parts { get; }
+
         /// <inheritdoc/>
         public int Order => int.MinValue;
 
         /// <inheritdoc/>
-        public ArrayOf<string> NamespaceUris => new string[]
+        public ArrayOf<string> NamespaceUris
         {
-            global::Opc.Ua.Vision.Namespaces.Vision
-        };
+            get
+            {
+                var namespaces = new List<string> { Perception.Namespaces.Vision };
+                if ((Parts & MachineVisionParts.Control) != 0)
+                {
+                    namespaces.Add(MachineVisionModels.ControlNamespaceUri);
+                }
+                return namespaces.ToArrayOf();
+            }
+        }
 
         /// <inheritdoc/>
         public void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context)
@@ -87,7 +118,11 @@ namespace Opc.Ua.Vision.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            nodes.AddOpcUaVision(context);
+            nodes.AddOpcUaVisionPerception(context);
+            if ((Parts & MachineVisionParts.Control) != 0)
+            {
+                nodes.AddOpcUaMachineVision(context);
+            }
         }
     }
 }

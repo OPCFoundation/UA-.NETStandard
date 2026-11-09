@@ -31,12 +31,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
 {
     /// <summary>
-    /// Pins the wire contract of the Vision Methods.
+    /// Pins the wire contract of the Vision Perception.Methods.
     /// </summary>
     /// <remarks>
     /// A Method is only callable if three things hold: the Method node
@@ -97,8 +98,8 @@ namespace Opc.Ua.Vision.Tests
             InferencePipelineState pipeline = await BuildPipelineAsync(
                 fixture, withInference: true, withFeedback: false).ConfigureAwait(false);
 
-            NodeId expected = ExpandedNodeId.ToNodeId(
-                MethodIds.InferencePipelineType_RunInference,
+            var expected = ExpandedNodeId.ToNodeId(
+                Perception.MethodIds.InferencePipelineType_RunInference,
                 fixture.Manager.SystemContext.NamespaceUris);
 
             Assert.That(pipeline.RunInference!.MethodDeclarationId, Is.EqualTo(expected),
@@ -197,13 +198,10 @@ namespace Opc.Ua.Vision.Tests
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
 
-            await fixture.Manager.ConfigureVisionAsync(context =>
-            {
-                context.Nodes.AddImageSensor("Camera", s => s
+            await fixture.Manager.ConfigureVisionAsync(context => context.Nodes.AddImageSensor("Camera", s => s
                     .WithSensorId("SN-CAM")
                     .WithModality(VisionSensorModalityEnum.Area2D)
-                    .UseMediaProvider(new Mock<IVisionMediaProvider>().Object));
-            }).ConfigureAwait(false);
+                    .UseMediaProvider(new Mock<IVisionMediaProvider>().Object))).ConfigureAwait(false);
 
             var sensors = new List<BaseInstanceState>();
             fixture.Manager.Root.Sensors!.GetChildren(null!, sensors);
@@ -252,9 +250,7 @@ namespace Opc.Ua.Vision.Tests
             bool withInference,
             bool withFeedback)
         {
-            await fixture.Manager.ConfigureVisionAsync(context =>
-            {
-                context.Nodes.AddPipeline("Detector", p =>
+            await fixture.Manager.ConfigureVisionAsync(context => context.Nodes.AddPipeline("Detector", p =>
                 {
                     p.WithPipelineId("detector");
                     if (withInference)
@@ -266,8 +262,7 @@ namespace Opc.Ua.Vision.Tests
                     {
                         p.UseFeedbackSink(new Mock<IVisionFeedbackSink>().Object);
                     }
-                });
-            }).ConfigureAwait(false);
+                })).ConfigureAwait(false);
 
             var pipelines = new List<BaseInstanceState>();
             fixture.Manager.Root.Pipelines!.GetChildren(null!, pipelines);
@@ -282,15 +277,16 @@ namespace Opc.Ua.Vision.Tests
             "CorrectedCharacteristics",
             "Reason",
             "InlineImage",
-            "RetractAll",
+            "RetractAll"
         ];
+
         private static readonly string[] s_stringValues2 =
         [
             "Purpose",
             "Detections",
             "FrameReference",
             "InlineImage",
-            "SceneIsEmpty",
+            "SceneIsEmpty"
         ];
     }
 }

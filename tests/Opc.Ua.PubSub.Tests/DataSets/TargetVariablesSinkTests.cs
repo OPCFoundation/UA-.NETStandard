@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,7 +38,7 @@ using Opc.Ua.PubSub.Encoding;
 namespace Opc.Ua.PubSub.Tests.DataSets
 {
     /// <summary>
-    /// Validates the TargetVariables sink: positional + field-id
+    /// Validates the TargetVariables sink: metadata field identifier and positional
     /// resolution, override handling delegation, last-good caching
     /// and write-failure isolation.
     /// </summary>
@@ -45,6 +46,111 @@ namespace Opc.Ua.PubSub.Tests.DataSets
     [TestSpec("6.2.10", Summary = "TargetVariablesSink resolution + writes")]
     public class TargetVariablesSinkTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        [TestSpec("6.2.10.2.3")]
+        public async Task SecurityF42MetadataNamesCannotSelectTargetSlotsAsync(bool deltaFrame)
+        {
+            var firstId = new Uuid(new Guid("11111111-1111-1111-1111-111111111111"));
+            var secondId = new Uuid(new Guid("22222222-2222-2222-2222-222222222222"));
+            var writer = new RecordingWriter();
+            var sink = new TargetVariablesSink(
+                new TargetVariablesDataType
+                {
+                    TargetVariables =
+                    [
+                        new FieldTargetDataType
+                        {
+                            DataSetFieldId = secondId,
+                            TargetNodeId = new NodeId("B", 1),
+                            AttributeId = Attributes.Value
+                        },
+                        new FieldTargetDataType
+                        {
+                            DataSetFieldId = firstId,
+                            TargetNodeId = new NodeId("A", 1),
+                            AttributeId = Attributes.Value
+                        }
+                    ]
+                },
+                writer);
+
+            IReadOnlyList<DataSetField> fields = deltaFrame
+                ?
+                [
+                    new DataSetField
+                    {
+                        DataSetFieldId = secondId,
+                        FieldIndex = 1,
+                        Name = firstId.ToString(),
+                        Value = new Variant(2002)
+                    }
+                ]
+                :
+                [
+                    new DataSetField
+                    {
+                        DataSetFieldId = firstId,
+                        Name = secondId.ToString(),
+                        Value = new Variant(1001)
+                    },
+                    new DataSetField
+                    {
+                        DataSetFieldId = secondId,
+                        Name = firstId.ToString(),
+                        Value = new Variant(2002)
+                    }
+                ];
+            await sink.WriteAsync(fields).ConfigureAwait(false);
+
+            Assert.That(writer.Writes, Has.Count.EqualTo(deltaFrame ? 1 : 2));
+            Assert.That(writer.Writes[0].NodeId, Is.EqualTo(new NodeId("B", 1)));
+            Assert.That(writer.Writes[0].Value.WrappedValue, Is.EqualTo(new Variant(2002)));
+            if (!deltaFrame)
+            {
+                Assert.That(writer.Writes[1].NodeId, Is.EqualTo(new NodeId("A", 1)));
+                Assert.That(writer.Writes[1].Value.WrappedValue, Is.EqualTo(new Variant(1001)));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF42UnresolvedFieldIdDoesNotFallBackToPositionOrNameAsync(bool missingId)
+        {
+            var targetId = new Uuid(new Guid("11111111-1111-1111-1111-111111111111"));
+            var writer = new RecordingWriter();
+            var sink = new TargetVariablesSink(
+                new TargetVariablesDataType
+                {
+                    TargetVariables =
+                    [
+                        new FieldTargetDataType
+                        {
+                            DataSetFieldId = targetId,
+                            TargetNodeId = new NodeId("A", 1),
+                            AttributeId = Attributes.Value
+                        }
+                    ]
+                },
+                writer);
+
+            await sink.WriteAsync(
+                [
+                    new DataSetField
+                    {
+                        DataSetFieldId = missingId
+                            ? Uuid.Empty : new Uuid(new Guid("22222222-2222-2222-2222-222222222222")),
+                        Name = targetId.ToString(),
+                        FieldIndex = 0,
+                        Value = new Variant(9999)
+                    }
+                ]).ConfigureAwait(false);
+
+            Assert.That(writer.Writes, Is.Empty);
+        }
+
         [Test]
         [TestSpec("6.2.10")]
         public async Task WriteAsync_AppliesValuesPositionallyAsync()

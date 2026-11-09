@@ -32,8 +32,8 @@ namespace Opc.Ua.PubSub.Mqtt
     /// <summary>
     /// TLS configuration for an MQTT connection. The connection's
     /// <see cref="MqttConnectionOptions.Endpoint"/> scheme
-    /// (<c>mqtt</c> vs <c>mqtts</c>) drives the default
-    /// <see cref="UseTls"/> value; callers may override afterwards.
+    /// (<c>mqtt</c> vs <c>mqtts</c>) establishes the minimum transport
+    /// protection; <see cref="UseTls"/> can additionally enable TLS.
     /// </summary>
     /// <remarks>
     /// Backs the MQTT TLS transport surface required by
@@ -47,9 +47,8 @@ namespace Opc.Ua.PubSub.Mqtt
     {
         /// <summary>
         /// Enables TLS on the underlying socket. Defaults to
-        /// <see langword="false"/>; the transport factory sets it to
-        /// <see langword="true"/> automatically when the endpoint
-        /// scheme is <c>mqtts</c>.
+        /// <see langword="false"/>. Secure endpoint schemes (<c>mqtts</c>
+        /// and <c>wss</c>) always require TLS, even when this property is false.
         /// </summary>
         public bool UseTls { get; set; }
 

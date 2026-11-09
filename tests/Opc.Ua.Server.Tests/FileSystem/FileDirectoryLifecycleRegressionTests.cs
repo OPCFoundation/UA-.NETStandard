@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -179,8 +180,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             harness.VerifyRefreshCommitState(true, 1);
             harness.VerifyRefreshCommitState(false, 0);
 
-            ServiceResultException refreshFailure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await binding.RefreshAsync().ConfigureAwait(false))!;
+            ServiceResultException refreshFailure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await binding.RefreshAsync().ConfigureAwait(false)))!;
             Assert.That(refreshFailure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(host.TryGetProviderPath(originalId, out _, out _, out _), Is.True);
             Assert.That(host.TryGetProviderPath(host.BuildFileNodeId("external"), out _, out _, out _), Is.False);
@@ -266,7 +267,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.RefreshFailure = new OperationCanceledException("pre-refresh cancelled");
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await harness.Root.DeleteFileSystemObject!.OnCallAsync!(
                     harness.Context, harness.Root.DeleteFileSystemObject, harness.Root.NodeId, keptId,
                     CancellationToken.None).ConfigureAwait(false));
@@ -298,10 +299,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             using var cancellation = new CancellationTokenSource();
             harness.BeforeEnumeration = cancellation.Cancel;
 
-            OperationCanceledException failure = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            OperationCanceledException failure = (await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await harness.Root.DeleteFileSystemObject!.OnCallAsync!(
                     harness.Context, harness.Root.DeleteFileSystemObject, harness.Root.NodeId, keptId,
-                    cancellation.Token).ConfigureAwait(false))!;
+                    cancellation.Token).ConfigureAwait(false)))!;
 
             Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(harness.MutationCount, Is.EqualTo(1));
@@ -500,8 +501,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
-        /// Verifies that a cancelled waiter leaves the active refresh protected and queued disposal rejects late
-        /// mutation.
+        /// Verifies that a cancelled waiter leaves the active refresh protected and disposal rejects late mutation
+        /// without waiting for that refresh.
         /// </summary>
         [Test]
         public async Task CancelledWaiterAndQueuedDisposalDrainWithoutReleasingAnotherOperationsGateAsync()
@@ -524,13 +525,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 using var cancellation = new CancellationTokenSource();
                 Task waiting = binding.RefreshAsync(cancellation.Token).AsTask();
                 cancellation.Cancel();
-                Assert.ThrowsAsync<OperationCanceledException>(async () => await waiting.ConfigureAwait(false));
+                await Assert.ThrowsAsync<OperationCanceledException>(async () => await waiting.ConfigureAwait(false));
                 Assert.That(refresh.IsCompleted, Is.False);
                 disposing = binding.DisposeAsync().AsTask();
                 mutation = FileReadRegressionTests.CallAsync(
                     harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["late", false]).AsTask();
                 Assert.That(disposing.IsCompleted, Is.False);
-                Assert.That(mutation.IsCompleted, Is.False);
+                Assert.That(mutation.IsCompleted, Is.True);
             }
             finally
             {
@@ -565,7 +566,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// </summary>
             public BindingHarness()
             {
-                m_path = Path.Combine(Path.GetTempPath(), "FileDirectoryRegression-" + Guid.NewGuid().ToString("N"));
+                m_path = Path.Combine(
+                    AppContext.BaseDirectory, "FileDirectoryRegression-" + Guid.NewGuid().ToString("N"));
                 Physical = new PhysicalFileSystemProvider(m_path, "regression");
                 Provider.SetupGet(value => value.MountName).Returns("regression");
                 Provider.SetupGet(value => value.IsWritable).Returns(true);
@@ -602,6 +604,24 @@ namespace Opc.Ua.Server.Tests.FileSystem
                         return Physical.CopyAsync(source, target, ct);
                     });
                 Logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+                // The source-generated log state is reused and cleared after each call,
+                // so keep the formatted message while the call is in progress.
+#pragma warning disable CA1873 // Moq setup expression, not a log call
+                Logger.Setup(value => value.Log(
+                        It.IsAny<LogLevel>(),
+                        It.IsAny<EventId>(),
+                        It.IsAny<It.IsAnyType>(),
+                        It.IsAny<Exception?>(),
+                        It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+                    .Callback(new InvocationAction(invocation =>
+                    {
+                        var eventId = (EventId)invocation.Arguments[1]!;
+                        var formatter = (Delegate)invocation.Arguments[4]!;
+                        m_messages.Enqueue((
+                            eventId.Name,
+                            (string?)formatter.DynamicInvoke(invocation.Arguments[2], invocation.Arguments[3])));
+                    }));
+#pragma warning restore CA1873
                 var factory = new Mock<ILoggerFactory>();
                 factory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(Logger.Object);
                 var telemetry = new Mock<ITelemetryContext>();
@@ -724,13 +744,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// </summary>
             public void VerifyRefreshCommitState(bool committed, int count)
             {
-                Logger.Verify(logger => logger.Log(
-                    LogLevel.Error,
-                    It.Is<EventId>(id => id.Name == "FileDirectoryRefreshFailed"),
-                    It.Is<It.IsAnyType>((state, _) =>
-                        state.ToString()!.Contains("current provider mutation committed: " + committed)),
-                    It.IsAny<Exception>(),
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Exactly(count));
+                string expected = "current provider mutation committed: " + committed;
+                Assert.That(
+                    m_messages.Count(message => message.EventName == "FileDirectoryRefreshFailed" &&
+                        message.Text != null &&
+                        message.Text.Contains(expected, StringComparison.Ordinal)),
+                    Is.EqualTo(count));
             }
 
             /// <summary>
@@ -769,6 +788,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// Counts provider mutations independently of address-space refresh success.
             /// </summary>
             private int m_mutationCount;
+            private readonly ConcurrentQueue<(string? EventName, string? Text)> m_messages = new();
         }
 
         /// <summary>

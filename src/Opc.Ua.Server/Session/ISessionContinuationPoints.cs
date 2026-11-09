@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,9 +39,9 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <remarks>
     /// A continuation point survives between service calls, so the session owns the
-    /// lifetime: points are dropped when the per-session limit is reached, when the node
-    /// manager that issued them goes away, and when the session closes. A dropped history
-    /// point is disposed.
+    /// lifetime: saved points can be dropped when the per-session limit is reached, during
+    /// immediate retirement, and when the session closes. Continuation points do not extend
+    /// the lifetime of the generation that issued them.
     /// </remarks>
     public interface ISessionContinuationPoints
     {
@@ -57,7 +58,8 @@ namespace Opc.Ua.Server
         void SaveBrowse(ContinuationPoint continuationPoint);
 
         /// <summary>
-        /// Restores and removes a browse continuation point.
+        /// Restores and removes an available browse continuation point. The caller must
+        /// dispose it or save its next page.
         /// </summary>
         /// <param name="continuationPoint">The identifier the client returned.</param>
         /// <returns>The continuation point, or <c>null</c> when it is not held.</returns>
@@ -81,8 +83,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Restores and removes a history continuation point, transferring ownership to the
-        /// caller. The caller must dispose it or save it back into the session.
+        /// Restores and removes an available history continuation point. The caller must
+        /// dispose it or save its next page.
         /// </summary>
         /// <param name="continuationPoint">The identifier the client returned.</param>
         /// <returns>The continuation point, or <c>null</c> when it is not held.</returns>
@@ -103,11 +105,5 @@ namespace Opc.Ua.Server
             ByteString continuationPoint,
             CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Drops every point issued by a node manager that is going away, so nothing
-        /// resumes against an address space that no longer exists.
-        /// </summary>
-        /// <param name="nodeManager">The node manager being removed.</param>
-        void RemoveForManager(IAsyncNodeManager nodeManager);
     }
 }

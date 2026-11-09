@@ -202,7 +202,7 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
             await using (stream.ConfigureAwait(false))
             {
                 var buffer = new byte[4];
-                Assert.ThrowsAsync<ServiceResultException>(
+                await Assert.ThrowsAsync<ServiceResultException>(
                     () => stream.ReadAsync(buffer, 0, buffer.Length, CancellationToken.None),
                     "the surplus must not be written past the caller's window");
             }
@@ -372,7 +372,7 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
         /// for every remaining input too.
         /// </summary>
         [Test]
-        public void BulkNodeCacheReadsStillSurfaceAServiceLevelFailure()
+        public async Task BulkNodeCacheReadsStillSurfaceAServiceLevelFailure()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -402,7 +402,7 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
 
             using var nodeCache = new NodeCache(context.Object, telemetry);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await nodeCache
                     .GetNodesAsync(new NodeId[] { new("A", 2) }.ToArrayOf(), default)
                     .ConfigureAwait(false));

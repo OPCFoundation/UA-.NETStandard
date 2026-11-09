@@ -444,7 +444,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                m_logger.UnexpectedErrorDuringReconnectMessage(Redact.Create(exception));
+                m_logger.UnexpectedErrorDuringReconnectMessage(exception.Message);
             }
 
             // schedule the next reconnect.
@@ -638,27 +638,26 @@ namespace Opc.Ua.Client
                     {
                         m_reconnectPeriod = m_baseReconnectPeriod;
                     }
-                    m_logger.CouldNotReconnectFailedSecurityCheck(Redact.Create(sre));
+                    m_logger.CouldNotReconnectFailedSecurityCheck(sre.Message);
                 }
                 else
                 {
-                    m_logger.CouldNotReconnectSessionRequestEndpoint(Redact.Create(sre));
+                    m_logger.CouldNotReconnectSessionRequestEndpoint(sre.Message);
                 }
                 m_updateFromServer = true;
                 return false;
             }
             catch (Exception exception)
             {
-                m_logger.CouldNotReconnectSessionErrorMessage(Redact.Create(exception));
+                m_logger.CouldNotReconnectSessionErrorMessage(exception.Message);
                 return false;
             }
         }
 
         /// <summary>
         /// Updates the configured endpoint from the server discovery endpoint.
-        /// If the original security configuration is no longer offered by the
-        /// server, falls back only to an endpoint that is at least as secure as
-        /// the original one; the security is never downgraded.
+        /// The refreshed endpoint must retain the original security mode and
+        /// policy.
         /// </summary>
         /// <param name="endpoint">The configured endpoint to update.</param>
         /// <param name="connection">The optional transport connection for reverse connect.</param>
@@ -666,113 +665,49 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             ITransportWaitingConnection? connection = null)
         {
-            // EndpointUrl and SecurityPolicyUri are nullable on ConfiguredEndpoint but every
-            // session entering reconnect was created with both values populated, so the
-            // bangs reflect that lifecycle invariant.
             MessageSecurityMode originalMode = endpoint.Description.SecurityMode;
             string originalPolicyUri = endpoint.Description.SecurityPolicyUri!;
+            bool requiresHttps = endpoint.EndpointUrl is { IsAbsoluteUri: true } originalUrl &&
+                Utils.IsUriHttpsScheme(originalUrl.Scheme);
+            ConfiguredEndpoint candidate = CoreUtils.Clone(endpoint)!;
             try
             {
-                await UpdateFromServerAsync(endpoint, connection, originalMode, originalPolicyUri)
+                await UpdateFromServerAsync(candidate, connection, originalMode, originalPolicyUri)
                     .ConfigureAwait(false);
+                if (candidate.Description.SecurityMode != originalMode ||
+                    candidate.Description.SecurityPolicyUri != originalPolicyUri ||
+                    (requiresHttps &&
+                        (candidate.EndpointUrl is not { IsAbsoluteUri: true } url ||
+                            !Utils.IsUriHttpsScheme(url.Scheme) ||
+                            (candidate.Description.TransportProfileUri != Profiles.HttpsBinaryTransport &&
+                                candidate.Description.TransportProfileUri != Profiles.HttpsJsonTransport &&
+                                !Profiles.IsHttpsOpenApi(candidate.Description.TransportProfileUri)))))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Endpoint refresh changed the required transport or message security.");
+                }
+                endpoint.Update(candidate);
             }
             catch (ServiceResultException sre) when (
                 sre.StatusCode == StatusCodes.BadSecurityPolicyRejected ||
                 sre.StatusCode == StatusCodes.BadSecurityModeRejected)
             {
-                // The original endpoint security configuration is no longer available on the
-                // server. The discovery reply is unauthenticated (Part 4 5.5.1), so never relax
-                // the configured security: only accept an endpoint that is at least as secure.
-                m_logger.OriginalEndpointSecurityConfigurationNotAvailable(sre.Message);
-                EndpointDescription? fallback = SelectFallbackEndpoint(
-                    endpoint.Description,
-                    endpoint.DiscoveryEndpoints,
-                    m_logger);
-                if (fallback == null)
-                {
-                    m_logger.NoEndpointWithEqualOrStrongerSecurity(originalMode, originalPolicyUri);
-                    throw;
-                }
-
-                await UpdateFromServerAsync(
-                    endpoint,
-                    connection,
-                    fallback.SecurityMode,
-                    fallback.SecurityPolicyUri!).ConfigureAwait(false);
+                m_logger.RequiredEndpointSecurityConfigurationNotAvailable(sre.Message);
+                throw;
             }
         }
 
         /// <summary>
-        /// Selects an endpoint from the discovered endpoints to fall back to when
-        /// the original security configuration is not offered anymore. Only an
-        /// endpoint with a security mode at least as strong as the original one
-        /// and a locally computed security level that is non-zero and not lower
-        /// than the original one qualifies. The server advertised security level
-        /// is not trusted because the discovery reply is not authenticated.
+        /// Updates endpoint information from discovery using the required
+        /// security configuration.
         /// </summary>
-        /// <returns>The fallback endpoint or <c>null</c> if none qualifies.</returns>
-        internal static EndpointDescription? SelectFallbackEndpoint(
-            EndpointDescription original,
-            ArrayOf<EndpointDescription> discoveryEndpoints,
-            ILogger logger)
-        {
-            MessageSecurityMode originalMode = original.SecurityMode;
-            byte originalLevel = SecuredApplication.CalculateSecurityLevel(
-                originalMode,
-                original.SecurityPolicyUri!,
-                logger);
-            bool originalSecured =
-                originalMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt ||
-                (original.SecurityPolicyUri != null &&
-                    original.SecurityPolicyUri != SecurityPolicies.None);
-
-            EndpointDescription? best = null;
-            byte bestLevel = 0;
-            bool bestSameProfile = false;
-            foreach (EndpointDescription candidate in discoveryEndpoints)
-            {
-                if (candidate == null ||
-                    candidate.SecurityPolicyUri == null ||
-                    candidate.SecurityMode < originalMode ||
-                    candidate.SecurityMode > MessageSecurityMode.SignAndEncrypt)
-                {
-                    continue;
-                }
-
-                if (originalSecured &&
-                    (candidate.SecurityMode == MessageSecurityMode.None ||
-                        candidate.SecurityPolicyUri == SecurityPolicies.None))
-                {
-                    continue;
-                }
-
-                byte level = SecuredApplication.CalculateSecurityLevel(
-                    candidate.SecurityMode,
-                    candidate.SecurityPolicyUri,
-                    logger);
-                if (level == 0 || level < originalLevel)
-                {
-                    continue;
-                }
-
-                bool sameProfile = string.Equals(
-                    candidate.TransportProfileUri,
-                    original.TransportProfileUri,
-                    StringComparison.Ordinal);
-                if (best == null ||
-                    level > bestLevel ||
-                    (level == bestLevel && sameProfile && !bestSameProfile))
-                {
-                    best = candidate;
-                    bestLevel = level;
-                    bestSameProfile = sameProfile;
-                }
-            }
-
-            return best;
-        }
-
-        private Task UpdateFromServerAsync(
+        /// <param name="endpoint">The endpoint to update.</param>
+        /// <param name="connection">The optional reverse connection.</param>
+        /// <param name="securityMode">The required message security mode.</param>
+        /// <param name="securityPolicyUri">The required security policy URI.</param>
+        /// <returns>A task that completes when the endpoint has been updated.</returns>
+        internal virtual Task UpdateFromServerAsync(
             ConfiguredEndpoint endpoint,
             ITransportWaitingConnection? connection,
             MessageSecurityMode securityMode,
@@ -786,6 +721,10 @@ namespace Opc.Ua.Client
                     securityMode,
                     securityPolicyUri,
                     m_telemetry);
+            }
+            if (Session is Session session)
+            {
+                return endpoint.UpdateFromServerAsync(session.ApplicationConfiguration, m_telemetry);
             }
             return endpoint.UpdateFromServerAsync(
                 endpoint.EndpointUrl!,
@@ -837,7 +776,9 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 2, Level = LogLevel.Error,
             Message = "Unexpected error during reconnect: {Message}")]
-        public static partial void UnexpectedErrorDuringReconnectMessage(this ILogger logger, RedactionWrapper<Exception> message);
+        public static partial void UnexpectedErrorDuringReconnectMessage(
+            this ILogger logger,
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 3, Level = LogLevel.Information,
             Message = "Reconnect period is {ReconnectPeriod} ms, {Elapsed} ms elapsed in reconnect.")]
@@ -862,7 +803,9 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 7, Level = LogLevel.Information,
             Message = "Reconnect failed due to security check. Request endpoint update from server. {Message}")]
-        public static partial void ReconnectFailedSecurityCheckRequestEndpoint(this ILogger logger, string message);
+        public static partial void ReconnectFailedSecurityCheckRequestEndpoint(
+            this ILogger logger,
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 8, Level = LogLevel.Error,
             Message = "Reconnect failed.")]
@@ -873,32 +816,26 @@ namespace Opc.Ua.Client
                 " {Message}")]
         public static partial void CouldNotReconnectFailedSecurityCheck(
             this ILogger logger,
-            RedactionWrapper<ServiceResultException> message);
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 10, Level = LogLevel.Error,
             Message = "Could not reconnect the Session. Request endpoint update from server. {Message}")]
         public static partial void CouldNotReconnectSessionRequestEndpoint(
             this ILogger logger,
-            RedactionWrapper<ServiceResultException> message);
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 11, Level = LogLevel.Error,
             Message = "Could not reconnect the Session. {ErrorMessage}")]
-        public static partial void CouldNotReconnectSessionErrorMessage(this ILogger logger, RedactionWrapper<Exception> errorMessage);
-
-        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 12, Level = LogLevel.Warning,
-            Message = "Original endpoint security configuration not available on server, looking for an" +
-                " endpoint with equal or stronger security. {Message}")]
-        public static partial void OriginalEndpointSecurityConfigurationNotAvailable(
+        public static partial void CouldNotReconnectSessionErrorMessage(
             this ILogger logger,
-            string message);
+            [SensitiveText] string errorMessage);
 
-        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 13, Level = LogLevel.Error,
-            Message = "Server offers no endpoint with security equal to or stronger than {SecurityMode}" +
-                " {SecurityPolicyUri}, refusing to downgrade the endpoint security.")]
-        public static partial void NoEndpointWithEqualOrStrongerSecurity(
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 12, Level = LogLevel.Error,
+            Message = "Original endpoint security configuration not available; refusing to change security. " +
+                "{Message}")]
+        public static partial void RequiredEndpointSecurityConfigurationNotAvailable(
             this ILogger logger,
-            MessageSecurityMode securityMode,
-            string securityPolicyUri);
+            [SensitiveText] string message);
     }
 
 }

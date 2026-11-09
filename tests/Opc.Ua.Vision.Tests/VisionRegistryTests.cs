@@ -29,7 +29,7 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -220,7 +220,7 @@ namespace Opc.Ua.Vision.Tests
         {
             var registry = new VisionRegistry();
 
-            Assert.DoesNotThrow(() => registry.ResolveDeferredExtrinsics());
+            Assert.DoesNotThrow(registry.ResolveDeferredExtrinsics);
         }
 
         [Test]

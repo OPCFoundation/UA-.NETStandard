@@ -55,7 +55,7 @@ namespace Opc.Ua.Di.Tests
         public void SetUp()
         {
             m_tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-sf-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(m_tempRoot);
         }
@@ -182,10 +182,10 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void SetCurrentVersionUnknownThrows()
+        public async Task SetCurrentVersionUnknownThrows()
         {
             FileSystemSoftwareFolder folder = CreateFolder();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await folder.SetCurrentVersionAsync("missing").ConfigureAwait(false));
         }
 
@@ -203,19 +203,19 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void AddVersionRejectsInvalidVersionString()
+        public async Task AddVersionRejectsInvalidVersionString()
         {
             FileSystemSoftwareFolder folder = CreateFolder();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await folder.AddVersionAsync(
                     MakePackage("bad/version"), new MemoryStream([1])).ConfigureAwait(false));
         }
 
         [Test]
-        public void AddVersionOnReadOnlyProviderThrows()
+        public async Task AddVersionOnReadOnlyProviderThrows()
         {
             FileSystemSoftwareFolder folder = CreateFolder(writable: false);
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await folder.AddVersionAsync(
                     MakePackage("1.0.0"), new MemoryStream([1])).ConfigureAwait(false));
         }

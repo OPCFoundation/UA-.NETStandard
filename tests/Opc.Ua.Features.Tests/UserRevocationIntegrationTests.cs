@@ -181,8 +181,8 @@ namespace Opc.Ua.Features.Tests
                 "Revocation must delete subscriptions, not leave them available for transfer.");
             foreach (ISession revoked in new[] { first, second })
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await revoked.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await revoked.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             }
             Assert.That((await unrelated.ReadValueAsync(VariableIds.Server_ServerStatus_State)

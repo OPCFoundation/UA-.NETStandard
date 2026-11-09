@@ -41,6 +41,7 @@ coverage:
 ignore:
   - "tests/**"
   - "samples/**"
+  - "perf/**"
   - "**/obj/**"
   - "**/bin/**"
   - "**/*.g.cs"

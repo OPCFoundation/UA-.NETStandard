@@ -165,7 +165,7 @@ as positive examples count.
 | `EndpointUri`, `ChatCompletionsPath`, `ProbePath` | Endpoint and paths for REST-shaped clients |
 | `Authentication`, `CredentialReference`, `ApiKeyHeader`, `CredentialDirectory`, `TokenAudience` | Server-to-backend authentication |
 | `Site`, `DataJurisdiction`, `EgressPermitted`, `RetainsInput` | Trust-boundary metadata published to clients |
-| `MaxInlinePayloadSize` | Inline `Invoke` payload limit |
+| `MaxInlinePayloadSize` | UInt32 inline `Invoke` payload limit; zero permits only an explicitly chosen transfer |
 | `Models` | Configured model catalogue entries |
 
 ## Client surface
@@ -238,6 +238,15 @@ egress.
 current server accepts inline payloads only. It returns `BadNotSupported` for
 URI-only input rather than accepting it and running a backend with no request
 body.
+
+Inference transfers belong to their creating session and identity. Every file
+operation, including a new `Open`, checks that ownership; a file handle alone is
+not authority. `Execute` also rechecks the original deployment and invocation
+method's current permissions before backend dispatch. Authenticated job owners
+can recover their retained jobs after reconnect within the same stable identity
+domain; anonymous jobs remain session-bound. Other callers cannot read or modify
+their payloads or receive their notifications. Server-produced response and
+provenance properties remain read-only even to the owner.
 
 Both built-in backends accept these parameters:
 

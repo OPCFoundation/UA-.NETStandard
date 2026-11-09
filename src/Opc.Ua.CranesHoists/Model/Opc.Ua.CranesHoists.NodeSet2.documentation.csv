@@ -1,0 +1,13 @@
+Id,Name,Link,ConformanceUnits
+1000,http://opcfoundation.org/UA/CranesHoists/,"https://reference.opcfoundation.org/CranesHoists/v100/docs/11.1",""
+1262,CraneMotorType,"https://reference.opcfoundation.org/CranesHoists/v100/docs/7.5","Cranes Base Info CraneMotorType;"
+1369,CraneAxisType,"https://reference.opcfoundation.org/CranesHoists/v100/docs/7.3.1","Cranes Base Info CraneAxisType;"
+1392,CraneMotionDeviceType,"https://reference.opcfoundation.org/CranesHoists/v100/docs/7.2.1","Cranes Base Info CraneMotionDeviceType;"
+1462,ProtectiveFunctionType,"https://reference.opcfoundation.org/CranesHoists/v100/docs/7.6.1","Cranes Base Info ProtectiveFunctionType;"
+1556,BrakeType,"https://reference.opcfoundation.org/CranesHoists/v100/docs/7.4","Cranes Base Info BrakeType;"
+2112,CraneMotionDeviceSystemType,"https://reference.opcfoundation.org/CranesHoists/v100/docs/7.1","Cranes Base Info CraneMotionDeviceSystemType;"
+3000,CraneOperationalModeEnum,"https://reference.opcfoundation.org/CranesHoists/v100/docs/8.1","Crane Base Info CraneOperationalModeEnum;"
+3001,ExternalControlRequestEnum,"https://reference.opcfoundation.org/CranesHoists/v100/docs/8.2","Crane Base Info ExternalControlRequestEnum;"
+3002,ProtectiveFunctionEnum,"https://reference.opcfoundation.org/CranesHoists/v100/docs/8.4","Crane Base Info ProtectiveFunctionEnum;"
+3003,CraneMotionDeviceCategoryEnum,"https://reference.opcfoundation.org/CranesHoists/v100/docs/8.3","Crane Base Info CraneMotionDeviceCategoryEnum;"
+4001,ProtectsAxis,"https://reference.opcfoundation.org/CranesHoists/v100/docs/9.1","Crane Base Info ProtectsAxis;"

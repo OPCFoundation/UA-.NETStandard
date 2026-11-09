@@ -349,6 +349,46 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the acknowledgement provider that decides which acknowledgements the
+        /// client's sessions send and which they defer.
+        /// </summary>
+        /// <typeparam name="TProvider">The provider implementation.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaClientBuilder AddAcknowledgementProvider<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
+            this IOpcUaClientBuilder builder)
+            where TProvider : class, ISubscriptionAcknowledgementProvider
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<ISubscriptionAcknowledgementProvider, TProvider>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the observer that is told how every acknowledgement of the client's
+        /// sessions ended.
+        /// </summary>
+        /// <typeparam name="TObserver">The observer implementation.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaClientBuilder AddAcknowledgementObserver<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TObserver>(
+            this IOpcUaClientBuilder builder)
+            where TObserver : class, ISubscriptionAcknowledgementObserver
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<ISubscriptionAcknowledgementObserver, TObserver>();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a client identity provider implementation.
         /// </summary>
         /// <typeparam name="TProvider">The concrete identity-provider type to register.</typeparam>
@@ -585,8 +625,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 {
                     EndpointDescription endpoint = await SelectDiscoveredEndpointAsync(
                         discovery, options, ct).ConfigureAwait(false);
+                    OpcUaClientOptions client = sp.GetRequiredService<OpcUaClientOptions>();
+                    ApplicationConfiguration application = client.ConfigurationProvider != null
+                        ? await client.ConfigurationProvider.GetAsync(ct).ConfigureAwait(false)
+                        : client.Configuration ??
+                            throw new InvalidOperationException("OPC UA client configuration is required.");
                     return await factory.ConnectAsync(
-                        new ConfiguredEndpoint(null, endpoint, null), ct).ConfigureAwait(false);
+                        new ConfiguredEndpoint(null, endpoint, EndpointConfiguration.Create(application)), ct)
+                        .ConfigureAwait(false);
                 };
             });
             return builder;
@@ -1371,9 +1417,17 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.WithPoolNotifications();
             }
+            if (!sessionOptions.DeferNotificationDecoding)
+            {
+                builder.WithoutDeferredNotificationDecoding();
+            }
             if (sessionOptions.ModelChangeTracking)
             {
                 builder.WithModelChangeTracking();
+            }
+            if (sessionOptions.ReverseConnectionSource != null)
+            {
+                builder.UseReverseConnectionSource(sessionOptions.ReverseConnectionSource);
             }
 
             IClientChannelManager? mgr = sp.GetService<IClientChannelManager>();
@@ -1392,11 +1446,42 @@ namespace Microsoft.Extensions.DependencyInjection
                 builder.UseSecurityPolicies(securityPolicies);
             }
 
+            ISubscriptionAcknowledgementProvider? acknowledgementProvider = sessionOptions.AcknowledgementProvider;
+            if (sessionOptions.AcknowledgementMode == AcknowledgementMode.AfterConfirmation)
+            {
+                // A registered provider does not apply in confirmation mode. A provider set in the
+                // options conflicts with it and is rejected when the session is created.
+                builder.AcknowledgeAfterConfirmation();
+            }
+            else
+            {
+                acknowledgementProvider ??= sp.GetService<ISubscriptionAcknowledgementProvider>();
+            }
+            if (acknowledgementProvider != null)
+            {
+                builder.WithAcknowledgementProvider(acknowledgementProvider);
+            }
+            ISubscriptionAcknowledgementObserver? acknowledgementObserver =
+                sessionOptions.AcknowledgementObserver ??
+                sp.GetService<ISubscriptionAcknowledgementObserver>();
+            if (acknowledgementObserver != null)
+            {
+                builder.WithAcknowledgementObserver(acknowledgementObserver);
+            }
+
             IClientConnectGate? connectGate =
                 sessionOptions.ConnectGate ?? sp.GetService<IClientConnectGate>();
             if (connectGate != null)
             {
                 builder.WithConnectRateLimiter(connectGate);
+            }
+
+            RediscoveredEndpointValidator? endpointValidator =
+                sessionOptions.ValidateRediscoveredEndpoint ??
+                sp.GetService<RediscoveredEndpointValidator>();
+            if (endpointValidator != null)
+            {
+                builder.WithRediscoveredEndpointValidator(endpointValidator);
             }
         }
 

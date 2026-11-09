@@ -33,6 +33,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 
@@ -50,6 +51,9 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public sealed class WotEventSelectionResolverTests
     {
+        /// <summary>
+        /// Verifies that a fast path derives one clause per leaf in the stated order.
+        /// </summary>
         [Test]
         public async Task AFastPathDerivesOneClausePerLeafInTheStatedOrderAsync()
         {
@@ -61,14 +65,14 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(
                     clauses.ToList().Select(c => c.BrowsePath),
-                    Is.EqualTo(new[]
-                    {
+                    Is.EqualTo(
+                    [
                         string.Empty,
                         "EventId",
                         "EnabledState",
                         "EnabledState/Id",
                         "pump:Temperature"
-                    }),
+                    ]),
                     "The leaves are walked in the order uav:fieldOrder states, the ConditionId " +
                     "member yields the empty path, a state Variable's Name is dropped and a " +
                     "member's uav:browseName supplies the exact QualifiedName.");
@@ -114,6 +118,353 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a relative definition hop retains its owning document origin.
+        /// </summary>
+        [Test]
+        public async Task ARelativeDefinitionHopRetainsItsOwningDocumentOriginAsync()
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance("\"tm:ref\":\"https://origin.test/sub/derived.json\""),
+                ("https://origin.test/sub/derived.json", ChainDocument("base.json")),
+                ("https://origin.test/sub/base.json", BaseEventDocument())).ConfigureAwait(false);
+
+            Assert.That(clauses.ToList().Select(clause => clause.BrowsePath), Is.EqualTo(s_baseEventBrowsePaths));
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "i=2041"), Is.True);
+            Assert.That(clauses.ToList().All(clause =>
+                clause.TypeDefinitionReference == "https://origin.test/sub/derived.json"), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a relative document location retains its directory across hops.
+        /// </summary>
+        [TestCase("models/sub/derived.json", "base.json", "models/sub/base.json")]
+        [TestCase("models/sub/derived.json", "../base.json", "models/base.json")]
+        [TestCase("../models/derived.json", "../../base.json", "../../base.json")]
+        [TestCase("./models/derived.json", "base.json", "./models/base.json")]
+        [TestCase("derived.json", "?version=2", "derived.json?version=2")]
+        [TestCase("models/sub/derived.json", "?version=2", "models/sub/derived.json?version=2")]
+        [TestCase("models/sub/derived.json?version=1", "?version=2", "models/sub/derived.json?version=2")]
+        [TestCase("models/sub/derived.json?version=1", "?", "models/sub/derived.json?")]
+        [TestCase("models/sub/derived.json?version=1", "base.json?version=2", "models/sub/base.json?version=2")]
+        [TestCase(
+            "https://origin.test/models/derived.json",
+            "?version=2",
+            "https://origin.test/models/derived.json?version=2")]
+        [TestCase(
+            "https://origin.test/models/derived.json?version=1",
+            "?",
+            "https://origin.test/models/derived.json?")]
+        public async Task ARelativeDocumentLocationRetainsItsDirectoryAcrossHopsAsync(
+            string origin,
+            string next,
+            string target)
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance($"\"tm:ref\":\"{origin}\""),
+                (origin, ChainDocument(next)),
+                (target, BaseEventDocument())).ConfigureAwait(false);
+
+            Assert.That(clauses.ToList().Select(clause => clause.BrowsePath), Is.EqualTo(s_baseEventBrowsePaths));
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "i=2041"), Is.True);
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionReference == origin), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a query only reference retains the document before its pointer.
+        /// </summary>
+        [TestCase("models/sub/derived.json?version=1", "models/sub/derived.json?version=2")]
+        [TestCase(
+            "https://origin.test/models/derived.json?version=1",
+            "https://origin.test/models/derived.json?version=2")]
+        public async Task AQueryOnlyReferenceRetainsTheDocumentBeforeItsPointerAsync(string origin, string target)
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance($"\"tm:ref\":\"{origin}\""),
+                (origin, ChainDocument("?version=2#/events/alarm")),
+                (target, AlarmTypeDocument())).ConfigureAwait(false);
+
+            Assert.That(
+                WotEventSelectClauses.GetMaterializedMemberPaths(clauses).ToList()
+                    .Select(WotEventSelectClauses.FormatMemberPath),
+                Is.EqualTo(s_nestedAlarmMemberPaths));
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "nsu=urn:test:pump;i=6001"), Is.True);
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionReference == origin), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a chain rejects empty or fragment only references.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("#")]
+        [TestCase("#/events/alarm")]
+        public async Task AChainRejectsEmptyOrFragmentOnlyReferencesAsync(string reference)
+        {
+            const string origin = "models/sub/derived.json";
+            using WotDocument document = Parse(Affordance($"\"tm:ref\":\"{origin}\""));
+            var provider = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            provider.Setup(value => value.ResolveThingAsync(
+                    origin, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<WotResolverResult>(
+                    WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(ChainDocument(reference)))));
+
+            WotConversionResult<WotEventSelectionCatalog> result =
+                await new WotEventSelectionResolver(provider.Object).ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+            WotDiagnostic diagnostic = result.Diagnostics.Single();
+            Assert.That(diagnostic.Code, Is.EqualTo(WotDiagnosticCode.EventSelectClauseInvalid));
+            Assert.That(diagnostic.Location?.JsonPointer, Is.EqualTo("/events/alarm"));
+            provider.Verify(value => value.ResolveThingAsync(
+                origin, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Verifies that a nested definition composes its active relative bases.
+        /// </summary>
+        [Test]
+        public async Task ANestedDefinitionComposesItsActiveRelativeBasesAsync()
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance("\"tm:ref\":\"https://origin.test/models/derived.json#/events/derived\""),
+                ("https://origin.test/models/derived.json",
+                                     /*lang=json,strict*/
+                                     """
+                {
+                  "@context": { "@base": "../types/" },
+                  "events": {
+                    "derived": {
+                      "@context": [{ "@base": "nested/" }, { "@base": "more/" }],
+                      "@type": "uav:eventType",
+                      "tm:ref": "base.json"
+                    }
+                  }
+                }
+                """),
+                ("https://origin.test/types/nested/more/base.json", BaseEventDocument())).ConfigureAwait(false);
+
+            Assert.That(clauses.ToList().Select(clause => clause.BrowsePath), Is.EqualTo(s_baseEventBrowsePaths));
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "i=2041"), Is.True);
+            Assert.That(clauses.ToList().All(clause =>
+                clause.TypeDefinitionReference == "https://origin.test/models/derived.json#/events/derived"), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a literal dot member is not replaced by a segmented path.
+        /// </summary>
+        [Test]
+        public async Task ALiteralDotMemberIsNotReplacedByASegmentedPathAsync()
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance(
+                    "\"tm:ref\":\"./paths.json\"," +
+                    "\"uav:eventSelectClauses\":[{\"tm:ref\":\"./paths.json\",\"uav:browsePath\":\"A/B\"}]"),
+                ("./paths.json",
+                                     /*lang=json,strict*/
+                                     """
+                {
+                  "@type": ["tm:ThingModel", "uav:eventType"],
+                  "uav:id": "nsu=urn:test:pump;i=6201",
+                  "data": {
+                    "type": "object", "uav:fieldOrder": ["A.B","A"],
+                    "properties": {
+                      "A.B": { "type": "boolean" },
+                      "A": {
+                        "type": "object",
+                        "properties": { "B": { "type": "boolean" } }
+                      }
+                    }
+                  }
+                }
+                """)).ConfigureAwait(false);
+
+            Assert.That(clauses.ToList().Select(clause => (clause.BrowsePath, clause.Source)), Is.EqualTo(
+            [
+                ("A.B", WotEventSelectClauseSource.LinkedEventType),
+                ("A/B", WotEventSelectClauseSource.Explicit)
+            ]));
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "nsu=urn:test:pump;i=6201"), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a definition hop uses its own scoped base.
+        /// </summary>
+        [Test]
+        public async Task ADefinitionHopUsesItsOwnScopedBaseAsync()
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance("\"tm:ref\":\"https://origin.test/sub/derived.json\""),
+                ("https://origin.test/sub/derived.json",
+                                     /*lang=json,strict*/
+                                     """
+                {
+                  "@context": { "@base": "../types/" },
+                  "@type": ["tm:ThingModel","uav:eventType"],
+                  "tm:ref": "base.json"
+                }
+                """),
+                ("https://origin.test/types/base.json", BaseEventDocument())).ConfigureAwait(false);
+
+            Assert.That(clauses.ToList().Select(clause => clause.BrowsePath), Is.EqualTo(s_baseEventBrowsePaths));
+            Assert.That(clauses.ToList().All(clause =>
+                clause.TypeDefinitionReference == "https://origin.test/sub/derived.json"), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a definition hop uses its document base before its scoped base.
+        /// </summary>
+        [Test]
+        public async Task ADefinitionHopUsesItsDocumentBaseBeforeItsScopedBaseAsync()
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance("\"tm:ref\":\"https://origin.test/sub/derived.json\""),
+                ("https://origin.test/sub/derived.json",
+                                     /*lang=json,strict*/
+                                     """
+                {
+                  "base": "https://types.test/parent/",
+                  "@context": { "@base": "nested/" },
+                  "@type": ["tm:ThingModel","uav:eventType"],
+                  "tm:ref": "base.json"
+                }
+                """),
+                ("https://types.test/parent/nested/base.json", BaseEventDocument())).ConfigureAwait(false);
+
+            Assert.That(clauses.ToList().Select(clause => clause.BrowsePath), Is.EqualTo(s_baseEventBrowsePaths));
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "i=2041"), Is.True);
+            Assert.That(clauses.ToList().All(clause =>
+                clause.TypeDefinitionReference == "https://origin.test/sub/derived.json"), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a definition root and the built in definition are not a cycle.
+        /// </summary>
+        [Test]
+        public async Task ADefinitionRootAndTheBuiltInDefinitionAreNotACycleAsync()
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance("\"tm:ref\":\"./derived.json\""),
+                ("./derived.json", ChainDocument("ua:BaseEventType"))).ConfigureAwait(false);
+
+            Assert.That(clauses.ToList().Select(clause => clause.BrowsePath),
+                Is.EqualTo(s_completeBaseEventBrowsePaths));
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "i=2041"), Is.True);
+            Assert.That(clauses.ToList().All(clause =>
+                clause.TypeDefinitionReference == "./derived.json"), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a cancelled definition resolution does not read a sibling.
+        /// </summary>
+        [Test]
+        public async Task ACancelledDefinitionResolutionDoesNotReadASiblingAsync()
+        {
+            using WotDocument document = Parse(Affordance("\"tm:ref\":\"./types.json\""));
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            var provider = new StubResolver(("./types.json", BaseEventDocument()));
+            var resolver = new WotEventSelectionResolver(provider);
+
+            await Assert.ThatAsync(
+                async () => await resolver.ResolveAsync(
+                    document, cancellationToken: cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()
+                    .With.Property(nameof(OperationCanceledException.CancellationToken)).EqualTo(cancellation.Token))
+                .ConfigureAwait(false);
+            Assert.That(provider.Requests, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that a linked field retains its definition scoped namespace.
+        /// </summary>
+        [Test]
+        public async Task ALinkedFieldRetainsItsDefinitionScopedNamespaceAsync()
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance("\"tm:ref\":\"https://origin.test/sub/derived.json\""),
+                ("https://origin.test/sub/derived.json", ChainDocument("base.json")),
+                ("https://origin.test/sub/base.json",
+                                     /*lang=json,strict*/
+                                     """
+                {
+                  "@context": { "pump": "urn:document-scope" },
+                  "@type": ["tm:ThingModel","uav:eventType"], "uav:id": "nsu=urn:test:pump;i=6201",
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "Value": {
+                        "@context": { "pump": "urn:field-scope" },
+                        "uav:browseName": "pump:Value", "type": "number"
+                      }
+                    }
+                  }
+                }
+                """)).ConfigureAwait(false);
+
+            Assert.That(clauses.Count, Is.EqualTo(1));
+            Assert.That(clauses[0].GetNormalizedBrowsePath(), Is.EqualTo("{urn:field-scope}Value"));
+            Assert.That(clauses[0].TypeDefinitionReference, Is.EqualTo("https://origin.test/sub/derived.json"));
+        }
+
+        /// <summary>
+        /// Verifies that namespace distinct paths are not overlay aliases.
+        /// </summary>
+        /// <param name="sameNamespace">The same-namespace flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NamespaceDistinctPathsAreNotOverlayAliasesAsync(bool sameNamespace)
+        {
+            string secondNamespace = sameNamespace ? "urn:first" : "urn:second";
+            const string type1 = /*lang=json,strict*/ """
+                {
+                  "@context": { "field": "urn:first" },
+                  "@type": ["tm:ThingModel","uav:eventType"], "uav:id": "nsu=urn:test:pump;i=6301",
+                  "data": { "type":"object", "properties": { "Value": { "uav:browseName":"field:Value" } } }
+                }
+                """;
+            string type2 = $$"""
+                {
+                  "@context": { "field": "{{secondNamespace}}" },
+                  "@type": ["tm:ThingModel","uav:eventType"], "uav:id": "nsu=urn:test:pump;i=6302",
+                  "data": { "type":"object", "properties": { "Value": { "uav:browseName":"field:Value" } } }
+                }
+                """;
+            using WotDocument document = Parse($$"""
+                {
+                  "@context": { "other": "{{secondNamespace}}" },
+                  "@type": "tm:ThingModel",
+                  "events": {
+                    "alarm": {
+                      "@type": "uav:eventType", "tm:ref": "./first.json",
+                      "uav:eventSelectClauses": [{ "tm:ref":"./second.json", "uav:browsePath":"other:Value" }]
+                    }
+                  }
+                }
+                """);
+            var resolver = new WotEventSelectionResolver(
+                new StubResolver(("./first.json", type1), ("./second.json", type2)));
+            WotConversionResult<WotEventSelectionCatalog> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.EqualTo(sameNamespace), Describe(result.Diagnostics));
+            if (sameNamespace)
+            {
+                Assert.That(result.Value!.TryGetSelection("alarm", out ArrayOf<WotResolvedEventSelectClause> clauses),
+                    Is.True);
+                Assert.That(clauses.Count, Is.EqualTo(1));
+                Assert.That(clauses[0].Source, Is.EqualTo(WotEventSelectClauseSource.Explicit));
+                Assert.That(clauses[0].TypeDefinitionId, Is.EqualTo("nsu=urn:test:pump;i=6302"));
+            }
+            else
+            {
+                Assert.That(result.Value, Is.Null);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Message.Contains("materialized member path", StringComparison.Ordinal)), Is.True);
+            }
+        }
+
         [Test]
         public void AnAffordanceThatStatesNoSelectionTakesTheImplicitDefault()
         {
@@ -135,6 +486,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that an explicit clause replaces the baseline entry it names.
+        /// </summary>
         [Test]
         public async Task AnExplicitClauseReplacesTheBaselineEntryItNamesAsync()
         {
@@ -151,23 +505,23 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(
                     clauses.ToList().Select(c => c.BrowsePath),
-                    Is.EqualTo(new[]
-                    {
+                    Is.EqualTo(
+                    [
                         string.Empty,
                         "EnabledState",
                         "EnabledState/Id",
                         "pump:Temperature",
                         "EventId"
-                    }),
+                    ]),
                     "The clause replaces the baseline entry that fills the same member and " +
                     "is appended in the order it is written.");
                 Assert.That(
-                    clauses[clauses.Count - 1].TypeDefinitionId,
+                    clauses[^1].TypeDefinitionId,
                     Is.EqualTo("i=2041"),
                     "The appended clause carries the identity of the definition it names, " +
                     "not the identity of the affordance's own EventType.");
                 Assert.That(
-                    clauses[clauses.Count - 1].Source,
+                    clauses[^1].Source,
                     Is.EqualTo(WotEventSelectClauseSource.Explicit));
             });
         }
@@ -296,11 +650,16 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertReports(diagnostics, "declares no such member");
         }
 
+        /// <summary>
+        /// Verifies that a bounded resolver stops at the configured depth.
+        /// </summary>
         [Test]
         public async Task ABoundedResolverStopsAtTheConfiguredDepthAsync()
         {
-            var options = new WotNodeSetConverterOptions();
-            options.MaxResolverDepth = 2;
+            var options = new WotNodeSetConverterOptions
+            {
+                MaxResolverDepth = 2
+            };
 
             IReadOnlyList<WotDiagnostic> diagnostics = await ResolveWithErrorsAsync(
                 Affordance("\"tm:ref\":\"./chain-0.tm.jsonld\""),
@@ -385,7 +744,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             var stub = new StubResolver(("./types.tm.jsonld", AlarmTypeDocument()));
             var resolver = new WotEventSelectionResolver(stub);
-            string documentJson =
+            const string documentJson =
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"pump\":\"urn:test:pump\"}]," +
@@ -428,7 +787,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task AnUnresolvableReferenceIsReportedOncePerCallAsync()
         {
             var resolver = new WotEventSelectionResolver(new StubResolver());
-            string documentJson =
+            const string documentJson =
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":\"tm:ThingModel\",\"title\":\"Pump\"," +
@@ -526,8 +885,10 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task ABlockedLimitIsReportedOnceAsync()
         {
-            var options = new WotNodeSetConverterOptions();
-            options.MaxResolverDocumentBytes = 64;
+            var options = new WotNodeSetConverterOptions
+            {
+                MaxResolverDocumentBytes = 64
+            };
 
             IReadOnlyList<WotDiagnostic> diagnostics = await ResolveWithErrorsAsync(
                 Affordance("\"tm:ref\":\"./types.tm.jsonld#/events/alarm\""),
@@ -640,7 +1001,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"pump\":\"urn:test:pump\"}]," +
                 "\"@type\":\"tm:ThingModel\",\"title\":\"Pump\"," +
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," + members + "}}}";
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
+                members +
+                "}}}";
         }
 
         private static string BaseEventDocument()
@@ -660,7 +1023,9 @@ namespace Opc.Ua.Types.Tests.Wot
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
-                "\"title\":\"Chain\",\"tm:ref\":\"" + next + "\"}";
+                "\"title\":\"Chain\",\"tm:ref\":\"" +
+                next +
+                "\"}";
         }
 
         private static string CycleDocument(string next)
@@ -766,6 +1131,12 @@ namespace Opc.Ua.Types.Tests.Wot
         /// The two fields the sibling BaseEventType Thing Model declares.
         /// </summary>
         private static readonly string[] s_baseEventBrowsePaths = ["EventId", "Message"];
+
+        private static readonly string[] s_completeBaseEventBrowsePaths =
+        [
+            "EventId", "EventType", "SourceNode", "SourceName", "Time",
+            "ReceiveTime", "LocalTime", "Message", "Severity"
+        ];
 
         /// <summary>
         /// The baseline plus the field an explicit clause adds, which is

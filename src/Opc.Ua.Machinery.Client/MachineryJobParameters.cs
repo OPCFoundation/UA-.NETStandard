@@ -50,6 +50,12 @@ namespace Opc.Ua.Machinery.Client
     public sealed record MachineryJobOrderParameters
     {
         /// <summary>
+        /// Gets original list evidence when read through a strict Machinery client.
+        /// Direct FromJobOrder projections retain their legacy behavior.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
+        /// <summary>
         /// Human-readable name of the job, possibly in several languages.
         /// </summary>
         public ArrayOf<LocalizedText> JobName { get; init; }
@@ -138,6 +144,7 @@ namespace Opc.Ua.Machinery.Client
         /// Reads the predefined parameters of a job order.
         /// </summary>
         /// <param name="jobOrder">The job order.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="jobOrder"/> is <c>null</c>.</exception>
         public static MachineryJobOrderParameters FromJobOrder(V2.ISA95JobOrderDataType jobOrder)
         {
             if (jobOrder == null)
@@ -152,7 +159,7 @@ namespace Opc.Ua.Machinery.Client
                 OrderNumbers = parameters.Strings("OrderNumbers"),
                 Customers = parameters.Strings("Customers"),
                 CustomerOrderNumbers = parameters.Strings("CustomerOrderNumbers"),
-                JobExecutionMode = (Jobs.JobExecutionMode?)parameters.Enumeration("JobExecutionMode"),
+                JobExecutionMode = (JobExecutionMode?)parameters.Enumeration("JobExecutionMode"),
                 ReasonForStateChange = parameters.Text("ReasonForStateChange"),
                 RunsPlanned = parameters.UInt32("RunsPlanned"),
                 PlannedProductionTime = parameters.Double("PlannedProductionTime"),
@@ -182,6 +189,12 @@ namespace Opc.Ua.Machinery.Client
     /// </remarks>
     public sealed record MachineryJobResponseParameters
     {
+        /// <summary>
+        /// Gets original list evidence when read through a strict Machinery client.
+        /// Direct FromJobResponse projections retain their legacy behavior.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
         /// <summary>
         /// Human-readable name of the job, possibly in several languages.
         /// </summary>
@@ -290,18 +303,29 @@ namespace Opc.Ua.Machinery.Client
         public static MachineryJobResponseParameters FromJobResponse(
             V2.ISA95JobResponseDataType response)
         {
+            return FromJobResponse(response, null);
+        }
+
+        /// <summary>
+        /// Projects a validated response, decoding binary parameter structures when a context is supplied.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="response"/> is <c>null</c>.</exception>
+        internal static MachineryJobResponseParameters FromJobResponse(
+            V2.ISA95JobResponseDataType response,
+            IServiceMessageContext? context)
+        {
             if (response == null)
             {
                 throw new ArgumentNullException(nameof(response));
             }
-            var parameters = new MachineryJobParameterLookup(response.JobResponseData);
+            var parameters = new MachineryJobParameterLookup(response.JobResponseData, context);
             return new MachineryJobResponseParameters
             {
                 JobName = parameters.Texts("JobName"),
                 OrderNumbers = parameters.Strings("OrderNumbers"),
                 Customers = parameters.Strings("Customers"),
                 CustomerOrderNumbers = parameters.Strings("CustomerOrderNumbers"),
-                JobExecutionMode = (Jobs.JobExecutionMode?)parameters.Enumeration("JobExecutionMode"),
+                JobExecutionMode = (JobExecutionMode?)parameters.Enumeration("JobExecutionMode"),
                 ReasonForStateChange = parameters.Text("ReasonForStateChange"),
                 RunsCompleted = parameters.UInt32("RunsCompleted"),
                 RunsStarted = parameters.UInt32("RunsStarted"),
@@ -312,7 +336,7 @@ namespace Opc.Ua.Machinery.Client
                 ActualProductionTime = parameters.Double("ActualProductionTime"),
                 ProducedQuantity = parameters.Double("ProducedQuantity"),
                 EstimatedRemainingTime = parameters.Double("EstimatedRemainingTime"),
-                JobResult = (Jobs.JobResult?)parameters.Enumeration("JobResult"),
+                JobResult = (JobResult?)parameters.Enumeration("JobResult"),
                 GoodQuantity = parameters.Double("GoodQuantity"),
                 AsBuiltBOM = parameters.Structures<BOMInformationDataType>("AsBuiltBOM"),
                 OutputPerformanceInfo = parameters
@@ -328,8 +352,14 @@ namespace Opc.Ua.Machinery.Client
     /// </summary>
     internal readonly struct MachineryJobParameterLookup
     {
-        public MachineryJobParameterLookup(ArrayOf<V2.ISA95ParameterDataType> parameters)
+        /// <summary>
+        /// Indexes parameter identifiers with optional binary-structure decoding.
+        /// </summary>
+        public MachineryJobParameterLookup(
+            ArrayOf<V2.ISA95ParameterDataType> parameters,
+            IServiceMessageContext? context = null)
         {
+            m_context = context;
             m_byId = new Dictionary<string, V2.ISA95ParameterDataType>(StringComparer.Ordinal);
             for (int ii = 0; ii < parameters.Count; ii++)
             {
@@ -381,14 +411,14 @@ namespace Opc.Ua.Machinery.Client
         {
             return ValueOf(id).TryGetValue(out ArrayOf<LocalizedText> texts)
                 ? texts
-                : ArrayOf<LocalizedText>.Empty;
+                : [];
         }
 
         public ArrayOf<string> Strings(string id)
         {
             return ValueOf(id).TryGetValue(out ArrayOf<string> texts)
                 ? texts
-                : ArrayOf<string>.Empty;
+                : [];
         }
 
         /// <summary>
@@ -407,9 +437,9 @@ namespace Opc.Ua.Machinery.Client
 
         public ArrayOf<T> Structures<T>(string id) where T : IEncodeable
         {
-            return ValueOf(id).TryGetStructure(out ArrayOf<T> structures)
+            return ValueOf(id).TryGetValue(out ArrayOf<T> structures, m_context)
                 ? structures
-                : ArrayOf<T>.Empty;
+                : [];
         }
 
         private Variant ValueOf(string id)
@@ -420,5 +450,6 @@ namespace Opc.Ua.Machinery.Client
         }
 
         private readonly Dictionary<string, V2.ISA95ParameterDataType> m_byId;
+        private readonly IServiceMessageContext? m_context;
     }
 }

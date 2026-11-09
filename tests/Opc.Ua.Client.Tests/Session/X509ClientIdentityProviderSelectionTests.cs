@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests.Identity
             };
             if (SecurityPolicies.Default.GetInfo(policyUri) == null)
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await provider.SelectUserTokenPolicyAsync(context).ConfigureAwait(false));
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
                 Assert.That(error.Message, Does.Contain("UnknownOrUnsupportedSecurityPolicy"));
@@ -90,7 +90,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void UnsupportedEccPolicyIsRejectedDespiteMatchingCertificate()
+        public async Task UnsupportedEccPolicyIsRejectedDespiteMatchingCertificate()
         {
             using var policies = new SecurityPolicies();
             policies.Register(
@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 SecurityPolicyRegistry = policies
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider.SelectUserTokenPolicyAsync(context).ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
             Assert.That(error.Message, Does.Contain("UnknownOrUnsupportedSecurityPolicy"));
@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void NistP384CertWithOnlyNistP256OfferedThrowsBadIdentityTokenRejected()
+        public async Task NistP384CertWithOnlyNistP256OfferedThrowsBadIdentityTokenRejected()
         {
             using Certificate cert = CreateEccCertificate(ECCurve.NamedCurves.nistP384);
             X509ClientIdentityProvider provider = CreateProvider(cert);
@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 SecurityPolicies.ECC_nistP256,
                 nist256);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
                     .ConfigureAwait(false));
@@ -176,7 +176,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void DisabledPolicyIsRejectedWithReasonInDiagnostic()
+        public async Task DisabledPolicyIsRejectedWithReasonInDiagnostic()
         {
             using Certificate cert = CreateRsaCertificate();
             X509ClientIdentityProvider provider = CreateProvider(cert);
@@ -191,7 +191,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()),
                 new[] { SecurityPolicies.Basic256Sha256 });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(context)
                     .ConfigureAwait(false));
@@ -228,7 +228,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void CertificateLoadFailureSurfacesAsCertificateLoadFailedDiagnostic()
+        public async Task CertificateLoadFailureSurfacesAsCertificateLoadFailedDiagnostic()
         {
             var certId = new CertificateIdentifier
             {
@@ -245,7 +245,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 SecurityPolicies.Basic256Sha256,
                 policy);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
                     .ConfigureAwait(false));
@@ -266,7 +266,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 new FakeSecretRegistry(),
                 new SecretIdentifier("password", "fake"));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
                     .ConfigureAwait(false));
@@ -278,7 +278,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void Rsa1024CertWithBasic256Sha256TriggersKeyLengthMismatch()
+        public async Task Rsa1024CertWithBasic256Sha256TriggersKeyLengthMismatch()
         {
             using Certificate cert = CreateRsaCertificate(keySize: 1024);
             X509ClientIdentityProvider provider = CreateProvider(cert);
@@ -286,7 +286,7 @@ namespace Opc.Ua.Client.Tests.Identity
             UserTokenPolicy basic256 = CreatePolicy("basic256", SecurityPolicies.Basic256Sha256);
             EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.Basic256Sha256, basic256);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
                     .ConfigureAwait(false));
@@ -297,7 +297,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void EccUserNamePolicyWithRsaInstanceCertTriggersInstanceMismatch()
+        public async Task EccUserNamePolicyWithRsaInstanceCertTriggersInstanceMismatch()
         {
             // The instance-cert gate fires for UserName/IssuedToken
             // (EccEncryptedSecret encryption) — not X509 / Anonymous.
@@ -317,7 +317,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 ClientInstanceCertificateKeySize = 2048
             };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(context)
                     .ConfigureAwait(false));
@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void EccNistP256InstanceCertRejectsNistP384UserNamePolicy()
+        public async Task EccNistP256InstanceCertRejectsNistP384UserNamePolicy()
         {
             var provider = new UserNamePasswordIdentityProvider(
                 "user1",
@@ -346,7 +346,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.NistP256
             };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(context)
                     .ConfigureAwait(false));
@@ -430,7 +430,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void BoundEphemeralKeyPinsSelectionAndNamesRenewApi()
+        public async Task BoundEphemeralKeyPinsSelectionAndNamesRenewApi()
         {
             using Certificate userCert = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
             X509ClientIdentityProvider provider = CreateProvider(userCert);
@@ -443,7 +443,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 CurrentEphemeralKeyPolicyUri = SecurityPolicies.ECC_nistP256
             };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(context)
                     .ConfigureAwait(false));
@@ -477,7 +477,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void NoneChannelRejectsEccUserNameTokenPerPart4_7_41()
+        public async Task NoneChannelRejectsEccUserNameTokenPerPart4_7_41()
         {
             // Part 4 §7.41: when SecurityMode is None, USERNAME and
             // ISSUEDTOKEN UserTokenPolicies must not use ECC/RSA-DH
@@ -493,7 +493,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 UserTokenType.UserName);
             EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.None, ecc);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
                     .ConfigureAwait(false));
@@ -504,7 +504,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void RsaChannelRejectsEccUserNameTokenWithMismatchedFamily()
+        public async Task RsaChannelRejectsEccUserNameTokenWithMismatchedFamily()
         {
             // Channel uses RSA (Basic256Sha256), user-token policy uses
             // ECC — Part 4 §7.41: SHALL use the same PublicKey
@@ -520,7 +520,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 UserTokenType.UserName);
             EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.Basic256Sha256, ecc);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(CreateContextWithAllPolicies(endpoint))
                     .ConfigureAwait(false));
@@ -531,7 +531,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void EccChannelRejectsRsaUserNameTokenWithMismatchedFamily()
+        public async Task EccChannelRejectsRsaUserNameTokenWithMismatchedFamily()
         {
             // Reverse direction: ECC channel + RSA user-token policy.
             var provider = new UserNamePasswordIdentityProvider(
@@ -549,7 +549,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 ClientInstanceCertificateAlgorithm = CertificateKeyAlgorithm.NistP256
             };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(context)
                     .ConfigureAwait(false));
@@ -618,7 +618,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void DiagnosticTruncatesLongStringsAndCapsRejectedPolicyCount()
+        public async Task DiagnosticTruncatesLongStringsAndCapsRejectedPolicyCount()
         {
             // Build an endpoint with many offered policies and very long
             // server-supplied strings to exercise the bounded-diagnostic
@@ -650,7 +650,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 endpoint.UserIdentityTokens,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .SelectUserTokenPolicyAsync(context)
                     .ConfigureAwait(false));

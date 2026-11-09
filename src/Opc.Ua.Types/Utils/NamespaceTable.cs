@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using Opc.Ua.Types;
 
@@ -72,7 +73,7 @@ namespace Opc.Ua
         public StringTable(StringTable table)
         {
             m_strings = [];
-            Update(table.m_strings);
+            Update(table.ToArray());
 #if DEBUG
             InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
@@ -99,6 +100,20 @@ namespace Opc.Ua
 #endif
 
         /// <summary>
+        /// Gets the monotonic mutation version of this table.
+        /// </summary>
+        public long Version
+        {
+            get
+            {
+                lock (m_syncRoot)
+                {
+                    return m_version;
+                }
+            }
+        }
+
+        /// <summary>
         /// Updates the table of namespace uris.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="strings"/> is <c>null</c>.</exception>
@@ -123,7 +138,10 @@ namespace Opc.Ua
 
             lock (m_syncRoot)
             {
-                m_strings = updated;
+                EnsureMutable();
+                m_strings.Clear();
+                m_strings.AddRange(updated);
+                Interlocked.Increment(ref m_version);
 
 #if DEBUG
                 if (m_shared)
@@ -163,8 +181,10 @@ namespace Opc.Ua
 
             lock (m_syncRoot)
             {
+                EnsureMutable();
                 ThrowIfFull();
                 m_strings.Add(value);
+                Interlocked.Increment(ref m_version);
                 return m_strings.Count - 1;
             }
         }
@@ -207,15 +227,7 @@ namespace Opc.Ua
         /// </summary>
         public int GetIndex(string value)
         {
-            lock (m_syncRoot)
-            {
-                if (string.IsNullOrEmpty(value))
-                {
-                    return -1;
-                }
-
-                return m_strings.IndexOf(value);
-            }
+            return GetIndex(value, 0);
         }
 
         /// <summary>
@@ -235,6 +247,7 @@ namespace Opc.Ua
 
                 if (index == -1)
                 {
+                    EnsureMutable();
 #if DEBUG
                     if (m_shared)
                     {
@@ -247,6 +260,7 @@ namespace Opc.Ua
 
                     ThrowIfFull();
                     m_strings.Add(value);
+                    Interlocked.Increment(ref m_version);
                     return (ushort)(m_strings.Count - 1);
                 }
 
@@ -277,6 +291,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Captures the mapping and its mutation version in one observation.
+        /// </summary>
+        public ArrayOf<string> GetSnapshot(out long version)
+        {
+            lock (m_syncRoot)
+            {
+                version = m_version;
+                return [.. m_strings];
+            }
+        }
+
+        /// <summary>
         /// Returns the number of entries in the table.
         /// </summary>
         public int Count
@@ -294,9 +320,26 @@ namespace Opc.Ua
         /// Creates a mapping between the URIs in a source table and the indexes in the current table.
         /// </summary>
         /// <param name="source">The string table to map.</param>
-        /// <param name="updateTable">if set to <c>true</c> if missing URIs should be added to the current tables.</param>
+        /// <param name="updateTable">
+        /// If set to <c>true</c>, missing URIs should be added to the current tables.
+        /// </param>
         /// <returns>A list of indexes in the current table.</returns>
         public ushort[]? CreateMapping(StringTable source, bool updateTable)
+        {
+            return CreateMapping(source, updateTable, preserveLocalServerIndex: false);
+        }
+
+        /// <summary>
+        /// Maps tables with an optional reserved local server slot at index zero.
+        /// </summary>
+        /// <remarks>
+        /// An initially empty destination reserves index zero with an empty local placeholder
+        /// before appending any remote server URI. Read-only mapping never changes either table.
+        /// </remarks>
+        /// <param name="source">The string table.</param>
+        /// <param name="updateTable">The update-table flag supplied by the caller.</param>
+        /// <param name="preserveLocalServerIndex">The preserve-local-server-index flag supplied by the caller.</param>
+        internal ushort[]? CreateMapping(StringTable source, bool updateTable, bool preserveLocalServerIndex)
         {
             if (source == null)
             {
@@ -304,12 +347,13 @@ namespace Opc.Ua
             }
 
             ushort[] mapping = new ushort[source.Count];
+            int startIndex = preserveLocalServerIndex ? 1 : 0;
 
-            for (int ii = 0; ii < source.Count; ii++)
+            for (int ii = startIndex; ii < source.Count; ii++)
             {
                 string uri = source.GetString((uint)ii)!;
 
-                int index = GetIndex(uri);
+                int index = GetIndex(uri, startIndex);
 
                 if (index < 0)
                 {
@@ -319,6 +363,10 @@ namespace Opc.Ua
                         continue;
                     }
 
+                    if (preserveLocalServerIndex)
+                    {
+                        EnsureLocalServerSlot();
+                    }
                     index = Append(uri);
                 }
 
@@ -329,10 +377,41 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Reserves a local-only slot without relaxing public URI validation or replacing live entries.
+        /// </summary>
+        private void EnsureLocalServerSlot()
+        {
+            lock (m_syncRoot)
+            {
+                if (m_strings.Count == 0)
+                {
+                    EnsureMutable();
+                    m_strings.Add(string.Empty);
+                    Interlocked.Increment(ref m_version);
+                }
+            }
+        }
+
+        private int GetIndex(string value, int startIndex)
+        {
+            lock (m_syncRoot)
+            {
+                if (string.IsNullOrEmpty(value))
+                {
+                    return -1;
+                }
+
+                return m_strings.IndexOf(value, Math.Min(startIndex, m_strings.Count));
+            }
+        }
+
+        /// <summary>
         /// Access the string table from sub classes
         /// </summary>
         protected List<string> m_strings;
-        private readonly Lock m_syncRoot = new();
+        private Lock m_syncRoot => m_storage.Gate;
+        private ref long m_version => ref m_storage.Version;
+        private Storage m_storage = new();
 
 #if DEBUG
         /// <summary>
@@ -341,6 +420,122 @@ namespace Opc.Ua
         protected bool m_shared;
         private static int s_globalInstanceCount;
 #endif
+
+        /// <summary>
+        /// Rebinds a staging table while preserving the protected list field for external subclasses.
+        /// </summary>
+        internal void BindTo(StringTable canonical)
+        {
+            m_strings = canonical.m_strings;
+            m_storage = canonical.m_storage;
+        }
+
+        /// <summary>
+        /// Detaches a cached table before an unpublished or retired manager is cleaned up.
+        /// </summary>
+        internal void Detach()
+        {
+            ArrayOf<string> entries = GetSnapshot(out long version);
+            m_strings = [.. entries];
+            m_storage = new Storage { Version = version };
+        }
+
+        /// <summary>
+        /// Captures explicit private namespace storage and its source revision without ambient selection.
+        /// </summary>
+        internal StringTable CaptureSnapshot()
+        {
+            string[] entries = GetSnapshot(out long version).ToArray()!;
+            StringTable copy = this is NamespaceTable ? new NamespaceTable(entries) : new StringTable(entries);
+            copy.m_version = version;
+            return copy;
+        }
+
+        /// <summary>
+        /// Reserves an unchanged namespace prefix and preallocates additions before the decision callback.
+        /// </summary>
+        internal Publication BeginPublication(StringTable additions, long revision)
+        {
+            string[] proposed = additions.ToArray();
+            lock (m_syncRoot)
+            {
+                EnsureMutable();
+                if (m_version != revision || proposed.Length < m_strings.Count ||
+                    !m_strings.SequenceEqual(proposed.Take(m_strings.Count)))
+                {
+                    throw new OptimisticPublicationConflictException("The string table changed after preparation.");
+                }
+                if (m_strings.Capacity < proposed.Length)
+                {
+                    m_strings.Capacity = proposed.Length;
+                }
+                m_storage.PublicationPending = true;
+                return new Publication(this, proposed);
+            }
+        }
+
+        /// <summary>
+        /// Rejects changes while a lifecycle decision reserves the namespace prefix.
+        /// </summary>
+        private void EnsureMutable()
+        {
+            if (m_storage.PublicationPending)
+            {
+                throw new InvalidOperationException("The string table has a pending publication.");
+            }
+        }
+
+        /// <summary>
+        /// Shares synchronization and version state between cached namespace handles.
+        /// </summary>
+        private sealed class Storage
+        {
+            /// <summary>Serializes access through every bound table.</summary>
+            internal readonly Lock Gate = new();
+
+            /// <summary>Identifies the current string mapping revision.</summary>
+            internal long Version;
+
+            /// <summary>Reserves the captured namespace prefix during a decision.</summary>
+            internal bool PublicationPending;
+        }
+
+        /// <summary>
+        /// Holds a prevalidated append-only namespace publication.
+        /// </summary>
+        internal sealed class Publication(StringTable owner, string[] proposed) : IDisposable
+        {
+            /// <summary>
+            /// Appends the reserved entries without renumbering any published namespace.
+            /// </summary>
+            internal void Complete()
+            {
+                lock (owner.m_syncRoot)
+                {
+                    for (int index = owner.m_strings.Count; index < proposed.Length; index++)
+                    {
+                        owner.m_strings.Add(proposed[index]);
+                        owner.m_version++;
+                    }
+                }
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                lock (owner.m_syncRoot)
+                {
+                    if (m_disposed)
+                    {
+                        return;
+                    }
+                    owner.m_storage.PublicationPending = false;
+                    m_disposed = true;
+                }
+            }
+
+            private bool m_disposed;
+        }
     }
 
     /// <summary>
@@ -391,6 +586,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// <paramref name="namespaceUris"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
+        /// <param name="namespaceUris">The namespace URIs.</param>
         public new void Update(IEnumerable<string> namespaceUris)
         {
             if (namespaceUris == null)
@@ -401,7 +597,7 @@ namespace Opc.Ua
             base.Update(namespaceUris);
 
             // check that first entry is the UA namespace.
-            if (m_strings[0] != Types.Namespaces.OpcUa)
+            if (GetString(0) != Namespaces.OpcUa)
             {
                 throw new ArgumentException(
                     "The first namespace in the table must be the OPC-UA namespace.");

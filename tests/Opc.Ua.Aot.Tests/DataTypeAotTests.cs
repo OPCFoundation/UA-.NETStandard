@@ -44,7 +44,8 @@ namespace Opc.Ua.Aot.Tests
                 .FetchNodeAsync(
                     DataTypeIds.ServerStatusDataType,
                     CancellationToken.None)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false) ??
+                throw new InvalidOperationException("The data type node was not found.");
 
             await Assert.That(node).IsNotNull();
             await Assert.That(node.NodeClass)
@@ -70,7 +71,8 @@ namespace Opc.Ua.Aot.Tests
                     CancellationToken.None).ConfigureAwait(false);
 
             ReferenceDescription enumRef = refs.ToList().FirstOrDefault(
-                r => r.BrowseName.Name is "EnumStrings" or "EnumValues");
+                r => r.BrowseName.Name is "EnumStrings" or "EnumValues") ??
+                throw new InvalidOperationException("The enum values node was not found.");
 
             await Assert.That(enumRef).IsNotNull();
 
@@ -82,8 +84,7 @@ namespace Opc.Ua.Aot.Tests
 
             await Assert.That(StatusCode.IsGood(enumValues.StatusCode))
                 .IsTrue();
-            await Assert.That(enumValues.WrappedValue.AsBoxedObject())
-                .IsNotNull();
+            await Assert.That(enumValues.WrappedValue.IsNull).IsFalse();
         }
 
         [Test]

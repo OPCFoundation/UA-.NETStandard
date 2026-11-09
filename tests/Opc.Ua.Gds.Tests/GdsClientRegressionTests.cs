@@ -180,7 +180,7 @@ namespace Opc.Ua.Gds.Tests
         /// task cached; the next acquisition has to call the factory again.
         /// </summary>
         [Test]
-        public void AccessTokenProviderDoesNotCacheSynchronousFactoryFailure()
+        public async Task AccessTokenProviderDoesNotCacheSynchronousFactoryFailure()
         {
             int factoryCalls = 0;
             var provider = new GdsAccessTokenProvider(
@@ -192,9 +192,9 @@ namespace Opc.Ua.Gds.Tests
                 "urn:authority");
             var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority", Audience = "urn:target" };
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await provider.AcquireAsync(metadata).ConfigureAwait(false));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await provider.AcquireAsync(metadata).ConfigureAwait(false));
 
             Assert.That(factoryCalls, Is.EqualTo(2));
@@ -206,7 +206,7 @@ namespace Opc.Ua.Gds.Tests
         /// callers are waiting for.
         /// </summary>
         [Test]
-        public void AccessTokenProviderCancellationOfFirstCallerDoesNotFailOthers()
+        public async Task AccessTokenProviderCancellationOfFirstCallerDoesNotFailOthers()
         {
             int factoryCalls = 0;
             var creation = new TaskCompletionSource<AuthorizationServiceClient>(
@@ -227,11 +227,11 @@ namespace Opc.Ua.Gds.Tests
             Task second = provider.AcquireAsync(metadata, CancellationToken.None).AsTask();
 
             firstCallerCts.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await first.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await first.ConfigureAwait(false));
             Assert.That(second.IsCompleted, Is.False);
 
             creation.TrySetException(new InvalidOperationException("creation finished"));
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await second.ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await second.ConfigureAwait(false));
             Assert.That(factoryCalls, Is.EqualTo(1));
         }
 
@@ -240,7 +240,7 @@ namespace Opc.Ua.Gds.Tests
         /// must surface as a ServiceResultException, not IndexOutOfRange.
         /// </summary>
         [Test]
-        public void AuthorizationServiceShortOutputThrowsServiceResultException()
+        public async Task AuthorizationServiceShortOutputThrowsServiceResultException()
         {
             ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var session = new Mock<ISession>();
@@ -266,7 +266,7 @@ namespace Opc.Ua.Gds.Tests
                 .Returns(new ValueTask<CallResponse>(CreateCallResponse(new Variant(ByteString.Empty))));
             var client = new AuthorizationServiceClient(session.Object, new NodeId(1000u, 2));
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.StartRequestTokenAsync("urn:resource", "jwt", ByteString.Empty).ConfigureAwait(false));
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
@@ -276,7 +276,7 @@ namespace Opc.Ua.Gds.Tests
         /// A wrongly typed ServiceData output is rejected instead of being read as empty.
         /// </summary>
         [Test]
-        public void AuthorizationServiceWronglyTypedServiceDataThrowsTypeMismatch()
+        public async Task AuthorizationServiceWronglyTypedServiceDataThrowsTypeMismatch()
         {
             ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var session = new Mock<ISession>();
@@ -304,7 +304,7 @@ namespace Opc.Ua.Gds.Tests
                     new Variant(new Uuid(Guid.NewGuid())))));
             var client = new AuthorizationServiceClient(session.Object, new NodeId(1000u, 2));
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.StartRequestTokenAsync("urn:resource", "jwt", ByteString.Empty).ConfigureAwait(false));
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));

@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Vision.BinPickingCell
@@ -252,7 +252,7 @@ namespace Vision.BinPickingCell
             double worldX = cx + rx;
             double worldY = cy + ry;
             double worldZ = cz + rz;
-            var authored = BinPickingPartsCatalog.TryGet(RedCubeClass);
+            BinPickingPart? authored = BinPickingPartsCatalog.TryGet(RedCubeClass);
             if (authored != null)
             {
                 double ax = authored.InitialWorldPosition[0];
@@ -272,7 +272,7 @@ namespace Vision.BinPickingCell
 
         private static (double X, double Y, double Z) ReadVec3(ArrayOf<double> vec)
         {
-            System.ReadOnlySpan<double> span = vec.Span;
+            ReadOnlySpan<double> span = vec.Span;
             if (span.Length < 3)
             {
                 return (0.0, 0.0, 0.0);
@@ -282,7 +282,7 @@ namespace Vision.BinPickingCell
 
         private static (double X, double Y, double Z, double W) ReadQuat(ArrayOf<double> vec)
         {
-            System.ReadOnlySpan<double> span = vec.Span;
+            ReadOnlySpan<double> span = vec.Span;
             if (span.Length < 4)
             {
                 return (0.0, 0.0, 0.0, 1.0);

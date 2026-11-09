@@ -50,7 +50,7 @@ namespace Robotics
         private OpenUsdRootState? m_openUsdRoot;
         private OpenUsdStageState? m_cellStage;
 
-        private const string CellRootLayerIdentifier = "asset-repo/Cell.usd";
+        private const string CellRootLayerIdentifier = "Cell.usda";
 
         private async ValueTask MaterialiseOpenUsdFacilityAsync(
             CancellationToken cancellationToken)
@@ -70,6 +70,7 @@ namespace Robotics
 
                 m_cellStage = SystemContext.CreateInstanceOfOpenUsdStageType(
                     stages, new QualifiedName("RobotCellStage", ns));
+                m_cellStage.ReferenceTypeId = ReferenceTypeIds.Organizes;
                 stages.AddChild(m_cellStage);
                 m_cellStage.CreateOrReplaceRootLayerIdentifier(SystemContext, null!)
                     .Value = CellRootLayerIdentifier;
@@ -106,7 +107,7 @@ namespace Robotics
                 // §5.15 asset content delivery (OU-AssetDelivery): serve this stage's
                 // artist-authored USD layer closure so a connector can render the twin
                 // with no external asset resolver.
-                UsdAssetDelivery.AttachStageAssets(SystemContext, m_cellStage, ns, servedAssets);
+                UsdAssetDelivery.AttachStageAssets(SystemContext, m_cellStage, ns, servedAssets, "robots");
 
                 SystemContext.AssignInstanceChildNodeIds(root);
                 await Manager.AddPredefinedNodeAsync(root, cancellationToken)

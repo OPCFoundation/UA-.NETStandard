@@ -587,6 +587,10 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Wires a method callback after checking that graph authoring is open and the node is a method.
         /// </summary>
+        /// <param name="wire">The ordinary method-handler assignment.</param>
+        /// <exception cref="ServiceResultException">
+        /// The node is not a method, the graph is sealed, or a complete-result handler is installed.
+        /// </exception>
         private AdHocInstanceNodeBuilder<TState> SetMethod(Action<MethodState> wire)
         {
             FluentNodeRegistration.EnsureGraphAuthoringOpen(Builder);
@@ -597,6 +601,7 @@ namespace Opc.Ua.Server.Fluent
                     "Cannot wire method callback on '{0}' (not a MethodState).",
                     Node.BrowseName);
             }
+            m.ThrowIfCompleteHandlerRegistered();
             wire(m);
             return this;
         }

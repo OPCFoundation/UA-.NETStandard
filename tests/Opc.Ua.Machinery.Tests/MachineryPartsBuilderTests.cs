@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -162,8 +163,8 @@ namespace Opc.Ua.Machinery.Tests
                 NewMachine("Unbound-Job-Machine").WithJobManagement();
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await builder.BuildAsync())!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await builder.BuildAsync()))!;
             Assert.That(exception.Message, Does.Contain("job-order receiver"));
         }
 
@@ -181,7 +182,18 @@ namespace Opc.Ua.Machinery.Tests
                             .WithApplicationTag("air")
                             .WithNonElectricalEnergy(1234.5, 0)
                             .WithVolumeFlow(10f, 0.5f)
-                            .WithBaseFlow(620000f, 294.65f);
+                            .WithBaseFlow(620000f, 294.65f)
+                            .AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(12.5f))
+                            .AddMeasurementValue(
+                                new QualifiedName("AcCurrentPe"),
+                                Variant.FromStructure(
+                                    new Opc.Ua.ECM.AcPeDataType { L1 = 1f, L2 = 2f, L3 = 3f }))
+                            .AddMeasurementValue(
+                                new QualifiedName("AcVoltagePp"),
+                                Variant.FromStructure(
+                                    new Opc.Ua.ECM.AcPpDataType { L1L2 = 400f, L2L3 = 401f, L3L1 = 402f }));
                         air.AddMeteringPoint(
                             new QualifiedName("Clamping"),
                             point => point.WithNonElectricalEnergy(12.0, 0));
@@ -245,6 +257,71 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(import, Is.Not.Null);
             Assert.That(import!.WrappedValue.TryGetValue(out double importValue), Is.True);
             Assert.That(importValue, Is.EqualTo(1234.5));
+
+            var activePower = main.FindChild(
+                context,
+                new QualifiedName("AcActivePowerTotal", ecmNamespaceIndex))
+                as Opc.Ua.ECM.EnergyMeasurementValueState;
+            Assert.That(activePower, Is.Not.Null);
+            Opc.Ua.ECM.EnergyMeasurementValueState publishedPower = activePower!;
+            Assert.That(publishedPower.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Float));
+            Assert.That(publishedPower.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.Scalar));
+            Assert.That(
+                publishedPower.ReferenceTypeId,
+                Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            Assert.That(publishedPower.WrappedValue.TryGetValue(out float activePowerValue), Is.True);
+            Assert.That(activePowerValue, Is.EqualTo(12.5f));
+
+            var phaseCurrent = main.FindChild(
+                context,
+                new QualifiedName("AcCurrentPe", ecmNamespaceIndex))
+                as Opc.Ua.ECM.EnergyMeasurementValueState;
+            Assert.That(phaseCurrent, Is.Not.Null);
+            Assert.That(
+                phaseCurrent!.DataType,
+                Is.EqualTo(ExpandedNodeId.ToNodeId(
+                    Opc.Ua.ECM.DataTypeIds.AcPeDataType,
+                    context.NamespaceUris)));
+            Assert.That(
+                phaseCurrent.WrappedValue.TryGetStructure<Opc.Ua.ECM.AcPeDataType>(
+                    out Opc.Ua.ECM.AcPeDataType? currentValue),
+                Is.True);
+            Assert.That(currentValue!.L2, Is.EqualTo(2f));
+
+            var lineVoltage = main.FindChild(
+                context,
+                new QualifiedName("AcVoltagePp", ecmNamespaceIndex))
+                as Opc.Ua.ECM.EnergyMeasurementValueState;
+            Assert.That(lineVoltage, Is.Not.Null);
+            Assert.That(
+                lineVoltage!.DataType,
+                Is.EqualTo(ExpandedNodeId.ToNodeId(
+                    Opc.Ua.ECM.DataTypeIds.AcPpDataType,
+                    context.NamespaceUris)));
+            Assert.That(
+                lineVoltage.WrappedValue.TryGetStructure<Opc.Ua.ECM.AcPpDataType>(
+                    out Opc.Ua.ECM.AcPpDataType? voltageValue),
+                Is.True);
+            Assert.That(voltageValue!.L2L3, Is.EqualTo(401f));
+
+            var measurementChildren = new List<BaseInstanceState>();
+            publishedPower.GetChildren(context, measurementChildren);
+            BaseVariableState engineeringUnits = measurementChildren
+                .OfType<BaseVariableState>()
+                .Single(child => child.BrowseName.Name == Opc.Ua.BrowseNames.EngineeringUnits);
+            Assert.That(
+                engineeringUnits.WrappedValue.TryGetStructure<EUInformation>(out EUInformation? actualUnits),
+                Is.True);
+            Assert.That(actualUnits!.DisplayName.Text, Is.EqualTo("W"));
+            Assert.That(actualUnits.NamespaceUri, Is.EqualTo(
+                "http://www.opcfoundation.org/UA/units/un/cefact"));
+            Assert.That(actualUnits.UnitId, Is.EqualTo(5_723_220));
+
+            BaseVariableState measurementId = measurementChildren
+                .OfType<BaseVariableState>()
+                .Single(child => child.BrowseName.Name == "MeasurementID");
+            Assert.That(measurementId.WrappedValue.TryGetValue(out ushort actualMeasurementId), Is.True);
+            Assert.That(actualMeasurementId, Is.EqualTo((ushort)1412));
 
             // OPC 40001-4 §8.1: Contains runs from Main to a sub-meter whose
             // readings are part of it, and both ends are metering points.
@@ -371,8 +448,8 @@ namespace Opc.Ua.Machinery.Tests
             };
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await StoreAsync(jobManagement!, jobOrder))!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await StoreAsync(jobManagement!, jobOrder)))!;
             Assert.That(exception.Message, Does.Contain("PlannedSetupTime"));
             Assert.That(exception.Message, Does.Contain("Duration"));
 
@@ -642,7 +719,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void AResourceFolderWithoutAMainMeteringPointIsRefused()
+        public async Task AResourceFolderWithoutAMainMeteringPointIsRefused()
         {
             ushort energyNamespaceIndex = NamespaceIndex(
                 Opc.Ua.Machinery.Energy.Namespaces.MachineryEnergy);
@@ -667,8 +744,8 @@ namespace Opc.Ua.Machinery.Tests
                 }));
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await builder.BuildAsync())!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await builder.BuildAsync()))!;
             Assert.That(exception.Message, Does.Contain("Main metering point"));
             Assert.That(exception.Message, Does.Contain("Steam"));
         }
@@ -867,13 +944,13 @@ namespace Opc.Ua.Machinery.Tests
             // ResultId alone is what every other result test publishes; the
             // unit needs six more fields on top of it.
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await machine.Results!.PublishAsync(
                         new MachineryResult(
                             new ResultDataType
                             {
                                 ResultMetaData = new ResultMetaDataType { ResultId = "R-thin" }
-                            })))!;
+                            }))))!;
 
             Assert.That(exception.Message, Does.Contain("PredefinedResultMetaData"));
             Assert.That(exception.Message, Does.Contain("ExternalRecipeId"));
@@ -1035,7 +1112,7 @@ namespace Opc.Ua.Machinery.Tests
             var outputs = new List<Variant>();
             var errors = new List<ServiceResult>();
             ServiceResult status = await management!.ResultTransfer!.GenerateFileForRead!.CallAsync(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[] { Variant.FromStructure(options) }.ToArrayOf(),
                 errors,
@@ -1076,7 +1153,7 @@ namespace Opc.Ua.Machinery.Tests
             var outputs = new List<Variant>();
             var errors = new List<ServiceResult>();
             ServiceResult status = await management!.ResultTransfer!.GenerateFileForRead!.CallAsync(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[] { Variant.FromStructure(options) }.ToArrayOf(),
                 errors,
@@ -1137,6 +1214,36 @@ namespace Opc.Ua.Machinery.Tests
             // The abstract type stays abstract; only the derived one is new.
             NodeState? declared = m_fixture.Manager.FindPredefinedNode(concrete.SuperTypeId);
             Assert.That(((BaseObjectTypeState)declared!).IsAbstract, Is.True);
+        }
+
+        [Test]
+        public async Task EmptyResultSlotsHaveNoModelDefaultValueAsync()
+        {
+            ResultManagementState? management = null;
+            IMachineHandle<BaseObjectState> machine = await NewMachine("Empty-Results")
+                .WithResultManagement(results =>
+                {
+                    management = results.State;
+                    results.WithInMemoryStore(4).WithResultsFolder(publishedResults: 2);
+                })
+                .BuildAsync();
+            var slots = new List<BaseInstanceState>();
+            management!.Results!.GetChildren(m_fixture!.Manager.SystemContext, slots);
+            Assert.That(slots, Has.Count.EqualTo(2));
+            foreach (BaseInstanceState instance in slots)
+            {
+                var slot = (ResultState)instance;
+                Assert.That(slot.WrappedValue.IsNull, Is.True, "An empty slot must not expose model-default XML.");
+                Assert.That(slot.ResultMetaData!.WrappedValue.IsNull, Is.True);
+                if (slot.ResultContent is { } content)
+                {
+                    Assert.That(content.WrappedValue.IsNull, Is.True);
+                }
+            }
+            await machine.Results!.PublishAsync(new MachineryResult(
+                new ResultDataType { ResultMetaData = new ResultMetaDataType { ResultId = "first-result" } }));
+            Assert.That(((ResultState)slots[0]).Value!.ResultMetaData!.ResultId, Is.EqualTo("first-result"));
+            Assert.That(((ResultState)slots[1]).WrappedValue.IsNull, Is.True);
         }
 
         [Test]
@@ -1201,7 +1308,7 @@ namespace Opc.Ua.Machinery.Tests
             var readOutputs = new List<Variant>();
             var readErrors = new List<ServiceResult>();
             ServiceResult readStatus = file.Read!.Call(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 file.NodeId,
                 new Variant[] { Variant.From(fileHandle), Variant.From(length) }.ToArrayOf(),
                 readErrors,

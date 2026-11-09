@@ -24,6 +24,7 @@
     </PackageReference>
     <PackageReference Include="Crdt" />
     <PackageReference Include="Crdt.Transport" />
+    <PackageReference Include="RaftCs.Storage.File" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />

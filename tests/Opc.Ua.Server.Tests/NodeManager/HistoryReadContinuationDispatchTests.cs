@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// because the client never receives them, while points of earlier requests survive.
         /// </summary>
         [Test]
-        public void FaultedRequestReleasesItsSavedContinuationPoints()
+        public async Task FaultedRequestReleasesItsSavedContinuationPoints()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
             var prior = new TrackingPoint();
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var created = new List<TrackingPoint>();
             harness.SaveForEveryOperation(created, failAtOperation: 2);
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await harness.ReadAsync(3).ConfigureAwait(false));
 
             Assert.That(created, Has.Count.EqualTo(2));
@@ -116,13 +116,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// receives its identifier (Part 4 §7.9).
         /// </summary>
         [Test]
-        public void FaultedRequestReleasesPointSavedWithoutResult()
+        public async Task FaultedRequestReleasesPointSavedWithoutResult()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
             var saved = new TrackingPoint();
             harness.SaveThenThrow(saved);
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await harness.ReadAsync(1).ConfigureAwait(false));
 
             Assert.That(saved.Disposed, Is.True);
@@ -135,18 +135,118 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// client still holds it.
         /// </summary>
         [Test]
-        public void FaultedRequestKeepsClientSuppliedContinuationPoint()
+        public async Task FaultedRequestKeepsClientSuppliedContinuationPoint()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
-            var continued = new TrackingPoint();
-            harness.Points.SaveHistory(continued);
+            var created = new List<TrackingPoint>();
+            harness.SaveForEveryOperation(created);
+            (ArrayOf<HistoryReadResult> initial, _) = await harness.ReadAsync(1).ConfigureAwait(false);
+            TrackingPoint continued = created[0];
             harness.RestoreSaveThenThrow();
 
-            Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await harness.ReadAsync(1, initial[0].ContinuationPoint).ConfigureAwait(false));
 
             Assert.That(continued.Disposed, Is.False);
             Assert.That(harness.Points.RestoreHistory(ToByteString(continued.Id)), Is.SameAs(continued));
+        }
+
+        /// <summary>
+        /// Verifies that a faulted request keeps a client supplied continuation point that the
+        /// node manager restored, saved again and assigned to a result before it failed.
+        /// </summary>
+        [Test]
+        public async Task FaultedRequestKeepsAssignedClientSuppliedContinuationPointAsync()
+        {
+            using var harness = new HistoryHarness(maxHistory: 10);
+            var created = new List<TrackingPoint>();
+            harness.SaveForEveryOperation(created);
+            (ArrayOf<HistoryReadResult> initial, _) = await harness.ReadAsync(1).ConfigureAwait(false);
+            TrackingPoint continued = created[0];
+            harness.RestoreSaveAssignThenThrow();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await harness.ReadAsync(1, initial[0].ContinuationPoint).ConfigureAwait(false))
+                .ConfigureAwait(false);
+
+            Assert.That(continued.Disposed, Is.False);
+            Assert.That(harness.Points.RestoreHistory(ToByteString(continued.Id)), Is.SameAs(continued));
+        }
+
+        /// <summary>
+        /// Verifies that each fresh opaque point returned by a resumed read retains its issuing generation.
+        /// </summary>
+        [Test]
+        public async Task ResumedHistoryReadBindsEachFreshOpaqueContinuationAsync()
+        {
+            using var harness = new HistoryHarness(maxHistory: 10);
+            var created = new List<TrackingPoint>();
+            harness.SaveForEveryOperation(created);
+
+            (ArrayOf<HistoryReadResult> first, _) = await harness.ReadAsync(1).ConfigureAwait(false);
+            Assert.That(first[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(first[0].ContinuationPoint.IsEmpty, Is.False);
+
+            (ArrayOf<HistoryReadResult> second, _) = await harness
+                .ReadAsync(1, first[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(second[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(second[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(second[0].ContinuationPoint, Is.Not.EqualTo(first[0].ContinuationPoint));
+            Assert.That(created, Has.Count.EqualTo(2));
+            Assert.That(created[0].Disposed, Is.True);
+            Assert.That(created[1].Disposed, Is.False);
+
+            (ArrayOf<HistoryReadResult> third, _) = await harness
+                .ReadAsync(1, second[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(third[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(third[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(third[0].ContinuationPoint, Is.Not.EqualTo(first[0].ContinuationPoint));
+            Assert.That(third[0].ContinuationPoint, Is.Not.EqualTo(second[0].ContinuationPoint));
+            Assert.That(created, Has.Count.EqualTo(3));
+            Assert.That(created[1].Disposed, Is.True);
+            Assert.That(created[2].Disposed, Is.False);
+
+            (ArrayOf<HistoryReadResult> released, _) = await harness
+                .ReadAsync(1, third[0].ContinuationPoint, release: true).ConfigureAwait(false);
+            Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(released[0].ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(created[2].Disposed, Is.True);
+
+            (ArrayOf<HistoryReadResult> repeated, _) = await harness
+                .ReadAsync(1, third[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(repeated[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(created, Has.Count.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Verifies that a fresh point from a resumed read cannot reopen its retired issuing generation.
+        /// </summary>
+        [Test]
+        public async Task RetiredIssuerRejectsFreshOpaqueHistoryContinuationAsync()
+        {
+            using var harness = new HistoryHarness(maxHistory: 10);
+            var created = new List<TrackingPoint>();
+            harness.SaveForEveryOperation(created);
+
+            (ArrayOf<HistoryReadResult> first, _) = await harness.ReadAsync(1).ConfigureAwait(false);
+            Assert.That(first[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            (ArrayOf<HistoryReadResult> second, _) = await harness
+                .ReadAsync(1, first[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(second[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(second[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(second[0].ContinuationPoint, Is.Not.EqualTo(first[0].ContinuationPoint));
+            Assert.That(created, Has.Count.EqualTo(2));
+            Assert.That(created[1].Disposed, Is.False);
+
+            NodeManagerGenerationRegistry.GetOrCreate(harness.Manager.Object).Gate.Retire();
+
+            (ArrayOf<HistoryReadResult> rejected, _) = await harness
+                .ReadAsync(1, second[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(rejected[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(rejected[0].ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(created, Has.Count.EqualTo(2));
+            Assert.That(created[1].Disposed, Is.True);
+            Assert.That(harness.Points.RestoreHistory(second[0].ContinuationPoint), Is.Null);
         }
 
         private static ByteString ToByteString(Guid id)
@@ -268,6 +368,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         new ValueTask(RestoreSaveThenThrowAsync(context, nodesToRead, cancellationToken)));
             }
 
+            /// <summary>
+            /// Makes the node manager continue the client's point, save it again, assign it to the
+            /// result and then fail.
+            /// </summary>
+            public void RestoreSaveAssignThenThrow()
+            {
+                Manager.Setup(value => value.HistoryReadAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<HistoryReadDetails>(),
+                        It.IsAny<TimestampsToReturn>(), It.IsAny<bool>(),
+                        It.IsAny<ArrayOf<HistoryReadValueId>>(), It.IsAny<IList<HistoryReadResult>>(),
+                        It.IsAny<IList<ServiceResult>>(), It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext context, HistoryReadDetails _, TimestampsToReturn _, bool _,
+                        ArrayOf<HistoryReadValueId> nodesToRead, IList<HistoryReadResult> results,
+                        IList<ServiceResult> _, CancellationToken cancellationToken) =>
+                        new ValueTask(RestoreSaveAssignThenThrowAsync(
+                            context, nodesToRead, results, cancellationToken)));
+            }
+
+            private static async Task RestoreSaveAssignThenThrowAsync(
+                OperationContext context,
+                ArrayOf<HistoryReadValueId> nodesToRead,
+                IList<HistoryReadResult> results,
+                CancellationToken cancellationToken)
+            {
+                IHistoryContinuationPoint point = (await context.Session.ContinuationPoints
+                    .RestoreHistoryAsync(nodesToRead[0].ContinuationPoint, cancellationToken)
+                    .ConfigureAwait(false))!;
+                await context.Session.ContinuationPoints
+                    .SaveHistoryAsync(point, cancellationToken).ConfigureAwait(false);
+                results[0] = new HistoryReadResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    ContinuationPoint = nodesToRead[0].ContinuationPoint
+                };
+                throw new OperationCanceledException();
+            }
+
             private static async Task SaveThenThrowAsync(
                 OperationContext context,
                 TrackingPoint point,
@@ -330,7 +467,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
                 int count,
-                ByteString continuationPoint = default)
+                ByteString continuationPoint = default,
+                bool release = false)
             {
                 var nodesToRead = new HistoryReadValueId[count];
                 for (int ii = 0; ii < count; ii++)
@@ -345,7 +483,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Context,
                     new ExtensionObject(new ReadRawModifiedDetails()),
                     TimestampsToReturn.Neither,
-                    false,
+                    release,
                     nodesToRead.ToArrayOf());
             }
 

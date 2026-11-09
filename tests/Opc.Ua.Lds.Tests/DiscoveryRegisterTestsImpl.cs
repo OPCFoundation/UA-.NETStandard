@@ -467,7 +467,7 @@ namespace Opc.Ua.Lds.Tests
                 SecurityPolicies.None,
                 MessageSecurityMode.None).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await registration
                     .RegisterServerAsync(null, NewServer(isOnline: true), CancellationToken.None)
                     .ConfigureAwait(false));
@@ -485,7 +485,7 @@ namespace Opc.Ua.Lds.Tests
             RegisteredServer server = NewServer(isOnline: true);
             server.ServerUri = string.Empty;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await registration
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
@@ -503,7 +503,7 @@ namespace Opc.Ua.Lds.Tests
             RegisteredServer server = NewServer(isOnline: true);
             server.ServerNames = Array.Empty<LocalizedText>();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await registration
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
@@ -521,7 +521,7 @@ namespace Opc.Ua.Lds.Tests
             RegisteredServer server = NewServer(isOnline: true);
             server.DiscoveryUrls = Array.Empty<string>();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await registration
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
@@ -539,7 +539,7 @@ namespace Opc.Ua.Lds.Tests
             RegisteredServer server = NewServer(isOnline: true);
             server.ServerUri = "urn:localhost:opcfoundation.org:DefinitelyNotMatchingTheCert";
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await registration
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
@@ -557,7 +557,7 @@ namespace Opc.Ua.Lds.Tests
             RegisteredServer server = NewServer(isOnline: true);
             server.ServerType = ApplicationType.Client;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await registration
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
@@ -575,7 +575,7 @@ namespace Opc.Ua.Lds.Tests
             RegisteredServer server = NewServer(isOnline: true);
             server.ServerType = (ApplicationType)999;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await registration
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));

@@ -1,6 +1,6 @@
 # Server session scalability
 
-This document describes how the reference server scales to large numbers of concurrent client sessions on a single node, what bounds that scale, the built-in controls for degrading gracefully under load, and how to configure the server and scale out. For measured numbers see [Performance Benchmarks — Server session scalability](Benchmarks.md#server-session-scalability).
+Use this guide to size a reference server, limit overload, and configure its runtime and host. The [session-scaling measurements](Benchmarks.md#server-session-scalability) record the tested workloads and hardware.
 
 ## Contents
 
@@ -9,8 +9,15 @@ This document describes how the reference server scales to large numbers of conc
 - [Admission control and rate limiting](#admission-control-and-rate-limiting)
 - [Held Publishes and the request-thread budget](#held-publishes-and-the-request-thread-budget)
 - [Session diagnostics cost](#session-diagnostics-cost)
-- [Garbage collector mode](#garbage-collector-mode)
+- [Runtime and host settings](#runtime-and-host-settings)
+  - [Garbage collector mode](#garbage-collector-mode)
+  - [Dynamic GC heap count (DATAS)](#dynamic-gc-heap-count-datas)
+  - [Hybrid CPUs and processor affinity](#hybrid-cpus-and-processor-affinity)
+  - [Small Windows machines and thread priority boost](#small-windows-machines-and-thread-priority-boost)
+  - [JIT warm-up](#jit-warm-up)
+  - [Verifying the effective configuration](#verifying-the-effective-configuration)
 - [Configuration](#configuration)
+  - [Request workers and the request queue](#request-workers-and-the-request-queue)
 - [Scaling out](#scaling-out)
 - [See also](#see-also)
 
@@ -27,7 +34,7 @@ After activation the session enters **steady state**: it keeps one long-polled `
 
 ## What bounds single-node scale
 
-**Session establishment is CPU-bound.** The dominant cost of bringing up a session is the asymmetric secure-channel handshake — the RSA decrypt, the certificate-chain validation, and the server- and client-signature operations. Handshakes run per channel on the thread pool and parallelize across cores, so establishment throughput scales with the core count, but a large simultaneous connect burst can saturate every core. On a typical multi-core developer machine the server establishes on the order of a thousand or more concurrent sessions cleanly; beyond that, connect throughput is bounded by handshake CPU. This is the fundamental single-node ceiling.
+**Session establishment can be CPU-bound.** The historical `Basic256Sha256` load test established about **4,000 sessions** on a six-core Xeon W-2235 with client and server sharing the machine; RSA handshakes dominated establishment time. See the [measured session-scaling results](Benchmarks.md#server-session-scalability) for the configuration and failed 10,000-session case.
 
 **Connect storms amplify overload.** If the server is saturated and a handshake is slow enough to time out, a client may retry; the retry can create a fresh server session while the original is left orphaned, adding load rather than relieving it. Unchecked, this is a positive-feedback loop. The server's admission controls break the loop by returning a fast, deterministic *busy* response that a cooperating client honors, instead of failing deep in the handshake and inviting a retry.
 
@@ -68,11 +75,15 @@ starving other requests.
 
 Creating a session or subscription registers a diagnostics node and marks the live `SessionDiagnostics` and `SubscriptionDiagnostics` arrays for refresh. The arrays are rebuilt on demand when they are read or monitored, and the rebuild is throttled so that a burst of session creates does not trigger a rebuild per create. Servers that do not need the live session-diagnostics arrays can turn them off with the `DiagnosticsEnabled` server setting to remove the cost entirely.
 
-## Garbage collector mode
+## Runtime and host settings
 
-A server allocates per request on many threads at once. With the default workstation garbage collector the heap's gen0 budget is a few megabytes, so a loaded server collects hundreds of times per second and every collection suspends all request threads. In a 20-session Read load (100 values per request, 24-core machine) the workstation collector paused the process for about half of the wall-clock time; enabling Server GC on the same build doubled the request rate (21k to 44k Reads per second) and cut the 90th-percentile latency from 2.1 ms to 0.6 ms, at the price of a larger working set (about 430 MB instead of 210 MB).
+The .NET runtime settings below are read once, at process start. They are set in the server's project file (which writes them to `<app>.runtimeconfig.json`) or as `DOTNET_` environment variables; see the .NET [garbage collector](https://learn.microsoft.com/dotnet/core/runtime-config/garbage-collector) and [compilation](https://learn.microsoft.com/dotnet/core/runtime-config/compilation) configuration references. The measurements quoted here come from one developer machine (AMD Ryzen AI 9 HX 370, 12 cores / 24 logical processors, Windows 11, .NET 10) and the [server load harness](../perf/README.md); measure your own deployment before adopting a setting.
 
-Enable Server GC in the server's project file:
+### Garbage collector mode
+
+A server allocates per request on many threads at once. In the [measured GC comparison](Benchmarks.md#garbage-collector-modes) (2026-10-21, 24 logical processors, 5 rounds per mode), Workstation GC paused the server for 30–46 % of the measurement window. In a 20-session Read load (100 values per request), Server GC on the same build increased the request rate from 45.6k to 66.1k Reads per second and cut the 99th-percentile latency from 1.8 ms to 1.15 ms; the working set rose from about 210 MB to 325 MB. With the native Read workers the rate rose from 385k to 661k Reads per second, and the event rate of 50 sessions × 15 event subscriptions from 44 to 83 events per second.
+
+Use Server GC for servers under load. Enable it in the server's project file:
 
 ```xml
 <PropertyGroup>
@@ -80,18 +91,159 @@ Enable Server GC in the server's project file:
 </PropertyGroup>
 ```
 
-or set `DOTNET_gcServer=1` in the environment. On .NET 8 and later, Server GC adapts its heap count to the load (DATAS), so idle servers stay small. The console reference server enables it.
+or set `DOTNET_gcServer=1` in the environment. The console reference server enables it.
+
+### Dynamic GC heap count (DATAS)
+
+From .NET 9, Server GC by default adapts the number of GC heaps to the load (DATAS, *dynamic adaptation to application sizes*): a process starts with one heap and adds heaps after a few collections when the GC cost exceeds its target, so an idle server stays small. On .NET 8, DATAS is opt-in with `DOTNET_GCDynamicAdaptationMode=1`. While the heap count changes, and while one heap serves many allocating threads, the collection rate and the pause pattern change with it.
+
+Disabling DATAS removes heap-count adaptation from the measurement: Server GC starts with a fixed heap count, normally one per available logical processor unless configured otherwise. Compare pause times and memory use before choosing it for a latency-sensitive deployment.
+
+```xml
+<PropertyGroup>
+  <ServerGarbageCollection>true</ServerGarbageCollection>
+  <GarbageCollectionAdaptationMode>0</GarbageCollectionAdaptationMode>
+</PropertyGroup>
+```
+
+or `DOTNET_GCDynamicAdaptationMode=0`. The trade-off is memory: every heap has its own gen0 budget, so the working set is larger, also when the server is idle. `DOTNET_GCHeapCount` limits the number of heaps when that is too much. In the [measured comparison](Benchmarks.md#garbage-collector-modes) on 24 logical processors, disabling DATAS cut the GC pause time of the window 4.6–8 times at 1.9–2.8 times the working set (for example 803 MB to 2 GB with 750 event monitored items); throughput and CPU per operation stayed within the ranges measured with DATAS.
+
+### Hybrid CPUs and processor affinity
+
+On hybrid processors (Intel performance and efficiency cores, AMD Zen 5 and Zen 5c cores), work can run on either core type. In the reported Ryzen AI 9 HX 370 measurement, a Read served on a Zen 5c core took 1.37 times the CPU time of one served on a Zen 5 core.
+
+Restricting the server process to the performance cores can therefore cost less CPU for the same work. In the [measured placement comparison](Benchmarks.md#processor-placement) (2026-10-21, 10 clients with 100 Reads each in flight, 5 rounds) the server restricted to the eight Zen 5 logical processors reached a median throughput within 7 % of the default placement at about half the CPU per Read (11.7 against 22.9 µs; with SignAndEncrypt 14.6 against 24.5 µs at the same throughput). This depends on the workload, the processor and the other processes on the machine, so treat it as an option to measure, not a rule.
+
+Thread hand-offs between core complexes (CCX) added cost in the tested configuration. On this Ryzen AI 9 HX 370, CCX0 held the 4 Zen 5 cores (logical processors 0–7) and CCX1 the 8 Zen 5c cores (logical processors 8–23). An ETW analysis on 2026-10-20 (`master` 014f99a53, the external open62541 benchmark client, 10 clients with 100 single-value Reads each in flight, steady state) recorded:
+
+| Server affinity | Logical processors | Server CPU / Read | Throughput |
+|---|---|--:|--:|
+| `0xFF` | 8, Zen 5 (CCX0) | 15.1 µs | 507k req/s |
+| `0xFFFF00` | 16, Zen 5c (CCX1), clients on Zen 5 | 19.6 µs | 740k req/s |
+| `0xFFFF` | 16, across both complexes | 24.5 µs | 586k req/s |
+| none | 24, across both complexes | 27.5 µs | 550k req/s |
+
+Within one complex, CPU per Read differed roughly by the core-type ratio. Using both complexes increased CPU per Read without consistently increasing throughput. The trace attributed most of that cost to cross-complex hand-offs: from the receive loop to a queue worker, from that worker to the writer, during kernel loopback sends, and when GC threads joined a collection. Compared with the server pinned to 4 logical processors of one complex, on all 24 the loopback send rose from 0.7 to 4.1 µs per request.
+
+If measurements favor one complex and it can handle the load, start the server with that complex's affinity mask and match the runtime's processor count to it, as shown below. Identify the topology on the deployment host before choosing a mask; these processor numbers belong to the tested machine. Intel performance/efficiency-core configurations were not measured here.
+
+Set the affinity when the process starts, so the runtime sizes the thread pool and the Server GC heaps for the processors in the mask (`Environment.ProcessorCount` honours the affinity the process starts with):
+
+```bat
+rem Windows: hexadecimal mask of the logical processors, here 0 to 7
+start /affinity FF MyServer.exe
+```
+
+```bash
+# Linux
+taskset -c 0-7 ./MyServer
+```
+
+If a launcher changes affinity after startup, for example through `Process.ProcessorAffinity`, set `DOTNET_PROCESSOR_COUNT` in the child's environment **before launching it** to match the intended mask. Changing that variable after startup does not resize the running runtime. The variable controls the runtime's processor count, not OS affinity; apply the mask separately. Identify the logical processors belonging to each core type with tools such as Sysinternals Coreinfo on Windows or `lscpu --extended` on Linux.
+
+### Small Windows machines and thread priority boost
+
+On a Windows host with one or two processors, such as a small virtual machine, a container limited to one or two CPUs, or a pinned process, Read latency can depend more on thread scheduling inside the server than on the work itself. An ETW wait analysis on 2026-10-20 (`master` a10f9e252, server restricted to one logical processor with `DOTNET_PROCESSOR_COUNT=1`, Server GC, 20 sessions reading with one request in flight each) recorded 99.9th-percentile latencies of 32–56 ms for single-value Reads and 117–260 ms for Reads of 100 values; single Reads took up to about 700 ms. The request path does not sleep, delay or back off. The waits came from scheduling:
+
+- Windows temporarily raises the priority of a thread released from a wait (*dynamic priority boost*). A thread woken by an I/O completion or a semaphore therefore preempted the thread that was processing a request.
+- Idle thread-pool workers spin before they block and use processor time that the request needed.
+- The thread pool's starvation detection then added workers (45–54 threads instead of about 5), which increased the contention.
+- The waits fell on multiples of the 15.6 ms Windows clock interval.
+
+Disabling priority boost reduced tail latency in this setup. Two rounds per configuration gave:
+
+| Values per Read | Priority boost | p99.9 latency | Throughput |
+|---|---|--:|--:|
+| 1 | on (Windows default) | 32–56 ms | 27k–42k req/s |
+| 1 | off | 3.0–3.3 ms | 61k–73k req/s |
+| 100 | on (Windows default) | 117–260 ms | 2.8k–6.9k req/s |
+| 100 | off | 11–26 ms | 5.4k–10.7k req/s |
+
+With the boost off, the maximum single-value latency was 16–34 ms. Also setting `DOTNET_ThreadPool_UnfairSemaphoreSpinLimit=0`, so that idle thread-pool workers block without spinning, lowered the single-value p99.9 latency to 2.0–2.3 ms; on its own, with the boost on, it barely helped. The .NET 10 thread pool reads this variable (runtime configuration `System.Threading.ThreadPool.UnfairSemaphoreSpinLimit`), but it is not one of the documented [threading settings](https://learn.microsoft.com/dotnet/core/runtime-config/threading) and can change between releases. On 24 logical processors, turning the boost off made no measurable difference to CPU per Read (26.0 against 25.2 µs over 6 paired rounds); latency was not measured there.
+
+Priority boost is a process-wide setting, so the host application decides; the stack does not change it. To evaluate disabling it, set it at startup before the server starts:
+
+```csharp
+using System.Diagnostics;
+
+if (OperatingSystem.IsWindows())
+{
+    using Process process = Process.GetCurrentProcess();
+    process.PriorityBoostEnabled = false;
+}
+```
+
+`Process.PriorityBoostEnabled` calls the Win32 `SetProcessPriorityBoost` function and applies to the existing and future threads of the process. On other platforms the setter has no effect; on .NET Framework, which runs only on Windows, omit the `OperatingSystem.IsWindows()` check. These measurements cover Windows only.
+
+### JIT warm-up
+
+With tiered compilation enabled, .NET initially uses quick-JIT or ReadyToRun code and optimizes frequently called methods in the background. Short measurements can include that transition. With the external open62541 benchmark client of [o6-automation/opcua-benchmarks](https://github.com/o6-automation/opcua-benchmarks) (10 clients with 100 single-value Reads each in flight, server restricted to 4 logical processors), the reported server cost was about 28–31 µs of CPU time per Read in 3-second runs and 8.8 µs at steady state. The single-threaded open62541 result was 8.1 µs on the same machine; with Basic256Sha256 SignAndEncrypt, the recorded costs were 8.8 µs and 12.2 µs respectively.
+
+The benchmark's default parameters (10,000 warm-up and 100,000 measured calls per client) are too short for a .NET server on many cores: on 24 logical processors the measured window still includes JIT warm-up (about 60 µs per Read against 28 µs at steady state). For measurements and for deployments where the first minutes matter:
+
+- Warm up before measuring: run the load until the per-request cost stops falling (for the benchmark above, 100,000 warm-up calls per client), then measure.
+- Publish with ReadyToRun (`<PublishReadyToRun>true</PublishReadyToRun>`) so that start-up code begins precompiled instead of at tier 0; tiered compilation still re-optimizes the hot methods.
+- `TieredPGO` (on by default since .NET 8) and `TieredCompilation` can be set in the project file (`<TieredPGO>`, `<TieredCompilation>`) or as `DOTNET_TieredPGO` and `DOTNET_TieredCompilation`. Disabling tiered compilation uses an optimizing JIT for methods without precompiled code and disables dynamic PGO. It removes tier promotion, not all startup costs; measure both settings at steady state before changing them.
+
+### Verifying the effective configuration
+
+A setting in the project file reaches the runtime through `<app>.runtimeconfig.json` next to the executable (`configProperties`, for example `"System.GC.Server": true`); a `DOTNET_` environment variable takes precedence over it. To check what a running server uses, log it at start-up:
+
+```csharp
+using System.Runtime;
+
+IReadOnlyDictionary<string, object> gc = GC.GetConfigurationVariables();
+logger.LogInformation(
+    "ServerGC={ServerGC} DATAS={Datas} HeapCount={HeapCount} ProcessorCount={ProcessorCount} Runtime={Runtime}",
+    GCSettings.IsServerGC,
+    gc["GCDynamicAdaptationMode"],
+    gc["HeapCount"],
+    Environment.ProcessorCount,
+    System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+```
+
+`GCDynamicAdaptationMode` is `1` while DATAS is on; with DATAS, `HeapCount` is the upper bound of heaps, not the number in use. `Environment.ProcessorCount` shows the processor count the runtime sized itself for, which reflects the start-up affinity and `DOTNET_PROCESSOR_COUNT`. From outside the process, `dotnet-counters monitor -p <pid>` shows the collection counts, the time spent in GC and the heap size of the running server.
+
+To compare GC settings for a deployment, run the same load against each configuration (for the server load harness, `SERVER_DOTNET_gcServer=0`/`1` and `SERVER_DOTNET_GCDynamicAdaptationMode=0`) and compare CPU and allocation per request, GC count and pause time, and the working set, not only throughput; see the [measurement method](../perf/README.md#measurement-method).
 
 ## Configuration
 
 The following settings size a single node for its hardware (see also the sizing notes in [Benchmarks.md](Benchmarks.md#server-session-scalability) and the admission-control settings in [RateLimiting.md](RateLimiting.md)):
 
 - **`MaxSessionCount`** caps concurrently open sessions. Size **`MaxChannelCount`** (one channel per session) and **`MaxSubscriptionCount`** at or above the target session count.
-- **`MaxRequestThreadCount`** caps concurrent request processing. With `DecoupleHeldPublishRequests` enabled it can be sized for the *active* (non-parked) request concurrency rather than the session count. **`MinRequestThreadCount`** pre-warms the pool so a connect burst is not throttled by thread-pool cold-start.
+- **`MaxRequestThreadCount`**, **`MinRequestThreadCount`** and **`MaxQueuedRequestCount`** size the request workers and the request queue; see [Request workers and the request queue](#request-workers-and-the-request-queue).
 - **`DecoupleHeldPublishRequests`** (default `true`) releases a held `Publish`'s request-processing worker while it waits, so a small worker pool can hold many outstanding long-polls.
 - **`MaxMonitoredItemCount`** and **`MaxMonitoredItemsPerSubscription`** (default `0`, no limit) cap the monitored items in the server and in one subscription. `CreateMonitoredItems` answers `Bad_TooManyMonitoredItems` for the items over the limit, and the values are published in `ServerCapabilities.MaxMonitoredItems` and `MaxMonitoredItemsPerSubscription`. Set them on servers reachable by untrusted clients; `MaxMonitoredItemsPerCall` only bounds a single request.
 - **`MaxFailedAuthenticationAttempts`** (default 5; `0` disables) is the per-certificate brute-force lockout. A single-certificate client that opens many sessions can trip it on transient handshake failures and then be rejected with `BadUserAccessDenied`; raise or disable it for bulk-connect clients.
 - **Stagger client connects.** Because establishment is CPU-bound but parallelizes across cores, throttling and staggering concurrent connects — rather than bursting them all at once — avoids self-inflicting a connect storm and is the most effective client-side measure.
+
+### Request workers and the request queue
+
+The "thread" settings are concurrency limits: requests run on the .NET thread pool, not on dedicated threads. With SharedOnly, a decoded request takes one of `MaxRequestThreadCount` permits and runs at once; when every permit is in use it waits in a FIFO queue, and a finished request hands its permit to the oldest waiting one. With the FairShare, Balanced (default) or TrustedReservations [isolation profile](ResourceIsolation.md) the request waits until a request worker (an asynchronous loop on the thread pool) takes it, and the queue serves the callers in weighted turns. In both modes, with `DecoupleHeldPublishRequests`, a `Publish` that parks releases its permit or worker.
+
+| Setting | Configuration default | Current behaviour |
+|---|---|---|
+| `MinRequestThreadCount` | 10 | At least 1. With an isolation profile, the workers started with the server; with SharedOnly no workers are started. `MaxRequestThreadCount` is raised to it. The thread pool's limits are not changed; up to 2.0.1 the server raised the thread pool's minimum worker and I/O threads to this value. |
+| `MaxRequestThreadCount` | 100 | Requests executing at once. With an isolation profile, the upper bound of workers; a worker is added only when a request is queued and every worker is busy, and workers are not retired. Up to 2.0.1 values below 100 were raised to 100. |
+| `MaxQueuedRequestCount` | 200 | Requests of established sessions that can wait to execute (values below 100 are raised to 100). A request that finds the queue full is answered with `BadServerTooBusy`. |
+
+Guidance:
+
+- **Size `MaxQueuedRequestCount` for the pipelining of all clients**: the sum over the clients of the requests each keeps outstanding. For example, 10 clients with 1,000 outstanding Reads each need 10,000. With the Balanced and TrustedReservations profiles the protected bootstrap, reconnect and control entries (one each by default) and the floors of trusted owners are added on top of the configured value, and held Publishes are counted in a separate stage of the same size; see [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits). Releases up to 2.0.1 carved the three protected entries out of the configured value, so there size it at clients × outstanding requests + 3.
+- **`MaxRequestThreadCount` bounds concurrent request execution, not threads.** Request handling is asynchronous, so a few busy workers per core are enough for in-memory node managers; the default 100 rarely needs raising. Raise it when node managers block a worker for I/O or locks (synchronous `CustomNodeManager2` code waiting on a device), or when `DecoupleHeldPublishRequests` is off.
+- **The thread pool is the host's to configure.** Up to 2.0.1 the server set the process-wide thread pool minimum to `MinRequestThreadCount`, which let the pool run many more threads than processors under load; on shared or pinned processors a preempted thread then delays every GC suspension until it runs again. A host whose node managers block threads and that relied on that minimum sets it itself, with `ThreadPool.SetMinThreads` or the `System.Threading.ThreadPool.MinThreads` runtime setting.
+- **Increasing the minimum worker count did not help the one-processor workload.** A `MinRequestThreadCount` of 4, 16 or 200 changed the number of ready threads but not CPU per request or latency; see [Small Windows machines and thread priority boost](#small-windows-machines-and-thread-priority-boost) for the measured scheduling change. With the FairShare, Balanced and TrustedReservations profiles, an idle worker spins for a few microseconds before it parks only when the runtime reports at least 8 processors (at most one spinning worker per 8 processors); on smaller machines it parks at once.
+- `BadServerTooBusy` responses to established sessions while the processors are not saturated mean that an admission limit, not the CPU, is the limit. With an isolation profile that is not necessarily the queue count: the retained request bytes, the parked-request stage or a per-owner limit reject requests the same way while queue entries are free. Check the `opcua.server.isolation.rejections` metric (its `stage` and `reason` labels) and `opcua.server.isolation.usage` before raising `MaxQueuedRequestCount`; see [transport behavior and overload signals](ResourceIsolation.md#transport-behavior-and-overload-signals).
+
+The request queue publishes these metrics in every isolation profile, on the meter named after the `Opc.Ua.Core` assembly:
+
+| Instrument | Type | Meaning |
+|---|---|---|
+| `opcua.server.request_queue.queued` | gauge | Requests waiting for a worker. |
+| `opcua.server.request_queue.executing` | gauge | Requests executing on a worker. |
+| `opcua.server.request_queue.parked` | gauge | Requests (held `Publish` requests) that parked and released their worker. |
+| `opcua.server.request_queue.time_in_queue` | histogram, s | Time from admission until a worker took the request. |
+| `opcua.server.request_queue.rejections` | counter, `status` | Requests the queue completed without running them, by status code: `BadServerTooBusy` (queue full), `BadServerHalted` (stopping), `BadRequestCancelledByClient` (cancelled while queued) or the status of a failed admission or revalidation. |
 
 ## Scaling out
 

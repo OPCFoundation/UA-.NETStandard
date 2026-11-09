@@ -134,10 +134,10 @@ namespace Opc.Ua.PubSub.Tests.Security
             SksKeyResponse response = await server
                 .GetSecurityKeysAsync(CallerId, new SksKeyRequest("group-1", 0U, 1U))
                 .ConfigureAwait(false);
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await server
                     .GetSecurityKeysAsync("client/cn=denied", new SksKeyRequest("group-1", 0U, 1U))
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {

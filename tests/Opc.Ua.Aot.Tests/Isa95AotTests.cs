@@ -61,13 +61,13 @@ namespace Opc.Ua.Aot.Tests
             using ServiceProvider serviceProvider =
                 services.BuildServiceProvider();
             Isa95NodeManagerFactory nodeManagerFactory =
-                serviceProvider.GetService<Isa95NodeManagerFactory>();
+                serviceProvider.GetRequiredService<Isa95NodeManagerFactory>();
             IIsa95JobOrderReceiverV1 receiverV1 =
-                serviceProvider.GetService<IIsa95JobOrderReceiverV1>();
+                serviceProvider.GetRequiredService<IIsa95JobOrderReceiverV1>();
             IIsa95JobOrderReceiverV2 receiverV2 =
-                serviceProvider.GetService<IIsa95JobOrderReceiverV2>();
+                serviceProvider.GetRequiredService<IIsa95JobOrderReceiverV2>();
             IIsa95ClientFactory clientFactory =
-                serviceProvider.GetService<IIsa95ClientFactory>();
+                serviceProvider.GetRequiredService<IIsa95ClientFactory>();
 
             await Assert.That(nodeManagerFactory).IsNotNull();
             await Assert.That(receiverV1).IsNotNull();
@@ -93,9 +93,9 @@ namespace Opc.Ua.Aot.Tests
             };
             var encoded = Variant.FromStructure(order);
             await Assert.That(
-                encoded.TryGetStructure(out V2.ISA95JobOrderDataType decoded))
+                encoded.TryGetStructure<V2.ISA95JobOrderDataType>(out V2.ISA95JobOrderDataType? decoded))
                 .IsTrue();
-            await Assert.That(decoded.JobOrderID).IsEqualTo(order.JobOrderID);
+            await Assert.That(decoded!.JobOrderID).IsEqualTo(order.JobOrderID);
 
             messageContext.NamespaceUris.GetIndexOrAppend(
                 V2.Namespaces.ISA95JobControlV2);

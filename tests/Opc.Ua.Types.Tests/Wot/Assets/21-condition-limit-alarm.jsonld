@@ -10,6 +10,7 @@
     "../opc-ua-wot-binding.context.jsonld"
   ],
   "@type": "uav:object",
+  "uav:bindingVersion": "1.1",
   "id": "urn:dev:opcua:pump-01-conditions",
   "title": "Pump 01 Conditions",
   "description": "A Thing Description showing a high-temperature OPC UA LimitAlarmType notification paired with acknowledge and confirm actions. The event affordance's evt:highTemperatureAlarm reference expands through this document's context and resolves to the matching @id in 27-event-type-models.jsonld; the affordance states only the two clauses that refine that definition-derived selection.",
@@ -200,7 +201,7 @@
       },
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump",
           "contentType": "application/octet-stream",
           "op": [
             "subscribeevent",
@@ -220,6 +221,8 @@
       "uav:actsOn": "highTemperature",
       "input": {
         "type": "object",
+        "uav:argumentLayout": "named",
+        "uav:fieldOrder": ["EventId", "Comment"],
         "required": [
           "EventId"
         ],
@@ -229,13 +232,16 @@
             "contentEncoding": "base64"
           },
           "Comment": {
-            "type": "string"
+            "type": "string",
+            "uav:dataTypeName": "ua:LocalizedText",
+            "uav:dataTypeId": "i=21"
           }
         }
       },
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=HighTemperature.Acknowledge",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DHighTemperature.Acknowledge",
+          "uav:callObjectId": "nsu=http://example.com/demo/pump;s=HighTemperature",
           "contentType": "application/octet-stream",
           "op": [
             "invokeaction"
@@ -252,6 +258,8 @@
       "uav:actsOn": "highTemperature",
       "input": {
         "type": "object",
+        "uav:argumentLayout": "named",
+        "uav:fieldOrder": ["EventId", "Comment"],
         "required": [
           "EventId"
         ],
@@ -261,13 +269,16 @@
             "contentEncoding": "base64"
           },
           "Comment": {
-            "type": "string"
+            "type": "string",
+            "uav:dataTypeName": "ua:LocalizedText",
+            "uav:dataTypeId": "i=21"
           }
         }
       },
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=HighTemperature.Confirm",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DHighTemperature.Confirm",
+          "uav:callObjectId": "nsu=http://example.com/demo/pump;s=HighTemperature",
           "contentType": "application/octet-stream",
           "op": [
             "invokeaction"

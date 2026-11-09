@@ -142,24 +142,24 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             var bogus = new UnknownRequest();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await channel
                     .SendRequestAsync(bogus, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]
-        public void SendRequestAsyncThrowsBadNotConnectedBeforeOpen()
+        public async Task SendRequestAsyncThrowsBadNotConnectedBeforeOpen()
         {
             using var channel = new WebApiTransportChannel(new TelemetryStub());
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await channel
                     .SendRequestAsync(request, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
         }
 
@@ -171,10 +171,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await channel
                     .SendRequestAsync(request, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
 
             channel.Dispose();
@@ -187,14 +187,14 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             channel.Dispose();
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await channel
                     .SendRequestAsync(request, CancellationToken.None)
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void OpenAsyncNormalizesSyntheticUriScheme()
+        public async Task OpenAsyncNormalizesSyntheticUriScheme()
         {
             using var channel = new WebApiTransportChannel(new TelemetryStub(),
                 new WebApiClientOptions { HttpMessageHandler = m_handler, DisposeHandler = false });
@@ -214,7 +214,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             // Must not throw — the channel normalises the synthetic scheme
             // to plain https:// before handing it to HttpClient.
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await channel.OpenAsync(syntheticUrl, settings, CancellationToken.None).ConfigureAwait(false));
         }
 

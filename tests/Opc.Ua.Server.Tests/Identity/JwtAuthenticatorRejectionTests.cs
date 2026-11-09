@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests.Identity
         }
 
         [Test]
-        public void AuthenticateAsyncResolverExceptionPropagates()
+        public async Task AuthenticateAsyncResolverExceptionPropagates()
         {
             var resolver = new ThrowingResolver(Issuer, new InvalidOperationException("kaboom"));
             var authenticator = new JwtAuthenticator(resolver, Audience, TimeSpan.Zero);
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 "." +
                 Base64UrlEncode([1]));
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await authenticator.AuthenticateAsync(CreateContext(
                     new IssuedIdentityTokenHandler(Profiles.JwtUserToken, tokenData))).ConfigureAwait(false));
 

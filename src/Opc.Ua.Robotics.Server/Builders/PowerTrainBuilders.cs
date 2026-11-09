@@ -71,6 +71,22 @@ namespace Opc.Ua.Robotics.Server.Builders
             QualifiedName browseName,
             Action<IMotorBuilder>? configure = null)
         {
+            return AddMotor(
+                browseName,
+                static (context, parent, name) => context.CreateInstanceOfMotorType(parent, name),
+                configure);
+        }
+
+        /// <summary>
+        /// Stages a derived motor through the shared topology builder.
+        /// </summary>
+        /// <typeparam name="TState">The generated motor subtype.</typeparam>
+        internal IMotorBuilder AddMotor<TState>(
+            QualifiedName browseName,
+            Func<ISystemContext, NodeState, QualifiedName, TState> createMotor,
+            Action<IMotorBuilder>? configure)
+            where TState : MotorState
+        {
             Scope.EnsureMutable();
             QualifiedName normalized =
                 RoboticsBuilderUtilities.NormalizeBrowseName(BuildContext, browseName);
@@ -78,8 +94,12 @@ namespace Opc.Ua.Robotics.Server.Builders
                 Scope.Context,
                 State,
                 normalized,
-                (parent, name) =>
-                    Scope.Context.CreateInstanceOfMotorType(parent, name));
+                (parent, name) => RoboticsBuilderUtilities.CreateCompanionInstance(
+                    Scope.Context,
+                    parent,
+                    name,
+                    createMotor,
+                    ObjectTypes.MotorType));
             var builder = new MotorBuilder(Scope, state);
             Motors.Add(builder);
             configure?.Invoke(builder);

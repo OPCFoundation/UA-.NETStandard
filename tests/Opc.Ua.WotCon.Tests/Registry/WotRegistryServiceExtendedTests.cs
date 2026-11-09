@@ -92,7 +92,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             using var service = new WotRegistryService(bounds: bounds);
             await service.GetOrCreateGroupAsync("first", WoTDocumentKindEnum.ThingDescription);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.GetOrCreateGroupAsync(
                     "second", WoTDocumentKindEnum.ThingDescription));
 
@@ -114,21 +114,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void GetOrCreateGroupAsyncWithEmptyGroupIdThrows()
+        public async Task GetOrCreateGroupAsyncWithEmptyGroupIdThrows()
         {
             using var service = new WotRegistryService();
 
-            Assert.ThrowsAsync<System.ArgumentException>(
+            await Assert.ThrowsAsync<System.ArgumentException>(
                 async () => await service.GetOrCreateGroupAsync(
                     string.Empty, WoTDocumentKindEnum.ThingDescription));
         }
 
         [Test]
-        public void GetOrCreateGroupAsyncWithWhitespaceOnlyGroupIdThrows()
+        public async Task GetOrCreateGroupAsyncWithWhitespaceOnlyGroupIdThrows()
         {
             using var service = new WotRegistryService();
 
-            Assert.ThrowsAsync<System.ArgumentException>(
+            await Assert.ThrowsAsync<System.ArgumentException>(
                 async () => await service.GetOrCreateGroupAsync(
                     "   ", WoTDocumentKindEnum.ThingDescription));
         }
@@ -216,7 +216,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             using var service = new WotRegistryService(bounds: bounds);
             await service.AddRegistryLabelAsync("k1", "v1");
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.AddRegistryLabelAsync("k2", "v2"));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
@@ -259,11 +259,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void RemoveRegistryLabelAsyncWithEmptyKeyThrows()
+        public async Task RemoveRegistryLabelAsyncWithEmptyKeyThrows()
         {
             using var service = new WotRegistryService();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.RemoveRegistryLabelAsync(string.Empty));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));

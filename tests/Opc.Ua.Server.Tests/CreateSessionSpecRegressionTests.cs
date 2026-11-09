@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests
 
                 // an activation admitted between the eviction's candidate check and its claim.
                 inFlight!.SetValue(state, true);
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await CreateAsync(server, "cap-admission-2").ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManySessions));
                 Assert.That(session.IsClosing, Is.False);
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests
                 // an activation that acquires the gate after the eviction claim fails.
                 inFlight.SetValue(state, false);
                 claimed!.SetValue(state, true);
-                ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await server.ActivateSessionAsync(
                         channel, new RequestHeader { AuthenticationToken = first.AuthenticationToken },
                         null, default, default, default, null, RequestLifetime.None).ConfigureAwait(false));
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Tests
                 await server.CreateAndActivateSessionAsync("activated-1").ConfigureAwait(false);
                 await server.CreateAndActivateSessionAsync("activated-2").ConfigureAwait(false);
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await CreateAsync(server, "activated-3").ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManySessions));
                 Assert.That(server.CurrentInstance.SessionManager.GetSessions(), Has.Count.EqualTo(2));
@@ -285,7 +285,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 StandardServer server = fixture.Server;
-                Assert.CatchAsync<ServiceResultException>(async () =>
+                await Assert.CatchAsync<ServiceResultException>(async () =>
                     await server.CreateSessionAsync(
                         CreateNoneChannel(server, "invalid-header"), null, null, null, null, "invalid-header",
                         default, default, 60000, 0, RequestLifetime.None).ConfigureAwait(false));
@@ -486,7 +486,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 AcceptingServer server = fixture.Server;
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await CreateSecuredAsync(server, untrusted, "urn:wrong:application").ConfigureAwait(false));
 
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));

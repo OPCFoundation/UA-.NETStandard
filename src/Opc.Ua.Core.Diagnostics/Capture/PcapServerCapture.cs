@@ -39,6 +39,7 @@ using Opc.Ua.Pcap.Capture.Sources;
 using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Pcap.Capture
 {
@@ -274,7 +275,7 @@ namespace Opc.Ua.Pcap.Capture
         public static partial void StandAloneOpcUaServerKeyLoggingEnabled(
             this ILogger logger,
             string envVar,
-            string keyLogFilePath);
+            [FilePath] string keyLogFilePath);
 
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapServerCapture + 1, Level = LogLevel.Warning,
             Message = "OPC UA server pcap auto-capture is ENABLED via {PcapEnvVar}. Frames will be written to " +
@@ -283,7 +284,7 @@ namespace Opc.Ua.Pcap.Capture
         public static partial void OpcUaServerPcapAutoCaptureEnabled(
             this ILogger logger,
             string pcapEnvVar,
-            string pcapFilePath);
+            [FilePath] string pcapFilePath);
 
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapServerCapture + 2, Level = LogLevel.Warning,
             Message = "OPC UA server pcap auto-capture is ENABLED via {PcapEnvVar} (frames at '{PcapFilePath}') " +
@@ -291,9 +292,9 @@ namespace Opc.Ua.Pcap.Capture
         public static partial void OpcUaServerPcapAutoCaptureAndKeyLogEnabled(
             this ILogger logger,
             string pcapEnvVar,
-            string pcapFilePath,
+            [FilePath] string pcapFilePath,
             string keyLogEnvVar,
-            string keyLogFilePath);
+            [FilePath] string keyLogFilePath);
     }
 
 }

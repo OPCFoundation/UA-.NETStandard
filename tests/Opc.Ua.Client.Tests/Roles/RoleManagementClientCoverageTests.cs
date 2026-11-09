@@ -245,7 +245,7 @@ namespace Opc.Ua.Client.Tests.Roles
         }
 
         [Test]
-        public void AddRoleAsyncThrowsWhenServerDoesNotReturnNodeId()
+        public async Task AddRoleAsyncThrowsWhenServerDoesNotReturnNodeId()
         {
             m_session.Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
@@ -265,14 +265,14 @@ namespace Opc.Ua.Client.Tests.Roles
                     DiagnosticInfos = []
                 }));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.AddRoleAsync("Role").ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]
-        public void ResolveChildFailuresSurfaceAsServiceResultExceptions()
+        public async Task ResolveChildFailuresSurfaceAsServiceResultExceptions()
         {
             m_session.SetupSequence(s => s.TranslateBrowsePathsToNodeIdsAsync(
                     It.IsAny<RequestHeader>(),
@@ -293,9 +293,9 @@ namespace Opc.Ua.Client.Tests.Roles
                         DiagnosticInfos = []
                     }));
 
-            ServiceResultException badStatus = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException badStatus = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.AddApplicationAsync(new NodeId(1), "urn:app").ConfigureAwait(false));
-            ServiceResultException notFound = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException notFound = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.AddApplicationAsync(new NodeId(1), "urn:app").ConfigureAwait(false));
 
             Assert.That(badStatus.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -303,7 +303,7 @@ namespace Opc.Ua.Client.Tests.Roles
         }
 
         [Test]
-        public void WritePropertyAsyncThrowsWhenWriteResultIsBad()
+        public async Task WritePropertyAsyncThrowsWhenWriteResultIsBad()
         {
             m_session.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
                     It.IsAny<RequestHeader>(),
@@ -327,7 +327,7 @@ namespace Opc.Ua.Client.Tests.Roles
                     DiagnosticInfos = []
                 }));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.SetApplicationsExcludeAsync(new NodeId(1), true).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -392,7 +392,7 @@ namespace Opc.Ua.Client.Tests.Roles
         /// forever; the point is released when the client gives up.
         /// </summary>
         [Test]
-        public void ListRolesAsyncStopsOnEndlessEmptyBrowseNextPages()
+        public async Task ListRolesAsyncStopsOnEndlessEmptyBrowseNextPages()
         {
             var continuationPoint = ByteString.From(new byte[] { 1, 2, 3 });
             m_session.SetupGet(s => s.MessageContext)
@@ -422,7 +422,7 @@ namespace Opc.Ua.Client.Tests.Roles
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseNextResponse { Results = [new BrowseResult()] });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.ListRolesAsync().ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
@@ -438,7 +438,7 @@ namespace Opc.Ua.Client.Tests.Roles
         /// failure, not only on cancellation, and the original error surfaces.
         /// </summary>
         [Test]
-        public void ListRolesAsyncReleasesContinuationPointWhenBrowseNextFails()
+        public async Task ListRolesAsyncReleasesContinuationPointWhenBrowseNextFails()
         {
             var continuationPoint = ByteString.From(new byte[] { 1, 2, 3 });
             m_session.SetupGet(s => s.MessageContext)
@@ -467,7 +467,7 @@ namespace Opc.Ua.Client.Tests.Roles
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseNextResponse { Results = [new BrowseResult()] });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.ListRolesAsync().ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
@@ -478,7 +478,7 @@ namespace Opc.Ua.Client.Tests.Roles
         }
 
         [Test]
-        public void ListRolesAsyncThrowsWhenRoleSetBrowseFails()
+        public async Task ListRolesAsyncThrowsWhenRoleSetBrowseFails()
         {
             m_session.Setup(s => s.BrowseAsync(
                     null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
@@ -487,7 +487,7 @@ namespace Opc.Ua.Client.Tests.Roles
                     Results = [new BrowseResult { StatusCode = StatusCodes.BadNodeIdUnknown }]
                 });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.ListRolesAsync().ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));

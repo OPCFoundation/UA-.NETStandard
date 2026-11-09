@@ -194,22 +194,22 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.WebApi
         // ────────────────────────── InvokeAsync paths ───────────────────────
 
         [Test]
-        public void InvokeAsyncThrowsForNullRequest()
+        public async Task InvokeAsyncThrowsForNullRequest()
         {
             var server = new WebApiServer(m_messageContext, "id");
             var ctx = new WebApiInvocationContext { SecureChannelId = "x" };
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await server.InvokeAsync(null!, ctx, CancellationToken.None).ConfigureAwait(false));
         }
 
         [Test]
-        public void InvokeAsyncThrowsForNullContext()
+        public async Task InvokeAsyncThrowsForNullContext()
         {
             var server = new WebApiServer(m_messageContext, "id");
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await server.InvokeAsync(request, null!, CancellationToken.None).ConfigureAwait(false));
         }
 

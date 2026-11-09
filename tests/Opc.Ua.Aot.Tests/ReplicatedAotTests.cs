@@ -88,7 +88,7 @@ namespace Opc.Ua.Aot.Tests
         {
             public static NullServiceProvider Instance { get; } = new NullServiceProvider();
 
-            public object GetService(Type serviceType)
+            public object? GetService(Type serviceType)
             {
                 return null;
             }

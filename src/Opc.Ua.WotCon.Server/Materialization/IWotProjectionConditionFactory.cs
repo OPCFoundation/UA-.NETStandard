@@ -55,17 +55,75 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
-    /// Uses the base stack's Condition state factories and node registration,
-    /// without a dependency on a companion model or generated sample types.
+    /// Creates independently registered Conditions with an identity selected
+    /// by the owning projection generation.
     /// </summary>
-    public sealed class WotProjectionConditionFactory : IWotProjectionConditionFactory
+    public interface IWotProjectionConditionInstanceFactory : IWotProjectionConditionFactory
     {
-        /// <inheritdoc/>
-        public async ValueTask<ConditionState> CreateAsync(
+        /// <summary>
+        /// Creates one source Condition instance with the admitted local or
+        /// preserved identity, without sharing mutable state with another Condition.
+        /// </summary>
+        /// <param name="builder">The node manager builder.</param>
+        /// <param name="notifier">The base object state.</param>
+        /// <param name="declaration">The WoT projected affordance.</param>
+        /// <param name="eventTypeId">The event type identifier.</param>
+        /// <param name="conditionId">The condition identifier.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        ValueTask<ConditionState> CreateInstanceAsync(
             INodeManagerBuilder builder,
             BaseObjectState notifier,
             WotProjectedAffordance declaration,
             NodeId eventTypeId,
+            NodeId conditionId,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Uses the base stack's Condition state factories and node registration,
+    /// without a dependency on a companion model or generated sample types.
+    /// </summary>
+    public sealed class WotProjectionConditionFactory : IWotProjectionConditionInstanceFactory
+    {
+        /// <inheritdoc/>
+        /// <param name="builder">The node manager builder.</param>
+        /// <param name="notifier">The base object state.</param>
+        /// <param name="declaration">The WoT projected affordance.</param>
+        /// <param name="eventTypeId">The event type identifier.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        public ValueTask<ConditionState> CreateAsync(
+            INodeManagerBuilder builder,
+            BaseObjectState notifier,
+            WotProjectedAffordance declaration,
+            NodeId eventTypeId,
+            CancellationToken cancellationToken = default)
+        {
+            if (declaration is null)
+            {
+                throw new ArgumentNullException(nameof(declaration));
+            }
+            return CreateInstanceAsync(
+                builder, notifier, declaration, eventTypeId,
+                new NodeId("Condition-" + Guid.NewGuid().ToString("N"), eventTypeId.NamespaceIndex), cancellationToken);
+        }
+
+        /// <summary>
+        /// Creates one source Condition instance with the admitted local or
+        /// preserved identity, without sharing mutable state with another Condition.
+        /// </summary>
+        /// <inheritdoc/>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="builder">The node manager builder.</param>
+        /// <param name="notifier">The base object state.</param>
+        /// <param name="declaration">The WoT projected affordance.</param>
+        /// <param name="eventTypeId">The event type identifier.</param>
+        /// <param name="conditionId">The condition identifier.</param>
+        public async ValueTask<ConditionState> CreateInstanceAsync(
+            INodeManagerBuilder builder,
+            BaseObjectState notifier,
+            WotProjectedAffordance declaration,
+            NodeId eventTypeId,
+            NodeId conditionId,
             CancellationToken cancellationToken = default)
         {
             if (builder is null)
@@ -89,7 +147,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             ISystemContext context = builder.Context;
             context.RequireNodeIdFactory();
-            NodeId nodeId = new(declaration.NodeId + "#Condition", eventTypeId.NamespaceIndex);
+            NodeId nodeId = conditionId;
+            if (nodeId.IsNull)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid, "A materialized Condition requires a non-null identity.");
+            }
             if (manager.FindPredefinedNode<NodeState>(nodeId) is not null)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdExists);
@@ -114,6 +177,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 context, nodeId,
                 new QualifiedName(declaration.Name, eventTypeId.NamespaceIndex),
                 new LocalizedText(declaration.Name), assignNodeIds: false);
+            // The factory owns these freshly installed Core transitions; a proxy
+            // must invoke its selected source instead of changing only local state.
+            condition.Enable?.OnCallMethod = null;
+            condition.Disable?.OnCallMethod = null;
             if (condition is AcknowledgeableConditionState acknowledgeable)
             {
                 acknowledgeable.ConfirmedState ??= new TwoStateVariableState(condition);

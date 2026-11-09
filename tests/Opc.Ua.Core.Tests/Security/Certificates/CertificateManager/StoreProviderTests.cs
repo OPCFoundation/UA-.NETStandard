@@ -148,17 +148,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             provider.Dispose();
             provider.Dispose();
 
-            ObjectDisposedException enumerate = Assert.ThrowsAsync<ObjectDisposedException>(
+            ObjectDisposedException enumerate = await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => store.EnumerateAsync());
             Assert.That(enumerate.ObjectName, Is.EqualTo(nameof(InMemoryStoreProvider)));
             // CA2025 false positive: ThrowsAsync awaits the task before the
             // certificate goes out of scope.
 #pragma warning disable CA2025
-            ObjectDisposedException add = Assert.ThrowsAsync<ObjectDisposedException>(
+            ObjectDisposedException add = await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => store.AddAsync(certificate));
 #pragma warning restore CA2025
             Assert.That(add.ObjectName, Is.EqualTo(nameof(InMemoryStoreProvider)));
-            ObjectDisposedException find = Assert.ThrowsAsync<ObjectDisposedException>(
+            ObjectDisposedException find = await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => store.FindByThumbprintAsync(certificate.Thumbprint));
             Assert.That(find.ObjectName, Is.EqualTo(nameof(InMemoryStoreProvider)));
 

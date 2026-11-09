@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -74,8 +75,11 @@ namespace Opc.Ua.Server
     /// configuration node manager: lookup by URI or index with a cache that
     /// is invalidated when the <c>Namespaces</c> object changes, lazy
     /// creation of missing metadata objects, and change tracking of the
-    /// <c>DefaultRolePermissions</c>/<c>DefaultUserRolePermissions</c>
-    /// properties so permission caches can be invalidated through
+    /// <c>DefaultAccessRestrictions</c>/<c>DefaultRolePermissions</c>/
+    /// <c>DefaultUserRolePermissions</c> properties so permission caches,
+    /// including the namespace defaults remembered by long-lived operation
+    /// contexts (<see cref="NamespaceDefaultPermissionReader.Generation"/>),
+    /// can be invalidated through
     /// <see cref="DefaultPermissionsChanged"/>. The registry remembers every
     /// node it subscribed to, including nodes owned by other node managers
     /// that are referenced from <c>Server/Namespaces</c>, so
@@ -95,9 +99,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Raised when the <c>DefaultRolePermissions</c> or
-        /// <c>DefaultUserRolePermissions</c> value of any tracked metadata
-        /// node changes. The sender is the host node manager.
+        /// Raised when the <c>DefaultAccessRestrictions</c>,
+        /// <c>DefaultRolePermissions</c> or <c>DefaultUserRolePermissions</c>
+        /// value of any tracked metadata node changes, or when one of these
+        /// properties is added, replaced or removed. The sender is the host
+        /// node manager.
         /// </summary>
         public event EventHandler? DefaultPermissionsChanged;
 
@@ -106,6 +112,11 @@ namespace Opc.Ua.Server
         /// <c>null</c> when none exists. Results are cached until the
         /// <c>Namespaces</c> object changes.
         /// </summary>
+        /// <remarks>
+        /// Permission checks call this for every request. Cached results,
+        /// found and missing, are read without a lock; only filling and
+        /// invalidating the cache take it.
+        /// </remarks>
         public async ValueTask<NamespaceMetadataState?> GetAsync(
             string namespaceUri,
             CancellationToken cancellationToken = default)
@@ -115,12 +126,9 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            lock (m_lock)
+            if (m_statesByUri.TryGetValue(namespaceUri, out NamespaceMetadataState? value))
             {
-                if (m_statesByUri.TryGetValue(namespaceUri, out NamespaceMetadataState? value))
-                {
-                    return value;
-                }
+                return value;
             }
 
             // A missing metadata node is only remembered while the
@@ -131,30 +139,30 @@ namespace Opc.Ua.Server
             // the generation (Invalidate) or leave pending change masks on
             // the Namespaces node, both checked without enumerating it.
             NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
-            long generation;
-            lock (m_lock)
+            long generation = Interlocked.Read(ref m_generation);
+            if (IsCachedMiss(m_missingByUri, namespaceUri, generation, pendingChanges))
             {
-                if (m_missingByUri.TryGetValue(
-                        namespaceUri,
-                        out (long Generation, NodeStateChangeMasks PendingChanges) missing) &&
-                    missing.Generation == m_generation &&
-                    (pendingChanges & ~missing.PendingChanges) == 0)
-                {
-                    return null;
-                }
-                generation = m_generation;
+                return null;
             }
 
             NamespaceMetadataState? namespaceMetadataState = await FindAsync(
                 namespaceUri, cancellationToken).ConfigureAwait(false);
 
+            // metadata linked by reference from another node manager is tracked
+            // as well, so its default changes invalidate permission caches.
+            if (namespaceMetadataState != null)
+            {
+                SubscribeToDefaultPermissions(namespaceMetadataState);
+            }
+
             lock (m_lock)
             {
-                // remember the result for faster access.
+                // remember the result for faster access. A miss found before an
+                // invalidation carries the old generation and is never used.
                 if (namespaceMetadataState != null)
                 {
                     m_statesByUri[namespaceUri] = namespaceMetadataState;
-                    m_missingByUri.Remove(namespaceUri);
+                    m_missingByUri.TryRemove(namespaceUri, out _);
                 }
                 else
                 {
@@ -169,31 +177,232 @@ namespace Opc.Ua.Server
         /// Gets the metadata node for <paramref name="namespaceIndex"/>, or
         /// <c>null</c> when none exists.
         /// </summary>
+        /// <remarks>
+        /// A namespace without a metadata node is remembered by index as well,
+        /// with the same validity as the miss remembered by URI, so the common
+        /// case of a namespace without metadata resolves no URI.
+        /// </remarks>
         public async ValueTask<NamespaceMetadataState?> GetAsync(
             ushort namespaceIndex,
             CancellationToken cancellationToken = default)
         {
-            lock (m_lock)
+            if (m_statesByIndex.TryGetValue(namespaceIndex, out NamespaceMetadataState? value))
             {
-                if (m_statesByIndex.TryGetValue(namespaceIndex, out NamespaceMetadataState? value))
-                {
-                    return value;
-                }
+                return value;
+            }
+
+            NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
+            long generation = Interlocked.Read(ref m_generation);
+            if (IsCachedMiss(m_missingByIndex, namespaceIndex, generation, pendingChanges))
+            {
+                return null;
             }
 
             string? namespaceUri = m_host.SystemContext.Server.NamespaceUris.GetString(namespaceIndex);
             NamespaceMetadataState? namespaceMetadataState = await GetAsync(
                 namespaceUri!, cancellationToken).ConfigureAwait(false);
 
-            if (namespaceMetadataState != null)
+            lock (m_lock)
             {
-                lock (m_lock)
+                if (namespaceMetadataState != null)
                 {
                     m_statesByIndex[namespaceIndex] = namespaceMetadataState;
+                    m_missingByIndex.TryRemove(namespaceIndex, out _);
+                }
+                else
+                {
+                    m_missingByIndex[namespaceIndex] = (generation, pendingChanges);
                 }
             }
 
             return namespaceMetadataState;
+        }
+
+        /// <summary>
+        /// Resolves the metadata node for <paramref name="namespaceIndex"/>
+        /// without awaiting: from the lookup cache, the children of
+        /// <c>Server/Namespaces</c> and the reference targets resolved by
+        /// <see cref="PrimeReferencesAsync"/> or an earlier asynchronous lookup.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when the result (including a definitive absence) is
+        /// known; <c>false</c> when an unresolved reference of
+        /// <c>Server/Namespaces</c> could hold the metadata node.
+        /// </returns>
+        public bool TryGetSnapshot(ushort namespaceIndex, out NamespaceMetadataState? state)
+        {
+            if (m_statesByIndex.TryGetValue(namespaceIndex, out state))
+            {
+                return true;
+            }
+
+            NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
+            long generation = Interlocked.Read(ref m_generation);
+            if (IsCachedMiss(m_missingByIndex, namespaceIndex, generation, pendingChanges))
+            {
+                state = null;
+                return true;
+            }
+
+            string? namespaceUri = m_host.SystemContext.Server.NamespaceUris.GetString(namespaceIndex);
+            if (namespaceUri == null)
+            {
+                state = null;
+                return true;
+            }
+
+            if (m_statesByUri.TryGetValue(namespaceUri, out state))
+            {
+                return true;
+            }
+
+            if (m_host.FindServerNamespacesNode() is not NamespacesState serverNamespacesNode)
+            {
+                state = null;
+                return true;
+            }
+
+            ServerSystemContext context = m_host.SystemContext;
+            IList<BaseInstanceState> children = [];
+            serverNamespacesNode.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is NamespaceMetadataState metadata &&
+                    metadata.NamespaceUri?.Value == namespaceUri)
+                {
+                    state = metadata;
+                    break;
+                }
+            }
+
+            if (state == null)
+            {
+                IList<IReference> references = [];
+                serverNamespacesNode.GetReferences(context, references);
+                foreach (IReference reference in references)
+                {
+                    if (reference.IsInverse || reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition)
+                    {
+                        continue;
+                    }
+
+                    var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.Server.NamespaceUris);
+                    if (targetId.IsNull ||
+                        !m_referenceTargets.TryGetValue(targetId, out NamespaceMetadataState? target))
+                    {
+                        // an unresolved link can only be followed asynchronously.
+                        return false;
+                    }
+
+                    if (target?.NamespaceUri?.Value == namespaceUri)
+                    {
+                        state = target;
+                        break;
+                    }
+                }
+            }
+
+            if (state != null)
+            {
+                SubscribeToDefaultPermissions(state);
+            }
+
+            lock (m_lock)
+            {
+                if (state != null)
+                {
+                    m_statesByUri[namespaceUri] = state;
+                    m_statesByIndex[namespaceIndex] = state;
+                    m_missingByIndex.TryRemove(namespaceIndex, out _);
+                }
+                else
+                {
+                    m_missingByIndex[namespaceIndex] = (generation, pendingChanges);
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Resolves every forward reference of <c>Server/Namespaces</c> into
+        /// another node manager so <see cref="TryGetSnapshot"/> can answer
+        /// synchronous lookups, and tracks the metadata nodes found.
+        /// </summary>
+        public async ValueTask PrimeReferencesAsync(CancellationToken cancellationToken = default)
+        {
+            if (m_host.FindServerNamespacesNode() is not NamespacesState serverNamespacesNode)
+            {
+                return;
+            }
+
+            ServerSystemContext context = m_host.SystemContext;
+            IList<IReference> references = [];
+            serverNamespacesNode.GetReferences(context, references);
+            foreach (IReference reference in references)
+            {
+                if (reference.IsInverse || reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition)
+                {
+                    continue;
+                }
+
+                var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.Server.NamespaceUris);
+                if (targetId.IsNull)
+                {
+                    continue;
+                }
+
+                NodeState? target;
+                try
+                {
+                    target = await context.Server.NodeManager.FindNodeInAddressSpaceAsync(
+                        targetId, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    m_logger.ErrorSearchingNamespaceMetadata(ex, targetId.ToString());
+                    continue;
+                }
+
+                if (target == null)
+                {
+                    // not resolvable yet, e.g. the owning node manager is still starting.
+                    m_referenceTargets.TryRemove(targetId, out _);
+                    continue;
+                }
+
+                var metadata = target as NamespaceMetadataState;
+                if (metadata != null)
+                {
+                    SubscribeToDefaultPermissions(metadata);
+                }
+
+                m_referenceTargets[targetId] = metadata;
+            }
+        }
+
+        /// <summary>
+        /// Whether a remembered miss is still valid: it was recorded in the current
+        /// generation, and no change of <c>Server/Namespaces</c> is pending now that
+        /// was not pending when the miss was recorded.
+        /// </summary>
+        /// <typeparam name="TKey">The namespace URI or index.</typeparam>
+        private static bool IsCachedMiss<TKey>(
+            ConcurrentDictionary<TKey, (long Generation, NodeStateChangeMasks PendingChanges)> missing,
+            TKey key,
+            long generation,
+            NodeStateChangeMasks pendingChanges)
+            where TKey : notnull
+        {
+            return missing.TryGetValue(
+                    key,
+                    out (long Generation, NodeStateChangeMasks PendingChanges) entry) &&
+                entry.Generation == generation &&
+                (pendingChanges & ~entry.PendingChanges) == 0;
         }
 
         /// <summary>
@@ -293,17 +502,21 @@ namespace Opc.Ua.Server
             {
                 tracked = [.. m_tracked];
                 m_tracked.Clear();
+                Interlocked.Increment(ref m_generation);
                 m_statesByUri.Clear();
                 m_statesByIndex.Clear();
                 m_missingByUri.Clear();
+                m_missingByIndex.Clear();
+                m_referenceTargets.Clear();
             }
 
             foreach (NamespaceMetadataState metadataState in tracked)
             {
                 metadataState.StateChanged -= OnNamespaceChildrenChanged;
-                metadataState.DefaultRolePermissions?.StateChanged -= OnDefaultPermissionsChanged;
-                metadataState.DefaultUserRolePermissions?.StateChanged -= OnDefaultPermissionsChanged;
+                UnsubscribeDefaultProperties(metadataState);
             }
+
+            NamespaceDefaultPermissionReader.Invalidate();
         }
 
         /// <summary>
@@ -354,11 +567,21 @@ namespace Opc.Ua.Server
                         var nameSpaceNodeId = ExpandedNodeId.ToNodeId(
                             serverNamespacesReference.TargetId,
                             context.Server.NamespaceUris);
-                        if (await context.Server.NodeManager.FindNodeInAddressSpaceAsync(
-                            nameSpaceNodeId, cancellationToken).ConfigureAwait(false) is not NamespaceMetadataState namespaceMetadata)
+                        NodeState? targetNode = await context.Server.NodeManager.FindNodeInAddressSpaceAsync(
+                            nameSpaceNodeId, cancellationToken).ConfigureAwait(false);
+                        if (targetNode is not NamespaceMetadataState namespaceMetadata)
                         {
+                            // only a resolved node is known not to be metadata; an unresolved
+                            // target keeps the synchronous lookup on the asynchronous path.
+                            if (targetNode != null)
+                            {
+                                m_referenceTargets[nameSpaceNodeId] = null;
+                            }
+
                             continue;
                         }
+
+                        m_referenceTargets[nameSpaceNodeId] = namespaceMetadata;
 
                         if (namespaceMetadata!.NamespaceUri!.Value == namespaceUri)
                         {
@@ -386,11 +609,17 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                // The generation moves first, so a lookup that still finds a miss
+                // that is about to be cleared compares it against the new generation.
+                Interlocked.Increment(ref m_generation);
                 m_statesByUri.Clear();
                 m_statesByIndex.Clear();
                 m_missingByUri.Clear();
-                m_generation++;
+                m_missingByIndex.Clear();
             }
+
+            // a linked, relinked or removed metadata node changes the defaults of its namespace.
+            NamespaceDefaultPermissionReader.Invalidate();
         }
 
         /// <summary>
@@ -446,32 +675,75 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Subscribes to the <c>StateChanged</c> events of the <c>DefaultRolePermissions</c>
-        /// and <c>DefaultUserRolePermissions</c> child nodes of a <see cref="NamespaceMetadataState"/>
-        /// to detect changes that require permission cache invalidation, and remembers the
-        /// node so <see cref="Detach"/> can release it.
+        /// Subscribes to the <c>StateChanged</c> events of the <c>DefaultAccessRestrictions</c>,
+        /// <c>DefaultRolePermissions</c> and <c>DefaultUserRolePermissions</c> child nodes of a
+        /// <see cref="NamespaceMetadataState"/> to detect changes that require permission cache
+        /// invalidation, and remembers the node and properties so a replaced property and
+        /// <see cref="Detach"/> release their handlers.
         /// </summary>
         private void SubscribeToDefaultPermissions(NamespaceMetadataState namespaceMetadataState)
         {
-            if (namespaceMetadataState.DefaultRolePermissions != null)
+            BaseVariableState?[] properties =
+            [
+                namespaceMetadataState.DefaultAccessRestrictions,
+                namespaceMetadataState.DefaultRolePermissions,
+                namespaceMetadataState.DefaultUserRolePermissions
+            ];
+
+            BaseVariableState?[]? previous;
+            lock (m_lock)
             {
-                // unsubscribe first to avoid duplicate subscriptions if called multiple times
-                namespaceMetadataState.DefaultRolePermissions.StateChanged -= OnDefaultPermissionsChanged;
-                namespaceMetadataState.DefaultRolePermissions.StateChanged += OnDefaultPermissionsChanged;
+                m_tracked.Add(namespaceMetadataState);
+                m_trackedProperties.TryGetValue(namespaceMetadataState, out previous);
+                m_trackedProperties[namespaceMetadataState] = properties;
             }
 
-            if (namespaceMetadataState.DefaultUserRolePermissions != null)
+            if (previous != null)
             {
-                namespaceMetadataState.DefaultUserRolePermissions.StateChanged -= OnDefaultPermissionsChanged;
-                namespaceMetadataState.DefaultUserRolePermissions.StateChanged += OnDefaultPermissionsChanged;
+                foreach (BaseVariableState? property in previous)
+                {
+                    if (property != null && Array.IndexOf(properties, property) < 0)
+                    {
+                        property.StateChanged -= OnDefaultPermissionsChanged;
+                    }
+                }
+            }
+
+            foreach (BaseVariableState? property in properties)
+            {
+                if (property != null)
+                {
+                    // unsubscribe first to avoid duplicate subscriptions if called multiple times
+                    property.StateChanged -= OnDefaultPermissionsChanged;
+                    property.StateChanged += OnDefaultPermissionsChanged;
+                }
             }
 
             namespaceMetadataState.StateChanged -= OnNamespaceChildrenChanged;
             namespaceMetadataState.StateChanged += OnNamespaceChildrenChanged;
+        }
 
+        /// <summary>
+        /// Releases the handlers of the default properties a metadata node had when last subscribed.
+        /// </summary>
+        private void UnsubscribeDefaultProperties(NamespaceMetadataState namespaceMetadataState)
+        {
+            BaseVariableState?[]? previous;
             lock (m_lock)
             {
-                m_tracked.Add(namespaceMetadataState);
+                m_trackedProperties.TryGetValue(namespaceMetadataState, out previous);
+                m_trackedProperties.Remove(namespaceMetadataState);
+            }
+
+            BaseVariableState?[] properties = previous ??
+            [
+                namespaceMetadataState.DefaultAccessRestrictions,
+                namespaceMetadataState.DefaultRolePermissions,
+                namespaceMetadataState.DefaultUserRolePermissions
+            ];
+            foreach (BaseVariableState? property in properties)
+            {
+                property?.StateChanged -= OnDefaultPermissionsChanged;
             }
         }
 
@@ -488,12 +760,18 @@ namespace Opc.Ua.Server
                 node is NamespaceMetadataState namespaceMetadataState)
             {
                 SubscribeToDefaultPermissions(namespaceMetadataState);
+
+                // an added, replaced or removed default property changes the defaults.
+                NamespaceDefaultPermissionReader.Invalidate();
+                DefaultPermissionsChanged?.Invoke(m_host, EventArgs.Empty);
             }
         }
 
         /// <summary>
-        /// Handles value changes on <c>DefaultRolePermissions</c> or <c>DefaultUserRolePermissions</c>
-        /// and raises the <see cref="DefaultPermissionsChanged"/> event with the host as sender.
+        /// Handles value changes on <c>DefaultAccessRestrictions</c>, <c>DefaultRolePermissions</c>
+        /// or <c>DefaultUserRolePermissions</c>, invalidates the namespace defaults remembered by
+        /// operation contexts and raises the <see cref="DefaultPermissionsChanged"/> event with the
+        /// host as sender.
         /// </summary>
         private void OnDefaultPermissionsChanged(
             ISystemContext context,
@@ -502,17 +780,22 @@ namespace Opc.Ua.Server
         {
             if ((changes & NodeStateChangeMasks.Value) != 0)
             {
+                NamespaceDefaultPermissionReader.Invalidate();
                 DefaultPermissionsChanged?.Invoke(m_host, EventArgs.Empty);
             }
         }
 
         private readonly INamespaceMetadataHost m_host;
         private readonly ILogger m_logger;
-        private readonly Dictionary<string, NamespaceMetadataState> m_statesByUri = [];
-        private readonly Dictionary<ushort, NamespaceMetadataState> m_statesByIndex = [];
-        private readonly Dictionary<string, (long Generation, NodeStateChangeMasks PendingChanges)> m_missingByUri = [];
+        // Read without the lock; filled and cleared under it.
+        private readonly ConcurrentDictionary<string, NamespaceMetadataState> m_statesByUri = new();
+        private readonly ConcurrentDictionary<ushort, NamespaceMetadataState> m_statesByIndex = new();
+        private readonly ConcurrentDictionary<string, (long Generation, NodeStateChangeMasks PendingChanges)> m_missingByUri = new();
+        private readonly ConcurrentDictionary<ushort, (long Generation, NodeStateChangeMasks PendingChanges)> m_missingByIndex = new();
         private long m_generation;
+        private readonly ConcurrentDictionary<NodeId, NamespaceMetadataState?> m_referenceTargets = new();
         private readonly HashSet<NamespaceMetadataState> m_tracked = [];
+        private readonly Dictionary<NamespaceMetadataState, BaseVariableState?[]> m_trackedProperties = [];
         private readonly Lock m_lock = new();
     }
 

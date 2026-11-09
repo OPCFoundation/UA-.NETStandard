@@ -24,6 +24,7 @@ choose between them.
 | `ManagedSessionFactory` | `ManagedSession` | inherited from `ManagedSession` | inherited from `ManagedSession` | drop-in `ISessionFactory` that yields managed sessions |
 | `ChannelManagerSessionFactory` | raw `Session` | channel-level reconnect through `IClientChannelManager` | classic engine | raw sessions that share channels and coordinate transport reconnect centrally |
 | `ManagedSessionBuilder` | `ManagedSession` | inherited from `ManagedSession` | configurable via `UseSubscriptionEngine` | fluent / DI scenarios |
+| `SessionRequestContext` | borrowed session view | rejects stale dispatch instead of reconnecting | not a subscription/reconnect facade | generation-sensitive remote handles, cursors and target classifications |
 | `IClientChannelManager` | `IManagedTransportChannel` leases (shared) | channel-level reconnect, coalesced and notified to participants | n/a (channel-only) | central transport-channel sharing & reconnect for sessions / discovery clients |
 
 Everything below explains how these pieces fit together.
@@ -43,7 +44,10 @@ Everything below explains how these pieces fit together.
   - [`ManagedSessionFactory`](#managedsessionfactory)
   - [`ManagedSessionBuilder`](#managedsessionbuilder)
   - [Reconnect semantics on `ManagedSession`](#reconnect-semantics-on-managedsession)
+  - [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint)
+  - [Generation-bound client requests](#generation-bound-client-requests)
   - [Closing a `ManagedSession`](#closing-a-managedsession)
+  - [Taking over a session (`ISessionTakeover`)](#taking-over-a-session-isessiontakeover)
   - [Server retry-after backpressure](#server-retry-after-backpressure)
 - [4. `IClientChannelManager` — centralised channel sharing and reconnect](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
   - [Session factory choices](#session-factory-choices)
@@ -184,7 +188,12 @@ is the original reconnect helper that ships with `Session`. It implements
 the timer-driven retry loop, picks between
 `Session.ReconnectAsync` and `ISessionFactory.RecreateAsync`, handles
 endpoint refreshes when the server certificate changes, and cooperates
-with `ReverseConnectManager`.
+with `ReverseConnectManager`. Refresh updates endpoint metadata, but reconnect
+requires the same message-security mode and security policy as the configured
+endpoint. If discovery no longer offers that exact combination, reconnect fails
+instead of selecting another security configuration. Network redundancy skips
+incompatible alternate endpoints and continues searching the configured list
+for a matching endpoint.
 
 ```csharp
 using var handler = new SessionReconnectHandler(
@@ -259,6 +268,11 @@ an `ISession` facade that wraps a raw `Session` and adds:
   unavailable, and invalidates a peer's cached endpoint after failed failover.
   Certificate-validation reconnect failures refresh endpoint discovery before
   recreating the session; normal certificate trust validation still applies.
+  Refresh preserves the active endpoint's message-security mode and
+  security-policy URI. A new server certificate can therefore be accepted only
+  through the existing certificate-validation rules, not by changing the
+  channel's security configuration. An application can add its own checks;
+  see [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint).
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn
@@ -391,7 +405,10 @@ connection state machine transitions `Connected → Reconnecting` and:
 4. If the redundancy handler is enabled and the active server is
    unreachable, it consults
    `IServerRedundancyHandler.GetNextEndpointAsync` and recreates the
-   session against the failover endpoint.
+   session against a failover endpoint with the same message-security mode
+   and security-policy URI. Targets with a different mode or policy are
+   skipped before opening their channels; recovery continues to the next
+   configured endpoint.
 5. On success, transitions `Reconnecting → Connected` and releases the
    service gate, replaying any deferred calls.
 6. If the retry budget and failover are exhausted after an established
@@ -424,6 +441,168 @@ without a manager supports a single connection, not automatic recovery: later
 attempts fail with `BadSecureChannelClosed` through the configured reconnect
 policy. They never fall back to opening an outbound connection.
 
+`ConfiguredEndpoint.UpdateBeforeConnect` controls whether endpoint discovery
+refreshes the configured endpoint before connecting. It does not authorize
+automatic security-policy changes and does not disable discovery needed during
+recovery. Reconnect and failover preserve the selected security mode and policy;
+if the server or failover target no longer offers them, the connection attempt
+fails visibly. To use a different policy, explicitly reconfigure and establish a
+new connection rather than relying on automatic reconnect to negotiate one.
+
+### Validating a rediscovered endpoint
+
+When a reconnect is rejected with a status that requires the endpoint to be
+refreshed (for example `BadCertificateInvalid` after the server replaced its
+certificate), `ManagedSession` reads the endpoint again from the server's
+discovery endpoint and recreates the session against it. Discovery runs before
+the new secure channel exists, so its answer is not authenticated. The
+rediscovered endpoint is therefore read into a detached copy and checked in two
+steps before it replaces the endpoint in use:
+
+1. **Security configuration (always).** The rediscovered endpoint must keep the
+   message-security mode and security-policy URI of the endpoint in use, as
+   described above. A change fails the reconnect attempt with
+   `BadSecurityModeRejected` or `BadSecurityPolicyRejected`; the validator
+   below is not called.
+2. **Application validator (optional).** A registered
+   `RediscoveredEndpointValidator` receives the endpoint in use and the
+   rediscovered one and returns `ServiceResult.Good` to accept it. Use it for
+   checks the client cannot make on its own, such as pinning the server
+   certificate; it does not need to repeat the security-configuration check.
+
+The check is fail-closed: the rediscovered endpoint replaces the endpoint in
+use only after both steps passed, so sessions sharing a `ConfiguredEndpoint`
+never see an endpoint that was not accepted. A failed refresh, a changed
+security configuration, a validator result that is not Good, an exception or a
+cancellation keeps the endpoint in use and fails the reconnect attempt, which
+the reconnect policy then retries. A Bad validator result is reported as it
+is; an Uncertain or `null` result is reported as `BadSecurityChecksFailed`.
+
+Each `ManagedSession` works on its own copy of the `ConfiguredEndpoint` it was
+created with, taken when it connects. It also copies a failover or alternate
+endpoint before attempting to connect to it. The session keeps that switch
+target if the attempt fails, so a later retry recreates on the same target.
+Reconnects, recreates and failovers use the adopted copy; both checks above
+compare against the endpoint the session itself accepted.
+
+An accepted rediscovered endpoint is published back to the endpoint from which
+the copy was taken, so other consumers can see the update. Sessions do not read
+that shared update back into their adopted copies: each continues working on,
+and validating against, its own copy.
+
+When a session switches back to a previously used endpoint that another session
+has since updated, both checks run against the endpoint this session previously
+accepted. The session adopts the updated endpoint only if those checks pass.
+`ManagedSession.ConfiguredEndpoint` returns the copy once the session is connected.
+
+```csharp
+RediscoveredEndpointValidator pinCertificate = (current, rediscovered, ct) =>
+{
+    if (rediscovered.ServerCertificate != current.ServerCertificate)
+    {
+        // A renewed server certificate is still validated by the certificate
+        // validator when the channel opens; reject here only when the
+        // application pins the certificate. A rediscovered endpoint without
+        // a certificate is rejected as well.
+        return new ValueTask<ServiceResult>(
+            new ServiceResult(StatusCodes.BadCertificateInvalid));
+    }
+    return new ValueTask<ServiceResult>(ServiceResult.Good);
+};
+
+// Fluent API: installed before the session connects.
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .WithRediscoveredEndpointValidator(pinCertificate)
+    .ConnectAsync(ct);
+
+// Options snapshot passed to ManagedSession.CreateAsync.
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    ValidateRediscoveredEndpoint = pinCertificate
+};
+
+// Dependency injection: a registered validator is applied to every managed
+// session that IManagedSessionFactory connects, unless the session options
+// carry their own.
+services.AddSingleton(pinCertificate);
+```
+
+Setting `ManagedSession.ValidateRediscoveredEndpoint` on a connected session
+also works, but only covers reconnects that start afterwards; prefer one of
+the paths above.
+
+### Generation-bound client requests
+
+Use `SessionRequestContext` when several calls must use the **same server
+session**, such as continuing a history read, writing an open file, or acting on
+a target you have already checked. A `ManagedSession` can reconnect between
+those calls. Without a context, an old file handle or continuation point could
+be sent to the replacement session.
+
+Capture a context from your existing `ManagedSession` and pass `context.Session`
+to the clients or generated proxies used by the whole operation:
+
+```csharp
+using Opc.Ua.Client;
+
+await using SessionRequestContext context =
+    await SessionRequestContext.CaptureAsync(managedSession, ct);
+
+ISession requestSession = context.Session;
+// Use requestSession for target lookup and every subsequent call in this operation.
+```
+
+The context borrows the connection; it does not connect or reconnect for you.
+Keep it alive until resources opened through it have been cleaned up. Disposing
+it releases its local resources, not the owning session.
+
+If recovery starts or the captured session becomes stale, later calls fail with
+`BadSessionIdInvalid` instead of following the replacement. `Invalidated` lets you
+stop work that depends on that session. Start a new context and obtain fresh
+handles before starting another operation.
+
+The context does not make a sequence atomic or retry failed calls. Late
+cancellation does not replace a returned mutation result; a lost response can
+mean the mutation committed, so inspect the server before retrying. Changes to the
+server's address space or permissions still need your application's normal
+handling.
+
+Capture requires the stack's `ManagedSession` and a supported transport;
+unsupported custom sessions or managed transports return `BadNotSupported`.
+For ordinary independent calls, continue using the managed session directly.
+
+Use `CaptureConfidentialAsync` for password, private-key or other secret-bearing
+method arguments. It additionally requires confidentiality on the actual
+captured transport and rechecks that requirement at dispatch:
+
+```csharp
+static async Task<CallResponse> SendConfidentialCallsAsync(
+    ISession session,
+    ArrayOf<CallMethodRequest> calls,
+    CancellationToken ct)
+{
+    SessionRequestContext context =
+        await SessionRequestContext.CaptureConfidentialAsync(session, ct).ConfigureAwait(false);
+    await using (context.ConfigureAwait(false))
+    {
+        return await context.Session.CallAsync(null, calls, ct).ConfigureAwait(false);
+    }
+}
+```
+
+The caller still handles the returned per-method results and performs normal
+authorization. Capture rejects insecure channels with `BadSecurityModeInsufficient`
+and unsupported custom sessions with `BadNotSupported`; it never retries secret
+arguments on a replacement channel. Built-in password-management helpers and
+certificate private-key uploads use this path automatically.
+
+See [generation-bound file transfers](FileSystemClient.md#generation-bound-transfers),
+[historical reads](HistoricalAccess.md#bounded-pages-and-session-lifetime), and
+[role snapshots](RoleBasedUserManagement.md#bounded-role-snapshots) for the
+corresponding client APIs.
+
 ### Closing a `ManagedSession`
 
 `CloseAsync` requests the close on the connection state machine, which
@@ -448,6 +627,131 @@ the inner `CloseSession` call; `CloseAsync(ct)` is equivalent to
 the wait unbounded (other than by `ct`). Passing `closeChannel: false`
 tears down the session but leaves the transport channel open and owned by
 the caller, so it can be reused for another session.
+
+### Taking over a session (`ISessionTakeover`)
+
+A takeover moves a server session from one `ManagedSession` to another without
+closing it. The previous owner retires its session and receives a
+`SessionHandoff`. The new owner creates a managed session from that handoff, and
+the new session activates the same server session on its own secure channel.
+The server session id, the subscription ids and the notifications still queued
+on the server stay the same.
+
+There is no call sequence to get right. Each owner performs one operation, and
+the session holds no intermediate "prepared" state between them:
+
+- `RetireAsync` on the previous owner captures the state and fences the server
+  session in one step.
+- `TakeOver` (or `ManagedSessionOptions.TakeoverFrom`) on the new owner is a
+  connect option. The first connect of the new session performs the takeover.
+
+The previous owner retires and hands the result to the new owner:
+
+```csharp
+SessionHandoff handoff = await ((ISessionTakeover)session).RetireAsync(ct);
+// ... protect the handoff and pass it to the new owner ...
+```
+
+`RetireAsync` stops keep-alive, publishing and recovery and waits for
+subscription work already in flight. It then captures the server session and
+its subscriptions and installs the fence: from then on, the object sends no
+`CloseSession`, `DeleteSubscriptions`, Publish or reconnect request for the
+server session. Finally it disposes the session, so every later call fails with
+`BadInvalidState`. Retiring and disposing exclude each other. A `DisposeAsync`
+that starts during `RetireAsync` waits for it and does not close the server
+session. A session that is not connected, is recovering or is already closing
+fails `RetireAsync` with `BadNotConnected` or `BadInvalidState`. If the call
+fails before the fence is in place, the session is closed normally.
+
+The new owner builds its session from the handoff:
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .TakeOver(handoff, new SessionTakeoverOptions
+    {
+        Identity = credentials,
+        SubscriptionHandlerFactory = snapshot => CreateHandler(snapshot),
+        FailureMode = SessionTakeoverFailureMode.Throw
+    })
+    .ConnectAsync(ct);
+```
+
+The connect validates the handoff before it sends anything. It rejects a
+handoff without a session id or authentication token, a handoff for a different
+endpoint URL, security mode, security policy or server certificate, and a
+handoff whose saved server nonce is invalid on a secure endpoint. The session
+uses the endpoint of the handoff unless the builder configures one.
+
+The session then attaches the subscriptions of the handoff locally. The server
+already associates them with this server session, so the client neither
+transfers nor recreates them: it sends no `TransferSubscriptions`,
+`CreateSubscription` or monitored item request. `SubscriptionHandlerFactory`
+creates the notification handler for each subscription and is required when
+the handoff contains subscriptions. Finally the session sends
+`ActivateSession` with the saved authentication token. It never sends
+`CreateSession`. After that, keep-alive, publishing and the configured
+recovery policy start, and a later reconnect behaves like any other.
+
+`SessionTakeoverOptions.Identity` supplies the user credentials, because the
+handoff does not carry them. When it is `null`, the session uses the identity
+from its managed session options and, if those set none, the identity token
+saved in the handoff. The handoff carries the session timeout that the server
+revised, so the new owner times its keep-alive and recovery against the
+server's value rather than against the timeout it would request.
+
+What happens when activation fails?
+
+- With `SessionTakeoverFailureMode.Throw` (the default), the connect fails with
+  the activation error. The new owner does not create a server session and does
+  not close the saved one, because it cannot know whether another owner still
+  holds it.
+- With `SessionTakeoverFailureMode.CreateNewSession`, the session creates a new
+  server session and recreates the subscriptions of the handoff on it. The
+  session logs that continuity was lost. Notifications that only the old server
+  session held are gone.
+
+The handoff contains the authentication token and the secrets of the secure
+session. Treat it as a credential. Protect it with `IRecordProtector` before
+storing it or sending it to another process. The public `SessionHandoffCodec`
+encodes the complete handoff, including revised subscription and monitored-item
+settings, before protection. The application supplies the protector and context;
+key storage and ownership remain the application's responsibility.
+
+```csharp
+ByteString protectedHandoff = SessionHandoffCodec.Protect(
+    handoff, protector, context, messageContext);
+
+if (!SessionHandoffCodec.TryUnprotect(
+    protectedHandoff, protector, context, telemetry, out SessionHandoff? restoredHandoff))
+{
+    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+}
+```
+
+`TryUnprotect` returns `false` when the record cannot be unprotected or contains
+no payload. It throws `ServiceResultException` when the protected record is
+malformed.
+
+The API does not decide who owns the server session. Two owners that activate
+the same handoff take the server session away from each other, and the last
+activation wins. The application must make sure that only one new owner uses a
+handoff. Leader election, as used by `ClientReplicaCoordinator`, or an atomic
+claim in a shared store, such as `ISharedKeyValueStore.CompareAndSwapAsync`,
+provides that guarantee. A handoff also expires: the server deletes the session
+once `SessionHandoff.RevisedSessionTimeout` has passed since the previous owner's
+last request.
+
+Only the default subscription engine supports takeover. A session that uses the
+classic engine fails both `RetireAsync` and the takeover connect with
+`BadNotSupported` before it sends any request.
+
+`ISessionTakeover` also reports which server session a client session is bound
+to. `SessionGeneration` is 0 before the first server session and increases each
+time the bound server session changes, for example when recovery has to create a
+new server session. Reactivating the same server session, or only replacing the
+channel, leaves it unchanged. `SessionGenerationChanged` reports the new
+generation with the previous and current `SessionId`. Handlers must return
+quickly and must not wait for session or subscription operations.
 
 ### Server retry-after backpressure
 
@@ -804,11 +1108,12 @@ construction paths:
 
 - **Direct path** (`CreateDirectHttpClient`) — builds an
   `HttpClientHandler` configured with:
-  - `ServerCertificateCustomValidationCallback` wired to the OPC UA
-    `ICertificateValidatorEx` / `CertificateValidator` (validates against
-    the OPC UA trust list / issuer chain).
-  - The OPC UA application instance certificate attached as a client
-    certificate (mutual TLS using the OPC UA application identity).
+  - `ServerCertificateCustomValidationCallback`, where supported, wired
+    to the channel's `ICertificateValidatorEx`. The application normally
+    supplies it through `ApplicationConfiguration.CertificateManager`
+    for OPC UA trust-list and issuer-chain validation.
+  - The OPC UA application instance certificate, when supplied, attached
+    as a client certificate for mutual TLS using the OPC UA application identity.
   - `AllowAutoRedirect = false` so an attacker-controlled redirect cannot
     silently move the OPC UA call to a different host.
   - `MaxConnectionsPerServer` and `MaxRequestContentBufferSize` quotas
@@ -818,51 +1123,29 @@ construction paths:
   by `IHttpClientFactory` and CANNOT be reconfigured by
   `HttpsTransportChannel` after the fact).
 
-When an OPC UA `CertificateValidator` is configured for a channel — the
-normal case for any non-`SecurityPolicies.None` HTTPS profile —
+When an OPC UA certificate validator is configured for a channel,
 `HttpsTransportChannel.CanUseHttpClientFactory()` returns `false` and
-the direct path is always taken. This is the secure default: it
-guarantees that the OPC UA trust list, OPC UA mTLS, and the redirect
-lock are in effect on every OPC UA HTTPS connection. If a non-`Shared`
-factory was supplied but bypassed for security reasons,
-`CreateHttpClient` emits a one-time `LogWarning` so operators see that
-the named HttpClient pipeline (Polly resilience handler, etc.) is NOT
-applied to this OPC UA HTTPS channel.
+the direct path is always taken, regardless of custom named-client
+handler configuration. The `DefaultOpcUaHttpClientFactory.Shared`
+sentinel also selects the direct path. If a non-`Shared` factory is
+bypassed because a validator is configured, the channel logs a warning
+that the named-client pipeline is not applied.
+In practice, only validator-less discovery/GetEndpoints channels use the
+named-client factory.
 
-To keep BOTH Polly resilience AND OPC UA cert validation on the same
-channel, register the named `Opc.Ua.Client` HttpClient with a
-configured primary handler that wires OPC UA validation in yourself.
-The handler must be re-buildable per channel from the configuration
-because the OPC UA validator and client certificate are channel-bound,
-not process-bound:
+Configuring the primary handler of `Opc.Ua.Client` does not override this
+guard, so its Polly resilience pipeline is not applied to a channel with
+an OPC UA validator. Keep certificate validation configured through
+`ApplicationConfiguration.CertificateManager`; do not remove it or install
+an accept-all callback to force the factory path. Use the channel/session
+retry controls described in this guide, including the
+[shared retry budget](#shared-retry-budget-with-managedsession).
+See [certificate validation](Certificates.md#configuring-a-custom-certificate-validator)
+for the current validation API.
 
-```csharp
-services.AddHttpClient(OpcUaHttpClientDefaults.ClientName)
-    .ConfigurePrimaryHttpMessageHandler(sp =>
-    {
-        // Resolve the per-application validator and client cert from
-        // your DI container, then build a handler the same way
-        // CreateDirectHttpClient does.
-        ApplicationConfiguration config = sp.GetRequiredService<ApplicationConfiguration>();
-        ICertificateValidatorEx validator = config.CertificateValidator;
-        return new HttpClientHandler
-        {
-            ClientCertificateOptions = ClientCertificateOption.Manual,
-            AllowAutoRedirect = false,
-            ServerCertificateCustomValidationCallback = (_, cert, chain, _) =>
-            {
-                // … delegate to `validator.ValidateAsync(...)` synchronously.
-            },
-            // … and attach the OPC UA client instance certificate.
-        };
-    })
-    .AddStandardResilienceHandler();
-```
-
-Without that explicit primary-handler configuration, OPC UA HTTPS
-channels deliberately ignore the named-client pipeline and use the
-direct path — preserving OPC UA security at the cost of Polly resilience
-on those channels.
+On platforms that do not support the custom TLS validation callback, the
+direct handler falls back to platform TLS validation (trusted root CA required)
+and does not enforce the OPC UA trust list.
 
 ### Shared retry budget with `ManagedSession`
 
@@ -1176,14 +1459,39 @@ subscription.TryAddMonitoredItem(
 
 The V2 `ISubscription` returned from `Add(...)` transparently splits
 monitored items across multiple server-side partition subscriptions
-when the server's per-subscription cap would be exceeded. Single-
-partition workloads pay zero overhead because the composite
-collection short-circuits to the primary partition. Pin items into
-the same partition with `MonitoredItemOptions.Affinity` so per-
-subscription features like `SetTriggering` keep working across the
-group; opt out of partitioning entirely with
-`SubscriptionOptions.DisableUnboundedItemMode = true`. Full
+when the server's per-subscription cap would be exceeded. With unbounded
+item mode enabled, the composite collection uses partition-placement
+and indexing logic even while only one partition exists. Setting
+`SubscriptionOptions.DisableUnboundedItemMode = true` selects the
+primary-partition delegation path, avoiding the composite collection's
+placement logic and global indexes. Pin items into the same partition
+with `MonitoredItemOptions.Affinity` so per-subscription features like
+`SetTriggering` keep working across the group. Full
 developer guide: [Subscriptions § Unbounded monitored items](Subscriptions.md#unbounded-monitored-items).
+
+### V2 deferred notification decoding
+
+The V2 subscription engine decodes the `DataChangeNotification` and
+`EventNotificationList` of a Publish response right before they are
+dispatched, not when the response arrives. Under load, responses
+wait for their subscription, and a garbage collection that finds them
+waiting as objects has to walk and promote them. As raw bytes in a
+pooled buffer they cost it nothing.
+
+This is enabled by default and does not change what a handler sees,
+with one exception: a notification body that cannot be decoded is
+logged and not delivered, instead of failing the whole Publish
+response. To decode on arrival, use
+`ManagedSessionBuilder.WithoutDeferredNotificationDecoding()` or the
+`ManagedSessionOptions.DeferNotificationDecoding` init property. The
+classic subscription engine decodes on arrival.
+
+The decoding happens on the transport, so sessions that share one
+through an `IClientChannelManager` also share this: the bodies are kept
+as bytes as soon as one session on the transport wants that, including
+for a classic session or one that opted out. Those still see every
+notification; to decode on arrival for certain, do not share the
+transport with a session that defers.
 
 ### V2 notification pooling (opt-in)
 
@@ -1367,8 +1675,8 @@ Pick the entry point that best matches your call site:
 ## Server session lifecycle
 
 Channel and security-policy association failures are rejected before
-authentication-failure accounting. Requests from another channel cannot
-lock out the application owning an unactivated session; genuine invalid
+authentication-failure accounting. A request from a different channel cannot
+lock out the application that owns an unactivated session; genuine invalid
 signatures and identity credentials still count toward that application's
 lockout threshold.
 
@@ -1382,6 +1690,16 @@ continuation remains caller-owned until its mirror write and local
 admission succeed. If the session closes during persistence, the late
 mirror entry is removed and `BadSessionClosed` is returned without
 transferring or disposing the caller's resource twice.
+
+Activating an unknown server session restores it first. The flow is:
+
+1. Activations that use the same unknown token share one pending restore.
+2. The restore provider runs without globally serializing activations for other
+   tokens or unrelated session creation.
+3. The restored session is validated and its security checks run under the
+   session's own activation serialization.
+4. The session is activated and binding notifications are reconciled through
+   per-generation session records.
 
 Replacing or resetting a session's ephemeral user-token key retires the
 previous key. A key already borrowed by credential decryption remains

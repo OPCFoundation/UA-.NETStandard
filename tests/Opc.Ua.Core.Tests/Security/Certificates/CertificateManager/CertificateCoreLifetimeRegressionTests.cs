@@ -143,7 +143,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 if (cancel)
                 {
-                    Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
+                    await Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
                 }
                 else
                 {

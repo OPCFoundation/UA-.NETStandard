@@ -42,6 +42,7 @@ namespace Opc.Ua.Machinery.Client
         /// </summary>
         /// <param name="session">The connected session.</param>
         /// <param name="telemetry">The telemetry context used by generated proxies.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static MachineryClient Machinery(
             this ISession session,
             ITelemetryContext telemetry)
@@ -55,6 +56,20 @@ namespace Opc.Ua.Machinery.Client
                 throw new ArgumentNullException(nameof(telemetry));
             }
             return new MachineryClient(session, telemetry);
+        }
+
+        /// <summary>
+        /// Creates a Machinery client with bounded discovery and strict, evidenced reads.
+        /// </summary>
+        /// <param name="session">The borrowed, connected session.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="options">The positive read and browse limits.</param>
+        public static MachineryClient Machinery(
+            this ISession session,
+            ITelemetryContext telemetry,
+            MachineryClientOptions options)
+        {
+            return new MachineryClient(session, telemetry, options);
         }
     }
 }

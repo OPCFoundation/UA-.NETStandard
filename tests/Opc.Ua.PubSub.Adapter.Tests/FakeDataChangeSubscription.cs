@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
     /// records monitored items added to it, hands out incrementing client
     /// handles, and lets a test raise <see cref="DataChanged"/> notifications.
     /// </summary>
-    internal sealed class FakeDataChangeSubscription : IDataChangeSubscription
+    internal sealed class FakeDataChangeSubscription : IRangedDataChangeSubscription
     {
         private uint m_nextHandle = 1;
 
@@ -48,6 +48,11 @@ namespace Opc.Ua.PubSub.Adapter.Tests
 
         public List<(NodeId NodeId, uint AttributeId, double SamplingMs)> MonitoredItems { get; }
             = [];
+
+        /// <summary>
+        /// The server-side range requested for each monitored item.
+        /// </summary>
+        public List<string?> IndexRanges { get; } = [];
 
         public int ApplyChangesCount { get; private set; }
 
@@ -59,8 +64,20 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             double samplingIntervalMs,
             CancellationToken ct = default)
         {
+            return AddMonitoredItemAsync(nodeId, attributeId, null, samplingIntervalMs, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<uint> AddMonitoredItemAsync(
+            NodeId nodeId,
+            uint attributeId,
+            string? indexRange,
+            double samplingIntervalMs,
+            CancellationToken ct = default)
+        {
             uint handle = m_nextHandle++;
             MonitoredItems.Add((nodeId, attributeId, samplingIntervalMs));
+            IndexRanges.Add(indexRange);
             return new ValueTask<uint>(handle);
         }
 
@@ -74,6 +91,16 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             DataChanged?.Invoke(
                 this, new DataChangeEventArgs(clientHandle, nodeId, value));
+        }
+
+        /// <summary>
+        /// Captures an admitted notification so it can be delivered after handler removal or retirement.
+        /// </summary>
+        public Action CaptureNotification(uint clientHandle, NodeId nodeId, DataValue value)
+        {
+            EventHandler<DataChangeEventArgs>? handler = DataChanged;
+            var notification = new DataChangeEventArgs(clientHandle, nodeId, value);
+            return () => handler?.Invoke(this, notification);
         }
 
         public ValueTask DisposeAsync()

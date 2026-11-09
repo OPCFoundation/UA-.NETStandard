@@ -70,7 +70,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void EnumerateDevicesAsyncInvokesSessionAccessor()
+        public async Task EnumerateDevicesAsyncInvokesSessionAccessor()
         {
             // Verify EnumerateDevicesAsync awaits the accessor by
             // having the accessor throw a sentinel exception — the
@@ -86,19 +86,19 @@ namespace Opc.Ua.Di.Tests
             var service = new DiDiscoveryService(
 accessor, new Mock<ITelemetryContext>().Object);
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                 {
                     await foreach (DeviceEntry _ in service.EnumerateDevicesAsync())
                     {
                     }
-                })!;
+                }))!;
             Assert.That(ex, Is.SameAs(sentinel));
             Assert.That(accessorCalls, Is.EqualTo(1));
         }
 
         [Test]
-        public void EnumerateDevicesAsyncPropagatesCancellation()
+        public async Task EnumerateDevicesAsyncPropagatesCancellation()
         {
             CancellationToken capturedToken = default;
             Task<ManagedSession> accessor(CancellationToken ct)
@@ -113,7 +113,7 @@ accessor, new Mock<ITelemetryContext>().Object);
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () =>
                 {
                     await foreach (DeviceEntry _ in service.EnumerateDevicesAsync(cts.Token))

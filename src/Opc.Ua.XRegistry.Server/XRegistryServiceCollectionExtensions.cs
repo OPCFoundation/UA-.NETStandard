@@ -67,7 +67,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 var options = new XRegistryServerOptions
                 {
                     ResourceStore = serviceProvider.GetRequiredService<IXRegistryResourceStore>(),
-                    ContentIdProvider = serviceProvider.GetService<IResourceContentIdProvider>()
+                    ContentIdProvider = serviceProvider.GetService<IResourceContentIdProvider>(),
+                    FederationProvider = serviceProvider.GetService<IXRegistryFederationProvider>()
                 };
                 configure?.Invoke(options);
                 return options;

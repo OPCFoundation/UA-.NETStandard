@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.AMB.Client
 {
@@ -39,7 +40,7 @@ namespace Opc.Ua.AMB.Client
     {
         /// <summary>
         /// The deepest level <see cref="BrowseLocationsAsync"/> and
-        /// <see cref="EnumerateSubAssetsAsync"/> descend to.
+        /// sub-asset enumeration descends to.
         /// </summary>
         public const int MaxDepth = 16;
 
@@ -59,30 +60,38 @@ namespace Opc.Ua.AMB.Client
             CancellationToken cancellationToken = default)
         {
             (NodeId entryPoint, NodeId contains) = LocationIdsOf(kind);
+            BrowseBudget budget = CreateBrowseBudget();
             var locations = new List<AssetLocationNode>();
             var pending = new Queue<(NodeId Node, string Path, int Depth)>();
-            foreach (ReferenceDescription root in await BrowseAsync(
+            var seen = new HashSet<NodeId>();
+            foreach (ReferenceDescription root in await BrowseWithBudgetAsync(
                 entryPoint,
                 Ua.ReferenceTypeIds.Organizes,
                 BrowseDirection.Forward,
-                cancellationToken,
-                NodeClass.Object).ConfigureAwait(false))
+                NodeClass.Object,
+                budget,
+                cancellationToken).ConfigureAwait(false))
             {
-                pending.Enqueue((ToNodeId(root.NodeId), root.BrowseName.Name ?? string.Empty, 1));
+                NodeId rootId = ToNodeId(root.NodeId);
+                if (!rootId.IsNull && seen.Add(rootId))
+                {
+                    pending.Enqueue((rootId, root.BrowseName.Name ?? string.Empty, 1));
+                }
             }
 
-            var seen = new HashSet<NodeId>();
             while (pending.Count > 0)
             {
-                (NodeId node, string path, int depth) = pending.Dequeue();
-                if (node.IsNull || !seen.Add(node))
+                if (m_options is not null)
                 {
-                    continue;
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
-                List<ReferenceDescription> contained = await BrowseAsync(
+                (NodeId node, string path, int depth) = pending.Dequeue();
+                List<ReferenceDescription> contained = await BrowseWithBudgetAsync(
                     node,
                     contains,
                     BrowseDirection.Forward,
+                    NodeClass.Unspecified,
+                    budget,
                     cancellationToken).ConfigureAwait(false);
                 var assets = new ExpandedNodeId[contained.Count];
                 for (int ii = 0; ii < assets.Length; ii++)
@@ -90,18 +99,28 @@ namespace Opc.Ua.AMB.Client
                     assets[ii] = contained[ii].NodeId;
                 }
                 locations.Add(new AssetLocationNode(node, path, assets.ToArrayOf()));
-                if (depth >= MaxDepth)
+                if (depth >= MaxDepth && m_options is null)
                 {
                     continue;
                 }
-                foreach (ReferenceDescription child in await BrowseAsync(
+                foreach (ReferenceDescription child in await BrowseWithBudgetAsync(
                     node,
                     Ua.ReferenceTypeIds.HasComponent,
                     BrowseDirection.Forward,
-                    cancellationToken,
-                    NodeClass.Object).ConfigureAwait(false))
+                    NodeClass.Object,
+                    budget,
+                    cancellationToken).ConfigureAwait(false))
                 {
-                    pending.Enqueue((ToNodeId(child.NodeId), path + "/" + child.BrowseName.Name, depth + 1));
+                    NodeId childId = ToNodeId(child.NodeId);
+                    if (childId.IsNull || !seen.Add(childId))
+                    {
+                        continue;
+                    }
+                    if (depth >= MaxDepth)
+                    {
+                        throw LimitExceeded("The AMB location depth limit was exceeded.");
+                    }
+                    pending.Enqueue((childId, path + "/" + child.BrowseName.Name, depth + 1));
                 }
             }
             return locations.ToArrayOf();
@@ -120,16 +139,24 @@ namespace Opc.Ua.AMB.Client
             CancellationToken cancellationToken = default)
         {
             var locations = new List<AssetLocationRecord>();
+            var seen = new HashSet<(AssetLocationKind Kind, NodeId Node)>();
+            BrowseBudget budget = CreateBrowseBudget();
             foreach (AssetLocationKind kind in new[] { AssetLocationKind.Hierarchical, AssetLocationKind.Operational })
             {
                 (_, NodeId contains) = LocationIdsOf(kind);
-                foreach (ReferenceDescription location in await BrowseAsync(
+                foreach (ReferenceDescription location in await BrowseWithBudgetAsync(
                     asset,
                     contains,
                     BrowseDirection.Inverse,
+                    NodeClass.Unspecified,
+                    budget,
                     cancellationToken).ConfigureAwait(false))
                 {
-                    locations.Add(new AssetLocationRecord(kind, ToNodeId(location.NodeId)));
+                    NodeId target = ToNodeId(location.NodeId);
+                    if (m_options is null || (!target.IsNull && seen.Add((kind, target))))
+                    {
+                        locations.Add(new AssetLocationRecord(kind, target));
+                    }
                 }
             }
             return locations.ToArrayOf();
@@ -147,7 +174,7 @@ namespace Opc.Ua.AMB.Client
             NodeId asset,
             CancellationToken cancellationToken = default)
         {
-            Variant[] values = await ReadChildValuesAsync(
+            AssetReadValue[] fields = await ReadFieldsAsync(
                 asset,
                 [
                     [Amb(AmbBrowseNames.HierarchicalLocation)],
@@ -156,19 +183,27 @@ namespace Opc.Ua.AMB.Client
                     [new QualifiedName(Ua.BrowseNames.LocalTime)]
                 ],
                 cancellationToken).ConfigureAwait(false);
+            Variant[] values = VariantsOf(fields);
+            for (int ii = 0; ii < 3; ii++)
+            {
+                RequireValueType(fields[ii], values[ii].TryGetValue(out string? _));
+            }
+            bool hasLocalTime = values[3].TryGetValue<TimeZoneDataType>(
+                out TimeZoneDataType? localTime, Session.MessageContext);
+            RequireValueType(fields[3], hasLocalTime || IsNullStructure(values[3]));
             List<ReferenceDescription> entries = await BrowseAsync(
                 asset,
                 Ua.ReferenceTypeIds.HasDictionaryEntry,
                 BrowseDirection.Forward,
                 cancellationToken).ConfigureAwait(false);
-            TimeZoneDataType localTime;
             return new AssetContextRecord
             {
                 HierarchicalLocation = StringOf(values[0]),
                 OperationalLocation = StringOf(values[1]),
                 DigitalLocation = StringOf(values[2]),
-                LocalTime = values[3].TryGetStructure(Session.MessageContext, out localTime!) ? localTime : null,
-                Classifications = TargetsOf(entries)
+                LocalTime = hasLocalTime ? localTime : null,
+                Classifications = TargetsOf(entries),
+                Values = EvidenceOf(fields)
             };
         }
 
@@ -185,36 +220,44 @@ namespace Opc.Ua.AMB.Client
             AssetEntryFolder folder,
             CancellationToken cancellationToken = default)
         {
+            BrowseBudget budget = CreateBrowseBudget();
             NodeId folderId = await ResolveAsync(
                 asset,
                 cancellationToken,
                 Amb(folder == AssetEntryFolder.Requirements
                     ? AmbBrowseNames.Requirements
                     : AmbBrowseNames.Capabilities)).ConfigureAwait(false);
-            List<ReferenceDescription> variables = await BrowseAsync(
+            List<ReferenceDescription> variables = await BrowseWithBudgetAsync(
                 folderId,
                 Ua.ReferenceTypeIds.HierarchicalReferences,
                 BrowseDirection.Forward,
-                cancellationToken,
-                NodeClass.Variable).ConfigureAwait(false);
+                NodeClass.Variable,
+                budget,
+                cancellationToken).ConfigureAwait(false);
             var nodes = new NodeId[variables.Count];
             for (int ii = 0; ii < nodes.Length; ii++)
             {
-                nodes[ii] = ToNodeId(variables[ii].NodeId);
+                nodes[ii] = ReadSourceOf(variables[ii]);
             }
             DataValue[] values = await ReadAsync(nodes, Attributes.Value, cancellationToken).ConfigureAwait(false);
             var entries = new AssetEntryRecord[nodes.Length];
             for (int ii = 0; ii < entries.Length; ii++)
             {
-                List<ReferenceDescription> dictionary = await BrowseAsync(
+                List<ReferenceDescription> dictionary = await BrowseWithBudgetAsync(
                     nodes[ii],
                     Ua.ReferenceTypeIds.HasDictionaryEntry,
                     BrowseDirection.Forward,
+                    NodeClass.Unspecified,
+                    budget,
                     cancellationToken).ConfigureAwait(false);
                 entries[ii] = new AssetEntryRecord(
                     variables[ii].BrowseName,
                     StatusCode.IsGood(values[ii].StatusCode) ? values[ii].WrappedValue : Variant.Null,
-                    TargetsOf(dictionary));
+                    TargetsOf(dictionary))
+                {
+                    ReadValue = m_options is null ? null : new AssetReadValue(
+                        nodes[ii], [variables[ii].BrowseName], Attributes.Value, values[ii])
+                };
             }
             return entries.ToArrayOf();
         }
@@ -231,7 +274,18 @@ namespace Opc.Ua.AMB.Client
             NodeId asset,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            ArrayOf<NodeId> known = await DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false);
+            if (m_options is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            if (m_options is not null && asset.IsNull)
+            {
+                yield break;
+            }
+            BrowseBudget budget = CreateBrowseBudget();
+            ArrayOf<NodeId> known = m_options is null
+                ? await DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false)
+                : await DiscoverByBrowsingAsync(budget, cancellationToken).ConfigureAwait(false);
             var assets = new HashSet<NodeId>();
             foreach (NodeId node in known)
             {
@@ -239,25 +293,34 @@ namespace Opc.Ua.AMB.Client
             }
 
             var seen = new HashSet<NodeId> { asset };
+            var remoteSeen = new HashSet<ExpandedNodeId>();
             var pending = new Queue<(NodeId Node, int Depth)>();
             pending.Enqueue((asset, 0));
             while (pending.Count > 0)
             {
                 (NodeId node, int depth) = pending.Dequeue();
-                if (depth >= MaxDepth)
+                if (depth >= MaxDepth && m_options is null)
                 {
                     continue;
                 }
-                foreach (ReferenceDescription child in await BrowseAsync(
+                foreach (ReferenceDescription child in await BrowseWithBudgetAsync(
                     node,
                     Ua.ReferenceTypeIds.HierarchicalReferences,
                     BrowseDirection.Forward,
-                    cancellationToken,
-                    NodeClass.Object).ConfigureAwait(false))
+                    NodeClass.Object,
+                    budget,
+                    cancellationToken).ConfigureAwait(false))
                 {
                     if (IsRemote(child.NodeId))
                     {
-                        yield return child.NodeId;
+                        if (m_options is null || remoteSeen.Add(child.NodeId))
+                        {
+                            if (depth >= MaxDepth)
+                            {
+                                throw LimitExceeded("The AMB sub-asset depth limit was exceeded.");
+                            }
+                            yield return child.NodeId;
+                        }
                         continue;
                     }
                     NodeId target = ToNodeId(child.NodeId);
@@ -265,11 +328,139 @@ namespace Opc.Ua.AMB.Client
                     {
                         continue;
                     }
+                    if (depth >= MaxDepth)
+                    {
+                        throw LimitExceeded("The AMB sub-asset depth limit was exceeded.");
+                    }
                     if (assets.Contains(target))
                     {
                         yield return target;
                     }
                     pending.Enqueue((target, depth + 1));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Walks the sub-asset hierarchy across servers. Unlike
+        /// <see cref="EnumerateSubAssetsAsync(NodeId, CancellationToken)"/>,
+        /// this operation follows remote references and fails if it cannot resolve one.
+        /// </summary>
+        /// <param name="asset">The root asset in this client's session.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Sub-assets in breadth-first order, with their owning server URI.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The resolver is not configured, a remote server or namespace cannot be resolved,
+        /// a response is invalid, or the traversal exceeds its configured limits.
+        /// </exception>
+        public async IAsyncEnumerable<AssetSubAssetReference> EnumerateSubAssetsAcrossServersAsync(
+            NodeId asset,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (asset.IsNull)
+            {
+                yield break;
+            }
+
+            AmbClientOptions options = m_options ?? throw new ServiceResultException(
+                StatusCodes.BadNotSupported,
+                "Cross-server AMB traversal requires bounded AmbClientOptions.");
+            BrowseBudget budget = CreateBrowseBudget();
+            string rootServerUri = ServerApplicationUri(Session);
+            var rootServer = new SubAssetTraversalServer(
+                this,
+                rootServerUri,
+                ToAssetSet(await DiscoverByBrowsingAsync(budget, cancellationToken).ConfigureAwait(false)));
+            var servers = new Dictionary<string, SubAssetTraversalServer>(StringComparer.Ordinal)
+            {
+                [rootServerUri] = rootServer
+            };
+            var seen = new HashSet<SubAssetNodeKey>
+            {
+                KeyOf(rootServer, asset)
+            };
+            var pending = new Queue<(SubAssetTraversalServer Server, NodeId Node, int Depth)>();
+            pending.Enqueue((rootServer, asset, 0));
+
+            while (pending.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                (SubAssetTraversalServer current, NodeId node, int depth) = pending.Dequeue();
+                // A node-class filter excludes remote references whose attributes the source cannot supply.
+                foreach (ReferenceDescription child in await current.Client.BrowseWithBudgetAsync(
+                    node,
+                    Ua.ReferenceTypeIds.HierarchicalReferences,
+                    BrowseDirection.Forward,
+                    NodeClass.Unspecified,
+                    budget,
+                    cancellationToken).ConfigureAwait(false))
+                {
+                    if (!IsRemote(child.NodeId) && child.NodeClass != NodeClass.Object)
+                    {
+                        continue;
+                    }
+                    SubAssetTraversalServer targetServer = current;
+                    if (IsRemote(child.NodeId))
+                    {
+                        string? serverUri = current.Client.Session.ServerUris.GetString(child.NodeId.ServerIndex);
+                        if (string.IsNullOrWhiteSpace(serverUri))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadServerUriInvalid,
+                                "A remote AMB reference has no corresponding server URI.");
+                        }
+                        if (!servers.TryGetValue(serverUri, out SubAssetTraversalServer? existingServer))
+                        {
+                            Func<string, CancellationToken, Task<ManagedSession>> resolver =
+                                options.RemoteSessionResolver ??
+                                throw new ServiceResultException(
+                                    StatusCodes.BadNotSupported,
+                                    "Following a remote AMB link requires a remote session resolver.");
+                            ManagedSession remoteSession = await resolver(serverUri, cancellationToken)
+                                .ConfigureAwait(false) ??
+                                throw new ServiceResultException(
+                                    StatusCodes.BadServerUriInvalid,
+                                    "The AMB remote session resolver returned no session.");
+                            string resolvedServerUri = ServerApplicationUri(remoteSession);
+                            if (!string.Equals(serverUri, resolvedServerUri, StringComparison.Ordinal))
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadServerUriInvalid,
+                                    "The AMB remote session is connected to a different server URI.");
+                            }
+                            var remoteClient = new AmbClient(remoteSession, Telemetry, options);
+                            targetServer = new SubAssetTraversalServer(
+                                remoteClient,
+                                serverUri,
+                                ToAssetSet(await remoteClient.DiscoverByBrowsingAsync(
+                                    budget,
+                                    cancellationToken).ConfigureAwait(false)));
+                            servers.Add(serverUri, targetServer);
+                        }
+                        else
+                        {
+                            targetServer = existingServer;
+                        }
+                    }
+
+                    NodeId target = TranslateNodeId(child.NodeId, current.Client.Session, targetServer.Client.Session);
+                    SubAssetNodeKey key = KeyOf(targetServer, target);
+                    if (!seen.Add(key))
+                    {
+                        continue;
+                    }
+                    if (depth >= MaxDepth)
+                    {
+                        throw LimitExceeded("The AMB sub-asset depth limit was exceeded.");
+                    }
+                    if (targetServer.Assets.Contains(target))
+                    {
+                        yield return new AssetSubAssetReference(
+                            targetServer.ServerUri,
+                            NodeId.ToExpandedNodeId(target, targetServer.Client.Session.NamespaceUris));
+                    }
+                    pending.Enqueue((targetServer, target, depth + 1));
                 }
             }
         }
@@ -285,7 +476,10 @@ namespace Opc.Ua.AMB.Client
             NodeId asset,
             CancellationToken cancellationToken = default)
         {
-            ArrayOf<NodeId> known = await DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false);
+            BrowseBudget budget = CreateBrowseBudget();
+            ArrayOf<NodeId> known = m_options is null
+                ? await DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false)
+                : await DiscoverByBrowsingAsync(budget, cancellationToken).ConfigureAwait(false);
             var assets = new HashSet<NodeId>();
             foreach (NodeId node in known)
             {
@@ -293,13 +487,15 @@ namespace Opc.Ua.AMB.Client
             }
 
             var relations = new List<AssetRelation>();
-            foreach (ReferenceDescription reference in await BrowseAsync(
+            foreach (ReferenceDescription reference in await BrowseWithBudgetAsync(
                 asset,
                 Ua.ReferenceTypeIds.NonHierarchicalReferences,
                 BrowseDirection.Both,
+                NodeClass.Unspecified,
+                budget,
                 cancellationToken).ConfigureAwait(false))
             {
-                NodeId target = ToNodeId(reference.NodeId);
+                NodeId target = IsRemote(reference.NodeId) ? NodeId.Null : ToNodeId(reference.NodeId);
                 if (IsRemote(reference.NodeId) || (target != asset && assets.Contains(target)))
                 {
                     relations.Add(new AssetRelation(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId));
@@ -327,6 +523,57 @@ namespace Opc.Ua.AMB.Client
             return nodeId.ServerIndex != 0;
         }
 
+        private static string ServerApplicationUri(ISession session)
+        {
+            string? serverUri = session.ConfiguredEndpoint.Description?.Server?.ApplicationUri ??
+                session.ConfiguredEndpoint.ReverseConnect?.ServerUri;
+            if (string.IsNullOrWhiteSpace(serverUri))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadServerUriInvalid,
+                    "The AMB session has no server application URI.");
+            }
+            return serverUri;
+        }
+
+        private static NodeId TranslateNodeId(ExpandedNodeId nodeId, ISession source, ISession target)
+        {
+            ISession namespaceOwner = IsRemote(nodeId) ? target : source;
+            NodeId resolved = ExpandedNodeId.ToNodeId(nodeId.WithServerIndex(0), namespaceOwner.NamespaceUris);
+            if (resolved.IsNull || namespaceOwner.NamespaceUris.GetString(resolved.NamespaceIndex) is null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid,
+                    "An AMB reference namespace is not present in its server session.");
+            }
+            ExpandedNodeId portableId = NodeId.ToExpandedNodeId(resolved, namespaceOwner.NamespaceUris);
+            NodeId targetId = ExpandedNodeId.ToNodeId(portableId, target.NamespaceUris);
+            if (targetId.IsNull)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid,
+                    "An AMB reference namespace is not present in the resolved server session.");
+            }
+            return targetId;
+        }
+
+        private static HashSet<NodeId> ToAssetSet(ArrayOf<NodeId> assets)
+        {
+            var result = new HashSet<NodeId>();
+            foreach (NodeId node in assets)
+            {
+                result.Add(node);
+            }
+            return result;
+        }
+
+        private static SubAssetNodeKey KeyOf(SubAssetTraversalServer server, NodeId node)
+        {
+            return new SubAssetNodeKey(
+                server.ServerUri,
+                NodeId.ToExpandedNodeId(node, server.Client.Session.NamespaceUris));
+        }
+
         private static ArrayOf<ExpandedNodeId> TargetsOf(List<ReferenceDescription> references)
         {
             var targets = new ExpandedNodeId[references.Count];
@@ -336,5 +583,18 @@ namespace Opc.Ua.AMB.Client
             }
             return targets.ToArrayOf();
         }
+
+        /// <summary>
+        /// Identifies a visited node independently of each server's namespace indexes.
+        /// </summary>
+        private readonly record struct SubAssetNodeKey(string ServerUri, ExpandedNodeId NodeId);
+
+        /// <summary>
+        /// Keeps the borrowed client and discovered assets for one server in a traversal.
+        /// </summary>
+        private sealed record SubAssetTraversalServer(
+            AmbClient Client,
+            string ServerUri,
+            HashSet<NodeId> Assets);
     }
 }

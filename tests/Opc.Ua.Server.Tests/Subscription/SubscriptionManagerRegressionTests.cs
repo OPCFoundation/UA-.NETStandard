@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Tests
                 semaphore.Release();
             }
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await creating.ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(manager.GetSubscriptions(), Is.Empty);
@@ -700,6 +700,7 @@ namespace Opc.Ua.Server.Tests
                         uint id = (uint)Interlocked.Increment(ref nextId);
                         var item = new Mock<IMonitoredItem>();
                         item.SetupGet(value => value.Id).Returns(id);
+                        item.SetupGet(value => value.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
                         var created = new MonitoredItemCreateResult
                         {
                             MonitoredItemId = id,
@@ -736,7 +737,11 @@ namespace Opc.Ua.Server.Tests
             {
                 var item = new Mock<IMonitoredItem>();
                 item.SetupGet(value => value.Id).Returns(ii);
+                item.SetupGet(value => value.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
                 monitoredItems.Add(ii, new LinkedListNode<IMonitoredItem>(item.Object));
+                typeof(Subscription)
+                    .GetMethod("OnMonitoredItemAdded", BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .Invoke(subscription, [item.Object]);
             }
         }
 

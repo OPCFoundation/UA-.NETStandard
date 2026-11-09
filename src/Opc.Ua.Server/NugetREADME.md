@@ -9,9 +9,8 @@ fluent `builder.AddServer(...)` DI surface.
 
 ## Overview
 
-Reference this package from every OPC UA server executable. It
-provides everything you need to implement a custom server on top of
-the UASC channel pipeline shipped by
+Reference this package from every OPC UA server executable. Use it
+to implement a custom server on top of the UASC channel pipeline shipped by
 `OPCFoundation.NetStandard.Opc.Ua.Core`.
 
 ## Getting started
@@ -57,6 +56,22 @@ services.AddOpcUa()
 The runtime loader supports grouped file and stream sources, orders included models by `RequiredModel`, and uses the server's default runtime complex-type support. See the [Runtime NodeSets guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/RuntimeNodeSets.md).
 
 To add or reload a NodeSet after the server is running, inject `INodeManagerLifecycle` (or use `StandardServer.NodeManagerLifecycle`) and call `AddRuntimeNodeSetAsync` / `ReloadRuntimeNodeSetAsync`. The returned generation-aware registration can later be removed with `RemoveAsync`. Active monitored items retain their identity when compatible nodes remain, publish one `BadNodeIdUnknown` when their node disappears, and automatically recover when a compatible Node with the same NodeId returns. Namespace indexes and compatible runtime DataType registrations remain stable for the server lifetime.
+
+## Programs
+
+For provider-backed Part 10 execution, register `AddPrograms` or construct a
+`ProgramNodeManagerFactory` directly. The runtime manages control methods,
+invocation lifetime, diagnostics and captured result events. See the
+[Programs guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Programs.md).
+
+## Base Network Model
+
+`AddNetworkModel` registers a provider-backed Part 22 manager under the standard
+Resources entry points. `INetworkModelProvider` supplies interfaces, priority
+mappings, TSN streams and LLDP acquisitions; mapping edits require an explicit
+authorization policy. `ReferenceNetworkModelProvider` simulates state without
+changing host networking. See the
+[Base Network Model guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/BaseNetworkModel.md).
 
 ## Target frameworks
 

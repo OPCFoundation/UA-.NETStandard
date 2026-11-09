@@ -34,6 +34,8 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Subscriptions.Classic.Tests
 {
     /// <summary>
@@ -92,7 +94,6 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Test]
-        [Order(100)]
         public void ClassicEngineSessionHasSubscriptionEngine()
         {
             var session = (Session)Session;
@@ -110,8 +111,8 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(30_000)]
+        [DependsOnTest(nameof(ClassicEngineSessionHasSubscriptionEngine), AllowFailure = true)]
         public async Task ClassicEngineCreateAndDeleteSubscription()
         {
             using var notificationReceived = new ManualResetEventSlim(false);
@@ -178,8 +179,8 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Test]
-        [Order(300)]
         [CancelAfter(30_000)]
+        [DependsOnTest(nameof(ClassicEngineCreateAndDeleteSubscription), AllowFailure = true)]
         public async Task ClassicEnginePublishRequestCountScales()
         {
             const int subscriptionCount = 3;
@@ -242,8 +243,8 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Test]
-        [Order(400)]
         [CancelAfter(30_000)]
+        [DependsOnTest(nameof(ClassicEnginePublishRequestCountScales), AllowFailure = true)]
         public async Task ClassicEngineSubscriptionReceivesKeepAlive()
         {
             int keepAliveCount = 0;

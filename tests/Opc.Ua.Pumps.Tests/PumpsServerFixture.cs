@@ -30,7 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Moq;
 using Opc.Ua.Pumps.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 
@@ -53,7 +55,10 @@ namespace Opc.Ua.Pumps.Tests
         public async Task StartAsync(PumpsServerOptions? options = null)
         {
             m_fixture = new ServerFixture<StandardServer>(
-                telemetry => new StandardServer(telemetry))
+                telemetry => new StandardServer(telemetry)
+                {
+                    SessionManagerFactory = new DirectSessionManagerFactory()
+                })
             {
                 AutoAccept = true,
                 SecurityNone = true
@@ -75,11 +80,70 @@ namespace Opc.Ua.Pumps.Tests
 
         public async ValueTask DisposeAsync()
         {
-            Manager?.Dispose();
+            if (Manager != null)
+            {
+                await Manager.DisposeAsync().ConfigureAwait(false);
+            }
             if (m_fixture != null)
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Creates the ordinary session manager with registered direct-test owners.
+        /// </summary>
+        private sealed class DirectSessionManagerFactory : ISessionManagerFactory
+        {
+            /// <inheritdoc/>
+            public ISessionManager Create(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                TimeProvider timeProvider,
+                Func<string, Certificate?> serverCertificateProvider) =>
+                new DirectSessionManager(server, configuration, timeProvider);
+        }
+
+        /// <summary>
+        /// Keeps the fixture's logical file owners visible to session-lifetime validation.
+        /// </summary>
+        private sealed class DirectSessionManager : SessionManager
+        {
+            /// <summary>
+            /// Creates the manager and the two direct-call session entries.
+            /// </summary>
+            public DirectSessionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                TimeProvider timeProvider)
+                : base(server, configuration, timeProvider)
+            {
+                m_directSessions = [CreateDirectSession(42), CreateDirectSession(43)];
+            }
+
+            /// <inheritdoc/>
+            public override IList<ISession> GetSessions()
+            {
+                IList<ISession> sessions = base.GetSessions();
+                foreach (Mock<ISession> session in m_directSessions)
+                {
+                    sessions.Add(session.Object);
+                }
+                return sessions;
+            }
+
+            /// <summary>
+            /// Creates a live entry for one direct-call owner.
+            /// </summary>
+            private static Mock<ISession> CreateDirectSession(uint id)
+            {
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Id).Returns(new NodeId(id));
+                return session;
+            }
+
+            /// <summary>The registered direct-call owners retained by this fixture.</summary>
+            private readonly ArrayOf<Mock<ISession>> m_directSessions;
         }
     }
 }

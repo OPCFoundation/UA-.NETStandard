@@ -68,6 +68,26 @@ namespace Opc.Ua.Pumps.Client
             PumpReadOptions? options = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            await foreach (PumpEntry port in EnumeratePortEntriesAsync(pump, cancellationToken).ConfigureAwait(false))
+            {
+                yield return await ReadPortAsync(
+                    port.NodeId,
+                    NameOf(port.BrowseName),
+                    port.TypeDefinitionId,
+                    options,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Enumerates port identities without fetching their engineering groups.
+        /// </summary>
+        /// <param name="pump">The pump that owns the Ports group.</param>
+        /// <param name="cancellationToken">Cancels discovery.</param>
+        public async IAsyncEnumerable<PumpEntry> EnumeratePortEntriesAsync(
+            NodeId pump,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
             NodeId ports = await ResolvePortsAsync(pump, cancellationToken)
                 .ConfigureAwait(false);
             if (ports.IsNull)
@@ -75,32 +95,22 @@ namespace Opc.Ua.Pumps.Client
                 yield break;
             }
 
-            var discovered = new List<(NodeId NodeId, string Name, NodeId TypeDefinition)>();
             await foreach (ReferenceDescription reference in BrowseChildrenAsync(
-                    ports,
-                    NodeClass.Object,
-                    cancellationToken).ConfigureAwait(false))
+                ports,
+                NodeClass.Object,
+                cancellationToken).ConfigureAwait(false))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 if (!nodeId.IsNull)
                 {
-                    discovered.Add((
+                    yield return new PumpEntry(
                         nodeId,
-                        NameOf(reference.BrowseName),
+                        reference.BrowseName,
+                        reference.DisplayName,
                         ExpandedNodeId.ToNodeId(
                             reference.TypeDefinition,
-                            Session.NamespaceUris)));
+                            Session.NamespaceUris));
                 }
-            }
-
-            foreach ((NodeId nodeId, string name, NodeId typeDefinition) in discovered)
-            {
-                yield return await ReadPortAsync(
-                    nodeId,
-                    name,
-                    typeDefinition,
-                    options,
-                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -117,9 +127,9 @@ namespace Opc.Ua.Pumps.Client
         {
             var ports = new List<PumpPortDescriptor>();
             await foreach (PumpPortDescriptor port in EnumeratePortsAsync(
-                    pump,
-                    options,
-                    cancellationToken).ConfigureAwait(false))
+                pump,
+                options,
+                cancellationToken).ConfigureAwait(false))
             {
                 ports.Add(port);
             }
@@ -148,9 +158,15 @@ namespace Opc.Ua.Pumps.Client
                 cancellationToken).ConfigureAwait(false);
 
             PumpValueSet design = await ReadPumpsChildSetAsync(
-                port, BrowseNames.Design, options, cancellationToken).ConfigureAwait(false);
+                port,
+                BrowseNames.Design,
+                options,
+                cancellationToken).ConfigureAwait(false);
             PumpValueSet measurements = await ReadPumpsChildSetAsync(
-                port, BrowseNames.Measurements, options, cancellationToken)
+                port,
+                BrowseNames.Measurements,
+                options,
+                cancellationToken)
                 .ConfigureAwait(false);
 
             // A drive port has neither of these; resolving them costs one
@@ -160,10 +176,16 @@ namespace Opc.Ua.Pumps.Client
             if (kind != PumpPortKind.Drive)
             {
                 implementation = await ReadPumpsChildSetAsync(
-                    port, BrowseNames.Implementation, options, cancellationToken)
+                    port,
+                    BrowseNames.Implementation,
+                    options,
+                    cancellationToken)
                     .ConfigureAwait(false);
                 requirements = await ReadPumpsChildSetAsync(
-                    port, BrowseNames.SystemRequirements, options, cancellationToken)
+                    port,
+                    BrowseNames.SystemRequirements,
+                    options,
+                    cancellationToken)
                     .ConfigureAwait(false);
             }
 

@@ -85,7 +85,6 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(120_000)]
         public async Task ItemsOverflowSplitIntoMultiplePartitionsAsync(
             CancellationToken ct)
@@ -193,8 +192,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ItemsOverflowSplitIntoMultiplePartitionsAsync), AllowFailure = true)]
         public async Task StrictAffinityPinsItemsToSamePartitionAsync(
             CancellationToken ct)
         {
@@ -284,8 +283,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(300)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(StrictAffinityPinsItemsToSamePartitionAsync), AllowFailure = true)]
         public async Task SaveLoadRoundTripsAllPartitionsAsync(
             CancellationToken ct)
         {
@@ -419,8 +418,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(400)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(SaveLoadRoundTripsAllPartitionsAsync), AllowFailure = true)]
         public async Task DurableLifetimeAppliesToSecondaryPartitionsAsync(
             CancellationToken ct)
         {

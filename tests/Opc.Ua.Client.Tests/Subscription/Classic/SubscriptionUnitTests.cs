@@ -36,7 +36,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Tests;
+
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
 
 namespace Opc.Ua.Client.Tests
 {
@@ -282,6 +286,166 @@ namespace Opc.Ua.Client.Tests
                 ).ConfigureAwait(false);
 
             Assert.That(subscription.Notifications, Is.EqualTo([messages[2], messages[3], messages[4], messages[5]]));
+        }
+
+        /// <summary>
+        /// Whole-message diagnostics come from the wire array even when caching is disabled
+        /// or the message contains client handles that are not registered locally.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        [CancelAfter(10_000)]
+        public async Task WholeMessageDeliveryPreservesWireDiagnosticsAsync(
+            bool disableCache, bool registeredItems, CancellationToken ct)
+        {
+            var delivered = new TaskCompletionSource<SubscriptionNotificationMessage>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var handler = new Mock<ISubscriptionNotificationMessageHandler>();
+            handler.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Callback((SubscriptionNotificationMessage message, CancellationToken _) =>
+                    delivered.TrySetResult(message))
+                .Returns(default(ValueTask));
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var subscription = new Subscription(telemetry, new() { PublishingEnabled = true })
+            {
+                DisableMonitoredItemCache = disableCache,
+                NotificationMessageHandler = handler.Object,
+                Session = BuildSessionMock()
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            uint firstHandle = 11;
+            uint secondHandle = 12;
+            if (registeredItems)
+            {
+                var firstItem = new MonitoredItem(telemetry);
+                var secondItem = new MonitoredItem(telemetry);
+                subscription.AddItems([firstItem, secondItem]);
+                firstHandle = firstItem.ClientHandle;
+                secondHandle = secondItem.ClientHandle;
+            }
+            var first = new DiagnosticInfo { SymbolicId = 0, AdditionalInfo = "first wire diagnostic" };
+            var second = new DiagnosticInfo { SymbolicId = 1, AdditionalInfo = "second wire diagnostic" };
+            var data = new DataChangeNotification
+            {
+                MonitoredItems =
+                [
+                    new MonitoredItemNotification { ClientHandle = firstHandle },
+                    new MonitoredItemNotification { ClientHandle = secondHandle }
+                ],
+                DiagnosticInfos = [first, second]
+            };
+            subscription.SaveMessageInCache([1u], new NotificationMessage
+            {
+                SequenceNumber = 1,
+                StringTable = ["first", "second"],
+                NotificationData = [new(data)]
+            }, subscription.GetAcknowledgementScope());
+
+            SubscriptionNotificationMessage message = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(data.MonitoredItems[0].DiagnosticInfo,
+                Is.SameAs(registeredItems && !disableCache ? first : null));
+            Assert.That(message.Notifications[0].DataChanges[0].DiagnosticInfo, Is.SameAs(first));
+            Assert.That(message.Notifications[0].DataChanges[1].DiagnosticInfo, Is.SameAs(second));
+            Assert.That(message.StringTable[1], Is.EqualTo("second"));
+        }
+
+        /// <summary>
+        /// Classic whole-message delivery preserves Publish metadata and marks Republish metadata unknown.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        [CancelAfter(10_000)]
+        public async Task WholeMessageDeliveryPreservesSplitMetadataAsync(
+            bool republished, bool moreNotifications, CancellationToken ct)
+        {
+            var delivered = new TaskCompletionSource<SubscriptionNotificationMessage>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var handler = new Mock<ISubscriptionNotificationMessageHandler>();
+            handler.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Callback((SubscriptionNotificationMessage message, CancellationToken _) =>
+                    delivered.TrySetResult(message))
+                .Returns(default(ValueTask));
+            using var subscription = new Subscription(
+                NUnitTelemetryContext.Create(), new() { PublishingEnabled = true })
+            {
+                NotificationMessageHandler = handler.Object,
+                Session = BuildSessionMock()
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            var wire = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                MoreNotifications = moreNotifications,
+                NotificationData = [new(new DataChangeNotification())]
+            };
+            if (republished)
+            {
+                subscription.SaveRepublishedMessageInCache(wire, subscription.GetAcknowledgementScope());
+            }
+            else
+            {
+                subscription.SaveMessageInCache([1], wire, subscription.GetAcknowledgementScope());
+            }
+            SubscriptionNotificationMessage message = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(message.MoreNotifications, Is.EqualTo(republished ? (bool?)null : moreNotifications));
+        }
+
+        /// <summary>
+        /// A notification carries the acknowledgement handle captured when its message was
+        /// received, even if the subscription lifetime changes before the message is
+        /// dispatched, so it matches the acknowledgement the engine tracks.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DispatchedNotificationsCarryTheHandleCapturedAtReceiptAsync(CancellationToken ct)
+        {
+            using var session = SessionMock.Create();
+            session.Acknowledgements = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
+            var delivered = new TaskCompletionSource<DataChangeNotification>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                FastDataChangeCallback = (_, notification, _) => delivered.TrySetResult(notification),
+                Session = BuildSessionMock()
+            };
+            // Created through the mocked services, which starts the dispatch worker, then bound to a
+            // session with an acknowledgement configuration.
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            subscription.Session = session;
+            var received = new AcknowledgementScope(subscription, 5, subscription.Id);
+            Assert.That(subscription.GetAcknowledgementScope(), Is.Not.SameAs(received),
+                "The lifetime changed after the message was received.");
+
+            subscription.SaveMessageInCache([1u], new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [new(new DataChangeNotification { SequenceNumber = 1 })]
+            }, received);
+            DataChangeNotification notification = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(subscription.TryGetAcknowledgementHandle(notification, out AcknowledgementHandle handle), Is.True);
+            Assert.That(handle, Is.EqualTo(new AcknowledgementHandle(received, 1)));
+
+            // A message cached without a tracked acknowledgement (the default-engine
+            // compatibility path) gets no handle.
+            delivered = new TaskCompletionSource<DataChangeNotification>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            subscription.SaveMessageInCache([2u], new NotificationMessage
+            {
+                SequenceNumber = 2,
+                NotificationData = [new(new DataChangeNotification { SequenceNumber = 2 })]
+            });
+            DataChangeNotification untracked = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(subscription.TryGetAcknowledgementHandle(untracked, out _), Is.False);
         }
 
         [Test]
@@ -980,6 +1144,104 @@ namespace Opc.Ua.Client.Tests
             Assert.That(delivered.Task.IsCompleted, Is.True, "No notification was delivered.");
             Assert.That(received, Is.EqualTo(new uint[] { 1, 2 }));
             Assert.That(subscription.Notifications, Is.EqualTo(new[] { messages[2] }));
+        }
+
+        /// <summary>
+        /// The message cache holds at most MaxMessageCount messages. The newest
+        /// message always stays cached, so a value below one keeps a single
+        /// message and LastNotification, SequenceNumber and the other last
+        /// message properties remain available.
+        /// </summary>
+        [TestCase(-1, 1)]
+        [TestCase(0, 1)]
+        [TestCase(1, 1)]
+        [TestCase(2, 2)]
+        [TestCase(5, 5)]
+        [TestCase(6, 5)]
+        [CancelAfter(5000)]
+        public async Task MessageCacheHoldsAtMostMaxMessageCountAsync(
+            int maxMessageCount,
+            int expectedCount,
+            CancellationToken ct)
+        {
+            NotificationMessage[] messages = BuildMessages(5);
+            using Subscription subscription = BuildCacheSubscription(
+                maxMessageCount, messages.Length - 1, out Task delivered);
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            for (int ii = 1; ii < messages.Length; ii++)
+            {
+                subscription.SaveMessageInCache([], messages[ii]);
+            }
+            await delivered.WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(
+                subscription.Notifications,
+                Is.EqualTo(messages.Skip(messages.Length - expectedCount)));
+            Assert.That(subscription.LastNotification, Is.SameAs(messages[^1]));
+            Assert.That(subscription.SequenceNumber, Is.EqualTo(messages[^1].SequenceNumber));
+        }
+
+        /// <summary>
+        /// Lowering MaxMessageCount trims the message cache when the next
+        /// message arrives, down to the new limit including that message.
+        /// </summary>
+        [Test]
+        [CancelAfter(5000)]
+        public async Task LoweringMaxMessageCountTrimsMessageCacheOnNextMessageAsync(CancellationToken ct)
+        {
+            NotificationMessage[] messages = BuildMessages(5);
+            using Subscription subscription = BuildCacheSubscription(
+                maxMessageCount: 4, messages.Length - 1, out Task delivered);
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            for (int ii = 1; ii < messages.Length - 1; ii++)
+            {
+                subscription.SaveMessageInCache([], messages[ii]);
+            }
+            await WaitForCachedSequenceNumberAsync(subscription, 4, ct).ConfigureAwait(false);
+
+            subscription.MaxMessageCount = 2;
+            Assert.That(subscription.Notifications.Count(), Is.EqualTo(4));
+
+            subscription.SaveMessageInCache([], messages[5]);
+            await delivered.WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(subscription.Notifications, Is.EqualTo(new[] { messages[4], messages[5] }));
+        }
+
+        private static async Task WaitForCachedSequenceNumberAsync(
+            Subscription subscription,
+            uint sequenceNumber,
+            CancellationToken ct)
+        {
+            while (subscription.SequenceNumber != sequenceNumber)
+            {
+                await Task.Delay(1, ct).ConfigureAwait(false);
+            }
+        }
+
+        private static Subscription BuildCacheSubscription(
+            int maxMessageCount,
+            int messageCount,
+            out Task delivered)
+        {
+            var allDelivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            delivered = allDelivered.Task;
+            int received = 0;
+            return new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { MaxMessageCount = maxMessageCount })
+            {
+                Session = BuildSessionMock(),
+                FastDataChangeCallback = (_, _, _) =>
+                {
+                    if (Interlocked.Increment(ref received) == messageCount)
+                    {
+                        allDelivered.TrySetResult(true);
+                    }
+                }
+            };
         }
 
         /// <summary>

@@ -55,7 +55,8 @@ namespace Opc.Ua.Mcp.Tools
     /// overwrite arbitrary files. The root defaults to
     /// <c>{TEMP}/Opc.Ua.Mcp/exports</c> and can be overridden by setting
     /// the <c>OPCUA_MCP_EXPORT_ROOT</c> environment variable before the
-    /// server is started.
+    /// server is started. The root must be private to the host account.
+    /// Exports create new files and refuse to overwrite existing destinations.
     /// </remarks>
     [McpServerToolType]
     public sealed class NodeSetExportTools
@@ -120,15 +121,8 @@ namespace Opc.Ua.Mcp.Tools
                     ? NodeSetExportOptions.Complete
                     : NodeSetExportOptions.Default;
 
-                // Ensure directory exists
-                string? directory = Path.GetDirectoryName(resolvedFilePath);
-                if (!string.IsNullOrEmpty(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                // Export
-                using var outputStream = new FileStream(resolvedFilePath, FileMode.Create);
+                using FileStream outputStream = NodeSetExportFileWriter.CreateNew(
+                    ResolveExportRoot(services), resolvedFilePath);
                 var systemContext = new SystemContext(sessionManager.Telemetry)
                 {
                     NamespaceUris = session.NamespaceUris,
@@ -211,8 +205,6 @@ namespace Opc.Ua.Mcp.Tools
                     ? NodeSetExportOptions.Complete
                     : NodeSetExportOptions.Default;
 
-                Directory.CreateDirectory(resolvedOutputDirectory);
-
                 // Build namespace filter set
                 HashSet<string>? targetSet = namespaceFilter is { Length: > 0 }
                     ? new HashSet<string>(namespaceFilter, StringComparer.OrdinalIgnoreCase)
@@ -247,7 +239,8 @@ namespace Opc.Ua.Mcp.Tools
                     string fileName = CreateSafeFileName(nsUri!, kvp.Key);
                     string filePath = Path.Combine(resolvedOutputDirectory, fileName);
 
-                    using var outputStream = new FileStream(filePath, FileMode.Create);
+                    using FileStream outputStream = NodeSetExportFileWriter.CreateNew(
+                        ResolveExportRoot(services), filePath);
                     var systemContext = new SystemContext(sessionManager.Telemetry)
                     {
                         NamespaceUris = session.NamespaceUris,

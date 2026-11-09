@@ -128,10 +128,14 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
             {
                 return new WotWriteResult(StatusCodes.BadEncodingError, encoded.Error);
             }
+            if (encoded.Data.Length > m_bounds.MaxPayloadBytes)
+            {
+                return new WotWriteResult(StatusCodes.BadEncodingLimitsExceeded);
+            }
             try
             {
-                await PublishAsync(encoded.Data.ToArray(), cancellationToken).ConfigureAwait(false);
-                return new WotWriteResult(StatusCodes.Good);
+                StatusCode status = await PublishAsync(encoded.Data.ToArray(), cancellationToken).ConfigureAwait(false);
+                return new WotWriteResult(status);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
@@ -158,12 +162,16 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
                 {
                     return new WotInvokeResult(StatusCodes.BadEncodingError, null, encoded.Error);
                 }
+                if (encoded.Data.Length > m_bounds.MaxPayloadBytes)
+                {
+                    return new WotInvokeResult(StatusCodes.BadEncodingLimitsExceeded);
+                }
                 payload = encoded.Data.ToArray();
             }
             try
             {
-                await PublishAsync(payload, cancellationToken).ConfigureAwait(false);
-                return new WotInvokeResult(StatusCodes.Good, []);
+                StatusCode status = await PublishAsync(payload, cancellationToken).ConfigureAwait(false);
+                return new WotInvokeResult(status, []);
             }
             catch (MqttCommunicationException ex)
             {
@@ -225,6 +233,23 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
 
         private Task OnMessageAsync(MqttApplicationMessageReceivedEventArgs args)
         {
+            if (args.ApplicationMessage.Payload.Length > m_bounds.MaxPayloadBytes)
+            {
+                TaskCompletionSource<byte[]>? oversized = Interlocked.Exchange(ref m_pendingRead, null);
+                oversized?.TrySetException(new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                    "The MQTT payload exceeds the configured byte limit."));
+                Action<WotNotification>[] rejectedHandlers;
+                lock (m_lock)
+                {
+                    rejectedHandlers = [.. m_handlers];
+                }
+                var rejected = new WotNotification(DataValue.FromStatusCode(StatusCodes.BadEncodingLimitsExceeded));
+                foreach (Action<WotNotification> handler in rejectedHandlers)
+                {
+                    handler(rejected);
+                }
+                return Task.CompletedTask;
+            }
             byte[] payload = ToArray(args.ApplicationMessage.Payload);
             TaskCompletionSource<byte[]>? pending = Interlocked.Exchange(ref m_pendingRead, null);
             pending?.TrySetResult(payload);
@@ -275,7 +300,7 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
             }
         }
 
-        private async Task PublishAsync(byte[] payload, CancellationToken cancellationToken)
+        private async Task<StatusCode> PublishAsync(byte[] payload, CancellationToken cancellationToken)
         {
             if (ContainsMqttWildcard(m_topic))
             {
@@ -287,7 +312,9 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
                 .WithQualityOfServiceLevel(m_qos)
                 .WithRetainFlag(m_retain)
                 .Build();
-            await m_client.PublishAsync(message, cancellationToken).ConfigureAwait(false);
+            MqttClientPublishResult result = await m_client.PublishAsync(message, cancellationToken)
+                .ConfigureAwait(false);
+            return result.IsSuccess ? StatusCodes.Good : StatusCodes.BadCommunicationError;
         }
 
         private void ValidateSubscribeTopic()

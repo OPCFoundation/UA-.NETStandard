@@ -35,6 +35,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Xml;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
@@ -485,6 +486,28 @@ namespace Opc.Ua.Schema.Model
             return CoreUtils.Format("global::{0}.Namespaces.{1}", ns.Prefix, ns.Name);
         }
 
+        /// <summary>
+        /// Returns the expression for a namespace URI in generated code: the
+        /// model's namespace constant when the model declares the namespace,
+        /// otherwise the URI as an escaped string literal.
+        /// </summary>
+        /// <remarks>
+        /// A namespace the model does not declare can still appear in
+        /// generated code: an inherited child keeps the browse namespace of
+        /// the model that declared it (DI below a Robotics subtype), and a
+        /// reference can target a node of a namespace the NodeSet lists only
+        /// in its NamespaceUris.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        public static string GetNamespaceUriAsCode(
+            this Namespace[] namespaces,
+            string namespaceUri)
+        {
+            return namespaces.GetConstantSymbolForNamespace(namespaceUri)
+                ?? namespaceUri.AsStringLiteral();
+        }
+
         public static bool IsOverriddenWithSameClass(
             this InstanceDesign instance,
             string targetNamespace,
@@ -511,6 +534,47 @@ namespace Opc.Ua.Schema.Model
             // GetNodeStateClassName never returns - it had no effect and this
             // is the behaviour the generated code has always had.)
             return x == y;
+        }
+
+        /// <summary>
+        /// Returns whether an override changes only the type argument of a
+        /// generic node state class, e.g. a <c>PropertyState&lt;ArrayOf&lt;A&gt;&gt;</c>
+        /// overridden as <c>PropertyState&lt;ArrayOf&lt;B&gt;&gt;</c> because the
+        /// subtype refines the DataType of the child to a subtype of
+        /// <c>A</c>.
+        /// </summary>
+        /// <remarks>
+        /// Two constructions of one generic class are unrelated types, so the
+        /// child of the supertype can neither be cast to nor assigned from the
+        /// class of the subtype.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="instance"/> is <c>null</c>.
+        /// </exception>
+        public static bool IsOverriddenWithRefinedGenericClass(
+            this InstanceDesign instance,
+            string targetNamespace,
+            Namespace[] namespaces)
+        {
+            if (instance is null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+            if (!instance.IsOverridden())
+            {
+                return false;
+            }
+
+            string x = instance.GetMergedInstance().GetNodeStateClassName(targetNamespace, namespaces);
+            string y = instance.OveriddenNode.GetNodeStateClassName(targetNamespace, namespaces);
+            if (x == y)
+            {
+                return false;
+            }
+            int genericStart = x.IndexOf('<', StringComparison.Ordinal);
+            return genericStart > 0 &&
+                genericStart == y.IndexOf('<', StringComparison.Ordinal) &&
+                string.CompareOrdinal(x, 0, y, 0, genericStart) == 0;
         }
 
         private static bool IsIndeterminateType(this InstanceDesign instance)
@@ -812,7 +876,12 @@ namespace Opc.Ua.Schema.Model
             s_defaultMethodArgumentCodeNameScope = new();
         private static readonly System.Threading.Lock s_generatedCodeNamesLock = new();
         private static readonly ConditionalWeakTable<Parameter, GeneratedCodeNameState>
-            s_generatedCodeNames = new();
+            s_generatedCodeNames =
+#if NET8_0_OR_GREATER
+                [];
+#else
+                new();
+#endif
 
         /// <summary>
         /// Returns the field name of a child node.
@@ -1005,9 +1074,20 @@ namespace Opc.Ua.Schema.Model
         }
 
         private static readonly ConditionalWeakTable<DataTypeDesign, string[]>
-            s_propertyNames = new();
+            s_propertyNames =
+#if NET8_0_OR_GREATER
+                [];
+#else
+                new();
+#endif
+
         private static readonly ConditionalWeakTable<DataTypeDesign, string[]>
-            s_fieldsEnumMemberNames = new();
+            s_fieldsEnumMemberNames =
+#if NET8_0_OR_GREATER
+                [];
+#else
+                new();
+#endif
 
         /// <summary>
         /// Backing fields the data type templates declare themselves, which a
@@ -1063,7 +1143,6 @@ namespace Opc.Ua.Schema.Model
 
             return names;
         }
-
 
         private static readonly HashSet<string> s_reservedDataTypeMembers =
             new(StringComparer.Ordinal)
@@ -2584,8 +2663,8 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(instance));
             }
-            if (instance.ModellingRule != ModellingRule.MandatoryPlaceholder &&
-                instance.ModellingRule != ModellingRule.OptionalPlaceholder)
+            if (instance.ModellingRule is not ModellingRule.MandatoryPlaceholder and
+                not ModellingRule.OptionalPlaceholder)
             {
                 return false;
             }
@@ -3258,6 +3337,67 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// Resolves a permission's namespace-qualified wire identity without requiring a generated role node.
+        /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// The permission does not identify a representable namespace-qualified role.
+        /// </exception>
+        internal static ExpandedNodeId ResolveRoleId(this RolePermission permission, IModelDesign model)
+        {
+            if (permission.RoleId != null)
+            {
+                if (ExpandedNodeId.TryParse(permission.RoleId, out ExpandedNodeId roleId) &&
+                    !roleId.IsNull &&
+                    roleId.ServerIndex == 0 &&
+                    (roleId.NamespaceIndex == 0 || !string.IsNullOrEmpty(roleId.NamespaceUri)) &&
+                    (roleId.NamespaceUri != Namespaces.OpcUa || !roleId.InnerNodeId.IsNull))
+                {
+                    return roleId.WithNamespaceUri(roleId.NamespaceUri ?? Namespaces.OpcUa);
+                }
+            }
+            else if (permission.Role != null &&
+                model.TryFindNode(permission.Role, permission.Role.Name, "RoleType", out NodeDesign? role))
+            {
+                uint? numericId = role.FindNumericIdentifier();
+                NodeId roleId = role.GetIdentifier() switch
+                {
+                    uint numeric => new NodeId(numeric),
+                    string text => new NodeId(text, 0),
+                    Guid guid => new NodeId(guid),
+                    ByteString opaque => new NodeId(opaque),
+                    _ when numericId.HasValue => new NodeId(numericId.Value),
+                    _ => new NodeId(role.SymbolicId?.Name ?? string.Empty, 0)
+                };
+                if ((role.HasIdentifier() || numericId.HasValue || !string.IsNullOrEmpty(role.SymbolicId?.Name)) &&
+                    !string.IsNullOrEmpty(role.SymbolicId?.Namespace) &&
+                    (!roleId.IsNull || role.SymbolicId.Namespace != Namespaces.OpcUa))
+                {
+                    return ((ExpandedNodeId)roleId).WithNamespaceUri(role.SymbolicId.Namespace);
+                }
+            }
+            throw new InvalidDataException(
+                $"RolePermissions cannot represent role '{permission.RoleId ?? permission.Role?.ToString()}'.");
+        }
+
+        /// <summary>
+        /// Formats the identifier kind even for an empty identifier in a nonzero namespace.
+        /// </summary>
+        internal static string FormatRoleId(this ExpandedNodeId roleId)
+        {
+            var text = new StringBuilder();
+            NodeId identifier = roleId.InnerNodeId;
+            ExpandedNodeId.Format(
+                CultureInfo.InvariantCulture,
+                text,
+                identifier.IdentifierAsString,
+                identifier.IdType,
+                0,
+                roleId.NamespaceUri,
+                0);
+            return text.ToString();
+        }
+
+        /// <summary>
         /// Maps the WriteAccess (WriteMask) of a node onto code. The verbatim
         /// OPC UA WriteMask bitmask is emitted so that attributes advertised as
         /// writable in the NodeSet (for example DisplayName and Description)
@@ -3265,7 +3405,24 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         public static string GetWriteMaskAsCode(this NodeDesign node)
         {
-            uint writeMask = node?.WriteAccess ?? 0;
+            return GetWriteMaskAsCode(node?.WriteAccess ?? 0);
+        }
+
+        /// <summary>
+        /// Emits an explicit user mask independently, retaining the fallback for unconfigured masks.
+        /// </summary>
+        public static string GetUserWriteMaskAsCode(this NodeDesign node)
+        {
+            return GetWriteMaskAsCode(node?.UserWriteAccessSpecified == true
+                ? node.UserWriteAccess
+                : node?.WriteAccess ?? 0);
+        }
+
+        /// <summary>
+        /// Formats an attribute write mask without changing its bits.
+        /// </summary>
+        private static string GetWriteMaskAsCode(uint writeMask)
+        {
             if (writeMask == 0)
             {
                 return "global::Opc.Ua.AttributeWriteMask.None";
@@ -3355,6 +3512,10 @@ namespace Opc.Ua.Schema.Model
             }
             return restrictions switch
             {
+                AccessRestrictions.None =>
+                    "global::Opc.Ua.AccessRestrictionType.None",
+                AccessRestrictions.ApplyToBrowse =>
+                    "global::Opc.Ua.AccessRestrictionType.ApplyRestrictionsToBrowse",
                 AccessRestrictions.SigningRequired =>
                     "global::Opc.Ua.AccessRestrictionType.SigningRequired",
                 AccessRestrictions.EncryptionRequired =>
@@ -3635,7 +3796,7 @@ namespace Opc.Ua.Schema.Model
             return CoreUtils.Format(
                 "global::Opc.Ua.NodeId.Create({0}, {1}, {2})",
                 identifier,
-                namespaces.GetConstantSymbolForNamespace(
+                namespaces.GetNamespaceUriAsCode(
                     node.SymbolicId.Namespace),
                 namespaceTableVariable);
         }
@@ -3680,7 +3841,7 @@ namespace Opc.Ua.Schema.Model
             return CoreUtils.Format(
                 "new global::Opc.Ua.ExpandedNodeId({0}, {1})",
                 identifier,
-                namespaces.GetConstantSymbolForNamespace(
+                namespaces.GetNamespaceUriAsCode(
                     node.SymbolicId.Namespace));
         }
 

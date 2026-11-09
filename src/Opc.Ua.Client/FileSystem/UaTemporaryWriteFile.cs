@@ -36,7 +36,7 @@ namespace Opc.Ua.Client.FileSystem
 {
     /// <summary>
     /// Wraps a server-allocated temporary write file (returned by
-    /// <see cref="TemporaryFileTransferClient.GenerateFileForWriteAsync"/>).
+    /// <see cref="TemporaryFileTransferClient.GenerateFileForWriteAsync(Variant, CancellationToken)"/>).
     /// Owns the close lifecycle: exactly one terminal call —
     /// <see cref="CommitAsync"/> (CloseAndCommit) or
     /// <see cref="DisposeAsync"/> (Close, server rollback) — is sent
@@ -69,6 +69,15 @@ namespace Opc.Ua.Client.FileSystem
         /// The NodeId of the temporary file allocated by the server.
         /// </summary>
         public NodeId FileNodeId { get; }
+
+        /// <summary>
+        /// Gets the server's session-owned handle for companion-specific metadata operations.
+        /// </summary>
+        /// <remarks>
+        /// Keep terminal operations with this wrapper: use <see cref="CommitAsync"/> or
+        /// <see cref="DisposeAsync"/> rather than closing or committing this handle separately.
+        /// </remarks>
+        public uint Handle => m_handle;
 
         /// <summary>
         /// A write-only <see cref="System.IO.Stream"/> wrapper around

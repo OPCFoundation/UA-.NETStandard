@@ -121,7 +121,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await using (channel.ConfigureAwait(false))
             {
                 // The first resolution faults and must surface, not be cached.
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await channel.ReadAsync().ConfigureAwait(false));
 
                 // The next request retries resolution and succeeds.

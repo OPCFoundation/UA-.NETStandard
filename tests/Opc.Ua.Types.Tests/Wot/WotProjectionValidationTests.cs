@@ -59,10 +59,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 () => WotProjection.IsProjection(null!));
         }
 
+        /// <summary>
+        /// Verifies that a document without the projection annotation is not a projection.
+        /// </summary>
         [Test]
         public void ADocumentWithoutTheProjectionAnnotationIsNotAProjection()
         {
-            const string json = """
+            const string json = /*lang=json,strict*/ """
             {
               "@context": ["https://www.w3.org/2022/wot/td/v1.1"],
               "@type": "Thing",
@@ -98,10 +101,13 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertHas(diagnostics, WotDiagnosticCode.ProjectionScenarioMissing);
         }
 
+        /// <summary>
+        /// Verifies that a missing manifest is reported.
+        /// </summary>
         [Test]
         public void AMissingManifestIsReported()
         {
-            const string json = """
+            const string json = /*lang=json,strict*/ """
             {
               "@context": [
                 "https://www.w3.org/2022/wot/td/v1.1",
@@ -134,11 +140,14 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertHas(diagnostics, WotDiagnosticCode.ProjectionManifestInvalid);
         }
 
+        /// <summary>
+        /// Verifies that a manifest entry missing its required keys is reported.
+        /// </summary>
         [Test]
         public void AManifestEntryMissingItsRequiredKeysIsReported()
         {
             WotProjection projection = ParseProjection(
-                Projection(sources: """[ { "uav:sourceName": "a" } ]"""),
+                Projection(sources: /*lang=json,strict*/ """[ { "uav:sourceName": "a" } ]"""),
                 out List<WotDiagnostic> diagnostics);
 
             AssertHas(diagnostics, WotDiagnosticCode.ProjectionManifestInvalid);
@@ -285,25 +294,31 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void AProjectedAffordanceWithoutTmRefIsReported()
+        public void AProjectionMayDefineACompleteLocalAffordance()
         {
             string json = Projection(affordances: """
-              "properties": { "alpha": { "type": "number" } },
+              "properties": {
+                "alpha": {
+                  "type": "number",
+                  "forms": [{ "href": "https://example.com/alpha" }]
+                }
+              },
             """);
             WotProjection projection = ParseProjection(json, out List<WotDiagnostic> diagnostics);
 
-            AssertHas(diagnostics, WotDiagnosticCode.ProjectionDefinesAffordance);
-            Assert.That(projection.References.Count, Is.Zero,
-                "A projection declares affordances; one that defines a body is not a reference.");
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(projection.References.Count, Is.Zero);
+            Assert.That(projection.LocalAffordances.Count, Is.EqualTo(1));
+            Assert.That(projection.LocalAffordances[0].Name, Is.EqualTo("alpha"));
         }
 
         [Test]
         public void AProjectedAffordanceWithTmRefBecomesAReference()
         {
             string json = Projection(affordances: """
-              "properties": { "alpha": { "tm:ref": "a#alpha" } },
-              "actions": { "run": { "tm:ref": "a#run" } },
-              "events": { "tick": { "tm:ref": "a#tick" } },
+              "properties": { "alpha": { "tm:ref": "urn:sourceA#/properties/alpha" } },
+              "actions": { "run": { "tm:ref": "urn:sourceA#/actions/run" } },
+              "events": { "tick": { "tm:ref": "urn:sourceA#/events/tick" } },
             """);
             WotProjection projection = ParseProjection(json, out List<WotDiagnostic> diagnostics);
 
@@ -338,7 +353,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument document = Parse(json);
             diagnostics = [];
-            WotProjection projection = WotProjection.Parse(document, diagnostics)!;
+            var projection = WotProjection.Parse(document, diagnostics);
             Assert.That(projection, Is.Not.Null, "The document carries uav:projection.");
             return projection;
         }
@@ -404,6 +419,49 @@ namespace Opc.Ua.Types.Tests.Wot
               "uav:projects": {{sources ?? Source()}}
             }
             """;
+        }
+
+        [Test]
+        public void CurrentProjectionParsesWithStrictDefaults()
+        {
+            using WotDocument document = Parse(Projection());
+            var diagnostics = new List<WotDiagnostic>();
+
+            WotProjection? projection = WotProjection.Parse(document, diagnostics);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(projection, Is.Not.Null);
+                Assert.That(projection!.ResultKind, Is.EqualTo(WotDocumentKind.ThingDescription));
+                Assert.That(projection.Scenario, Is.EqualTo("http://example.com/scenario/Simple"));
+                Assert.That(projection.Sources.Count, Is.EqualTo(1));
+                Assert.That(projection.Sources[0].Href, Is.EqualTo("urn:sourceA"));
+                Assert.That(diagnostics, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void MissingOrdinaryRootRoleHasATypeDiagnostic()
+        {
+            string json = Projection();
+            json = json.Replace(
+                "\"@type\": [\"Thing\", \"uav:projection\"]",
+                "\"@type\": [\"uav:projection\"]",
+                StringComparison.Ordinal);
+
+            using WotDocument document = Parse(json);
+            var diagnostics = new List<WotDiagnostic>();
+            WotProjection? projection = WotProjection.Parse(document, diagnostics);
+            WotDiagnostic? error = diagnostics.Find(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                diagnostic.Severity == WotDiagnosticSeverity.Error);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(projection, Is.Not.Null);
+                Assert.That(error, Is.Not.Null, string.Join("; ", diagnostics));
+                Assert.That(error!.Location?.Reference, Is.EqualTo("@type"));
+            });
         }
     }
 }

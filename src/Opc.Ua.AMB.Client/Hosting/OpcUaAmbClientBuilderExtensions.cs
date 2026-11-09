@@ -47,6 +47,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <c>Func&lt;CancellationToken, Task&lt;AmbClient&gt;&gt;</c>, together
         /// with the Device Integration client.
         /// </summary>
+        /// <remarks>
+        /// Resolves <see cref="AmbClientOptions"/> when registered in the service
+        /// collection; otherwise clients retain their tolerant behavior.
+        /// </remarks>
         /// <param name="builder">The client builder; <c>AddClient</c> must be called first.</param>
         /// <returns>The same builder, for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
@@ -62,7 +66,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     throw new InvalidOperationException(
                         "AddAssetManagementClient requires AddClient to be called first.");
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
-                return new AmbClientFactory(sessionFactory, telemetry);
+                return new AmbClientFactory(sessionFactory, telemetry, sp.GetService<AmbClientOptions>());
             });
             builder.Services.TryAddSingleton<Func<CancellationToken, Task<AmbClient>>>(sp =>
             {
@@ -70,6 +74,26 @@ namespace Microsoft.Extensions.DependencyInjection
                 return factory.CreateAsync;
             });
             return builder;
+        }
+
+        /// <summary>
+        /// Registers an Asset Management Basics client factory with bounded,
+        /// strictly validated reads.
+        /// </summary>
+        /// <param name="builder">The client builder; <c>AddClient</c> must be called first.</param>
+        /// <param name="options">The immutable traversal limits.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException">An argument is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">A traversal limit is not positive.</exception>
+        public static IOpcUaClientBuilder AddAssetManagementClient(
+            this IOpcUaClientBuilder builder,
+            AmbClientOptions options)
+        {
+            builder.ThrowIfNull(nameof(builder));
+            options.ThrowIfNull(nameof(options));
+            options.Validate();
+            builder.Services.AddSingleton(options);
+            return builder.AddAssetManagementClient();
         }
     }
 }

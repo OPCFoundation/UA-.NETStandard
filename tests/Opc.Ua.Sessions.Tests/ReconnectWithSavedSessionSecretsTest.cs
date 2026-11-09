@@ -38,6 +38,8 @@ using Opc.Ua.Client.TestFramework;
 using ISession = Opc.Ua.Client.ISession;
 using Subscription = Opc.Ua.Client.Subscription;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
@@ -123,7 +125,6 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Test]
         [Combinatorial]
-        [Order(352)]
         [Parallelizable]
         public Task ReconnectWithSavedSessionSecretsAsync(
             [Values] bool anonymous,
@@ -142,7 +143,6 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Test]
         [Combinatorial]
-        [Order(351)]
         [Explicit]
         [Parallelizable]
         public Task ReconnectWithSavedSessionSecretsECCAsync(
@@ -383,7 +383,7 @@ namespace Opc.Ua.Sessions.Tests
                     // CA2025: Assert.ThrowsAsync awaits the lambda synchronously;
                     // session1's lifetime spans through the assertion.
 #pragma warning disable CA2025
-                    sre = Assert.ThrowsAsync<ServiceResultException>(() =>
+                    sre = await Assert.ThrowsAsync<ServiceResultException>(() =>
                         session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus));
 #pragma warning restore CA2025

@@ -99,7 +99,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
         /// <summary>
         /// Adds the default <see cref="ILoggerFactory"/> service registration
-        /// (equivalent to <see cref="LoggingServiceCollectionExtensions.AddLogging(IServiceCollection)"/>)
+        /// (equivalent to <see cref="LoggingServiceCollectionExtensions.AddLogging(IServiceCollection)"/>
+        /// with <see cref="OpcUaLoggingBuilderExtensions.EnableOpcUaRedaction(ILoggingBuilder)"/>)
         /// and returns the same <see cref="IOpcUaBuilder"/> for fluent
         /// chaining into feature methods.
         /// </summary>
@@ -112,13 +113,15 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            builder.Services.AddLogging();
+            builder.Services.AddLogging(logging => logging.EnableOpcUaRedaction());
             return builder;
         }
 
         /// <summary>
         /// Adds the default <see cref="ILoggerFactory"/> service registration
-        /// configured by <paramref name="configure"/> and returns the same
+        /// configured by <paramref name="configure"/>, with
+        /// <see cref="OpcUaLoggingBuilderExtensions.EnableOpcUaRedaction(ILoggingBuilder)"/>
+        /// enabled first, and returns the same
         /// <see cref="IOpcUaBuilder"/> for fluent chaining.
         /// </summary>
         /// <param name="builder">The OPC UA builder.</param>
@@ -138,7 +141,11 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(configure));
             }
-            builder.Services.AddLogging(configure);
+            builder.Services.AddLogging(logging =>
+            {
+                logging.EnableOpcUaRedaction();
+                configure(logging);
+            });
             return builder;
         }
 

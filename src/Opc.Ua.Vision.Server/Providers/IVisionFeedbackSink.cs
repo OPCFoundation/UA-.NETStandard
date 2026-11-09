@@ -29,7 +29,7 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server
 {

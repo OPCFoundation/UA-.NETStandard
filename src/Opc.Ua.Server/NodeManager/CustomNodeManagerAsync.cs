@@ -152,6 +152,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Populates failed input-argument diagnostics or successful outputs while preserving the callback result.
         /// </summary>
+        /// <param name="context">The context for the method invocation.</param>
+        /// <param name="result">The result populated for the Call service response.</param>
+        /// <param name="callResult">The operation result returned by the callback.</param>
+        /// <param name="argumentErrors">The ordered per-input results returned by the callback.</param>
+        /// <param name="outputArguments">The ordered output arguments returned by the callback.</param>
         private ServiceResult CompleteMethodCall(
             ISystemContext context,
             CallMethodResult result,
@@ -159,47 +164,9 @@ namespace Opc.Ua.Server
             List<ServiceResult> argumentErrors,
             List<Variant> outputArguments)
         {
-            if (ServiceResult.IsBad(callResult))
-            {
-                return callResult;
-            }
             var systemContext = context as ServerSystemContext;
-            bool argumentsValid = true;
-            var inputArgumentResults = new List<StatusCode>();
-            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
-            for (int ii = 0; ii < argumentErrors.Count; ii++)
-            {
-                ServiceResult argumentError = argumentErrors[ii];
-                if (argumentError != null)
-                {
-                    inputArgumentResults.Add(argumentError.StatusCode);
-                    if (ServiceResult.IsBad(argumentError))
-                    {
-                        argumentsValid = false;
-                    }
-                    if (systemContext!.OperationContext != null &&
-                        (systemContext.OperationContext.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        inputArgumentDiagnosticInfos.Add(ServiceResult.IsBad(argumentError)
-                            ? new DiagnosticInfo(
-                                argumentError,
-                                systemContext.OperationContext.DiagnosticsMask,
-                                false,
-                                systemContext.OperationContext.StringTable,
-                                m_logger)
-                            : null!);
-                    }
-                }
-            }
-            if (!argumentsValid)
-            {
-                result.InputArgumentResults = inputArgumentResults;
-                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return result.StatusCode;
-            }
-            result.OutputArguments = outputArguments;
-            return callResult;
+            return MethodCallResultBuilder.Apply(
+                callResult, argumentErrors, outputArguments, result, systemContext?.OperationContext, m_logger);
         }
     }
 }

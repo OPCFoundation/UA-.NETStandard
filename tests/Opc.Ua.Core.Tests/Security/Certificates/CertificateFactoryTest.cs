@@ -48,7 +48,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     /// </summary>
     [TestFixture]
     [Category("CertificateFactory")]
-    [Parallelizable]
     [SetCulture("en-us")]
     public class CertificateFactoryTest
     {
@@ -88,6 +87,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify self signed app certs.
         /// </summary>
         [Theory]
+        [DependsOnTest(nameof(ParseCertificateBlob), AllowFailure = true)]
         public void VerifySelfSignedAppCerts(KeyHashPair keyHashPair)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -125,7 +125,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify signed OPC UA app certs.
         /// </summary>
         [Theory]
-        [Order(500)]
+        [DependsOnTest(nameof(VerifyCrlCerts), AllowFailure = true)]
         public void VerifySignedAppCerts(KeyHashPair keyHashPair)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -159,7 +159,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify CA signed app certs.
         /// </summary>
         [Theory]
-        [Order(100)]
         public void VerifyCACerts(KeyHashPair keyHashPair)
         {
             const string subject = "CN=CA Test Cert,O=OPC Foundation,C=US,S=Arizona";
@@ -186,7 +185,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify CRL for CA signed app certs.
         /// </summary>
         [Theory]
-        [Order(400)]
+        [DependsOnTest(nameof(VerifyCACerts), AllowFailure = true)]
         public void VerifyCrlCerts(KeyHashPair keyHashPair)
         {
             int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;
@@ -271,7 +270,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Parse a certificate blob.
         /// </summary>
         [Test]
-        [Order(500)]
+        [DependsOnTest(nameof(VerifySignedAppCerts), AllowFailure = true)]
         public void ParseCertificateBlob()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -313,6 +312,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         [Test]
         [Category("X509Utils")]
+        [DependsOnTest(nameof(ParseCertificateBlob), AllowFailure = true)]
         public void CompareDistinguishedNameWithStateAbbreviations()
         {
             // Test that ST= and S= are treated as equivalent for stateOrProvinceName

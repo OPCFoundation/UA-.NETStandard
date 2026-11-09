@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Text.Json;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -46,26 +47,55 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Extracts the affordance forms from a WoT document.
         /// </summary>
+        /// <param name="document">The serialized WoT document.</param>
+        /// <param name="maxJsonDepth">The max JSON depth.</param>
+        /// <returns>The extracted affordance forms.</returns>
         public static ImmutableArray<WotAffordanceForm> Extract(
             ReadOnlyMemory<byte> document, int maxJsonDepth = 64)
         {
+            return Extract(document, WotBindingProcessingMode.Current, maxJsonDepth);
+        }
+
+        /// <summary>
+        /// Extracts affordance forms using an explicitly selected Binding interpretation.
+        /// </summary>
+        /// <param name="document">The serialized WoT document.</param>
+        /// <param name="processingMode">The consumer-selected OPC UA Binding processing mode.</param>
+        /// <param name="maxJsonDepth">The max JSON depth.</param>
+        /// <returns>The extracted affordance forms.</returns>
+        public static ImmutableArray<WotAffordanceForm> Extract(
+            ByteString document,
+            WotBindingProcessingMode processingMode,
+            int maxJsonDepth = 64)
+        {
+            return Extract(document.Memory, processingMode, maxJsonDepth);
+        }
+
+        private static ImmutableArray<WotAffordanceForm> Extract(
+            ReadOnlyMemory<byte> document,
+            WotBindingProcessingMode processingMode,
+            int maxJsonDepth)
+        {
+            if (processingMode is not (
+                WotBindingProcessingMode.Current or WotBindingProcessingMode.PublishedOneZero))
+            {
+                throw new ArgumentOutOfRangeException(nameof(processingMode));
+            }
+
             ImmutableArray<WotAffordanceForm>.Builder forms = ImmutableArray.CreateBuilder<WotAffordanceForm>();
             try
             {
-                var options = new JsonDocumentOptions { MaxDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth };
-                using var json = JsonDocument.Parse(document, options);
-                JsonElement root = json.RootElement;
-                if (root.ValueKind != JsonValueKind.Object)
+                var options = new WotNodeSetConverterOptions
                 {
-                    return forms.ToImmutable();
-                }
-
-                ImmutableArray<string> thingSecurity = ReadSecurity(root);
-                Collect(root, "properties", WotAffordanceKind.Property, thingSecurity, forms);
-                Collect(root, "actions", WotAffordanceKind.Action, thingSecurity, forms);
-                Collect(root, "events", WotAffordanceKind.Event, thingSecurity, forms);
+                    MaxJsonDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth,
+                    MaxJsonDocumentSize = Math.Max(1, document.Length)
+                };
+                using var json = WotDocument.Parse(document, options);
+                return Extract(
+                    json,
+                    processingMode == WotBindingProcessingMode.PublishedOneZero);
             }
-            catch (JsonException)
+            catch (Exception exception) when (exception is JsonException or FormatException)
             {
                 // Malformed documents are handled upstream by the converter; the
                 // binder layer simply produces no forms.
@@ -73,14 +103,42 @@ namespace Opc.Ua.WotCon.Bindings
             return forms.ToImmutable();
         }
 
+        /// <summary>
+        /// Extracts the affordance forms from a parsed WoT document.
+        /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="allowNumericBrowsePathPrefixes">Whether numeric BrowseName prefixes use the document context.</param>
+        internal static ImmutableArray<WotAffordanceForm> Extract(
+            WotDocument document,
+            bool allowNumericBrowsePathPrefixes = false)
+        {
+            ImmutableArray<WotAffordanceForm>.Builder forms = ImmutableArray.CreateBuilder<WotAffordanceForm>();
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return forms.ToImmutable();
+            }
+            ImmutableArray<string> security = ReadSecurity(document.RootElement);
+            Collect(
+                document, "properties", WotAffordanceKind.Property, security, forms,
+                allowNumericBrowsePathPrefixes);
+            Collect(
+                document, "actions", WotAffordanceKind.Action, security, forms,
+                allowNumericBrowsePathPrefixes);
+            Collect(
+                document, "events", WotAffordanceKind.Event, security, forms,
+                allowNumericBrowsePathPrefixes);
+            return forms.ToImmutable();
+        }
+
         private static void Collect(
-            JsonElement root,
+            WotDocument document,
             string collection,
             WotAffordanceKind kind,
             ImmutableArray<string> thingSecurity,
-            ImmutableArray<WotAffordanceForm>.Builder forms)
+            ImmutableArray<WotAffordanceForm>.Builder forms,
+            bool allowNumericBrowsePathPrefixes)
         {
-            if (!root.TryGetProperty(collection, out JsonElement affordances) ||
+            if (!document.RootElement.TryGetProperty(collection, out JsonElement affordances) ||
                 affordances.ValueKind != JsonValueKind.Object)
             {
                 return;
@@ -92,6 +150,13 @@ namespace Opc.Ua.WotCon.Bindings
                 {
                     continue;
                 }
+                WotPayloadSchema payloadSchema = Wot.WotNodeSetConverter.CapturePayloadSchema(
+                    document, kind switch
+                    {
+                        WotAffordanceKind.Property => Wot.WotAffordanceKind.Property,
+                        WotAffordanceKind.Action => Wot.WotAffordanceKind.Action,
+                        _ => Wot.WotAffordanceKind.Event
+                    }, affordance.Value);
                 JsonElement affordanceElement = affordance.Value.Clone();
                 string affordanceName = affordance.Name;
                 string affordancePointer = "/" +
@@ -108,7 +173,10 @@ namespace Opc.Ua.WotCon.Bindings
                     forms.Add(new WotAffordanceForm(
                         kind, affordanceName, DefaultOperations(kind, affordanceElement),
                         null, null, null, thingSecurity, affordancePointer + "/forms",
-                        default, affordanceElement));
+                        default, affordanceElement)
+                    {
+                        PayloadSchema = payloadSchema
+                    });
                     continue;
                 }
 
@@ -140,7 +208,10 @@ namespace Opc.Ua.WotCon.Bindings
                         security,
                         formPointer,
                         formElement,
-                        affordanceElement));
+                        affordanceElement)
+                    {
+                        PayloadSchema = payloadSchema
+                    }.WithBrowsePathCapture(document, allowNumericBrowsePathPrefixes));
                 }
             }
         }
