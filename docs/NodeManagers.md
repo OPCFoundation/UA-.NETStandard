@@ -1538,6 +1538,9 @@ an instance under a parent with child-id assignment and model-change emission. T
 `AddPredefinedNode` helper and obsolete `CreateNode` only initialize/index nodes; they do not force
 asynchronous recovery to complete synchronously.
 
+Both asynchronous paths index nodes before recovery. If recovery is canceled or fails, the call
+can throw after nodes have been registered. Inspect the address space before retrying.
+
 Root event reporting propagates the exact source through its system context, not ambient
 execution state. The Server notifier's queued deliveries keep their own admissions to that
 source, including when retirement starts during reporting. Forward the supplied context when
