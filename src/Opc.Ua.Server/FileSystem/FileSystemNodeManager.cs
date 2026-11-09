@@ -256,8 +256,8 @@ namespace Opc.Ua.Server.FileSystem
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Deletion waits for cursor cleanups recorded before the host finds its tracking list empty.
-        /// Browser disposal can record a cleanup after that check. The deletion wait does not include it.
+        /// Deletion waits for recorded cursor cleanups, including those added while it waits.
+        /// A cleanup recorded after the host finds its tracking list empty is not included in that wait.
         /// </remarks>
         public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {

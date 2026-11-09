@@ -457,9 +457,9 @@ release starts asynchronous cursor cleanup and does not wait for incomplete
 cleanup to finish. Provider failures during enumeration are reported rather
 than returned as an empty directory.
 
-The host waits for recorded cursor cleanups before deleting the address space.
-A concurrent browser disposal can record a cleanup after the host finds its
-tracking list empty. The deletion wait does not include that cleanup.
+The host waits for recorded cursor cleanups before deleting the address space,
+including cleanups recorded while it waits. A cleanup recorded after the host
+finds its tracking list empty is not included in the deletion wait.
 
 If cursor disposal fails during cleanup started by synchronous release, the
 failure is logged and the cursor is not retried. The continuation release and
