@@ -195,11 +195,15 @@ The server's resource manager selects `EUInformation.DisplayName` and
 `EUInformation.Description` using the session's preferred locales when returning
 read results, data-change notifications, or event fields. Selection creates a new
 structure without modifying the published metadata. The same selection applies
-to `EUInformation` elements in one-dimensional `ExtensionObject` arrays.
+to `EUInformation` elements in `ExtensionObject` arrays and multidimensional
+matrices, preserving their dimensions.
 Translated copies retain each original `ExtensionObject.TypeId`. Envelopes with
 no type identifier or an unsupported encoded body remain unchanged.
 Other structure types, including derived types with additional fields, remain
 unchanged. This is not a general traversal of arbitrary nested structures.
+Read and notification routing invokes a custom `ResourceManager.TranslateValue`
+override only for previously supported `LocalizedText` values or supported
+`EUInformation` envelopes. Unrelated structures do not newly reach the override.
 
 ## Calibration and condition members
 

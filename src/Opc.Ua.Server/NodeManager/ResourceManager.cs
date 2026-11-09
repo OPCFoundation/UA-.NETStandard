@@ -114,8 +114,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Selects translations for scalar or one-dimensional arrays of <see cref="LocalizedText"/>
         /// and for the DisplayName and Description of <see cref="EUInformation"/> values,
-        /// including elements of mixed ExtensionObject arrays (OPC 10000-4 5.4, OPC 10000-3 8.5).
-        /// Other structures and array dimensions are returned unchanged.
+        /// including elements of mixed ExtensionObject arrays and matrices
+        /// (OPC 10000-4 5.4, OPC 10000-3 8.5). Other structures are returned unchanged.
         /// </summary>
         /// <remarks>
         /// The value is never modified in place, so a value stored in the address
@@ -158,25 +158,48 @@ namespace Opc.Ua.Server
 
             if (value.TryGetValue(out ArrayOf<ExtensionObject> structures))
             {
-                ExtensionObject[]? translated = null;
-                for (int ii = 0; ii < structures.Count; ii++)
-                {
-                    if (!structures[ii].TypeId.IsNull &&
-                        structures[ii].TryGetValue(out EUInformation? element) &&
-                        element != null && element.GetType() == typeof(EUInformation))
-                    {
-                        translated ??= structures.Span.ToArray();
-                        translated[ii] = new ExtensionObject(
-                            structures[ii].TypeId, TranslateEngineeringUnits(preferredLocales, element));
-                    }
-                }
+                ExtensionObject[]? translated = TranslateEngineeringUnitElements(preferredLocales, structures.Span);
                 if (translated != null)
                 {
                     return Variant.From(translated.ToArrayOf());
                 }
             }
 
+            if (value.TryGetValue(out MatrixOf<ExtensionObject> matrix))
+            {
+                ExtensionObject[]? translated = TranslateEngineeringUnitElements(preferredLocales, matrix.Span);
+                if (translated != null)
+                {
+                    return Variant.From(translated.ToArrayOf().ToMatrix(matrix.Dimensions));
+                }
+            }
+
             return value;
+        }
+
+        /// <summary>
+        /// Preserves existing text routing and admits only supported unit structures to the virtual translator.
+        /// </summary>
+        internal static bool CanTranslateValue(Variant value)
+        {
+            if (value.TypeInfo.BuiltInType == BuiltInType.LocalizedText)
+            {
+                return true;
+            }
+            if (value.TypeInfo.BuiltInType != BuiltInType.ExtensionObject)
+            {
+                return false;
+            }
+            if (value.TryGetValue(out ExtensionObject structure))
+            {
+                return IsEngineeringUnits(structure);
+            }
+            if (value.TryGetValue(out ArrayOf<ExtensionObject> structures))
+            {
+                return ContainsEngineeringUnits(structures.Span);
+            }
+            return value.TryGetValue(out MatrixOf<ExtensionObject> matrix) &&
+                ContainsEngineeringUnits(matrix.Span);
         }
 
         /// <summary>
@@ -564,6 +587,51 @@ namespace Opc.Ua.Server
                 DisplayName = Translate(preferredLocales, value.DisplayName),
                 Description = Translate(preferredLocales, value.Description)
             };
+        }
+
+        /// <summary>
+        /// Copies supported unit elements while retaining other envelopes and the source container.
+        /// </summary>
+        private ExtensionObject[]? TranslateEngineeringUnitElements(
+            ArrayOf<string> preferredLocales, ReadOnlySpan<ExtensionObject> values)
+        {
+            ExtensionObject[]? translated = null;
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                if (!values[ii].TypeId.IsNull &&
+                    values[ii].TryGetValue(out EUInformation? units) &&
+                    units != null && units.GetType() == typeof(EUInformation))
+                {
+                    translated ??= values.ToArray();
+                    translated[ii] = new ExtensionObject(
+                        values[ii].TypeId, TranslateEngineeringUnits(preferredLocales, units));
+                }
+            }
+            return translated;
+        }
+
+        /// <summary>
+        /// Returns true when the envelope can be copied without changing its type or dropping derived fields.
+        /// </summary>
+        private static bool IsEngineeringUnits(ExtensionObject value)
+        {
+            return !value.TypeId.IsNull && value.TryGetValue(out EUInformation? units) &&
+                units != null && units.GetType() == typeof(EUInformation);
+        }
+
+        /// <summary>
+        /// Returns true when at least one element holds supported engineering metadata.
+        /// </summary>
+        private static bool ContainsEngineeringUnits(ReadOnlySpan<ExtensionObject> values)
+        {
+            foreach (ExtensionObject value in values)
+            {
+                if (IsEngineeringUnits(value))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

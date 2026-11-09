@@ -600,10 +600,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Translates engineering units in a mixed array while preserving unrelated and null elements.
+        /// Translates mixed arrays and matrices while preserving shape, envelope identity and source values.
         /// </summary>
-        [Test]
-        public void TranslateValueSelectsEngineeringUnitsInMixedArray()
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public void TranslateValueSelectsEngineeringUnitsInMixedArray(int rank)
         {
             using var resourceManager = new ResourceManager(
                 new ApplicationConfiguration(NUnitTelemetryContext.Create()));
@@ -616,14 +618,32 @@ namespace Opc.Ua.Server.Tests
                 ExtensionObject.Null,
                 new(range),
                 new(ExpandedNodeId.Null, (object)units),
-                new(alternativeTypeId, "unsupported encoded body")
+                new(alternativeTypeId, "unsupported encoded body"),
+                new(new ExpandedNodeId("other-units", "urn:alternative"), units)
             ];
+            int[] dimensions = rank == 2 ? [2, 3] : [1, 2, 3];
+            Variant source = rank == 1
+                ? Variant.From(stored.ToArrayOf())
+                : Variant.From(stored.ToArrayOf().ToMatrix(dimensions));
 
             Variant result = resourceManager.TranslateValue(
-                ["fr-FR", "de-DE"], Variant.From(stored.ToArrayOf()));
+                ["fr-FR", "de-DE"], source);
 
-            Assert.That(result.TryGetValue(out ArrayOf<ExtensionObject> translated), Is.True);
-            Assert.That(translated.Count, Is.EqualTo(5));
+            ArrayOf<ExtensionObject> translated;
+            if (rank == 1)
+            {
+                Assert.That(result.TryGetValue(out translated), Is.True);
+            }
+            else
+            {
+                Assert.That(result.TryGetValue(out MatrixOf<ExtensionObject> matrix), Is.True);
+                Assert.That(matrix.Dimensions, Is.EqualTo(dimensions));
+                Assert.That(source.TryGetValue(out MatrixOf<ExtensionObject> originalMatrix), Is.True);
+                Assert.That(originalMatrix.Dimensions, Is.EqualTo(dimensions));
+                translated = matrix.Span.ToArray().ToArrayOf();
+            }
+            Assert.That(ResourceManager.CanTranslateValue(source), Is.True);
+            Assert.That(translated.Count, Is.EqualTo(6));
             Assert.That(translated[0].TryGetValue(out EUInformation? selected), Is.True);
             Assert.That(selected, Is.Not.Null);
             Assert.Multiple(() =>
@@ -635,6 +655,9 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(translated[2], Is.EqualTo(stored[2]));
                 Assert.That(translated[3], Is.EqualTo(stored[3]));
                 Assert.That(translated[4], Is.EqualTo(stored[4]));
+                Assert.That(translated[5].TypeId, Is.EqualTo(stored[5].TypeId));
+                Assert.That(translated[5].TryGetValue(out EUInformation? second), Is.True);
+                Assert.That(second!.Description.Text, Is.EqualTo("Hallo"));
                 Assert.That(units.DisplayName.Locale, Is.EqualTo("en-US"));
                 Assert.That(units.Description.Locale, Is.EqualTo("en-US"));
                 Assert.That(stored[0].TryGetValue(out EUInformation? original), Is.True);
@@ -652,6 +675,7 @@ namespace Opc.Ua.Server.Tests
                 new ApplicationConfiguration(NUnitTelemetryContext.Create()));
             var units = new EUInformation { DisplayName = CreateHelloText() };
             Variant stored = Variant.FromStructure(units);
+            Variant derived = Variant.FromStructure(new DerivedEngineeringUnits { DisplayName = CreateHelloText() });
             Variant range = Variant.FromStructure(new Range { Low = 1, High = 2 });
             Variant nullArray = Variant.From(default(ArrayOf<ExtensionObject>));
             Variant emptyArray = Variant.From(ArrayOf.Empty<ExtensionObject>());
@@ -659,6 +683,10 @@ namespace Opc.Ua.Server.Tests
             Variant unidentified = Variant.From(new ExtensionObject(ExpandedNodeId.Null, (object)units));
             Variant encoded = Variant.From(new ExtensionObject(
                 new ExpandedNodeId("units", "urn:alternative"), "unsupported encoded body"));
+            Variant nullMatrix = Variant.From(default(MatrixOf<ExtensionObject>));
+            ExtensionObject[] unrelated = [new(new Range { Low = 1, High = 2 }), ExtensionObject.Null];
+            Variant unrelatedMatrix = Variant.From(unrelated.ToArrayOf().ToMatrix(1, 2));
+            Variant emptyMatrix = Variant.From(ArrayOf.Empty<ExtensionObject>().ToMatrix(0, 2));
 
             Assert.That(resourceManager.TranslateValue([], stored), Is.EqualTo(stored));
             Assert.That(resourceManager.TranslateValue(["de-DE"], range), Is.EqualTo(range));
@@ -666,6 +694,21 @@ namespace Opc.Ua.Server.Tests
             Assert.That(resourceManager.TranslateValue(["de-DE"], emptyArray), Is.EqualTo(emptyArray));
             Assert.That(resourceManager.TranslateValue(["de-DE"], unidentified), Is.EqualTo(unidentified));
             Assert.That(resourceManager.TranslateValue(["de-DE"], encoded), Is.EqualTo(encoded));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], nullMatrix), Is.EqualTo(nullMatrix));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], emptyMatrix), Is.EqualTo(emptyMatrix));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], unrelatedMatrix), Is.EqualTo(unrelatedMatrix));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], derived), Is.EqualTo(derived));
+            Assert.That(ResourceManager.CanTranslateValue(range), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(unidentified), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(encoded), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(nullArray), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(emptyArray), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(nullMatrix), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(emptyMatrix), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(unrelatedMatrix), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(derived), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(Variant.From(42)), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(Variant.From(CreateHelloText())), Is.True);
         }
 
         private static LocalizedText CreateHelloText()
@@ -675,6 +718,13 @@ namespace Opc.Ua.Server.Tests
                 { "en-US", "Hello" },
                 { "de-DE", "Hallo" }
             });
+        }
+
+        /// <summary>
+        /// Represents a unit subtype that the translator must not replace with the base structure.
+        /// </summary>
+        private sealed class DerivedEngineeringUnits : EUInformation
+        {
         }
     }
 }

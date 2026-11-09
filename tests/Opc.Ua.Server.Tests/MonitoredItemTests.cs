@@ -112,15 +112,17 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that a data change of text or engineering units is published in the
         /// locale the session prefers (Part 4 5.4) without changing the queued value.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public void PublishSelectsTranslationOfLocalizedTextValue(bool engineeringUnits)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public void PublishSelectsTranslationOfLocalizedTextValue(bool engineeringUnits, bool unrelatedStructure)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
             Mock<IServerInternal> serverMock = CreateServerMock(telemetry, queueFactory);
-            using var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var translator = new Mock<ResourceManager>(new ApplicationConfiguration(telemetry)) { CallBase = true };
+            using ResourceManager resourceManager = translator.Object;
             serverMock.Setup(s => s.ResourceManager).Returns(resourceManager);
             var session = new Mock<ISession>();
             session.Setup(s => s.PreferredLocales).Returns(["de-DE"]);
@@ -148,9 +150,11 @@ namespace Opc.Ua.Server.Tests
                 { "de-DE", "Hallo" }
             });
 
-            Variant stored = engineeringUnits
-                ? Variant.FromStructure(new EUInformation { DisplayName = text, Description = text })
-                : Variant.From(text);
+            Variant stored = unrelatedStructure
+                ? Variant.FromStructure(new Range { Low = 1, High = 2 })
+                : engineeringUnits
+                    ? Variant.FromStructure(new EUInformation { DisplayName = text, Description = text })
+                    : Variant.From(text);
             monitoredItem.QueueValue(new DataValue(stored), ServiceResult.Good);
             var notifications = new Queue<MonitoredItemNotification>();
             var diagnostics = new Queue<DiagnosticInfo>();
@@ -163,6 +167,14 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(notifications, Has.Count.EqualTo(1));
             Variant value = notifications.Peek().Value.WrappedValue;
+            translator.Verify(
+                manager => manager.TranslateValue(It.IsAny<ArrayOf<string>>(), It.IsAny<Variant>()),
+                unrelatedStructure ? Times.Never() : Times.Once());
+            if (unrelatedStructure)
+            {
+                Assert.That(value, Is.EqualTo(stored));
+                return;
+            }
             LocalizedText published;
             if (engineeringUnits)
             {
@@ -184,8 +196,9 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Selects nested unit texts for an event field without modifying the source event value.
         /// </summary>
-        [Test]
-        public void PublishSelectsTranslationOfEngineeringUnitEventField()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PublishSelectsTranslationOfEngineeringUnitEventField(bool unrelatedStructure)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
@@ -194,7 +207,8 @@ namespace Opc.Ua.Server.Tests
             types.AddSubtype(ObjectTypeIds.BaseObjectType, NodeId.Null);
             types.AddSubtype(ObjectTypeIds.BaseEventType, ObjectTypeIds.BaseObjectType);
             server.Setup(value => value.TypeTree).Returns(types);
-            using var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var translator = new Mock<ResourceManager>(new ApplicationConfiguration(telemetry)) { CallBase = true };
+            using ResourceManager resourceManager = translator.Object;
             server.Setup(value => value.ResourceManager).Returns(resourceManager);
             var session = new Mock<ISession>();
             session.Setup(value => value.PreferredLocales).Returns(["de-DE"]);
@@ -237,13 +251,16 @@ namespace Opc.Ua.Server.Tests
                 { "de-DE", "Hallo" }
             });
             var stored = new EUInformation { DisplayName = text, Description = text };
+            Variant field = unrelatedStructure
+                ? Variant.FromStructure(new Range { Low = 1, High = 2 })
+                : Variant.FromStructure(stored);
             var target = new Mock<IFilterTarget>();
             target.Setup(value => value.GetAttributeValue(
                 It.IsAny<IFilterContext>(),
                 It.IsAny<NodeId>(),
                 It.IsAny<ArrayOf<QualifiedName>>(),
                 It.IsAny<uint>(),
-                It.IsAny<NumericRange>())).Returns(Variant.FromStructure(stored));
+                It.IsAny<NumericRange>())).Returns(field);
 
             monitoredItem.QueueEvent(target.Object, bypassFilter: true);
             var notifications = new Queue<EventFieldList>();
@@ -251,6 +268,14 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(notifications, Has.Count.EqualTo(1));
             Assert.That(notifications.Peek().EventFields.Count, Is.EqualTo(1));
+            translator.Verify(
+                manager => manager.TranslateValue(It.IsAny<ArrayOf<string>>(), It.IsAny<Variant>()),
+                unrelatedStructure ? Times.Never() : Times.Once());
+            if (unrelatedStructure)
+            {
+                Assert.That(notifications.Peek().EventFields[0], Is.EqualTo(field));
+                return;
+            }
             Assert.That(notifications.Peek().EventFields[0]
                 .TryGetStructure<EUInformation>(out EUInformation? selected), Is.True);
             Assert.That(selected, Is.Not.Null);
