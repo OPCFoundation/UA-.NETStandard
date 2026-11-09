@@ -193,6 +193,14 @@ Three consequences worth knowing:
   30 ns per distinct path, with no allocation per entry. The `Guid` and
   `Opaque` record, kept only while collisions are detected, costs roughly
   50 bytes per distinct path.
+- Because it is never pruned, the `Numeric` record stops growing at
+  1,048,576 identifiers per namespace (a table of about 16 MB). This bounds
+  the memory of a dynamic address space that keeps minting new browse
+  paths, for example nodes added and deleted under fresh names. Past the
+  limit, a new path is handed the plain hash without being recorded, which
+  is how `Numeric` mode behaved before the record existed. Collisions with
+  identifiers recorded before the limit are still resolved or raised, but
+  two unrecorded paths that hash alike share an identifier.
 - It covers identifiers the factory mints, not identifiers a caller
   assigns. `String` identifiers cannot collide, so the factory keeps no
   record for them. `Counter` identifiers cannot collide with each other,

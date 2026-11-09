@@ -378,6 +378,21 @@ namespace Opc.Ua.Server
                 m_allocationStates);
         }
 
+        /// <summary>
+        /// Lowers the number of numeric identifiers recorded per namespace,
+        /// for tests that exercise the limit.
+        /// </summary>
+        internal void LimitNumericRecord(int limit)
+        {
+            m_allocation.RecordLimit = limit;
+        }
+
+        /// <summary>
+        /// Whether a numeric identifier of this factory's namespace was handed
+        /// out unrecorded because the record reached its limit.
+        /// </summary>
+        internal bool NumericRecordIsFull => m_allocation.RecordIsFull;
+
         /// <inheritdoc/>
         /// <remarks>
         /// Explicit for the same reason as
@@ -1327,6 +1342,24 @@ namespace Opc.Ua.Server
         private const int kMaxProbeAttempts = 1024;
 
         /// <summary>
+        /// How many numeric identifiers the record keeps per namespace.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The record only grows: an entry outlives the node it was minted
+        /// for, because releasing it would let a path that was moved past it
+        /// take it on a later mint and change identity. A dynamic address
+        /// space that keeps minting new browse paths would therefore grow it
+        /// for as long as the server runs, so it stops at this size - a table
+        /// of about 16 MB. Identifiers minted past the limit are handed out as
+        /// the plain hash and not recorded, which is how a numeric factory
+        /// behaved before the record existed; collisions with the identifiers
+        /// already recorded are still resolved or raised.
+        /// </para>
+        /// </remarks>
+        internal const int kMaxRecordedNumericIdentifiers = 1 << 20;
+
+        /// <summary>
         /// The longest canonical path built on the stack. Longer ones come
         /// from <see cref="ArrayPool{T}"/>.
         /// </summary>
@@ -1422,7 +1455,8 @@ namespace Opc.Ua.Server
             /// <returns>
             /// <c>true</c> when the identifier was free or the same path
             /// already holds it; <c>false</c> when a different path or a
-            /// counter value holds it.
+            /// counter value holds it. A free identifier is not recorded once
+            /// the record holds <see cref="RecordLimit"/> identifiers.
             /// </returns>
             public bool ClaimNumeric(uint identifier, ushort namespaceIndex, ulong witness)
             {
@@ -1430,7 +1464,7 @@ namespace Opc.Ua.Server
                 uint pathWitness = (uint)witness | 1u;
                 lock (m_ownTable)
                 {
-                    return GetTable(namespaceIndex).GetOrAdd(identifier, pathWitness, out _) == pathWitness;
+                    return GetOrAdd(namespaceIndex, identifier, pathWitness, out _) == pathWitness;
                 }
             }
 
@@ -1441,9 +1475,25 @@ namespace Opc.Ua.Server
             {
                 lock (m_ownTable)
                 {
-                    GetTable(namespaceIndex).GetOrAdd(identifier, kCounterWitness, out bool added);
-                    return added;
+                    GetOrAdd(namespaceIndex, identifier, kCounterWitness, out bool free);
+                    return free;
                 }
+            }
+
+            /// <summary>
+            /// How many numeric identifiers each namespace records.
+            /// </summary>
+            public int RecordLimit = kMaxRecordedNumericIdentifiers;
+
+            /// <summary>
+            /// Whether an identifier of the own namespace went unrecorded
+            /// because the record was full.
+            /// </summary>
+            public bool RecordIsFull => m_ownTable.IsFull;
+
+            private uint GetOrAdd(ushort namespaceIndex, uint identifier, uint witness, out bool free)
+            {
+                return GetTable(namespaceIndex).GetOrAdd(identifier, witness, RecordLimit, out free);
             }
 
             private NumericIdentifierTable GetTable(ushort namespaceIndex)
@@ -1497,13 +1547,20 @@ namespace Opc.Ua.Server
             /// Returns the witness that holds the identifier, adding the
             /// specified one when the identifier is free.
             /// </summary>
-            public uint GetOrAdd(uint identifier, uint witness, out bool added)
+            /// <param name="identifier">The identifier.</param>
+            /// <param name="witness">The witness of the caller.</param>
+            /// <param name="limit">
+            /// How many identifiers the table holds at most. A free identifier
+            /// is reported free but not added once the table holds this many.
+            /// </param>
+            /// <param name="free">Whether the identifier was free.</param>
+            public uint GetOrAdd(uint identifier, uint witness, int limit, out bool free)
             {
                 if (identifier == 0)
                 {
                     // slot value 0 marks an empty slot, so identifier 0 is kept apart.
-                    added = !m_hasZero;
-                    if (added)
+                    free = !m_hasZero;
+                    if (free)
                     {
                         m_hasZero = true;
                         m_zeroWitness = witness;
@@ -1525,10 +1582,19 @@ namespace Opc.Ua.Server
                         }
                         if ((uint)(slot >> 32) == identifier)
                         {
-                            added = false;
+                            free = false;
                             return (uint)slot;
                         }
                         index = (index + 1) & mask;
+                    }
+
+                    free = true;
+
+                    if (m_count >= limit)
+                    {
+                        // full: the identifier is handed out unrecorded.
+                        IsFull = true;
+                        return witness;
                     }
 
                     if ((m_count + 1) * 2 > slots.Length)
@@ -1539,10 +1605,15 @@ namespace Opc.Ua.Server
 
                     slots[index] = ((ulong)identifier << 32) | witness;
                     m_count++;
-                    added = true;
                     return witness;
                 }
             }
+
+            /// <summary>
+            /// Whether an identifier went unrecorded because the table held
+            /// its limit.
+            /// </summary>
+            public bool IsFull { get; private set; }
 
             private void Grow()
             {
