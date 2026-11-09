@@ -335,7 +335,7 @@ namespace Opc.Ua.LADS.Server
         public event Action<MachineryOperationModeValue>? OperationModeChanged;
 
         /// <summary>
-        /// Raised before an asynchronous item-state change waits for the shared item-state notification gate.
+        /// Raised after an asynchronous item-state change requests the shared item-state notification gate.
         /// </summary>
         internal event Action? ItemStateNotificationWaitStarting;
 
@@ -1925,8 +1925,9 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private async ValueTask UpdateItemStateAsync(CancellationToken cancellationToken)
         {
+            Task wait = m_itemStateGate.WaitAsync(cancellationToken);
             ItemStateNotificationWaitStarting?.Invoke();
-            await m_itemStateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await wait.ConfigureAwait(false);
             try
             {
                 if (Volatile.Read(ref m_storageFailure) != null)
