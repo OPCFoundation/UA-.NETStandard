@@ -822,7 +822,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 kModelNamespaceUri + ":retiring-reference-joining", sharedNamespace);
             var owned = new List<NodeManagerRegistration>();
             EqualSharedSourceManager? source = null;
-            NodeManagerBatchResult? retired = null;
+            var retired = new TaskCompletionSource<NodeManagerBatchResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
                 owned.Add(await AddIdentityManagerAsync(lifecycle, sourceFactory, ct).ConfigureAwait(false));
@@ -847,7 +848,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             [NodeManagerBatchChange.Remove(owned[0])], token).ConfigureAwait(false);
                         NodeManagerBatchResult result = await removal.CommitAsync(_ => default, token)
                             .ConfigureAwait(false);
-                        retired = result;
+                        retired.TrySetResult(result);
                         owned.RemoveAt(0);
                         Assert.That(result.CleanupFailure, Is.Null);
                         Assert.That(result.Retirement.IsCompleted, Is.False);
@@ -858,8 +859,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     target, currentSource.Source.NodeId, ReferenceTypeIds.Organizes, false, ct)
                     .ConfigureAwait(false);
                 currentSource.AfterReferenceAddAsync = null;
-                NodeManagerBatchResult removalResult = retired
-                    ?? throw new InvalidOperationException("The source retirement was not published.");
+                Assert.That(retired.Task.IsCompleted, Is.True, "The source retirement was not published.");
+                NodeManagerBatchResult removalResult = await retired.Task.ConfigureAwait(false);
                 await removalResult.Retirement.WaitAsync(ct).ConfigureAwait(false);
                 Assert.That(target.ReferenceExists(
                     ReferenceTypeIds.Organizes, true, currentSource.Source.NodeId), Is.True);

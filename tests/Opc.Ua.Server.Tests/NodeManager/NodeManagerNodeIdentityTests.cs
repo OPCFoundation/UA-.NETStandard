@@ -209,8 +209,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public void IndexViaInterface(NodeState node)
             {
-                IDictionary<NodeId, NodeState> nodes = PredefinedNodes;
-                nodes[node.NodeId] = node;
+                ((IDictionary<NodeId, NodeState>)PredefinedNodes)[node.NodeId] = node;
             }
 
             /// <inheritdoc/>
@@ -264,8 +263,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public void IndexViaInterface(NodeState node)
             {
-                IDictionary<NodeId, NodeState> nodes = PredefinedNodes;
-                nodes[node.NodeId] = node;
+                ((IDictionary<NodeId, NodeState>)PredefinedNodes)[node.NodeId] = node;
             }
 
             /// <summary>
