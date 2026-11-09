@@ -502,7 +502,7 @@ namespace Opc.Ua.Scales.Tests
                     {
                         1 => new TranslateBrowsePathsToNodeIdsResponse
                         {
-                            Results = [new BrowsePathResult { Targets = [] }]
+                            Results = [new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch, Targets = [] }]
                         },
                         2 => ResolvedPaths(2, 3000),
                         _ => throw new InvalidOperationException("Unexpected path translation.")
