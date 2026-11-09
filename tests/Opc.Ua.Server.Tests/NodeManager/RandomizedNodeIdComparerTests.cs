@@ -65,6 +65,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Numeric ids of the form (ns &lt;&lt; 16) ^ 1 share hash code 1 in every namespace, so
+        /// the comparer must mix the namespace in on its own to tell them apart.
+        /// </summary>
+        [Test]
+        public void NumericNodeIdsThatShareAHashAcrossNamespacesAreSpreadOut()
+        {
+            const int count = 4096;
+            var defaultHashes = new HashSet<int>();
+            var randomizedHashes = new HashSet<int>();
+            for (uint ns = 1; ns <= count; ns++)
+            {
+                var nodeId = new NodeId((ns << 16) ^ 1u, (ushort)ns);
+                defaultHashes.Add(EqualityComparer<NodeId>.Default.GetHashCode(nodeId));
+                randomizedHashes.Add(RandomizedNodeIdComparer.Instance.GetHashCode(nodeId));
+            }
+
+            Assert.That(defaultHashes, Has.Count.EqualTo(1), "the ids must collide with the default hash");
+            Assert.That(randomizedHashes, Has.Count.GreaterThan(count / 2));
+        }
+
+        /// <summary>
         /// A request large enough for hash flooding to matter gets the randomized comparer;
         /// a small one keeps the cheaper default comparer.
         /// </summary>

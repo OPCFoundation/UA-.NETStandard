@@ -209,7 +209,7 @@ namespace Opc.Ua.Server
             m_allocationStates = allocationStates;
             m_allocation = allocationStates.GetOrAdd(
                 defaultNamespaceIndex,
-                static namespaceIndex => new AllocationState(namespaceIndex));
+                static _ => new AllocationState());
         }
 
         /// <summary>
@@ -393,6 +393,17 @@ namespace Opc.Ua.Server
         /// </summary>
         internal bool NumericRecordIsFull => m_allocation.RecordIsFull;
 
+        /// <summary>
+        /// Returns the allocation state of a namespace, which every view of
+        /// this factory shares.
+        /// </summary>
+        private AllocationState GetAllocation(ushort namespaceIndex)
+        {
+            return namespaceIndex == DefaultNamespaceIndex
+                ? m_allocation
+                : m_allocationStates.GetOrAdd(namespaceIndex, static _ => new AllocationState());
+        }
+
         /// <inheritdoc/>
         /// <remarks>
         /// Explicit for the same reason as
@@ -519,7 +530,7 @@ namespace Opc.Ua.Server
                 // collide with itself, but about keeping its identifiers out
                 // of the way of the modes that can.
                 if (!m_detectCollisionsRequested ||
-                    m_allocation.TryReserveNumeric(identifier, DefaultNamespaceIndex))
+                    m_allocation.TryReserveNumeric(identifier))
                 {
                     return nodeId;
                 }
@@ -678,7 +689,7 @@ namespace Opc.Ua.Server
                         return MintNumericWithoutCollision(hash, namespaceIndex);
                     }
                     nodeId = new NodeId(ToIdentifier(hash), namespaceIndex);
-                    if (!m_allocation.ClaimNumeric(ToIdentifier(hash), namespaceIndex, ToWitness(hash)))
+                    if (!GetAllocation(namespaceIndex).ClaimNumeric(ToIdentifier(hash), ToWitness(hash)))
                     {
                         throw CreateCollisionError(nodeId, canonicalPath);
                     }
@@ -723,10 +734,11 @@ namespace Opc.Ua.Server
         {
             uint identifier = ToIdentifier(hash);
             ulong witness = ToWitness(hash);
+            AllocationState allocation = GetAllocation(namespaceIndex);
 
             for (int attempt = 0; attempt < kMaxProbeAttempts; attempt++)
             {
-                if (m_allocation.ClaimNumeric(identifier, namespaceIndex, witness))
+                if (allocation.ClaimNumeric(identifier, witness))
                 {
                     return new NodeId(identifier, namespaceIndex);
                 }
@@ -777,7 +789,7 @@ namespace Opc.Ua.Server
 
             ulong witness = ToWitness(hash);
 
-            if (m_allocation.MintedIdentifiers.GetOrAdd(nodeId, witness) == witness)
+            if (GetAllocation(nodeId.NamespaceIndex).MintedIdentifiers.GetOrAdd(nodeId, witness) == witness)
             {
                 return;
             }
@@ -1426,14 +1438,12 @@ namespace Opc.Ua.Server
         /// factory, so that two NodeManagers owning the same namespace draw
         /// from one counter and are checked against each other. Identifiers in
         /// different namespaces cannot collide, so they get separate state.
+        /// A view that mints into a namespace other than its default one uses
+        /// the state of that namespace, so every view consults one record per
+        /// namespace.
         /// </remarks>
         private sealed class AllocationState
         {
-            public AllocationState(ushort namespaceIndex)
-            {
-                m_namespaceIndex = namespaceIndex;
-            }
-
             /// <summary>
             /// Counter behind <see cref="NodeIdAssignmentMode.Counter"/> and
             /// the fallback for nodes with no derivable browse path. The clock
@@ -1460,72 +1470,44 @@ namespace Opc.Ua.Server
             /// counter value holds it. A free identifier is not recorded once
             /// the record holds <see cref="RecordLimit"/> identifiers.
             /// </returns>
-            public bool ClaimNumeric(uint identifier, ushort namespaceIndex, ulong witness)
+            public bool ClaimNumeric(uint identifier, ulong witness)
             {
                 // a path witness is never the counter witness, which is 0.
                 uint pathWitness = (uint)witness | 1u;
-                lock (m_ownTable)
+                lock (m_table)
                 {
-                    return GetOrAdd(namespaceIndex, identifier, pathWitness, out _) == pathWitness;
+                    return m_table.GetOrAdd(identifier, pathWitness, RecordLimit, out _) == pathWitness;
                 }
             }
 
             /// <summary>
             /// Reserves a numeric counter identifier if nothing holds it yet.
             /// </summary>
-            public bool TryReserveNumeric(uint identifier, ushort namespaceIndex)
+            public bool TryReserveNumeric(uint identifier)
             {
-                lock (m_ownTable)
+                lock (m_table)
                 {
-                    GetOrAdd(namespaceIndex, identifier, kCounterWitness, out bool free);
+                    m_table.GetOrAdd(identifier, kCounterWitness, RecordLimit, out bool free);
                     return free;
                 }
             }
 
             /// <summary>
-            /// How many numeric identifiers each namespace records.
+            /// How many numeric identifiers the namespace records.
             /// </summary>
             public int RecordLimit = kMaxRecordedNumericIdentifiers;
 
             /// <summary>
-            /// Whether an identifier of the own namespace went unrecorded
-            /// because the record was full.
+            /// Whether an identifier went unrecorded because the record was
+            /// full.
             /// </summary>
-            public bool RecordIsFull => m_ownTable.IsFull;
-
-            private uint GetOrAdd(ushort namespaceIndex, uint identifier, uint witness, out bool free)
-            {
-                return GetTable(namespaceIndex).GetOrAdd(identifier, witness, RecordLimit, out free);
-            }
-
-            private NumericIdentifierTable GetTable(ushort namespaceIndex)
-            {
-                if (namespaceIndex == m_namespaceIndex)
-                {
-                    return m_ownTable;
-                }
-                m_otherTables ??= [];
-                if (!m_otherTables.TryGetValue(namespaceIndex, out NumericIdentifierTable? table))
-                {
-                    table = new NumericIdentifierTable();
-                    m_otherTables.Add(namespaceIndex, table);
-                }
-                return table;
-            }
-
-            private readonly ushort m_namespaceIndex;
+            public bool RecordIsFull => m_table.IsFull;
 
             /// <summary>
-            /// The numeric identifiers minted or reserved in the namespace of
-            /// this state. It also serves as the lock of all numeric records.
+            /// The numeric identifiers minted or reserved in the namespace,
+            /// by every view of the factory. It also serves as its own lock.
             /// </summary>
-            private readonly NumericIdentifierTable m_ownTable = new();
-
-            /// <summary>
-            /// The numeric records of other namespaces a view minted into,
-            /// which is rare.
-            /// </summary>
-            private Dictionary<ushort, NumericIdentifierTable>? m_otherTables;
+            private readonly NumericIdentifierTable m_table = new();
         }
 
         /// <summary>

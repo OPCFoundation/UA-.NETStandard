@@ -63,7 +63,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public int GetHashCode(NodeId obj)
         {
-            return HashCode.Combine(obj.GetHashCode());
+            // NodeId.GetHashCode folds the namespace into the identifier hash
+            // ((identifier) ^ (namespace << 16)), so ids in different
+            // namespaces can share one hash; mixing the namespace in on its
+            // own keeps them apart.
+            return HashCode.Combine(obj.NamespaceIndex, obj.GetHashCode());
         }
     }
 }

@@ -880,6 +880,38 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// A view whose default namespace differs from the one it mints into consults the
+        /// record of the destination namespace, so it cannot hand out an identifier the other
+        /// view already gave a different path there.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ViewsOfOtherDefaultNamespacesShareTheRecordOfTheDestinationNamespace(bool detect)
+        {
+            const ushort ns = 2;
+            var registered = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, ns, detectCollisions: detect);
+            DefaultNodeIdFactory otherView = registered.WithDefaultNamespaceIndex(3);
+            var temperature = new QualifiedName("Temperature", ns);
+
+            NodeId first = registered.CreateChildNodeId(
+                new NodeId("Machine2776", ns), temperature, ns, m_namespaceUris);
+            Assert.That(first, Is.EqualTo(new NodeId(1794010027u, ns)));
+
+            if (detect)
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
+                    otherView.CreateChildNodeId(new NodeId("Machine64414", ns), temperature, ns, m_namespaceUris));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            }
+            else
+            {
+                NodeId second = otherView.CreateChildNodeId(
+                    new NodeId("Machine64414", ns), temperature, ns, m_namespaceUris);
+                Assert.That(second, Is.EqualTo(new NodeId(1794010028u, ns)));
+            }
+        }
+
         [Test]
         public void ACollisionWithARecordedIdentifierIsStillResolvedOnceTheRecordIsFull()
         {

@@ -2448,8 +2448,13 @@ namespace Opc.Ua.Server
                         var referencesToRemove = new List<LocalReference>();
                         try
                         {
-                            if (PredefinedNodes.TryGetValue(newNodeId, out NodeState? indexedNode))
+                            // registration may have stopped on an identifier that another
+                            // node took after it was reserved; that node is not this add's
+                            // to remove, so the rollback only covers what this add indexed.
+                            if (PredefinedNodes.TryGetValue(newNodeId, out NodeState? indexedNode) &&
+                                ReferenceEquals(indexedNode, instance))
                             {
+                                DetachChildrenHeldByOtherNodes(systemContext, indexedNode);
                                 List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, indexedNode);
                                 IReadOnlyList<MonitoredItemSourceRelease> detachedItems =
                                     await ReleaseSourcesForNodeDeletionAsync(
@@ -2545,6 +2550,36 @@ namespace Opc.Ua.Server
                 }
             }
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Detaches from a subtree that a failed AddNodes is about to roll back every child
+        /// whose NodeId is held by a different node, so that removing the subtree and
+        /// releasing its monitored sources never touch that node.
+        /// </summary>
+        /// <param name="systemContext">The system context.</param>
+        /// <param name="root">The root of the subtree, indexed by the failed add.</param>
+        private void DetachChildrenHeldByOtherNodes(ServerSystemContext systemContext, NodeState root)
+        {
+            var pending = new Stack<NodeState>();
+            pending.Push(root);
+            var children = new List<BaseInstanceState>();
+            while (pending.Count != 0)
+            {
+                NodeState node = pending.Pop();
+                children.Clear();
+                node.GetChildren(systemContext, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    if (PredefinedNodes.TryGetValue(child.NodeId, out NodeState? holder) &&
+                        !ReferenceEquals(holder, child))
+                    {
+                        node.RemoveChild(child);
+                        continue;
+                    }
+                    pending.Push(child);
+                }
+            }
         }
 
         /// <summary>
