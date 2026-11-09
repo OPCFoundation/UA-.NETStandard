@@ -835,6 +835,95 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// Synchronous nominal writes refresh and notify giveaway.
+        /// The gate rejects them while another notification owns the writer.
+        /// </summary>
+        [Test]
+        public async Task SynchronousNominalWriteRefreshesGiveAwayAndRejectsDuringNotificationAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Checkweigher, "SynchronousNominal", builder =>
+                builder.WithProductionPreset(preset => preset.AllowSelection()
+                    .AddProduct("A", new LocalizedText("A"), (_, state) =>
+                        ((CheckweigherProductState)state).NominalWeight!.WrappedValue = Variant.From(10.0))
+                    .Select("A"))).ConfigureAwait(false);
+            var product = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            var statistic = (CheckweigherStatisticState)product.Statistic!;
+            BaseVariableState nominal = product.NominalWeight!;
+            BaseVariableState giveAway = statistic.GiveAway!;
+            Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(9)
+                .ConfigureAwait(false)), Is.True);
+
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            int synchronousNotifications = 0;
+            double lastNotifiedGiveAway = double.NaN;
+            giveAway.OnStateChanged = (_, _, _) =>
+            {
+                Interlocked.Increment(ref synchronousNotifications);
+                lastNotifiedGiveAway = giveAway.WrappedValue.GetDouble();
+            };
+            giveAway.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                notificationEntered.TrySetResult(true);
+                await releaseNotification.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            };
+
+            Task<ServiceResult>? report = null;
+            try
+            {
+                report = scale.Checkweigher.RecordAcceptedAsync(11, cancellationToken: bounded.Token).AsTask();
+                Assert.That(
+                    await notificationEntered.Task.WaitAsync(bounded.Token).ConfigureAwait(false),
+                    Is.True);
+                Assert.That(giveAway.WrappedValue.GetDouble(), Is.Zero);
+                int notificationsBeforeRejectedWrite = Volatile.Read(ref synchronousNotifications);
+
+                ServiceResult rejected = nominal.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(12.0)));
+
+                Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(nominal.WrappedValue.GetDouble(), Is.EqualTo(10.0));
+                Assert.That(giveAway.WrappedValue.GetDouble(), Is.Zero);
+                Assert.That(Volatile.Read(ref synchronousNotifications), Is.EqualTo(notificationsBeforeRejectedWrite));
+
+                releaseNotification.TrySetResult(true);
+                Assert.That(ServiceResult.IsGood(await report.WaitAsync(bounded.Token).ConfigureAwait(false)), Is.True);
+
+                int notificationsBeforeSuccessfulWrite = Volatile.Read(ref synchronousNotifications);
+                ServiceResult written = nominal.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(12.0)));
+
+                Assert.That(ServiceResult.IsGood(written), Is.True);
+                Assert.That(nominal.WrappedValue.GetDouble(), Is.EqualTo(12.0));
+                Assert.That(giveAway.WrappedValue.GetDouble(), Is.EqualTo(-4.0));
+                Assert.That(giveAway.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(
+                    Volatile.Read(ref synchronousNotifications),
+                    Is.EqualTo(notificationsBeforeSuccessfulWrite + 1));
+                Assert.That(lastNotifiedGiveAway, Is.EqualTo(-4.0));
+            }
+            finally
+            {
+                releaseNotification.TrySetResult(true);
+                if (report != null)
+                {
+                    _ = await report.ConfigureAwait(false);
+                }
+                giveAway.OnStateChanged = null;
+                giveAway.OnStateChangedAsync = null;
+            }
+        }
+
+        /// <summary>
         /// Recorder initialization retries without counting an item after a callback failure.
         /// </summary>
         [Test]

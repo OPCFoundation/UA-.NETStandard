@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
@@ -112,6 +113,94 @@ namespace Opc.Ua.Scales.Tests
                 }
             });
             Assert.That(failure!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTimeout));
+        }
+
+        [Test]
+        public async Task GetKindAsyncRecognizesConcreteScaleTypeWithoutWalkingSuperTypes()
+        {
+            (Mock<ISession> session, Mock<INodeCache> cache, ushort scalesNamespaceIndex, _) =
+                CreateSessionWithNodeCache();
+            var client = new ScalesClient(session.Object, NUnitTelemetryContext.Create());
+            var checkweigherType = new NodeId(
+                ScalesModel.ObjectTypeOf(ScaleKind.Checkweigher),
+                scalesNamespaceIndex);
+
+            ScaleKind? actual = await client.GetKindAsync(checkweigherType);
+
+            Assert.That(actual, Is.EqualTo(ScaleKind.Checkweigher));
+            cache.Verify(
+                value => value.FindSuperTypeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task GetKindAsyncRecognizesScaleKindThroughVendorSuperTypeChain()
+        {
+            (Mock<ISession> session, Mock<INodeCache> cache, ushort scalesNamespaceIndex, ushort vendorNamespaceIndex) =
+                CreateSessionWithNodeCache();
+            var vendorType = new NodeId("VendorCheckweigherType", vendorNamespaceIndex);
+            var vendorBaseType = new NodeId("VendorScaleType", vendorNamespaceIndex);
+            var checkweigherType = new NodeId(
+                ScalesModel.ObjectTypeOf(ScaleKind.Checkweigher),
+                scalesNamespaceIndex);
+            cache.Setup(value => value.FindSuperTypeAsync(vendorType, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NodeId>(vendorBaseType));
+            cache.Setup(value => value.FindSuperTypeAsync(vendorBaseType, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NodeId>(checkweigherType));
+            var client = new ScalesClient(session.Object, NUnitTelemetryContext.Create());
+
+            ScaleKind? actual = await client.GetKindAsync(vendorType);
+
+            Assert.That(actual, Is.EqualTo(ScaleKind.Checkweigher));
+            cache.Verify(
+                value => value.FindSuperTypeAsync(vendorType, It.IsAny<CancellationToken>()),
+                Times.Once);
+            cache.Verify(
+                value => value.FindSuperTypeAsync(vendorBaseType, It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task GetKindAsyncReturnsNullForUnrelatedOrOutOfNamespaceType(bool collidesWithScalesTypeId)
+        {
+            (Mock<ISession> session, Mock<INodeCache> cache, ushort scalesNamespaceIndex, ushort vendorNamespaceIndex) =
+                CreateSessionWithNodeCache();
+            uint typeId = collidesWithScalesTypeId
+                ? ScalesModel.ObjectTypeOf(ScaleKind.Checkweigher)
+                : uint.MaxValue;
+            ushort typeNamespaceIndex = collidesWithScalesTypeId
+                ? vendorNamespaceIndex
+                : scalesNamespaceIndex;
+            var unknownType = new NodeId(typeId, typeNamespaceIndex);
+            cache.Setup(value => value.FindSuperTypeAsync(unknownType, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NodeId>(NodeId.Null));
+            var client = new ScalesClient(session.Object, NUnitTelemetryContext.Create());
+
+            ScaleKind? actual = await client.GetKindAsync(unknownType);
+
+            Assert.That(actual, Is.Null);
+            cache.Verify(
+                value => value.FindSuperTypeAsync(unknownType, It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task GetKindAsyncStopsAfterSixteenSuperTypeLookups()
+        {
+            (Mock<ISession> session, Mock<INodeCache> cache, ushort scalesNamespaceIndex, ushort vendorNamespaceIndex) =
+                CreateSessionWithNodeCache();
+            var cyclicType = new NodeId("VendorCycle", vendorNamespaceIndex);
+            cache.Setup(value => value.FindSuperTypeAsync(cyclicType, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NodeId>(cyclicType));
+            var client = new ScalesClient(session.Object, NUnitTelemetryContext.Create());
+
+            ScaleKind? actual = await client.GetKindAsync(cyclicType);
+
+            Assert.That(actual, Is.Null);
+            cache.Verify(
+                value => value.FindSuperTypeAsync(cyclicType, It.IsAny<CancellationToken>()),
+                Times.Exactly(16));
         }
 
         [TestCase(false, "absent")]
@@ -277,6 +366,78 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(actual.UnitPriceCurrencyUnit.Value.AlphabeticCode, Is.EqualTo("EUR"));
         }
 
+        [TestCase(BuiltInType.Byte, 255UL)]
+        [TestCase(BuiltInType.UInt16, 65535UL)]
+        [TestCase(BuiltInType.UInt32, 4000000000UL)]
+        [TestCase(BuiltInType.UInt64, 4294967295UL)]
+        public async Task PieceCountingTotalsPreserveUnsignedWireRepresentationsAsync(
+            BuiltInType type,
+            ulong expected)
+        {
+            using SessionMock session = SessionMock.Create();
+            session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            ResolvePaths(session, 3);
+            Variant count = type switch
+            {
+                BuiltInType.Byte => new Variant((byte)expected),
+                BuiltInType.UInt16 => new Variant((ushort)expected),
+                BuiltInType.UInt32 => new Variant((uint)expected),
+                _ => new Variant(expected)
+            };
+            DateTime timestamp = new(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            ReadValues(session,
+            [
+                new DataValue(count, StatusCodes.Uncertain, (DateTimeUtc)timestamp),
+                new DataValue(count, StatusCodes.Good, (DateTimeUtc)timestamp),
+                new DataValue(Variant.FromStructure(new WeightType { Gross = 2, Net = 2, Tare = 0 }),
+                    StatusCodes.Good, (DateTimeUtc)timestamp)
+            ]);
+
+            var client = new ScalesClient(session, NUnitTelemetryContext.Create());
+            ScalePieceCountingSnapshot actual = await client.ReadPieceCountingTotalsAsync(
+                new NodeId("Product", 2));
+
+            Assert.That(actual.RegisteredPieceCount.HasValue, Is.True);
+            Assert.That(actual.RegisteredPieceCount.Value, Is.EqualTo((uint)expected));
+            Assert.That(actual.RegisteredPieceCount.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(actual.RegisteredPieceCount.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(actual.TotalizedItemCount.HasValue, Is.True);
+            Assert.That(actual.TotalizedItemCount.Value, Is.EqualTo((uint)expected));
+            Assert.That(actual.TotalizedItemCount.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(actual.TotalizedWeight.HasValue, Is.True);
+            Assert.That(actual.TotalizedWeight.Value.Net, Is.EqualTo(2));
+            Assert.That(actual.TotalizedWeight.Timestamp, Is.EqualTo(timestamp));
+        }
+
+        [TestCase(BuiltInType.UInt64)]
+        [TestCase(BuiltInType.Int32)]
+        public async Task PieceCountingTotalsRejectOutOfRangeOrSignedCountsAsync(BuiltInType type)
+        {
+            using SessionMock session = SessionMock.Create();
+            session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            ResolvePaths(session, 3);
+            Variant count = type == BuiltInType.UInt64
+                ? new Variant((ulong)uint.MaxValue + 1)
+                : new Variant(-1);
+            ReadValues(session,
+            [
+                new DataValue(count, StatusCodes.Good),
+                new DataValue(new Variant(9u), StatusCodes.Good),
+                new DataValue(Variant.FromStructure(new WeightType { Gross = 2, Net = 2, Tare = 0 }),
+                    StatusCodes.Good)
+            ]);
+
+            var client = new ScalesClient(session, NUnitTelemetryContext.Create());
+            ScalePieceCountingSnapshot actual = await client.ReadPieceCountingTotalsAsync(
+                new NodeId("Product", 2));
+
+            Assert.That(actual.RegisteredPieceCount.HasValue, Is.False);
+            Assert.That(actual.RegisteredPieceCount.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
+            Assert.That(actual.TotalizedItemCount.HasValue, Is.True);
+            Assert.That(actual.TotalizedItemCount.Value, Is.EqualTo(9u));
+            Assert.That(actual.TotalizedWeight.HasValue, Is.True);
+        }
+
         [Test]
         public async Task RecipeReadsDecodeTypedReportsAndKeepTheirSourceMetadataAsync()
         {
@@ -324,6 +485,175 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(failure!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTimeout));
         }
 
+        [Test]
+        public async Task ReadLastItemAsyncUnresolvedOptionalLastItemReturnsNullIdAndPreservesMissingFieldsAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            var product = new NodeId("Product", 2);
+            var translationRequests = new List<TranslateBrowsePathsToNodeIdsRequest>();
+            session.Channel.Setup(c => c.SendRequestAsync(
+                    It.IsAny<TranslateBrowsePathsToNodeIdsRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((TranslateBrowsePathsToNodeIdsRequest request, CancellationToken _) =>
+                {
+                    translationRequests.Add(request);
+                    TranslateBrowsePathsToNodeIdsResponse response = translationRequests.Count switch
+                    {
+                        1 => new TranslateBrowsePathsToNodeIdsResponse
+                        {
+                            Results = [new BrowsePathResult { Targets = [] }]
+                        },
+                        2 => ResolvedPaths(2, 3000),
+                        _ => throw new InvalidOperationException("Unexpected path translation.")
+                    };
+                    return new ValueTask<IServiceResponse>(response);
+                });
+
+            // An unresolved LastItem leaves 21 null item IDs. ReadDataValuesAsync
+            // omits those IDs, so the service response contains only the two
+            // independently resolved product-price values.
+            DateTime timestamp = new(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            var readValues = new[]
+            {
+                new DataValue(new Variant(3.75), StatusCodes.Good, (DateTimeUtc)timestamp),
+                new DataValue(Variant.FromStructure(ScaleItemProcessingTests.Euro()),
+                    StatusCodes.Good, (DateTimeUtc)timestamp)
+            };
+            session.Channel.Setup(c => c.SendRequestAsync(
+                    It.Is<ReadRequest>(request => request.NodesToRead.Count == 2),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(
+                    new ReadResponse { Results = readValues.ToArrayOf() }));
+
+            var client = new ScalesClient(session, NUnitTelemetryContext.Create());
+            ScaleLastItemSnapshot actual = await client.ReadLastItemAsync(product);
+
+            Assert.That(translationRequests, Has.Count.EqualTo(2));
+            Assert.That(translationRequests[0].BrowsePaths.Count, Is.EqualTo(1));
+            Assert.That(translationRequests[0].BrowsePaths[0].StartingNode, Is.EqualTo(product));
+            Assert.That(translationRequests[0].BrowsePaths[0].RelativePath.Elements[0].TargetName.Name,
+                Is.EqualTo(BrowseNames.LastItem));
+            Assert.That(translationRequests[1].BrowsePaths.Count, Is.EqualTo(2));
+            Assert.That(translationRequests[1].BrowsePaths[0].StartingNode, Is.EqualTo(product));
+            Assert.That(translationRequests[1].BrowsePaths[0].RelativePath.Elements[0].TargetName.Name,
+                Is.EqualTo(BrowseNames.UnitPrice));
+            Assert.That(translationRequests[1].BrowsePaths[1].StartingNode, Is.EqualTo(product));
+            Assert.That(translationRequests[1].BrowsePaths[1].RelativePath.Elements[0].TargetName.Name,
+                Is.EqualTo(BrowseNames.UnitPrice));
+            Assert.That(translationRequests[1].BrowsePaths[1].RelativePath.Elements[1].TargetName.Name,
+                Is.EqualTo(BrowseNames.CurrencyUnit));
+            session.Channel.Verify(c => c.SendRequestAsync(
+                It.Is<ReadRequest>(request =>
+                    request.NodesToRead.Count == 2 &&
+                    request.NodesToRead[0].NodeId == new NodeId(3000u, 2) &&
+                    request.NodesToRead[1].NodeId == new NodeId(3001u, 2)),
+                It.IsAny<CancellationToken>()), Times.Once);
+
+            Assert.That(actual.ProductNodeId, Is.EqualTo(product));
+            Assert.That(actual.LastItemNodeId, Is.EqualTo(NodeId.Null));
+            Assert.That(actual.ItemId.HasValue, Is.False);
+            Assert.That(actual.ItemId.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(actual.MeasuredWeight.HasValue, Is.False);
+            Assert.That(actual.MeasuredWeight.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(actual.ItemPrice.HasValue, Is.False);
+            Assert.That(actual.ItemPrice.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(actual.UnitPrice.HasValue, Is.True);
+            Assert.That(actual.UnitPrice.Value, Is.EqualTo(3.75));
+            Assert.That(actual.UnitPrice.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(actual.UnitPrice.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(actual.UnitPriceCurrencyUnit.HasValue, Is.True);
+            Assert.That(actual.UnitPriceCurrencyUnit.Value.AlphabeticCode, Is.EqualTo("EUR"));
+            Assert.That(actual.UnitPriceCurrencyUnit.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(actual.UnitPriceCurrencyUnit.Timestamp, Is.EqualTo(timestamp));
+        }
+
+        [Test]
+        public async Task ReadLastItemAsyncGoodStatusNonWeightPayloadReturnsBadTypeMismatchForWeightAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            var product = new NodeId("Product", 2);
+            var translationRequests = new List<TranslateBrowsePathsToNodeIdsRequest>();
+            session.Channel.Setup(c => c.SendRequestAsync(
+                    It.IsAny<TranslateBrowsePathsToNodeIdsRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((TranslateBrowsePathsToNodeIdsRequest request, CancellationToken _) =>
+                {
+                    translationRequests.Add(request);
+                    TranslateBrowsePathsToNodeIdsResponse response = translationRequests.Count switch
+                    {
+                        1 => ResolvedPaths(1, 1000),
+                        2 => ResolvedPaths(21, 2000),
+                        3 => ResolvedPaths(2, 3000),
+                        _ => throw new InvalidOperationException("Unexpected path translation.")
+                    };
+                    return new ValueTask<IServiceResponse>(response);
+                });
+
+            DateTime timestamp = new(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            var values = new DataValue[23];
+            for (int index = 0; index < values.Length; index++)
+            {
+                values[index] = DataValue.FromStatusCode(StatusCodes.BadNoData);
+            }
+            values[1] = new DataValue(new Variant("not a WeightType"), StatusCodes.Good, (DateTimeUtc)timestamp);
+            values[21] = new DataValue(new Variant(3.75));
+            values[22] = new DataValue(Variant.FromStructure(ScaleItemProcessingTests.Euro()));
+            ReadValues(session, values);
+
+            var client = new ScalesClient(session, NUnitTelemetryContext.Create());
+            ScaleLastItemSnapshot actual = await client.ReadLastItemAsync(product);
+
+            Assert.That(translationRequests, Has.Count.EqualTo(3));
+            Assert.That(translationRequests[0].BrowsePaths.Count, Is.EqualTo(1));
+            Assert.That(translationRequests[0].BrowsePaths[0].StartingNode, Is.EqualTo(product));
+            Assert.That(translationRequests[1].BrowsePaths.Count, Is.EqualTo(21));
+            Assert.That(translationRequests[1].BrowsePaths[0].StartingNode, Is.EqualTo(new NodeId(1000u, 2)));
+            Assert.That(translationRequests[2].BrowsePaths.Count, Is.EqualTo(2));
+            Assert.That(translationRequests[2].BrowsePaths[0].StartingNode, Is.EqualTo(product));
+            Assert.That(actual.MeasuredWeight.HasValue, Is.False);
+            Assert.That(actual.MeasuredWeight.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
+            Assert.That(actual.MeasuredWeight.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(double.IsNaN(actual.MeasuredWeight.Value.Net), Is.True);
+        }
+
+        [Test]
+        public async Task ObserveRecipeReportsAsyncMissingReportCompletesEmptyWithoutStreamingFallbackAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            var product = new NodeId("Product", 2);
+            TranslateBrowsePathsToNodeIdsRequest? translationRequest = null;
+            session.Channel.Setup(c => c.SendRequestAsync(
+                    It.IsAny<TranslateBrowsePathsToNodeIdsRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((TranslateBrowsePathsToNodeIdsRequest request, CancellationToken _) =>
+                {
+                    translationRequest = request;
+                    return new ValueTask<IServiceResponse>(new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        Results = [new BrowsePathResult { Targets = [] }]
+                    });
+                });
+            var client = new ScalesClient(session, NUnitTelemetryContext.Create());
+            var observed = new List<ScaleField<ArrayOf<RecipeReportElementType>>>();
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+            await foreach (ScaleField<ArrayOf<RecipeReportElementType>> report in
+                client.ObserveRecipeReportsAsync(product, streaming: null, cancellationToken: cancellation.Token))
+            {
+                observed.Add(report);
+            }
+
+            Assert.That(translationRequest, Is.Not.Null);
+            Assert.That(translationRequest!.BrowsePaths.Count, Is.EqualTo(1));
+            Assert.That(translationRequest.BrowsePaths[0].StartingNode, Is.EqualTo(product));
+            Assert.That(translationRequest.BrowsePaths[0].RelativePath.Elements[0].TargetName.Name,
+                Is.EqualTo(BrowseNames.Report));
+            Assert.That(observed, Is.Empty);
+        }
+
         private static void ResolvePaths(SessionMock session, int count)
         {
             session.Channel.Setup(c => c.SendRequestAsync(
@@ -357,6 +687,26 @@ namespace Opc.Ua.Scales.Tests
                     It.Is<ReadRequest>(request => request.NodesToRead.Count == values.Length),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IServiceResponse>(new ReadResponse { Results = values.ToArrayOf() }));
+        }
+
+        private static (
+            Mock<ISession> Session,
+            Mock<INodeCache> Cache,
+            ushort ScalesNamespaceIndex,
+            ushort VendorNamespaceIndex)
+            CreateSessionWithNodeCache()
+        {
+            var cache = new Mock<INodeCache>(MockBehavior.Strict);
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            var namespaceUris = new NamespaceTable();
+            ushort scalesNamespaceIndex = (ushort)namespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            ushort vendorNamespaceIndex =
+                (ushort)namespaceUris.GetIndexOrAppend("urn:example:scales:vendor");
+            session.SetupGet(value => value.NamespaceUris).Returns(namespaceUris);
+            session.SetupGet(value => value.MessageContext)
+                .Returns(ServiceMessageContext.Create(NUnitTelemetryContext.Create()));
+            session.SetupGet(value => value.NodeCache).Returns(cache.Object);
+            return (session, cache, scalesNamespaceIndex, vendorNamespaceIndex);
         }
     }
 }
