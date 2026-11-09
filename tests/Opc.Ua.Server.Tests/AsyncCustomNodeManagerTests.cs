@@ -3247,6 +3247,124 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// The classic Write reports its audit events after releasing the node-manager lock.
+        /// The monitored items of the owner of a semantic Property must be marked before
+        /// that: a value of the owner published while the audit is reported (another Write,
+        /// a Publish) must carry the SemanticsChanged bit.
+        /// </summary>
+        [Test]
+        public async Task ClassicWriteMarksSemanticsChangedBeforeReportingAuditEventsAsync()
+        {
+            Assume.That(
+                m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
+                "Covers the classic CustomNodeManager2.Write");
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new AnalogItemState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("SemanticAuditVar", nsIdx);
+            variable.BrowseName = new QualifiedName("SemanticAuditVar", nsIdx);
+            variable.Value = 0;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+            var euProperty = new PropertyState(null);
+            euProperty.CreateAsPredefinedNode(context);
+            euProperty.NodeId = new NodeId("SemanticAuditVar_EURange", nsIdx);
+            euProperty.BrowseName = QualifiedName.From(BrowseNames.EURange);
+            euProperty.Value = 0;
+            euProperty.DataType = DataTypeIds.Int32;
+            euProperty.ValueRank = ValueRanks.Scalar;
+            euProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            euProperty.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            euProperty.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.AddChild(euProperty);
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var itemsToCreate = new List<MonitoredItemCreateRequest>
+            {
+                new()
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 0, QueueSize = 10 }
+                }
+            };
+            var createErrors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                itemsToCreate,
+                createErrors,
+                filterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
+            var monitoredItem = (IDataChangeMonitoredItem)monitoredItems[0];
+
+            // drain the initial value.
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            var publishContext = new OperationContext(
+                new RequestHeader(), null, RequestType.Publish, RequestLifetime.None);
+            for (int retry = 0; retry < 50 && !monitoredItem.IsReadyToPublish; retry++)
+            {
+                await Task.Delay(20).ConfigureAwait(false);
+            }
+            monitoredItem.Publish(publishContext, notifications, diagnostics, 10, m_mockLogger.Object);
+            notifications.Clear();
+            diagnostics.Clear();
+
+            // while the audit event of the EURange write is reported, the owner publishes a new value.
+            bool? semanticsChangedDuringAudit = null;
+            Exception? callbackError = null;
+            m_mockServer.Setup(s => s.Auditing).Returns(true);
+            m_mockServer
+                .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback(() =>
+                {
+                    try
+                    {
+                        monitoredItem.QueueValue(new DataValue(new Variant(42)), null);
+                        var published = new Queue<MonitoredItemNotification>();
+                        monitoredItem.Publish(
+                            publishContext, published, new Queue<DiagnosticInfo>(), 10, m_mockLogger.Object);
+                        semanticsChangedDuringAudit = published.Count > 0 &&
+                            published.All(n => n.Value.StatusCode.SemanticsChanged);
+                    }
+                    catch (Exception ex)
+                    {
+                        callbackError = ex;
+                    }
+                });
+
+            var writeErrors = new List<ServiceResult> { null! };
+            using var writeContext = new OperationContext(
+                new RequestHeader(), null, RequestType.Write, RequestLifetime.None,
+                new UserIdentity(new AnonymousIdentityToken()));
+            await manager.WriteAsync(
+                writeContext,
+                [new WriteValue { NodeId = euProperty.NodeId, AttributeId = Attributes.Value, Value = new DataValue(new Variant(123)) }],
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
+            Assert.That(callbackError, Is.Null);
+            Assert.That(euProperty.Value, Is.EqualTo(new Variant(123)), writeErrors[0]?.ToString());
+            Assert.That(semanticsChangedDuringAudit, Is.Not.Null, "the write reports an audit event");
+            Assert.That(semanticsChangedDuringAudit, Is.True,
+                "a value published after the semantic write carries the SemanticsChanged bit");
+        }
+
+        /// <summary>
         /// Verifies that a semantic property change raises exactly one SemanticChangeEvent,
         /// independent of the number of monitored items on the node (Part 3 5.6.2).
         /// </summary>

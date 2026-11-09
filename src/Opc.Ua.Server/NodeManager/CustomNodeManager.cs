@@ -2972,7 +2972,7 @@ namespace Opc.Ua.Server
             var nodesToValidate = new List<NodeHandle>();
             var nodesToNotify = new List<NodeState>();
             List<PendingWriteAudit>? auditsToReport = null;
-            List<PendingSemanticCheck>? semanticChecks = null;
+            List<PendingSemanticChange>? semanticChanges = null;
 
             lock (Lock)
             {
@@ -3128,11 +3128,19 @@ namespace Opc.Ua.Server
                     {
                         // compare the stored value after the write: the written DataValue
                         // (possibly an IndexRange slice) is not comparable with the old value.
-                        // The SemanticChangeEvent is reported after the lock is released.
-                        (semanticChecks ??= []).Add(new PendingSemanticCheck(
+                        // The monitored items of the owner are marked under the lock, so no
+                        // later value of the owner is published without the SemanticsChanged
+                        // bit; only the SemanticChangeEvent is reported after the lock is released.
+                        NodeState? changedNode = MarkSemanticChange(
+                            systemContext,
                             propertyState,
                             propertyState.Value,
-                            previousPropertyValue));
+                            previousPropertyValue,
+                            force: false);
+                        if (changedNode != null)
+                        {
+                            (semanticChanges ??= []).Add(new PendingSemanticChange(changedNode, propertyState));
+                        }
                     }
 
                     //not needed for sampling groups
@@ -3160,15 +3168,11 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (semanticChecks != null)
+            if (semanticChanges != null)
             {
-                foreach (PendingSemanticCheck check in semanticChecks)
+                foreach (PendingSemanticChange change in semanticChanges)
                 {
-                    CheckIfSemanticsHaveChanged(
-                        systemContext,
-                        check.Property,
-                        check.NewValue,
-                        check.PreviousValue);
+                    RaiseSemanticChangeEvent(systemContext, change.Node, change.Property);
                 }
             }
 
@@ -3206,21 +3210,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// A written property whose semantic change is checked once the node-manager lock
-        /// is released.
+        /// A semantic change whose monitored items were marked under the node-manager lock
+        /// and whose SemanticChangeEvent is raised once the lock is released.
         /// </summary>
-        private readonly struct PendingSemanticCheck
+        private readonly struct PendingSemanticChange
         {
-            public PendingSemanticCheck(PropertyState property, Variant newValue, Variant previousValue)
+            public PendingSemanticChange(NodeState node, PropertyState property)
             {
+                Node = node;
                 Property = property;
-                NewValue = newValue;
-                PreviousValue = previousValue;
             }
 
+            public NodeState Node { get; }
             public PropertyState Property { get; }
-            public Variant NewValue { get; }
-            public Variant PreviousValue { get; }
         }
 
         /// <summary>
@@ -3300,6 +3302,34 @@ namespace Opc.Ua.Server
             Variant previousPropertyValue,
             bool force = false)
         {
+            NodeState? changedNode = MarkSemanticChange(
+                systemContext,
+                property,
+                newPropertyValue,
+                previousPropertyValue,
+                force);
+
+            if (changedNode != null)
+            {
+                RaiseSemanticChangeEvent(systemContext, changedNode, property);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Queues the semantic resample (SemanticsChanged bit) on the monitored items of the
+        /// owner of a changed Property and returns the node to raise the SemanticChangeEvent
+        /// for, or <c>null</c> if the change has no semantic meaning.
+        /// </summary>
+        private NodeState? MarkSemanticChange(
+            ISystemContext systemContext,
+            PropertyState property,
+            Variant newPropertyValue,
+            Variant previousPropertyValue,
+            bool force)
+        {
             // check if the changed property is one that can trigger semantic changes
             string? propertyName = property.BrowseName.Name;
             bool hasSemanticChangeFlag = force || AsyncCustomNodeManager.HasSemanticChangeFlag(property);
@@ -3317,13 +3347,13 @@ namespace Opc.Ua.Server
                     and not BrowseNames.YAxisDefinition
                     and not BrowseNames.ZAxisDefinition)
             {
-                return false;
+                return null;
             }
 
             // ceck if property value changed
             if (!force && Utils.IsEqual(newPropertyValue, previousPropertyValue))
             {
-                return false;
+                return null;
             }
 
             // the SemanticChangeEvent is raised once per change, whether or not the
@@ -3333,7 +3363,7 @@ namespace Opc.Ua.Server
                 !hasSemanticChangeFlag &&
                 !AsyncCustomNodeManager.IsSemanticChangeProperty(changedNode, propertyName))
             {
-                return false;
+                return null;
             }
 
             foreach (KeyValuePair<uint, IMonitoredItem> kvp in MonitoredItems)
@@ -3365,13 +3395,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (changedNode != null)
-            {
-                RaiseSemanticChangeEvent(systemContext, changedNode, property);
-                return true;
-            }
-
-            return false;
+            return changedNode;
         }
 
         /// <summary>
