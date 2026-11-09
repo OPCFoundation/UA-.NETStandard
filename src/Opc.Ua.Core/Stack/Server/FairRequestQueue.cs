@@ -132,8 +132,10 @@ namespace Opc.Ua
 
         /// <summary>
         /// Admits a decoded request without waiting. Every request is charged one maximum
-        /// encoded-message footprint, retained through execution/parking until completion.
-        /// This is a conservative admission cost, not an estimate of managed heap bytes.
+        /// encoded-message footprint, retained through execution and parking until completion,
+        /// except by a request that parks without its decoded payload (a held Publish, see
+        /// <see cref="RequestParkSink.ReleasesPayload"/>). This is a conservative admission
+        /// cost, not an estimate of managed heap bytes.
         /// </summary>
         public bool TryEnqueue(
             IEndpointIncomingRequest request,
@@ -178,11 +180,15 @@ namespace Opc.Ua
                     return false;
                 }
                 if (m_decoupleHeldPublishRequests &&
-                    request is IParkableIncomingRequest { ParkSink: not null } &&
-                    !TryAcquire(ResourceIsolationStage.ParkedRequest, owner, 1, ref entry.ParkedHold))
+                    request is IParkableIncomingRequest { ParkSink: RequestParkSink parkSink })
                 {
-                    error = StatusCodes.BadServerTooBusy;
-                    return false;
+                    if (!TryAcquire(ResourceIsolationStage.ParkedRequest, owner, 1, ref entry.ParkedHold))
+                    {
+                        error = StatusCodes.BadServerTooBusy;
+                        return false;
+                    }
+                    // what the request keeps once it parks without its payload
+                    parkSink.RetainedCost = parkSink.EstimateRetainedBytes();
                 }
 
                 entry.AdmissionEvidence = evidence;
@@ -1151,6 +1157,7 @@ namespace Opc.Ua
             /// </summary>
             internal StageHold ParkedHold;
 
+
             /// <summary>
             /// Gets the admitted request.
             /// </summary>
@@ -1230,6 +1237,41 @@ namespace Opc.Ua
             }
 
             /// <summary>
+            /// Replaces the decoded-request cost of a request that parked without its decoded
+            /// payload (<see cref="RequestParkSink.ReleasesPayload"/>) with a charge for what it
+            /// still retains (<see cref="RequestParkSink.RetainedCost"/>); its parked slot stays
+            /// held. When that charge cannot be admitted the request keeps its full cost.
+            /// </summary>
+            /// <remarks>
+            /// Runs on the worker after the park, while the handler may complete and dispose
+            /// the entry on another thread: a charge admitted after the disposal is returned
+            /// here, and every release happens at most once. The charge is held by the sink, so
+            /// that the entries of other requests do not grow.
+            /// </remarks>
+            public void ReleaseRequestCost(RequestParkSink parkSink)
+            {
+                long retained = parkSink.RetainedCost;
+                if (retained <= 0 || retained >= m_queue.m_requestCost)
+                {
+                    return;
+                }
+                if (!m_queue.TryAcquire(
+                    ResourceIsolationStage.RequestQueueBytes, Owner, retained, ref parkSink.RetainedCostHold))
+                {
+                    return;
+                }
+                Interlocked.MemoryBarrier();
+                if (Volatile.Read(ref m_registrationState) == (int)RegistrationState.Disposed)
+                {
+                    // the entry was disposed while the charge was admitted
+                    parkSink.RetainedCostHold.Release(
+                        m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, retained);
+                    return;
+                }
+                CostHold.Release(m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, m_queue.m_requestCost);
+            }
+
+            /// <summary>
             /// Unregisters cancellation and returns all remaining admission leases.
             /// </summary>
             public void Dispose()
@@ -1248,6 +1290,11 @@ namespace Opc.Ua
                 ReleaseExecution();
                 ParkedHold.Release(m_queue, ResourceIsolationStage.ParkedRequest, Owner, 1);
                 CostHold.Release(m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, m_queue.m_requestCost);
+                if (Request is IParkableIncomingRequest { ParkSink: { RetainedCost: > 0 } parkSink })
+                {
+                    parkSink.RetainedCostHold.Release(
+                        m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, parkSink.RetainedCost);
+                }
             }
 
             /// <summary>
@@ -1579,6 +1626,13 @@ namespace Opc.Ua
                     }
                     if (ReferenceEquals(Interlocked.CompareExchange(ref m_head, next, head), head))
                     {
+                        // The old sentinel left the FIFO: unlink it, so a long-lived former
+                        // entry (a held Publish) does not keep every later entry of the owner
+                        // reachable through its Next chain. It is self-linked, not cleared:
+                        // an enqueuer that read it as the tail before it left must still fail
+                        // its CAS against null. The tail is past it (checked above), and
+                        // readers that read it re-validate the head before using its link.
+                        Volatile.Write(ref head.Next, head);
                         entry = (Entry)next;
                         return true;
                     }
