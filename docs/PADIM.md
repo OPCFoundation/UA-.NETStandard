@@ -168,6 +168,22 @@ a custom server host must use its own conformance manager.
 The generated family accessors retain the specification's spelling, including
 `Ph` and `OpticalFluorescenseQuenching`.
 
+## Engineering metadata ownership and notifications
+
+`WithEngineeringUnits` copies the supplied `EUInformation` and `Range`,
+including localized translation dictionaries and formatting arguments. Mutating
+the caller's objects does not change the published properties. Call the method
+again to apply revised metadata, and prevent concurrent mutation of its arguments
+while the copy is made. Unsupported translation dictionaries or mutable formatting
+arguments cause `BadNotSupported` before either property is replaced.
+
+After the analog variable is registered, changes to `EngineeringUnits` or
+`EURange` use the node manager's semantic-change reporting. Clients subscribed to
+semantic-change events receive the affected variable's NodeId; its next monitored
+value carries `SemanticsChanged` without changing the acquired value or source
+timestamp. Initial configuration does not report a runtime semantic change.
+Configure metadata separately from concurrent acquisition or remote writes.
+
 ## Calibration and condition members
 
 Select condition and calibration fields from the actual device or signal

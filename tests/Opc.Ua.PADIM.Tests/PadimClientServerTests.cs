@@ -185,20 +185,32 @@ namespace Opc.Ua.PADIM.Tests
                 var managed = (ManagedSession)session;
                 PadimValueBinding binding = measurementBinding ??
                     throw new InvalidOperationException("The hosted measurement binding was not configured.");
-                Range changedRange = new(high: 150, low: -40);
+                await using IAsyncEnumerator<DataValueChange> semanticValues =
+                    client.ObserveValueAsync(measurement.NodeId, timeout.Token).GetAsyncEnumerator(timeout.Token);
+                Assert.That(await semanticValues.MoveNextAsync(), Is.True);
+                Assert.That(semanticValues.Current.Value.StatusCode.SemanticsChanged, Is.False);
                 await using (IAsyncEnumerator<EventNotification> rangeEvents = managed.DefaultStreaming
                     .SubscribeEventsWhenReadyAsync(
                         new NodeId(2253u),
                         SemanticChangeEventFilter(),
                         _ =>
                         {
-                            binding.WithEngineeringUnits(engineeringUnits, changedRange);
+                            engineeringRange.High = 150;
+                            binding.WithEngineeringUnits(engineeringUnits, engineeringRange);
                             return default;
                         },
                         ct: timeout.Token)
                     .GetAsyncEnumerator(timeout.Token))
                 {
                     AssertSemanticChange(await NextSemanticChangeAsync(rangeEvents), measurement.NodeId);
+                    Assert.That(await semanticValues.MoveNextAsync(), Is.True);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(semanticValues.Current.Value.StatusCode.SemanticsChanged, Is.True,
+                            "Changing EURange must mark the next monitored value.");
+                        Assert.That(semanticValues.Current.Value.WrappedValue, Is.EqualTo(Variant.From(21.5f)));
+                        Assert.That(semanticValues.Current.Value.SourceTimestamp, Is.EqualTo(timestamp));
+                    });
                 }
 
                 await using (IAsyncEnumerator<EventNotification> unitsEvents = managed.DefaultStreaming
@@ -207,17 +219,23 @@ namespace Opc.Ua.PADIM.Tests
                         SemanticChangeEventFilter(),
                         _ =>
                         {
-                            var changedUnits = new EUInformation(
-                                "K",
-                                "kelvin",
-                                "http://www.opcfoundation.org/UA/units/un/cefact");
-                            binding.WithEngineeringUnits(changedUnits, changedRange);
+                            engineeringUnits.DisplayName = new LocalizedText("K");
+                            engineeringUnits.Description = new LocalizedText("kelvin");
+                            binding.WithEngineeringUnits(engineeringUnits, engineeringRange);
                             return default;
                         },
                         ct: timeout.Token)
                     .GetAsyncEnumerator(timeout.Token))
                 {
                     AssertSemanticChange(await NextSemanticChangeAsync(unitsEvents), measurement.NodeId);
+                    Assert.That(await semanticValues.MoveNextAsync(), Is.True);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(semanticValues.Current.Value.StatusCode.SemanticsChanged, Is.True,
+                            "Changing EngineeringUnits must mark the next monitored value.");
+                        Assert.That(semanticValues.Current.Value.WrappedValue, Is.EqualTo(Variant.From(21.5f)));
+                        Assert.That(semanticValues.Current.Value.SourceTimestamp, Is.EqualTo(timestamp));
+                    });
                 }
 
                 await analog.SimulationValue.WriteAsync(Variant.From(99f), timeout.Token);

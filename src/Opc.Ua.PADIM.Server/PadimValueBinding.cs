@@ -84,6 +84,14 @@ namespace Opc.Ua.PADIM.Server
         /// <summary>
         /// Configures the declared analog unit and engineering range without converting provider values.
         /// </summary>
+        /// <remarks>
+        /// Copies the metadata, including localized translations and formatting arguments.
+        /// Changes to the supplied values take effect only through another call to this method.
+        /// The caller must prevent concurrent mutation while the metadata is copied.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// Localized text contains a dictionary or formatting argument that cannot be copied safely.
+        /// </exception>
         public PadimValueBinding WithEngineeringUnits(EUInformation units, Range range)
         {
             if (Variable is not AnalogSignalVariableState analog)
@@ -105,6 +113,14 @@ namespace Opc.Ua.PADIM.Server
                 throw new ArgumentException("A unit and finite ordered engineering range are required.", nameof(range));
             }
 
+            var ownedUnits = new EUInformation
+            {
+                NamespaceUri = units.NamespaceUri,
+                UnitId = units.UnitId,
+                DisplayName = units.DisplayName.Copy(),
+                Description = units.Description.Copy()
+            };
+            var ownedRange = new Range { Low = range.Low, High = range.High };
             PropertyState<EUInformation> engineeringUnits = analog.EngineeringUnits!;
             Variant previousUnits = Variant.FromStructure(engineeringUnits.Value);
             PropertyState? previousRangeProperty = analog.EURange;
@@ -113,8 +129,8 @@ namespace Opc.Ua.PADIM.Server
                 m_device.Manager.FindPredefinedNode(analog.NodeId),
                 analog);
 
-            engineeringUnits.Value = units;
-            analog.AddEURange(m_device.Context, property => property.Value = range);
+            engineeringUnits.Value = ownedUnits;
+            analog.AddEURange(m_device.Context, property => property.Value = ownedRange);
             if (isRegistered)
             {
                 m_device.Manager.ReportPropertyValueChanged(m_device.Context, engineeringUnits, previousUnits);
