@@ -71,6 +71,8 @@ namespace Opc.Ua.PADIM.Tests
         [TestCase("mul", true)]
         [TestCase("en-AU", false)]
         [TestCase("en-AU", true)]
+        [TestCase("EN-gb", false)]
+        [TestCase("EN-gb", true)]
         public async Task HostedEngineeringUnitsHonorsPreferredLocalesAndReportsTranslationChanges(
             string locale, bool description)
         {
@@ -144,6 +146,30 @@ namespace Opc.Ua.PADIM.Tests
                     var client = new PadimClient(session, telemetry);
                     NodeId owner = binding.Variable.NodeId;
                     var analog = (AnalogSignalVariableState)binding.Variable;
+                    if (locale == "EN-gb")
+                    {
+                        (LocalizedText firstCaseMatch, _, _) = await ObserveChangeAsync(
+                            RegionalUnits("fr-FR", "en-US", "en-GB", "en-gb", "de-DE"));
+                        (LocalizedText equivalentCaseMatch, bool equivalentCaseEvent, bool equivalentCaseStatus) =
+                            await ObserveChangeAsync(RegionalUnits("fr-FR", "en-US", "de-DE", "en-GB", "en-gb"));
+                        (LocalizedText changedCaseMatch, bool changedCaseEvent, bool changedCaseStatus) =
+                            await ObserveChangeAsync(RegionalUnits("fr-FR", "en-US", "de-DE", "en-gb", "en-GB"));
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(firstCaseMatch.Locale, Is.EqualTo("en-GB"));
+                            Assert.That(firstCaseMatch.Text, Is.EqualTo("British"));
+                            Assert.That(equivalentCaseMatch, Is.EqualTo(firstCaseMatch));
+                            Assert.That(equivalentCaseEvent, Is.False);
+                            Assert.That(equivalentCaseStatus, Is.False);
+                            Assert.That(changedCaseMatch.Locale, Is.EqualTo("en-gb"));
+                            Assert.That(changedCaseMatch.Text, Is.EqualTo("Alternative British"));
+                            Assert.That(changedCaseEvent, Is.True,
+                                "Changing the first case-insensitive locale match must report an event.");
+                            Assert.That(changedCaseStatus, Is.True,
+                                "Changing the first case-insensitive locale match must set the bit.");
+                        });
+                        return;
+                    }
                     if (locale == "en-AU")
                     {
                         (LocalizedText firstRegional, _, _) = await ObserveChangeAsync(
@@ -434,6 +460,7 @@ namespace Opc.Ua.PADIM.Tests
                     {
                         "en-US" => "American",
                         "en-GB" => "British",
+                        "en-gb" => "Alternative British",
                         "fr-FR" => "French",
                         _ => "German"
                     });

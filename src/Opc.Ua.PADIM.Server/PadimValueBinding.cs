@@ -448,7 +448,7 @@ namespace Opc.Ua.PADIM.Server
         }
 
         /// <summary>
-        /// Compares the first available locale and the first locale for each language.
+        /// Compares the first available locale and the first case-insensitive locale and language matches.
         /// </summary>
         private static bool TranslationFallbacksEqual(
             IReadOnlyDictionary<string, string> previous,
@@ -460,12 +460,27 @@ namespace Opc.Ua.PADIM.Server
                 return false;
             }
             var languages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var locales = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, string> entry in previous)
             {
                 if (languages.Count == 0 &&
                     !string.Equals(entry.Key, first.Current.Key, StringComparison.Ordinal))
                 {
                     return false;
+                }
+                if (locales.Add(entry.Key))
+                {
+                    foreach (KeyValuePair<string, string> candidate in current)
+                    {
+                        if (string.Equals(entry.Key, candidate.Key, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!string.Equals(entry.Key, candidate.Key, StringComparison.Ordinal))
+                            {
+                                return false;
+                            }
+                            break;
+                        }
+                    }
                 }
                 int separator = entry.Key.IndexOf('-', StringComparison.Ordinal);
                 string language = separator < 0 ? entry.Key : entry.Key.Substring(0, separator);

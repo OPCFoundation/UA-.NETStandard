@@ -188,7 +188,8 @@ Changes to retained translations or fallback formatting also report a semantic
 change, even when the selected text stays the same. Replacing metadata with equal
 translation entries, fallback information, and formatting arguments does not
 report a change. Reordering translation entries reports a change when it changes
-the first available locale or the first locale for a language. For example, an
+the first available locale, the first case-insensitive locale match, or the first
+locale for a language. For example, an
 `en-AU` client can receive a different translation when `en-US` and `en-GB`
 exchange positions. Reorders that preserve those choices and retained fallback
 information do not report a change. Encoded `mul` values can also change the
