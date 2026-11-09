@@ -104,8 +104,22 @@ namespace Opc.Ua.PADIM.Server
             {
                 throw new ArgumentException("A unit and finite ordered engineering range are required.", nameof(range));
             }
-            analog.EngineeringUnits!.Value = units;
+
+            PropertyState<EUInformation> engineeringUnits = analog.EngineeringUnits!;
+            Variant previousUnits = Variant.FromStructure(engineeringUnits.Value);
+            PropertyState? previousRangeProperty = analog.EURange;
+            Variant previousRange = previousRangeProperty?.Value ?? default;
+            bool isRegistered = ReferenceEquals(
+                m_device.Manager.FindPredefinedNode(analog.NodeId),
+                analog);
+
+            engineeringUnits.Value = units;
             analog.AddEURange(m_device.Context, property => property.Value = range);
+            if (isRegistered)
+            {
+                m_device.Manager.ReportPropertyValueChanged(m_device.Context, engineeringUnits, previousUnits);
+                m_device.Manager.ReportPropertyValueChanged(m_device.Context, analog.EURange!, previousRange);
+            }
             return this;
         }
 
