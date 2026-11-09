@@ -296,6 +296,44 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// Publishes an analog range without changing the value or removing it for an absent update.
+        /// </summary>
+        [Test]
+        public void SynchronousRangePublicationPreservesValueAndIgnoresAbsentRange()
+        {
+            var variable = new AnalogItemState(null)
+            {
+                WrappedValue = new Variant(12.5)
+            };
+            variable.EURange = new PropertyState<Range>.Implementation<StructureBuilder<Range>>(variable)
+            {
+                BrowseName = new QualifiedName(Ua.BrowseNames.EURange),
+                Value = new Range { Low = 0, High = 10 },
+                StatusCode = StatusCodes.BadNoData,
+                Timestamp = DateTime.MinValue
+            };
+            var range = new Range { Low = -5, High = 25 };
+
+            ScaleValues.SetRange(m_fixture.Context, variable, range);
+
+            Assert.That(variable.EURange.Value.Low, Is.EqualTo(-5));
+            Assert.That(variable.EURange.Value.High, Is.EqualTo(25));
+            Assert.That(variable.EURange.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That((DateTime)variable.EURange.Timestamp, Is.GreaterThan(DateTime.MinValue));
+            Assert.That(variable.WrappedValue.GetDouble(), Is.EqualTo(12.5));
+
+            DateTime timestamp = (DateTime)variable.EURange.Timestamp;
+            ScaleValues.SetRange(m_fixture.Context, variable, null);
+            ScaleValues.SetRange(m_fixture.Context, null, range);
+            ScaleValues.SetRange(m_fixture.Context, new AnalogItemState(null), range);
+
+            Assert.That(variable.EURange.Value.Low, Is.EqualTo(-5));
+            Assert.That(variable.EURange.Value.High, Is.EqualTo(25));
+            Assert.That((DateTime)variable.EURange.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.WrappedValue.GetDouble(), Is.EqualTo(12.5));
+        }
+
+        /// <summary>
         /// Rejects an equipment price on a catchweigher without committing the item.
         /// </summary>
         [Test]
