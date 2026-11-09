@@ -348,7 +348,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     RequestType.AddNodes => master.AddNodesAsync(context, [], CancellationToken.None).AsTask(),
                     RequestType.DeleteNodes => master.DeleteNodesAsync(context, [], CancellationToken.None).AsTask(),
-                    RequestType.AddReferences => master.AddReferencesAsync(context, [], CancellationToken.None).AsTask(),
+                    RequestType.AddReferences => master.AddReferencesAsync(context, [], CancellationToken.None)
+                        .AsTask(),
                     RequestType.DeleteReferences => master.DeleteReferencesAsync(context, [], CancellationToken.None)
                         .AsTask(),
                     _ => throw new AssertionException($"Unexpected request type {requestType}.")

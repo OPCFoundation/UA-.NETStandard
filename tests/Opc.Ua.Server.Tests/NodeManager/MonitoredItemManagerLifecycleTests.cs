@@ -392,7 +392,8 @@ namespace Opc.Ua.Server.Tests
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (ManagerOwner owner = CreateManager(server.Object, path))
-            using (MasterNodeManager master = CreateForwardedMaster(server, owner, out NodeManagerGeneration generation))
+            using (MasterNodeManager master = CreateForwardedMaster(
+                server, owner, out NodeManagerGeneration generation))
             {
                 var node = new BaseDataVariableState(null)
                 {
@@ -727,7 +728,8 @@ namespace Opc.Ua.Server.Tests
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (ManagerOwner owner = CreateManager(server.Object, path))
-            using (MasterNodeManager master = CreateForwardedMaster(server, owner, out NodeManagerGeneration generation))
+            using (MasterNodeManager master = CreateForwardedMaster(
+                server, owner, out NodeManagerGeneration generation))
             {
                 var node = new BaseObjectState(null)
                 {
@@ -1080,7 +1082,8 @@ namespace Opc.Ua.Server.Tests
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (ManagerOwner owner = CreateManager(server.Object, path))
-            using (MasterNodeManager master = CreateForwardedMaster(server, owner, out NodeManagerGeneration generation))
+            using (MasterNodeManager master = CreateForwardedMaster(
+                server, owner, out NodeManagerGeneration generation))
             {
                 var resource = (IAsyncNodeManager)owner.Lifecycle;
                 var otherFacade = new Mock<IAsyncNodeManager>();

@@ -365,7 +365,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     if (observer is not null)
                     {
                         await Assert.ThatAsync(() => observer.WaitAsync(timeout.Token),
-                            Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+                            Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure))
+                            .ConfigureAwait(false);
                     }
                 }
                 finally

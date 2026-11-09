@@ -1008,7 +1008,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
                 var facade = new Mock<IAsyncNodeManager>();
                 facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
-                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [facade.Object]);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [facade.Object]);
                 NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(facade.Object);
                 using MonitoredItem item = CreateDataItem(server.Object, resource.Object);
                 Assert.That(item.Generation, Is.SameAs(generation.Reference));
@@ -1091,7 +1092,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 facade.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
                 NodeManagerGeneration unpublished = NodeManagerGenerationRegistry.GetOrCreate(facade.Object);
                 var other = new Mock<IAsyncNodeManager>();
-                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [other.Object]);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [other.Object]);
                 var root = new BaseObjectState(null)
                 {
                     NodeId = new NodeId("unpublished-root", manager.NamespaceIndex),
