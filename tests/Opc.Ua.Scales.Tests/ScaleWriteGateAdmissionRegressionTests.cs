@@ -73,7 +73,7 @@ namespace Opc.Ua.Scales.Tests
                     _ =>
                     {
                         Interlocked.Increment(ref notificationCalls);
-                        return ValueTask.CompletedTask;
+                        return default;
                     },
                     notificationCancellation.Token).AsTask();
 

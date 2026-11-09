@@ -231,7 +231,7 @@ namespace Opc.Ua.Scales.Tests
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
-        public async Task SynchronousStatisticsRecordPublishesSourceMetadataAndClearsMissingFieldsAsync(
+        public async Task SynchronousStatisticsAndItemPublicationPreserveMetadataAndClearMissingFieldsAsync(
             bool includePrice,
             bool includeZone)
         {
@@ -254,7 +254,21 @@ namespace Opc.Ua.Scales.Tests
 
             statistic.RecordItem(report, includeZone ? "High" : null, price);
 
+            Assert.That(product.Statistic!.LastItem!.ItemId!.Value, Is.EqualTo("item-17"));
+            Assert.That(product.Statistic.LastItem.MeasuredWeight!.Value.Net, Is.EqualTo(1.25));
             var lastItem = (PriceItemState)product.LastItem!;
+            ScaleItemPublisher.Publish(
+                m_fixture.Context,
+                lastItem,
+                report with { Length = new ScaleItemMeasurement(250, Millimetre, timestamp, StatusCodes.Good) },
+                "Previous",
+                new ScaleItemPrice(4.56m, Euro()));
+            Assert.That(lastItem.MeasuredLength!.WrappedValue.GetDouble(), Is.EqualTo(250));
+            Assert.That(lastItem.ZoneName!.Value, Is.EqualTo("Previous"));
+            Assert.That(lastItem.ItemPrice!.WrappedValue.GetDouble(), Is.EqualTo(4.56));
+
+            ScaleItemPublisher.Publish(m_fixture.Context, lastItem, report, includeZone ? "High" : null, price);
+
             Assert.That(lastItem.ItemId!.Value, Is.EqualTo("item-17"));
             Assert.That(lastItem.ItemId.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(lastItem.MeasuredWeight!.Value.Net, Is.EqualTo(1.25));
