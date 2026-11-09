@@ -196,6 +196,8 @@ The server's resource manager selects `EUInformation.DisplayName` and
 read results, data-change notifications, or event fields. Selection creates a new
 structure without modifying the published metadata. The same selection applies
 to `EUInformation` elements in one-dimensional `ExtensionObject` arrays.
+Translated copies retain each original `ExtensionObject.TypeId`. Envelopes with
+no type identifier or an unsupported encoded body remain unchanged.
 Other structure types, including derived types with additional fields, remain
 unchanged. This is not a general traversal of arbitrary nested structures.
 

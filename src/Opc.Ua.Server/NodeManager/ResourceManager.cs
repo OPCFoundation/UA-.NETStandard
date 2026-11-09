@@ -148,10 +148,12 @@ namespace Opc.Ua.Server
                 return Variant.From(translated.ToArrayOf());
             }
 
-            if (value.TryGetStructure<EUInformation>(out EUInformation? units) &&
+            if (value.TryGetValue(out ExtensionObject structure) && !structure.TypeId.IsNull &&
+                structure.TryGetValue(out EUInformation? units) &&
                 units != null && units.GetType() == typeof(EUInformation))
             {
-                return Variant.FromStructure(TranslateEngineeringUnits(preferredLocales, units));
+                return Variant.From(new ExtensionObject(
+                    structure.TypeId, TranslateEngineeringUnits(preferredLocales, units)));
             }
 
             if (value.TryGetValue(out ArrayOf<ExtensionObject> structures))
@@ -159,11 +161,13 @@ namespace Opc.Ua.Server
                 ExtensionObject[]? translated = null;
                 for (int ii = 0; ii < structures.Count; ii++)
                 {
-                    if (structures[ii].TryGetValue(out EUInformation? element) &&
+                    if (!structures[ii].TypeId.IsNull &&
+                        structures[ii].TryGetValue(out EUInformation? element) &&
                         element != null && element.GetType() == typeof(EUInformation))
                     {
                         translated ??= structures.Span.ToArray();
-                        translated[ii] = new ExtensionObject(TranslateEngineeringUnits(preferredLocales, element));
+                        translated[ii] = new ExtensionObject(
+                            structures[ii].TypeId, TranslateEngineeringUnits(preferredLocales, element));
                     }
                 }
                 if (translated != null)

@@ -575,8 +575,12 @@ namespace Opc.Ua.Server.Tests
                 Description = CreateHelloText()
             };
 
-            Variant result = resourceManager.TranslateValue([requestedLocale], Variant.FromStructure(stored));
+            var alternativeTypeId = new ExpandedNodeId("units", "urn:alternative");
+            Variant result = resourceManager.TranslateValue(
+                [requestedLocale], Variant.From(new ExtensionObject(alternativeTypeId, stored)));
 
+            Assert.That(result.TryGetValue(out ExtensionObject envelope), Is.True);
+            Assert.That(envelope.TypeId, Is.EqualTo(alternativeTypeId));
             Assert.That(result.TryGetStructure<EUInformation>(out EUInformation? translated), Is.True);
             Assert.That(translated, Is.Not.Null);
             Assert.Multiple(() =>
@@ -605,21 +609,32 @@ namespace Opc.Ua.Server.Tests
                 new ApplicationConfiguration(NUnitTelemetryContext.Create()));
             var units = new EUInformation { DisplayName = CreateHelloText(), Description = CreateHelloText() };
             var range = new Range { Low = 1, High = 2 };
-            ExtensionObject[] stored = [new(units), ExtensionObject.Null, new(range)];
+            var alternativeTypeId = new ExpandedNodeId("units", "urn:alternative");
+            ExtensionObject[] stored =
+            [
+                new(alternativeTypeId, units),
+                ExtensionObject.Null,
+                new(range),
+                new(ExpandedNodeId.Null, (object)units),
+                new(alternativeTypeId, "unsupported encoded body")
+            ];
 
             Variant result = resourceManager.TranslateValue(
                 ["fr-FR", "de-DE"], Variant.From(stored.ToArrayOf()));
 
             Assert.That(result.TryGetValue(out ArrayOf<ExtensionObject> translated), Is.True);
-            Assert.That(translated.Count, Is.EqualTo(3));
+            Assert.That(translated.Count, Is.EqualTo(5));
             Assert.That(translated[0].TryGetValue(out EUInformation? selected), Is.True);
             Assert.That(selected, Is.Not.Null);
             Assert.Multiple(() =>
             {
                 Assert.That(selected!.DisplayName.Text, Is.EqualTo("Hallo"));
                 Assert.That(selected.Description.Locale, Is.EqualTo("de-DE"));
+                Assert.That(translated[0].TypeId, Is.EqualTo(alternativeTypeId));
                 Assert.That(translated[1].IsNull, Is.True);
                 Assert.That(translated[2], Is.EqualTo(stored[2]));
+                Assert.That(translated[3], Is.EqualTo(stored[3]));
+                Assert.That(translated[4], Is.EqualTo(stored[4]));
                 Assert.That(units.DisplayName.Locale, Is.EqualTo("en-US"));
                 Assert.That(units.Description.Locale, Is.EqualTo("en-US"));
                 Assert.That(stored[0].TryGetValue(out EUInformation? original), Is.True);
@@ -640,11 +655,17 @@ namespace Opc.Ua.Server.Tests
             Variant range = Variant.FromStructure(new Range { Low = 1, High = 2 });
             Variant nullArray = Variant.From(default(ArrayOf<ExtensionObject>));
             Variant emptyArray = Variant.From(ArrayOf.Empty<ExtensionObject>());
+            // The compatibility constructor can retain a null envelope ID with an encodeable body.
+            Variant unidentified = Variant.From(new ExtensionObject(ExpandedNodeId.Null, (object)units));
+            Variant encoded = Variant.From(new ExtensionObject(
+                new ExpandedNodeId("units", "urn:alternative"), "unsupported encoded body"));
 
             Assert.That(resourceManager.TranslateValue([], stored), Is.EqualTo(stored));
             Assert.That(resourceManager.TranslateValue(["de-DE"], range), Is.EqualTo(range));
             Assert.That(resourceManager.TranslateValue(["de-DE"], nullArray), Is.EqualTo(nullArray));
             Assert.That(resourceManager.TranslateValue(["de-DE"], emptyArray), Is.EqualTo(emptyArray));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], unidentified), Is.EqualTo(unidentified));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], encoded), Is.EqualTo(encoded));
         }
 
         private static LocalizedText CreateHelloText()
