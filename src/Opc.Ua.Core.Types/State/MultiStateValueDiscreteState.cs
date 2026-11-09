@@ -133,56 +133,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<ServiceResult> WriteAttributeAsync(
-            ISystemContext context,
-            uint attributeId,
-            NumericRange indexRange,
-            DataValue value,
-            CancellationToken cancellationToken = default)
-        {
-            if (attributeId == Attributes.Value && indexRange.IsNull &&
-                (value.WrappedValue.TypeInfo.IsScalar || ValueRank == ValueRanks.Scalar) &&
-                (OnWriteValueAsync != null || OnSimpleWriteValueAsync != null))
-            {
-                ServiceResult validation = ValidateEnumValue(context, value.WrappedValue);
-                if (ServiceResult.IsBad(validation))
-                {
-                    return validation;
-                }
-                AttributeWriteResult writeResult = await WriteAttributeWithResultAsync(
-                    context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
-                ServiceResult result = writeResult.Result;
-                if (ServiceResult.IsGood(result) && !writeResult.SuppressCacheUpdate)
-                {
-                    var accepted = new DataValue(WrappedValue, StatusCode, Timestamp);
-                    if (accepted.WrappedValue.IsNull && !StatusCode.IsBad(accepted.StatusCode))
-                    {
-                        return StatusCodes.BadTypeMismatch;
-                    }
-                    LocalizedText text = LocalizedText.Null;
-                    ArrayOf<NodeId> dictionaryEntries = ArrayOf<NodeId>.Null;
-                    bool resolved = false;
-                    if (!accepted.WrappedValue.IsNull)
-                    {
-                        ServiceResult acceptedValidation = ValidateEnumValue(
-                            context, accepted.WrappedValue, out text, out dictionaryEntries, out resolved);
-                        if (ServiceResult.IsBad(acceptedValidation))
-                        {
-                            return acceptedValidation;
-                        }
-                    }
-                    UpdateDerivedValues(context, accepted, text, dictionaryEntries, resolved);
-                    await ClearChangeMasksAsync(
-                        context, includeChildren: true, cancellationToken: CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
-                return result;
-            }
-            return await base.WriteAttributeAsync(
-                context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
         protected override ServiceResult WriteValueAttribute(
             ISystemContext context,
             NumericRange indexRange,
@@ -215,6 +165,76 @@ namespace Opc.Ua
             }
 
             return result;
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask<ServiceResult> WriteAttributeCoreAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            if (attributeId == Attributes.Value && indexRange.IsNull &&
+                (value.WrappedValue.TypeInfo.IsScalar || ValueRank == ValueRanks.Scalar) &&
+                (OnWriteValueAsync != null || OnSimpleWriteValueAsync != null))
+            {
+                AttributeWriteResult writeResult = await WriteAttributeWithResultAsync(
+                    context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
+                ServiceResult result = writeResult.Result;
+                if (ServiceResult.IsGood(result) && !writeResult.SuppressCacheUpdate)
+                {
+                    var accepted = new DataValue(WrappedValue, StatusCode, Timestamp);
+                    if (accepted.WrappedValue.IsNull && !StatusCode.IsBad(accepted.StatusCode))
+                    {
+                        return StatusCodes.BadTypeMismatch;
+                    }
+                    LocalizedText text = LocalizedText.Null;
+                    ArrayOf<NodeId> dictionaryEntries = ArrayOf<NodeId>.Null;
+                    bool resolved = false;
+                    if (!accepted.WrappedValue.IsNull)
+                    {
+                        ServiceResult acceptedValidation = ValidateEnumValue(
+                            context, accepted.WrappedValue, out text, out dictionaryEntries, out resolved);
+                        if (ServiceResult.IsBad(acceptedValidation))
+                        {
+                            return acceptedValidation;
+                        }
+                    }
+                    if (resolved)
+                    {
+                        UpdateDerivedValues(context, accepted, text, dictionaryEntries, resolved);
+                    }
+                    if (!DeferChangeMaskNotificationsUntilWriteAdmissionEnds())
+                    {
+                        await ClearChangeMasksAsync(
+                            context, includeChildren: true, cancellationToken: CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                }
+                return result;
+            }
+            return await base.WriteAttributeCoreAsync(
+                context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        protected override AttributeWriteResult ValidateAsyncValueWrite(
+            ISystemContext context,
+            NumericRange indexRange,
+            Variant value)
+        {
+            if (indexRange.IsNull && value.TypeInfo.IsScalar)
+            {
+                ServiceResult validation = ValidateEnumValue(
+                    context, value, out _, out _, out _);
+                if (ServiceResult.IsBad(validation))
+                {
+                    return new AttributeWriteResult(validation);
+                }
+            }
+
+            return new AttributeWriteResult(ServiceResult.Good);
         }
 
         /// <summary>

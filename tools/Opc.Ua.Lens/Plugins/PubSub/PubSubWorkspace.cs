@@ -87,6 +87,7 @@ namespace UaLens.Plugins.PubSub
             ITelemetryContext telemetry,
             TimeProvider? clock = null,
             Func<TimeSpan, CancellationToken, Task>? delay = null,
+            Func<Task>? runCompletionBarrier = null,
             Func<Task>? teardownCompleted = null)
         {
             m_factory = factory ?? throw new ArgumentNullException(nameof(factory));
@@ -95,6 +96,7 @@ namespace UaLens.Plugins.PubSub
             m_logger = telemetry.CreateLogger<PubSubWorkspace>();
             m_clock = clock ?? TimeProvider.System;
             m_delay = delay ?? ((duration, token) => Task.Delay(duration, m_clock, token));
+            m_runCompletionBarrier = runCompletionBarrier;
             m_teardownCompleted = teardownCompleted;
             m_observations = CreateObservationStore(m_configuration);
         }
@@ -232,8 +234,7 @@ namespace UaLens.Plugins.PubSub
                 // nothing would move the phase on from Stopping in that window.
                 if (m_lifetime is not null)
                 {
-                    // A failure keeps its evidence; teardown does not reset a faulted phase.
-                    if (m_phase != PubSubDocumentPhase.Faulted)
+                    if (m_phase is PubSubDocumentPhase.Starting or PubSubDocumentPhase.Running)
                     {
                         m_phase = PubSubDocumentPhase.Stopping;
                         m_status = "Stopping and awaiting document-owned network resources…";
@@ -643,6 +644,10 @@ namespace UaLens.Plugins.PubSub
                         }
                     }
                 }
+                if (m_runCompletionBarrier is { } runCompletionBarrier)
+                {
+                    await runCompletionBarrier().ConfigureAwait(false);
+                }
             }
         }
 
@@ -809,6 +814,7 @@ namespace UaLens.Plugins.PubSub
         private readonly ILogger m_logger;
         private readonly TimeProvider m_clock;
         private readonly Func<TimeSpan, CancellationToken, Task> m_delay;
+        private readonly Func<Task>? m_runCompletionBarrier;
         private readonly Func<Task>? m_teardownCompleted;
         private readonly SemaphoreSlim m_operations = new(1, 1);
         private PubSubConfiguration m_configuration = new();

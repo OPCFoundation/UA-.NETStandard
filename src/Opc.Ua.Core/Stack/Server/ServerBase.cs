@@ -1136,26 +1136,33 @@ namespace Opc.Ua
                     return;
                 }
 
-                //update certificate in the endpoint descriptions
-                foreach (EndpointDescription endpointDescription in Endpoints)
-                {
-                    SetServerCertificateInEndpointDescription(
-                        endpointDescription,
-                        serverCertificates,
-                        checkRequireEncryption: true,
-                        SecurityPolicyRegistry);
-                }
-
-                foreach (ITransportListener listener in TransportListeners)
-                {
-                    listener.CertificateUpdate(
-                        certificateValidator,
-                        serverCertificates);
-                }
+                RefreshCertificateReferences(certificateValidator, serverCertificates);
             }
             catch (Exception ex)
             {
                 m_logger.ServerBaseLogMessage4(ex, e.SecurityConfiguration.ApplicationCertificates.Count);
+            }
+        }
+
+        /// <summary>
+        /// Refreshes endpoint descriptions and bound listeners without hiding activation failures.
+        /// </summary>
+        protected void RefreshCertificateReferences(
+            ICertificateValidatorEx certificateValidator,
+            ICertificateRegistry serverCertificates)
+        {
+            foreach (EndpointDescription endpointDescription in Endpoints)
+            {
+                SetServerCertificateInEndpointDescription(
+                    endpointDescription,
+                    serverCertificates,
+                    checkRequireEncryption: true,
+                    SecurityPolicyRegistry);
+            }
+
+            foreach (ITransportListener listener in TransportListeners)
+            {
+                listener.CertificateUpdate(certificateValidator, serverCertificates);
             }
         }
 

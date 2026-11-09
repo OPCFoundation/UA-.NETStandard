@@ -671,7 +671,8 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     if (Volatile.Read(ref m_disposeStarted) == 0)
                     {
-                        m_handles.CloseSession(session.Id);
+                        // This binding owns only memory streams; idle cleanup needs no provider-thread deferral.
+                        m_handles.CloseSession(session.Id, defer: false);
                         File.OpenCount!.Value = m_handles.OpenCount;
                     }
                 }

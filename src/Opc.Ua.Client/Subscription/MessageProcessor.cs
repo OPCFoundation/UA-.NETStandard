@@ -169,6 +169,7 @@ namespace Opc.Ua.Client.Subscriptions
                 generation)))
             {
                 m_messageCapacity.Release();
+                ReleaseDeferredBodies(message);
                 throw new ChannelClosedException();
             }
         }
@@ -200,8 +201,12 @@ namespace Opc.Ua.Client.Subscriptions
                     m_messageDispatchGate.Dispose();
                     m_cts.Dispose();
                     m_messageCapacity.Dispose();
+                    while (m_messages.TryRead(out IncomingMessage queued))
+                    {
+                        ReleaseDeferredBodies(queued.Message);
+                    }
                     m_messages.Dispose();
-                    m_pendingMessages.Clear();
+                    ClearPendingMessages();
                     Disposed = true;
                 }
             }
@@ -460,6 +465,7 @@ namespace Opc.Ua.Client.Subscriptions
                 if (AckQueue.ShutdownToken.IsCancellationRequested ||
                     incoming.Generation != Volatile.Read(ref m_generation))
                 {
+                    ReleaseDeferredBodies(incoming.Message);
                     return;
                 }
                 await ProcessMessageCoreAsync(incoming, ct).ConfigureAwait(false);
@@ -530,6 +536,7 @@ namespace Opc.Ua.Client.Subscriptions
                             curSeqNum,
                             prevDataSeq);
                     }
+                    ReleaseDeferredBodies(incoming.Message);
                     bool firstReceipt = m_notDispatched.Remove(curSeqNum);
                     firstReceipt |= TryConsumeSkippedSequenceNumber(curSeqNum);
                     if (firstReceipt)
@@ -707,6 +714,39 @@ namespace Opc.Ua.Client.Subscriptions
             return false;
         }
 
+        /// <summary>
+        /// Gives up the deferred bodies of a message that was dispatched or never will be:
+        /// their buffers go back to the pool. Never for a message that still awaits delivery.
+        /// </summary>
+        private static void ReleaseDeferredBodies(NotificationMessage message)
+        {
+            for (int i = 0; i < message.NotificationData.Count; i++)
+            {
+                message.NotificationData[i].ReleaseDeferredBody();
+            }
+        }
+
+        private void ClearPendingMessages()
+        {
+            foreach (IncomingMessage pending in m_pendingMessages.Values)
+            {
+                ReleaseDeferredBodies(pending.Message);
+            }
+            m_pendingMessages.Clear();
+        }
+
+        /// <summary>
+        /// Drops a buffered copy of a message, unless it is the one about to be delivered.
+        /// </summary>
+        private void RemovePendingMessage(uint sequenceNumber, NotificationMessage? delivered)
+        {
+            if (m_pendingMessages.Remove(sequenceNumber, out IncomingMessage pending) &&
+                !ReferenceEquals(pending.Message, delivered))
+            {
+                ReleaseDeferredBodies(pending.Message);
+            }
+        }
+
         private void BufferDataMessage(IncomingMessage incoming)
         {
             uint sequenceNumber = incoming.Message.SequenceNumber;
@@ -719,6 +759,7 @@ namespace Opc.Ua.Client.Subscriptions
                 Logger.SubscriptionReceivedDuplicateMessageSequenceNumber(
                     Id,
                     sequenceNumber);
+                ReleaseDeferredBodies(incoming.Message);
                 return;
             }
             if (m_pendingMessages.Count == 1 && m_keepAliveGapEnd == 0)
@@ -739,7 +780,7 @@ namespace Opc.Ua.Client.Subscriptions
             LastDataSequenceNumberProcessed = sequenceNumber;
             LastSequenceNumberProcessed = sequenceNumber;
             m_notDispatched.Remove(sequenceNumber);
-            m_pendingMessages.Remove(sequenceNumber);
+            RemovePendingMessage(sequenceNumber, incoming.Message);
             await OnNotificationReceivedAsync(
                 incoming.Message,
                 PublishState.None,
@@ -792,7 +833,7 @@ namespace Opc.Ua.Client.Subscriptions
                 CancellationToken shutdownToken = AckQueue.ShutdownToken;
                 if (shutdownToken.IsCancellationRequested)
                 {
-                    m_pendingMessages.Clear();
+                    ClearPendingMessages();
                     m_gapAvailableSequenceNumbers.Clear();
                     m_gapStartedTimestamp = 0;
                     m_gapRecoveryAttempted = false;
@@ -832,7 +873,7 @@ namespace Opc.Ua.Client.Subscriptions
                 CancellationToken shutdownToken = AckQueue.ShutdownToken;
                 if (shutdownToken.IsCancellationRequested)
                 {
-                    m_pendingMessages.Clear();
+                    ClearPendingMessages();
                     m_gapAvailableSequenceNumbers.Clear();
                     m_gapStartedTimestamp = 0;
                     m_gapRecoveryAttempted = false;
@@ -1059,7 +1100,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             foreach (uint sequenceNumber in stale)
             {
-                m_pendingMessages.Remove(sequenceNumber);
+                RemovePendingMessage(sequenceNumber, null);
             }
             UpdateGapTimer(advanced: false);
         }
@@ -1359,7 +1400,7 @@ namespace Opc.Ua.Client.Subscriptions
                 LastDataSequenceNumberProcessed = 0;
                 LastNotificationTimestamp = 0;
                 AvailableInRetransmissionQueue = [];
-                m_pendingMessages.Clear();
+                ClearPendingMessages();
                 m_gapStartedTimestamp = 0;
                 m_gapRecoveryAttempted = false;
                 m_keepAliveGapEnd = 0;
@@ -1631,7 +1672,7 @@ namespace Opc.Ua.Client.Subscriptions
                 if (ServiceResult.IsGood(republish.ResponseHeader.ServiceResult))
                 {
                     m_notDispatched.Remove(missing);
-                    m_pendingMessages.Remove(missing);
+                    RemovePendingMessage(missing, null);
 
                     // Delivery opens the acknowledgement lifetime. A late
                     // original must not open a second one.
@@ -1736,6 +1777,11 @@ namespace Opc.Ua.Client.Subscriptions
                     ex,
                     Id);
             }
+
+            // A message that waited in the queue is in an older generation by now: left
+            // alone, it would keep what was just decoded alive until that generation is
+            // collected, although nothing can reach the message any more.
+            ReleaseDeferredBodies(message);
 
             // Acknowledge even when a handler threw. The acknowledgement only
             // tells the server it may drop the message from its retransmission
@@ -1884,7 +1930,40 @@ namespace Opc.Ua.Client.Subscriptions
         private uint m_lastServerId;
         internal long m_missingCount;
         internal long m_republishCount;
-        internal IReadOnlyList<uint> AvailableInRetransmissionQueue;
+
+        /// <summary>
+        /// The sequence numbers the server last listed as available. Reading returns
+        /// a copy. The numbers are kept in a reused array, so a long-lived subscription
+        /// does not reference a new array per response: each such write is a dirty card
+        /// every following gen0 collection has to walk.
+        /// </summary>
+        internal IReadOnlyList<uint> AvailableInRetransmissionQueue
+        {
+            get
+            {
+                lock (m_availableLock)
+                {
+                    return m_available.AsSpan(0, m_availableCount).ToArray();
+                }
+            }
+            set
+            {
+                int count = value?.Count ?? 0;
+                lock (m_availableLock)
+                {
+                    if (m_available.Length < count)
+                    {
+                        m_available = new uint[Math.Max(count * 2, 16)];
+                    }
+                    for (int i = 0; i < count; i++)
+                    {
+                        m_available[i] = value![i];
+                    }
+                    m_availableCount = count;
+                }
+            }
+        }
+
         internal readonly ILogger Logger;
         protected TimeProvider TimeProvider { get; }
 
@@ -1950,6 +2029,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// Sequence numbers advertised as available while a gap was open.
         /// </summary>
         private readonly HashSet<uint> m_gapAvailableSequenceNumbers = [];
+        private readonly Lock m_availableLock = new();
+        private uint[] m_available = [];
+        private int m_availableCount;
         private long m_gapStartedTimestamp;
 
         /// <summary>

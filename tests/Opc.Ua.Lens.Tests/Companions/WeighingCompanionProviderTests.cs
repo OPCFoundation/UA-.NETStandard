@@ -334,7 +334,7 @@ namespace UaLens.Tests.Companions
             Assert.That(Field(result.Values, "Event source").Value, Is.EqualTo(Variant.From(target.NodeId)));
             Assert.That(Field(result.Values, "Scale event type").Value,
                 Is.EqualTo(Variant.From(session.Services.Resolve(Scales.ObjectTypeIds.ScaleEventType))));
-            Assert.That(values.Count(value => value.Name == "Notification field"), Is.EqualTo(11));
+            Assert.That(values.Count(value => value.Name == "Notification field"), Is.EqualTo(12));
             Assert.That(values.Any(value => value.Value.ToString().Contains("NotificationCategory",
                 StringComparison.Ordinal)), Is.True);
             Assert.That(result.Summary, Does.Contain("no subscription"));

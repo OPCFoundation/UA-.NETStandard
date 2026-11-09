@@ -193,7 +193,7 @@ namespace Opc.Ua.SourceGeneration
                 Assert.That(
                     generated,
                     Does.Contain(
-                        "global::Opc.Ua.ArrayOf<global::Opc.Ua.ByteString> tickets"));
+                        "global::Opc.Ua.ArrayOf<string> tickets"));
             });
         }
 

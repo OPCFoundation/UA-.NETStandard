@@ -40,8 +40,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
 {
@@ -160,6 +162,224 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task AddClientKeepsInjectedCertificateManagerOpenAfterConfigurationDisposalAsync()
+        {
+            string testRoot = CreateTestRoot();
+            string configurationFile = WriteConfigurationFile(testRoot, "CfgXmlInjectedClientManager");
+            await using var certificateManager = new CertificateManager(Opc.Ua.Tests.NUnitTelemetryContext.Create());
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton<ICertificateManager>(certificateManager);
+            services.AddOpcUa().AddClient(configurationFile);
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            IOpcUaApplicationConfigurationProvider configurationProvider =
+                provider.GetRequiredService<OpcUaClientOptions>().ConfigurationProvider!;
+            ApplicationConfiguration configuration = await configurationProvider.GetAsync().ConfigureAwait(false);
+            Assert.That(configuration.CertificateManager, Is.SameAs(certificateManager));
+
+            await configurationProvider.DisposeAsync().ConfigureAwait(false);
+            using ICertificateStore store = certificateManager.OpenCertificateStore(
+                Path.Combine(GetPkiRoot(testRoot), "own"),
+                CertificateStoreType.Directory);
+        }
+
+        /// <summary>
+        /// Verifies borrowing through a forwarding factory and ownership of loaded and callback-created managers.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SuppliedProviderKeepsInjectedManagerWhenFactoryDecoratesApplicationAsync(bool replaceManager)
+        {
+            string testRoot = CreateTestRoot();
+            string configurationFile = WriteConfigurationFile(testRoot, "DecoratedXmlClient");
+            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            await using var certificateManager = new CertificateManager(telemetry);
+            await using var inner = new ApplicationInstance(telemetry);
+            var application = new Mock<IApplicationInstance>(MockBehavior.Strict);
+            application.SetupSet(instance => instance.ApplicationType = It.IsAny<ApplicationType>())
+                .Callback<ApplicationType>(type => inner.ApplicationType = type);
+            application.SetupSet(instance => instance.ApplicationName = It.IsAny<string?>())
+                .Callback<string?>(name => inner.ApplicationName = name);
+            application.SetupSet(instance =>
+                instance.CertificatePasswordProvider = It.IsAny<ICertificatePasswordProvider?>())
+                .Callback<ICertificatePasswordProvider?>(passwords => inner.CertificatePasswordProvider = passwords);
+            application.Setup(instance => instance.LoadApplicationConfigurationAsync(
+                configurationFile, false, It.IsAny<CancellationToken>()))
+                .Returns((string file, bool silent, CancellationToken ct) =>
+                    inner.LoadApplicationConfigurationAsync(file, silent, ct));
+            application.Setup(instance => instance.CheckApplicationInstanceCertificatesAsync(
+                true, CertificateFactory.DefaultLifeTime, It.IsAny<CancellationToken>()))
+                .Returns((bool silent, ushort? lifetime, CancellationToken ct) =>
+                    inner.CheckApplicationInstanceCertificatesAsync(silent, lifetime, ct));
+            application.Setup(instance => instance.DisposeAsync()).Returns(() => inner.DisposeAsync());
+            var factory = new Mock<IApplicationInstanceFactory>(MockBehavior.Strict);
+            factory.Setup(instanceFactory => instanceFactory.Create(telemetry)).Returns(application.Object);
+            CertificateManager? loadedManager = null;
+            CertificateManager? replacementManager = null;
+            await using var configurationProvider = new ClientSuppliedConfigurationProvider(
+                configurationFile,
+                null,
+                configuration =>
+                {
+                    loadedManager = inner.CertificateManager;
+                    Assert.That(configuration.CertificateManager, Is.SameAs(certificateManager));
+                    if (replaceManager)
+                    {
+                        replacementManager = new CertificateManager(telemetry);
+                        configuration.CertificateManager = replacementManager;
+                    }
+                },
+                factory.Object,
+                telemetry,
+                certificateManager);
+
+            ApplicationConfiguration configuration = await configurationProvider.GetAsync().ConfigureAwait(false);
+            Assert.That(configurationProvider.Application, Is.SameAs(application.Object));
+            Assert.That(loadedManager, Is.Not.Null.And.Not.SameAs(certificateManager));
+            await configurationProvider.DisposeAsync().ConfigureAwait(false);
+            application.Verify(instance => instance.DisposeAsync(), Times.Once);
+            using ICertificateStore store = certificateManager.OpenCertificateStore(
+                GetPkiRoot(testRoot), CertificateStoreType.Directory, false);
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => loadedManager!.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration))
+                .ConfigureAwait(false);
+            if (replaceManager)
+            {
+                Assert.That(configuration.CertificateManager, Is.SameAs(replacementManager));
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => replacementManager!.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration))
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that every disposal caller waits for initialization even when its original waiter cancels.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SuppliedProviderDisposalWaitsForInFlightCertificateCheckAsync(bool cancelWaiter)
+        {
+            string testRoot = CreateTestRoot();
+            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            await using var borrowedManager = new CertificateManager(telemetry);
+            var loadedManager = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = loadedManager };
+            await using var inner = new ApplicationInstance(configuration, telemetry);
+            var checkEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var checkFinished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var application = new Mock<IApplicationInstance>(MockBehavior.Strict);
+            application.SetupSet(instance => instance.ApplicationType = It.IsAny<ApplicationType>());
+            application.SetupSet(instance => instance.ApplicationName = It.IsAny<string?>());
+            application.SetupSet(instance =>
+                instance.CertificatePasswordProvider = It.IsAny<ICertificatePasswordProvider?>());
+            application.Setup(instance => instance.LoadApplicationConfigurationAsync(
+                "unused.Config.xml", false, CancellationToken.None)).ReturnsAsync(configuration);
+            application.Setup(instance => instance.CheckApplicationInstanceCertificatesAsync(
+                true, CertificateFactory.DefaultLifeTime, CancellationToken.None))
+                .Returns(() =>
+                {
+                    checkEntered.TrySetResult(true);
+                    return new ValueTask<bool>(checkFinished.Task);
+                });
+            application.Setup(instance => instance.DisposeAsync()).Returns(() => inner.DisposeAsync());
+            var factory = new Mock<IApplicationInstanceFactory>(MockBehavior.Strict);
+            factory.Setup(instanceFactory => instanceFactory.Create(telemetry)).Returns(application.Object);
+            await using var configurationProvider = new ClientSuppliedConfigurationProvider(
+                "unused.Config.xml", null, null, factory.Object, telemetry, borrowedManager);
+            using var cancellation = new CancellationTokenSource();
+            Task<ApplicationConfiguration> initialization = configurationProvider.GetAsync(cancellation.Token);
+            await checkEntered.Task.ConfigureAwait(false);
+            if (cancelWaiter)
+            {
+                cancellation.Cancel();
+                await Assert.CatchAsync<OperationCanceledException>(
+                    async () => await initialization.ConfigureAwait(false)).ConfigureAwait(false);
+            }
+
+            Task disposal = configurationProvider.DisposeAsync().AsTask();
+            Task repeatedDisposal = configurationProvider.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(disposal.IsCompleted, Is.False);
+                Assert.That(repeatedDisposal, Is.SameAs(disposal));
+                application.Verify(instance => instance.DisposeAsync(), Times.Never);
+                Assert.That(configuration.CertificateManager, Is.SameAs(borrowedManager));
+                using ICertificateStore store = loadedManager.OpenCertificateStore(
+                    GetPkiRoot(testRoot), CertificateStoreType.Directory, false);
+                Assert.That(store, Is.Not.Null);
+            }
+            finally
+            {
+                checkFinished.TrySetResult(true);
+                await disposal.ConfigureAwait(false);
+                if (!cancelWaiter)
+                {
+                    Assert.That(await initialization.ConfigureAwait(false), Is.SameAs(configuration));
+                }
+            }
+
+            application.Verify(instance => instance.DisposeAsync(), Times.Once);
+            using ICertificateStore borrowedStore = borrowedManager.OpenCertificateStore(
+                GetPkiRoot(testRoot), CertificateStoreType.Directory, false);
+            Assert.That(borrowedStore, Is.Not.Null);
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => loadedManager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration))
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that failed initialization and cancellation remain observable if application cleanup also fails.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task SuppliedProviderDisposalPreservesInitializationAndCleanupFailuresAsync(
+            bool cancel,
+            bool failCleanup)
+        {
+            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            Exception failure = cancel
+                ? new OperationCanceledException(new CancellationToken(canceled: true))
+                : new InvalidOperationException("Initialization failed.");
+            var cleanupFailure = new InvalidOperationException("Cleanup failed.");
+            var application = new Mock<IApplicationInstance>(MockBehavior.Strict);
+            application.SetupSet(instance => instance.ApplicationType = It.IsAny<ApplicationType>());
+            application.SetupSet(instance =>
+                instance.CertificatePasswordProvider = It.IsAny<ICertificatePasswordProvider?>());
+            application.Setup(instance => instance.LoadApplicationConfigurationAsync(
+                "unused.Config.xml", false, CancellationToken.None))
+                .Returns(new ValueTask<ApplicationConfiguration>(
+                    Task.FromException<ApplicationConfiguration>(failure)));
+            application.Setup(instance => instance.DisposeAsync())
+                .Returns(() => failCleanup ? new ValueTask(Task.FromException(cleanupFailure)) : default);
+            var factory = new Mock<IApplicationInstanceFactory>(MockBehavior.Strict);
+            factory.Setup(instanceFactory => instanceFactory.Create(telemetry)).Returns(application.Object);
+            var configurationProvider = new ClientSuppliedConfigurationProvider(
+                "unused.Config.xml", null, null, factory.Object, telemetry);
+
+            Exception? initializationFailure = await Assert.CatchAsync<Exception>(
+                async () => await configurationProvider.GetAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(initializationFailure, Is.SameAs(failure));
+            Task disposal = configurationProvider.DisposeAsync().AsTask();
+            Exception? disposalFailure = await Assert.CatchAsync<Exception>(
+                async () => await disposal.ConfigureAwait(false)).ConfigureAwait(false);
+            if (failCleanup)
+            {
+                Assert.That(disposalFailure, Is.TypeOf<AggregateException>());
+                Assert.That(((AggregateException)disposalFailure!).InnerExceptions,
+                    Is.EqualTo(new[] { failure, cleanupFailure }));
+            }
+            else
+            {
+                Assert.That(disposalFailure, Is.SameAs(failure));
+            }
+            Assert.That(configurationProvider.DisposeAsync().AsTask(), Is.SameAs(disposal));
+            application.Verify(instance => instance.DisposeAsync(), Times.Once);
+        }
+
+        [Test]
         public async Task SuppliedDocumentTakesPrecedenceOverConfigureApplicationAsync()
         {
             const string applicationName = "CfgXmlPrecedenceClient";
@@ -197,7 +417,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddLogging();
             services.AddOpcUa().AddClient(missingFile);
 
-            await using ServiceProvider provider = services.BuildServiceProvider();
+            ServiceProvider provider = services.BuildServiceProvider();
             OpcUaClientOptions resolvedOptions =
                 provider.GetRequiredService<OpcUaClientOptions>();
 
@@ -207,6 +427,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(
                 () => resolvedOptions.ConfigurationProvider!.Configuration,
                 Throws.InvalidOperationException);
+            await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         [Test]
@@ -369,7 +591,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 missingFile,
                 options => options.LoadConfigurationOnStart = true);
 
-            await using ServiceProvider provider = services.BuildServiceProvider();
+            ServiceProvider provider = services.BuildServiceProvider();
             IHostedService loader = provider.GetServices<IHostedService>()
                 .Single(service => service is ClientConfigurationLoaderHostedService);
 
@@ -378,6 +600,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(
                 () => loader.StartAsync(CancellationToken.None),
                 Throws.InstanceOf<ServiceResultException>());
+            await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         [Test]

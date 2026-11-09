@@ -140,12 +140,14 @@ internal sealed class PubSubTestRuntime
 
     public PubSubWorkspace CreateWorkspace(
         Func<TimeSpan, CancellationToken, Task>? delay = null,
+        Func<Task>? runCompletionBarrier = null,
         Func<Task>? teardownCompleted = null)
     {
         return new PubSubWorkspace(
             Factory.Object,
             DefaultTelemetry.Create(static _ => { }),
             delay: delay,
+            runCompletionBarrier: runCompletionBarrier,
             teardownCompleted: teardownCompleted);
     }
 }

@@ -190,6 +190,22 @@ to replace those snapshots and invalidate cached validation results.
 An explicit-only list can validate certificates without a `StorePath`;
 store-management operations still require a configured backing store.
 
+Set `CertificateValidationOptions.TrustScope` when one operation must trust
+only a specific set of authorities, such as those in a validated onboarding
+ticket. `CertificateValidationScope` accepts `ArrayOf<ByteString>` values for
+trusted certificate DER, untrusted issuer DER, and CRL DER. It copies each
+collection and byte string. The supplied material replaces both configured
+trust and issuer stores for that call; empty anchors establish no trust.
+Issuer material does not itself authorize a certificate.
+
+Scoped calls use an isolated validation core and do not inherit global
+auto-accept or error-acceptance callbacks. Explicit per-call policy still
+applies. For authentication, set `AutoAcceptUntrustedCertificates = false`,
+the required key-size and revocation policy, and
+`AcceptError = static (_, _) => false`. Scoped validation does not reuse or
+populate the normal connection-validation cache. CRLs use the same signature,
+freshness, and revocation checks as directory-store CRLs.
+
 When `UseValidatedCertificates` is enabled, cached acceptance still checks
 revocation, the complete accepted issuer path and the validity interval shared by
 every certificate on that path. Omitting a peer-only intermediate cannot reuse an
@@ -708,9 +724,11 @@ public sealed class MyResetProvider : IServerConfigurationResetProvider
 whole `FileType` surface (`Open`, `Read`, `Write`, `Close`, `SetPosition`,
 `GetPosition`, `CloseAndUpdate`, `ConfirmUpdate`) and owns:
 
-- **Stream lifecycle & single-writer** semantics (last open wins; an abandoned
-  Session's open handle is released on Session close and after the
-  `ActivityTimeout` elapses).
+- **Stream lifecycle**: the current handler replaces any existing handle when
+  a new open succeeds. This does not retain multiple read handles or reject
+  incompatible opens with the `Bad_NotWritable` and `Bad_NotReadable` statuses
+  required by OPC 10000-20 §4.2.2. An abandoned Session's handle is also
+  released on Session close and after the `ActivityTimeout` elapses.
 - **Security**: read requires SecurityAdmin over an encrypted channel; the
   update Methods require SecurityAdmin over an authenticated channel.
 - **Transaction exclusion**: opening for writing is rejected with
@@ -751,6 +769,21 @@ stream body (a serialized `UABinaryFileDataType` whose `SupportedDataType` is
 `ApplicationConfigurationDataType`) and is treated opaquely by the node manager,
 so the concrete encoding is entirely the provider's responsibility.
 
+For a Read + Write open, the current server creates an empty stream; it reads
+the provider's configuration only for a Read-only open. Part 12 §7.8.5.1
+requires the Client to read the existing configuration and set the position
+to the beginning before writing. The current `ServerPushConfigurationClient`
+does not perform those calls. The provider-backed update surface therefore
+does not yet implement the required transfer sequence, and shorter-content
+replacement behavior on other servers has not been established.
+
+The Read + Write mode restriction in Part 12 does not state an exception to
+the Part 20 §4.2.2 open-handle rules. The current handler replaces a live
+handle rather than allowing multiple readers or returning the required busy
+statuses for incompatible opens. Part 12 also requires the inherited `Size`
+property to return `Bad_NotSupported`; its current wire-read result has not
+been established and is not assessed here.
+
 A provider that also implements `IApplicationConfigurationFileTargetProvider`
 receives the `CloseAndUpdate` `Targets` (§7.8.5.2: contents not referenced by a
 target are ignored). Its target-aware `ValidateConfigurationAsync` returns an
@@ -762,6 +795,24 @@ carries the plan's `NewVersion`; a second update is rejected with
 `Bad_InvalidState` until the deferred apply has run). Providers that only
 implement `IApplicationConfigurationFileProvider` keep applying the whole file
 immediately.
+
+When `RequiresConfirmation` is `true`, the provider must also implement
+`IRecoverableApplicationConfigurationFileProvider`. The server rejects
+`CloseAndUpdate` with `Bad_NotSupported` before validation or provider mutation
+if this recovery contract is absent. The provider durably stores the previous
+and proposed configuration, targets, update identifier, apply time and revert
+deadline. Its apply, confirm and revert operations must be atomic and idempotent
+for that identifier. The server reads pending state during startup and completes
+recovery before serving `ConfigurationFile`; an expired update is reverted
+before the node is made available.
+
+Providers that do not require confirmation continue using
+`IApplicationConfigurationFileProvider` without the recovery interface.
+Existing providers that set `RequiresConfirmation` must add durable transaction
+storage and restart recovery before they can accept confirmation-required
+updates. This requirement
+prevents the server from acknowledging an update whose prior state and
+confirmation deadline would be lost on restart.
 
 ### TrustList Size Limits (OPC UA Part 12 §8.4.5)
 
@@ -1011,6 +1062,8 @@ Per-call validation behaviour can be overridden via
 
 | Option | Description |
 |--------|-------------|
+| `TrustScope` | Replace configured trusted/issuer stores with copied per-call anchors, issuer certificates, and CRLs; do not inherit global acceptance settings. |
+| `ValidateForSigning` | Require digital-signature usage instead of application RSA encipherment usage; retain chain, trust, validity, and revocation checks. |
 | `RejectSHA1SignedCertificates` | Override the global SHA-1 rejection policy. |
 | `RejectUnknownRevocationStatus` | Override the global revocation-unknown rejection policy. |
 | `MinimumCertificateKeySize` | Override the minimum acceptable RSA key size. |

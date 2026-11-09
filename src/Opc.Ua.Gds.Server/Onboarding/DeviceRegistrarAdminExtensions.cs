@@ -63,9 +63,37 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// expected child methods.
         /// </exception>
         /// <exception cref="ArgumentNullException"><paramref name="registrar"/> is <c>null</c>.</exception>
+        [Obsolete("Supply an IOnboardingTicketValidator. Registration without a validator returns BadConfigurationError.")]
         public static void BindToTicketStore(
             this BaseObjectState registrar,
             ITicketStore store)
+        {
+            BindToTicketStoreCore(registrar, store, validator: null);
+        }
+
+        /// <summary>
+        /// Binds ticket administration to a store and verifies every registered ticket
+        /// against out-of-band authority trust before retaining it.
+        /// </summary>
+        public static void BindToTicketStore(
+            this BaseObjectState registrar,
+            ITicketStore store,
+            IOnboardingTicketValidator validator)
+        {
+            if (validator == null)
+            {
+                throw new ArgumentNullException(nameof(validator));
+            }
+            BindToTicketStoreCore(registrar, store, validator);
+        }
+
+        /// <summary>
+        /// Installs authorized handlers without accepting unverified registrations.
+        /// </summary>
+        private static void BindToTicketStoreCore(
+            BaseObjectState registrar,
+            ITicketStore store,
+            IOnboardingTicketValidator? validator)
         {
             if (registrar == null)
             {
@@ -91,7 +119,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
             register.OnCallMethod2Async = (ctx, m, objectId, inputs, outputs, ct) =>
                 HasRegistrarAdminRole(ctx)
-                    ? HandleRegisterAsync(capturedStore, inputs, outputs, ct)
+                    ? HandleRegisterAsync(capturedStore, validator, inputs, outputs, ct)
                     : new ValueTask<ServiceResult>(RegistrarAdminRequired());
 
             unregister.OnCallMethod2Async = (ctx, m, objectId, inputs, outputs, ct) =>
@@ -103,14 +131,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// OPC 10000-21 §9.2.11 / §9.2.12: RegisterTickets and UnregisterTickets
         /// shall be called from a Session that has access to the RegistrarAdmin
-        /// Role. In-process calls that carry no user identity (no Session) are
-        /// not restricted.
+        /// Role. Calls without a Session identity cannot establish this permission.
         /// </summary>
         private static bool HasRegistrarAdminRole(ISystemContext context)
         {
             if (context is not ISessionSystemContext { UserIdentity: { } identity })
             {
-                return true;
+                return false;
             }
 
             NodeId roleId = ExpandedNodeId.ToNodeId(
@@ -128,6 +155,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         private static async ValueTask<ServiceResult> HandleRegisterAsync(
             ITicketStore store,
+            IOnboardingTicketValidator? validator,
             ArrayOf<Variant> inputs,
             List<Variant> outputs,
             CancellationToken cancellationToken)
@@ -136,7 +164,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 return StatusCodes.BadArgumentsMissing;
             }
-            if (!inputs[0].TryGetValue(out ArrayOf<ByteString> tickets))
+            if (inputs.Count > 1)
+            {
+                return StatusCodes.BadTooManyArguments;
+            }
+            if (!inputs[0].TryGetValue(out ArrayOf<string> tickets))
             {
                 return StatusCodes.BadTypeMismatch;
             }
@@ -144,24 +176,32 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 return StatusCodes.BadUnexpectedError;
             }
+            if (validator == null)
+            {
+                return new ServiceResult(
+                    StatusCodes.BadConfigurationError,
+                    LocalizedText.From("A ticket validator must be configured before registering tickets."));
+            }
             var results = new StatusCode[tickets.Count];
 
             for (int i = 0; i < tickets.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                byte[] ticket = tickets[i].ToArray();
-                string ticketId = ComputeTicketId(ticket);
                 try
                 {
+                    if (tickets[i] == null)
+                    {
+                        results[i] = StatusCodes.BadTicketInvalid;
+                        continue;
+                    }
+                    ValidatedOnboardingTicket accepted = await validator.ValidateAsync(
+                        tickets[i], OnboardingTicketSource.OutOfBand, cancellationToken).ConfigureAwait(false);
+                    byte[] ticket = System.Text.Encoding.UTF8.GetBytes(tickets[i]);
+                    string ticketId = ComputeTicketId(ticket);
                     await store.AddAsync(
                             ticketId,
                             ticket,
-                            new TicketMetadata(
-                                Kind: TicketKind.Unspecified,
-                                ManufacturerName: string.Empty,
-                                ModelName: string.Empty,
-                                SerialNumber: string.Empty,
-                                ProductInstanceUri: string.Empty),
+                            accepted.Metadata,
                             cancellationToken)
                         .ConfigureAwait(false);
                     results[i] = StatusCodes.Good;
@@ -170,9 +210,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 {
                     throw;
                 }
-                catch (Exception ex)
+                catch (ServiceResultException ex)
                 {
-                    results[i] = new ServiceResult(ex).StatusCode;
+                    results[i] = ex.StatusCode;
+                }
+                catch (Exception)
+                {
+                    results[i] = StatusCodes.BadUnexpectedError;
                 }
             }
 
@@ -190,7 +234,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 return StatusCodes.BadArgumentsMissing;
             }
-            if (!inputs[0].TryGetValue(out ArrayOf<ByteString> tickets))
+            if (inputs.Count > 1)
+            {
+                return StatusCodes.BadTooManyArguments;
+            }
+            if (!inputs[0].TryGetValue(out ArrayOf<string> tickets))
             {
                 return StatusCodes.BadTypeMismatch;
             }
@@ -203,7 +251,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
             for (int i = 0; i < tickets.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                byte[] ticket = tickets[i].ToArray();
+                if (tickets[i] == null)
+                {
+                    results[i] = StatusCodes.BadTicketInvalid;
+                    continue;
+                }
+                byte[] ticket = System.Text.Encoding.UTF8.GetBytes(tickets[i]);
                 string ticketId = ComputeTicketId(ticket);
                 try
                 {
@@ -218,9 +271,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 {
                     throw;
                 }
-                catch (Exception ex)
+                catch (ServiceResultException ex)
                 {
-                    results[i] = new ServiceResult(ex).StatusCode;
+                    results[i] = ex.StatusCode;
+                }
+                catch (Exception)
+                {
+                    results[i] = StatusCodes.BadUnexpectedError;
                 }
             }
 

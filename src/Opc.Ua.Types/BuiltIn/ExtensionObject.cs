@@ -66,6 +66,15 @@ namespace Opc.Ua
         public static readonly ExtensionObject Null;
 
         /// <summary>
+        /// Create an extension object whose binary body is decoded on first use.
+        /// </summary>
+        internal ExtensionObject(ExpandedNodeId typeId, DeferredExtensionObjectBody body)
+        {
+            TypeId = typeId;
+            m_rawBody = body;
+        }
+
+        /// <summary>
         /// Initializes the object with a <paramref name="typeId"/>.
         /// </summary>
         /// <param name="typeId">The type to copy and create an
@@ -73,7 +82,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId)
         {
             TypeId = typeId;
-            m_body = null;
+            m_rawBody = null;
         }
 
         /// <summary>
@@ -86,7 +95,7 @@ namespace Opc.Ua
             if (body != null)
             {
                 TypeId = body.TypeId;
-                m_body = copy ? body.Clone() : body;
+                m_rawBody = copy ? body.Clone() : body;
             }
         }
 
@@ -101,7 +110,7 @@ namespace Opc.Ua
             if (body != null)
             {
                 TypeId = typeId.IsNull ? body.TypeId : typeId;
-                m_body = copy ? body.Clone() : body;
+                m_rawBody = copy ? body.Clone() : body;
             }
         }
 
@@ -113,7 +122,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId, ByteString body)
         {
             TypeId = typeId;
-            m_body = body;
+            m_rawBody = body;
         }
 
         /// <summary>
@@ -124,7 +133,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId, XmlElement body)
         {
             TypeId = typeId;
-            m_body = body;
+            m_rawBody = body;
         }
 
         /// <summary>
@@ -135,7 +144,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId, string body)
         {
             TypeId = typeId;
-            m_body = body;
+            m_rawBody = body;
         }
 
         /// <summary>
@@ -148,7 +157,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId, object body)
         {
             TypeId = typeId;
-            m_body = body;
+            m_rawBody = body;
 
             if (body is
                 not null and
@@ -170,7 +179,7 @@ namespace Opc.Ua
         /// the body.
         /// </summary>
         /// <value>The encoding for the embedded object.</value>
-        public ExtensionObjectEncoding Encoding => m_body switch
+        public ExtensionObjectEncoding Encoding => ResolvedBody switch
         {
             string => ExtensionObjectEncoding.Json,
             XmlElement => ExtensionObjectEncoding.Xml,
@@ -184,7 +193,7 @@ namespace Opc.Ua
         /// </summary>
         [Obsolete("Use TryGetAsXXX API for type safe access to body.")]
 #pragma warning disable RCS1085 // Use auto-implemented property
-        public object? Body => m_body;
+        public object? Body => ResolvedBody;
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
@@ -204,10 +213,10 @@ namespace Opc.Ua
             // wrapping the same encodeable but tagged with different encoding ids
             // (TypeId, BinaryEncodingId, XmlEncodingId) produce the same hash —
             // consistent with the relaxed equality semantics in Equals.
-            int typeIdHash = m_body is IEncodeable encodeable
+            int typeIdHash = ResolvedBody is IEncodeable encodeable
                 ? encodeable.TypeId.GetHashCode()
                 : TypeId.GetHashCode();
-            return HashCode.Combine(typeIdHash, m_body switch
+            return HashCode.Combine(typeIdHash, ResolvedBody switch
             {
                 ByteString b => b.GetHashCode(),
                 string s => StringComparer.Ordinal.GetHashCode(s),
@@ -243,7 +252,7 @@ namespace Opc.Ua
             }
             if (Encoding == value.Encoding)
             {
-                return m_body switch
+                return ResolvedBody switch
                 {
                     ByteString b =>
                         b == (value.TryGetAsBinary(out ByteString b2) ? b2 : default),
@@ -259,10 +268,10 @@ namespace Opc.Ua
                     // this, but the explicit null check keeps Equals reflexive for
                     // ExtensionObjects that carry a TypeId without a body (e.g. an
                     // AdditionalHeader decoded from a binary "no body" encoding).
-                    _ => value.m_body is null
+                    _ => value.ResolvedBody is null
                 };
             }
-            return CoreUtils.IsEqual(m_body!, value.m_body!);
+            return CoreUtils.IsEqual(ResolvedBody!, value.ResolvedBody!);
         }
 
         /// <summary>
@@ -287,12 +296,12 @@ namespace Opc.Ua
             {
                 return true;
             }
-            if (right.m_body is IEncodeable rightEncodeable &&
+            if (right.ResolvedBody is IEncodeable rightEncodeable &&
                 TypeIdMatches(left.TypeId, rightEncodeable))
             {
                 return true;
             }
-            if (left.m_body is IEncodeable leftEncodeable &&
+            if (left.ResolvedBody is IEncodeable leftEncodeable &&
                 TypeIdMatches(right.TypeId, leftEncodeable))
             {
                 return true;
@@ -318,7 +327,7 @@ namespace Opc.Ua
         {
             try
             {
-                encodeable = m_body switch
+                encodeable = ResolvedBody switch
                 {
                     ByteString binary when !binary.IsNull =>
                         DecodeBinary(binary, messageContext),
@@ -471,7 +480,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                switch (m_body)
+                switch (ResolvedBody)
                 {
                     case ByteString byteString:
                         return string.Format(
@@ -518,7 +527,7 @@ namespace Opc.Ua
         /// <summary>
         /// Tests if the extension object is null.
         /// </summary>
-        public bool IsNull => TypeId.IsNull && m_body == null;
+        public bool IsNull => TypeId.IsNull && ResolvedBody == null;
 
         /// <summary>
         /// Try get encodeable from the extension object
@@ -527,7 +536,7 @@ namespace Opc.Ua
             [NotNullWhen(true)] out IEncodeable? encodeable,
             IServiceMessageContext? messageContext = null)
         {
-            if (m_body is IEncodeable e)
+            if (ResolvedBody is IEncodeable e)
             {
                 encodeable = e;
                 return true;
@@ -574,7 +583,7 @@ namespace Opc.Ua
             [MaybeNullWhen(false)] out string json,
             IServiceMessageContext? messageContext = null)
         {
-            if (m_body is string s)
+            if (ResolvedBody is string s)
             {
                 json = s;
                 return true;
@@ -598,7 +607,7 @@ namespace Opc.Ua
             out XmlElement xml,
             IServiceMessageContext? messageContext = null)
         {
-            if (m_body is XmlElement x)
+            if (ResolvedBody is XmlElement x)
             {
                 xml = x;
                 return true;
@@ -622,7 +631,7 @@ namespace Opc.Ua
             out ByteString binary,
             IServiceMessageContext? messageContext = null)
         {
-            if (m_body is ByteString b)
+            if (ResolvedBody is ByteString b)
             {
                 binary = b;
                 return true;
@@ -646,7 +655,7 @@ namespace Opc.Ua
         /// <returns>Instance of <see cref="IEncodeable"/> for the embedded object.</returns>
         public static IEncodeable? ToEncodeable(ExtensionObject extension)
         {
-            return extension.m_body as IEncodeable;
+            return extension.ResolvedBody as IEncodeable;
         }
 
         /// <summary>
@@ -682,7 +691,7 @@ namespace Opc.Ua
         [Pure]
         public ExtensionObject WithTypeId(ExpandedNodeId typeId)
         {
-            return m_body switch
+            return ResolvedBody switch
             {
                 ByteString v => new ExtensionObject(typeId, v),
                 string v => new ExtensionObject(typeId, v),
@@ -692,7 +701,27 @@ namespace Opc.Ua
             };
         }
 
-        private readonly object? m_body;
+        /// <summary>
+        /// Drops a body decoded on first use after it was dispatched; the extension
+        /// object has no value afterwards. Other bodies are not affected.
+        /// </summary>
+        internal void ReleaseDeferredBody()
+        {
+            (m_rawBody as DeferredExtensionObjectBody)?.Release();
+        }
+
+        /// <summary>
+        /// Whether the body was kept as bytes to be decoded on first use.
+        /// </summary>
+        internal bool IsDeferred => m_rawBody is DeferredExtensionObjectBody;
+
+        /// <summary>
+        /// The body, decoding a deferred one on first use.
+        /// </summary>
+        private object? ResolvedBody =>
+            m_rawBody is DeferredExtensionObjectBody deferred ? deferred.Value : m_rawBody;
+
+        private readonly object? m_rawBody;
     }
 
     /// <summary>

@@ -77,7 +77,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         }
 
         [Test]
-        public void EncodedTicketUsesByteStringSupertype()
+        public void EncodedTicketUsesStringSupertype()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             Dictionary<string, string> generatedText = GenerateStack(
@@ -102,7 +102,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 nodeStates[declarationIndex..initializerEnd];
             Assert.That(
                 encodedTicketInitializer,
-                Does.Contain("state.SuperTypeId = global::Opc.Ua.NodeId.Create(15u,"));
+                Does.Contain("state.SuperTypeId = global::Opc.Ua.NodeId.Create(12u,"));
         }
 
         /// <summary>

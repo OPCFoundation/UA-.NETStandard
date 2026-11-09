@@ -75,13 +75,19 @@ namespace Opc.Ua.Scales.Tests
 
         public async ValueTask DisposeAsync()
         {
-            if (Manager != null)
+            try
             {
-                await Manager.DisposeAsync().ConfigureAwait(false);
+                if (Manager != null)
+                {
+                    await Manager.DisposeAsync().ConfigureAwait(false);
+                }
             }
-            if (m_fixture != null)
+            finally
             {
-                await m_fixture.StopAsync().ConfigureAwait(false);
+                if (m_fixture != null)
+                {
+                    await m_fixture.StopAsync().ConfigureAwait(false);
+                }
             }
         }
     }

@@ -3266,7 +3266,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// responses and guarded by the manager's registry lock, so recording a response does
         /// not allocate.
         /// </summary>
-        private sealed class AvailabilityWindow
+        internal sealed class AvailabilityWindow
         {
             /// <summary>
             /// The owner's message generation when recorded.
@@ -3291,15 +3291,22 @@ namespace Opc.Ua.Client.Subscriptions
                 MessageGeneration = messageGeneration;
                 Horizon = horizon;
                 RetransmissionQueueUnsupported = unsupported;
-                m_available = available;
-                if (available.Count > kLinearSearchLimit)
+                // Copied, so a long-lived window does not reference a new array per response:
+                // each such write is a dirty card every following gen0 collection has to walk.
+                ReadOnlySpan<uint> source = available.Span;
+                m_count = source.Length;
+                if (m_count > kLinearSearchLimit)
                 {
                     m_lookup ??= [];
                     m_lookup.Clear();
-                    foreach (uint sequenceNumber in available)
+                    for (int i = 0; i < source.Length; i++)
                     {
-                        m_lookup.Add(sequenceNumber);
+                        m_lookup.Add(source[i]);
                     }
+                }
+                else
+                {
+                    source.CopyTo(m_linear);
                 }
             }
 
@@ -3308,14 +3315,13 @@ namespace Opc.Ua.Client.Subscriptions
             /// </summary>
             public bool Contains(uint sequenceNumber)
             {
-                if (m_available.Count > kLinearSearchLimit)
+                if (m_count > kLinearSearchLimit)
                 {
                     return m_lookup!.Contains(sequenceNumber);
                 }
-                ReadOnlySpan<uint> available = m_available.Span;
-                for (int i = 0; i < available.Length; i++)
+                for (int i = 0; i < m_count; i++)
                 {
-                    if (available[i] == sequenceNumber)
+                    if (m_linear[i] == sequenceNumber)
                     {
                         return true;
                     }
@@ -3324,7 +3330,8 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             private const int kLinearSearchLimit = 16;
-            private ArrayOf<uint> m_available;
+            private readonly uint[] m_linear = new uint[kLinearSearchLimit];
+            private int m_count;
             private HashSet<uint>? m_lookup;
         }
 

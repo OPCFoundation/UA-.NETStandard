@@ -79,29 +79,37 @@ namespace Opc.Ua.Client.Subscriptions
             bool republished = false)
         {
             var payloads = new SubscriptionNotificationPayload[message.NotificationData.Count];
-            for (int i = 0; i < payloads.Length; i++)
+            int count = 0;
+            for (int i = 0; i < message.NotificationData.Count; i++)
             {
                 ExtensionObject payload = message.NotificationData[i];
                 if (payload.TryGetValue(out DataChangeNotification? data))
                 {
-                    payloads[i] = new SubscriptionNotificationPayload(
+                    payloads[count++] = new SubscriptionNotificationPayload(
                         SubscriptionNotificationKind.DataChange, new(dataChanges(data)), [], default, null);
                 }
                 else if (payload.TryGetValue(out EventNotificationList? eventList))
                 {
-                    payloads[i] = new SubscriptionNotificationPayload(
+                    payloads[count++] = new SubscriptionNotificationPayload(
                         SubscriptionNotificationKind.Event, [], new(events(eventList)), default, null);
                 }
                 else if (payload.TryGetValue(out StatusChangeNotification? status))
                 {
-                    payloads[i] = new SubscriptionNotificationPayload(
+                    payloads[count++] = new SubscriptionNotificationPayload(
                         SubscriptionNotificationKind.StatusChange, [], [], status.Status, status.DiagnosticInfo);
                 }
-                else
+                else if (!payload.IsDeferred)
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError,
                         "A complete notification message contains an unsupported payload.");
                 }
+
+                // A deferred body without a value failed to decode, which was logged. It
+                // was a supported type, and costs only itself, not the rest of the message.
+            }
+            if (count != payloads.Length)
+            {
+                Array.Resize(ref payloads, count);
             }
             return new SubscriptionNotificationMessage(
                 handle, (DateTime)message.PublishTime, payloads, stringTable)

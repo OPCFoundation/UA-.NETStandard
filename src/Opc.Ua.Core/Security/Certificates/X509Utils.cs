@@ -1008,6 +1008,36 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks issuer signatures, revocation entries and freshness of available certificate revocation lists.
+        /// </summary>
+        internal static StatusCode GetRevocationStatus(
+            ReadOnlySpan<X509CRL> crls,
+            Certificate issuer,
+            Certificate certificate,
+            DateTime utcNow)
+        {
+            bool current = false;
+            foreach (X509CRL crl in crls)
+            {
+                if (!CompareDistinguishedName(crl.IssuerName, issuer.SubjectName) ||
+                    !crl.VerifySignature(issuer, false))
+                {
+                    continue;
+                }
+                if (crl.IsRevoked(certificate))
+                {
+                    return StatusCodes.BadCertificateRevoked;
+                }
+                if (crl.ThisUpdate <= utcNow &&
+                    (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= utcNow))
+                {
+                    current = true;
+                }
+            }
+            return current ? StatusCodes.Good : StatusCodes.BadCertificateRevocationUnknown;
+        }
+
+        /// <summary>
         /// Create secure temporary passcode.
         /// </summary>
         /// <remarks>

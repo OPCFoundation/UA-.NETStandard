@@ -8,8 +8,8 @@ Two console applications show the `Opc.Ua.Scales*` libraries end to end:
 
 | Sample | What it does |
 | --- | --- |
-| [ScalesServer](ScalesServer/) | Serves a packing line and four stand-alone scales, and simulates them twice a second |
-| [ScalesClient](ScalesClient/) | Discovers every scale, prints each one, drives the checkweigher, then streams its weights, events and alarms |
+| [ScalesServer](ScalesServer/) | Serves a packing line, stand-alone scales, registered catchweigher/price-labeler items, piece-count totals and completed totalizing-hopper fills |
+| [ScalesClient](ScalesClient/) | Discovers every scale, prints each one, reads piece-count totals, drives the checkweigher, then streams its weights, events and alarms |
 
 The [Scales developer guide](../../docs/Scales.md) explains every API used here.
 
@@ -86,11 +86,23 @@ browse names are stable.
 - **Laboratory balance.** The sample sets its legal-for-trade model flag through
   `WithLegalForTrade()` and accepts kg, g and mg. This simulated configuration is
   not regulatory approval for a weighing instrument.
-- **Counting scale.** A piece-counting scale with a selected product.
+- **Counting scale.** A piece-counting scale with a selected product,
+  reference weight and opt-in registered piece and weight totals.
 - **Weighbridge.** A vehicle scale whose `VehicleInformationProvider`
   answers `GetVehicleInformation`.
 - **Batching scale.** A recipe scale with a two-branch `BREAD` recipe and a
   `RecipeFileHandler` for uploaded recipe files.
+- **Catchweigher.** Registered items include measured length and shared-boundary
+  zone classification through `WithItemProcessing`.
+- **Price labeler.** `RoundedScalePriceCalculator` uses the selected cheese
+  product's EUR/kg unit price with explicit two-place rounding. These are price
+  observations; the sample does not print labels.
+- **Totalizing hopper.** A completed 100 kg downpour increments the grain
+  product's `TipCounter` every ten simulation ticks. No actuator runs.
+- **Condition batching.** A separate recipe waits for an analog mass threshold
+  and a Boolean rising edge on parallel branches. Its final threshold cannot
+  be reached: timeout reports intervention, and the simulated operator explicitly
+  completes that step. The manual `BREAD` recipe remains unchanged.
 
 **What the simulation does:**
 
@@ -100,6 +112,11 @@ browse names are stable.
   `PRINTER_FAULT` alarm.
 - Drives the laboratory balance, the counting scale and a truck crossing the
   weighbridge.
+- Registers a piece-count weighing every ten simulation ticks and exposes the
+  selected product's accumulated count and weight.
+- Reports catchweigher and priced items with increasing acquisition sequences,
+  source timestamps and independent dimensions. It does not call scalar
+  `RegisterWeight` again for those acquisitions.
 
 **Runtime updates.** The simulation calls `PublishLoad` and the controller
 methods on the handles it kept at configuration time. Every call publishes
@@ -113,6 +130,7 @@ its changes, so subscribed clients see each update without further code.
 | `scales.IsSupported` | Detecting whether the server publishes OPC 40200 |
 | `DiscoverScalesAsync`, `EnumerateSystemScalesAsync` | Discovery from the DI `DeviceSet` and Machinery `Machines`, then the scales of a system |
 | `ReadSnapshotAsync` → `ScaleSnapshot` | A whole scale in one pass |
+| `ReadLastItemAsync`, `ReadTipCounterAsync`, `ReadPieceCountingTotalsAsync`, `ReadRecipeStatusAsync` | Dimensions, price/currency, completed fills, piece-count totals and recipe reports, retaining field quality and source time |
 | `ReadPackMLStateAsync` | The innermost active PackML state |
 | `SetTareAsync`, `ClearTareAsync`, `RegisterWeightAsync`, `SwitchProductAsync` | Driving a scale that sits inside a scale system |
 | `ObserveWeightAsync`, `ObserveNotificationsAsync` | Streaming weights, events and alarms of that nested scale |

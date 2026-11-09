@@ -557,6 +557,10 @@ namespace Opc.Ua.Server
         {
             StopAlarmMonitoring();
             CancelPendingApplyChanges();
+            if (m_configurationFile != null)
+            {
+                await m_configurationFile.StopAsync().ConfigureAwait(false);
+            }
 
             UserManagement.UserManagementBinding? userManagement =
                 Volatile.Read(ref m_userManagementBinding);
@@ -653,16 +657,85 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext,
             ApplicationConfiguration configuration)
         {
+            ConfigurePushConfiguration(systemContext, configuration);
+
+            // Namespace metadata and user management belong to the hosting server,
+            // not to independently managed ApplicationConfiguration instances.
+            m_namespaceMetadata.Attach(systemContext);
+
+            if (Server.UserManagement != null)
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = UserManagement.UserManagementBinding.Bind(
+                    this,
+                    Server.UserManagement,
+                    Server.SessionManager);
+            }
+            else
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = null;
+                DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement))
+                    .AsTask().GetAwaiter().GetResult();
+            }
+        }
+
+        /// <summary>
+        /// Creates the server configuration and resolves namespace permissions asynchronously.
+        /// </summary>
+        /// <param name="systemContext">The server system context.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        internal async ValueTask CreateServerConfigurationAsync(
+            ServerSystemContext systemContext,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
+        {
+            ConfigurePushConfiguration(systemContext, configuration);
+            await GrantSecurityAdminCallPermissionsAsync(
+                systemContext,
+                m_serverConfigurationNode!,
+                cancellationToken).ConfigureAwait(false);
+
+            // Namespace metadata and user management belong to the hosting server,
+            // not to independently managed ApplicationConfiguration instances.
+            m_namespaceMetadata.Attach(systemContext);
+
+            if (Server.UserManagement != null)
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = UserManagement.UserManagementBinding.Bind(
+                    this,
+                    Server.UserManagement,
+                    Server.SessionManager);
+            }
+            else
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = null;
+                await DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Wires certificate and trust management without binding host-only configuration services.
+        /// </summary>
+        private void ConfigurePushConfiguration(
+            ServerSystemContext systemContext,
+            ApplicationConfiguration configuration)
+        {
+            ServerConfiguration serverConfiguration = configuration.ServerConfiguration ?? new ServerConfiguration();
             // setup server configuration node
             ServerConfigurationState configNode = m_serverConfigurationNode!;
             configNode.ServerCapabilities!.Value =
             [
-                .. configuration.ServerConfiguration!.ServerCapabilities
+                .. serverConfiguration.ServerCapabilities
             ];
             configNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
             configNode.SupportedPrivateKeyFormats!.Value =
             [
-                .. configuration.ServerConfiguration.SupportedPrivateKeyFormats
+                .. serverConfiguration.SupportedPrivateKeyFormats
             ];
             configNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks
                 .OneDimension;
@@ -673,10 +746,10 @@ namespace Opc.Ua.Server
             // handlers actually enforce — instead of a raw 0 while a hidden cap
             // is in force.
             int effectiveMaxTrustListSize = TrustList.ComputeEffectiveMaxTrustListSize(
-                configuration.ServerConfiguration!.MaxTrustListSize,
+                serverConfiguration.MaxTrustListSize,
                 m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling);
             configNode.MaxTrustListSize!.Value = (uint)effectiveMaxTrustListSize;
-            configNode.MulticastDnsEnabled!.Value = configuration.ServerConfiguration
+            configNode.MulticastDnsEnabled!.Value = serverConfiguration
                 .MultiCastDnsEnabled;
 
             configNode.UpdateCertificate!.OnCallAsync
@@ -702,6 +775,7 @@ namespace Opc.Ua.Server
             configNode.SupportsTransactions?.Value = true;
 
             ConfigureOptionalServerConfigurationSurface(systemContext, configNode, configuration);
+            GrantSecurityAdminCallPermissions(systemContext, configNode);
 
             configNode.ClearChangeMasks(systemContext, true);
             UpdateTransactionDiagnostics(systemContext);
@@ -710,28 +784,47 @@ namespace Opc.Ua.Server
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
             {
                 certGroup.Node!.CertificateTypes!.Value = certGroup.CertificateTypes;
-                var trustList = new TrustList(
-                    certGroup.Node.TrustList!,
-                    certGroup.TrustedStore,
-                    certGroup.IssuerStore,
-                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                    Server.Telemetry,
-                    m_coordinator,
-                    m_configuration.ServerConfiguration!.MaxTrustListSize,
-                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
-                    m_configuration.CertificateManager as ICertificateStoreResolver);
-                if (IsApplicationCertificateGroup(certGroup))
+                TrustList? trustList = null;
+                try
                 {
-                    // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
-                    // an ApplicationCertificateType TrustList are validated
-                    // with the OPC 10000-4 process.
-                    trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+                    trustList = new TrustList(
+                        certGroup.Node.TrustList!,
+                        certGroup.TrustedStore,
+                        certGroup.IssuerStore,
+                        new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                        new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                        Server.Telemetry,
+                        m_coordinator,
+                        serverConfiguration.MaxTrustListSize,
+                        m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
+                        m_configuration.CertificateManager as ICertificateStoreResolver);
+                    if (m_serverConfigurationOptions.PushAuthorization != null)
+                    {
+                        trustList.SetWriteAuthorization((context, _, ct) =>
+                            AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                        if (m_applicationPushTarget != null)
+                        {
+                            trustList.SetReadAuthorization((context, _, ct) =>
+                                AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                        }
+                    }
+                    if (IsApplicationCertificateGroup(certGroup))
+                    {
+                        // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
+                        // an ApplicationCertificateType TrustList are validated
+                        // with the OPC 10000-4 process.
+                        trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+                    }
+                    // §7.8.2: the TrustList audit events must reach Clients that
+                    // subscribe to the Server Object.
+                    trustList.SetAuditEventServer(Server);
+                    certGroup.Node.TrustList!.Handle = trustList;
+                    trustList = null;
                 }
-                // §7.8.2: the TrustList audit events must reach Clients that
-                // subscribe to the Server Object.
-                trustList.SetAuditEventServer(Server);
-                certGroup.Node.TrustList!.Handle = trustList;
+                finally
+                {
+                    trustList?.Dispose();
+                }
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
@@ -752,28 +845,6 @@ namespace Opc.Ua.Server
             // CreateAddressSpace; StartAlarmMonitoring re-evaluates with events
             // once the server is running.
             m_alarmScheduler.UpdateAndEvaluate(systemContext, emitEvents: false);
-
-            // Track Server/Namespaces so metadata lookups stay consistent and
-            // default-permission changes invalidate permission caches.
-            m_namespaceMetadata.Attach(systemContext);
-
-            // Bind ServerConfiguration.UserManagement (i=24290) per Part 18 §5
-            // if startup supplied an IUserManagement through CreateUserManagement.
-            if (Server is IServerInternal serverInternal && serverInternal.UserManagement != null)
-            {
-                m_userManagementBinding?.Dispose();
-                m_userManagementBinding = UserManagement.UserManagementBinding.Bind(
-                    this,
-                    serverInternal.UserManagement,
-                    serverInternal.SessionManager);
-            }
-            else
-            {
-                m_userManagementBinding?.Dispose();
-                m_userManagementBinding = null;
-                DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement))
-                    .AsTask().GetAwaiter().GetResult();
-            }
         }
 
         /// <summary>
@@ -850,7 +921,8 @@ namespace Opc.Ua.Server
                 Server.Telemetry,
                 m_coordinator,
                 m_timeProvider,
-                m_serverConfigurationOptions.ConfigurationFileActivityTimeout);
+                m_serverConfigurationOptions.ConfigurationFileActivityTimeout,
+                m_applicationOperations);
 
             fileNode.ActivityTimeout?.Value = m_serverConfigurationOptions.ConfigurationFileActivityTimeout;
             fileNode.CurrentVersion?.Value = fileProvider.CurrentVersion;
@@ -861,6 +933,16 @@ namespace Opc.Ua.Server
             fileNode.OpenCount?.Value = 0;
 
             fileNode.ClearChangeMasks(systemContext, true);
+        }
+
+        /// <summary>
+        /// Recovers a durable ConfigurationFile update after its address-space
+        /// handler has been configured and before the server starts serving requests.
+        /// </summary>
+        /// <param name="cancellationToken">A token used to cancel recovery.</param>
+        public ValueTask RecoverConfigurationFileUpdateAsync(CancellationToken cancellationToken = default)
+        {
+            return m_configurationFile?.RecoverPendingUpdateAsync(SystemContext, cancellationToken) ?? default;
         }
 
         /// <inheritdoc/>
@@ -951,6 +1033,20 @@ namespace Opc.Ua.Server
                         "Security Admin Role required to access this item.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Awaits host policy only after the standard channel and role checks succeed.
+        /// </summary>
+        private ValueTask AuthorizePushMutationAsync(
+            ISystemContext context,
+            bool requireEncryptedChannel,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel);
+            return m_serverConfigurationOptions.PushAuthorization?
+                .AuthorizeAsync(context, cancellationToken) ?? default;
         }
 
         /// <summary>
@@ -1088,9 +1184,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static bool IsApplicationCertificateGroup(ServerCertificateGroup certificateGroup)
         {
-            return Utils.IsEqual(
-                certificateGroup.NodeId,
-                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
+            return certificateGroup.BrowseName == BrowseNames.DefaultApplicationGroup;
         }
 
         /// <summary>
@@ -1128,8 +1222,8 @@ namespace Opc.Ua.Server
         {
             if (certificateGroupId.IsNull)
             {
-                certificateGroupId = ObjectIds
-                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+                certificateGroupId = m_certificateGroups
+                    .First(group => group.BrowseName == BrowseNames.DefaultApplicationGroup).NodeId;
             }
 
             return m_certificateGroups.FirstOrDefault(

@@ -92,6 +92,7 @@ namespace Opc.Ua
             MaxMessageSize = context.MaxMessageSize;
             MaxEncodingNestingLevels = context.MaxEncodingNestingLevels;
             MaxDecoderRecoveries = context.MaxDecoderRecoveries;
+            DeferNotificationBodies = context is ServiceMessageContext { DeferNotificationBodies: true };
             NamespaceUris = new NamespaceTable(context.NamespaceUris);
             ServerUris = new StringTable(context.ServerUris);
         }
@@ -145,6 +146,14 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public int MaxDecoderRecoveries { get; set; }
+
+        /// <summary>
+        /// Keep the bodies of DataChangeNotification and EventNotificationList as
+        /// bytes while decoding, and decode each on first use. A body that turns out
+        /// to be malformed then does not fail the response it arrived in: reading it
+        /// finds no value, and the failure is logged.
+        /// </summary>
+        public bool DeferNotificationBodies { get; set; }
 
         /// <inheritdoc/>
         /// <remarks>

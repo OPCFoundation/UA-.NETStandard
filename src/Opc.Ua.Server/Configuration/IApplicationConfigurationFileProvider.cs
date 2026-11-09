@@ -53,8 +53,11 @@ namespace Opc.Ua.Server
     /// enforcement for update Methods, transaction exclusion against the
     /// PushManagement transaction coordinator (§7.10.2/§7.10.20), the
     /// <c>VersionToUpdate</c>/<c>CurrentVersion</c> check, and generating the
-    /// <c>UpdateId</c> for confirmation. The provider only reads, validates
-    /// and applies the opaque configuration content.
+    /// <c>UpdateId</c> for confirmation. The provider reads, validates and
+    /// applies the opaque configuration content. A provider that requires
+    /// confirmation also implements
+    /// <see cref="IRecoverableApplicationConfigurationFileProvider"/> to retain
+    /// the pending update and its rollback state across restart.
     /// </para>
     /// <para>
     /// The content exchanged through <see cref="ReadConfigurationAsync"/> and

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -198,7 +199,8 @@ namespace Opc.Ua.Mcp
                         }
                         buffers.Add(ticket.Bytes.ToArray());
                     }
-                    ArrayOf<ByteString> tickets = [.. buffers.ConvertAll(ByteString.From)];
+                    var utf8 = new UTF8Encoding(false, true);
+                    ArrayOf<string> tickets = [.. buffers.ConvertAll(utf8.GetString)];
                     CallMethodResult call = await endpoint.CallAsync(remove
                         ? OnboardingMethods.DeviceRegistrarAdminType_UnregisterTickets
                         : OnboardingMethods.DeviceRegistrarAdminType_RegisterTickets,

@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Gds;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Identity;
 using Opc.Ua.Onboarding;
@@ -50,10 +51,17 @@ namespace OnboardingRegistrar
         /// <summary>
         /// Initializes a new factory.
         /// </summary>
-        public OnboardingRegistrarNodeManagerFactory(ITicketStore ticketStore)
+        public OnboardingRegistrarNodeManagerFactory(
+            ITicketStore ticketStore,
+            IOnboardingTicketTrustProvider ticketTrustProvider,
+            ICertificateManager certificateManager)
         {
             m_ticketStore = ticketStore ??
                 throw new ArgumentNullException(nameof(ticketStore));
+            m_ticketTrustProvider = ticketTrustProvider ??
+                throw new ArgumentNullException(nameof(ticketTrustProvider));
+            m_certificateManager = certificateManager ??
+                throw new ArgumentNullException(nameof(certificateManager));
         }
 
         /// <inheritdoc/>
@@ -74,11 +82,19 @@ namespace OnboardingRegistrar
                 new OnboardingRegistrarNodeManager(
                     server,
                     configuration,
-                    m_ticketStore));
+                    m_ticketStore,
+                    m_ticketTrustProvider,
+                    m_certificateManager));
 #pragma warning restore CA2000
         }
 
         private readonly ITicketStore m_ticketStore;
+
+        /// <summary>The injected managed ticket authority policy.</summary>
+        private readonly IOnboardingTicketTrustProvider m_ticketTrustProvider;
+
+        /// <summary>The borrowed manager owns the named authority stores.</summary>
+        private readonly ICertificateManager m_certificateManager;
     }
 
     /// <summary>
@@ -93,7 +109,9 @@ namespace OnboardingRegistrar
         public OnboardingRegistrarNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            ITicketStore ticketStore)
+            ITicketStore ticketStore,
+            IOnboardingTicketTrustProvider ticketTrustProvider,
+            ICertificateManager certificateManager)
             : base(
                 server,
                 configuration,
@@ -101,6 +119,9 @@ namespace OnboardingRegistrar
         {
             m_ticketStore = ticketStore ??
                 throw new ArgumentNullException(nameof(ticketStore));
+            m_ticketValidator = new OnboardingTicketValidator(ticketTrustProvider, server.MessageContext);
+            m_certificateManager = certificateManager ??
+                throw new ArgumentNullException(nameof(certificateManager));
             NamespaceUris =
             [
                 Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding,
@@ -131,8 +152,17 @@ namespace OnboardingRegistrar
                 throw new InvalidOperationException(
                     "The generated DeviceRegistrar has no Administration child.");
             ConfigurePermissions(context, administration);
-            administration.BindToTicketStore(m_ticketStore);
+            administration.BindToTicketStore(m_ticketStore, m_ticketValidator);
+            m_authorityTrustLists = new DeviceRegistrarAuthorityTrustLists(
+                administration, context, m_certificateManager, Server, Server.Telemetry);
             return new ValueTask<NodeStateCollection>(nodes);
+        }
+
+        /// <inheritdoc/>
+        protected override ValueTask DisposeAsyncCore()
+        {
+            m_authorityTrustLists?.Dispose();
+            return base.DisposeAsyncCore();
         }
 
         private static void ConfigurePermissions(
@@ -163,6 +193,15 @@ namespace OnboardingRegistrar
         }
 
         private readonly ITicketStore m_ticketStore;
+
+        /// <summary>The validator bound to this server's message context.</summary>
+        private readonly IOnboardingTicketValidator m_ticketValidator;
+
+        /// <summary>The borrowed manager shares validation and administration stores.</summary>
+        private readonly ICertificateManager m_certificateManager;
+
+        /// <summary>The owned authority file handlers are released after active requests drain.</summary>
+        private DeviceRegistrarAuthorityTrustLists? m_authorityTrustLists;
     }
 
     /// <summary>
@@ -202,9 +241,31 @@ namespace OnboardingRegistrar
         /// Initializes the augmenter.
         /// </summary>
         public OnboardingRegistrarAdminAugmenter(string userName)
+            : this(userName, false)
+        {
+        }
+
+        /// <summary>
+        /// Grants GDS administration only when a connected registrar mode explicitly selects it.
+        /// </summary>
+        public OnboardingRegistrarAdminAugmenter(string userName, bool gdsAdministration)
+            : this(userName, gdsAdministration, false)
+        {
+        }
+
+        /// <summary>
+        /// Optionally lets the sample administrator report an external software manager's result.
+        /// SecurityAdmin is an explicit sample role mapping, not a production software-approval policy.
+        /// </summary>
+        public OnboardingRegistrarAdminAugmenter(
+            string userName,
+            bool gdsAdministration,
+            bool softwareAdministration)
         {
             m_userName = userName ??
                 throw new ArgumentNullException(nameof(userName));
+            m_gdsAdministration = gdsAdministration;
+            m_softwareAdministration = softwareAdministration;
         }
 
         /// <inheritdoc/>
@@ -227,12 +288,23 @@ namespace OnboardingRegistrar
                 Opc.Ua.Onboarding.BrowseNames.WellKnownRole_RegistrarAdmin);
             var augmented = new RoleBasedIdentity(
                 identity,
-                [registrarAdmin],
+                m_softwareAdministration
+                    ? [registrarAdmin, GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin]
+                    : m_gdsAdministration
+                        ? [registrarAdmin, GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin]
+                        : [registrarAdmin],
                 context.MessageContext.NamespaceUris);
             return new ValueTask<AuthenticationResult>(
                 AuthenticationResult.Accept(augmented));
         }
 
+        /// <summary>The authenticated sample administrator's configured account name.</summary>
         private readonly string m_userName;
+
+        /// <summary>Whether this account administers the sample's actual GDS directory.</summary>
+        private readonly bool m_gdsAdministration;
+
+        /// <summary>Whether the sample administrator may report an external software update result.</summary>
+        private readonly bool m_softwareAdministration;
     }
 }

@@ -133,6 +133,34 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         /// <summary>
+        /// Signature decoding preserves the complete field width, including non-byte-aligned P-521 keys.
+        /// </summary>
+        [TestCase(256)]
+        [TestCase(384)]
+        [TestCase(521)]
+        public void VerifyNativeEcdsaSignatureUsesRoundedUpFieldWidth(int keySize)
+        {
+            ECCurve curve = keySize switch
+            {
+                256 => ECCurve.NamedCurves.nistP256,
+                384 => ECCurve.NamedCurves.nistP384,
+                _ => ECCurve.NamedCurves.nistP521
+            };
+            using ECDsa key = ECDsa.Create(curve);
+            var request = new CertificateRequest("CN=Native signature width", key, HashAlgorithmName.SHA512);
+            using X509Certificate2 certificate = request.CreateSelfSigned(
+                new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var signature = new X509Signature(certificate.RawData);
+
+            Assert.That(key.KeySize, Is.EqualTo(keySize));
+            Assert.That(signature.Verify(certificate), Is.True);
+
+            signature.Signature[^1] ^= 1;
+            Assert.That(signature.Verify(certificate), Is.False);
+        }
+
+        /// <summary>
         /// Create the default ECDsa certificate.
         /// </summary>
         [Theory]

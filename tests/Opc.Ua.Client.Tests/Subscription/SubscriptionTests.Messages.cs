@@ -27,6 +27,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
@@ -35,6 +36,206 @@ namespace Opc.Ua.Client.Subscriptions
 {
     public sealed partial class SubscriptionTests
     {
+        /// <summary>
+        /// With pooled notifications the data change and event memory passed to the handler is
+        /// rented and returned (cleared) once the handler returned; without pooling the handler
+        /// may keep it. Values the handler copied stay valid in both modes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task PooledNotificationMemoryIsReturnedAfterHandlerAsync(bool pooled, CancellationToken ct)
+        {
+            ReadOnlyMemory<DataValueChange> keptChanges = default;
+            ReadOnlyMemory<EventNotification> keptEvents = default;
+            var copiedChanges = new List<DataValueChange>();
+            var copiedEvents = new List<EventNotification>();
+            m_mockNotificationDataHandler.Setup(value => value.OnDataChangeNotificationAsync(
+                    It.IsAny<ISubscription>(), It.IsAny<uint>(), It.IsAny<DateTime>(),
+                    It.IsAny<ReadOnlyMemory<DataValueChange>>(), It.IsAny<PublishState>(),
+                    It.IsAny<IReadOnlyList<string>>()))
+                .Callback((ISubscription _, uint _, DateTime _, ReadOnlyMemory<DataValueChange> changes,
+                    PublishState _, IReadOnlyList<string> _) =>
+                {
+                    keptChanges = changes;
+                    copiedChanges.AddRange(changes.ToArray());
+                })
+                .Returns(default(ValueTask));
+            m_mockNotificationDataHandler.Setup(value => value.OnEventDataNotificationAsync(
+                    It.IsAny<ISubscription>(), It.IsAny<uint>(), It.IsAny<DateTime>(),
+                    It.IsAny<ReadOnlyMemory<EventNotification>>(), It.IsAny<PublishState>(),
+                    It.IsAny<IReadOnlyList<string>>()))
+                .Callback((ISubscription _, uint _, DateTime _, ReadOnlyMemory<EventNotification> events,
+                    PublishState _, IReadOnlyList<string> _) =>
+                {
+                    keptEvents = events;
+                    copiedEvents.AddRange(events.ToArray());
+                })
+                .Returns(default(ValueTask));
+            m_completion.PoolNotifications = pooled;
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+
+            await subscription.OnPublishReceivedAsync(CreateMixedMessage(), [3], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(copiedChanges.Select(change => change.ClientHandle), Is.EqualTo(new uint[] { 11, 13 }));
+            Assert.That(copiedEvents, Has.Count.EqualTo(1));
+            Assert.That(copiedEvents[0].ClientHandle, Is.EqualTo(12));
+            Assert.That(copiedEvents[0].Fields[0], Is.EqualTo(Variant.From("event")));
+            Assert.That(keptChanges.Length, Is.EqualTo(1));
+            Assert.That(keptEvents.Length, Is.EqualTo(1));
+            if (pooled)
+            {
+                // returned to the pool with its references cleared.
+                Assert.That(keptChanges.Span[0].ClientHandle, Is.Zero);
+                Assert.That(keptEvents.Span[0].ClientHandle, Is.Zero);
+                Assert.That(keptEvents.Span[0].Fields.IsNull, Is.True);
+            }
+            else
+            {
+                Assert.That(keptChanges.Span[0].ClientHandle, Is.EqualTo(13));
+                Assert.That(keptEvents.Span[0].ClientHandle, Is.EqualTo(12));
+            }
+        }
+
+        /// <summary>
+        /// A body kept as bytes reaches the handler decoded, and the message does not keep the
+        /// decoded notification alive after the dispatch.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task DeferredBodyIsDispatchedAndDroppedAfterHandlerAsync(bool pooled, CancellationToken ct)
+        {
+            var delivered = new List<EventNotification>();
+            m_mockNotificationDataHandler.Setup(value => value.OnEventDataNotificationAsync(
+                    It.IsAny<ISubscription>(), It.IsAny<uint>(), It.IsAny<DateTime>(),
+                    It.IsAny<ReadOnlyMemory<EventNotification>>(), It.IsAny<PublishState>(),
+                    It.IsAny<IReadOnlyList<string>>()))
+                .Callback((ISubscription _, uint _, DateTime _, ReadOnlyMemory<EventNotification> events,
+                    PublishState _, IReadOnlyList<string> _) => delivered.AddRange(events.ToArray()))
+                .Returns(default(ValueTask));
+            m_completion.PoolNotifications = pooled;
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+
+            ExtensionObject body = DecodeDeferred(new EventNotificationList
+            {
+                Events = [new EventFieldList { ClientHandle = 12, EventFields = [Variant.From("event")] }]
+            });
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 3,
+                PublishTime = DateTime.UtcNow,
+                NotificationData = [body]
+            };
+            await subscription.OnPublishReceivedAsync(message, [3], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(delivered, Has.Count.EqualTo(1));
+            Assert.That(delivered[0].ClientHandle, Is.EqualTo(12));
+            Assert.That(delivered[0].Fields[0], Is.EqualTo(Variant.From("event")));
+            Assert.That(body.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        /// <summary>
+        /// A duplicate is never delivered: its body goes back to the pool undecoded.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DuplicateMessageReleasesItsDeferredBodyAsync(CancellationToken ct)
+        {
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+            await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            ExtensionObject duplicate = await PublishDeferredAsync(subscription, 1).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(2).WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(duplicate.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        /// <summary>
+        /// A message buffered behind a gap gives up its body when the subscription goes away.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DisposalReleasesTheBodyOfABufferedMessageAsync(CancellationToken ct)
+        {
+            var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+            await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            ExtensionObject buffered = await PublishDeferredAsync(subscription, 5).ConfigureAwait(false);
+
+            // The duplicate is processed after the buffered message, so its
+            // acknowledgement proves that the worker got past it.
+            await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(2).WaitAsync(ct).ConfigureAwait(false);
+            await subscription.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(buffered.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        /// <summary>
+        /// A message still in the queue gives up its body when the subscription goes away.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DisposalReleasesTheBodyOfAQueuedMessageAsync(CancellationToken ct)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Mock<ISubscriptionNotificationMessageHandler> messages =
+                m_mockNotificationDataHandler.As<ISubscriptionNotificationMessageHandler>();
+            messages.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Returns((SubscriptionNotificationMessage _, CancellationToken token) =>
+                {
+                    entered.TrySetResult(true);
+                    return new ValueTask(Task.Delay(Timeout.Infinite, token));
+                });
+            var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+            await subscription.OnPublishReceivedAsync(CreateMixedMessage(), [3], []).ConfigureAwait(false);
+            await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+
+            ExtensionObject queued = await PublishDeferredAsync(subscription, 4).ConfigureAwait(false);
+            await subscription.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(queued.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        private async Task<ExtensionObject> PublishDeferredAsync(TestSubscription subscription, uint sequenceNumber)
+        {
+            ExtensionObject body = DecodeDeferred(new EventNotificationList
+            {
+                Events = [new EventFieldList { ClientHandle = 12, EventFields = [Variant.From("event")] }]
+            });
+            await subscription.OnPublishReceivedAsync(
+                new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber,
+                    PublishTime = DateTime.UtcNow,
+                    NotificationData = [body]
+                },
+                [sequenceNumber],
+                []).ConfigureAwait(false);
+            return body;
+        }
+
+        private ExtensionObject DecodeDeferred(EventNotificationList notification)
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
+            context.DeferNotificationBodies = true;
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteExtensionObject(null, new ExtensionObject(notification));
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, context);
+            return decoder.ReadExtensionObject(null);
+        }
+
         /// <summary>
         /// The original constructor and deconstruction remain usable without continuation metadata.
         /// </summary>
@@ -446,6 +647,84 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(message.Notifications[0].DataChanges[0].MonitoredItem, Is.Null);
             Assert.That(message.Notifications[1].Events[0].ClientHandle, Is.EqualTo(12));
             Assert.That(message.Notifications[2].Status, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// A body that failed to decode costs only itself: the valid payloads of its message
+        /// are projected in order.
+        /// </summary>
+        [Test]
+        public void WholeMessageProjectionSkipsMalformedDeferredBody()
+        {
+            NotificationMessage mixed = CreateMixedMessage();
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 3,
+                PublishTime = DateTime.UtcNow,
+                NotificationData =
+                [
+                    mixed.NotificationData[0],
+                    DecodeMalformedDeferred(),
+                    mixed.NotificationData[1],
+                    mixed.NotificationData[2]
+                ]
+            };
+
+            SubscriptionNotificationMessage projected = NotificationMessageDispatch.CreateClassic(message, default);
+
+            Assert.That(projected.Notifications.Count, Is.EqualTo(3));
+            Assert.That(projected.Notifications[0].DataChanges[0].ClientHandle, Is.EqualTo(11));
+            Assert.That(projected.Notifications[1].Events[0].ClientHandle, Is.EqualTo(12));
+            Assert.That(projected.Notifications[2].Status, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// The valid payloads next to a malformed body reach a whole-message handler, and the
+        /// message is acknowledged.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task WholeMessageHandlerReceivesValidPayloadsNextToMalformedBodyAsync(CancellationToken ct)
+        {
+            var received = new List<SubscriptionNotificationMessage>();
+            Mock<ISubscriptionNotificationMessageHandler> messages =
+                m_mockNotificationDataHandler.As<ISubscriptionNotificationMessageHandler>();
+            messages.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Returns((SubscriptionNotificationMessage message, CancellationToken _) =>
+                {
+                    received.Add(message);
+                    return default;
+                });
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 3,
+                PublishTime = DateTime.UtcNow,
+                NotificationData =
+                [
+                    DecodeMalformedDeferred(),
+                    new ExtensionObject(new StatusChangeNotification { Status = StatusCodes.Good })
+                ]
+            };
+            await subscription.OnPublishReceivedAsync(message, [3], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(received, Has.Count.EqualTo(1));
+            Assert.That(received[0].Notifications.Count, Is.EqualTo(1));
+            Assert.That(received[0].Notifications[0].Status, Is.EqualTo(StatusCodes.Good));
+        }
+
+        private ExtensionObject DecodeMalformedDeferred()
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
+            context.DeferNotificationBodies = true;
+            // an EventNotificationList (i=916) with a binary body of an impossible array length.
+            byte[] encoded = [1, 0, 0x94, 0x03, 1, 7, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0x7F, 1, 2, 3];
+            using var decoder = new BinaryDecoder(encoded, context);
+            return decoder.ReadExtensionObject(null);
         }
 
         /// <summary>

@@ -959,41 +959,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            // check for CRL.
-            bool crlExpired = true;
-
-            foreach (X509CRL crl in GetCachedCrls())
-            {
-                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
-                {
-                    continue;
-                }
-
-                if (!crl.VerifySignature(issuer, false))
-                {
-                    continue;
-                }
-
-                if (crl.IsRevoked(certificate))
-                {
-                    return Task.FromResult(StatusCodes.BadCertificateRevoked);
-                }
-
-                if (crl.ThisUpdate <= DateTime.UtcNow &&
-                    (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
-                {
-                    crlExpired = false;
-                }
-            }
-
-            // certificate is fine.
-            if (!crlExpired)
-            {
-                return Task.FromResult(StatusCodes.Good);
-            }
-
-            // can't find a valid CRL.
-            return Task.FromResult(StatusCodes.BadCertificateRevocationUnknown);
+            return Task.FromResult(X509Utils.GetRevocationStatus(
+                GetCachedCrls(), issuer, certificate, m_timeProvider.GetUtcNow().UtcDateTime));
         }
 
         /// <summary>

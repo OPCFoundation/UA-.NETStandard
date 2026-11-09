@@ -45,6 +45,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
             BaseDataVariableState entries = AddDictionary(node);
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            node.StatusCode = StatusCodes.Uncertain;
+            node.Timestamp = timestamp;
             NodeStateChangeMasks previousMasks = node.ChangeMasks;
             NodeStateChangeMasks previousEntryMasks = entries.ChangeMasks;
             bool notified = false;
@@ -71,6 +74,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(ServiceResult.IsGood(result), Is.True);
                 Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
                 Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+                Assert.That(node.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+                Assert.That(node.Timestamp, Is.EqualTo(timestamp));
                 Assert.That(entries.WrappedValue, Is.EqualTo(Variant.From(
                     (ArrayOf<NodeId>)[new NodeId("initial", 0), new NodeId("initial", 0)])));
                 Assert.That(node.ChangeMasks, Is.EqualTo(previousMasks));

@@ -28,11 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -408,12 +410,19 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="notification"></param>
         /// <param name="acknowledgement">The acknowledgement of the message.</param>
+        /// <param name="pooled">Rent the array from <see cref="ArrayPool{T}.Shared"/>;
+        /// the caller returns it with <see cref="ReturnNotification{T}"/> after the
+        /// handler returned.</param>
         /// <returns></returns>
         internal ReadOnlyMemory<DataValueChange> CreateNotification(
             DataChangeNotification notification,
-            AcknowledgementHandle acknowledgement = default)
+            AcknowledgementHandle acknowledgement = default,
+            bool pooled = false)
         {
-            var memory = new DataValueChange[notification.MonitoredItems.Count];
+            int count = notification.MonitoredItems.Count;
+            DataValueChange[] memory = pooled && count > 0
+                ? ArrayPool<DataValueChange>.Shared.Rent(count)
+                : new DataValueChange[count];
             uint partitionId = m_context.Id;
             lock (m_monitoredItemsLock)
             {
@@ -433,7 +442,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // TODO: Sort on order of monitored items
             // memory.AsSpan().Sort((x, y) => x.MonitoredItem!.ClientHandle.CompareTo(
             //     y.MonitoredItem!.ClientHandle));
-            return memory;
+            return memory.AsMemory(0, count);
         }
 
         /// <summary>
@@ -441,12 +450,19 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="notification"></param>
         /// <param name="acknowledgement">The acknowledgement of the message.</param>
+        /// <param name="pooled">Rent the array from <see cref="ArrayPool{T}.Shared"/>;
+        /// the caller returns it with <see cref="ReturnNotification{T}"/> after the
+        /// handler returned.</param>
         /// <returns></returns>
         internal ReadOnlyMemory<EventNotification> CreateNotification(
             EventNotificationList notification,
-            AcknowledgementHandle acknowledgement = default)
+            AcknowledgementHandle acknowledgement = default,
+            bool pooled = false)
         {
-            var memory = new EventNotification[notification.Events.Count];
+            int count = notification.Events.Count;
+            EventNotification[] memory = pooled && count > 0
+                ? ArrayPool<EventNotification>.Shared.Rent(count)
+                : new EventNotification[count];
             uint partitionId = m_context.Id;
             lock (m_monitoredItemsLock)
             {
@@ -464,7 +480,24 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             // memory.AsSpan().Sort((x, y) => x.MonitoredItem!.ClientHandle.CompareTo(
             //     y.MonitoredItem!.ClientHandle));
-            return memory;
+            return memory.AsMemory(0, count);
+        }
+
+        /// <summary>
+        /// Returns a notification array that <see cref="CreateNotification(EventNotificationList, AcknowledgementHandle, bool)"/>
+        /// or <see cref="CreateNotification(DataChangeNotification, AcknowledgementHandle, bool)"/>
+        /// rented, clearing the references it holds.
+        /// </summary>
+        /// <typeparam name="T">The notification type.</typeparam>
+        /// <param name="notification">The notifications returned for a pooled call.</param>
+        internal static void ReturnNotification<T>(ReadOnlyMemory<T> notification)
+        {
+            if (notification.Length > 0 &&
+                MemoryMarshal.TryGetArray(notification, out ArraySegment<T> segment) &&
+                segment.Array != null)
+            {
+                ArrayPool<T>.Shared.Return(segment.Array, clearArray: true);
+            }
         }
 
         /// <summary>

@@ -39,6 +39,20 @@ namespace Opc.Ua.Security.Certificates
     public sealed class CertificateValidationOptions
     {
         /// <summary>
+        /// Gets or sets trust material which replaces all configured trust and issuer stores for this call.
+        /// Scoped validation neither consumes nor populates the connection-validation cache and does not
+        /// inherit the manager's automatic acceptance or error-acceptance callback.
+        /// </summary>
+        public CertificateValidationScope? TrustScope { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether the leaf certificate is used to sign data rather
+        /// than authenticate an OPC UA application. Signing requires digitalSignature
+        /// key usage; trust, issuer usage, validity and revocation checks still apply.
+        /// </summary>
+        public bool ValidateForSigning { get; set; }
+
+        /// <summary>
         /// Gets or sets a value that overrides the global setting for
         /// rejecting certificates signed with SHA-1.
         /// <c>null</c> means the global setting is used.

@@ -382,13 +382,17 @@ namespace Opc.Ua.XRegistry.Server
                                     group.Labels,
                                     ct).ConfigureAwait(false);
                             }
-                            entry.Node.ClearChangeMasks(
-                                m_context.SystemContext,
-                                includeChildren: true);
                         }
 
                         await ReconcileResourcesAsync(entry, group, eventSnapshot, ct)
                             .ConfigureAwait(false);
+
+                        // Resource subtrees are cleared by ReconcileResourcesAsync. Clearing the
+                        // whole group here would walk every projected Resource again on each
+                        // reconcile, which makes bulk loads quadratic in the registry size.
+                        await ClearChangeMasksExceptAsync(
+                            entry.Node,
+                            static child => child is ResourceState).ConfigureAwait(false);
                     }
 
                     foreach (string groupId in m_groups.Keys
@@ -403,11 +407,10 @@ namespace Opc.Ua.XRegistry.Server
                         if (m_registryNode is RegistryState registryWithEpoch && eventSnapshot is not null)
                         {
                             SetValue(registryWithEpoch.Epoch, eventSnapshot.Epoch);
-                            await registryWithEpoch.ClearChangeMasksAsync(
-                                m_context.SystemContext,
-                                includeChildren: true,
-                                CancellationToken.None)
-                                .ConfigureAwait(false);
+                            // Groups were cleared above; only publish the registry's own state.
+                            await ClearChangeMasksExceptAsync(
+                                registryWithEpoch,
+                                static child => child is GroupState).ConfigureAwait(false);
                         }
                     }
                 }
@@ -437,6 +440,32 @@ namespace Opc.Ua.XRegistry.Server
             {
                 m_gate.Release();
             }
+        }
+
+        /// <summary>
+        /// Clears the change masks of <paramref name="node"/> and of every child subtree
+        /// except the children selected by <paramref name="skip"/>, which own their clearing.
+        /// </summary>
+        private async ValueTask ClearChangeMasksExceptAsync(
+            NodeState node,
+            Func<BaseInstanceState, bool> skip)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(m_context.SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (!skip(child))
+                {
+                    await child.ClearChangeMasksAsync(
+                        m_context.SystemContext,
+                        includeChildren: true,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            await node.ClearChangeMasksAsync(
+                m_context.SystemContext,
+                includeChildren: false,
+                CancellationToken.None).ConfigureAwait(false);
         }
 
         private bool TryMarkReportedTransition(uint previousEpoch, uint currentEpoch)
@@ -560,11 +589,20 @@ namespace Opc.Ua.XRegistry.Server
             {
                 ResourceEntryKey key = ResourceKey(resource);
                 seenResources.Add(key);
+                object? changeToken = (resource as IXRegistryProjectionResourceChangeToken)?.ChangeToken;
                 if (!entry.Resources.TryGetValue(key, out ResourceEntry? res))
                 {
                     res = await CreateResourceNodeAsync(entry, resource, eventSnapshot, ct)
                         .ConfigureAwait(false);
                     entry.Resources[key] = res;
+                    // The group clear skips Resources, so publish the new subtree here.
+                    res.Node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
+                    res.AppliedChangeToken = changeToken;
+                }
+                else if (changeToken is not null && ReferenceEquals(res.AppliedChangeToken, changeToken))
+                {
+                    // Unchanged metadata; still publish live file state (Open/Close/Size).
+                    ClearFileTypeChangeMasks(res.Node);
                 }
                 else
                 {
@@ -594,6 +632,7 @@ namespace Opc.Ua.XRegistry.Server
                             ct).ConfigureAwait(false);
                     }
                     res.Node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
+                    res.AppliedChangeToken = changeToken;
                 }
             }
 
@@ -602,6 +641,62 @@ namespace Opc.Ua.XRegistry.Server
             {
                 await RemoveResourceNodeAsync(entry, resourceKey, ct).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Mirrors the default Version's live FileType Properties onto a logical Resource
+        /// whose metadata reconcile was skipped, and publishes the FileType Properties of
+        /// the logical Resource and its Versions without walking their subtrees.
+        /// </summary>
+        private void PublishLiveFileTypeState(LogicalResourceEntry logical, string defaultVersionId)
+        {
+            foreach (ResourceEntry version in logical.Versions.Values)
+            {
+                ClearFileTypeChangeMasks(version.Node);
+            }
+            if (logical.Versions.TryGetValue(defaultVersionId, out ResourceEntry? defaultVersion))
+            {
+                MirrorFileTypeProperties(logical.LogicalNode, defaultVersion.Node);
+            }
+            ClearFileTypeChangeMasks(logical.LogicalNode);
+        }
+
+        /// <summary>
+        /// Publishes pending changes of the FileType Properties that file operations
+        /// change outside a registry commit.
+        /// </summary>
+        private void ClearFileTypeChangeMasks(ResourceState node)
+        {
+            ISystemContext context = m_context.SystemContext;
+            node.Size?.ClearChangeMasks(context, includeChildren: false);
+            node.Writable?.ClearChangeMasks(context, includeChildren: false);
+            node.UserWritable?.ClearChangeMasks(context, includeChildren: false);
+            node.OpenCount?.ClearChangeMasks(context, includeChildren: false);
+            node.MimeType?.ClearChangeMasks(context, includeChildren: false);
+            node.LastModifiedTime?.ClearChangeMasks(context, includeChildren: false);
+            node.MaxByteStringLength?.ClearChangeMasks(context, includeChildren: false);
+        }
+
+        /// <summary>
+        /// Returns the change token shared by every Version of one logical Resource, or
+        /// <c>null</c> when a Version has none or they disagree (always reconcile then).
+        /// </summary>
+        private static object? SharedChangeToken(List<IXRegistryProjectionResource> versions)
+        {
+            if (versions.Count == 0 ||
+                versions[0] is not IXRegistryProjectionResourceChangeToken { ChangeToken: { } shared })
+            {
+                return null;
+            }
+            for (int ii = 1; ii < versions.Count; ii++)
+            {
+                if (versions[ii] is not IXRegistryProjectionResourceChangeToken { ChangeToken: { } token } ||
+                    !ReferenceEquals(shared, token))
+                {
+                    return null;
+                }
+            }
+            return shared;
         }
 
         private async ValueTask ReconcileVersionedResourcesAsync(
@@ -638,6 +733,19 @@ namespace Opc.Ua.XRegistry.Server
                     .FirstOrDefault(m => m.IsDefaultVersion) as IXRegistryProjectionResource
                     ?? versions[0];
 
+                // Skip a logical Resource whose projected inputs are unchanged since it was
+                // last reconciled: one registry change must not revisit every Resource. Live
+                // FileType state (OpenCount, Size, ...) changes without a new token, so it is
+                // still mirrored from the default Version and published.
+                object? changeToken = SharedChangeToken(versions);
+                if (changeToken is not null &&
+                    entry.LogicalResources.TryGetValue(resourceId, out LogicalResourceEntry? current) &&
+                    ReferenceEquals(current.AppliedChangeToken, changeToken))
+                {
+                    PublishLiveFileTypeState(current, defaultVersion.VersionId);
+                    continue;
+                }
+
                 if (!entry.LogicalResources.TryGetValue(
                     resourceId,
                     out LogicalResourceEntry? logical))
@@ -664,12 +772,10 @@ namespace Opc.Ua.XRegistry.Server
                             meta.MetaLabels,
                             ct).ConfigureAwait(false);
                     }
-                    logical.LogicalNode.ClearChangeMasks(
-                        m_context.SystemContext,
-                        includeChildren: true);
                 }
 
-                // Reconcile the per-version nodes under the Versions folder.
+                // Reconcile the per-version nodes under the Versions folder. The logical
+                // Resource subtree, which contains the Version nodes, is cleared once below.
                 var seenVersions = new HashSet<string>(StringComparer.Ordinal);
                 foreach (IXRegistryProjectionResource version in versions)
                 {
@@ -700,9 +806,6 @@ namespace Opc.Ua.XRegistry.Server
                                 version.Labels,
                                 ct).ConfigureAwait(false);
                         }
-                        versionEntry.Node.ClearChangeMasks(
-                            m_context.SystemContext,
-                            includeChildren: true);
                     }
                 }
 
@@ -733,10 +836,11 @@ namespace Opc.Ua.XRegistry.Server
                             ct).ConfigureAwait(false);
                     }
                     MirrorFileTypeProperties(logical.LogicalNode, defaultVersionEntry.Node);
-                    logical.LogicalNode.ClearChangeMasks(
-                        m_context.SystemContext,
-                        includeChildren: true);
                 }
+                logical.LogicalNode.ClearChangeMasks(
+                    m_context.SystemContext,
+                    includeChildren: true);
+                logical.AppliedChangeToken = changeToken;
             }
 
             // Remove stale logical resources.
@@ -3433,6 +3537,12 @@ namespace Opc.Ua.XRegistry.Server
             public string ResourceId { get; }
             public string VersionId { get; }
             public string Xid { get; }
+
+            /// <summary>
+            /// The <see cref="IXRegistryProjectionResourceChangeToken.ChangeToken"/> last
+            /// reconciled into <see cref="Node"/>, or <c>null</c> when it must be reconciled.
+            /// </summary>
+            public object? AppliedChangeToken { get; set; }
         }
 
         /// <summary>
@@ -3471,6 +3581,12 @@ namespace Opc.Ua.XRegistry.Server
             public ResourceVersionsState VersionsFolder { get; }
             public string GroupId { get; }
             public string ResourceId { get; }
+
+            /// <summary>
+            /// The change token shared by every Version last reconciled into this logical
+            /// Resource subtree, or <c>null</c> when it must be reconciled.
+            /// </summary>
+            public object? AppliedChangeToken { get; set; }
 
             /// <summary>
             /// The exact Version entries under this logical Resource's Versions

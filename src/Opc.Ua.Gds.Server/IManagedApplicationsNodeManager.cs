@@ -43,21 +43,16 @@ namespace Opc.Ua.Gds.Server
     /// <para>
     /// Implementations create <see cref="ApplicationConfigurationState"/>
     /// instances for each managed application and expose them under the
-    /// well-known <c>ManagedApplications</c> folder. Each instance owns
-    /// a <see cref="ConfigurationFileState"/> that supports the
-    /// <c>CloseAndUpdate</c> / <c>ConfirmUpdate</c> transaction pattern
-    /// described in OPC 10000-12 §7.7.6.
+    /// well-known <c>ManagedApplications</c> folder. A runtime-backed
+    /// <see cref="DefaultManagedApplicationsNodeManager"/> binds the standard certificate and trust methods
+    /// through a separate <see cref="ApplicationConfigurationPushBinding"/> for each application.
     /// </para>
     /// <para>
     /// The <see cref="StubManagedApplicationsNodeManager"/> provides a
-    /// minimal implementation that satisfies the model-level requirement
-    /// by exposing the <c>ManagedApplications</c> folder but returns
-    /// <c>Bad_NotSupported</c> for the configuration-file write
-    /// operations. Production systems should replace it with a
-    /// <see cref="DefaultManagedApplicationsNodeManager"/> (or a
-    /// custom implementation) that persists configuration data and
-    /// implements the full <c>ConfirmUpdate</c> transaction lifecycle
-    /// via an <see cref="IConfigurationDataStore"/>.
+    /// minimal implementation without application instances.
+    /// An <see cref="IConfigurationDataStore"/> supplies application metadata only; it does not supply
+    /// certificate stores, application activation or ConfigurationFile handlers.
+    /// Use an <see cref="IManagedApplicationPushProvider"/> when application push management is required.
     /// </para>
     /// </remarks>
     public interface IManagedApplicationsNodeManager : IAsyncNodeManager
@@ -73,9 +68,8 @@ namespace Opc.Ua.Gds.Server
 
     /// <summary>
     /// Stub implementation of <see cref="IManagedApplicationsNodeManager"/>
-    /// that exposes the <c>ManagedApplications</c> folder in the address
-    /// space and wires <c>ConfirmUpdate</c> with a
-    /// <c>Bad_NotSupported</c> response. A production GDS should replace
+    /// that relies on the core address space's <c>ManagedApplications</c> folder
+    /// without contributing application instances or method handlers. A production GDS should replace
     /// this stub with a <see cref="DefaultManagedApplicationsNodeManager"/>
     /// or a custom implementation.
     /// </summary>
@@ -130,17 +124,16 @@ namespace Opc.Ua.Gds.Server
 
     /// <summary>
     /// Default implementation of <see cref="IManagedApplicationsNodeManager"/>
-    /// that queries an <see cref="IConfigurationDataStore"/> at startup,
-    /// creates <see cref="ApplicationConfigurationState"/> instances
-    /// under the <c>ManagedApplications</c> folder, and delegates
-    /// configuration read/write/confirm operations to the store.
+    /// that creates <see cref="ApplicationConfigurationState"/> instances
+    /// under the <c>ManagedApplications</c> folder. The data-store constructor exposes metadata;
+    /// the runtime-provider constructor binds certificate and trust push management to independent applications.
     /// </summary>
     /// <remarks>
     /// <para>
     /// Plug in any <see cref="IConfigurationDataStore"/> implementation
     /// (e.g. <see cref="InMemoryConfigurationDataStore"/> for testing or
-    /// a production database-backed store) to control how managed
-    /// application configuration data is persisted.
+    /// a production database-backed store) to enumerate application metadata.
+    /// This does not expose the optional ConfigurationFile transaction surface.
     /// </para>
     /// <para>
     /// Each managed application is exposed as an
@@ -150,8 +143,8 @@ namespace Opc.Ua.Gds.Server
     /// <see cref="ManagedApplicationInfo"/>.
     /// </para>
     /// </remarks>
-    public class DefaultManagedApplicationsNodeManager
-        : AsyncCustomNodeManager, IManagedApplicationsNodeManager
+    public partial class DefaultManagedApplicationsNodeManager
+        : AsyncCustomNodeManager, IManagedApplicationsNodeManager, INodeManagerShutdown
     {
         /// <summary>
         /// Well-known NodeIds from the base UA namespace (ns=0).
@@ -160,7 +153,8 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private static readonly NodeId ManagedApplicationsFolderId = new(16706u);
         private static readonly NodeId ApplicationConfigurationTypeId = new(25731u);
-        private readonly Dictionary<string, ApplicationConfigurationState> m_appNodes = new(System.StringComparer.Ordinal);
+        private readonly Dictionary<string, ApplicationConfigurationState> m_appNodes =
+            new(System.StringComparer.Ordinal);
 
         /// <summary>
         /// Creates a new instance backed by the specified data store.
@@ -181,10 +175,28 @@ namespace Opc.Ua.Gds.Server
                   server.Telemetry.CreateLogger<DefaultManagedApplicationsNodeManager>())
         {
             ConfigurationDataStore = dataStore ?? throw new System.ArgumentNullException(nameof(dataStore));
+            m_managementConfiguration = configuration;
             // Namespace 0 is reserved for the OPC UA namespace (OPC 10000-5
             // §6.3.1): the application nodes are minted in an own namespace,
             // only the reference from the ns=0 ManagedApplications folder is
             // added through the external references.
+            NamespaceUris = [ManagedApplicationsNamespaceUri];
+        }
+
+        /// <summary>
+        /// Creates a node manager backed by independent application runtimes with real push handlers.
+        /// </summary>
+        public DefaultManagedApplicationsNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            IManagedApplicationPushProvider pushProvider)
+            : base(
+                  server,
+                  configuration,
+                  server.Telemetry.CreateLogger<DefaultManagedApplicationsNodeManager>())
+        {
+            m_pushProvider = pushProvider ?? throw new System.ArgumentNullException(nameof(pushProvider));
+            m_managementConfiguration = configuration;
             NamespaceUris = [ManagedApplicationsNamespaceUri];
         }
 
@@ -196,7 +208,7 @@ namespace Opc.Ua.Gds.Server
             Namespaces.OpcUaGds + "ManagedApplications/";
 
         /// <inheritdoc/>
-        public IConfigurationDataStore ConfigurationDataStore { get; }
+        public IConfigurationDataStore? ConfigurationDataStore { get; }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -216,10 +228,23 @@ namespace Opc.Ua.Gds.Server
         {
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
+            if (m_pushProvider != null)
+            {
+                ArrayOf<ManagedApplicationPushRegistration> applications = await m_pushProvider
+                    .GetApplicationsAsync(cancellationToken).ConfigureAwait(false);
+                for (int i = 0; i < applications.Count; i++)
+                {
+                    ManagedApplicationPushRegistration registration = applications[i];
+                    await CreatePushApplicationAsync(
+                        registration, null, externalReferences, cancellationToken).ConfigureAwait(false);
+                }
+                return;
+            }
+
             // Query the data store for managed applications and
             // create ApplicationConfigurationState instances under the
             // ManagedApplications folder.
-            IReadOnlyList<ManagedApplicationInfo> apps = await ConfigurationDataStore
+            IReadOnlyList<ManagedApplicationInfo> apps = await ConfigurationDataStore!
                 .GetManagedApplicationsAsync(cancellationToken)
                 .ConfigureAwait(false);
 

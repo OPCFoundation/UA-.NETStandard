@@ -1938,6 +1938,90 @@ namespace Opc.Ua.Client.Tests
             sut.Channel.Verify();
         }
 
+        /// <summary>
+        /// A changed CreateSession application URI is rejected before ActivateSession credentials are sent.
+        /// </summary>
+        [Test]
+        public async Task OpenAsyncRejectsChangedCreateSessionApplicationUriBeforeActivationAsync()
+        {
+            EndpointDescription selectedEndpoint = CreateSessionEndpointDescription(
+                "opc.tcp://localhost:4840");
+            selectedEndpoint.Server = new ApplicationDescription
+            {
+                ApplicationUri = "urn:opcfoundation:server:selected"
+            };
+            selectedEndpoint.UserIdentityTokens =
+            [
+                CreateUserTokenPolicy("username", UserTokenType.UserName)
+            ];
+            EndpointDescription authenticatedEndpoint = CoreUtils.Clone(selectedEndpoint)!;
+            authenticatedEndpoint.Server.ApplicationUri = "urn:opcfoundation:server:alternate";
+            using var sut = SessionMock.Create(selectedEndpoint);
+            sut.ApplicationConfiguration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
+            ((IExpectedServerApplicationUriSession)sut)
+                .RequireServerApplicationUri("urn:opcfoundation:server:selected");
+            ConfigureSuccessfulOpenResponses(
+                sut.Channel,
+                [authenticatedEndpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=cookie"));
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await sut.OpenAsync(
+                    "test",
+                    new UserIdentity("target-user", "secret"u8),
+                    CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(error.Message, Does.Contain("different application URI"));
+            sut.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<CreateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            sut.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task OpenAsyncDoesNotRequireSelectedApplicationUriForGenericSessionsAsync()
+        {
+            EndpointDescription selectedEndpoint = CreateSessionEndpointDescription(
+                "opc.tcp://localhost:4840");
+            selectedEndpoint.Server = new ApplicationDescription
+            {
+                ApplicationUri = "urn:opcfoundation:server:selected"
+            };
+            selectedEndpoint.UserIdentityTokens =
+            [
+                CreateUserTokenPolicy("username", UserTokenType.UserName)
+            ];
+            EndpointDescription authenticatedEndpoint = CoreUtils.Clone(selectedEndpoint)!;
+            authenticatedEndpoint.Server.ApplicationUri = "urn:opcfoundation:server:alternate";
+            using var sut = SessionMock.Create(selectedEndpoint);
+            sut.ApplicationConfiguration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
+            ConfigureSuccessfulOpenResponses(
+                sut.Channel,
+                [authenticatedEndpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=cookie"));
+
+            await sut.OpenAsync(
+                "test",
+                new UserIdentity("target-user", "secret"u8),
+                CancellationToken.None).ConfigureAwait(false);
+
+            sut.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
         [Test]
         public async Task OpenAsyncAcceptsUserTokenPoliciesWithDifferentOrderingAsync()
         {

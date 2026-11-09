@@ -52,7 +52,10 @@ namespace Opc.Ua.Client.Subscriptions
     /// scope), so a handler may safely copy this struct by value and
     /// continue using <see cref="Value"/> after the call. Pool-aware
     /// projection audit: confirmed safe — no reference to a pooled
-    /// instance is surfaced.
+    /// instance is surfaced. The memory that holds the structs passed
+    /// to <see cref="ISubscriptionNotificationHandler.OnDataChangeNotificationAsync"/>
+    /// is rented in this mode and returned after the handler returns:
+    /// copy the structs instead of keeping the memory.
     /// </para>
     /// </summary>
     /// <param name="MonitoredItem"></param>
@@ -116,7 +119,10 @@ namespace Opc.Ua.Client.Subscriptions
     /// array. Arrays are not pooled in this design (out of scope), so
     /// the captured backing array survives the recycle. Pool-aware
     /// projection audit: confirmed safe — no reference to a pooled
-    /// instance is surfaced.
+    /// instance is surfaced. The memory that holds the structs passed
+    /// to <see cref="ISubscriptionNotificationHandler.OnEventDataNotificationAsync"/>
+    /// is rented in this mode and returned after the handler returns:
+    /// copy the structs instead of keeping the memory.
     /// </para>
     /// </summary>
     /// <param name="MonitoredItem"></param>

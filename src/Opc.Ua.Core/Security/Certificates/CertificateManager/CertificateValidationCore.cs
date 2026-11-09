@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -502,6 +503,30 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Installs only the explicit material of one isolated per-call validation scope.
+        /// </summary>
+        internal void Update(Security.Certificates.CertificateValidationScope scope)
+        {
+            var trusted = new List<CertificateIdentifier>();
+            foreach (ByteString certificate in scope.TrustedCertificates)
+            {
+                trusted.Add(new CertificateIdentifier { RawData = certificate.ToArray() });
+            }
+            var issuers = new List<CertificateIdentifier>();
+            foreach (ByteString certificate in scope.IssuerCertificates)
+            {
+                issuers.Add(new CertificateIdentifier { RawData = certificate.ToArray() });
+            }
+            var crls = new List<X509CRL>();
+            foreach (ByteString encoded in scope.CertificateRevocationLists)
+            {
+                crls.Add(new X509CRL(encoded.ToArray()));
+            }
+            m_state = new TrustListState(
+                null, null, default, trusted.ToArrayOf(), issuers.ToArrayOf(), crls.ToArrayOf());
+        }
+
+        /// <summary>
         /// Reset the list of validated certificates.
         /// </summary>
         public void ResetValidatedCertificates()
@@ -578,7 +603,7 @@ namespace Opc.Ua
             {
                 result = HandleCertificateValidationException(se, certificate, acceptError);
             }
-            if (result.IsValid && validatedPath != null)
+            if (result.IsValid && validatedPath != null && options?.ValidateForSigning != true)
             {
                 m_validatedCertificates[certificate.Thumbprint] = validatedPath;
             }
@@ -938,6 +963,7 @@ namespace Opc.Ua
                 // still hold for the leaf and every resolved issuer. A current
                 // cache hit skips the expensive chain-policy build below.
                 if (UseValidatedCertificates &&
+                    options?.ValidateForSigning != true &&
                     !HasRevocationError(validationErrors) &&
                     m_validatedCertificates.TryGetValue(
                         certificate.Thumbprint,
@@ -1226,14 +1252,14 @@ namespace Opc.Ua
 
                 // check if certificate is valid for use as app/sw or user cert
                 X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
-                if (isECDsaSignature)
+                if (isECDsaSignature || options?.ValidateForSigning == true)
                 {
                     if ((certificateKeyUsage & X509KeyUsageFlags.DigitalSignature) == 0)
                     {
                         sresult = new ServiceResult(
                             null,
                             StatusCodes.BadCertificateUseNotAllowed,
-                            LocalizedText.From("Usage of ECDSA certificate is not allowed."),
+                            LocalizedText.From("Certificate does not permit digital signatures."),
                             null,
                             sresult);
                     }
@@ -1284,8 +1310,23 @@ namespace Opc.Ua
                         sresult);
                 }
 
-                // check if certificate signature algorithm length is sufficient
-                if (isECDsaSignature)
+                // Signing keys are independent of the issuer's certificate-signature algorithm.
+                if (options?.ValidateForSigning == true)
+                {
+                    using ECDsa? signingKey = certificate.GetECDsaPublicKey();
+                    int keySize = signingKey?.KeySize ?? X509Utils.GetRSAPublicKeySize(certificate);
+                    int minimumKeySize = signingKey != null ? 256 : MinimumCertificateKeySize;
+                    if (keySize < minimumKeySize)
+                    {
+                        sresult = new ServiceResult(
+                            null,
+                            StatusCodes.BadCertificatePolicyCheckFailed,
+                            LocalizedText.From("Signing certificate does not meet the minimum public key length."),
+                            null,
+                            sresult);
+                    }
+                }
+                else if (isECDsaSignature)
                 {
                     int publicKeySize = X509Utils.GetPublicKeySize(certificate);
                     bool isInvalid =
@@ -1902,7 +1943,12 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             TrustListState state = m_state;
-            StatusCode status = StatusCodes.BadCertificateRevocationUnknown;
+            StatusCode status = X509Utils.GetRevocationStatus(
+                state.CertificateRevocationLists.Span, issuer, certificate, m_timeProvider.GetUtcNow().UtcDateTime);
+            if (status == StatusCodes.BadCertificateRevoked)
+            {
+                return ToRevocationError(status, certificate, options);
+            }
             bool anyStoreOpened = false;
             bool anyStoreSupported = false;
             foreach (CertificateStoreIdentifier? storeIdentifier in
@@ -2388,7 +2434,8 @@ namespace Opc.Ua
             CertificateStoreIdentifier? IssuerStore,
             ArrayOf<Certificate> ApplicationCertificates,
             ArrayOf<CertificateIdentifier> TrustedCertificates = default,
-            ArrayOf<CertificateIdentifier> IssuerCertificates = default);
+            ArrayOf<CertificateIdentifier> IssuerCertificates = default,
+            ArrayOf<X509CRL> CertificateRevocationLists = default);
     }
 
     /// <summary>
