@@ -103,6 +103,26 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         [Test]
+        public void ResetIsNotExecutableWhileSuspended()
+        {
+            ProgramStateMachineState machine = CreateMachine(out _, out _);
+            MethodState reset = AddMethod(machine, BrowseNames.Reset, "Machine_Reset");
+            machine.WireCauseMethods(m_context);
+            machine.SetState(m_context, Objects.ProgramStateMachineType_Suspended);
+
+            bool executable = ReadAttribute(reset, Attributes.Executable);
+            ServiceResult result = reset.OnCallMethod!(
+                m_context, reset, inputArguments: default, outputArguments: []);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(executable, Is.False);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                Assert.That(CurrentStateId(machine), Is.EqualTo(Objects.ProgramStateMachineType_Suspended));
+            });
+        }
+
+        [Test]
         public void CauseMethodsAreBoundToTheMatchingCause()
         {
             ProgramStateMachineState machine = CreateMachine(
