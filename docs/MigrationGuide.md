@@ -22,6 +22,7 @@ covers cross-cutting changes.
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
 - [Migrating custom NodeManager interfaces](#migrating-custom-nodemanager-interfaces)
+- [Migrating NodeManager registration and runtime creation](#migrating-nodemanager-registration-and-runtime-creation)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
@@ -448,6 +449,25 @@ Subclasses overriding the old monitored-item transfer methods must move their
 overrides to the options-taking methods used by server dispatch. See
 [custom NodeManager interface changes](migrate/2.0.x/node-states.md#custom-nodemanager-interface-changes)
 for the affected methods and deferred initial-value behavior.
+
+## Migrating NodeManager registration and runtime creation
+
+`MasterNodeManager` constructors that accept preconstructed application
+managers are obsolete. `StandardServer` rejects those managers during startup
+because it cannot isolate their prior construction from serving metadata.
+Register application managers as factories instead. In `CreateMasterNodeManager`
+or `CreateMasterNodeManagerAsync` overrides, combine
+`GetInitialNodeManagerFactories()` with factories for any additional models and
+pass the factories to the master constructor without invoking them. The obsolete
+constructors remain available for standalone dispatch. See
+[startup registration](NodeManagers.md#startup-registration).
+
+For `CustomNodeManager2.CreateNode` calls made while the server is running,
+await `CreateNodeAsync` from an asynchronous caller. The synchronous method is
+obsolete and does not run unresolved monitored-item recovery. The asynchronous
+method creates and indexes the nodes before recovery, so cancellation or a
+recovery failure can throw after the nodes exist. Check the address space before
+retrying.
 
 ## Migrating code that called IServerInternal.Set* mutators
 
