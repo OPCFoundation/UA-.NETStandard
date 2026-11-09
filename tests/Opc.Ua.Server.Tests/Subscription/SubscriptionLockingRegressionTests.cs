@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -173,7 +174,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(env.Subscription.TriggeringLinkCount, Is.EqualTo(triggers * targets));
 
             // deleting half of the targets removes their links from every triggering item.
-            await env.Subscription.DeleteMonitoredItemsAsync(env.Context, [.. targetIds[..(targets / 2)]])
+            await env.Subscription.DeleteMonitoredItemsAsync(env.Context, [.. targetIds.Take(targets / 2)])
                 .ConfigureAwait(false);
             Assert.That(env.Subscription.TriggeringLinkCount, Is.EqualTo(triggers * (targets / 2)));
             env.Subscription.SetTriggering(
@@ -184,7 +185,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(env.Subscription.TriggeringLinkCount, Is.EqualTo((triggers * (targets / 2)) - 1));
 
             // deleting triggering items removes their own links.
-            await env.Subscription.DeleteMonitoredItemsAsync(env.Context, [.. triggerIds[1..]]).ConfigureAwait(false);
+            await env.Subscription.DeleteMonitoredItemsAsync(env.Context, [.. triggerIds.Skip(1)]).ConfigureAwait(false);
             Assert.That(env.Subscription.TriggeringLinkCount, Is.EqualTo((targets / 2) - 1));
         }
 
