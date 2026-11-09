@@ -1000,6 +1000,12 @@ Request routing remains owned by the explicit `OperationContext` view.
 | `MasterNodeManager` current decision | Rejects namespace and node-management writes from the callback whose decision they would otherwise wait for. Releasing the reservation completes its marker and clears the current slot. | A completion task with no manager or generation payload |
 | `MasterNodeManager` namespace publication | Rejects serving namespace changes from callbacks while lifecycle publication holds the namespace reservation, including during the durable decision. Releasing the reservation completes its marker and restores the preceding slot, on success or failure. | A completion task with no manager or generation payload |
 
+When an intermediate readiness scope is disposed while a descendant remains active,
+it clears its link to the grandparent. The descendant cannot reach the grandparent's
+generation through that scope. It retains authority for its own server and generation,
+including when its server is shared with the grandparent. A separately captured context
+whose current scope is the still-active grandparent retains that grandparent's authority.
+
 Restoring an `AsyncLocal` value alone cannot revoke a scope copied into another
 execution context. Readers therefore check the shared active flag or completion
 task. A captured context may retain the expired marker, but that marker grants no
