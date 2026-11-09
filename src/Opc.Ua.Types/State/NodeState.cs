@@ -6221,6 +6221,19 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
+            return AddReferenceIfMissing(referenceTypeId, isInverse, targetId, out _);
+        }
+
+        /// <summary>
+        /// Reports whether storage changed before invoking the reference observer.
+        /// </summary>
+        internal bool AddReferenceIfMissing(
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            out bool added)
+        {
+            added = false;
             if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
@@ -6243,6 +6256,7 @@ namespace Opc.Ua
                 }
 
                 references.Add(reference, null);
+                added = true;
             }
 
             m_changeMasks |= NodeStateChangeMasks.References;

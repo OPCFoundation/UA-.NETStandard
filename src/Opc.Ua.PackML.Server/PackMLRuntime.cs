@@ -31,7 +31,7 @@ namespace Opc.Ua.PackML.Server
 {
     /// <summary>
     /// Composes standalone PackML units into an existing address-space owner.
-    /// The owner loads AddOpcUaPackML once and disposes this runtime on shutdown.
+    /// The server loads AddOpcUaPackML once and the owner disposes this runtime on shutdown.
     /// </summary>
     public sealed class PackMLRuntime : IAsyncDisposable, IConformanceContributor
     {
@@ -85,8 +85,8 @@ namespace Opc.Ua.PackML.Server
         public ArrayOf<string> ServerProfiles => [];
 
         /// <summary>
-        /// Creates and registers a unit below a chosen parent, or directly in
-        /// Objects when parent is null. No PackML-specific global folder is added.
+        /// Creates and registers a unit under PackMLObjects and a chosen parent,
+        /// or directly under Objects when parent is null.
         /// </summary>
         /// <remarks>
         /// A non-null parent must be the indexed node owned by this runtime's node manager.
@@ -173,6 +173,19 @@ namespace Opc.Ua.PackML.Server
                         false,
                         cancellationToken).ConfigureAwait(false);
                 }
+                NodeId folderId = ExpandedNodeId.ToNodeId(
+                    ObjectIds.PackMLObjects, m_manager.SystemContext.NamespaceUris);
+                if (folderId.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdUnknown, "The PackMLObjects folder is unavailable.");
+                }
+                await m_manager.AddReferenceFromNodeAsync(
+                    unit.Node,
+                    folderId,
+                    Ua.ReferenceTypeIds.Organizes,
+                    false,
+                    cancellationToken).ConfigureAwait(false);
                 // Parentless units have no notifier to propagate through, so they
                 // become Server roots. The standalone owner keeps registering every unit.
                 if (parent is null || m_manager is PackMLNodeManager)

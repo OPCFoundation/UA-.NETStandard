@@ -166,10 +166,28 @@ namespace Opc.Ua.Server
             lock (m_retiringEventGenerationsLock)
             {
                 NodeManagerGeneration[] current = m_retiringEventGenerations;
-                var next = new NodeManagerGeneration[current.Length + generations.Count];
-                current.CopyTo(next, 0);
-                generations.CopyTo(next, current.Length);
-                Volatile.Write(ref m_retiringEventGenerations, next);
+                var next = new List<NodeManagerGeneration>(current);
+                foreach (NodeManagerGeneration generation in generations)
+                {
+                    AddIfMissing(generation);
+                    if (generation.PrivateSourceGeneration is { } source)
+                    {
+                        AddIfMissing(source);
+                    }
+                    if (generation.PrivateFacadeGeneration is { } facade)
+                    {
+                        AddIfMissing(facade);
+                    }
+                }
+                Volatile.Write(ref m_retiringEventGenerations, [.. next]);
+
+                void AddIfMissing(NodeManagerGeneration generation)
+                {
+                    if (!next.Contains(generation))
+                    {
+                        next.Add(generation);
+                    }
+                }
             }
         }
 
@@ -205,7 +223,7 @@ namespace Opc.Ua.Server
                 Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previous;
                 Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previousSnapshot;
                 Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> next;
-                HashSet<IAsyncNodeManager> retiring = [.. removed];
+                HashSet<IAsyncNodeManager> retiring = CreateRetiringSet(removed);
                 bool dynamicMutationSemaphoreHeld = false;
                 if (!HasActiveCallbackPermit(
                         callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation))
@@ -222,7 +240,9 @@ namespace Opc.Ua.Server
                     }
                     ApplyDeferredReferencePrunes();
                     previous = m_dynamicExternalReferences;
-                    previousSnapshot = previous.ToDictionary(entry => entry.Key, entry => entry.Value);
+                    IEqualityComparer<IAsyncNodeManager> managerComparer = RefEqualityComparer.Default;
+                    previousSnapshot = previous.ToDictionary(
+                        entry => entry.Key, entry => entry.Value, managerComparer);
                     foreach (PreparedNodeManager candidate in candidates)
                     {
                         ValidatePreparedNodeManager(candidate);
@@ -232,7 +252,7 @@ namespace Opc.Ua.Server
                         }
                     }
                     next = previousSnapshot.Where(entry => !retiring.Contains(entry.Key))
-                        .ToDictionary(entry => entry.Key, entry => entry.Value);
+                        .ToDictionary(entry => entry.Key, entry => entry.Value, managerComparer);
                     foreach (PreparedNodeManager candidate in candidates)
                     {
                         ChangePreparer.GetServer(candidate.NodeManager)?.PruneStagedExternalReferences();
@@ -413,7 +433,7 @@ namespace Opc.Ua.Server
             NodeManagerGeneration[] publishedOwners = [];
             var referenceAdditions = new Dictionary<
                 IAsyncNodeManager,
-                Dictionary<NodeId, IList<IReference>>>();
+                Dictionary<NodeId, IList<IReference>>>(RefEqualityComparer.Default);
             bool dynamicMutationSemaphoreHeld =
                 admission.Includes(NodeManagerAdmissionCapability.AddressSpaceMutation);
             bool startupShutdownSemaphoreHeld =
@@ -455,7 +475,7 @@ namespace Opc.Ua.Server
                             PreparedNodeManager candidate = candidates[candidateIndex];
                             ValidatePreparedNodeManager(candidate);
                         }
-                        HashSet<IAsyncNodeManager> retiring = [.. removed];
+                        HashSet<IAsyncNodeManager> retiring = CreateRetiringSet(removed);
                         foreach (PreparedNodeManager candidate in candidates)
                         {
                             if (candidate.ReplacedNodeManager is { } old)
@@ -512,7 +532,7 @@ namespace Opc.Ua.Server
                         {
                             update.Reserve();
                         }
-                        var publisher = new AddressSpacePublisher(
+                        using var publisher = new AddressSpacePublisher(
                             routes,
                             namespaces,
                             serverUris,
@@ -650,6 +670,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Collects the exact managers explicitly retired by a lifecycle batch.
+        /// </summary>
+        /// <param name="removed">The managers to retire.</param>
+        /// <returns>The managers distinguished by reference identity.</returns>
+        private static HashSet<IAsyncNodeManager> CreateRetiringSet(ArrayOf<IAsyncNodeManager> removed)
+        {
+            var retiring = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
+            foreach (IAsyncNodeManager manager in removed)
+            {
+                retiring.Add(manager);
+            }
+            return retiring;
+        }
+
+        /// <summary>
         /// Computes the external reference additions and removals that prepared node managers contribute to nodes owned
         /// by in-memory node managers.
         /// </summary>
@@ -676,9 +711,9 @@ namespace Opc.Ua.Server
             Dictionary<NodeId, ReferenceDictionary<bool>> next = Collect(nextReferences.Values);
             var sources = new List<PreparedReferenceSource>();
             var referenceAdditions =
-                new Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>();
-            var deferredRemovals = new Dictionary<IAsyncNodeManager, List<LocalReference>>();
-            var newOwners = new HashSet<IAsyncNodeManager>();
+                new Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>(RefEqualityComparer.Default);
+            var deferredRemovals = new Dictionary<IAsyncNodeManager, List<LocalReference>>(RefEqualityComparer.Default);
+            var newOwners = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
             foreach (PreparedNodeManager candidate in candidates)
             {
                 newOwners.Add(candidate.NodeManager);
@@ -688,7 +723,7 @@ namespace Opc.Ua.Server
                 .. view.VisibleNodeManagers.Where(manager => !retiring.Contains(manager)),
                 .. newOwners
             ];
-            var nodes = new HashSet<NodeState>();
+            var nodes = new HashSet<NodeState>(RefEqualityComparer.Default);
             foreach (NodeId sourceId in previous.Keys.Union(next.Keys))
             {
                 previous.TryGetValue(sourceId, out ReferenceDictionary<bool>? oldReferences);

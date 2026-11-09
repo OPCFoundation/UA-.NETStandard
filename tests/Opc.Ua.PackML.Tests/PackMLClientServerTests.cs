@@ -457,6 +457,8 @@ namespace Opc.Ua.PackML.Tests
                 await m_client.CommandAsync(m_unit.Node.NodeId, step.Command);
                 PackMLStatusSnapshot accepted = await m_client.ReadStatusAsync(m_unit.Node.NodeId);
                 Assert.That(accepted.StateChangeInProcess.Value, Is.True, step.Command.ToString());
+                Assert.That(accepted.StateRequested.IsGood, Is.True, step.Command.ToString());
+                Assert.That(accepted.StateRequested.Value, Is.EqualTo((int)step.Stable), step.Command.ToString());
                 Assert.That(m_unit.CurrentState, Is.EqualTo(step.Acting));
                 long id = m_unit.PendingRequestId;
                 Assert.That(id, Is.GreaterThan(0));
@@ -469,6 +471,7 @@ namespace Opc.Ua.PackML.Tests
                 Assert.That(ServiceResult.IsGood(await m_unit.CompleteActingStateAsync(id, step.Acting)), Is.True);
                 PackMLStatusSnapshot complete = await m_client.ReadStatusAsync(m_unit.Node.NodeId);
                 Assert.That(complete.StateChangeInProcess.Value, Is.False);
+                Assert.That(complete.StateRequested.Value, Is.EqualTo((int)step.Stable), step.Command.ToString());
                 Assert.That(m_unit.CurrentState, Is.EqualTo(step.Stable));
                 PackMLValue<NodeId> active = step.Stable == PackMLStateNumbers.Aborted
                     ? complete.BaseState
@@ -496,6 +499,127 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(completed.UnitModeCurrent.Value, Is.EqualTo(7));
             Assert.That(completed.UnitModeChangeInProcess.Value, Is.False);
             Assert.That(m_equipment.Executed.Single().Mode, Is.EqualTo(7));
+        }
+
+        /// <summary>
+        /// Verifies the typed status snapshot exposes the configured state and transition subsets.
+        /// </summary>
+        [Test]
+        public async Task WireStatusReadsConfiguredStateAndTransitionSubsets()
+        {
+            Unit configured = await m_manager.Runtime.AddUnitAsync(
+                new QualifiedName("ReducedMode", m_manager.InstanceNamespaceIndex), new EquipmentProvider(),
+                options => options.Modes =
+                [
+                    new PackMLMode
+                    {
+                        States =
+                        [
+                            PackMLStateNumbers.Cleared, PackMLStateNumbers.Stopped, PackMLStateNumbers.Running,
+                            PackMLStateNumbers.Resetting, PackMLStateNumbers.Idle, PackMLStateNumbers.Starting,
+                            PackMLStateNumbers.Execute
+                        ]
+                    }
+                ]);
+            PackMLStatusSnapshot status = await m_client.ReadStatusAsync(configured.Node.NodeId);
+            ushort namespaceIndex = checked((ushort)m_session.NamespaceUris.GetIndex(Namespaces.PackML));
+            NodeId Id(uint id) => new(id, namespaceIndex);
+
+            Assert.That(status.BaseAvailableStates.IsGood, Is.True);
+            Assert.That(status.MachineAvailableStates.IsGood, Is.True);
+            Assert.That(status.ExecuteAvailableStates.IsGood, Is.True);
+            Assert.That(status.BaseAvailableTransitions.IsGood, Is.True);
+            Assert.That(status.MachineAvailableTransitions.IsGood, Is.True);
+            Assert.That(status.ExecuteAvailableTransitions.IsGood, Is.True);
+            Assert.That(status.BaseAvailableStates.Value.Span.ToArray(), Is.EquivalentTo(new[]
+            {
+                Id(Objects.PackMLBaseStateMachineType_Cleared)
+            }));
+            Assert.That(status.MachineAvailableStates.Value.Span.ToArray(), Is.EquivalentTo(new[]
+            {
+                Id(Objects.PackMLMachineStateMachineType_Stopped),
+                Id(Objects.PackMLMachineStateMachineType_Running)
+            }));
+            Assert.That(status.ExecuteAvailableStates.Value.Span.ToArray(), Is.EquivalentTo(new[]
+            {
+                Id(Objects.PackMLExecuteStateMachineType_Resetting),
+                Id(Objects.PackMLExecuteStateMachineType_Idle),
+                Id(Objects.PackMLExecuteStateMachineType_Starting),
+                Id(Objects.PackMLExecuteStateMachineType_Execute)
+            }));
+            Assert.That(status.BaseAvailableTransitions.Value.IsNull, Is.False);
+            Assert.That(status.BaseAvailableTransitions.Value.Count, Is.Zero);
+            Assert.That(status.MachineAvailableTransitions.Value.Span.ToArray(), Is.EquivalentTo(new[]
+            {
+                Id(Objects.PackMLMachineStateMachineType_StoppedToRunning)
+            }));
+            Assert.That(status.ExecuteAvailableTransitions.Value.Span.ToArray(), Is.EquivalentTo(new[]
+            {
+                Id(Objects.PackMLExecuteStateMachineType_ResettingToIdle),
+                Id(Objects.PackMLExecuteStateMachineType_IdleToStarting),
+                Id(Objects.PackMLExecuteStateMachineType_StartingToExecute)
+            }));
+        }
+
+        /// <summary>
+        /// Verifies both machine-speed variables expose their engineering units and range over the session.
+        /// </summary>
+        [Test]
+        public async Task WireMachineSpeedExposesEngineeringUnitsAndRange()
+        {
+            var browser = new Browser(m_session, new BrowserOptions
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty,
+                IncludeSubtypes = true,
+                NodeClassMask = (int)NodeClass.Variable
+            });
+            PackMLField<float>[] fields = [PackMLFields.Status.MachSpeed, PackMLFields.Status.CurMachSpeed];
+            foreach (PackMLField<float> field in fields)
+            {
+                PackMLValue<float> speed = await m_client.ReadAsync(m_unit.Node.NodeId, field);
+                Assert.That(speed.IsPresent, Is.True, field.Path);
+                List<ReferenceDescription> properties = (await browser.BrowseAsync(speed.NodeId)).ToList();
+                ReferenceDescription units = properties.Single(reference =>
+                    reference.BrowseName.NamespaceIndex == 0 && reference.BrowseName.Name == "EngineeringUnits");
+                ReferenceDescription range = properties.Single(reference =>
+                    reference.BrowseName.NamespaceIndex == 0 && reference.BrowseName.Name == "EURange");
+                NodeId unitsNode = ExpandedNodeId.ToNodeId(units.NodeId, m_session.NamespaceUris);
+                NodeId rangeNode = ExpandedNodeId.ToNodeId(range.NodeId, m_session.NamespaceUris);
+                Assert.That(unitsNode.IsNull, Is.False, field.Path);
+                Assert.That(rangeNode.IsNull, Is.False, field.Path);
+                ReadResponse response = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                [
+                    new ReadValueId { NodeId = unitsNode, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = rangeNode, AttributeId = Attributes.Value }
+                ], CancellationToken.None);
+                Assert.That(response.Results.Count, Is.EqualTo(2));
+                Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True, field.Path);
+                Assert.That(StatusCode.IsGood(response.Results[1].StatusCode), Is.True, field.Path);
+                Assert.That(response.Results[0].WrappedValue.TryGetStructure<EUInformation>(
+                    m_session.MessageContext, out EUInformation? info), Is.True, field.Path);
+                Assert.That(response.Results[1].WrappedValue.TryGetStructure<Ua.Range>(
+                    m_session.MessageContext, out Ua.Range? limits), Is.True, field.Path);
+                Assert.That(info, Is.Not.Null);
+                Assert.That(limits, Is.Not.Null);
+                Assert.That(info!.NamespaceUri, Is.EqualTo("urn:opcfoundation:PackML:units"));
+                Assert.That(info.UnitId, Is.EqualTo(1));
+                Assert.That(info.DisplayName.Text, Is.EqualTo("packages/min"));
+                Assert.That(info.Description.Text, Is.EqualTo("Primary packages per minute"));
+                Assert.That(limits!.Low, Is.Zero);
+                Assert.That(limits.High, Is.EqualTo(1000));
+            }
+
+            PackMLStatusObjectTypeClient? status =
+                await m_client.GetUnitProxy(m_unit.Node.NodeId).GetStatusAsync(m_client.Telemetry);
+            Assert.That(status, Is.Not.Null);
+            ClientRead<float> currentSpeed = await status!.CurMachSpeedVariable().ReadAsync();
+            Assert.That(currentSpeed.HasValue, Is.True);
+            Assert.That(currentSpeed.Value, Is.EqualTo(m_equipment.Snapshot.CurrentMachineSpeed));
+            EUInformation currentUnits = await status.CurMachSpeedVariable().ReadEngineeringUnitsAsync();
+            EUInformation targetUnits = await status.MachSpeedVariable().ReadEngineeringUnitsAsync();
+            Assert.That(currentUnits.DisplayName.Text, Is.EqualTo("packages/min"));
+            Assert.That(targetUnits.DisplayName.Text, Is.EqualTo("packages/min"));
         }
 
         [TestCase(true, false)]
@@ -671,6 +795,132 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(discovered.BrowseName.NamespaceIndex, Is.EqualTo(m_manager.InstanceNamespaceIndex));
             Assert.That(discovered.TypeDefinition, Is.EqualTo(ExpandedNodeId.ToNodeId(
                 ObjectTypeIds.PackMLBaseObjectType, m_session.NamespaceUris)));
+        }
+
+        /// <summary>
+        /// Verifies the standalone unit is organized by the PackMLObjects folder required by OPC 30050.
+        /// </summary>
+        [Test]
+        public async Task StandaloneUnitIsOrganizedBelowPackMLObjectsAsync()
+        {
+            var browser = new Browser(m_session, new BrowserOptions
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
+                IncludeSubtypes = false,
+                NodeClassMask = (int)NodeClass.Object
+            });
+            int packMLNamespace = m_session.NamespaceUris.GetIndex(Namespaces.PackML);
+            Assert.That(packMLNamespace, Is.GreaterThanOrEqualTo(0));
+            ArrayOf<ReferenceDescription> roots = await browser.BrowseAsync(Ua.ObjectIds.ObjectsFolder);
+            ReferenceDescription[] folders = roots.ToList()
+                .Where(reference => reference.BrowseName.Name == "PackMLObjects" &&
+                    reference.BrowseName.NamespaceIndex == packMLNamespace)
+                .ToArray();
+            Assert.That(folders, Has.Length.EqualTo(1));
+            Assert.That(
+                ExpandedNodeId.ToNodeId(folders[0].TypeDefinition, m_session.NamespaceUris),
+                Is.EqualTo(Ua.ObjectTypeIds.FolderType));
+
+            NodeId folder = ExpandedNodeId.ToNodeId(folders[0].NodeId, m_session.NamespaceUris);
+            Assert.That(folder.IsNull, Is.False);
+            ArrayOf<ReferenceDescription> contents = await browser.BrowseAsync(folder);
+            Assert.That(
+                contents.ToList().Select(reference =>
+                    ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris)),
+                Does.Contain(m_unit.Node.NodeId));
+        }
+
+        /// <summary>
+        /// Keeps the chosen parent while also organizing the unit under PackMLObjects.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ChosenParentUnitIsAlsoOrganizedBelowPackMLObjectsAsync(bool externalFolder)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            AsyncCustomNodeManager owner = externalFolder ? m_composed : m_manager;
+            ushort namespaceIndex = owner.NamespaceIndexes[0];
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("PackMLParent", namespaceIndex),
+                BrowseName = new QualifiedName("PackMLParent", namespaceIndex),
+                DisplayName = new LocalizedText("PackMLParent"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await owner.AddPredefinedNodeAsync(parent, ct).ConfigureAwait(false);
+            await using var runtime = new PackMLRuntime(owner);
+            Unit unit = await runtime.AddUnitAsync(
+                new QualifiedName("ChildUnit", namespaceIndex),
+                new EquipmentProvider(),
+                parent: parent,
+                cancellationToken: ct).ConfigureAwait(false);
+
+            NodeId folder = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_session.NamespaceUris);
+            Assert.That(folder.IsNull, Is.False);
+            Assert.That(
+                await BrowseObjectReferencesAsync(parent.NodeId, Ua.ReferenceTypeIds.HasComponent, ct)
+                    .ConfigureAwait(false),
+                Does.Contain(unit.Node.NodeId));
+            Assert.That(
+                await BrowseObjectReferencesAsync(folder, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false),
+                Does.Contain(unit.Node.NodeId));
+            Assert.That(
+                await BrowseObjectReferencesAsync(
+                    unit.Node.NodeId, Ua.ReferenceTypeIds.Organizes, ct, BrowseDirection.Inverse)
+                    .ConfigureAwait(false),
+                Does.Contain(folder));
+            Assert.That(unit.Node.Parent, Is.SameAs(parent));
+        }
+
+        /// <summary>
+        /// Keeps folder references synchronized when one of several units is deleted and recreated.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PackMLObjectsTracksUnitsAcrossDeletionAndRecreationAsync(bool externalFolder)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            AsyncCustomNodeManager owner = externalFolder ? m_composed : m_manager;
+            ushort namespaceIndex = owner.NamespaceIndexes[0];
+            await using var runtime = new PackMLRuntime(owner);
+            var firstName = new QualifiedName("FirstDynamicUnit", namespaceIndex);
+            Unit first = await runtime.AddUnitAsync(firstName, new EquipmentProvider(), cancellationToken: ct)
+                .ConfigureAwait(false);
+            Unit second = await runtime.AddUnitAsync(
+                new QualifiedName("SecondDynamicUnit", namespaceIndex), new EquipmentProvider(), cancellationToken: ct)
+                .ConfigureAwait(false);
+            NodeId folder = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_session.NamespaceUris);
+            Assert.That(folder.IsNull, Is.False);
+            NodeId firstId = first.Node.NodeId;
+            NodeId secondId = second.Node.NodeId;
+
+            NodeId[] initial = await BrowseObjectReferencesAsync(folder, Ua.ReferenceTypeIds.Organizes, ct)
+                .ConfigureAwait(false);
+            Assert.That(initial, Does.Contain(firstId));
+            Assert.That(initial, Does.Contain(secondId));
+
+            await first.DisposeAsync().ConfigureAwait(false);
+            Assert.That(await owner.DeleteNodeAsync(owner.SystemContext, firstId, ct).ConfigureAwait(false), Is.True);
+            Assert.That(
+                await owner.DeleteNodeAsync(owner.SystemContext, first.ModeDataType.NodeId, ct).ConfigureAwait(false),
+                Is.True);
+
+            NodeId[] afterDeletion = await BrowseObjectReferencesAsync(folder, Ua.ReferenceTypeIds.Organizes, ct)
+                .ConfigureAwait(false);
+            Assert.That(afterDeletion, Does.Not.Contain(firstId));
+            Assert.That(afterDeletion, Does.Contain(secondId));
+
+            await using var replacementRuntime = new PackMLRuntime(owner);
+            Unit replacement = await replacementRuntime.AddUnitAsync(
+                firstName, new EquipmentProvider(), cancellationToken: ct).ConfigureAwait(false);
+            Assert.That(replacement.Node.NodeId, Is.EqualTo(firstId));
+            NodeId[] afterReplacement = await BrowseObjectReferencesAsync(folder, Ua.ReferenceTypeIds.Organizes, ct)
+                .ConfigureAwait(false);
+            Assert.That(afterReplacement.Count(id => id == firstId), Is.EqualTo(1));
+            Assert.That(afterReplacement.Count(id => id == secondId), Is.EqualTo(1));
         }
 
         [Test]
@@ -1115,6 +1365,106 @@ namespace Opc.Ua.PackML.Tests
                 Ua.ReferenceTypeIds.Organizes, true, Ua.ObjectIds.ObjectsFolder), Is.False);
             Assert.That(target.ReferenceExists(
                 Ua.ReferenceTypeIds.Organizes, true, unknownSource), Is.False);
+        }
+
+        /// <summary>
+        /// Validates reference arguments and maintains reciprocal local and external references.
+        /// </summary>
+        /// <param name="isInverse">Whether the source reference is inverse.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReferenceFromNodeValidatesOwnershipAndMaintainsBothDirectionsAsync(bool isInverse)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            ushort namespaceIndex = m_composed.NamespaceIndexes[0];
+            FolderState localSource = await AddComposedSourceFolderAsync("ReferenceFromNodeSource", ct)
+                .ConfigureAwait(false);
+            var target = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("ReferenceFromNodeTarget", namespaceIndex),
+                BrowseName = new QualifiedName("ReferenceFromNodeTarget", namespaceIndex),
+                DisplayName = new LocalizedText("ReferenceFromNodeTarget"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await m_composed.AddPredefinedNodeAsync(target, ct).ConfigureAwait(false);
+            var impostor = new BaseObjectState(null) { NodeId = target.NodeId };
+            var unknownSource = new NodeId("UnknownReferenceFromNodeSource", namespaceIndex);
+
+            ArgumentNullException? missingTarget = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await m_composed.AddReferenceFromNodeAsync(
+                    null!, localSource.NodeId, Ua.ReferenceTypeIds.Organizes, isInverse, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            ArgumentException? wrongTarget = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_composed.AddReferenceFromNodeAsync(
+                    impostor, localSource.NodeId, Ua.ReferenceTypeIds.Organizes, isInverse, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            ArgumentException? foreignTarget = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_composed.AddReferenceFromNodeAsync(
+                    m_unit.Node, localSource.NodeId, Ua.ReferenceTypeIds.Organizes, isInverse, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            ArgumentException? missingSource = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_composed.AddReferenceFromNodeAsync(
+                    target, NodeId.Null, Ua.ReferenceTypeIds.Organizes, isInverse, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            ArgumentException? missingType = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_composed.AddReferenceFromNodeAsync(
+                    target, localSource.NodeId, NodeId.Null, isInverse, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            ServiceResultException? unknown = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_composed.AddReferenceFromNodeAsync(
+                    target, unknownSource, Ua.ReferenceTypeIds.Organizes, isInverse, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                async () => await m_composed.AddReferenceFromNodeAsync(
+                    target, localSource.NodeId, Ua.ReferenceTypeIds.Organizes, isInverse,
+                    new CancellationToken(canceled: true)).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+
+            Assert.That(missingTarget!.ParamName, Is.EqualTo("target"));
+            Assert.That(wrongTarget!.ParamName, Is.EqualTo("target"));
+            Assert.That(foreignTarget!.ParamName, Is.EqualTo("target"));
+            Assert.That(missingSource!.ParamName, Is.EqualTo("sourceId"));
+            Assert.That(missingType!.ParamName, Is.EqualTo("referenceTypeId"));
+            Assert.That(unknown!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(target.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, !isInverse, localSource.NodeId), Is.False);
+            Assert.That(localSource.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, isInverse, target.NodeId), Is.False);
+
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState externalSource = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            await m_composed.AddReferenceFromNodeAsync(
+                target, localSource.NodeId, Ua.ReferenceTypeIds.Organizes, isInverse, ct).ConfigureAwait(false);
+            await m_composed.AddReferenceFromNodeAsync(
+                target, externalSource.NodeId, Ua.ReferenceTypeIds.Organizes, isInverse, ct).ConfigureAwait(false);
+            await m_composed.AddReferenceFromNodeAsync(
+                target, localSource.NodeId, Ua.ReferenceTypeIds.Organizes, isInverse, ct).ConfigureAwait(false);
+
+            Assert.That(target.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, !isInverse, localSource.NodeId), Is.True);
+            Assert.That(target.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, !isInverse, externalSource.NodeId), Is.True);
+            Assert.That(localSource.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, isInverse, target.NodeId), Is.True);
+            Assert.That(externalSource.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, isInverse, target.NodeId), Is.True);
+            var localReferences = new List<IReference>();
+            localSource.GetReferences(m_composed.SystemContext, localReferences);
+            Assert.That(
+                localReferences.Count(reference =>
+                    reference.ReferenceTypeId == Ua.ReferenceTypeIds.Organizes &&
+                    reference.IsInverse == isInverse &&
+                    reference.TargetId == target.NodeId),
+                Is.EqualTo(1));
+            Assert.That(await m_composed.DeleteNodeAsync(m_composed.SystemContext, target.NodeId, ct)
+                .ConfigureAwait(false), Is.True);
+            Assert.That(localSource.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, isInverse, target.NodeId), Is.False);
+            Assert.That(externalSource.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, isInverse, target.NodeId), Is.False);
         }
 
         [Test]
@@ -1914,6 +2264,7 @@ namespace Opc.Ua.PackML.Tests
                 modeId = candidate.CreatedUnit.ModeDataType.NodeId;
 
                 AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+                AssertPackMLFolderReference(unitId, expected: false);
                 if (publish)
                 {
                     committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
@@ -1922,10 +2273,280 @@ namespace Opc.Ua.PackML.Tests
             }
 
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: publish);
+            AssertPackMLFolderReference(unitId, expected: publish);
             if (committed is not null)
             {
                 await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
                 AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+                AssertPackMLFolderReference(unitId, expected: false);
+            }
+        }
+
+        /// <summary>
+        /// Uses the serving folder when a candidate also indexes the same model node.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedUnitUsesServingPackMLObjectsWhenModelIsAlsoLocalAsync(bool publish)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            NodeId folderId = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_session.NamespaceUris);
+            NodeState servingFolder = m_manager.Find(folderId)
+                ?? throw new InvalidOperationException("PackMLObjects folder is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, duplicateFolder: true);
+            NodeManagerBatchResult? committed = null;
+            NodeId unitId;
+
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false))
+            {
+                PreparedPackMLManager candidate = factory.Manager
+                    ?? throw new InvalidOperationException("The candidate manager was not created.");
+                NodeState localFolder = candidate.Find(folderId)
+                    ?? throw new InvalidOperationException("The candidate folder is unavailable.");
+                Assert.That(localFolder, Is.Not.SameAs(servingFolder));
+                unitId = candidate.CreatedUnit.Node.NodeId;
+                AssertPackMLFolderReference(unitId, expected: false);
+                if (publish)
+                {
+                    committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                    Assert.That(committed.CleanupFailure, Is.Null);
+                }
+            }
+
+            NodeId[] folderContents = await BrowseObjectReferencesAsync(
+                folderId, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false);
+            Assert.That(folderContents, Does.Contain(m_unit.Node.NodeId));
+            Assert.That(folderContents.Contains(unitId), Is.EqualTo(publish));
+            if (committed is not null)
+            {
+                PreparedPackMLManager candidate = factory.Manager
+                    ?? throw new InvalidOperationException("The candidate manager was not created.");
+                NodeState localFolder = candidate.Find(folderId)
+                    ?? throw new InvalidOperationException("The candidate folder is unavailable.");
+                Assert.That(localFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.True);
+
+                await candidate.CreatedUnit.DisposeAsync().ConfigureAwait(false);
+                Assert.That(
+                    await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, ct).ConfigureAwait(false),
+                    Is.True);
+                Assert.That(
+                    await candidate.DeleteNodeAsync(
+                        candidate.SystemContext, candidate.CreatedUnit.ModeDataType.NodeId, ct)
+                        .ConfigureAwait(false),
+                    Is.True);
+                Assert.That(localFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.False);
+                folderContents = await BrowseObjectReferencesAsync(
+                    folderId, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false);
+                Assert.That(folderContents, Does.Not.Contain(unitId));
+                Assert.That(folderContents, Does.Contain(m_unit.Node.NodeId));
+
+                await using var replacementRuntime = new PackMLRuntime(candidate);
+                Unit replacement = await replacementRuntime.AddUnitAsync(
+                    candidate.CreatedUnit.Node.BrowseName, new EquipmentProvider(), cancellationToken: ct)
+                    .ConfigureAwait(false);
+                Assert.That(replacement.Node.NodeId, Is.EqualTo(unitId));
+                Assert.That(localFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.True);
+                folderContents = await BrowseObjectReferencesAsync(
+                    folderId, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false);
+                Assert.That(folderContents.Count(id => id == unitId), Is.EqualTo(1));
+                await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+                folderContents = await BrowseObjectReferencesAsync(
+                    folderId, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false);
+                Assert.That(folderContents, Does.Contain(m_unit.Node.NodeId));
+                Assert.That(folderContents, Does.Not.Contain(unitId));
+            }
+        }
+
+        /// <summary>
+        /// Keeps all indexed copies of the folder synchronized as units and model owners change.
+        /// </summary>
+        [Test]
+        public async Task PackMLObjectsTracksUnitsAcrossMultipleModelOwnersAsync()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            NodeId folderId = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_session.NamespaceUris);
+            NodeState servingFolder = m_manager.Find(folderId)
+                ?? throw new InvalidOperationException("The serving folder is unavailable.");
+            var firstFactory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false, namespaceUri: "urn:packml:multiple:first", duplicateFolder: true);
+            await using IPreparedNodeManagerBatch firstPreparation = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult first = await firstPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(first.CleanupFailure, Is.Null);
+            PreparedPackMLManager firstManager = firstFactory.Manager
+                ?? throw new InvalidOperationException("The first manager was not created.");
+            NodeState firstFolder = firstManager.Find(folderId)
+                ?? throw new InvalidOperationException("The first manager's folder is unavailable.");
+            NodeId firstUnitId = firstManager.CreatedUnit.Node.NodeId;
+
+            var secondFactory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false, namespaceUri: "urn:packml:multiple:second", duplicateFolder: true);
+            await using IPreparedNodeManagerBatch secondPreparation = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(secondFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult second = await secondPreparation.CommitAsync(_ => default, ct)
+                .ConfigureAwait(false);
+            Assert.That(second.CleanupFailure, Is.Null);
+            PreparedPackMLManager secondManager = secondFactory.Manager
+                ?? throw new InvalidOperationException("The second manager was not created.");
+            NodeState secondFolder = secondManager.Find(folderId)
+                ?? throw new InvalidOperationException("The second manager's folder is unavailable.");
+            NodeId secondUnitId = secondManager.CreatedUnit.Node.NodeId;
+            foreach (NodeState folder in new[] { servingFolder, firstFolder, secondFolder })
+            {
+                Assert.That(folder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, firstUnitId), Is.True);
+                Assert.That(folder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, secondUnitId), Is.True);
+            }
+
+            await firstManager.CreatedUnit.DisposeAsync().ConfigureAwait(false);
+            Assert.That(
+                await firstManager.DeleteNodeAsync(firstManager.SystemContext, firstUnitId, ct).ConfigureAwait(false),
+                Is.True);
+            Assert.That(
+                await firstManager.DeleteNodeAsync(
+                    firstManager.SystemContext, firstManager.CreatedUnit.ModeDataType.NodeId, ct)
+                    .ConfigureAwait(false),
+                Is.True);
+            foreach (NodeState folder in new[] { servingFolder, firstFolder, secondFolder })
+            {
+                Assert.That(folder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, firstUnitId), Is.False);
+                Assert.That(folder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, secondUnitId), Is.True);
+            }
+
+            await using var replacementRuntime = new PackMLRuntime(firstManager);
+            Unit replacement = await replacementRuntime.AddUnitAsync(
+                firstManager.CreatedUnit.Node.BrowseName, new EquipmentProvider(), cancellationToken: ct)
+                .ConfigureAwait(false);
+            Assert.That(replacement.Node.NodeId, Is.EqualTo(firstUnitId));
+            foreach (NodeState folder in new[] { servingFolder, firstFolder, secondFolder })
+            {
+                Assert.That(folder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, firstUnitId), Is.True);
+            }
+
+            var thirdFactory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false, namespaceUri: "urn:packml:multiple:third", duplicateFolder: true);
+            await using IPreparedNodeManagerBatch thirdPreparation = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(thirdFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult third = await thirdPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(third.CleanupFailure, Is.Null);
+            PreparedPackMLManager thirdManager = thirdFactory.Manager
+                ?? throw new InvalidOperationException("The third manager was not created.");
+            NodeState thirdFolder = thirdManager.Find(folderId)
+                ?? throw new InvalidOperationException("The third manager's folder is unavailable.");
+            Assert.That(thirdFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, firstUnitId), Is.True);
+            Assert.That(thirdFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, secondUnitId), Is.True);
+
+            await replacementRuntime.DisposeAsync().ConfigureAwait(false);
+            await RetirePackMLManagerAsync(lifecycle, first, ct).ConfigureAwait(false);
+            foreach (NodeState folder in new[] { servingFolder, secondFolder, thirdFolder })
+            {
+                Assert.That(folder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, firstUnitId), Is.False);
+                Assert.That(folder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, secondUnitId), Is.True);
+            }
+            await RetirePackMLManagerAsync(lifecycle, second, ct).ConfigureAwait(false);
+            await RetirePackMLManagerAsync(lifecycle, third, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Registers and removes a live external reference across existing and later folder owners.
+        /// </summary>
+        /// <param name="mirrorAlreadyPresent">
+        /// Whether the second folder owner is published before the reference.
+        /// </param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LiveExternalFolderReferenceReachesAdditionalModelOwnerAsync(bool mirrorAlreadyPresent)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            NodeId folderId = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_session.NamespaceUris);
+            NodeState servingFolder = m_manager.Find(folderId)
+                ?? throw new InvalidOperationException("The serving folder is unavailable.");
+            var mirrorFactory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false, namespaceUri: "urn:packml:external-mirror", duplicateFolder: true);
+            var probe = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("ExternalFolderProbe", m_composed.NamespaceIndexes[0]),
+                BrowseName = new QualifiedName("ExternalFolderProbe", m_composed.NamespaceIndexes[0]),
+                DisplayName = new LocalizedText("ExternalFolderProbe"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            NodeManagerBatchResult? mirrorRegistration = null;
+            try
+            {
+                if (mirrorAlreadyPresent)
+                {
+                    mirrorRegistration = await PublishMirrorAsync().ConfigureAwait(false);
+                }
+                await m_composed.AddPredefinedNodeAsync(probe, ct).ConfigureAwait(false);
+                Assert.That(servingFolder.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, probe.NodeId), Is.False);
+                Assert.That(probe.ReferenceExists(Ua.ReferenceTypeIds.Organizes, true, folderId), Is.False);
+
+                await m_composed.AddExternalReferenceAsync(
+                    probe, folderId, Ua.ReferenceTypeIds.Organizes, false, ct).ConfigureAwait(false);
+                Assert.That(servingFolder.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, probe.NodeId), Is.True);
+                Assert.That(probe.ReferenceExists(Ua.ReferenceTypeIds.Organizes, true, folderId), Is.True);
+                if (!mirrorAlreadyPresent)
+                {
+                    mirrorRegistration = await PublishMirrorAsync().ConfigureAwait(false);
+                }
+                PreparedPackMLManager mirror = mirrorFactory.Manager
+                    ?? throw new InvalidOperationException("The second folder owner was not created.");
+                NodeState mirrorFolder = mirror.Find(folderId)
+                    ?? throw new InvalidOperationException("The second folder is unavailable.");
+                Assert.That(mirrorFolder, Is.Not.SameAs(servingFolder));
+                Assert.That(mirrorFolder.NodeId, Is.EqualTo(folderId));
+                NodeId[] visible = await BrowseObjectReferencesAsync(
+                    folderId, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false);
+                Assert.That(visible, Does.Contain(probe.NodeId));
+                Assert.That(mirrorFolder.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, probe.NodeId), Is.True);
+
+                Assert.That(await m_composed.DeleteNodeAsync(m_composed.SystemContext, probe.NodeId, ct)
+                    .ConfigureAwait(false), Is.True);
+                Assert.That(servingFolder.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, probe.NodeId), Is.False);
+                Assert.That(mirrorFolder.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, probe.NodeId), Is.False);
+                Assert.That(servingFolder.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, m_unit.Node.NodeId), Is.True);
+            }
+            finally
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                try
+                {
+                    if (ReferenceEquals(m_composed.Find(probe.NodeId), probe))
+                    {
+                        await m_composed.DeleteNodeAsync(m_composed.SystemContext, probe.NodeId, cleanup.Token)
+                            .ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    if (mirrorRegistration is not null)
+                    {
+                        await RetirePackMLManagerAsync(lifecycle, mirrorRegistration, cleanup.Token)
+                            .ConfigureAwait(false);
+                    }
+                }
+            }
+
+            async Task<NodeManagerBatchResult> PublishMirrorAsync()
+            {
+                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(mirrorFactory)], ct).ConfigureAwait(false);
+                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                mirrorRegistration = committed;
+                Assert.That(committed.CleanupFailure, Is.Null);
+                return committed;
             }
         }
 
@@ -2083,6 +2704,7 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(candidate.Find(candidate.FailedModeId), Is.Null);
             AssertPackMLExternalReferences(
                 objects, enumeration, candidate.FailedUnitId, candidate.FailedModeId, expected: false);
+            AssertPackMLFolderReference(candidate.FailedUnitId, expected: false);
 
             NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
@@ -2091,9 +2713,12 @@ namespace Opc.Ua.PackML.Tests
             AssertPackMLExternalReferences(
                 objects, enumeration, candidate.CreatedUnit.Node.NodeId, candidate.CreatedUnit.ModeDataType.NodeId,
                 expected: true);
+            AssertPackMLFolderReference(candidate.FailedUnitId, expected: false);
+            AssertPackMLFolderReference(candidate.CreatedUnit.Node.NodeId, expected: true);
             await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
             AssertPackMLExternalReferences(
                 objects, enumeration, candidate.FailedUnitId, candidate.FailedModeId, expected: false);
+            AssertPackMLFolderReference(candidate.FailedUnitId, expected: false);
         }
 
         /// <summary>
@@ -2170,6 +2795,7 @@ namespace Opc.Ua.PackML.Tests
             NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            AssertPackMLFolderReference(unitId, expected: false);
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
                 Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
             await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
@@ -2632,15 +3258,23 @@ namespace Opc.Ua.PackML.Tests
         /// </summary>
         /// <param name="facade">The facade returned by the candidate factory.</param>
         /// <param name="publish">Whether the deciding batch publishes.</param>
-        [TestCase(ManagerFacadeKind.Direct, false)]
-        [TestCase(ManagerFacadeKind.Direct, true)]
-        [TestCase(ManagerFacadeKind.Adapted, false)]
-        [TestCase(ManagerFacadeKind.Adapted, true)]
-        [TestCase(ManagerFacadeKind.Forwarded, false)]
-        [TestCase(ManagerFacadeKind.Forwarded, true)]
+        /// <param name="duplicateFolder">Whether the candidate indexes its own PackMLObjects folder.</param>
+        [TestCase(ManagerFacadeKind.Direct, false, false)]
+        [TestCase(ManagerFacadeKind.Direct, true, false)]
+        [TestCase(ManagerFacadeKind.Adapted, false, false)]
+        [TestCase(ManagerFacadeKind.Adapted, true, false)]
+        [TestCase(ManagerFacadeKind.Forwarded, false, false)]
+        [TestCase(ManagerFacadeKind.Forwarded, true, false)]
+        [TestCase(ManagerFacadeKind.Direct, false, true)]
+        [TestCase(ManagerFacadeKind.Direct, true, true)]
+        [TestCase(ManagerFacadeKind.Adapted, false, true)]
+        [TestCase(ManagerFacadeKind.Adapted, true, true)]
+        [TestCase(ManagerFacadeKind.Forwarded, false, true)]
+        [TestCase(ManagerFacadeKind.Forwarded, true, true)]
         public async Task LiveDeletionOfReservedSourceReferencesCompletesAfterDecision(
             ManagerFacadeKind facade,
-            bool publish)
+            bool publish,
+            bool duplicateFolder)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             CancellationToken ct = deadline.Token;
@@ -2654,7 +3288,8 @@ namespace Opc.Ua.PackML.Tests
             var factory = new PreparedPackMLManagerFactory(
                 failFirstUnit: false,
                 namespaceUri: "urn:opcfoundation:tests:packml:reserved-deletion",
-                facade: facade);
+                facade: facade,
+                duplicateFolder: duplicateFolder);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
             NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
@@ -2663,13 +3298,26 @@ namespace Opc.Ua.PackML.Tests
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
             NodeId unitId = candidate.CreatedUnit.Node.NodeId;
             NodeId modeId = candidate.CreatedUnit.ModeDataType.NodeId;
+            NodeId folderId = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_session.NamespaceUris);
+            NodeState servingFolder = m_manager.Find(folderId)
+                ?? throw new InvalidOperationException("The serving PackMLObjects folder is unavailable.");
+            NodeState? localFolder = duplicateFolder ? candidate.Find(folderId) : null;
+            if (duplicateFolder)
+            {
+                Assert.That(localFolder, Is.Not.Null.And.Not.SameAs(servingFolder));
+            }
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            Assert.That(servingFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.True);
+            if (localFolder is not null)
+            {
+                Assert.That(localFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.True);
+            }
 
-            // The deciding candidate adds its own unit to the Objects folder and Enumeration type,
-            // so both source nodes are reserved while its decision is pending.
+            // The deciding candidate reserves all copies of the reference sources.
             var decidingFactory = new PreparedPackMLManagerFactory(
                 failFirstUnit: false,
-                namespaceUri: "urn:opcfoundation:tests:packml:reserving");
+                namespaceUri: "urn:opcfoundation:tests:packml:reserving",
+                duplicateFolder: duplicateFolder);
             await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
             async ValueTask DecideAsync(CancellationToken token)
@@ -2714,6 +3362,35 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(
                 () => enumeration.ReferenceExists(Ua.ReferenceTypeIds.HasSubtype, false, modeId),
                 Is.False.After(10000, 20));
+            Assert.That(
+                () => servingFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId),
+                Is.False.After(10000, 20));
+            if (localFolder is not null)
+            {
+                Assert.That(
+                    () => localFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId),
+                    Is.False.After(10000, 20));
+            }
+            if (decided is not null)
+            {
+                PreparedPackMLManager decidingManager = decidingFactory.Manager
+                    ?? throw new InvalidOperationException("The deciding manager was not created.");
+                NodeId decidingUnitId = decidingManager.CreatedUnit.Node.NodeId;
+                Assert.That(
+                    servingFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, decidingUnitId),
+                    Is.True);
+                if (localFolder is not null)
+                {
+                    NodeState decidingFolder = decidingManager.Find(folderId)
+                        ?? throw new InvalidOperationException("The deciding folder is unavailable.");
+                    Assert.That(
+                        () => decidingFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId),
+                        Is.False.After(10000, 20));
+                    Assert.That(
+                        localFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, decidingUnitId),
+                        Is.True);
+                }
+            }
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
                 Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
 
@@ -2722,8 +3399,28 @@ namespace Opc.Ua.PackML.Tests
                 await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
             }
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            await using (var replacementRuntime = new PackMLRuntime(candidate))
+            {
+                Unit replacement = await replacementRuntime.AddUnitAsync(
+                    candidate.CreatedUnit.Node.BrowseName,
+                    new EquipmentProvider(),
+                    cancellationToken: ct).ConfigureAwait(false);
+                Assert.That(replacement.Node.NodeId, Is.EqualTo(unitId));
+                Assert.That(
+                    servingFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId),
+                    Is.True);
+                if (localFolder is not null)
+                {
+                    Assert.That(
+                        localFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId),
+                        Is.True);
+                }
+            }
             await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(servingFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.False);
+            Assert.That(servingFolder.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, m_unit.Node.NodeId), Is.True);
         }
 
         /// <summary>
@@ -2969,6 +3666,520 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
+        /// Preserves a live replacement's reference when a rejected removal is queued afterward.
+        /// </summary>
+        [Test]
+        public async Task DeferredRemovalPreservesLiveReplacementAddedBeforeQueue()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            FolderState source = await AddComposedSourceFolderAsync("LiveReplacementSource", ct)
+                .ConfigureAwait(false);
+            var firstFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:live-replacement", source.NodeId);
+            await using IPreparedNodeManagerBatch firstPrepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(first.CleanupFailure, Is.Null);
+            ExternalProbeManager firstProbe = firstFactory.Manager
+                ?? throw new InvalidOperationException("The first probe manager was not created.");
+            NodeState original = firstProbe.Find(firstProbe.ProbeId)
+                ?? throw new InvalidOperationException("The first probe node was not created.");
+
+            var sentinelFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:live-replacement-sentinel", source.NodeId);
+            await using IPreparedNodeManagerBatch sentinelPrepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(sentinelFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult sentinel = await sentinelPrepared.CommitAsync(_ => default, ct)
+                .ConfigureAwait(false);
+            Assert.That(sentinel.CleanupFailure, Is.Null);
+            ExternalProbeManager sentinelProbe = sentinelFactory.Manager
+                ?? throw new InvalidOperationException("The sentinel probe manager was not created.");
+
+            Assert.That(source.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+            Assert.That(source.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, sentinelProbe.ProbeId), Is.True);
+            var reserved = new TaskCompletionSource<InvalidOperationException>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFailure = PackMLTestSupport.Signal();
+            var sentinelRemoved = PackMLTestSupport.Signal();
+            Task<bool>? deletion = null;
+            m_composed.ReferenceDeleteFailedAsync = async (target, failure, token) =>
+            {
+                if (target == firstProbe.ProbeId)
+                {
+                    reserved.TrySetResult(failure);
+                    await releaseFailure.Task.WaitAsync(token).ConfigureAwait(false);
+                }
+            };
+            m_composed.ReferenceDeleted = target =>
+            {
+                if (target == sentinelProbe.ProbeId)
+                {
+                    sentinelRemoved.TrySetResult(true);
+                }
+            };
+
+            try
+            {
+                var decidingFactory = new ExternalProbeManagerFactory(
+                    "urn:opcfoundation:tests:packml:live-replacement-deciding", source.NodeId);
+                await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+                NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+                {
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        deletion = Task.Run(async () =>
+                            await firstProbe.DeleteNodeAsync(firstProbe.SystemContext, firstProbe.ProbeId, token)
+                                .ConfigureAwait(false), token);
+                    }
+                    InvalidOperationException failure = await reserved.Task.WaitAsync(token).ConfigureAwait(false);
+                    Assert.That(failure.GetType().FullName, Is.EqualTo("Opc.Ua.NodeReferencesReservedException"));
+                }, ct).ConfigureAwait(false);
+                Assert.That(decided.CleanupFailure, Is.Null);
+                Task<bool> deletionTask = deletion
+                    ?? throw new InvalidOperationException("The deletion was not started.");
+                Assert.That(deletionTask.IsCompleted, Is.False);
+                Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.Null);
+
+                var replacement = new BaseObjectState(null)
+                {
+                    NodeId = firstProbe.ProbeId,
+                    BrowseName = new QualifiedName("Probe", firstProbe.NamespaceIndexes[0]),
+                    DisplayName = new LocalizedText("Probe"),
+                    TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+                };
+                await firstProbe.AddPredefinedNodeAsync(replacement, ct).ConfigureAwait(false);
+                await firstProbe.AddExternalReferenceAsync(
+                    replacement, source.NodeId, Ua.ReferenceTypeIds.Organizes, false, ct).ConfigureAwait(false);
+                Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.SameAs(replacement));
+                Assert.That(replacement, Is.Not.SameAs(original));
+                Assert.That(replacement.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, true, source.NodeId), Is.True);
+                Assert.That(source.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+
+                var queueFactory = new ExternalProbeManagerFactory(
+                    "urn:opcfoundation:tests:packml:live-replacement-queue", source.NodeId);
+                await using IPreparedNodeManagerBatch queueDecision = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(queueFactory)], ct).ConfigureAwait(false);
+                NodeManagerBatchResult queued = await queueDecision.CommitAsync(async token =>
+                {
+                    releaseFailure.TrySetResult(true);
+                    Assert.That(await deletionTask.WaitAsync(token).ConfigureAwait(false), Is.True);
+                    Task<bool> sentinelDeletion;
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        sentinelDeletion = Task.Run(async () =>
+                            await sentinelProbe.DeleteNodeAsync(
+                                sentinelProbe.SystemContext, sentinelProbe.ProbeId, token).ConfigureAwait(false),
+                            token);
+                    }
+                    Assert.That(await sentinelDeletion.WaitAsync(token).ConfigureAwait(false), Is.True);
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, sentinelProbe.ProbeId), Is.True);
+                }, ct).ConfigureAwait(false);
+                Assert.That(queued.CleanupFailure, Is.Null);
+                await sentinelRemoved.Task.WaitAsync(ct).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.SameAs(replacement));
+                    Assert.That(replacement.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, true, source.NodeId), Is.True);
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, sentinelProbe.ProbeId), Is.False);
+                });
+
+                await RetirePackMLManagerAsync(lifecycle, queued, ct).ConfigureAwait(false);
+                Assert.That(source.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+                await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+                Assert.That(source.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+                await RetirePackMLManagerAsync(lifecycle, sentinel, ct).ConfigureAwait(false);
+                Assert.That(source.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+                await RetirePackMLManagerAsync(lifecycle, first, ct).ConfigureAwait(false);
+                Assert.That(source.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.False);
+            }
+            finally
+            {
+                releaseFailure.TrySetResult(true);
+                m_composed.ReferenceDeleteFailedAsync = null;
+                m_composed.ReferenceDeleted = null;
+                if (deletion is not null)
+                {
+                    await deletion.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Preserves a replacement added by a source removal callback.
+        /// </summary>
+        [Test]
+        public async Task ImmediateRemovalPreservesReplacementAddedBySourceCallback()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            FolderState source = await AddComposedSourceFolderAsync("ImmediateReplacementSource", ct)
+                .ConfigureAwait(false);
+            var factory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:immediate-replacement", source.NodeId);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            ExternalProbeManager probe = factory.Manager
+                ?? throw new InvalidOperationException("The probe manager was not created.");
+            NodeState original = probe.Find(probe.ProbeId)
+                ?? throw new InvalidOperationException("The probe node was not created.");
+            var replacement = new BaseObjectState(null)
+            {
+                NodeId = probe.ProbeId,
+                BrowseName = new QualifiedName("Probe", probe.NamespaceIndexes[0]),
+                DisplayName = new LocalizedText("Probe"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            var added = PackMLTestSupport.Signal();
+            int calls = 0;
+            m_composed.BeforeReferenceDeleteAsync = async (target, token) =>
+            {
+                if (target == probe.ProbeId && Interlocked.Increment(ref calls) == 1)
+                {
+                    Assert.That(probe.Find(probe.ProbeId), Is.Null);
+                    await probe.AddPredefinedNodeAsync(replacement, token).ConfigureAwait(false);
+                    await probe.AddReferenceFromNodeAsync(
+                        replacement, source.NodeId, Ua.ReferenceTypeIds.Organizes, false, token)
+                        .ConfigureAwait(false);
+                    added.TrySetResult(true);
+                }
+            };
+            try
+            {
+                Assert.That(await probe.DeleteNodeAsync(probe.SystemContext, probe.ProbeId, ct)
+                    .ConfigureAwait(false), Is.True);
+                Assert.That(added.Task.IsCompleted, Is.True);
+                Assert.That(probe.Find(probe.ProbeId), Is.SameAs(replacement));
+                Assert.That(replacement, Is.Not.SameAs(original));
+                Assert.That(replacement.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, true, source.NodeId), Is.True);
+                Assert.That(source.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, replacement.NodeId), Is.True);
+            }
+            finally
+            {
+                m_composed.BeforeReferenceDeleteAsync = null;
+                await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            }
+            Assert.That(source.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, probe.ProbeId), Is.False);
+        }
+
+        /// <summary>
+        /// Preserves a replacement node's reference when it is added before a deferred removal is queued.
+        /// </summary>
+        /// <param name="duplicateSource">Whether candidates also index a local copy of the source.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DeferredRemovalDoesNotRemoveReferenceOfReplacementAddedDuringDeletion(bool duplicateSource)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            FolderState source = await AddComposedSourceFolderAsync("ReplacementDuringDeletionSource", ct)
+                .ConfigureAwait(false);
+            string? sourceNamespace = duplicateSource ? m_composed.NamespaceUris.Single() : null;
+            var firstFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:replacement-during-deletion", source.NodeId, sourceNamespace);
+            await using IPreparedNodeManagerBatch firstPrepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(first.CleanupFailure, Is.Null);
+            ExternalProbeManager firstProbe = firstFactory.Manager
+                ?? throw new InvalidOperationException("The first probe manager was not created.");
+            NodeState original = firstProbe.Find(firstProbe.ProbeId)
+                ?? throw new InvalidOperationException("The first probe node was not created.");
+            NodeState? localSource = duplicateSource ? firstProbe.Find(source.NodeId) : null;
+            if (duplicateSource)
+            {
+                Assert.That(localSource, Is.Not.Null.And.Not.SameAs(source));
+            }
+
+            var sentinelFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:replacement-deletion-sentinel", source.NodeId, sourceNamespace);
+            await using IPreparedNodeManagerBatch sentinelPrepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(sentinelFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult sentinel = await sentinelPrepared.CommitAsync(_ => default, ct)
+                .ConfigureAwait(false);
+            Assert.That(sentinel.CleanupFailure, Is.Null);
+            ExternalProbeManager sentinelProbe = sentinelFactory.Manager
+                ?? throw new InvalidOperationException("The sentinel probe manager was not created.");
+            Assert.That(source.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+            Assert.That(source.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, sentinelProbe.ProbeId), Is.True);
+            if (localSource is not null)
+            {
+                Assert.That(
+                    localSource.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId),
+                    Is.True);
+            }
+
+            var decidingFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:replacement-deletion-deciding", source.NodeId, sourceNamespace);
+            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            var entered = PackMLTestSupport.Signal();
+            var release = PackMLTestSupport.Signal();
+            var sentinelRemoved = PackMLTestSupport.Signal();
+            var replacement = new BaseObjectState(null)
+            {
+                NodeId = firstProbe.ProbeId,
+                BrowseName = new QualifiedName("Probe", firstProbe.NamespaceIndexes[0]),
+                DisplayName = new LocalizedText("Probe"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            int attempts = 0;
+            int replacementRemovals = 0;
+            m_composed.BeforeReferenceDeleteAsync = async (target, token) =>
+            {
+                if (target == firstProbe.ProbeId && Interlocked.Increment(ref attempts) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                }
+            };
+            m_composed.ReferenceDeleted = target =>
+            {
+                if (target == sentinelProbe.ProbeId)
+                {
+                    sentinelRemoved.TrySetResult(true);
+                }
+                else if (target == firstProbe.ProbeId)
+                {
+                    Interlocked.Increment(ref replacementRemovals);
+                }
+            };
+
+            try
+            {
+                NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+                {
+                    Task<bool> deletion;
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        deletion = Task.Run(async () =>
+                            await firstProbe.DeleteNodeAsync(firstProbe.SystemContext, firstProbe.ProbeId, token)
+                                .ConfigureAwait(false), token);
+                    }
+                    await entered.Task.WaitAsync(token).ConfigureAwait(false);
+                    Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.Null);
+                    await firstProbe.AddPredefinedNodeAsync(replacement, token).ConfigureAwait(false);
+                    Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.SameAs(replacement));
+                    Assert.That(replacement, Is.Not.SameAs(original));
+                    Assert.That(replacement.AddReferenceIfMissing(
+                        Ua.ReferenceTypeIds.Organizes, true, source.NodeId), Is.True);
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+                    release.TrySetResult(true);
+                    Assert.That(await deletion.WaitAsync(token).ConfigureAwait(false), Is.True);
+
+                    Task<bool> sentinelDeletion;
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        sentinelDeletion = Task.Run(async () =>
+                            await sentinelProbe.DeleteNodeAsync(
+                                sentinelProbe.SystemContext, sentinelProbe.ProbeId, token).ConfigureAwait(false),
+                            token);
+                    }
+                    Assert.That(await sentinelDeletion.WaitAsync(token).ConfigureAwait(false), Is.True);
+                }, ct).ConfigureAwait(false);
+                Assert.That(decided.CleanupFailure, Is.Null);
+                await firstProbe.AddReferenceFromNodeAsync(
+                    replacement, source.NodeId, Ua.ReferenceTypeIds.Organizes, false, ct).ConfigureAwait(false);
+                await sentinelRemoved.Task.WaitAsync(ct).ConfigureAwait(false);
+                await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(Volatile.Read(ref replacementRemovals), Is.Zero);
+                    Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.SameAs(replacement));
+                    Assert.That(replacement.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, true, source.NodeId), Is.True);
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, sentinelProbe.ProbeId), Is.False);
+                    if (localSource is not null)
+                    {
+                        Assert.That(localSource.ReferenceExists(
+                            Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+                        Assert.That(localSource.ReferenceExists(
+                            Ua.ReferenceTypeIds.Organizes, false, sentinelProbe.ProbeId), Is.False);
+                    }
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                m_composed.BeforeReferenceDeleteAsync = null;
+                m_composed.ReferenceDeleted = null;
+            }
+
+            await RetirePackMLManagerAsync(lifecycle, sentinel, ct).ConfigureAwait(false);
+            Assert.That(source.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+            await RetirePackMLManagerAsync(lifecycle, first, ct).ConfigureAwait(false);
+            Assert.That(source.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.False);
+        }
+
+        /// <summary>
+        /// Diagnoses stale removal after the target check using a replacement installed by the removal callback.
+        /// </summary>
+        [Test]
+        [Explicit("Diagnostic only: installing the replacement depends on the stale DeleteReferenceAsync call.")]
+        public async Task DiagnosticDeferredRemovalOfReplacementAddedAfterTargetCheck()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            FolderState source = await AddComposedSourceFolderAsync("ReplacementAfterCheckSource", ct)
+                .ConfigureAwait(false);
+            var firstFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:replacement-after-check", source.NodeId);
+            await using IPreparedNodeManagerBatch firstPrepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(first.CleanupFailure, Is.Null);
+            ExternalProbeManager firstProbe = firstFactory.Manager
+                ?? throw new InvalidOperationException("The first probe manager was not created.");
+            NodeState original = firstProbe.Find(firstProbe.ProbeId)
+                ?? throw new InvalidOperationException("The first probe node was not created.");
+            Assert.That(source.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+
+            var sentinelFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:replacement-after-check-sentinel", source.NodeId);
+            await using IPreparedNodeManagerBatch sentinelPrepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(sentinelFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult sentinel = await sentinelPrepared.CommitAsync(_ => default, ct)
+                .ConfigureAwait(false);
+            Assert.That(sentinel.CleanupFailure, Is.Null);
+            ExternalProbeManager sentinelProbe = sentinelFactory.Manager
+                ?? throw new InvalidOperationException("The sentinel probe manager was not created.");
+            Assert.That(source.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, sentinelProbe.ProbeId), Is.True);
+
+            var decidingFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:replacement-after-check-deciding", source.NodeId);
+            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            var replaced = PackMLTestSupport.Signal();
+            var sentinelRemoved = PackMLTestSupport.Signal();
+            var replacement = new BaseObjectState(null)
+            {
+                NodeId = firstProbe.ProbeId,
+                BrowseName = new QualifiedName("Probe", firstProbe.NamespaceIndexes[0]),
+                DisplayName = new LocalizedText("Probe"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            int armed = 0;
+
+            // The drain cannot enter mutation admission while the decision is pending, so the first
+            // deletion attempt after arming is the drain's, made after it found the target current.
+            // The replacement is indexed directly and carries a manually added inverse reference; it is
+            // not a published contribution, because publication cannot run while the drain holds
+            // mutation admission.
+            m_composed.BeforeReferenceDeleteAsync = async (target, token) =>
+            {
+                if (target == firstProbe.ProbeId && Interlocked.CompareExchange(ref armed, 2, 1) == 1)
+                {
+                    Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.Null);
+                    await firstProbe.AddPredefinedNodeAsync(replacement, token).ConfigureAwait(false);
+                    Assert.That(replacement.AddReferenceIfMissing(
+                        Ua.ReferenceTypeIds.Organizes, true, source.NodeId), Is.True);
+                    replaced.TrySetResult(true);
+                }
+            };
+            // The sentinel removal is queued after the probe removal, and the drain retries queued
+            // removals in order, so observing it proves the drain has finished with the probe removal
+            // whether or not it deleted the probe reference.
+            m_composed.ReferenceDeleted = target =>
+            {
+                if (target == sentinelProbe.ProbeId)
+                {
+                    sentinelRemoved.TrySetResult(true);
+                }
+            };
+
+            try
+            {
+                NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+                {
+                    Task<bool> deletion;
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        deletion = Task.Run(async () =>
+                            await firstProbe.DeleteNodeAsync(firstProbe.SystemContext, firstProbe.ProbeId, token)
+                                .ConfigureAwait(false), token);
+                    }
+                    Assert.That(await deletion.WaitAsync(token).ConfigureAwait(false), Is.True);
+                    Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.Null);
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+
+                    Task<bool> sentinelDeletion;
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        sentinelDeletion = Task.Run(async () =>
+                            await sentinelProbe.DeleteNodeAsync(
+                                sentinelProbe.SystemContext, sentinelProbe.ProbeId, token).ConfigureAwait(false),
+                            token);
+                    }
+                    Assert.That(await sentinelDeletion.WaitAsync(token).ConfigureAwait(false), Is.True);
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, sentinelProbe.ProbeId), Is.True);
+                    Volatile.Write(ref armed, 1);
+                }, ct).ConfigureAwait(false);
+                Assert.That(decided.CleanupFailure, Is.Null);
+                await sentinelRemoved.Task.WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(
+                    replaced.Task.IsCompleted,
+                    Is.True,
+                    "The drain did not delete the probe reference after its target check, so the ordering " +
+                    "under test was not reached.");
+                await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, sentinelProbe.ProbeId), Is.False);
+                    Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.SameAs(replacement));
+                    Assert.That(replacement, Is.Not.SameAs(original));
+                    Assert.That(replacement.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, true, source.NodeId), Is.True);
+                    Assert.That(source.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+                });
+            }
+            finally
+            {
+                m_composed.BeforeReferenceDeleteAsync = null;
+                m_composed.ReferenceDeleted = null;
+            }
+
+            await RetirePackMLManagerAsync(lifecycle, sentinel, ct).ConfigureAwait(false);
+            await RetirePackMLManagerAsync(lifecycle, first, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Does not transfer a staged external reference to an unrelated replacement with the same NodeId.
         /// </summary>
         [Test]
@@ -3022,6 +4233,42 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(objects.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.EqualTo(expected));
             Assert.That(
                 enumeration.ReferenceExists(Ua.ReferenceTypeIds.HasSubtype, false, modeId), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Checks the serving PackMLObjects reference for one unit.
+        /// </summary>
+        private void AssertPackMLFolderReference(NodeId unitId, bool expected)
+        {
+            NodeId folderId = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_manager.SystemContext.NamespaceUris);
+            NodeState folder = m_manager.Find(folderId)
+                ?? throw new InvalidOperationException("PackMLObjects folder is unavailable.");
+            Assert.That(
+                folder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId),
+                Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Browses object references through the client session.
+        /// </summary>
+        private async Task<NodeId[]> BrowseObjectReferencesAsync(
+            NodeId source,
+            NodeId referenceType,
+            CancellationToken cancellationToken,
+            BrowseDirection direction = BrowseDirection.Forward)
+        {
+            var browser = new Browser(m_session, new BrowserOptions
+            {
+                BrowseDirection = direction,
+                ReferenceTypeId = referenceType,
+                IncludeSubtypes = false,
+                NodeClassMask = (int)NodeClass.Object
+            });
+            ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(source, cancellationToken)
+                .ConfigureAwait(false);
+            return references.ToList()
+                .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris))
+                .ToArray();
         }
 
         /// <summary>
@@ -3329,6 +4576,12 @@ namespace Opc.Ua.PackML.Tests
             public Func<ExpandedNodeId, CancellationToken, ValueTask>? BeforeReferenceDeleteAsync { get; set; }
 
             /// <summary>
+            /// Gets or sets a callback observing a failed reference deletion before its failure is returned.
+            /// </summary>
+            public Func<ExpandedNodeId, InvalidOperationException, CancellationToken, ValueTask>?
+                ReferenceDeleteFailedAsync { get; set; }
+
+            /// <summary>
             /// Gets or sets a callback observing a successfully applied reference deletion.
             /// </summary>
             public Action<ExpandedNodeId>? ReferenceDeleted { get; set; }
@@ -3351,13 +4604,25 @@ namespace Opc.Ua.PackML.Tests
                     Interlocked.Increment(ref m_failedReferenceDeletes);
                     throw ReferenceDeleteFault;
                 }
-                ServiceResult result = await base.DeleteReferenceAsync(
-                    sourceHandle,
-                    referenceTypeId,
-                    isInverse,
-                    targetId,
-                    deleteBidirectional,
-                    cancellationToken).ConfigureAwait(false);
+                ServiceResult result;
+                try
+                {
+                    result = await base.DeleteReferenceAsync(
+                        sourceHandle,
+                        referenceTypeId,
+                        isInverse,
+                        targetId,
+                        deleteBidirectional,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException failure)
+                {
+                    if (ReferenceDeleteFailedAsync is { } failed)
+                    {
+                        await failed(targetId, failure, cancellationToken).ConfigureAwait(false);
+                    }
+                    throw;
+                }
                 if (ServiceResult.IsGood(result))
                 {
                     ReferenceDeleted?.Invoke(targetId);
@@ -3392,10 +4657,19 @@ namespace Opc.Ua.PackML.Tests
             /// </summary>
             /// <param name="namespaceUri">The namespace owned by the candidate.</param>
             /// <param name="sourceId">The external node that organizes the candidate's probe.</param>
-            public ExternalProbeManagerFactory(string namespaceUri, NodeId sourceId)
+            /// <param name="duplicateSourceNamespace">
+            /// The source namespace to index locally, or null to leave the source external.
+            /// </param>
+            public ExternalProbeManagerFactory(
+                string namespaceUri,
+                NodeId sourceId,
+                string? duplicateSourceNamespace = null)
             {
                 m_sourceId = sourceId;
-                NamespacesUris = [namespaceUri];
+                m_duplicateSourceNamespace = duplicateSourceNamespace;
+                NamespacesUris = duplicateSourceNamespace is null
+                    ? [namespaceUri]
+                    : [namespaceUri, duplicateSourceNamespace];
             }
 
             /// <summary>
@@ -3413,15 +4687,19 @@ namespace Opc.Ua.PackML.Tests
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                Manager = new ExternalProbeManager(server, configuration, NamespacesUris[0], m_sourceId);
+                Manager = new ExternalProbeManager(
+                    server, configuration, NamespacesUris[0], m_sourceId, m_duplicateSourceNamespace);
                 return new ValueTask<IAsyncNodeManager>(Manager);
             }
 
             private readonly NodeId m_sourceId;
+
+            /// <summary>The source namespace to index locally, if requested.</summary>
+            private readonly string? m_duplicateSourceNamespace;
         }
 
         /// <summary>
-        /// Stages one probe node and its reference from an external source node during preparation.
+        /// Stages one probe node and its reference from a local or external source during preparation.
         /// </summary>
         private sealed class ExternalProbeManager : AsyncCustomNodeManager
         {
@@ -3432,10 +4710,14 @@ namespace Opc.Ua.PackML.Tests
                 IServerInternal server,
                 ApplicationConfiguration configuration,
                 string namespaceUri,
-                NodeId sourceId)
-                : base(server, configuration, namespaceUri)
+                NodeId sourceId,
+                string? duplicateSourceNamespace)
+                : base(server, configuration, duplicateSourceNamespace is null
+                    ? [namespaceUri]
+                    : [namespaceUri, duplicateSourceNamespace])
             {
                 m_sourceId = sourceId;
+                m_duplicateSource = duplicateSourceNamespace is not null;
             }
 
             /// <summary>
@@ -3449,6 +4731,17 @@ namespace Opc.Ua.PackML.Tests
                 CancellationToken cancellationToken = default)
             {
                 await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                if (m_duplicateSource)
+                {
+                    var source = new FolderState(null)
+                    {
+                        NodeId = m_sourceId,
+                        BrowseName = new QualifiedName("Source", m_sourceId.NamespaceIndex),
+                        DisplayName = new LocalizedText("Source"),
+                        TypeDefinitionId = Ua.ObjectTypeIds.FolderType
+                    };
+                    await AddPredefinedNodeAsync(source, cancellationToken).ConfigureAwait(false);
+                }
                 var probe = new BaseObjectState(null)
                 {
                     NodeId = ProbeId,
@@ -3457,12 +4750,25 @@ namespace Opc.Ua.PackML.Tests
                     TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
                 };
                 await AddPredefinedNodeAsync(probe, cancellationToken).ConfigureAwait(false);
-                await AddExternalReferenceAsync(
-                    probe, m_sourceId, Ua.ReferenceTypeIds.Organizes, false, cancellationToken).ConfigureAwait(false);
+                if (m_duplicateSource)
+                {
+                    await AddReferenceFromNodeAsync(
+                        probe, m_sourceId, Ua.ReferenceTypeIds.Organizes, false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await AddExternalReferenceAsync(
+                        probe, m_sourceId, Ua.ReferenceTypeIds.Organizes, false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
                 await AddReverseReferencesAsync(externalReferences, cancellationToken).ConfigureAwait(false);
             }
 
             private readonly NodeId m_sourceId;
+
+            /// <summary>Whether this candidate indexes a local copy of the source.</summary>
+            private readonly bool m_duplicateSource;
         }
 
         /// <summary>
@@ -3498,16 +4804,19 @@ namespace Opc.Ua.PackML.Tests
             /// <param name="failServingUnit">Whether the failed unit uses the serving unit's name.</param>
             /// <param name="namespaceUri">The namespace owned by the candidate.</param>
             /// <param name="facade">The facade returned for the candidate.</param>
+            /// <param name="duplicateFolder">Whether the candidate indexes its own PackMLObjects node.</param>
             public PreparedPackMLManagerFactory(
                 bool failFirstUnit,
                 bool failServingUnit = false,
                 string namespaceUri = "urn:opcfoundation:tests:packml:prepared",
-                ManagerFacadeKind facade = ManagerFacadeKind.Direct)
+                ManagerFacadeKind facade = ManagerFacadeKind.Direct,
+                bool duplicateFolder = false)
             {
                 m_failFirstUnit = failFirstUnit;
                 m_failServingUnit = failServingUnit;
                 m_facade = facade;
-                NamespacesUris = [namespaceUri];
+                m_duplicateFolder = duplicateFolder;
+                NamespacesUris = duplicateFolder ? [namespaceUri, Namespaces.PackML] : [namespaceUri];
             }
 
             /// <summary>
@@ -3531,7 +4840,7 @@ namespace Opc.Ua.PackML.Tests
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 Manager = new PreparedPackMLManager(
-                    server, configuration, NamespacesUris[0], m_failFirstUnit, m_failServingUnit);
+                    server, configuration, NamespacesUris[0], m_failFirstUnit, m_failServingUnit, m_duplicateFolder);
                 RegisteredManager = m_facade switch
                 {
                     ManagerFacadeKind.Direct => Manager,
@@ -3592,6 +4901,9 @@ namespace Opc.Ua.PackML.Tests
 
             /// <summary>The facade returned for registration.</summary>
             private readonly ManagerFacadeKind m_facade;
+
+            /// <summary>Whether the candidate indexes its own PackMLObjects node.</summary>
+            private readonly bool m_duplicateFolder;
         }
 
         /// <summary>
@@ -3607,11 +4919,13 @@ namespace Opc.Ua.PackML.Tests
                 ApplicationConfiguration configuration,
                 string namespaceUri,
                 bool failFirstUnit,
-                bool failServingUnit)
-                : base(server, configuration, namespaceUri)
+                bool failServingUnit,
+                bool duplicateFolder)
+                : base(server, configuration, duplicateFolder ? [namespaceUri, Namespaces.PackML] : [namespaceUri])
             {
                 m_failFirstUnit = failFirstUnit;
                 m_failServingUnit = failServingUnit;
+                m_duplicateFolder = duplicateFolder;
                 Runtime = new PackMLRuntime(this);
             }
 
@@ -3646,6 +4960,19 @@ namespace Opc.Ua.PackML.Tests
                 CancellationToken cancellationToken = default)
             {
                 await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                if (m_duplicateFolder)
+                {
+                    var folder = new FolderState(null)
+                    {
+                        NodeId = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, SystemContext.NamespaceUris),
+                        BrowseName = new QualifiedName(
+                            BrowseNames.PackMLObjects,
+                            checked((ushort)SystemContext.NamespaceUris.GetIndex(Namespaces.PackML))),
+                        DisplayName = new LocalizedText(BrowseNames.PackMLObjects),
+                        TypeDefinitionId = Ua.ObjectTypeIds.FolderType
+                    };
+                    await AddPredefinedNodeAsync(folder, cancellationToken).ConfigureAwait(false);
+                }
                 if (m_failFirstUnit)
                 {
                     m_failRegistration = true;
@@ -3719,6 +5046,9 @@ namespace Opc.Ua.PackML.Tests
 
             /// <summary>Whether the failed unit uses the serving unit's name.</summary>
             private readonly bool m_failServingUnit;
+
+            /// <summary>Whether the candidate indexes its own PackMLObjects node.</summary>
+            private readonly bool m_duplicateFolder;
 
             /// <summary>The failure raised after the first root is registered.</summary>
             private readonly InvalidOperationException m_registrationFailure =

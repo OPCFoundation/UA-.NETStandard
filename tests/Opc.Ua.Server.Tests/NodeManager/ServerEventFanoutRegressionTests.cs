@@ -95,7 +95,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 MonitoredNode2 monitored = manager.MonitoredNodes[root.NodeId];
                 Assert.That(monitored.EventMonitoredItems[item.Id], Is.SameAs(item));
                 Assert.That(monitored.Generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
-                Assert.That(bound!.Gate, Is.SameAs(published.Gate));
+                Assert.That(bound!.NodeManager, Is.SameAs(manager));
+                if (forwarded)
+                {
+                    Assert.That(bound, Is.Not.SameAs(published));
+                    Assert.That(bound.Gate, Is.Not.SameAs(published.Gate));
+                }
+                else
+                {
+                    Assert.That(bound, Is.SameAs(published));
+                    Assert.That(bound.Gate, Is.SameAs(published.Gate));
+                }
 
                 var occurrence = new BaseEventState(null);
                 occurrence.Initialize(manager.SystemContext, root, EventSeverity.Medium,
@@ -119,7 +129,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Task drain;
                 using (MasterNodeManager.SourceEmissionOrigin? origin = admission?.TransferToOrigin())
                 {
-                    Assert.That(admission?.Generation.Gate, Is.SameAs(published.Gate));
+                    Assert.That(admission?.Generation, Is.SameAs(published));
+                    Assert.That(admission?.IssuerGeneration, Is.SameAs(bound));
                     Assert.That(origin, Is.Not.Null);
                     published.Gate.Retire();
                     drain = published.Gate.WaitForDrainAsync();
@@ -130,7 +141,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         context: provenance), Is.True);
                     using (child)
                     {
-                        Assert.That(child?.Generation.Gate, Is.SameAs(published.Gate));
+                        Assert.That(child?.Generation, Is.SameAs(published));
+                        Assert.That(child?.IssuerGeneration, Is.SameAs(bound));
                     }
                     var unrelated = new Mock<IAsyncNodeManager>();
                     unrelated.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
@@ -636,6 +648,92 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ServiceResult direct = await manager.SubscribeToEventsAsync(
                     context, handle, 1, item.Object, false).ConfigureAwait(false);
                 Assert.That(direct.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            }
+        }
+
+        /// <summary>
+        /// Retries a failed provider release without repeating releases that already succeeded.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task FailedAllEventsProviderReleaseIsRetriedForOriginalRootAsync(
+            bool samplingGroups,
+            bool multipleRoots)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            await using (var manager = new TestableAsyncCustomNodeManager(
+                server.Object,
+                new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration
+                    {
+                        MaxNotificationQueueSize = 100,
+                        MaxDurableNotificationQueueSize = 100,
+                        AvailableSamplingRates = []
+                    }
+                },
+                samplingGroups,
+                NullLogger.Instance,
+                DeterministicServerMock.TestNamespaceUri))
+            {
+                BaseObjectState root = await AddRootAsync(manager, "RetryRoot", true).ConfigureAwait(false);
+                BaseObjectState? secondRoot = multipleRoots
+                    ? await AddRootAsync(manager, "SecondRoot", true).ConfigureAwait(false)
+                    : null;
+                var item = new Mock<IEventMonitoredItem>();
+                item.SetupGet(value => value.Id).Returns(42);
+                item.SetupGet(value => value.NodeId).Returns(ObjectIds.Server);
+                item.SetupGet(value => value.MonitoringAllEvents).Returns(true);
+                item.SetupGet(value => value.MonitoringMode).Returns(MonitoringMode.Reporting);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                ServiceResult subscribed = await manager.SubscribeToAllEventsAsync(
+                    context, 1, item.Object, false).ConfigureAwait(false);
+                Assert.That(subscribed.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(manager.MonitoredNodes[root.NodeId].EventMonitoredItems[item.Object.Id],
+                    Is.SameAs(item.Object));
+
+                int releaseAttempts = 0;
+                manager.EventSubscriptionCallback = (unsubscribe, _) =>
+                {
+                    if (unsubscribe && ++releaseAttempts == 1)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadServerNotConnected);
+                    }
+                    return default;
+                };
+                ServiceResult firstRelease = await manager.SubscribeToAllEventsAsync(
+                    context, 1, item.Object, true).ConfigureAwait(false);
+                Assert.That(firstRelease.StatusCode, Is.EqualTo(StatusCodes.BadServerNotConnected));
+                Assert.That(releaseAttempts, Is.EqualTo(multipleRoots ? 2 : 1));
+                AssertSourceLinkReleased(root);
+                if (secondRoot is not null)
+                {
+                    AssertSourceLinkReleased(secondRoot);
+                }
+
+                ServiceResult retry = await manager.SubscribeToAllEventsAsync(
+                    context, 1, item.Object, true).ConfigureAwait(false);
+                Assert.That(retry.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(releaseAttempts, Is.EqualTo(multipleRoots ? 3 : 2),
+                    "Only the failed provider release is retried after its native link is removed.");
+
+                ServiceResult repeated = await manager.SubscribeToAllEventsAsync(
+                    context, 1, item.Object, true).ConfigureAwait(false);
+                Assert.That(repeated.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(releaseAttempts, Is.EqualTo(multipleRoots ? 3 : 2));
+
+                void AssertSourceLinkReleased(BaseObjectState source)
+                {
+                    if (manager.MonitoredNodes.TryGetValue(source.NodeId, out MonitoredNode2? monitored))
+                    {
+                        Assert.That(monitored.EventMonitoredItems.ContainsKey(item.Object.Id), Is.False);
+                    }
+                    Assert.That(source.AreEventsMonitored, Is.False);
+                }
             }
         }
 

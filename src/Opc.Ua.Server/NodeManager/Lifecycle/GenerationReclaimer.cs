@@ -216,7 +216,7 @@ namespace Opc.Ua.Server
                     // An observer may have started this publication's worker between activation and this call.
                     // Join only its quiescent records, never another publication's blocked destruction callback.
                     workers = workers.Concat(published
-                        .Where(item => item.Generation.IsQuiescent)
+                        .Where(static item => item.IsQuiescent)
                         .Select(item => item.Worker)
                         .OfType<Task<Exception?>>())
                         .Distinct()
@@ -287,7 +287,7 @@ namespace Opc.Ua.Server
                     if (!retired.Ready ||
                         retired.Worker is { IsCompleted: false } ||
                         !onlyQuiescent && retired.LastAttemptFailed ||
-                        onlyQuiescent && !retired.Generation.IsQuiescent ||
+                        onlyQuiescent && !retired.IsQuiescent ||
                         retired.AllowActiveMonitoredItems &&
                             NodeManagerLifecycle.HasActiveMonitoredItems(retired.Server, retired.NodeManager))
                     {
@@ -341,14 +341,14 @@ namespace Opc.Ua.Server
                 Task? finalization = StartTransitionFinalization(retired);
                 InvalidateContinuationPoints(retired.Server, retired.Generation);
                 await LifecycleWaitDiagnostics.WaitAsync(
-                    retired.Generation.WaitForQuiescenceAsync(CancellationToken.None).AsTask(),
+                    retired.WaitForQuiescenceAsync(CancellationToken.None).AsTask(),
                     m_timeProvider,
                     LifecycleWaitDiagnostics.WarningThreshold,
                     elapsed => retired.Server.Telemetry.CreateLogger<GenerationReclaimer>()
                         .LifecycleWaitExceeded(
                             "retired generation quiescence",
                             elapsed,
-                            retired.Generation.GetQuiescenceWaitContext()))
+                            retired.GetQuiescenceWaitContext()))
                     .ConfigureAwait(false);
                 retired.RequestsDrained = true;
                 if (finalization is not null)
@@ -368,6 +368,19 @@ namespace Opc.Ua.Server
                 await retired.Generation.CompleteSourceReleasesAsync(
                     null, CancellationToken.None, joinActiveCleanup: true).ConfigureAwait(false);
                 retired.Generation.DisposeRetiredResources();
+                if (retired.Generation.PrivateSourceGeneration is { } privateSource)
+                {
+                    await privateSource.CompleteSourceReleasesAsync(
+                        null, CancellationToken.None, joinActiveCleanup: true).ConfigureAwait(false);
+                    privateSource.DisposeRetiredResources();
+                }
+                if (retired.Generation.PrivateFacadeGeneration is { } privateFacade &&
+                    !ReferenceEquals(privateFacade, retired.Generation.PrivateSourceGeneration))
+                {
+                    await privateFacade.CompleteSourceReleasesAsync(
+                        null, CancellationToken.None, joinActiveCleanup: true).ConfigureAwait(false);
+                    privateFacade.DisposeRetiredResources();
+                }
                 if (await CleanupRetiredGenerationCoreAsync(retired.Server, retired.Host, retired)
                     .ConfigureAwait(false))
                 {
@@ -502,6 +515,15 @@ namespace Opc.Ua.Server
                 if (session.ContinuationPoints is SessionContinuationPoints points)
                 {
                     points.RemoveForGeneration(generation);
+                    if (generation.PrivateSourceGeneration is { } privateSource)
+                    {
+                        points.RemoveForGeneration(privateSource);
+                    }
+                    if (generation.PrivateFacadeGeneration is { } privateFacade &&
+                        !ReferenceEquals(privateFacade, generation.PrivateSourceGeneration))
+                    {
+                        points.RemoveForGeneration(privateFacade);
+                    }
                 }
             }
         }
@@ -522,11 +544,14 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    if (nodeManager is IAsyncDisposable asyncDisposable)
+                    if (ChangePreparer.GetBorrowedLease(nodeManager) is null &&
+                        nodeManager is IAsyncDisposable asyncDisposable)
                     {
-                        await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                        await DisposeOwnedNodeManagerAsync(asyncDisposable, nodeManager as AsyncCustomNodeManager)
+                            .ConfigureAwait(false);
                     }
-                    else if (nodeManager is IDisposable disposable)
+                    else if (ChangePreparer.GetBorrowedLease(nodeManager) is null &&
+                        nodeManager is IDisposable disposable)
                     {
                         disposable.Dispose();
                     }
@@ -561,6 +586,47 @@ namespace Opc.Ua.Server
             if (managerFailure is not null)
             {
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(managerFailure).Throw();
+            }
+        }
+
+        /// <summary>
+        /// Joins the base cleanup even if a bounded public disposal reports a separate failure.
+        /// </summary>
+        private static async ValueTask DisposeOwnedNodeManagerAsync(
+            IAsyncDisposable disposable,
+            AsyncCustomNodeManager? nodeManager)
+        {
+            Exception? disposalFailure = null;
+            try
+            {
+                await disposable.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                disposalFailure = failure;
+            }
+
+            if (nodeManager is not null)
+            {
+                try
+                {
+                    await nodeManager.WaitForDisposalCompletionAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    if (disposalFailure is not null && !ReferenceEquals(disposalFailure, cleanupFailure))
+                    {
+                        throw new AggregateException(
+                            "NodeManager disposal and its owned-resource cleanup both failed.",
+                            disposalFailure,
+                            cleanupFailure);
+                    }
+                    throw;
+                }
+            }
+            if (disposalFailure is not null)
+            {
+                ExceptionDispatchInfo.Capture(disposalFailure).Throw();
             }
         }
 
@@ -626,7 +692,24 @@ namespace Opc.Ua.Server
                     unsubscribeAllEvents: false,
                     CancellationToken.None)
                     .ConfigureAwait(false);
-                host.ReleaseRetiringEventGeneration(retired.Generation);
+                if (retired.Generation.PrivateSourceGeneration is { } privateSource)
+                {
+                    await host.GenerationReconciler.UnbindRetiredAsync(
+                        privateSource,
+                        unsubscribeAllEvents: false,
+                        CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                if (retired.Generation.PrivateFacadeGeneration is { } privateFacade &&
+                    !ReferenceEquals(privateFacade, retired.Generation.PrivateSourceGeneration))
+                {
+                    await host.GenerationReconciler.UnbindRetiredAsync(
+                        privateFacade,
+                        unsubscribeAllEvents: false,
+                        CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                ReleaseRetiringEventGenerations(host, retired.Generation);
                 retired.NeedsDetachment = false;
                 if (!cleanup.Detached)
                 {
@@ -681,12 +764,32 @@ namespace Opc.Ua.Server
 
             if (!cleanup.Disposed)
             {
-                host.ReleaseRetiringEventGeneration(retired.Generation);
+                ReleaseRetiringEventGenerations(host, retired.Generation);
                 await DisposeNodeManagerAsync(retired.NodeManager, cleanup).ConfigureAwait(false);
+                retired.Generation.ReleaseForwardedSource();
                 cleanup.Disposed = true;
                 RecordShutdownCleanupProgress();
             }
             return cleanup.Disposed;
+        }
+
+        /// <summary>
+        /// Stops routing item deletions to each privately owned binding identity.
+        /// </summary>
+        private static void ReleaseRetiringEventGenerations(
+            IDynamicNodeManagerHost host,
+            NodeManagerGeneration generation)
+        {
+            host.ReleaseRetiringEventGeneration(generation);
+            NodeManagerGeneration? source = generation.PrivateSourceGeneration;
+            if (source is not null)
+            {
+                host.ReleaseRetiringEventGeneration(source);
+            }
+            if (generation.PrivateFacadeGeneration is { } facade && !ReferenceEquals(facade, source))
+            {
+                host.ReleaseRetiringEventGeneration(facade);
+            }
         }
 
         /// <summary>
@@ -767,6 +870,49 @@ namespace Opc.Ua.Server
             /// Gets the exact generation whose view epochs and admitted callbacks must drain.
             /// </summary>
             public NodeManagerGeneration Generation { get; }
+
+            /// <summary>
+            /// Gets whether the published and privately retained identities have drained.
+            /// </summary>
+            internal bool IsQuiescent =>
+                Generation.IsQuiescent &&
+                (Generation.PrivateSourceGeneration?.IsQuiescent ?? true) &&
+                (Generation.PrivateFacadeGeneration?.IsQuiescent ?? true);
+
+            /// <summary>
+            /// Waits for every privately owned identity before reclaiming its shared resource.
+            /// </summary>
+            internal async ValueTask WaitForQuiescenceAsync(CancellationToken cancellationToken)
+            {
+                await Generation.WaitForQuiescenceAsync(cancellationToken).ConfigureAwait(false);
+                NodeManagerGeneration? source = Generation.PrivateSourceGeneration;
+                if (source is not null)
+                {
+                    await source.WaitForQuiescenceAsync(cancellationToken).ConfigureAwait(false);
+                }
+                if (Generation.PrivateFacadeGeneration is { } facade && !ReferenceEquals(facade, source))
+                {
+                    await facade.WaitForQuiescenceAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            /// <summary>
+            /// Describes the published and privately retained drain blockers.
+            /// </summary>
+            internal string GetQuiescenceWaitContext()
+            {
+                string context = Generation.GetQuiescenceWaitContext();
+                NodeManagerGeneration? source = Generation.PrivateSourceGeneration;
+                if (source is not null)
+                {
+                    context += $"; privateSource=[{source.GetQuiescenceWaitContext()}]";
+                }
+                if (Generation.PrivateFacadeGeneration is { } facade && !ReferenceEquals(facade, source))
+                {
+                    context += $"; privateFacade=[{facade.GetQuiescenceWaitContext()}]";
+                }
+                return context;
+            }
 
             /// <summary>
             /// Gets references retained until the exact generation drains.

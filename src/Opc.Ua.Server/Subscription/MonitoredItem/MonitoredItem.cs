@@ -337,7 +337,7 @@ namespace Opc.Ua.Server
                 if (storedMonitoredItem.IsDetached ||
                     storedMonitoredItem is IStoredMonitoredItemInvalidation { IsTerminal: true })
                 {
-                    m_slot = NodeManagerGenerationRegistry.GetOrCreate(nodeManager).Slot;
+                    m_slot = NodeManagerGenerationRegistry.GetOrCreate(nodeManager, server).Slot;
                 }
                 else
                 {
@@ -467,7 +467,7 @@ namespace Opc.Ua.Server
             private set
             {
                 NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(
-                    value ?? throw new ArgumentNullException(nameof(value)));
+                    value ?? throw new ArgumentNullException(nameof(value)), m_server);
                 if (Generation?.TryGetGeneration(out NodeManagerGeneration? previous) == true)
                 {
                     previous!.MonitoredItems.TryRemove(this, out _);
@@ -1862,8 +1862,10 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                if ((sourceEmission ?? emission) is { Generation: var generation } &&
+                if ((sourceEmission ?? emission) is
+                        { Generation: var generation, IssuerGeneration: var issuer } &&
                     !IsBoundToGeneration(generation) &&
+                    !IsBoundToGeneration(issuer) &&
                     !(capturedSourceEmission && Generation is null && ReferenceEquals(m_slot, generation.Slot)))
                 {
                     return;
@@ -3244,6 +3246,8 @@ namespace Opc.Ua.Server
 
             return MonitoringAllEvents ||
                 IsBoundToGeneration(generation) ||
+                (generation.ForwardedSourceGeneration is { } source && IsBoundToGeneration(source)) ||
+                (generation.PrivateFacadeGeneration is { } facade && IsBoundToGeneration(facade)) ||
                 (Generation is null && ReferenceEquals(m_slot, generation.Slot));
         }
 

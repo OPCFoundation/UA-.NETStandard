@@ -29,14 +29,21 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server.Historian;
+using Opc.Ua.Server.Tests.FileSystem;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -108,6 +115,150 @@ namespace Opc.Ua.Server.Tests.NodeManager
             completedResource.Verify(value => value.Dispose(), Times.Once);
             resource.Verify(value => value.Dispose(), Times.Exactly(failFirst ? 2 : 1));
             Assert.That(reclaimer.Contains(retired), Is.False);
+        }
+
+        /// <summary>
+        /// Private identities retain their own view pins, provider cleanup, and deferred resources.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task RetirementDrainsPrivateIdentityAndRetriesItsCleanupAsync(bool facade, bool failFirst)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var reclaimer = new GenerationReclaimer();
+            var context = new ReclamationContext();
+            var manager = new Mock<IAsyncNodeManager>();
+            var rawManager = new Mock<IAsyncNodeManager>();
+            manager.As<IAsyncDisposable>();
+            Mock<IAsyncNodeManager> privateManager = facade ? manager : rawManager;
+            var privateIdentity = new NodeManagerGeneration(
+                new NodeManagerSlot(), 1, privateManager.Object, NodeManagerGenerationState.Prepared);
+            var generation = new NodeManagerGeneration(
+                new NodeManagerSlot(),
+                1,
+                manager.Object,
+                NodeManagerGenerationState.Prepared,
+                privateSourceGeneration: facade ? null : privateIdentity,
+                privateGate: facade ? privateIdentity.Gate : null);
+            if (facade)
+            {
+                generation.RetainPrivateFacade(privateIdentity);
+            }
+            var retired = new GenerationReclaimer.RetiredGeneration(
+                context.Server.Object, context.Host.Object, generation, [], needsDetachment: true);
+            var sessionId = new NodeId("private-identity-session", 2);
+            var session = new Mock<ISession>();
+            var identity = new UserIdentity();
+            var points = new SessionContinuationPoints(() => sessionId, 8, 8, null);
+            session.SetupGet(value => value.Id).Returns(sessionId);
+            session.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+            session.SetupGet(value => value.ContinuationPoints).Returns(points);
+            Mock.Get(context.Server.Object.SessionManager)
+                .Setup(value => value.GetSessions()).Returns([session.Object]);
+            generation.SessionBindings[sessionId] = new GenerationSessionBindingRecord
+            {
+                Binding = new GenerationReconciler.SessionBinding(session.Object, identity, generation.Reference)
+            };
+            privateIdentity.SessionBindings[sessionId] = new GenerationSessionBindingRecord
+            {
+                Binding = new GenerationReconciler.SessionBinding(session.Object, identity, privateIdentity.Reference)
+            };
+            var privateBrowse = new ContinuationPoint
+            {
+                Id = Guid.NewGuid(),
+                Generation = privateIdentity.Reference
+            };
+            var unrelated = new NodeManagerGeneration(
+                new NodeManagerSlot(), 1, Mock.Of<IAsyncNodeManager>(), NodeManagerGenerationState.Live);
+            var unrelatedBrowse = new ContinuationPoint
+            {
+                Id = Guid.NewGuid(),
+                Generation = unrelated.Reference
+            };
+            var privateHistory = new Mock<IHistoryContinuationPoint>();
+            Guid privateHistoryId = Guid.NewGuid();
+            privateHistory.SetupGet(value => value.Id).Returns(privateHistoryId);
+            points.SaveBrowse(privateBrowse);
+            points.SaveBrowse(unrelatedBrowse);
+            points.SaveHistory(privateHistory.Object);
+            var privateHistoryToken = new ByteString(privateHistoryId.ToByteArray());
+            points.BindHistoryGeneration(privateHistoryToken, privateIdentity);
+            var epoch = new AddressSpaceEpoch();
+            privateIdentity.RegisterViewEpoch(epoch);
+            Assert.That(epoch.TryPin(out int pin), Is.True);
+            epoch.Close();
+            generation.Gate.Activate();
+            generation.Gate.Retire();
+
+            var deferred = new Mock<IDisposable>();
+            Assert.That(privateIdentity.TryDeferDisposal(deferred.Object), Is.True);
+            int attempts = 0;
+            var failure = new InvalidOperationException("Private source cleanup failed.");
+            privateIdentity.RetainSourceRelease(Mock.Of<IMonitoredItem>(), 1, _ =>
+            {
+                if (++attempts == 1 && failFirst)
+                {
+                    throw failure;
+                }
+                return default;
+            });
+            reclaimer.Enqueue([retired]);
+            reclaimer.Activate([retired]);
+            try
+            {
+                await reclaimer.ReclaimReadyAsync([retired]).AsTask().WaitAsync(timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(reclaimer.Contains(retired), Is.True);
+                Assert.That(attempts, Is.Zero);
+                deferred.Verify(value => value.Dispose(), Times.Never);
+                context.Host.Verify(value => value.DestroyAddressSpaceAsync(
+                    manager.Object, It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                epoch.Exit(pin);
+            }
+
+            if (failFirst)
+            {
+                Exception? cleanupFailure = await Assert.CatchAsync<Exception>(
+                    async () => await reclaimer.ReclaimReadyAsync([retired]).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(cleanupFailure, Is.SameAs(failure));
+                Assert.That(privateIdentity.HasPendingSourceReleases, Is.True);
+                deferred.Verify(value => value.Dispose(), Times.Never);
+                context.Host.Verify(value => value.DestroyAddressSpaceAsync(
+                    manager.Object, It.IsAny<CancellationToken>()), Times.Never);
+            }
+            await reclaimer.ReclaimReadyAsync([retired]).AsTask().WaitAsync(timeout.Token)
+                .ConfigureAwait(false);
+            await AssertRetirementOutcomeAsync(retired.Retirement, failFirst ? failure : null, timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(attempts, Is.EqualTo(failFirst ? 2 : 1));
+            Assert.That(privateIdentity.HasPendingSourceReleases, Is.False);
+            deferred.Verify(value => value.Dispose(), Times.Once);
+            context.Host.Verify(value => value.DestroyAddressSpaceAsync(
+                manager.Object, It.IsAny<CancellationToken>()), Times.Once);
+            context.Host.Verify(value => value.ReleaseRetiringEventGeneration(privateIdentity), Times.AtLeastOnce);
+            Assert.That(generation.SessionBindings, Is.Empty);
+            Assert.That(privateIdentity.SessionBindings, Is.Empty);
+            manager.Verify(value => value.SessionClosingAsync(
+                It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()),
+                Times.Exactly(facade ? 2 : 1));
+            if (!facade)
+            {
+                rawManager.Verify(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()), Times.Once);
+            }
+            Assert.That(points.RestoreBrowse(new ByteString(privateBrowse.Id.ToByteArray())), Is.Null);
+            Assert.That(points.RestoreHistory(privateHistoryToken), Is.Null);
+            privateHistory.Verify(value => value.Dispose(), Times.Once);
+            using ContinuationPoint? restored =
+                points.RestoreBrowse(new ByteString(unrelatedBrowse.Id.ToByteArray()));
+            Assert.That(restored, Is.SameAs(unrelatedBrowse));
         }
 
         /// <summary>
@@ -205,6 +356,545 @@ namespace Opc.Ua.Server.Tests.NodeManager
             context.Server.As<IHistorianBuilderRegistry>().Verify(
                 value => value.UnregisterHistorianBuilder(It.IsAny<HistorianBuilder>()),
                 Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Retirement retains the manager until a file handle finishes cleanup after the public disposal deadline.
+        /// </summary>
+        [Test]
+        [Category("Server")]
+        [Category("NodeManagerLifecycle")]
+        [Category("FileSystem")]
+        public async Task RetirementWaitsForFileHandleCleanupAfterBoundedDisposalAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var reclaimer = new GenerationReclaimer();
+            using var harness = new FileOpenOwnershipRegressionTests.FileHarness();
+            using var stream = new FileOpenOwnershipRegressionTests.SuspendedProtocolReadStream();
+            harness.Manager.CloseTimeout = TimeSpan.Zero;
+            harness.Provider.Setup(value => value.OpenReadAsync("file", It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Stream>(stream));
+
+            uint id = await FileReadRegressionTests.OpenAsync(harness.File, harness.Manager.SystemContext)
+                .ConfigureAwait(false);
+            FileHandle handles = harness.GetHandle();
+            Task<ReadMethodStateResult> read = harness.File.Read!.OnCallAsync!(
+                harness.Manager.SystemContext, harness.File.Read, harness.File.NodeId, id, 1, CancellationToken.None)
+                .AsTask();
+
+            var destroyed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var referencesRemoved = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var host = new Mock<IDynamicNodeManagerHost>();
+            host.Setup(value => value.DestroyAddressSpaceAsync(
+                    harness.Manager, It.IsAny<CancellationToken>()))
+                .Returns((IAsyncNodeManager manager, CancellationToken ct) => DestroyAsync(manager, ct));
+            host.Setup(value => value.RemoveDestroyedExternalReferencesAsync(
+                    harness.Manager, It.IsAny<CancellationToken>()))
+                .Returns((IAsyncNodeManager manager, CancellationToken ct) =>
+                {
+                    referencesRemoved.TrySetResult(true);
+                    return default;
+                });
+            var generation = new NodeManagerGeneration(
+                new NodeManagerSlot(), 1, harness.Manager, NodeManagerGenerationState.Live);
+            var retired = new GenerationReclaimer.RetiredGeneration(
+                harness.Server, host.Object, generation, [], needsDetachment: false);
+            generation.Gate.Retire();
+            reclaimer.Enqueue([retired]);
+            reclaimer.Activate([retired]);
+            Task reclaim = reclaimer.ReclaimReadyAsync().AsTask();
+            try
+            {
+                await stream.Cancelled.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await destroyed.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await referencesRemoved.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                while (harness.Manager.GetOrCreateHandle(harness.File.NodeId, harness.File.ProviderPath) is not null)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token).ConfigureAwait(false);
+                }
+                await harness.Manager.DisposeAsync().AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(handles.CleanupCompletion.IsCompleted, Is.False);
+                Assert.That(stream.CanRead, Is.True);
+
+                Task completed = await Task.WhenAny(reclaim, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
+                    .ConfigureAwait(false);
+                Assert.That(completed, Is.Not.SameAs(reclaim),
+                    "Retirement cannot finish while the provider still owns an active file read.");
+                Assert.That(retired.Retirement.IsCompleted, Is.False);
+                Assert.That(retired.Cleanup.ManagerDisposed, Is.False);
+                Assert.That(reclaimer.Contains(retired), Is.True);
+            }
+            finally
+            {
+                stream.Release.TrySetResult(true);
+                await read.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await handles.CleanupCompletion.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await reclaim.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(retired.Cleanup.ManagerDisposed, Is.True);
+            Assert.That(reclaimer.Contains(retired), Is.False);
+            Assert.That(stream.CanRead, Is.False);
+
+            async ValueTask DestroyAsync(IAsyncNodeManager manager, CancellationToken ct)
+            {
+                await manager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
+                destroyed.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Retirement retains a directory cursor while session close and provider disposal are in flight.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("Server")]
+        [Category("NodeManagerLifecycle")]
+        [Category("FileSystem")]
+        public async Task RetirementWaitsForCursorDuringSessionCloseAsync(bool closeBeforeRetirement)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            using var reclaimer = new GenerationReclaimer();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                server.SetupGet(value => value.Telemetry).Returns(telemetry);
+                server.SetupGet(value => value.MessageContext).Returns(ServiceMessageContext.CreateEmpty(telemetry));
+                server.SetupGet(value => value.IdentityRegistry)
+                    .Returns(new ServerIdentityRegistry(new AnonymousAuthenticator()));
+                var closeEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var releaseClose = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var diagnostics = new Mock<IDiagnosticsNodeManager>();
+                diagnostics.Setup(value => value.CreateSessionDiagnosticsAsync(
+                        It.IsAny<ServerSystemContext>(),
+                        It.IsAny<SessionDiagnosticsDataType>(),
+                        It.IsAny<NodeValueSimpleEventHandler>(),
+                        It.IsAny<SessionSecurityDiagnosticsDataType>(),
+                        It.IsAny<NodeValueSimpleEventHandler>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<NodeId>(new NodeId(24680u, 1)));
+                diagnostics.Setup(value => value.DeleteSessionDiagnosticsAsync(
+                        It.IsAny<ServerSystemContext>(), It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        closeEntered.TrySetResult(true);
+                        return new ValueTask(releaseClose.Task);
+                    });
+                server.SetupGet(value => value.DiagnosticsNodeManager).Returns(diagnostics.Object);
+                var configuration = new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration
+                    {
+                        MinSessionTimeout = 1_000,
+                        MaxSessionTimeout = 60_000,
+                        MaxSessionCount = 10,
+                        MaxBrowseContinuationPoints = 10,
+                        MaxHistoryContinuationPoints = 10
+                    }
+                };
+                using var sessions = new SnapshotObservedSessionManager(server.Object, configuration);
+                server.SetupGet(value => value.SessionManager).Returns(sessions);
+                using Certificate certificate = CertificateBuilder.Create("CN=Cursor Close Test")
+                    .SetRSAKeySize(2048).CreateForRSA();
+                var endpoint = new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://localhost/cursor-close",
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None,
+                    UserIdentityTokens =
+                    [
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "anonymous",
+                            TokenType = UserTokenType.Anonymous,
+                            SecurityPolicyUri = SecurityPolicies.None
+                        }
+                    ]
+                };
+                var channel = new SecureChannelContext("cursor-close", endpoint, RequestEncoding.Binary);
+                using var createContext = new OperationContext(
+                    new RequestHeader(), channel, RequestType.CreateSession, RequestLifetime.None);
+                using var activateContext = new OperationContext(
+                    new RequestHeader(), channel, RequestType.ActivateSession, RequestLifetime.None);
+                var enumerationStarted = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var cursorEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var releaseCursor = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var cursorCompleted = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var cursor = new Mock<IAsyncEnumerator<FileSystemEntry>>();
+                cursor.SetupGet(value => value.Current).Returns(new FileSystemEntry(
+                    "entry", "entry", true, 0, false,
+                    new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), string.Empty));
+                cursor.Setup(value => value.MoveNextAsync())
+                    .Callback(() => enumerationStarted.TrySetResult(true))
+                    .Returns(new ValueTask<bool>(true));
+                cursor.Setup(value => value.DisposeAsync()).Returns(() => new ValueTask(DisposeCursorAsync()));
+                var entries = new Mock<IAsyncEnumerable<FileSystemEntry>>();
+                entries.Setup(value => value.GetAsyncEnumerator(It.IsAny<CancellationToken>()))
+                    .Returns(cursor.Object);
+                var provider = new Mock<IFileSystemProvider>();
+                provider.SetupGet(value => value.MountName).Returns("cursor-close");
+                provider.Setup(value => value.EnumerateAsync(string.Empty, It.IsAny<CancellationToken>()))
+                    .Returns(entries.Object);
+                using var manager = new FileSystemNodeManager(server.Object, configuration, provider.Object);
+                var directory = new DirectoryObjectState(
+                    manager.SystemContext,
+                    FileSystemNodeId.BuildRoot(manager.NamespaceIndex),
+                    string.Empty,
+                    "cursor-close",
+                    isRoot: true);
+                INodeBrowser? browser = null;
+                CreateSessionResult? created = null;
+                Task? close = null;
+                Task<Exception?>? worker = null;
+                try
+                {
+                    created = await sessions.CreateSessionAsync(
+                        createContext, certificate, "cursor-close", default, new ApplicationDescription(),
+                        endpoint.EndpointUrl, null, null, 60_000, 65_536, timeout.Token).ConfigureAwait(false);
+                    (_, _, ServiceResult activation) = await sessions.ActivateSessionAsync(
+                        activateContext, created.AuthenticationToken, new SignatureData(), default,
+                        new SignatureData(), [], timeout.Token).ConfigureAwait(false);
+                    Assert.That(ServiceResult.IsGood(activation), Is.True);
+                    Assert.That(created.Session.Activated, Is.True);
+                    browser = directory.CreateBrowser(
+                        manager.SystemContext, null, ReferenceTypeIds.HasComponent, true, BrowseDirection.Forward,
+                        default, null, false);
+                    for (int i = 0; i < 128 && !enumerationStarted.Task.IsCompleted; i++)
+                    {
+                        Assert.That(await browser.NextAsync(timeout.Token).ConfigureAwait(false), Is.Not.Null);
+                    }
+                    Assert.That(enumerationStarted.Task.IsCompleted, Is.True);
+
+                    NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+                    var point = new ContinuationPoint { Id = Guid.NewGuid(), Manager = manager, Data = browser };
+                    var points = (SessionContinuationPoints)created.Session.ContinuationPoints;
+                    points.SaveBrowse(point);
+                    Assert.That(points.HasBrowseForGeneration(generation), Is.True);
+                    if (closeBeforeRetirement)
+                    {
+                        close = sessions.CloseSessionAsync(created.SessionId, timeout.Token).AsTask();
+                        await closeEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        Assert.That(sessions.GetSession(created.AuthenticationToken), Is.Null);
+                        Assert.That(points.HasBrowseForGeneration(generation), Is.True);
+                    }
+
+                    var host = new Mock<IDynamicNodeManagerHost>();
+                    host.Setup(value => value.DestroyAddressSpaceAsync(manager, It.IsAny<CancellationToken>()))
+                        .Returns((IAsyncNodeManager owner, CancellationToken ct) => owner.DeleteAddressSpaceAsync(ct));
+                    var retired = new GenerationReclaimer.RetiredGeneration(
+                        server.Object, host.Object, generation, [], needsDetachment: false);
+                    generation.Gate.Retire();
+                    sessions.ObserveNextSnapshot();
+                    reclaimer.Enqueue([retired]);
+                    reclaimer.Activate([retired]);
+                    reclaimer.Schedule();
+                    worker = retired.Worker;
+                    Assert.That(worker, Is.Not.Null);
+                    int visibleSessions = await sessions.SnapshotObserved.Task.WaitAsync(timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(visibleSessions, Is.EqualTo(closeBeforeRetirement ? 0 : 1));
+                    if (closeBeforeRetirement)
+                    {
+                        Assert.That(cursorEntered.Task.IsCompleted, Is.False);
+                        await AssertRetirementPendingAsync(
+                            worker!, retired, "The removed session still owns the directory cursor.")
+                            .ConfigureAwait(false);
+                        releaseClose.TrySetResult(true);
+                        await close!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    await cursorEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await AssertRetirementPendingAsync(
+                        worker!, retired, "Provider cursor disposal has not completed.").ConfigureAwait(false);
+                    releaseCursor.TrySetResult(true);
+                    await cursorCompleted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(reclaimer.Contains(retired), Is.False);
+                }
+                finally
+                {
+                    releaseClose.TrySetResult(true);
+                    releaseCursor.TrySetResult(true);
+                    browser?.Dispose();
+                    try
+                    {
+                        if (created is not null)
+                        {
+                            close ??= sessions.CloseSessionAsync(created.SessionId, timeout.Token).AsTask();
+                            await close.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        if (worker is not null)
+                        {
+                            Exception? failure = await worker.WaitAsync(timeout.Token).ConfigureAwait(false);
+                            Assert.That(failure, Is.Null, "Retirement cleanup failed.");
+                        }
+                        if (enumerationStarted.Task.IsCompleted)
+                        {
+                            await cursorCompleted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        }
+                    }
+                }
+                cursor.Verify(value => value.DisposeAsync(), Times.Once);
+
+                async Task DisposeCursorAsync()
+                {
+                    cursorEntered.TrySetResult(true);
+                    await releaseCursor.Task.ConfigureAwait(false);
+                    cursorCompleted.TrySetResult(true);
+                }
+
+                async Task AssertRetirementPendingAsync(
+                    Task<Exception?> attempt,
+                    GenerationReclaimer.RetiredGeneration retired,
+                    string message)
+                {
+                    Task observed = await Task.WhenAny(
+                        attempt, retired.Retirement, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
+                        .ConfigureAwait(false);
+                    timeout.Token.ThrowIfCancellationRequested();
+                    Assert.That(observed, Is.Not.SameAs(attempt), message);
+                    Assert.That(observed, Is.Not.SameAs(retired.Retirement), message);
+                    Assert.That(retired.Retirement.IsCompleted, Is.False);
+                    Assert.That(reclaimer.Contains(retired), Is.True);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A cleanup failure after a bounded disposal is reported and the retired manager remains owned.
+        /// </summary>
+        [Test]
+        [Category("Server")]
+        [Category("NodeManagerLifecycle")]
+        public async Task RetirementReportsDeferredManagerCleanupFailureAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var reclaimer = new GenerationReclaimer();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                Mock.Get(server.Object.Telemetry)
+                    .SetupGet(value => value.LoggerFactory).Returns(NullLoggerFactory.Instance);
+                var manager = new BoundedCleanupNodeManager(server.Object);
+                var host = new Mock<IDynamicNodeManagerHost>();
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager, NodeManagerGenerationState.Live);
+                var retired = new GenerationReclaimer.RetiredGeneration(
+                    server.Object, host.Object, generation, [], needsDetachment: false);
+                generation.Gate.Retire();
+                reclaimer.Enqueue([retired]);
+                reclaimer.Activate([retired]);
+                Task reclaim = reclaimer.ReclaimReadyAsync().AsTask();
+                try
+                {
+                    await manager.CleanupStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await manager.PublicDisposalReturned.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(manager.FullDisposal, Is.Not.Null);
+                    Assert.That(manager.FullDisposal!.IsCompleted, Is.False);
+                    var failure = new InvalidOperationException("Deferred manager cleanup failed.");
+                    manager.CleanupRelease.TrySetException(failure);
+                    AggregateException reported = await Assert.CatchAsync<AggregateException>(
+                        async () => await reclaim.WaitAsync(timeout.Token).ConfigureAwait(false))
+                        .ConfigureAwait(false) ??
+                        throw new AssertionException("Retirement did not report the deferred cleanup failure.");
+                    Assert.That(reported.Flatten().InnerExceptions, Has.Member(failure));
+                    Assert.That(retired.Retirement.IsCompleted, Is.False);
+                    Assert.That(retired.Cleanup.ManagerDisposed, Is.False);
+                    Assert.That(reclaimer.Contains(retired), Is.True);
+                    await Assert.ThatAsync(
+                        async () => await manager.FullDisposal!.ConfigureAwait(false),
+                        Throws.InstanceOf<AggregateException>()).ConfigureAwait(false);
+                }
+                finally
+                {
+                    reclaimer.StopScheduling();
+                    manager.CleanupRelease.TrySetResult(true);
+                    if (manager.FullDisposal is { } fullDisposal)
+                    {
+                        if (manager.CleanupRelease.Task.IsFaulted)
+                        {
+                            await Assert.ThatAsync(
+                                () => fullDisposal.WaitAsync(timeout.Token),
+                                Throws.InstanceOf<AggregateException>()).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await fullDisposal.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        }
+                    }
+                    if (!reclaim.IsCompleted)
+                    {
+                        if (manager.CleanupRelease.Task.IsFaulted)
+                        {
+                            await Assert.ThatAsync(
+                                () => reclaim.WaitAsync(timeout.Token),
+                                Throws.InstanceOf<AggregateException>()).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await reclaim.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        }
+                    }
+                    _ = reclaim.Exception;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Public disposal failure does not dispose candidate staging before the manager's cleanup has finished.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("Server")]
+        [Category("NodeManagerLifecycle")]
+        public async Task RetirementJoinsManagerCleanupWhenPublicDisposalFailsAsync(bool cleanupFails)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var reclaimer = new GenerationReclaimer();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                Mock.Get(server.Object.Telemetry)
+                    .SetupGet(value => value.LoggerFactory).Returns(NullLoggerFactory.Instance);
+                var publicFailure = new InvalidOperationException("Public disposal failed.");
+                var cleanupFailure = new InvalidOperationException("Owned-resource cleanup failed.");
+                var manager = new BoundedCleanupNodeManager(server.Object)
+                {
+                    PublicDisposalFailure = publicFailure
+                };
+                var host = new Mock<IDynamicNodeManagerHost>();
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager, NodeManagerGenerationState.Live);
+                var retired = new GenerationReclaimer.RetiredGeneration(
+                    server.Object, host.Object, generation, [], needsDetachment: false);
+                generation.Gate.Retire();
+                reclaimer.Enqueue([retired]);
+                reclaimer.Activate([retired]);
+                Task reclaim = reclaimer.ReclaimReadyAsync().AsTask();
+                try
+                {
+                    await manager.CleanupStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await manager.PublicDisposalReturned.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Task completed = await Task.WhenAny(reclaim, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
+                        .ConfigureAwait(false);
+                    Assert.That(completed, Is.Not.SameAs(reclaim));
+                    Assert.That(retired.Retirement.IsCompleted, Is.False);
+                    Assert.That(retired.Cleanup.StagingDisposed, Is.False);
+
+                    if (cleanupFails)
+                    {
+                        manager.CleanupRelease.TrySetException(cleanupFailure);
+                    }
+                    else
+                    {
+                        manager.CleanupRelease.TrySetResult(true);
+                    }
+                    Exception reported = await Assert.CatchAsync<Exception>(
+                        async () => await reclaim.WaitAsync(timeout.Token).ConfigureAwait(false))
+                        .ConfigureAwait(false) ??
+                        throw new AssertionException("Retirement did not report the public disposal failure.");
+                    if (cleanupFails)
+                    {
+                        Assert.That(reported, Is.TypeOf<AggregateException>());
+                        IReadOnlyCollection<Exception> failures =
+                            ((AggregateException)reported).Flatten().InnerExceptions;
+                        Assert.That(failures, Has.Member(publicFailure));
+                        Assert.That(failures, Has.Member(cleanupFailure));
+                        await Assert.ThatAsync(
+                            () => manager.FullDisposal!.WaitAsync(timeout.Token),
+                            Throws.InstanceOf<AggregateException>()).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        Assert.That(reported, Is.SameAs(publicFailure));
+                        await manager.FullDisposal!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    Assert.That(retired.Retirement.IsCompleted, Is.False);
+                    Assert.That(retired.Cleanup.ManagerDisposed, Is.False);
+                    Assert.That(retired.Cleanup.StagingDisposed, Is.True);
+                    Assert.That(reclaimer.Contains(retired), Is.True);
+                }
+                finally
+                {
+                    reclaimer.StopScheduling();
+                    manager.CleanupRelease.TrySetResult(true);
+                    if (manager.FullDisposal is { } fullDisposal)
+                    {
+                        if (manager.CleanupRelease.Task.IsFaulted)
+                        {
+                            await Assert.ThatAsync(
+                                () => fullDisposal.WaitAsync(timeout.Token),
+                                Throws.InstanceOf<AggregateException>()).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await fullDisposal.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        }
+                    }
+                    if (!reclaim.IsCompleted)
+                    {
+                        await Assert.ThatAsync(
+                            () => reclaim.WaitAsync(timeout.Token),
+                            Throws.Exception).ConfigureAwait(false);
+                    }
+                    _ = reclaim.Exception;
+                }
+            }
+        }
+
+        /// <summary>
+        /// When a manager skips base disposal, retirement reports an error instead of waiting indefinitely.
+        /// </summary>
+        [Test]
+        [Category("Server")]
+        [Category("NodeManagerLifecycle")]
+        public async Task RetirementReportsManagerThatDoesNotStartBaseDisposalAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var reclaimer = new GenerationReclaimer();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                Mock.Get(server.Object.Telemetry)
+                    .SetupGet(value => value.LoggerFactory).Returns(NullLoggerFactory.Instance);
+                var manager = new BoundedCleanupNodeManager(server.Object)
+                {
+                    SkipBaseDisposal = true
+                };
+                var host = new Mock<IDynamicNodeManagerHost>();
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager, NodeManagerGenerationState.Live);
+                var retired = new GenerationReclaimer.RetiredGeneration(
+                    server.Object, host.Object, generation, [], needsDetachment: false);
+                generation.Gate.Retire();
+                reclaimer.Enqueue([retired]);
+                reclaimer.Activate([retired]);
+                Task reclaim = reclaimer.ReclaimReadyAsync().AsTask();
+                try
+                {
+                    await Assert.ThatAsync(
+                        () => reclaim.WaitAsync(timeout.Token),
+                        Throws.InstanceOf<InvalidOperationException>()
+                            .With.Message.Contains("did not start its base resource disposal"))
+                        .ConfigureAwait(false);
+                    Assert.That(retired.Retirement.IsCompleted, Is.False);
+                    Assert.That(retired.Cleanup.ManagerDisposed, Is.False);
+                    Assert.That(reclaimer.Contains(retired), Is.True);
+                }
+                finally
+                {
+                    reclaimer.StopScheduling();
+                    manager.CleanupRelease.TrySetResult(true);
+                    manager.Dispose();
+                    await manager.WaitForDisposalCompletionAsync().AsTask()
+                        .WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+            }
         }
 
         /// <summary>
@@ -761,6 +1451,124 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 () => retirement.WaitAsync(cancellationToken),
                 Throws.Exception.SameAs(firstFailure)).ConfigureAwait(false);
             Assert.That(retirement.IsFaulted, Is.True);
+        }
+
+        /// <summary>
+        /// Returns from public disposal while its owned-resource cleanup is still pending.
+        /// </summary>
+        private sealed class BoundedCleanupNodeManager : AsyncCustomNodeManager
+        {
+            /// <summary>
+            /// Creates a manager backed by the deterministic server.
+            /// </summary>
+            public BoundedCleanupNodeManager(IServerInternal server)
+                : base(server, new ApplicationConfiguration(), DeterministicServerMock.TestNamespaceUri)
+            {
+            }
+
+            /// <summary>
+            /// Signals that the base disposal core has started.
+            /// </summary>
+            public TaskCompletionSource<bool> CleanupStarted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Controls completion of the base disposal core.
+            /// </summary>
+            public TaskCompletionSource<bool> CleanupRelease { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Signals that the bounded public disposal has returned.
+            /// </summary>
+            public TaskCompletionSource<bool> PublicDisposalReturned { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the base disposal task so the test can observe its result.
+            /// </summary>
+            public Task? FullDisposal { get; private set; }
+
+            /// <summary>
+            /// Gets whether public disposal omits base cleanup.
+            /// </summary>
+            public bool SkipBaseDisposal { get; init; }
+
+            /// <summary>
+            /// Gets the public disposal failure to report while base cleanup is pending.
+            /// </summary>
+            public Exception? PublicDisposalFailure { get; init; }
+
+            /// <inheritdoc/>
+            public override async ValueTask DisposeAsync()
+            {
+                if (SkipBaseDisposal)
+                {
+                    return;
+                }
+                Task cleanup = base.DisposeAsync().AsTask();
+                FullDisposal = cleanup;
+                if (PublicDisposalFailure is { } failure)
+                {
+                    PublicDisposalReturned.TrySetResult(true);
+                    throw failure;
+                }
+                if (await Task.WhenAny(cleanup, Task.CompletedTask).ConfigureAwait(false) == cleanup)
+                {
+                    await cleanup.ConfigureAwait(false);
+                }
+                PublicDisposalReturned.TrySetResult(true);
+            }
+
+            /// <inheritdoc/>
+            protected override async ValueTask DisposeAsyncCore()
+            {
+                CleanupStarted.TrySetResult(true);
+                await CleanupRelease.Task.ConfigureAwait(false);
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Observes a session snapshot while using the real session manager close path.
+        /// </summary>
+        private sealed class SnapshotObservedSessionManager : SessionManager
+        {
+            /// <summary>
+            /// Creates a session manager whose next session snapshot can be observed.
+            /// </summary>
+            internal SnapshotObservedSessionManager(IServerInternal server, ApplicationConfiguration configuration)
+                : base(server, configuration)
+            {
+            }
+
+            /// <summary>
+            /// Receives the number of sessions in the next observed snapshot.
+            /// </summary>
+            internal TaskCompletionSource<int> SnapshotObserved { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <inheritdoc/>
+            public override IList<ISession> GetSessions()
+            {
+                IList<ISession> sessions = base.GetSessions();
+                if (Interlocked.Exchange(ref m_observeSnapshot, 0) != 0)
+                {
+                    SnapshotObserved.TrySetResult(sessions.Count);
+                }
+                return sessions;
+            }
+
+            /// <summary>
+            /// Observes the next session snapshot taken by retirement.
+            /// </summary>
+            internal void ObserveNextSnapshot()
+            {
+                Interlocked.Exchange(ref m_observeSnapshot, 1);
+            }
+
+            /// <summary>Marks whether to report the next session snapshot.</summary>
+            private int m_observeSnapshot;
         }
 
         /// <summary>

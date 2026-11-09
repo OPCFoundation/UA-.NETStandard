@@ -732,6 +732,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Determines whether the exact facade is already owned by the lifecycle or routing table.
+        /// </summary>
+        private bool IsExactlyOwnedNodeManager(IAsyncNodeManager nodeManager)
+        {
+            lock (m_registrationLock)
+            {
+                if (m_registrations.Values.Any(state =>
+                        ReferenceEquals(state.Registration.NodeManager, nodeManager)) ||
+                    m_reclaimer.Snapshot().Any(retired =>
+                        ReferenceEquals(retired.NodeManager, nodeManager)))
+                {
+                    return true;
+                }
+            }
+            return m_server.CurrentInstance.NodeManager is MasterNodeManager master &&
+                master.IsExactlyRegisteredNodeManager(nodeManager);
+        }
+
+        /// <summary>
         /// Verifies that a registration-bound factory belongs to the operation being prepared.
         /// </summary>
         /// <param name="factory">The factory to validate.</param>
@@ -1020,6 +1039,10 @@ namespace Opc.Ua.Server
             if (ReferenceEquals(first, second))
             {
                 return true;
+            }
+            if (ChangePreparer.IsBorrowedCandidate(first) || ChangePreparer.IsBorrowedCandidate(second))
+            {
+                return false;
             }
             INodeManager? firstSyncNodeManager = first.SyncNodeManager;
             INodeManager? secondSyncNodeManager = second.SyncNodeManager;
@@ -1414,6 +1437,11 @@ namespace Opc.Ua.Server
         private static async ValueTask DisposeNodeManagerAsync(
             IAsyncNodeManager nodeManager)
         {
+            if (ChangePreparer.GetBorrowedLease(nodeManager) is { } borrowed)
+            {
+                await borrowed.RollbackAsync().ConfigureAwait(false);
+                return;
+            }
             ChangePreparer.Detach(nodeManager);
             Exception? managerFailure = null;
             if (nodeManager is IAsyncDisposable asyncDisposable)
@@ -1727,7 +1755,8 @@ namespace Opc.Ua.Server
             private readonly Dictionary<IMonitoredItem, long> m_reconciledItems =
                 new(MonitoredItemReferenceComparer.Instance);
             private readonly List<IMonitoredItem> m_failedItems = [];
-            private readonly HashSet<IMonitoredItem> m_markedDeletedItems = [];
+            private readonly HashSet<IMonitoredItem> m_markedDeletedItems =
+                new(MonitoredItemReferenceComparer.Instance);
 
             /// <summary>Whether the source consumers have already completed this transition's fences.</summary>
             private bool m_sourceNotificationsDrained;
@@ -1982,6 +2011,7 @@ namespace Opc.Ua.Server
                             m_server.CurrentConfiguration,
                             current is not null,
                             IsOwnedNodeManager,
+                            IsExactlyOwnedNodeManager,
                             cancellationToken).ConfigureAwait(false);
                         ChangePreparer.StagingServer stagingServer = ChangePreparer.GetServer(entry.Manager)!;
                         try
@@ -2772,6 +2802,10 @@ namespace Opc.Ua.Server
                     if (failure is not null)
                     {
                         failures.Add(failure);
+                    }
+                    else
+                    {
+                        generation.ReleaseForwardedSource();
                     }
                 }
             }

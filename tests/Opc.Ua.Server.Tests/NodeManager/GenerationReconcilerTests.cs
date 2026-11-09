@@ -611,6 +611,39 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Releasing an item without a recorded binding never creates or invokes one.
+        /// </summary>
+        [Test]
+        public async Task UnrecordedAllEventsReleaseDoesNotCreateBindingAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var reconciler = new GenerationReconciler(server.Object);
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, Mock.Of<IAsyncNodeManager>(), NodeManagerGenerationState.Live);
+                var item = new Mock<IEventMonitoredItem>();
+                int callbacks = 0;
+
+                ServiceResult result = await reconciler.ChangeAllEventsSubscriptionAsync(
+                    generation,
+                    item.Object,
+                    (_, _) =>
+                    {
+                        callbacks++;
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    },
+                    unsubscribe: true,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(callbacks, Is.Zero);
+                Assert.That(generation.EventBindings, Is.Empty);
+                Assert.That(generation.GetEventBinding(item.Object, unsubscribe: true), Is.Null);
+            }
+        }
+
+        /// <summary>
         /// A failed post-bind release cannot turn a deleted item's record back into a subscribable binding.
         /// Retirement retries the exact release once and never replays a successful release.
         /// </summary>
@@ -743,6 +776,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ServiceResult removed = await reconciler.ChangeAllEventsSubscriptionAsync(
                         generation, item, DispatchAsync, true, timeout.Token).ConfigureAwait(false);
                     Assert.That(removed.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(unsubscriptions, Is.EqualTo(1));
+                    Assert.That(generation.EventBindings, Is.Empty);
+
+                    ServiceResult repeated = await reconciler.ChangeAllEventsSubscriptionAsync(
+                        generation, item, DispatchAsync, true, timeout.Token).ConfigureAwait(false);
+                    Assert.That(repeated.StatusCode, Is.EqualTo(StatusCodes.Good));
                     Assert.That(unsubscriptions, Is.EqualTo(1));
                     Assert.That(generation.EventBindings, Is.Empty);
                 }
@@ -934,7 +973,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerGenerationReference? itemReference = ((MonitoredItem)item).Generation;
                 Assert.That(itemReference, Is.Not.Null);
                 Assert.That(itemReference!.TryGetGeneration(out NodeManagerGeneration? itemGeneration), Is.True);
-                Assert.That(itemGeneration!.Gate, Is.SameAs(published.Gate));
+                Assert.That(itemGeneration, Is.SameAs(original));
+                Assert.That(published.ForwardedSourceGeneration, Is.SameAs(original));
+                Assert.That(itemGeneration!.Gate, Is.Not.SameAs(published.Gate));
                 await reconciler.BindAsync(published, CancellationToken.None).ConfigureAwait(false);
                 routing.Remove(facade.Object);
 

@@ -10,12 +10,13 @@ The model is the unmodified OPC Foundation PackML 1.01 NodeSet. This guide
 describes the .NET runtime around that model, not an alternative PackML protocol.
 The [published specification](https://reference.opcfoundation.org/specs/OPC-30050/)
 defines the wire types and conformance units.
-The SDK provides full support for the defined PackML 1.01 capabilities through
-the runtime, typed clients, fluent hosting and sample, including the defined
-optional server and client capabilities. Individual units expose their configured
-capabilities. This describes available
-implementation functionality, not certification or the result of a particular
-test run.
+The runtime, typed clients, fluent hosting and sample implement PackML 1.01
+capabilities, including defined optional server and client capabilities.
+Individual units expose their configured capabilities. Support is partial:
+standalone units are not organized under `PackMLObjects` as required by
+[§6.2](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/6.2).
+The implemented functionality does not establish certification or the result
+of a particular test run.
 
 ## Packages and ownership
 

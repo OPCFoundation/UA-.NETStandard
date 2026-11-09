@@ -142,7 +142,13 @@ try
     await client.SetMachSpeedAsync(id, 120, lifetime.Token).ConfigureAwait(false);
     await unit.RefreshAsync(lifetime.Token).ConfigureAwait(false);
     PackMLStatusSnapshot speed = await client.ReadStatusAsync(id, lifetime.Token).ConfigureAwait(false);
-    Console.WriteLine($"Setpoint {speed.MachSpeed.Value}; equipment speed {speed.CurMachSpeed.Value} packages/min.");
+    PackMLStatusObjectTypeClient status =
+        await client.GetUnitProxy(id).GetStatusAsync(client.Telemetry, lifetime.Token).ConfigureAwait(false) ??
+        throw new InvalidOperationException("The PackML status object is not available.");
+    EUInformation speedUnits = await status.CurMachSpeedVariable().ReadEngineeringUnitsAsync(lifetime.Token)
+        .ConfigureAwait(false);
+    Console.WriteLine(
+        $"Setpoint {speed.MachSpeed.Value}; equipment speed {speed.CurMachSpeed.Value} {speedUnits.DisplayName.Text}.");
     foreach (int mode in new[] { 2, 3, 1 })
     {
         await client.SetUnitModeAsync(id, mode, lifetime.Token).ConfigureAwait(false);

@@ -1482,6 +1482,41 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo("release-first, adopt-first, release-second, adopt-second"));
         }
 
+        /// <summary>
+        /// Distinct items are invalidated independently even when they compare equal.
+        /// </summary>
+        /// <param name="terminal">Whether invalidation requires client-side recreation.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EqualItemsAreInvalidatedIndependentlyAsync(bool terminal)
+        {
+            var first = new Mock<IMonitoredItem>();
+            var second = new Mock<IMonitoredItem>();
+            Mock<IMonitoredItemGenerationBinding> firstBinding = first.As<IMonitoredItemGenerationBinding>();
+            Mock<IMonitoredItemGenerationBinding> secondBinding = second.As<IMonitoredItemGenerationBinding>();
+            first.Setup(item => item.Equals(It.IsAny<object>())).Returns((object other) => other is IMonitoredItem);
+            second.Setup(item => item.Equals(It.IsAny<object>())).Returns((object other) => other is IMonitoredItem);
+            first.Setup(item => item.GetHashCode()).Returns(42);
+            second.Setup(item => item.GetHashCode()).Returns(42);
+            first.SetupGet(item => item.NodeId).Returns(new NodeId("First", 1));
+            second.SetupGet(item => item.NodeId).Returns(new NodeId("Second", 1));
+            firstBinding.Setup(item => item.TryInvalidateSource(It.IsAny<long>(), terminal)).Returns(true);
+            secondBinding.Setup(item => item.TryInvalidateSource(It.IsAny<long>(), terminal)).Returns(true);
+            var current = new TestNodeManagerLifecycle();
+            var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                current, null, [], [first.Object, second.Object], static _ => true, terminal);
+
+            Assert.That(first.Object, Is.Not.SameAs(second.Object));
+            Assert.That(first.Object, Is.EqualTo(second.Object));
+            Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+            transition.MarkDeletedItems();
+            transition.MarkDeletedItems();
+
+            Assert.That(current.DetachCount, Is.EqualTo(2));
+            firstBinding.Verify(item => item.TryInvalidateSource(0, terminal), Times.Once);
+            secondBinding.Verify(item => item.TryInvalidateSource(0, terminal), Times.Once);
+        }
+
         [Test]
         public async Task AdoptionSkipsItemRemovedFromItsSubscriptionDuringReleaseAsync()
         {
@@ -3199,15 +3234,29 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void EventRegistrationRejectsConflictingInstancesWithoutRemovingTheOwner(bool anotherSource)
+        /// <summary>
+        /// A conflicting item cannot replace or remove an existing event subscription with the same identifier.
+        /// </summary>
+        /// <param name="anotherSource">Whether the conflicting item targets another node.</param>
+        /// <param name="useSamplingGroups">Whether the manager uses sampling groups.</param>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void EventRegistrationRejectsConflictingInstancesWithoutRemovingTheOwner(
+            bool anotherSource,
+            bool useSamplingGroups)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queueFactory);
             using (queueFactory)
             {
                 var nodeManager = new Mock<IAsyncNodeManager>();
-                using var manager = new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
+                using IMonitoredItemManager manager = useSamplingGroups
+                    ? new SamplingGroupMonitoredItemManager(
+                        nodeManager.Object,
+                        server.Object,
+                        new TrackingSamplingGroupManager(server.Object, nodeManager.Object))
+                    : new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
                 var source = new BaseObjectState(null)
                 {
                     NodeId = new NodeId("EventOwner", 1),
@@ -3222,36 +3271,61 @@ namespace Opc.Ua.Server.Tests
                     server.Object, nodeManager.Object, new object(), source.NodeId);
                 using MonitoredItem conflicting = CreateEventMonitoredItem(
                     server.Object, nodeManager.Object, new object(), target.NodeId);
-                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(new OperationContext(owner));
+                using var operation = new OperationContext(owner);
+                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(operation);
                 (MonitoredNode2? registered, ServiceResult first) = manager.SubscribeToEvents(
                     context, source, owner, unsubscribe: false);
                 MonitoredNode2 registeredNode = registered ??
                     throw new AssertionException("The first event subscription did not register its monitored node.");
 
-                (_, ServiceResult rejected) = manager.SubscribeToEvents(
-                    context, target, conflicting, unsubscribe: false);
-                (_, ServiceResult rejectedCleanup) = manager.SubscribeToEvents(
-                    context, target, conflicting, unsubscribe: true);
-
-                Assert.Multiple(() =>
+                try
                 {
-                    Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
-                    Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
-                    Assert.That(rejectedCleanup.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
-                    Assert.That(manager.MonitoredItems[owner.Id], Is.SameAs(owner));
-                    Assert.That(registeredNode.EventMonitoredItems[owner.Id], Is.SameAs(owner));
-                });
+                    (_, ServiceResult rejected) = manager.SubscribeToEvents(
+                        context, target, conflicting, unsubscribe: false);
+                    (_, ServiceResult rejectedCleanup) = manager.SubscribeToEvents(
+                        context, target, conflicting, unsubscribe: true);
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                        Assert.That(rejectedCleanup.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                        Assert.That(conflicting.Id, Is.EqualTo(owner.Id));
+                        Assert.That(manager.MonitoredItems[owner.Id], Is.SameAs(owner));
+                        Assert.That(registeredNode.EventMonitoredItems[owner.Id], Is.SameAs(owner));
+                        Assert.That(manager.MonitoredNodes, Has.Count.EqualTo(1));
+                        Assert.That(source.OnReportEventAsync, Is.Not.Null);
+                    });
+                    Assert.That(
+                        manager.SubscribeToEvents(context, source, owner, unsubscribe: true).Item2.StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
+                    Assert.That(manager.MonitoredNodes, Is.Empty);
+                }
+                finally
+                {
+                    manager.SubscribeToEvents(context, source, owner, unsubscribe: true);
+                }
             }
         }
 
-        [Test]
-        public void SharedEventRegistrationRemainsOwnedUntilItsLastRootUnsubscribes()
+        /// <summary>
+        /// A shared event item remains registered until its last root notifier unsubscribes.
+        /// </summary>
+        /// <param name="useSamplingGroups">Whether the manager uses sampling groups.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SharedEventRegistrationRemainsOwnedUntilItsLastRootUnsubscribes(bool useSamplingGroups)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queueFactory);
             using (queueFactory)
             {
                 var nodeManager = new Mock<IAsyncNodeManager>();
-                using var manager = new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
+                using IMonitoredItemManager manager = useSamplingGroups
+                    ? new SamplingGroupMonitoredItemManager(
+                        nodeManager.Object,
+                        server.Object,
+                        new TrackingSamplingGroupManager(server.Object, nodeManager.Object))
+                    : new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
                 var first = new BaseObjectState(null)
                 {
                     NodeId = new NodeId("FirstRoot", 1),
@@ -3264,18 +3338,48 @@ namespace Opc.Ua.Server.Tests
                 };
                 using MonitoredItem item = CreateEventMonitoredItem(
                     server.Object, nodeManager.Object, new object(), ObjectIds.Server);
-                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(new OperationContext(item));
-                Assert.That(manager.SubscribeToEvents(context, first, item, false).Item2.StatusCode,
-                    Is.EqualTo(StatusCodes.Good));
-                Assert.That(manager.SubscribeToEvents(context, second, item, false).Item2.StatusCode,
-                    Is.EqualTo(StatusCodes.Good));
+                using MonitoredItem conflicting = CreateEventMonitoredItem(
+                    server.Object, nodeManager.Object, new object(), ObjectIds.Server);
+                using var operation = new OperationContext(item);
+                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(operation);
+                try
+                {
+                    Assert.That(manager.SubscribeToEvents(context, first, item, false).Item2.StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
+                    Assert.That(manager.SubscribeToEvents(context, first, item, false).Item2.StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
+                    Assert.That(manager.SubscribeToEvents(context, second, item, false).Item2.StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
 
-                manager.SubscribeToEvents(context, first, item, true);
-                Assert.That(manager.MonitoredItems.TryGetValue(item.Id, out IMonitoredItem? remaining), Is.True);
-                Assert.That(remaining, Is.SameAs(item));
+                    Assert.That(manager.SubscribeToEvents(context, first, item, true).Item2.StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(manager.MonitoredItems.TryGetValue(item.Id, out IMonitoredItem? remaining),
+                            Is.True);
+                        Assert.That(remaining, Is.SameAs(item));
+                        Assert.That(first.OnReportEventAsync, Is.Null);
+                        Assert.That(second.OnReportEventAsync, Is.Not.Null);
+                        Assert.That(manager.MonitoredNodes[second.NodeId].EventMonitoredItems[item.Id],
+                            Is.SameAs(item));
+                    });
+                    Assert.That(manager.SubscribeToEvents(context, first, conflicting, false).Item2.StatusCode,
+                        Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
 
-                manager.SubscribeToEvents(context, second, item, true);
-                Assert.That(manager.MonitoredItems, Is.Empty);
+                    Assert.That(manager.SubscribeToEvents(context, second, item, true).Item2.StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(manager.MonitoredItems, Is.Empty);
+                        Assert.That(manager.MonitoredNodes, Is.Empty);
+                        Assert.That(second.OnReportEventAsync, Is.Null);
+                    });
+                }
+                finally
+                {
+                    manager.SubscribeToEvents(context, first, item, true);
+                    manager.SubscribeToEvents(context, second, item, true);
+                }
             }
         }
 

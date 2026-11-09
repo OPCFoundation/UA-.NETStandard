@@ -714,8 +714,13 @@ namespace Opc.Ua.Server
         /// preparation the external reference is staged until publication and discarded if
         /// the target is deleted or replaced. For a published manager it is added through the
         /// master node manager. Finish changes to a prepared candidate before starting its commit.
-        /// Deleting the target through this manager removes the reference. If the operation
-        /// throws, delete the target to discard any partial registration.
+        /// Published in-memory source owners receive the reference. A supported source owner added by
+        /// a later lifecycle publication receives the recorded reference when publication succeeds.
+        /// If any source has an opaque handle, the existing first-owner route is used; changes made
+        /// by an opaque source before it throws cannot be rolled back reliably. An in-memory source
+        /// callback can retire its node manager, but retirement completes after the callback returns.
+        /// Deleting the target through this manager removes the reference. If the operation throws,
+        /// delete the target to discard any partial registration.
         /// </remarks>
         /// <param name="target">The indexed node owned by this manager.</param>
         /// <param name="sourceId">The identifier of the external source node.</param>
@@ -730,12 +735,72 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException">
         /// The external source is not available in a published address space.
         /// </exception>
-        public async ValueTask AddExternalReferenceAsync(
+        /// <exception cref="InvalidOperationException">
+        /// The manager is detached, the target or source owner retires, the source is replaced or does not
+        /// retain the reference, or the operation is called from a deletion callback while another
+        /// address-space change is in progress.
+        /// </exception>
+        public ValueTask AddExternalReferenceAsync(
             NodeState target,
             NodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
             CancellationToken cancellationToken = default)
+        {
+            return AddReferenceFromNodeCoreAsync(
+                target, sourceId, referenceTypeId, isInverse, requireExternalSource: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Adds a reference from a local or external source to an indexed node owned by this manager.
+        /// </summary>
+        /// <remarks>
+        /// The reciprocal reference is added to <paramref name="target"/>. During lifecycle
+        /// preparation the source reference is staged until publication and discarded if
+        /// the target is deleted or replaced. Finish changes to a prepared candidate before
+        /// starting its commit. Published in-memory source owners receive the reference. A supported
+        /// source owner added by a later lifecycle publication receives the recorded reference when
+        /// publication succeeds. If any source has an opaque handle, the existing first-owner route
+        /// is used; changes made by an opaque source before it throws cannot be rolled back reliably.
+        /// An in-memory source callback can retire its node manager, but retirement completes after
+        /// the callback returns. If the operation throws, delete the target to discard any partial
+        /// registration.
+        /// </remarks>
+        /// <param name="target">The indexed node owned by this manager.</param>
+        /// <param name="sourceId">The identifier of the source node.</param>
+        /// <param name="referenceTypeId">The reference type from the source to the target.</param>
+        /// <param name="isInverse">Whether the reference from the source is inverse.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="target"/> is null.</exception>
+        /// <exception cref="ArgumentException">
+        /// The target is not the indexed node owned by this manager, or a reference identifier is null.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The source is not available in a published address space.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// The manager is detached, the target or source owner retires, the source is replaced or does not
+        /// retain the reference, or the operation is called from a deletion callback while another
+        /// address-space change is in progress.
+        /// </exception>
+        public ValueTask AddReferenceFromNodeAsync(
+            NodeState target,
+            NodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            CancellationToken cancellationToken = default)
+        {
+            return AddReferenceFromNodeCoreAsync(
+                target, sourceId, referenceTypeId, isInverse, requireExternalSource: false, cancellationToken);
+        }
+
+        private async ValueTask AddReferenceFromNodeCoreAsync(
+            NodeState target,
+            NodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool requireExternalSource,
+            CancellationToken cancellationToken)
         {
             if (target is null)
             {
@@ -743,7 +808,9 @@ namespace Opc.Ua.Server
             }
             if (sourceId.IsNull)
             {
-                throw new ArgumentException("An external source NodeId is required.", nameof(sourceId));
+                throw new ArgumentException(
+                    requireExternalSource ? "An external source NodeId is required." : "A source NodeId is required.",
+                    nameof(sourceId));
             }
             if (referenceTypeId.IsNull)
             {
@@ -754,7 +821,8 @@ namespace Opc.Ua.Server
                 throw new ArgumentException(
                     "The target must be an indexed node owned by this manager.", nameof(target));
             }
-            if (Find(sourceId) is not null)
+            NodeState? localSource = Find(sourceId);
+            if (requireExternalSource && localSource is not null)
             {
                 throw new ArgumentException("The source node must be owned by another node manager.", nameof(sourceId));
             }
@@ -772,21 +840,36 @@ namespace Opc.Ua.Server
                 if (sourceHandle is null || sourceManager is null)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadNodeIdUnknown, "The external source node is not available.");
+                        StatusCodes.BadNodeIdUnknown,
+                        requireExternalSource
+                            ? "The external source node is not available."
+                            : "The source node is not available.");
                 }
-                if (ReferenceEquals(sourceManager, this))
+                if (requireExternalSource && ReferenceEquals(sourceManager, this))
                 {
                     throw new ArgumentException(
                         "The source node must be owned by another node manager.", nameof(sourceId));
                 }
             }
-            target.AddReferenceIfMissing(referenceTypeId, !isInverse, sourceId);
             var reference = new LocalReference(sourceId, referenceTypeId, isInverse, target.NodeId);
-            if (stagingServer?.TryStageExternalReference(this, target, reference) == true)
+            if (stagingServer?.IsStaging == true)
+            {
+                target.AddReferenceIfMissing(referenceTypeId, !isInverse, sourceId);
+                localSource?.AddReferenceIfMissing(referenceTypeId, isInverse, target.NodeId);
+                if (stagingServer.TryStageExternalReference(this, target, reference))
+                {
+                    return;
+                }
+            }
+            if (Server.NodeManager is MasterNodeManager master &&
+                await master.TryAddManagedNodeReferenceAsync(this, target, reference, cancellationToken)
+                    .ConfigureAwait(false))
             {
                 return;
             }
 
+            target.AddReferenceIfMissing(referenceTypeId, !isInverse, sourceId);
+            localSource?.AddReferenceIfMissing(referenceTypeId, isInverse, target.NodeId);
             await Server.NodeManager.AddReferencesAsync(
                 sourceId,
                 [new NodeStateReference(referenceTypeId, isInverse, target.NodeId)],
@@ -1575,6 +1658,21 @@ namespace Opc.Ua.Server
         {
             get => Volatile.Read(ref m_suppressExistingEventSubscriptions);
             set => Volatile.Write(ref m_suppressExistingEventSubscriptions, value);
+        }
+
+        /// <summary>
+        /// Waits for owned-resource cleanup after an asynchronous disposal request.
+        /// </summary>
+        /// <returns>The completion of the manager's disposal core and owned-resource cleanup.</returns>
+        /// <exception cref="InvalidOperationException">The manager did not start its base disposal.</exception>
+        internal ValueTask WaitForDisposalCompletionAsync()
+        {
+            if (!m_disposed)
+            {
+                throw new InvalidOperationException(
+                    "The node manager did not start its base resource disposal.");
+            }
+            return new ValueTask(m_disposalCompleted.Task);
         }
 
         /// <summary>
@@ -4174,7 +4272,8 @@ namespace Opc.Ua.Server
                     (NodeId)reference.TargetId,
                     reference.ReferenceTypeId,
                     !reference.IsInverse,
-                    node.NodeId);
+                    node.NodeId,
+                    deletedTarget: node);
 
                 referencesToRemove.Add(referenceToRemove);
             }
@@ -4214,7 +4313,7 @@ namespace Opc.Ua.Server
                 }
                 return;
             }
-            if (stagingServer is not null && Server.NodeManager is MasterNodeManager master)
+            if (Server.NodeManager is MasterNodeManager master)
             {
                 await master.RemoveManagedNodeReferencesAsync(this, references, cancellationToken)
                     .ConfigureAwait(false);
@@ -4594,7 +4693,8 @@ namespace Opc.Ua.Server
                             (NodeId)reference.TargetId,
                             reference.ReferenceTypeId,
                             !reference.IsInverse,
-                            node.NodeId));
+                            node.NodeId,
+                            deletedTarget: node));
                     }
                 }
             }
@@ -8342,7 +8442,7 @@ namespace Opc.Ua.Server
             {
                 throw new ObjectDisposedException(nameof(AsyncCustomNodeManager));
             }
-            if (stagingServer?.TryStageRootNotifierReference(notifier.NodeId) == true)
+            if (stagingServer?.TryStageRootNotifierReference(notifier) == true)
             {
                 return true;
             }
@@ -8405,7 +8505,7 @@ namespace Opc.Ua.Server
             {
                 if (stagingServer?.IsStaging == true)
                 {
-                    stagingServer.UnstageRootNotifierReference(notifier.NodeId);
+                    stagingServer.UnstageRootNotifierReference(notifier);
                 }
                 var detached = new List<MonitoredNode2>();
                 using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))

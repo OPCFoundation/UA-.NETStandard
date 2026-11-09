@@ -209,16 +209,38 @@ namespace Opc.Ua.Server
         /// <param name="number">The generation number within the slot.</param>
         /// <param name="nodeManager">The wrapped node manager.</param>
         /// <param name="state">The initial lifecycle state.</param>
+        /// <param name="privateSourceGeneration">
+        /// An earlier binding created by this private candidate over the same resource.
+        /// </param>
+        /// <param name="privateGate">The gate shared by other private bindings, if any.</param>
         internal NodeManagerGeneration(
             NodeManagerSlot slot,
             long number,
             IAsyncNodeManager nodeManager,
-            NodeManagerGenerationState state)
+            NodeManagerGenerationState state,
+            NodeManagerGeneration? privateSourceGeneration = null,
+            GenerationGate? privateGate = null)
         {
+            if (privateSourceGeneration is not null &&
+                (state != NodeManagerGenerationState.Prepared ||
+                    privateSourceGeneration.Gate.State != NodeManagerGenerationState.Prepared))
+            {
+                throw new InvalidOperationException("A private source must still have a prepared gate.");
+            }
+            if (privateGate is not null &&
+                (state != NodeManagerGenerationState.Prepared ||
+                    privateGate.State != NodeManagerGenerationState.Prepared ||
+                    (privateSourceGeneration is not null &&
+                        !ReferenceEquals(privateSourceGeneration.Gate, privateGate))))
+            {
+                throw new InvalidOperationException("A shared private gate must still be prepared.");
+            }
             Slot = slot ?? throw new ArgumentNullException(nameof(slot));
             Number = number;
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
-            Gate = new GenerationGate(state);
+            m_privateSourceGeneration = privateSourceGeneration;
+            AllowsLegacySource = state == NodeManagerGenerationState.Live;
+            Gate = privateSourceGeneration?.Gate ?? privateGate ?? new GenerationGate(state);
             Reference = new NodeManagerGenerationReference(this);
             SessionBindings = new ConcurrentDictionary<NodeId, GenerationSessionBindingRecord>();
             MonitoredItems = new ConcurrentDictionary<IMonitoredItem, ISubscription>(
@@ -241,6 +263,94 @@ namespace Opc.Ua.Server
         /// Gets the manager instance owned by this generation.
         /// </summary>
         internal IAsyncNodeManager NodeManager { get; }
+
+        /// <summary>
+        /// Gets the exact raw generation bound before this private facade was prepared.
+        /// </summary>
+        internal NodeManagerGeneration? PrivateSourceGeneration => Volatile.Read(ref m_privateSourceGeneration);
+
+        /// <summary>
+        /// Gets the exact facade generation bound before a private replacement was prepared.
+        /// </summary>
+        internal NodeManagerGeneration? PrivateFacadeGeneration => Volatile.Read(ref m_privateFacadeGeneration);
+
+        /// <summary>
+        /// Retains a private raw source that already shares this generation's gate.
+        /// </summary>
+        /// <param name="source">The raw source generation.</param>
+        internal void RetainPrivateSource(NodeManagerGeneration source)
+        {
+            if (ReferenceEquals(source, this))
+            {
+                return;
+            }
+            if (!ReferenceEquals(Gate, source.Gate) || Gate.State != NodeManagerGenerationState.Prepared)
+            {
+                throw new InvalidOperationException("Private sources must share a prepared gate.");
+            }
+            NodeManagerGeneration? retained =
+                Interlocked.CompareExchange(ref m_privateSourceGeneration, source, null);
+            if (retained is not null && !ReferenceEquals(retained, source))
+            {
+                throw new InvalidOperationException("A private generation cannot change its raw source.");
+            }
+        }
+
+        /// <summary>
+        /// Retains a facade binding created before its replacement slot was assigned.
+        /// </summary>
+        /// <param name="facade">The original facade generation.</param>
+        internal void RetainPrivateFacade(NodeManagerGeneration facade)
+        {
+            if (!ReferenceEquals(NodeManager, facade.NodeManager) ||
+                !ReferenceEquals(Gate, facade.Gate) ||
+                Gate.State != NodeManagerGenerationState.Prepared)
+            {
+                throw new InvalidOperationException("A private facade must share its candidate's prepared gate.");
+            }
+            NodeManagerGeneration? retained =
+                Interlocked.CompareExchange(ref m_privateFacadeGeneration, facade, null);
+            if (retained is not null && !ReferenceEquals(retained, facade))
+            {
+                throw new InvalidOperationException("A private generation cannot change its facade source.");
+            }
+        }
+
+        /// <summary>
+        /// Gets the exact live source retained by a forwarding generation.
+        /// </summary>
+        internal NodeManagerGeneration? ForwardedSourceGeneration => Volatile.Read(ref m_forwardedSourceGeneration);
+
+        /// <summary>
+        /// Retains one exact source identity for admitted forwarded work.
+        /// </summary>
+        /// <param name="source">The source generation to retain.</param>
+        /// <returns><c>true</c> if the source is the generation's existing or newly retained source.</returns>
+        internal bool TryRetainForwardedSource(NodeManagerGeneration source)
+        {
+            if (ReferenceEquals(source, this))
+            {
+                return true;
+            }
+            NodeManagerGeneration? retained =
+                Interlocked.CompareExchange(ref m_forwardedSourceGeneration, source, null);
+            return retained is null || ReferenceEquals(retained, source);
+        }
+
+        /// <summary>
+        /// Releases the forwarded source after the generation finishes retirement cleanup.
+        /// </summary>
+        internal void ReleaseForwardedSource()
+        {
+            Interlocked.Exchange(ref m_forwardedSourceGeneration, null);
+            Interlocked.Exchange(ref m_privateSourceGeneration, null);
+            Interlocked.Exchange(ref m_privateFacadeGeneration, null);
+        }
+
+        /// <summary>
+        /// Gets whether this generation began as an independently live legacy source.
+        /// </summary>
+        internal bool AllowsLegacySource { get; }
 
         /// <summary>
         /// Gets the gate for background work that reaches the manager outside a pinned request.
@@ -664,19 +774,22 @@ namespace Opc.Ua.Server
         {
             lock (m_eventBindingsLock)
             {
-                if (EventBindingsSealed)
+                if (unsubscribe)
                 {
-                    return unsubscribe &&
-                        EventBindings.TryGetValue(monitoredItem, out GenerationEventBindingRecord? record)
+                    return EventBindings.TryGetValue(monitoredItem, out GenerationEventBindingRecord? record)
                         ? record
                         : null;
+                }
+                if (EventBindingsSealed)
+                {
+                    return null;
                 }
                 return EventBindings.GetOrAdd(monitoredItem, static item => new GenerationEventBindingRecord(item));
             }
         }
 
         /// <summary>
-        /// Gets whether all view pins and generation-gated operations have drained.
+        /// Gets whether view pins, source epochs, and generation-gated operations have drained.
         /// </summary>
         internal bool IsQuiescent
         {
@@ -695,13 +808,20 @@ namespace Opc.Ua.Server
                             return false;
                         }
                     }
+                    foreach (AddressSpaceEpoch epoch in m_sourceEpochs)
+                    {
+                        if (!epoch.IsDrained)
+                        {
+                            return false;
+                        }
+                    }
                 }
                 return true;
             }
         }
 
         /// <summary>
-        /// Gets whether an admitted generation operation or view pin still blocks reclamation.
+        /// Gets whether an admitted operation or epoch pin still blocks reclamation.
         /// </summary>
         internal bool HasActiveQuiescenceBlockers
         {
@@ -713,7 +833,8 @@ namespace Opc.Ua.Server
                 }
                 lock (m_epochLock)
                 {
-                    return m_viewEpochs.Any(static epoch => epoch.ActiveCount != 0);
+                    return m_viewEpochs.Any(static epoch => epoch.ActiveCount != 0) ||
+                        m_sourceEpochs.Any(static epoch => epoch.ActiveCount != 0);
                 }
             }
         }
@@ -726,35 +847,84 @@ namespace Opc.Ua.Server
         {
             lock (m_epochLock)
             {
+                EnsureEpochRegistrationOpen();
                 m_viewEpochs.RemoveAll(static current => current.IsDrained);
                 m_viewEpochs.Add(epoch);
             }
         }
 
         /// <summary>
-        /// Gets a cold-path description of the active admissions and pinned view epochs.
+        /// Registers source work admitted for this resource before the generation was published.
+        /// </summary>
+        /// <param name="epoch">The resource source epoch.</param>
+        internal void RegisterSourceEpoch(AddressSpaceEpoch epoch)
+        {
+            lock (m_epochLock)
+            {
+                EnsureEpochRegistrationOpen();
+                m_sourceEpochs.RemoveAll(static current => current.IsDrained);
+                m_sourceEpochs.Add(epoch);
+                SignalSourceEpochsChanged();
+            }
+        }
+
+        /// <summary>
+        /// Removes a source epoch registered by an abandoned routing reservation.
+        /// </summary>
+        /// <param name="epoch">The source epoch to remove.</param>
+        internal void UnregisterSourceEpoch(AddressSpaceEpoch epoch)
+        {
+            lock (m_epochLock)
+            {
+                if (m_sourceEpochs.Remove(epoch))
+                {
+                    SignalSourceEpochsChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets a cold-path description of active admissions and pinned epochs.
         /// </summary>
         /// <returns>The generation identity and current drain blockers.</returns>
         internal string GetQuiescenceWaitContext()
         {
-            AddressSpaceEpoch[] epochs;
+            AddressSpaceEpoch[] viewEpochs;
+            AddressSpaceEpoch[] sourceEpochs;
             lock (m_epochLock)
             {
-                epochs = m_viewEpochs.Where(static epoch => epoch.ActiveCount != 0).ToArray();
+                viewEpochs = m_viewEpochs.Where(static epoch => epoch.ActiveCount != 0).ToArray();
+                sourceEpochs = m_sourceEpochs.Where(static epoch => epoch.ActiveCount != 0).ToArray();
             }
-            string pinnedEpochs = epochs.Length == 0
+            string pinnedViews = viewEpochs.Length == 0
                 ? "none"
-                : string.Join(", ", epochs.Select(static epoch => $"{epoch.Id}={epoch.ActiveCount}"));
+                : string.Join(", ", viewEpochs.Select(static epoch => $"{epoch.Id}={epoch.ActiveCount}"));
+            string pinnedSources = sourceEpochs.Length == 0
+                ? "none"
+                : string.Join(", ", sourceEpochs.Select(static epoch => $"{epoch.Id}={epoch.ActiveCount}"));
             return $"slot={Slot.Id}; generation={Number}; manager={NodeManager.GetType().FullName}; " +
-                $"activeAdmissions={Gate.ActiveCount}; pinnedEpochs=[{pinnedEpochs}]";
+                $"activeAdmissions={Gate.ActiveCount}; pinnedEpochs=[{pinnedViews}]; " +
+                $"pinnedSources=[{pinnedSources}]";
         }
 
         /// <summary>
-        /// Waits for view pins and generation-gated background operations to drain.
+        /// Waits for view pins, source work, and generation-gated operations to drain.
         /// </summary>
         /// <param name="cancellationToken">The token used to cancel the wait.</param>
         /// <returns>A task that completes when no operation can reach this generation.</returns>
         internal async ValueTask WaitForQuiescenceAsync(CancellationToken cancellationToken)
+        {
+            await WaitForViewEpochsAsync(cancellationToken).ConfigureAwait(false);
+            await Gate.WaitForDrainAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+            await WaitForSourceEpochsAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Waits for every routing view that exposed this generation to drain.
+        /// </summary>
+        /// <param name="cancellationToken">The token used to cancel the wait.</param>
+        /// <returns>A task that completes when the routing views have drained.</returns>
+        internal async ValueTask WaitForViewEpochsAsync(CancellationToken cancellationToken)
         {
             AddressSpaceEpoch[] epochs;
             lock (m_epochLock)
@@ -765,7 +935,64 @@ namespace Opc.Ua.Server
             {
                 await epoch.WaitForDrainAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
             }
-            await Gate.WaitForDrainAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Waits for source epochs still owned by published or pending routing proposals.
+        /// </summary>
+        private async ValueTask WaitForSourceEpochsAsync(CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                AddressSpaceEpoch? pending;
+                Task changed;
+                lock (m_epochLock)
+                {
+                    m_sourceEpochs.RemoveAll(static epoch => epoch.IsDrained);
+                    pending = m_sourceEpochs.FirstOrDefault();
+                    if (pending is null)
+                    {
+                        return;
+                    }
+                    changed = (m_sourceEpochsChanged ??= new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+                }
+                try
+                {
+                    await Task.WhenAny(pending.WaitForDrainAsync(), changed)
+                        .WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    lock (m_epochLock)
+                    {
+                        SignalSourceEpochsChanged();
+                    }
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Refuses new epoch registrations once this generation begins retirement.
+        /// </summary>
+        private void EnsureEpochRegistrationOpen()
+        {
+            if (Gate.State is NodeManagerGenerationState.Retiring or
+                NodeManagerGenerationState.Disposed or NodeManagerGenerationState.Aborted)
+            {
+                throw new InvalidOperationException("A retiring generation cannot register another epoch.");
+            }
+        }
+
+        /// <summary>
+        /// Wakes source-epoch waiters after the registration set changes.
+        /// </summary>
+        private void SignalSourceEpochsChanged()
+        {
+            TaskCompletionSource<bool>? changed = m_sourceEpochsChanged;
+            m_sourceEpochsChanged = null;
+            changed?.TrySetResult(true);
         }
 
         /// <summary>
@@ -779,7 +1006,7 @@ namespace Opc.Ua.Server
             {
                 if (m_retirementResourcesSealed ||
                     Gate.State is not (NodeManagerGenerationState.Retiring or NodeManagerGenerationState.Aborted) ||
-                    Gate.WaitForDrainAsync().IsCompleted)
+                    IsQuiescent)
                 {
                     return false;
                 }
@@ -925,11 +1152,26 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>Protects epoch registration, which occurs only while publishing views.</summary>
+        /// <summary>Protects view and source epoch registration.</summary>
         private readonly Lock m_epochLock = new();
 
         /// <summary>The un-drained views that have routed this generation.</summary>
         private readonly List<AddressSpaceEpoch> m_viewEpochs = [];
+
+        /// <summary>The source epochs that preceded publication of this generation.</summary>
+        private readonly List<AddressSpaceEpoch> m_sourceEpochs = [];
+
+        /// <summary>Signals changes to the source-epoch registrations.</summary>
+        private TaskCompletionSource<bool>? m_sourceEpochsChanged;
+
+        /// <summary>The exact source retained while forwarded admissions and cleanup are active.</summary>
+        private NodeManagerGeneration? m_forwardedSourceGeneration;
+
+        /// <summary>The raw source retained by this privately prepared generation.</summary>
+        private NodeManagerGeneration? m_privateSourceGeneration;
+
+        /// <summary>The original facade binding retained by a private replacement.</summary>
+        private NodeManagerGeneration? m_privateFacadeGeneration;
 
         /// <summary>Serializes binding-record admission with retirement sealing.</summary>
         private readonly Lock m_eventBindingsLock = new();
@@ -1250,7 +1492,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets the live generation associated with a manager, creating its initial slot if needed.
+        /// Gets the generation associated with a manager, creating its initial slot if needed.
         /// </summary>
         /// <param name="nodeManager">The manager to resolve.</param>
         /// <returns>The manager's generation.</returns>
@@ -1260,19 +1502,157 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
-            IAsyncNodeManager identity = GetIdentity(nodeManager);
+            lock (s_lock)
+            {
+                IAsyncNodeManager identity = GetIdentity(nodeManager);
+                bool isPrivate = ChangePreparer.GetServer(nodeManager) is { IsStaging: true, IsDetached: false };
+                if (!ReferenceEquals(identity, nodeManager))
+                {
+                    s_aliasedManagers.GetValue(nodeManager, static _ => new AliasBinding());
+                }
+                if (s_generations.TryGetValue(identity, out NodeManagerGeneration? generation))
+                {
+                    return generation;
+                }
+                var slot = new NodeManagerSlot();
+                NodeManagerGenerationState state = isPrivate
+                    ? NodeManagerGenerationState.Prepared
+                    : NodeManagerGenerationState.Live;
+                generation = new NodeManagerGeneration(
+                    slot, 1, nodeManager, state);
+                s_generations.Add(identity, generation);
+                if (!isPrivate)
+                {
+                    slot.Publish(generation);
+                }
+                return generation;
+            }
+        }
+
+        /// <summary>
+        /// Gets the generation for a source created with a candidate's staging server.
+        /// </summary>
+        /// <param name="nodeManager">The source manager to resolve.</param>
+        /// <param name="server">The server supplied when the source was created.</param>
+        /// <returns>The existing generation or a private candidate generation.</returns>
+        internal static NodeManagerGeneration GetOrCreate(
+            IAsyncNodeManager nodeManager,
+            IServerInternal server)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+            if (server is not ChangePreparer.StagingServer { IsStaging: true, IsDetached: false } staging)
+            {
+                return GetOrCreate(nodeManager);
+            }
+            IAsyncNodeManager resource = MasterNodeManager.GetReferenceOwnerIdentity(nodeManager);
+            if (staging.UsesBorrowedFactory &&
+                !ChangePreparer.IsBorrowedCandidateOf(nodeManager, staging) &&
+                !ReferenceEquals(ChangePreparer.GetKnownResourceServer(resource), staging))
+            {
+                return GetOrCreate(nodeManager);
+            }
+            IAsyncNodeManager identity = staging.UsesBorrowedFactory && !ReferenceEquals(nodeManager, resource)
+                ? nodeManager
+                : GetIdentity(nodeManager);
+            IServerInternal? resourceServer = ChangePreparer.GetKnownResourceServer(resource);
+            if (ReferenceEquals(identity, resource) &&
+                resourceServer is not null &&
+                !ReferenceEquals(resourceServer, staging))
+            {
+                return GetOrCreate(nodeManager);
+            }
+
             lock (s_lock)
             {
                 if (s_generations.TryGetValue(identity, out NodeManagerGeneration? generation))
                 {
                     return generation;
                 }
-                var slot = new NodeManagerSlot();
-                generation = new NodeManagerGeneration(
-                    slot, 1, nodeManager, NodeManagerGenerationState.Live);
+                generation = staging.CreateProvisionalSource(identity, resource, nodeManager);
                 s_generations.Add(identity, generation);
-                slot.Publish(generation);
                 return generation;
+            }
+        }
+
+        /// <summary>
+        /// Assigns a private generation to a borrowed facade before it creates bound resources.
+        /// </summary>
+        /// <param name="server">The candidate's staging server.</param>
+        /// <param name="manager">The exact facade declared by the factory.</param>
+        /// <param name="resource">The resource behind the facade.</param>
+        internal static void DeclareBorrowedCandidate(
+            ChangePreparer.StagingServer server,
+            IAsyncNodeManager manager,
+            IAsyncNodeManager resource)
+        {
+            lock (s_lock)
+            {
+                if (s_aliasedManagers.TryGetValue(manager, out _))
+                {
+                    throw new InvalidOperationException(
+                        "The borrowed facade was bound before its candidate lease was declared.");
+                }
+                if (s_generations.TryGetValue(manager, out NodeManagerGeneration? existing) &&
+                    (existing.Gate.State != NodeManagerGenerationState.Prepared ||
+                        !server.OwnsProvisionalSource(manager, existing)))
+                {
+                    throw new InvalidOperationException(
+                        "The borrowed facade already belongs to another generation.");
+                }
+                if (!ChangePreparer.TryAssociateBorrowedCandidate(manager, server))
+                {
+                    throw new NodeManagerAlreadyRegisteredException();
+                }
+                try
+                {
+                    if (existing is null)
+                    {
+                        NodeManagerGeneration generation = server.CreateProvisionalSource(
+                            manager, resource, manager);
+                        s_generations.Add(manager, generation);
+                    }
+                }
+                catch
+                {
+                    ChangePreparer.RemoveBorrowedCandidate(manager, server);
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes a provisional source that was not retained by its candidate.
+        /// </summary>
+        /// <param name="identity">The source registry key.</param>
+        /// <param name="generation">The exact provisional generation.</param>
+        /// <param name="abortGate">Whether to abort a gate that no retained source uses.</param>
+        internal static void ReleaseProvisionalSource(
+            IAsyncNodeManager identity,
+            NodeManagerGeneration generation,
+            bool abortGate = true)
+        {
+            lock (s_lock)
+            {
+                if (!s_generations.TryGetValue(identity, out NodeManagerGeneration? current) ||
+                    !ReferenceEquals(current, generation))
+                {
+                    return;
+                }
+                if (abortGate && generation.Gate.State == NodeManagerGenerationState.Prepared)
+                {
+                    generation.Gate.Abort();
+                }
+                if (!ChangePreparer.IsBorrowedCandidate(identity))
+                {
+                    s_generations.Remove(identity);
+                }
             }
         }
 
@@ -1284,9 +1664,9 @@ namespace Opc.Ua.Server
         /// <returns>Whether the manager already has a generation.</returns>
         internal static bool TryGet(IAsyncNodeManager nodeManager, out NodeManagerGeneration? generation)
         {
-            IAsyncNodeManager identity = GetIdentity(nodeManager);
             lock (s_lock)
             {
+                IAsyncNodeManager identity = GetIdentity(nodeManager);
                 return s_generations.TryGetValue(identity, out generation);
             }
         }
@@ -1310,40 +1690,59 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(replacement));
             }
             IAsyncNodeManager identity = GetIdentity(replacement);
+            NodeManagerGeneration? privateSource = GetPrivateSourceGeneration(replacement);
+            ChangePreparer.StagingServer? staging = ChangePreparer.GetServer(replacement);
             lock (s_lock)
             {
+                NodeManagerGeneration? privateFacade = null;
                 if (s_generations.TryGetValue(identity, out NodeManagerGeneration? existing))
                 {
-                    if (ReferenceEquals(existing.Slot, current.Slot) &&
-                        existing.Gate.State == NodeManagerGenerationState.Prepared)
+                    if (!ReferenceEquals(existing, privateSource) ||
+                        ReferenceEquals(existing.NodeManager, replacement))
                     {
-                        return existing;
-                    }
-                    if (existing.Gate.State == NodeManagerGenerationState.Live)
-                    {
-                        throw new InvalidOperationException(
-                            "A live manager cannot be assigned to another generation slot.");
-                    }
-                    if (existing.Gate.State == NodeManagerGenerationState.Retiring &&
-                        ReferenceEquals(existing.Slot, current.Slot))
-                    {
-                        if (existing.TryRestoreBeforeShutdown())
+                        if (ReferenceEquals(existing.Slot, current.Slot) &&
+                            existing.Gate.State == NodeManagerGenerationState.Prepared)
                         {
+                            if (privateSource is not null)
+                            {
+                                existing.RetainPrivateSource(privateSource);
+                            }
                             return existing;
                         }
-                        throw new InvalidOperationException(
-                            "A retired NodeManager instance cannot be reused as a replacement.");
-                    }
-                    if (existing.Gate.State == NodeManagerGenerationState.Disposed ||
-                        (existing.Gate.State == NodeManagerGenerationState.Retiring &&
-                            !ReferenceEquals(existing.Slot, current.Slot)))
-                    {
-                        throw new InvalidOperationException(
-                            "A retired NodeManager instance cannot be reused as a replacement.");
-                    }
-                    if (existing.Gate.State == NodeManagerGenerationState.Prepared)
-                    {
-                        existing.Gate.Abort();
+                        if (existing.Gate.State == NodeManagerGenerationState.Live)
+                        {
+                            throw new InvalidOperationException(
+                                "A live manager cannot be assigned to another generation slot.");
+                        }
+                        if (existing.Gate.State == NodeManagerGenerationState.Retiring &&
+                            ReferenceEquals(existing.Slot, current.Slot))
+                        {
+                            if (existing.TryRestoreBeforeShutdown())
+                            {
+                                return existing;
+                            }
+                            throw new InvalidOperationException(
+                                "A retired NodeManager instance cannot be reused as a replacement.");
+                        }
+                        if (existing.Gate.State == NodeManagerGenerationState.Disposed ||
+                            (existing.Gate.State == NodeManagerGenerationState.Retiring &&
+                                !ReferenceEquals(existing.Slot, current.Slot)))
+                        {
+                            throw new InvalidOperationException(
+                                "A retired NodeManager instance cannot be reused as a replacement.");
+                        }
+                        if (existing.Gate.State == NodeManagerGenerationState.Prepared)
+                        {
+                            if (ReferenceEquals(existing.NodeManager, replacement) &&
+                                staging?.OwnsProvisionalSource(identity, existing) == true)
+                            {
+                                privateFacade = existing;
+                            }
+                            else
+                            {
+                                existing.Gate.Abort();
+                            }
+                        }
                     }
                     s_generations.Remove(identity);
                 }
@@ -1351,7 +1750,13 @@ namespace Opc.Ua.Server
                     current.Slot,
                     current.Number + 1,
                     replacement,
-                    NodeManagerGenerationState.Prepared);
+                    NodeManagerGenerationState.Prepared,
+                    privateSource,
+                    privateFacade?.Gate);
+                if (privateFacade is not null)
+                {
+                    generation.RetainPrivateFacade(privateFacade);
+                }
                 s_generations.Add(identity, generation);
                 return generation;
             }
@@ -1369,32 +1774,70 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
             IAsyncNodeManager identity = GetIdentity(nodeManager);
+            NodeManagerGeneration? privateSource = GetPrivateSourceGeneration(nodeManager);
             lock (s_lock)
             {
                 if (s_generations.TryGetValue(identity, out NodeManagerGeneration? existing))
                 {
-                    if (existing.Gate.State == NodeManagerGenerationState.Prepared)
+                    if (ReferenceEquals(existing, privateSource) &&
+                        !ReferenceEquals(existing.NodeManager, nodeManager))
                     {
-                        return existing;
+                        s_generations.Remove(identity);
                     }
-                    if (existing.Gate.State is NodeManagerGenerationState.Retiring or
-                        NodeManagerGenerationState.Disposed)
+                    else
                     {
-                        throw new InvalidOperationException(
-                            "A retired NodeManager instance cannot be registered again.");
+                        if (existing.Gate.State == NodeManagerGenerationState.Prepared)
+                        {
+                            if (privateSource is not null)
+                            {
+                                existing.RetainPrivateSource(privateSource);
+                            }
+                            return existing;
+                        }
+                        if (existing.Gate.State is NodeManagerGenerationState.Retiring or
+                            NodeManagerGenerationState.Disposed)
+                        {
+                            throw new InvalidOperationException(
+                                "A retired NodeManager instance cannot be registered again.");
+                        }
+                        if (existing.Gate.State != NodeManagerGenerationState.Aborted)
+                        {
+                            return existing;
+                        }
+                        s_generations.Remove(identity);
                     }
-                    if (existing.Gate.State != NodeManagerGenerationState.Aborted)
-                    {
-                        return existing;
-                    }
-                    s_generations.Remove(identity);
                 }
                 var slot = new NodeManagerSlot();
                 var generation = new NodeManagerGeneration(
-                    slot, 1, nodeManager, NodeManagerGenerationState.Prepared);
+                    slot, 1, nodeManager, NodeManagerGenerationState.Prepared, privateSource);
                 s_generations.Add(identity, generation);
                 return generation;
             }
+        }
+
+        /// <summary>
+        /// Finds the raw binding owned by this private facade without borrowing a live resource.
+        /// </summary>
+        private static NodeManagerGeneration? GetPrivateSourceGeneration(IAsyncNodeManager facade)
+        {
+            ChangePreparer.StagingServer? server = ChangePreparer.GetServer(facade);
+            if (server is not { IsStaging: true, IsDetached: false, BorrowedLease: null } ||
+                !ReferenceEquals(server.RegisteredFacade, facade))
+            {
+                return null;
+            }
+            IAsyncNodeManager resource = MasterNodeManager.GetReferenceOwnerIdentity(facade);
+            if (ReferenceEquals(resource, facade))
+            {
+                return null;
+            }
+            NodeManagerGeneration generation = GetOrCreate(resource, server);
+            if (generation.Gate.State != NodeManagerGenerationState.Prepared)
+            {
+                throw new InvalidOperationException(
+                    "A private forwarding source must have a prepared generation.");
+            }
+            return generation;
         }
 
         /// <summary>
@@ -1404,6 +1847,10 @@ namespace Opc.Ua.Server
         /// <returns>The canonical resource key.</returns>
         internal static IAsyncNodeManager GetIdentity(IAsyncNodeManager nodeManager)
         {
+            if (ChangePreparer.IsBorrowedCandidate(nodeManager))
+            {
+                return nodeManager;
+            }
             if (nodeManager is not AsyncNodeManagerAdapter adapter)
             {
                 return nodeManager;
@@ -1421,8 +1868,18 @@ namespace Opc.Ua.Server
         /// <summary>Associates each manager instance with its current generation identity.</summary>
         private static readonly ConditionalWeakTable<IAsyncNodeManager, NodeManagerGeneration> s_generations = new();
 
+        /// <summary>Records facades previously bound to another manager's generation.</summary>
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, AliasBinding> s_aliasedManagers = new();
+
         /// <summary>Scopes restored ownerless items to the lifetime and identity of their server.</summary>
         private static readonly ConditionalWeakTable<IServerInternal, NodeManagerSlot> s_ownerlessSlots = new();
+
+        /// <summary>
+        /// Marks an exact facade that has already been used as a generation alias.
+        /// </summary>
+        private sealed class AliasBinding
+        {
+        }
     }
 
     /// <summary>
@@ -1759,18 +2216,18 @@ namespace Opc.Ua.Server
         internal long ActiveCount => m_active.Count;
 
         /// <summary>
-        /// Waits for all request pins to leave this view.
+        /// Waits for the view to close and all request pins to leave.
         /// </summary>
-        /// <returns>A task that completes when the active pin count is zero.</returns>
+        /// <returns>A task that completes once the view is closed and has no active pins.</returns>
         internal Task WaitForDrainAsync()
         {
-            if (HasNoActivePins)
+            if (IsDrained)
             {
                 return Task.CompletedTask;
             }
             lock (m_waitLock)
             {
-                if (HasNoActivePins)
+                if (IsDrained)
                 {
                     return Task.CompletedTask;
                 }
@@ -1801,6 +2258,54 @@ namespace Opc.Ua.Server
         }
 
         private bool HasNoActivePins => m_active.Count == 0;
+
+        /// <summary>
+        /// Owns one routing-view pin and can extend it while its parent operation remains active.
+        /// </summary>
+        internal sealed class Lease : IDisposable
+        {
+            /// <summary>
+            /// Captures the epoch and counter slot of an existing pin.
+            /// </summary>
+            internal Lease(AddressSpaceEpoch epoch, int slot)
+            {
+                m_epoch = epoch;
+                m_slot = slot;
+            }
+
+            /// <summary>
+            /// Extends this pin for child work even after the routing view closes.
+            /// </summary>
+            internal bool TryFork([NotNullWhen(true)] out AddressSpaceEpoch? epoch, out int slot)
+            {
+                epoch = Volatile.Read(ref m_epoch);
+                if (epoch is null)
+                {
+                    slot = -1;
+                    return false;
+                }
+
+                slot = m_slot;
+                epoch.m_active.Enter(slot);
+                if (ReferenceEquals(Volatile.Read(ref m_epoch), epoch))
+                {
+                    return true;
+                }
+                epoch.Exit(slot);
+                epoch = null;
+                slot = -1;
+                return false;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_epoch, null)?.Exit(m_slot);
+            }
+
+            private AddressSpaceEpoch? m_epoch;
+            private readonly int m_slot;
+        }
 
         /// <summary>The striped pin counter.</summary>
         private readonly StripedCounter m_active = new();

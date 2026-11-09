@@ -311,7 +311,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// Keeps a provider read active until the test releases it, even after lifetime cancellation.
         /// </summary>
-        private sealed class SuspendedProtocolReadStream : MemoryStream
+        internal sealed class SuspendedProtocolReadStream : MemoryStream
         {
             /// <summary>
             /// Creates a four-byte readable stream.
@@ -355,7 +355,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// Owns a file-system manager with a controllable provider and a shared test session.
         /// </summary>
-        private sealed class FileHarness : IDisposable
+        internal sealed class FileHarness : IDisposable
         {
             /// <summary>
             /// Creates a writable four-byte file whose provider opens can be observed or suspended.
@@ -363,6 +363,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             public FileHarness()
             {
                 Mock<IServerInternal> server = DeterministicServerMock.Create(out m_queues);
+                Server = server.Object;
                 Provider.SetupGet(value => value.MountName).Returns("file-regression");
                 Provider.SetupGet(value => value.IsWritable).Returns(true);
                 Provider.Setup(value => value.GetEntryAsync("file", It.IsAny<CancellationToken>()))
@@ -382,6 +383,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// Gets the provider mock used to control stream acquisition and file capabilities.
             /// </summary>
             public Mock<IFileSystemProvider> Provider { get; } = new();
+
+            /// <summary>
+            /// Gets the server whose services are used by the manager.
+            /// </summary>
+            public IServerInternal Server { get; }
 
             /// <summary>
             /// Gets the manager that owns the file's open-handle state.

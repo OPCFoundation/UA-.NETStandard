@@ -17,5 +17,24 @@
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.PackML\Opc.Ua.PackML.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.PackML\Model\Opc.Ua.PackML.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PackML/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>PackML</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.PackML</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.PackML.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="..\Opc.Ua.PackML\Model\Opc.Ua.PackML.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorClientAccessorsOnly>true</ModelSourceGeneratorClientAccessorsOnly>
+    <ModelSourceGeneratorClientAccessorNamespace>Opc.Ua.PackML.Client</ModelSourceGeneratorClientAccessorNamespace>
+    <ModelSourceGeneratorClientAccessorClassName>PackMLClientMembers</ModelSourceGeneratorClientAccessorClassName>
+  </PropertyGroup>
 </Project>
