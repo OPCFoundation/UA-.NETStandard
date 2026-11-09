@@ -1188,6 +1188,9 @@ namespace Opc.Ua
                     BuiltInType.ByteString when IsPackedScalar => HashByteString(GetByteString()),
                     BuiltInType.ByteString when m_value is ByteString boxed => HashByteString(boxed),
                     BuiltInType.LocalizedText when IsPackedScalar => GetLocalizedText().GetHashCode(),
+                    // a nested value is not hashed deeper than the stack allows.
+                    BuiltInType.ExtensionObject or
+                    BuiltInType.DataValue when !HasStackForNestedValue() => 0,
                     _ => m_value?.GetHashCode() ?? 0
                 };
             }
@@ -1197,6 +1200,11 @@ namespace Opc.Ua
                 // the same way as ByteString does.
                 ReadOnlySpan<byte> bytes = GetByteArray().Span;
                 return bytes.IsEmpty ? 0 : ReadOnlySpan.ComputeHash32(bytes);
+            }
+            if (MayNest(TypeInfo.BuiltInType) && !HasStackForNestedValue())
+            {
+                // a nested value is not hashed deeper than the stack allows.
+                return 0;
             }
             return m_value?.GetHashCode() ?? 0;
 
@@ -8070,6 +8078,48 @@ namespace Opc.Ua
             return value is null ? other.GetStoredValue() is null : value.Equals(other.GetStoredValue());
         }
 
+        /// <summary>
+        /// Returns whether a value of the type can hold nested variants.
+        /// </summary>
+        private static bool MayNest(BuiltInType builtInType)
+        {
+            return builtInType is
+                BuiltInType.Variant or
+                BuiltInType.DataValue or
+                BuiltInType.ExtensionObject or
+                BuiltInType.Number or
+                BuiltInType.Integer or
+                BuiltInType.UInteger;
+        }
+
+        /// <summary>
+        /// Returns whether enough stack is left to compare or hash a value that holds
+        /// nested values.
+        /// </summary>
+        /// <remarks>
+        /// Equality and hashing recurse once per nesting level, and a level costs more
+        /// stack than it does in the decoders, which check the stack with
+        /// <see cref="EncodingLimits.EnsureSufficientStack"/>. Running out of stack ends
+        /// the process, so a comparison that would go deeper than the stack allows reports
+        /// the values as not equal, and hashing stops at that depth.
+        /// </remarks>
+        private static bool HasStackForNestedValue()
+        {
+#if NET5_0_OR_GREATER
+            return RuntimeHelpers.TryEnsureSufficientExecutionStack();
+#else
+            try
+            {
+                RuntimeHelpers.EnsureSufficientExecutionStack();
+                return true;
+            }
+            catch (InsufficientExecutionStackException)
+            {
+                return false;
+            }
+#endif
+        }
+
         /// <inheritdoc/>
         public bool Equals(Variant other)
         {
@@ -8171,9 +8221,9 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText:
                         return Equals(other.GetLocalizedText());
                     case BuiltInType.ExtensionObject:
-                        return Equals(other.GetExtensionObject());
+                        return HasStackForNestedValue() && Equals(other.GetExtensionObject());
                     case BuiltInType.DataValue:
-                        return Equals(other.GetDataValue());
+                        return HasStackForNestedValue() && Equals(other.GetDataValue());
                     default:
                         Debug.Fail("Unexpected Built in type.");
                         return false;
@@ -8229,14 +8279,14 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText:
                         return Equals(other.GetLocalizedTextArray());
                     case BuiltInType.ExtensionObject:
-                        return Equals(other.GetExtensionObjectArray());
+                        return HasStackForNestedValue() && Equals(other.GetExtensionObjectArray());
                     case BuiltInType.DataValue:
-                        return Equals(other.GetDataValueArray());
+                        return HasStackForNestedValue() && Equals(other.GetDataValueArray());
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
-                        return Equals(other.GetVariantArray());
+                        return HasStackForNestedValue() && Equals(other.GetVariantArray());
                     default:
                         Debug.Fail("Unexpected Built in type.");
                         return false;
@@ -8292,14 +8342,14 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText:
                         return Equals(other.GetLocalizedTextMatrix());
                     case BuiltInType.ExtensionObject:
-                        return Equals(other.GetExtensionObjectMatrix());
+                        return HasStackForNestedValue() && Equals(other.GetExtensionObjectMatrix());
                     case BuiltInType.DataValue:
-                        return Equals(other.GetDataValueMatrix());
+                        return HasStackForNestedValue() && Equals(other.GetDataValueMatrix());
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
-                        return Equals(other.GetVariantMatrix());
+                        return HasStackForNestedValue() && Equals(other.GetVariantMatrix());
                     default:
                         Debug.Fail("Unexpected Built in type.");
                         return false;
