@@ -3431,14 +3431,39 @@ namespace Opc.Ua
         /// <remarks>
         /// When the caller retains a serialization gate while invoking or awaiting this method, state-change sinks
         /// must not await or synchronously block on an operation that needs the same gate.
+        /// Nodes bound for asynchronous notification dispatch retain notification admission throughout each
+        /// traversal, even when no masks were pending at entry. Their dispatch rejects synchronous writes and
+        /// permits nested asynchronous writes from the state-change sink.
         /// </remarks>
         /// <param name="context">The context that describes how to access the system containing the data.</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask ClearChangeMasksAsync(
+        public ValueTask ClearChangeMasksAsync(
             ISystemContext context,
             bool includeChildren,
             CancellationToken cancellationToken = default)
+        {
+            if (m_writeOperationExecutor is { } executor &&
+                Volatile.Read(ref m_asynchronousChangeMaskNotifications) != 0)
+            {
+                return executor.ExecuteNotificationsAsync(
+                    ct => ClearChangeMasksCoreAsync(context, includeChildren, ct),
+                    cancellationToken);
+            }
+
+            return ClearChangeMasksCoreAsync(context, includeChildren, cancellationToken);
+        }
+
+        /// <summary>
+        /// Clears change masks and awaits state-change sinks without acquiring notification admission.
+        /// </summary>
+        /// <param name="context">The context that describes how to access the system containing the data.</param>
+        /// <param name="includeChildren">Whether to clear masks recursively for all children.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask ClearChangeMasksCoreAsync(
+            ISystemContext context,
+            bool includeChildren,
+            CancellationToken cancellationToken)
         {
             if (includeChildren)
             {
@@ -4894,6 +4919,11 @@ namespace Opc.Ua
             NumericRange indexRange,
             DataValue value)
         {
+            if (attributeId == Attributes.Value && m_writeOperationExecutor is { } executor)
+            {
+                return executor.ExecuteSynchronously(
+                    () => WriteAttributeCore(context, attributeId, indexRange, value));
+            }
             return WriteAttributeCore(context, attributeId, indexRange, value);
         }
 
@@ -4901,11 +4931,10 @@ namespace Opc.Ua
         /// Writes an attribute.
         /// </summary>
         /// <remarks>
-        /// Deliberately takes no node-wide lock, for the same reason as the read path:
-        /// writing dispatches to caller-supplied handlers (<c>OnWriteValue</c> and its
-        /// siblings) which may take locks of their own, and holding a lock on the node
-        /// across one gives the node no fixed place in the lock order. The individual
-        /// attribute fields guard themselves.
+        /// The node does not take a node-wide lock around caller-supplied handlers because
+        /// those handlers may take locks of their own. Individual attribute fields guard
+        /// themselves. A runtime may bind an internal operation executor to coordinate a
+        /// complete Value write without exposing its synchronization mechanism.
         /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
@@ -5099,27 +5128,105 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronous sibling of
         /// <see cref="WriteAttribute(ISystemContext, uint, NumericRange, DataValue)"/>.
-        /// The default implementation wraps the synchronous call so behaviour is
-        /// bit-identical for every
-        /// <see cref="NodeState"/> that does not override it. Derived
-        /// types (notably <see cref="BaseVariableState"/>) can override
-        /// this method to dispatch to true asynchronous write hooks
-        /// without blocking a thread.
+        /// Derived types customize Value writes through <see cref="WriteAttributeCoreAsync"/>.
         /// </summary>
+        /// <remarks>
+        /// This public entrypoint is non-virtual so it can admit a complete Value write before virtual core
+        /// dispatch. Non-Value attributes dispatch to the core without Value-write admission.
+        /// Derived implementations must override <see cref="WriteAttributeCoreAsync"/> instead.
+        /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="indexRange">The index range.</param>
         /// <param name="value">The value to write.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        public virtual ValueTask<ServiceResult> WriteAttributeAsync(
+        public ValueTask<ServiceResult> WriteAttributeAsync(
             ISystemContext context,
             uint attributeId,
             NumericRange indexRange,
             DataValue value,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result = WriteAttribute(context, attributeId, indexRange, value);
-            return new ValueTask<ServiceResult>(result);
+            if (attributeId != Attributes.Value)
+            {
+                return WriteAttributeCoreAsync(context, attributeId, indexRange, value, cancellationToken);
+            }
+
+            if (m_writeOperationExecutor is not { } executor)
+            {
+                return WriteAttributeCoreAsync(context, attributeId, indexRange, value, cancellationToken);
+            }
+
+            return executor.ExecuteAsynchronouslyAsync(
+                ct => WriteAttributeCoreAsync(context, attributeId, indexRange, value, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs the asynchronous Value-write core.
+        /// </summary>
+        /// <remarks>
+        /// Derived implementations that need to retain native validation, callbacks, and cache commit must call
+        /// this method with <see langword="base"/>. The public <see cref="WriteAttributeAsync"/> method admits
+        /// a complete Value write before calling this virtual method. A Value-write core must not await another
+        /// public Value write for the same node; that call waits behind the current admission until it is
+        /// cancelled, while the outer write retains admission.
+        /// The base implementation returns BadNotSupported for executor-bound Value writes without invoking
+        /// synchronous validation, write handlers, or cache updates. Unbound Value writes and non-Value
+        /// attributes retain the ordinary synchronous fallback.
+        /// </remarks>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="indexRange">The elements to write, or a null range for the complete value.</param>
+        /// <param name="value">The value, status, and timestamp to write.</param>
+        /// <param name="cancellationToken">The operation cancellation token.</param>
+        /// <returns>The validation, callback, and cache-commit result.</returns>
+        protected virtual ValueTask<ServiceResult> WriteAttributeCoreAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            if (attributeId == Attributes.Value && m_writeOperationExecutor != null)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Create(
+                    StatusCodes.BadNotSupported,
+                    "Executor-bound asynchronous Value writes require a native asynchronous implementation."));
+            }
+            return new ValueTask<ServiceResult>(WriteAttributeCore(context, attributeId, indexRange, value));
+        }
+
+        /// <summary>
+        /// Binds an internal executor for complete Value writes on this node.
+        /// </summary>
+        /// <param name="executor">The operation executor.</param>
+        /// <param name="asynchronousChangeMaskNotifications">
+        /// Whether asynchronous clears retain notification admission throughout dispatch.
+        /// </param>
+        internal void BindWriteOperationExecutor(
+            NodeWriteOperationExecutor executor,
+            bool asynchronousChangeMaskNotifications = false)
+        {
+            m_writeOperationExecutor = executor ?? throw new ArgumentNullException(nameof(executor));
+            if (asynchronousChangeMaskNotifications)
+            {
+                Volatile.Write(ref m_asynchronousChangeMaskNotifications, 1);
+            }
+        }
+
+        /// <summary>
+        /// Marks change-mask notifications for dispatch after an executor-bound Value write releases admission.
+        /// </summary>
+        protected bool DeferChangeMaskNotificationsUntilWriteAdmissionEnds()
+        {
+            if (m_writeOperationExecutor is null)
+            {
+                return false;
+            }
+
+            Volatile.Write(ref m_asynchronousChangeMaskNotifications, 1);
+            return true;
         }
 
         /// <summary>
@@ -6975,6 +7082,16 @@ namespace Opc.Ua
 
         private bool m_initializedFromSource;
 
+        /// <summary>
+        /// The executor for complete Value-write operations, when one is bound.
+        /// </summary>
+        private NodeWriteOperationExecutor? m_writeOperationExecutor;
+
+        /// <summary>
+        /// Whether asynchronous mask clearing must retain notification admission for this node's lifetime.
+        /// </summary>
+        private int m_asynchronousChangeMaskNotifications;
+
         /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
         private Lock? m_notifiersLock;
 
@@ -7237,6 +7354,17 @@ namespace Opc.Ua
         /// handler remains responsible for applying the requested range to its authoritative data.
         /// </remarks>
         public bool SuppressCacheUpdate { get; init; }
+
+        /// <summary>
+        /// Gets whether the native core owns an ordinary cache write, including copying and range rejection.
+        /// </summary>
+        internal bool UseOrdinaryCacheWrite { get; init; }
+
+        /// <summary>
+        /// Gets the mandatory dependent-state update run after an ordinary cache commit, outside its lock.
+        /// Exceptions report a failed operation without rolling back the committed cache.
+        /// </summary>
+        internal Action? AfterOrdinaryCacheCommit { get; init; }
     }
 
     /// <summary>
