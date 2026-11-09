@@ -1040,8 +1040,32 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             uint subscriptionId = m_churnSubscriptions[session];
             CreateMonitoredItemsResponse created = await session.CreateMonitoredItemsAsync(
                 null, subscriptionId, TimestampsToReturn.Both, m_churnItems, ct).ConfigureAwait(false);
-            uint[] ids = created.Results.ToArray().Select(r => r.MonitoredItemId).ToArray();
-            await session.DeleteMonitoredItemsAsync(null, subscriptionId, ids, ct).ConfigureAwait(false);
+            MonitoredItemCreateResult[] createResults = created.Results.ToArray();
+            // delete what was created even when part of the batch failed, then count the pair
+            // only when every create and every delete succeeded.
+            uint[] ids = createResults
+                .Where(r => StatusCode.IsGood(r.StatusCode))
+                .Select(r => r.MonitoredItemId)
+                .ToArray();
+            StatusCode failure = createResults.Length != m_churnItems.Count
+                ? StatusCodes.BadUnexpectedError
+                : createResults.Select(r => r.StatusCode).FirstOrDefault(s => !StatusCode.IsGood(s));
+            if (ids.Length > 0)
+            {
+                DeleteMonitoredItemsResponse deleted = await session.DeleteMonitoredItemsAsync(
+                    null, subscriptionId, ids, ct).ConfigureAwait(false);
+                StatusCode[] deleteResults = deleted.Results.ToArray();
+                if (StatusCode.IsGood(failure))
+                {
+                    failure = deleteResults.Length != ids.Length
+                        ? StatusCodes.BadUnexpectedError
+                        : deleteResults.FirstOrDefault(s => !StatusCode.IsGood(s));
+                }
+            }
+            if (!StatusCode.IsGood(failure))
+            {
+                throw new ServiceResultException(failure, "churn: a CreateMonitoredItems or DeleteMonitoredItems operation failed");
+            }
         }
 
         public override async Task RunAsync(CancellationToken ct)
