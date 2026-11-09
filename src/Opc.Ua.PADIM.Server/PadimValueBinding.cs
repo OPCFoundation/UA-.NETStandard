@@ -396,7 +396,7 @@ namespace Opc.Ua.PADIM.Server
 
         /// <summary>
         /// Compares selected text, fallback formatting and translation entries.
-        /// Entry order is ignored only when it does not change retained fallback information.
+        /// Entry order is ignored only when it does not change retained fallback information or locale selection.
         /// </summary>
         private static bool LocalizedMetadataEqual(LocalizedText previous, LocalizedText current)
         {
@@ -442,6 +442,51 @@ namespace Opc.Ua.PADIM.Server
                 if (!found)
                 {
                     return false;
+                }
+            }
+            return TranslationFallbacksEqual(previousTranslations, currentTranslations!);
+        }
+
+        /// <summary>
+        /// Compares the first available locale and the first locale for each language.
+        /// </summary>
+        private static bool TranslationFallbacksEqual(
+            IReadOnlyDictionary<string, string> previous,
+            IReadOnlyDictionary<string, string> current)
+        {
+            using IEnumerator<KeyValuePair<string, string>> first = current.GetEnumerator();
+            if (!first.MoveNext())
+            {
+                return false;
+            }
+            var languages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, string> entry in previous)
+            {
+                if (languages.Count == 0 &&
+                    !string.Equals(entry.Key, first.Current.Key, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+                int separator = entry.Key.IndexOf('-', StringComparison.Ordinal);
+                string language = separator < 0 ? entry.Key : entry.Key.Substring(0, separator);
+                if (!languages.Add(language))
+                {
+                    continue;
+                }
+                foreach (KeyValuePair<string, string> candidate in current)
+                {
+                    int candidateSeparator = candidate.Key.IndexOf('-', StringComparison.Ordinal);
+                    string candidateLanguage = candidateSeparator < 0
+                        ? candidate.Key
+                        : candidate.Key.Substring(0, candidateSeparator);
+                    if (string.Equals(language, candidateLanguage, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.Equals(entry.Key, candidate.Key, StringComparison.Ordinal))
+                        {
+                            return false;
+                        }
+                        break;
+                    }
                 }
             }
             return true;

@@ -187,9 +187,12 @@ Configure metadata separately from concurrent acquisition or remote writes.
 Changes to retained translations or fallback formatting also report a semantic
 change, even when the selected text stays the same. Replacing metadata with equal
 translation entries, fallback information, and formatting arguments does not
-report a change. Dictionary insertion order alone does not change retained
-translation entries; encoded `mul` values can also change the fallback derived
-from their first entry.
+report a change. Reordering translation entries reports a change when it changes
+the first available locale or the first locale for a language. For example, an
+`en-AU` client can receive a different translation when `en-US` and `en-GB`
+exchange positions. Reorders that preserve those choices and retained fallback
+information do not report a change. Encoded `mul` values can also change the
+fallback derived from their first entry.
 
 The server's resource manager selects `EUInformation.DisplayName` and
 `EUInformation.Description` using the session's preferred locales when returning

@@ -69,6 +69,8 @@ namespace Opc.Ua.PADIM.Tests
         [TestCase("en-US", true)]
         [TestCase("de-DE", true)]
         [TestCase("mul", true)]
+        [TestCase("en-AU", false)]
+        [TestCase("en-AU", true)]
         public async Task HostedEngineeringUnitsHonorsPreferredLocalesAndReportsTranslationChanges(
             string locale, bool description)
         {
@@ -142,6 +144,47 @@ namespace Opc.Ua.PADIM.Tests
                     var client = new PadimClient(session, telemetry);
                     NodeId owner = binding.Variable.NodeId;
                     var analog = (AnalogSignalVariableState)binding.Variable;
+                    if (locale == "en-AU")
+                    {
+                        (LocalizedText firstRegional, _, _) = await ObserveChangeAsync(
+                            RegionalUnits("fr-FR", "en-US", "en-GB", "de-DE"));
+                        (LocalizedText equivalentRegional, bool equivalentEvent, bool equivalentStatus) =
+                            await ObserveChangeAsync(RegionalUnits("fr-FR", "en-US", "de-DE", "en-GB"));
+                        (LocalizedText changedRegional, bool changedEvent, bool changedStatus) =
+                            await ObserveChangeAsync(RegionalUnits("fr-FR", "en-GB", "de-DE", "en-US"));
+                        EUInformation retained = analog.EngineeringUnits!.Value;
+                        LocalizedText retainedText = description ? retained.Description : retained.DisplayName;
+                        LocalizedText unmatchedBefore = retainedText.FilterByPreferredLocales(["es-ES"]);
+                        (LocalizedText changedDefault, bool defaultEvent, bool defaultStatus) =
+                            await ObserveChangeAsync(RegionalUnits("de-DE", "en-GB", "fr-FR", "en-US"));
+                        retained = analog.EngineeringUnits.Value;
+                        retainedText = description ? retained.Description : retained.DisplayName;
+                        LocalizedText unmatchedAfter = retainedText.FilterByPreferredLocales(["es-ES"]);
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(firstRegional.Locale, Is.EqualTo("en-US"));
+                            Assert.That(firstRegional.Text, Is.EqualTo("American"));
+                            Assert.That(equivalentRegional, Is.EqualTo(firstRegional));
+                            Assert.That(equivalentEvent, Is.False,
+                                "Reordering entries without changing a fallback must not report an event.");
+                            Assert.That(equivalentStatus, Is.False,
+                                "Reordering entries without changing a fallback must not set the bit.");
+                            Assert.That(changedRegional.Locale, Is.EqualTo("en-GB"));
+                            Assert.That(changedRegional.Text, Is.EqualTo("British"));
+                            Assert.That(changedEvent, Is.True,
+                                "Changing the first same-language locale must report an event.");
+                            Assert.That(changedStatus, Is.True,
+                                "Changing the first same-language locale must set the bit.");
+                            Assert.That(unmatchedBefore.Locale, Is.EqualTo("fr-FR"));
+                            Assert.That(unmatchedAfter.Locale, Is.EqualTo("de-DE"));
+                            Assert.That(changedDefault, Is.EqualTo(changedRegional));
+                            Assert.That(defaultEvent, Is.True,
+                                "Changing the unmatched-locale fallback must report an event.");
+                            Assert.That(defaultStatus, Is.True,
+                                "Changing the unmatched-locale fallback must set the bit.");
+                        });
+                        return;
+                    }
                     LocalizedText initial = await ReadTextAsync();
                     (_, bool equalEvent, bool equalStatus) =
                         await ObserveChangeAsync(Units("English", "Deutsch"));
@@ -358,15 +401,16 @@ namespace Opc.Ua.PADIM.Tests
                 string? encodedText = null)
             {
                 var translations = new Dictionary<string, string>(StringComparer.Ordinal);
+                translations.Add("en-US", english);
                 if (reverseTranslations)
                 {
+                    translations.Add("fr-FR", "French");
                     translations.Add("de-DE", german);
-                    translations.Add("en-US", english);
                 }
                 else
                 {
-                    translations.Add("en-US", english);
                     translations.Add("de-DE", german);
+                    translations.Add("fr-FR", "French");
                 }
                 LocalizedText text = encodedText != null
                     ? new LocalizedText("mul", encodedText)
@@ -379,6 +423,32 @@ namespace Opc.Ua.PADIM.Tests
                     DisplayName = description ? new LocalizedText("fixed") : text,
                     Description = description ? text : new LocalizedText("fixed")
                 };
+            }
+
+            EUInformation RegionalUnits(params string[] locales)
+            {
+                var translations = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (string regionalLocale in locales)
+                {
+                    translations.Add(regionalLocale, regionalLocale switch
+                    {
+                        "en-US" => "American",
+                        "en-GB" => "British",
+                        "fr-FR" => "French",
+                        _ => "German"
+                    });
+                }
+                var text = new LocalizedText(translations, new TranslationInfo("unit", "fr-FR", "French"));
+                EUInformation units = Units("English", "Deutsch");
+                if (description)
+                {
+                    units.Description = text;
+                }
+                else
+                {
+                    units.DisplayName = text;
+                }
+                return units;
             }
         }
 
