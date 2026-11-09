@@ -2528,12 +2528,14 @@ namespace Opc.Ua.Server
                     if (!childNodeId.IsNull)
                     {
                         if (childNodeId == root.NodeId ||
-                            PredefinedNodes.ContainsKey(childNodeId) ||
                             !m_addNodesReservations.TryAdd(childNodeId, 0))
                         {
                             return StatusCodes.BadNodeIdExists;
                         }
                         (reserved ??= []).Add(childNodeId);
+
+                        // checked after reserving, so that a node registered by
+                        // another add between the check and the reservation is seen.
                         if (PredefinedNodes.ContainsKey(childNodeId))
                         {
                             return StatusCodes.BadNodeIdExists;

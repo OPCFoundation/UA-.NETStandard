@@ -731,8 +731,10 @@ namespace Opc.Ua.Server
                     return new NodeId(identifier, namespaceIndex);
                 }
 
-                // 0 is skipped: a numeric identifier of 0 is the null NodeId
-                // in namespace 0 and is reserved by convention elsewhere.
+                // 0 is skipped when the probe wraps: a numeric identifier of 0
+                // is the null NodeId in namespace 0 and is reserved by
+                // convention elsewhere. ToIdentifier never returns 0, so the
+                // first attempt cannot be 0 either.
                 identifier = identifier == uint.MaxValue ? 1u : identifier + 1u;
             }
 

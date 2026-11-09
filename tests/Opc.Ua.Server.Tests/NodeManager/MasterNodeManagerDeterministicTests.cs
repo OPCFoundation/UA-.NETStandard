@@ -160,10 +160,9 @@ namespace Opc.Ua.Server.Tests
                 RequestLifetime.None, new UserIdentity());
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            (ArrayOf<BrowsePathResult> results, _) = await Task.Run(async () =>
+            (ArrayOf<BrowsePathResult> results, _) =
                 await m_server.CurrentInstance.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
-                    context, [CreateEnableFanOutPath(elements)], timeout.Token).ConfigureAwait(false))
-                .ConfigureAwait(false);
+                    context, [CreateEnableFanOutPath(elements)], timeout.Token).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             var targets = new HashSet<ExpandedNodeId>();
@@ -189,12 +188,11 @@ namespace Opc.Ua.Server.Tests
 
             // each pair costs 79 units of work (1 + 26 for the inverse step, 26 x 2 for
             // the forward step), so 4095 elements need about 160k.
-            (ArrayOf<BrowsePathResult> results, _) = await Task.Run(async () =>
+            (ArrayOf<BrowsePathResult> results, _) =
                 await m_server.CurrentInstance.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
                     context,
                     [CreateEnableFanOutPath(4095), CreateEnableFanOutPath(3)],
-                    timeout.Token).ConfigureAwait(false))
-                .ConfigureAwait(false);
+                    timeout.Token).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadQueryTooComplex));
             Assert.That(results[0].Targets, Is.Empty);
