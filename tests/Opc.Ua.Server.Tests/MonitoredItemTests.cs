@@ -191,6 +191,7 @@ namespace Opc.Ua.Server.Tests
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
             Mock<IServerInternal> server = CreateServerMock(telemetry, queueFactory);
             var types = new TypeTable(server.Object.NamespaceUris);
+            types.AddSubtype(ObjectTypeIds.BaseObjectType, NodeId.Null);
             types.AddSubtype(ObjectTypeIds.BaseEventType, ObjectTypeIds.BaseObjectType);
             server.Setup(value => value.TypeTree).Returns(types);
             using var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
