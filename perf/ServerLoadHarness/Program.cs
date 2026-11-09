@@ -526,7 +526,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Workload workload = counters
                 ? new CounterWorkload(sessions, counterSubs, ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
                 : scenario == "events"
-                ? new EventWorkload(sessions, ArgInt("subs", 15), ArgInt("pub", 100), ArgInt("queue-size", 10000), ArgInt("event-rate", 0))
+                ? new EventWorkload(
+                    sessions,
+                    ArgInt("subs", 15),
+                    ArgInt("pub", 100),
+                    ArgInt("queue-size", 10000),
+                    ArgInt("event-rate", 0),
+                    ArgInt("event-where", 0) != 0)
                 : scenario == "sub"
                 ? new SubscribeWorkload(
                     sessions[..sessionCount],
