@@ -3338,8 +3338,11 @@ namespace Opc.Ua.Server.Tests
                         var published = new Queue<MonitoredItemNotification>();
                         monitoredItem.Publish(
                             publishContext, published, new Queue<DiagnosticInfo>(), 10, m_mockLogger.Object);
+                        // The bit goes on the next published value only. The node's consumer
+                        // may already have queued the semantic resample value ahead of 42,
+                        // so only the first notification carries it.
                         semanticsChangedDuringAudit = published.Count > 0 &&
-                            published.All(n => n.Value.StatusCode.SemanticsChanged);
+                            published.Peek().Value.StatusCode.SemanticsChanged;
                     }
                     catch (Exception ex)
                     {
