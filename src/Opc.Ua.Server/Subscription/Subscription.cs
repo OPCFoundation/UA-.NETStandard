@@ -267,21 +267,30 @@ namespace Opc.Ua.Server
             {
                 foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
                 {
-                    if (link.Value == null || !m_monitoredItems.ContainsKey(link.Key))
+                    if (link.Value == null ||
+                        !m_monitoredItems.ContainsKey(link.Key) ||
+                        m_itemsToTrigger.ContainsKey(link.Key))
                     {
                         continue;
                     }
 
-                    var triggeredItems = new List<ITriggeredMonitoredItem>(link.Value.Count);
+                    var triggeredItems = new List<ITriggeredMonitoredItem>(
+                        Math.Min(link.Value.Count, kMaxTriggeringLinks - m_triggeringLinkCount));
+                    var linkedIds = new HashSet<uint>();
                     foreach (uint linkedItemId in link.Value)
                     {
+                        if (m_triggeringLinkCount >= kMaxTriggeringLinks)
+                        {
+                            break;
+                        }
                         if (m_monitoredItems.TryGetValue(
                                 linkedItemId,
                                 out LinkedListNode<IMonitoredItem>? linkedNode) &&
                             linkedNode.Value is ITriggeredMonitoredItem triggeredItem &&
-                            !triggeredItems.Exists(item => item.Id == linkedItemId))
+                            linkedIds.Add(linkedItemId))
                         {
                             triggeredItems.Add(triggeredItem);
+                            AddTriggeredTarget(linkedItemId);
                         }
                     }
 
@@ -773,7 +782,7 @@ namespace Opc.Ua.Server
                         ReleaseMonitoredItemOwnership(monitoredItem);
                     }
                     m_monitoredItems.Clear();
-                    m_itemsToTrigger.Clear();
+                    ClearTriggeringLinks();
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
                     ClearReadyCandidates();
@@ -1105,6 +1114,54 @@ namespace Opc.Ua.Server
                 MarkReadyCandidate(monitoredItem);
             }
         }
+
+        /// <summary>
+        /// Drops the candidates of deleted monitored items once they outnumber the live
+        /// ones.
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. A deleted item keeps its candidate entry until
+        /// the publish timer looks at it, which a subscription with publishing disabled
+        /// never does, so without this a create/delete loop would retain every deleted item.
+        /// A live item holds at most one entry (its ready signal), so the lists are compacted
+        /// only when they hold more than twice the live items plus a slack; the cost is
+        /// amortized over at least as many deletes as entries are walked.
+        /// </remarks>
+        private void PurgeDeletedReadyCandidates()
+        {
+            int intake;
+            lock (m_readyIntakeLock)
+            {
+                intake = m_readyIntake.Count;
+            }
+            if (m_readyCandidates.Count + intake <= (2 * m_signalingItemCount) + kReadyCandidateSlack)
+            {
+                return;
+            }
+
+            TakeReadyIntake();
+
+            int kept = 0;
+            for (int ii = 0; ii < m_readyCandidates.Count; ii++)
+            {
+                IMonitoredItem monitoredItem = m_readyCandidates[ii];
+                if (!m_monitoredItems.TryGetValue(
+                        monitoredItem.Id,
+                        out LinkedListNode<IMonitoredItem>? node) ||
+                    !ReferenceEquals(node.Value, monitoredItem))
+                {
+                    ((IReadySignalingMonitoredItem)monitoredItem).ReleaseReadySignal();
+                    continue;
+                }
+                m_readyCandidates[kept++] = monitoredItem;
+            }
+            m_readyCandidates.RemoveRange(kept, m_readyCandidates.Count - kept);
+        }
+
+        /// <summary>
+        /// The candidate entries of deleted items tolerated before they are purged.
+        /// </summary>
+        private const int kReadyCandidateSlack = 64;
 
         /// <summary>
         /// Forgets all candidates when the monitored items are removed together.
@@ -2795,21 +2852,25 @@ namespace Opc.Ua.Server
                     m_itemsToTrigger[triggeringItemId] = triggeredItems = [];
                 }
 
+                // the ids linked from the triggering item: the lookups below cost one hash
+                // probe each instead of a scan of the link list.
+                var linkedIds = new HashSet<uint>();
+                foreach (ITriggeredMonitoredItem linkedItem in triggeredItems)
+                {
+                    linkedIds.Add(linkedItem.Id);
+                }
+
                 // remove old links.
+                HashSet<uint>? removedIds = null;
                 for (int ii = 0; ii < linksToRemove.Count; ii++)
                 {
                     removeResultList.Add(StatusCodes.Good);
 
-                    bool found = false;
-
-                    for (int jj = 0; jj < triggeredItems.Count; jj++)
+                    bool found = linkedIds.Remove(linksToRemove[ii]);
+                    if (found)
                     {
-                        if (triggeredItems[jj].Id == linksToRemove[ii])
-                        {
-                            found = true;
-                            triggeredItems.RemoveAt(jj);
-                            break;
-                        }
+                        (removedIds ??= []).Add(linksToRemove[ii]);
+                        RemoveTriggeredTarget(linksToRemove[ii]);
                     }
 
                     if (!found)
@@ -2836,6 +2897,11 @@ namespace Opc.Ua.Server
                     {
                         removeDiagnosticInfoList!.Add(null!);
                     }
+                }
+
+                if (removedIds != null)
+                {
+                    triggeredItems.RemoveAll(item => removedIds.Contains(item.Id));
                 }
 
                 // The trigger flag is only consumed while the item has links, so it can still
@@ -2890,20 +2956,30 @@ namespace Opc.Ua.Server
                     }
 
                     // add value if not already in list.
-                    bool found = false;
-
-                    for (int jj = 0; jj < triggeredItems.Count; jj++)
+                    if (!linkedIds.Contains(triggeredItem.Id))
                     {
-                        if (triggeredItems[jj].Id == triggeredItem.Id)
+                        if (m_triggeringLinkCount >= kMaxTriggeringLinks)
                         {
-                            found = true;
-                            break;
-                        }
-                    }
+                            addResultList[ii] = StatusCodes.BadTooManyOperations;
 
-                    if (!found)
-                    {
+                            // update diagnostics.
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                DiagnosticInfo? diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                    m_server,
+                                    context,
+                                    addResultList[ii],
+                                    m_logger);
+                                diagnosticsExist = true;
+                                addDiagnosticInfoList!.Add(diagnosticInfo!);
+                            }
+
+                            continue;
+                        }
+
+                        linkedIds.Add(triggeredItem.Id);
                         triggeredItems.Add(triggeredItem);
+                        AddTriggeredTarget(triggeredItem.Id);
                     }
 
                     // update diagnostics.
@@ -3459,6 +3535,7 @@ namespace Opc.Ua.Server
             var originalMonitoringModes = new MonitoringMode[count];
 
             bool validItems = false;
+            HashSet<uint>? deletedTriggeredTargets = null;
 
             lock (m_lock)
             {
@@ -3507,20 +3584,7 @@ namespace Opc.Ua.Server
                         CountPooledItems(-1);
                     }
                     countChange?.Decrement();
-                    m_itemsToTrigger.Remove(monitoredItemIds[ii]);
-                    foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
-                    {
-                        //remove the links towards the deleted monitored item
-                        List<ITriggeredMonitoredItem>? triggeredItems = item.Value;
-                        for (int jj = 0; jj < triggeredItems.Count; jj++)
-                        {
-                            if (triggeredItems[jj].Id == monitoredItemIds[ii])
-                            {
-                                triggeredItems.RemoveAt(jj);
-                                break;
-                            }
-                        }
-                    }
+                    RemoveTriggeringLinksOfDeletedItem(monitoredItemIds[ii], ref deletedTriggeredTargets);
 
                     node.List?.Remove(node);
 
@@ -3535,6 +3599,12 @@ namespace Opc.Ua.Server
                     {
                         diagnosticInfos!.Add(null!);
                     }
+                }
+
+                RemoveDeletedTriggeredTargets(deletedTriggeredTargets);
+                if (validItems)
+                {
+                    PurgeDeletedReadyCandidates();
                 }
             }
 
