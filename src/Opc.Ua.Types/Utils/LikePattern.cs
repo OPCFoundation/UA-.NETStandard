@@ -459,7 +459,8 @@ namespace Opc.Ua
             }
 
             /// <summary>
-            /// Matches one character, counting each range of a character list as a step.
+            /// Matches one character, counting each range of a character list it compares
+            /// as a step. When the steps run out the scan stops, leaving them negative.
             /// </summary>
             public bool Matches(char ch, ref int steps)
             {
@@ -470,10 +471,12 @@ namespace Opc.Ua
                     case TokenKind.AnyCharacter:
                         return true;
                     case TokenKind.List:
-                        (char First, char Last)[] ranges = m_ranges!;
-                        steps -= ranges.Length;
-                        foreach ((char first, char last) in ranges)
+                        foreach ((char first, char last) in m_ranges!)
                         {
+                            if (--steps < 0)
+                            {
+                                return false;
+                            }
                             if (ch >= first && ch <= last)
                             {
                                 return !m_negated;

@@ -312,5 +312,26 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(pattern.TryMatch(matching, ref budget, out isMatch), Is.True);
             Assert.That(isMatch, Is.True);
         }
+
+        /// <summary>
+        /// Only the ranges of a character list that are compared count as steps: a
+        /// character that hits an early range matches within a small budget, and a scan
+        /// stops at the budget instead of finishing the list.
+        /// </summary>
+        [Test]
+        public void CharacterListChargesTheRangesItCompares()
+        {
+            Assert.That(LikePattern.TryParse("[a" + new string('b', 10_000) + "]", out LikePattern? pattern), Is.True);
+
+            int budget = 10;
+            Assert.That(pattern!.TryMatch("a", ref budget, out bool isMatch), Is.True);
+            Assert.That(isMatch, Is.True);
+            Assert.That(budget, Is.EqualTo(8));
+
+            budget = 100;
+            Assert.That(pattern.TryMatch("z", ref budget, out isMatch), Is.False);
+            Assert.That(isMatch, Is.False);
+            Assert.That(budget, Is.Zero);
+        }
     }
 }

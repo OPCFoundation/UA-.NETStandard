@@ -74,20 +74,28 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         private static readonly int[] s_oneTwo = [1, 2];
 
+        /// <summary>
+        /// The hash of a nested value does not depend on the stack left to the caller, and
+        /// only the first levels of nesting contribute to it, so hashing does not recurse
+        /// with the depth of the value.
+        /// </summary>
         [TestCase(Shape.VariantArray)]
         [TestCase(Shape.DataValue)]
-        public void NestedValuesAreNotHashedBeyondTheAvailableStack(Shape shape)
+        public void NestedValuesHashTheSameAtAnyStackDepthAndOnlyTheirFirstLevels(Shape shape)
         {
             Variant value = Build(shape, 3);
-            Assert.That(value.GetHashCode(), Is.EqualTo(Build(shape, 3).GetHashCode()));
-            Assert.That(value.GetHashCode(), Is.Not.Zero);
+            int hash = value.GetHashCode();
+            Assert.That(hash, Is.EqualTo(Build(shape, 3).GetHashCode()));
+            Assert.That(RunAtStackLimit(value.GetHashCode), Is.EqualTo(hash));
 
-            Assert.That(RunAtStackLimit(value.GetHashCode), Is.Zero);
+            // values that differ only below the hashed levels hash equally.
+            Assert.That(Build(shape, 40, 1).GetHashCode(), Is.EqualTo(Build(shape, 40, 2).GetHashCode()));
+            Assert.That(Build(shape, 1, 1).GetHashCode(), Is.Not.EqualTo(Build(shape, 1, 2).GetHashCode()));
         }
 
-        private static Variant Build(Shape shape, int depth)
+        private static Variant Build(Shape shape, int depth, int innermost = 1)
         {
-            var value = new Variant(1);
+            var value = new Variant(innermost);
             for (int ii = 0; ii < depth; ii++)
             {
                 value = shape == Shape.VariantArray

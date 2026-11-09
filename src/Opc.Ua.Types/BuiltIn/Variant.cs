@@ -1188,9 +1188,8 @@ namespace Opc.Ua
                     BuiltInType.ByteString when IsPackedScalar => HashByteString(GetByteString()),
                     BuiltInType.ByteString when m_value is ByteString boxed => HashByteString(boxed),
                     BuiltInType.LocalizedText when IsPackedScalar => GetLocalizedText().GetHashCode(),
-                    // a nested value is not hashed deeper than the stack allows.
                     BuiltInType.ExtensionObject or
-                    BuiltInType.DataValue when !HasStackForNestedValue() => 0,
+                    BuiltInType.DataValue => HashNestedValue(),
                     _ => m_value?.GetHashCode() ?? 0
                 };
             }
@@ -1201,10 +1200,9 @@ namespace Opc.Ua
                 ReadOnlySpan<byte> bytes = GetByteArray().Span;
                 return bytes.IsEmpty ? 0 : ReadOnlySpan.ComputeHash32(bytes);
             }
-            if (MayNest(TypeInfo.BuiltInType) && !HasStackForNestedValue())
+            if (MayNest(TypeInfo.BuiltInType))
             {
-                // a nested value is not hashed deeper than the stack allows.
-                return 0;
+                return HashNestedValue();
             }
             return m_value?.GetHashCode() ?? 0;
 
@@ -8079,6 +8077,65 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Hashes a payload that can hold nested variants.
+        /// </summary>
+        /// <remarks>
+        /// An array of variants hashes its elements without descending into the ones that
+        /// hold nested values: those contribute only their built-in type, which equal
+        /// elements share because these types never compare equal to other types. Other
+        /// payloads (DataValues, ExtensionObjects, matrices) are hashed in full for the
+        /// first <see cref="kMaxHashNesting"/> levels of nesting; deeper ones count as zero.
+        /// Equal values therefore still hash equally, and the recursion is bounded whatever
+        /// the depth of the value, independent of the stack left to the caller.
+        /// </remarks>
+        private int HashNestedValue()
+        {
+            if (m_value is null)
+            {
+                return 0;
+            }
+            if (m_value is ArrayOf<Variant> items)
+            {
+                var hash = new HashCode();
+                ReadOnlySpan<Variant> span = items.Span;
+                for (int ii = 0; ii < span.Length; ii++)
+                {
+                    ref readonly Variant item = ref span[ii];
+                    BuiltInType itemType = item.m_typeInfo.BuiltInType;
+                    hash.Add(MayNest(itemType) && !item.IsAbsent
+                        ? (int)itemType
+                        : item.GetHashCode());
+                }
+                return hash.ToHashCode();
+            }
+            int depth = t_hashNesting;
+            if (depth >= kMaxHashNesting)
+            {
+                return 0;
+            }
+            t_hashNesting = depth + 1;
+            try
+            {
+                return m_value.GetHashCode();
+            }
+            finally
+            {
+                t_hashNesting = depth;
+            }
+        }
+
+        /// <summary>
+        /// The levels of nested variants that contribute to a hash.
+        /// </summary>
+        private const int kMaxHashNesting = 32;
+
+        /// <summary>
+        /// The nesting level of the hash being computed on this thread.
+        /// </summary>
+        [ThreadStatic]
+        private static int t_hashNesting;
+
+        /// <summary>
         /// Returns whether a value of the type can hold nested variants.
         /// </summary>
         private static bool MayNest(BuiltInType builtInType)
@@ -8097,11 +8154,12 @@ namespace Opc.Ua
         /// nested values.
         /// </summary>
         /// <remarks>
-        /// Equality and hashing recurse once per nesting level, and a level costs more
-        /// stack than it does in the decoders, which check the stack with
+        /// Equality recurses once per nesting level, and a level costs more stack than it
+        /// does in the decoders, which check the stack with
         /// <see cref="EncodingLimits.EnsureSufficientStack"/>. Running out of stack ends
         /// the process, so a comparison that would go deeper than the stack allows reports
-        /// the values as not equal, and hashing stops at that depth.
+        /// the values as not equal. Hashing is bounded by <see cref="HashNestedValue"/>
+        /// instead, so a hash never depends on the stack of the caller.
         /// </remarks>
         private static bool HasStackForNestedValue()
         {
