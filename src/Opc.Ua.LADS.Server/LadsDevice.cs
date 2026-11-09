@@ -335,6 +335,11 @@ namespace Opc.Ua.LADS.Server
         public event Action<MachineryOperationModeValue>? OperationModeChanged;
 
         /// <summary>
+        /// Raised before an asynchronous item-state change waits for the shared item-state notification gate.
+        /// </summary>
+        internal event Action? ItemStateNotificationWaitStarting;
+
+        /// <summary>
         /// Gets whether failed storage compensation has quarantined the device.
         /// </summary>
         internal bool IsStorageQuarantined => Volatile.Read(ref m_storageFailure) != null;
@@ -1920,6 +1925,7 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private async ValueTask UpdateItemStateAsync(CancellationToken cancellationToken)
         {
+            ItemStateNotificationWaitStarting?.Invoke();
             await m_itemStateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {

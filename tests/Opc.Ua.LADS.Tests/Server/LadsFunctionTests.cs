@@ -159,6 +159,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var observedState = new TaskCompletionSource<MachineryItemStateValue>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondNotificationWaitStarting = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             Func<MachineryItemStateValue, CancellationToken, ValueTask> handler = async (_, _) =>
             {
                 if (device.ItemState == MachineryItemStateValue.NotExecuting)
@@ -168,7 +170,15 @@ namespace Opc.Ua.LADS.Tests.Server
                     observedState.TrySetResult(device.ItemState);
                 }
             };
+            Action notificationWaitStarting = () =>
+            {
+                if (second.State == LadsFunctionalStateValue.Running)
+                {
+                    secondNotificationWaitStarting.TrySetResult(true);
+                }
+            };
             device.ItemStateMachine.StateChangedAsync += handler;
+            device.ItemStateNotificationWaitStarting += notificationWaitStarting;
 
             Task? firstStop = null;
             Task? secondStart = null;
@@ -177,24 +187,19 @@ namespace Opc.Ua.LADS.Tests.Server
             try
             {
                 firstStop = Task.Run(async () => await first.StopAsync().ConfigureAwait(false));
-                Task notificationStarted = await Task.WhenAny(
-                    notificationEntered.Task,
-                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
-                Assert.That(notificationStarted, Is.SameAs(notificationEntered.Task));
+                await notificationEntered.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
                 Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.NotExecuting));
 
                 secondStart = Task.Run(async () => await second.StartAsync().ConfigureAwait(false));
-                Task secondCompleted = await Task.WhenAny(
-                    secondStart,
-                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
-                Assert.That(secondCompleted, Is.Not.SameAs(secondStart));
+                await secondNotificationWaitStarting.Task
+                    .WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(secondStart.IsCompleted, Is.False);
                 Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.NotExecuting));
 
                 releaseNotification.TrySetResult(true);
-                Task notificationCompleted = await Task.WhenAny(
-                    observedState.Task,
-                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
-                Assert.That(notificationCompleted, Is.SameAs(observedState.Task));
+                await observedState.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
                 Assert.That(await observedState.Task.ConfigureAwait(false),
                     Is.EqualTo(MachineryItemStateValue.NotExecuting));
                 await secondStart.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
@@ -209,6 +214,7 @@ namespace Opc.Ua.LADS.Tests.Server
             {
                 releaseNotification.TrySetResult(true);
                 device.ItemStateMachine.StateChangedAsync -= handler;
+                device.ItemStateNotificationWaitStarting -= notificationWaitStarting;
                 var pending = new List<Task>();
                 if (firstStop != null)
                 {
@@ -223,12 +229,8 @@ namespace Opc.Ua.LADS.Tests.Server
                     Task allPending = Task.WhenAll(pending);
                     try
                     {
-                        Task drained = await Task.WhenAny(
-                            allPending,
-                            Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
-                        Assert.That(drained, Is.SameAs(allPending),
-                            "Functional-unit state operations did not drain after notification release.");
-                        await allPending.ConfigureAwait(false);
+                        await allPending.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                            .ConfigureAwait(false);
                     }
                     catch (Exception failure)
                     {
