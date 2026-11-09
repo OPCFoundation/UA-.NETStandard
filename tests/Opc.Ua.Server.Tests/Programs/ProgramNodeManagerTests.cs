@@ -453,6 +453,9 @@ namespace Opc.Ua.Server.Tests.Programs
             Assert.That(harness.Manager.GetInstanceCount(ProgramTypeIds.ManagedProgramType), Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that AutoDelete removes an invocation after its execution reports the terminal Halted state.
+        /// </summary>
         [Test]
         public async Task AutoDeletionRemovesInvocationAfterInternalHaltAsync()
         {
