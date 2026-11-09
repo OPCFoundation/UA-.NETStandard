@@ -1058,6 +1058,15 @@ Successful deletion and disposal callbacks are not repeated. An explicit call to
 `MasterNodeManager.ShutdownAsync` defensively joins the same stop attempt as `ServerBase.StopAsync`,
 including transport closure and failure propagation. Ordinary server stop drives the lifecycle
 directly; it does not route through this master entry point.
+
+`ServerBase.StopAsync` reports exceptions from `OnServerStoppingAsync`
+differently from version 2.0.1. In 2.0.1, the server stored the exception in
+`ServerError` and the stop returned successfully if subsequent listener and
+service-host cleanup finished. The current implementation stores the exception
+and rethrows it if that cleanup finishes. A later call starts a new attempt
+after the shared stop task faults. The release-compatibility disposition remains
+open.
+
 The hosted master is borrowed from its owning server: stop and dispose the server
 rather than disposing the master directly. Direct master disposal is rejected while serving or
 retired generations still own resources. A standalone master retains its own cleanup because
