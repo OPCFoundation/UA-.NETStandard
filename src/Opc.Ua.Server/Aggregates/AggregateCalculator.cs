@@ -304,12 +304,98 @@ namespace Opc.Ua.Server
             {
                 m_values.AddFirst(value);
             }
+            else if (MaxRawValues > 0 &&
+                m_values.Count >= MaxRawValues &&
+                CanReplaceNewestValue(value))
+            {
+                // keep the number of values held for the current interval bounded: the
+                // newest value in the interval is replaced, so the interval keeps its
+                // earliest values and its latest value. The node stays in place, so the
+                // references of the current slice remain valid.
+                m_values.Last!.Value = value;
+                m_rawValuesDiscarded = true;
+            }
             else
             {
                 m_values.AddLast(value);
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// The maximum number of raw values held by the calculator, or zero or less for no
+        /// limit. Only applies when time flows forward. When the limit is reached, a value
+        /// inside the current interval replaces the newest held value of that interval and
+        /// the processed value of the interval is reported Uncertain_DataSubNormal instead of Good.
+        /// </summary>
+        internal int MaxRawValues { get; set; }
+
+        /// <summary>
+        /// The number of raw values the calculator currently holds.
+        /// </summary>
+        internal int RawValueCount => m_values.Count;
+
+        /// <summary>
+        /// Returns true if the newest held value and the new value both lie in the current slice.
+        /// </summary>
+        private bool CanReplaceNewestValue(DataValue value)
+        {
+            TimeSlice? slice = CurrentSlice;
+            LinkedListNode<DataValue>? last = m_values.Last;
+            if (slice == null || last == null)
+            {
+                return false;
+            }
+
+            DateTimeUtc valueTime = UseServerTimestamp ? value.ServerTimestamp : value.SourceTimestamp;
+            // a value at the end of the slice starts the next one and is kept.
+            return CompareTimestamps(slice.StartTime, last) <= 0 &&
+                valueTime < slice.EndTime;
+        }
+
+        /// <summary>
+        /// Removes the values that no later interval needs once a slice moving forward is created:
+        /// the values before its second early bound (or early bound), and the Bad values between
+        /// its early bound and the latest value before the slice. Without an early bound only the
+        /// latest value before the slice is kept. Later intervals only use the bounds, the value
+        /// that follows the early bound and the latest value before a time, so the result does
+        /// not change.
+        /// </summary>
+        private void RemoveValuesBeforeSlice(TimeSlice slice)
+        {
+            // find the latest value before the start of the slice.
+            LinkedListNode<DataValue>? latestBefore = m_values.Last;
+            while (latestBefore != null && CompareTimestamps(slice.StartTime, latestBefore) <= 0)
+            {
+                latestBefore = latestBefore.Previous;
+            }
+
+            if (latestBefore == null)
+            {
+                return;
+            }
+
+            LinkedListNode<DataValue> keepFrom =
+                slice.SecondEarlyBound ?? slice.EarlyBound ?? latestBefore;
+            for (LinkedListNode<DataValue>? ii = keepFrom.Previous; ii != null;)
+            {
+                LinkedListNode<DataValue>? previous = ii.Previous;
+                m_values.Remove(ii);
+                ii = previous;
+            }
+
+            // the values between the early bound and the latest value before the slice are Bad.
+            if (slice.EarlyBound != null && !ReferenceEquals(slice.EarlyBound, latestBefore))
+            {
+                for (LinkedListNode<DataValue>? ii = latestBefore.Previous;
+                    ii != null && !ReferenceEquals(ii, slice.EarlyBound);)
+                {
+                    LinkedListNode<DataValue>? previous = ii.Previous;
+                    m_values.Remove(ii);
+                    ii = previous;
+                }
+            }
         }
 
         /// <summary>
@@ -402,6 +488,17 @@ namespace Opc.Ua.Server
             if (StatusCode.IsBad(computed.StatusCode))
             {
                 computed = computed.WithWrappedValue(Variant.Null);
+            }
+
+            // the interval was calculated from a subset of its raw values.
+            if (m_rawValuesDiscarded)
+            {
+                m_rawValuesDiscarded = false;
+                if (StatusCode.IsGood(computed.StatusCode))
+                {
+                    computed = computed.WithStatus(computed.StatusCode
+                        .WithCodeBits(StatusCodes.UncertainDataSubNormal));
+                }
             }
 
             // delete unneeded data.
@@ -818,6 +915,13 @@ namespace Opc.Ua.Server
 
             // update the slice with current data.
             UpdateSlice(slice);
+
+            // values that only earlier intervals needed are not kept.
+            if (!TimeFlowsBackward && previousSlice != null)
+            {
+                RemoveValuesBeforeSlice(slice);
+            }
+
             return slice;
         }
 
@@ -1882,6 +1986,7 @@ namespace Opc.Ua.Server
 
         private readonly ILogger m_logger;
         private readonly LinkedList<DataValue> m_values;
+        private bool m_rawValuesDiscarded;
         private readonly bool m_stepped;
         private bool m_nonNumericData;
         private DateTimeUtc m_startOfData;

@@ -4581,8 +4581,18 @@ namespace Opc.Ua.Server
 
                 // create the manager responsible for aggregates.
                 m_logger.ServerCreateAggregateManager();
-                m_serverInternal.SetAggregateManager(
-                    await CreateAggregateManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
+                AggregateManager aggregateManager = await CreateAggregateManagerAsync(
+                    m_serverInternal,
+                    configuration,
+                    cancellationToken).ConfigureAwait(false);
+                if (configuration.ServerConfiguration is { } serverConfiguration)
+                {
+                    aggregateManager.MaxMonitoredItemRawValues =
+                        serverConfiguration.MaxMonitoredItemAggregateRawValues;
+                    aggregateManager.MaxProcessedHistoryRawValues =
+                        serverConfiguration.MaxProcessedHistoryRawValues;
+                }
+                m_serverInternal.SetAggregateManager(aggregateManager);
 
                 // create the manager responsible for modelling rules.
                 m_logger.ServerCreateModellingRulesManager();

@@ -110,6 +110,8 @@ namespace Opc.Ua.Server
                 .MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration
                 .MaxHistoryContinuationPoints;
+            m_maxHistoryContinuationPointValues = configuration.ServerConfiguration
+                .MaxHistoryContinuationPointValues;
 
             // Lockout duration / failure expiration are stored in TimestampFrequency
             // ticks so they can be compared directly against TimeProvider.GetTimestamp().
@@ -466,6 +468,12 @@ namespace Opc.Ua.Server
                     m_maxRequestAge,
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
+
+                // bound the values the history continuation points of the session may buffer.
+                if (session.ContinuationPoints is SessionContinuationPoints sessionContinuationPoints)
+                {
+                    sessionContinuationPoints.MaxHistoryValues = m_maxHistoryContinuationPointValues;
+                }
 
                 // A client certificate whose validation error was accepted establishes
                 // no trusted application identity. Recorded before the session is
@@ -2909,6 +2917,7 @@ namespace Opc.Ua.Server
 
         private readonly int m_maxBrowseContinuationPoints;
         private readonly int m_maxHistoryContinuationPoints;
+        private readonly int m_maxHistoryContinuationPointValues;
 
         private readonly ConcurrentDictionary<string, ClientLockoutInfo> m_clientLockouts = new();
         private readonly int m_maxFailedAuthenticationAttempts;
