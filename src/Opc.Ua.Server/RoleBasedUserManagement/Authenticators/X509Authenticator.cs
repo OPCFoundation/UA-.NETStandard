@@ -102,8 +102,13 @@ namespace Opc.Ua.Server
                     "Security token is not a valid X.509 token. A certificate is required.");
             }
 
+            // User certificates are validated on their own terms: the application
+            // certificate settings (AutoAcceptUntrustedCertificates and the global
+            // AcceptError hook) apply to application instance certificates only.
+            // The options override both, so every validation error rejects the token.
+            using var chain = new CertificateCollection { userCertificate };
             CertificateValidationResult validationResult = await m_certificateValidator!
-                .ValidateAsync(userCertificate, m_trustList, ct)
+                .ValidateAsync(chain, m_trustList, s_userTokenValidationOptions, ct)
                 .ConfigureAwait(false);
 
             if (!validationResult.IsValid)
@@ -138,6 +143,17 @@ namespace Opc.Ua.Server
                 return AuthenticationResult.Reject(ex.Result);
             }
         }
+
+        /// <summary>
+        /// Validation options for user token certificates: an untrusted certificate
+        /// or any other suppressible error is never accepted, whatever the
+        /// application certificate configuration of the validator is.
+        /// </summary>
+        private static readonly Security.Certificates.CertificateValidationOptions s_userTokenValidationOptions = new()
+        {
+            AutoAcceptUntrustedCertificates = false,
+            AcceptError = static (_, _) => false
+        };
 
         private static AuthenticationResult Reject(StatusCode statusCode, string message)
         {
