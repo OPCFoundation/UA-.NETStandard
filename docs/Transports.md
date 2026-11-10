@@ -174,6 +174,28 @@ See [reassembly-budget configuration](RateLimiting.md#incomplete-messages) for
 sizing and scope. `MaxSessionCount` does not limit connections that have not
 created a session.
 
+### Responses to a peer that stops reading
+
+A server channel queues its responses for one writer, which sends them in
+order. A peer that keeps sending requests but stops reading leaves the writer
+waiting for the socket, and the queued responses stay in memory. The channel
+stops reading requests while more than 100 responses are queued, or while the
+queued responses retain more than four of the largest messages the channel
+exchanges (four times the larger of the negotiated maximum message size and the
+send buffer size). It reads again once the queue has drained to half of both
+marks. A peer that reads slowly is only slowed down; nothing is discarded.
+Requests read before the pause still complete, for example held Publish requests,
+and queue their responses. When the queued responses exceed four times the byte
+mark (16 of the largest messages), the channel is closed with
+`BadTcpNotEnoughResources`, and the server logs a warning.
+
+A send that waits longer than `ChannelLifetime` for the peer to read closes the
+channel. This also applies to a channel that serves a Session: Session activity
+keeps such a channel from being closed as idle, but not when its writer is stalled.
+Closing the channel releases the queued responses and logs a warning with the
+wait time and the queued bytes. The UA-TCP, Kestrel TCP and binary WebSocket
+(`opcua+uacp`) listeners all check their channels every half `ChannelLifetime`.
+
 Hello negotiation also updates TCP and WebSocket receive-buffer sizes. The
 Kestrel pipe transport rents for the actual chunk size instead of the listener
 maximum, avoiding unnecessary retained capacity for small chunks.

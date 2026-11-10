@@ -407,6 +407,102 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// An event filter may hold at most MaxSelectClauseParameters select clauses:
+        /// CreateMonitoredItems and ModifyMonitoredItems return Bad_EventFilterInvalid for
+        /// one with more, a modification beyond the limit keeps the previous filter, and the
+        /// limit is published in the ServerCapabilities.
+        /// </summary>
+        [Test]
+        public async Task EventFilterSelectClausesAreLimitedAsync()
+        {
+            int limit = m_fixture.Config.ServerConfiguration!.MaxSelectClauseParameters;
+            Assert.That(limit, Is.EqualTo(ServerConfiguration.DefaultMaxSelectClauseParameters));
+
+            uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
+            try
+            {
+                CreateMonitoredItemsResponse tooMany = await CreateEventItemAsync(
+                    subscriptionId, ObjectIds.Server, CreateFilterWithSelectClauses(limit + 1))
+                    .ConfigureAwait(false);
+                Assert.That(tooMany.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+
+                CreateMonitoredItemsResponse atLimit = await CreateEventItemAsync(
+                    subscriptionId, ObjectIds.Server, CreateFilterWithSelectClauses(limit))
+                    .ConfigureAwait(false);
+                Assert.That(atLimit.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ModifyMonitoredItemsResponse modified = await m_services.ModifyMonitoredItemsAsync(
+                    m_requestHeader,
+                    subscriptionId,
+                    TimestampsToReturn.Both,
+                    [
+                        new MonitoredItemModifyRequest
+                        {
+                            MonitoredItemId = atLimit.Results[0].MonitoredItemId,
+                            RequestedParameters = new MonitoringParameters
+                            {
+                                ClientHandle = 1,
+                                SamplingInterval = 0,
+                                QueueSize = 100,
+                                DiscardOldest = true,
+                                Filter = new ExtensionObject(CreateFilterWithSelectClauses(limit + 1))
+                            }
+                        }
+                    ]).ConfigureAwait(false);
+                Assert.That(modified.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+
+                // the item still reports events with the fields of its previous filter.
+                const string message = "Select clause limit";
+                ReportServerEvent(message);
+                EventFieldList fields = await PublishEventAsync(message).ConfigureAwait(false);
+                Assert.That(fields, Is.Not.Null, "Did not receive the event.");
+                Assert.That(fields.EventFields.Count, Is.EqualTo(limit));
+
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ReadResponse capabilities = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    0,
+                    TimestampsToReturn.Neither,
+                    [
+                        new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters,
+                            AttributeId = Attributes.Value
+                        },
+                        new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters,
+                            AttributeId = Attributes.Value
+                        }
+                    ],
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(capabilities.Results[0].WrappedValue.TryGetValue(out uint maxSelect), Is.True);
+                Assert.That(maxSelect, Is.EqualTo((uint)limit));
+                Assert.That(capabilities.Results[1].WrappedValue.TryGetValue(out uint maxWhere), Is.True);
+                Assert.That(maxWhere, Is.EqualTo((uint)ContentFilter.MaxElementCount));
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
+            }
+
+            // the first two clauses select EventId and Message, the rest repeat Severity.
+            static EventFilter CreateFilterWithSelectClauses(int count)
+            {
+                var filter = new EventFilter();
+                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventId));
+                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+                for (int ii = 2; ii < count; ii++)
+                {
+                    filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
+                }
+                return filter;
+            }
+        }
+
+        /// <summary>
         /// M7-10: when the owner rejects the re-subscription of a modified event item the
         /// operation fails and the item keeps its previous filter (Part 4 §5.13.3).
         /// </summary>
