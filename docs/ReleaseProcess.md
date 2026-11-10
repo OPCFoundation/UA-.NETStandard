@@ -40,7 +40,7 @@ without any other context.
   shares the same root version except the **preview-only families**.
 - **Preview-only families** - the XRegistry, WoT Connectivity,
   Robotics, CranesHoists, Redundancy, Positioning, OpenUSD, and AI package
-  families, the Vision.OpenUsd renderer, the Robotics and CranesHoists MCP extensions, and the OpenUSD connector
+  families, the Vision.OpenUsd renderer, the Robotics, CranesHoists, Positioning, WotCon and XRegistry MCP extensions, and the OpenUSD connector
   tools. `version.targets` keeps these on a `-preview.N` suffix even when the
   root version is an exact stable release. The full, single source of truth
   for which package IDs this covers is `_IsPreviewPackage` in

@@ -184,8 +184,8 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Workflows` | Roles/users, files, alarms and historical access |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Schema` | Bounded types and XSD/BSD/JSON, PubSub and OpenAPI artifacts |
 
-Robotics and CranesHoists libraries remain preview-only, including Debug
-variants. The other MCP libraries, including Vision, MachineTool and GMS,
+Robotics, CranesHoists, Positioning, WotCon and XRegistry libraries remain
+preview-only, including Debug variants. The other MCP libraries, including Vision, MachineTool and GMS,
 follow the root release channel and are stable when the root release is stable.
 WMTP has no separate package/profile. A development root version can still be
 prerelease. Conformance depends on actual endpoints/providers; GMS's documented
