@@ -134,11 +134,29 @@ namespace Opc.Ua
                 return;
             }
 
-            // handle RSA encryption.
+            // resolve names and aliases to the canonical policy.
             SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
                 ?? throw new ServiceResultException(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unknown security policy: " + securityPolicyUri);
+
+            if (securityPolicy.Uri == SecurityPolicies.None)
+            {
+                m_token.Password = DecryptedPassword.ToByteString();
+                m_token.EncryptionAlgorithm = null;
+                return;
+            }
+
+            if (receiverCertificate == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A receiver certificate is required to encrypt the user identity token.");
+            }
+
+            securityPolicyUri = securityPolicy.Uri;
+
+            // handle RSA encryption.
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {

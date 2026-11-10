@@ -1523,6 +1523,16 @@ namespace Opc.Ua.Client
             Certificate? serverCertificate = null;
             ByteString certificateData = m_endpoint.Description.ServerCertificate;
 
+            if (certificateData.Length == 0 &&
+                requireEncryption &&
+                identity.TokenType is UserTokenType.UserName or UserTokenType.IssuedToken)
+            {
+                // an encrypted user token needs a validated server certificate.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The endpoint provides no server certificate to protect the user identity token.");
+            }
+
             if (certificateData.Length > 0)
             {
                 using CertificateCollection serverCertificateChain = Utils.ParseCertificateChainBlob(
@@ -6169,7 +6179,25 @@ namespace Opc.Ua.Client
 
             if (identity.TokenType != UserTokenType.IssuedToken)
             {
-                return effectivePolicyUri;
+                // The server supplies the token policy string. Resolve names and
+                // aliases to the canonical policy URI so that every later compare
+                // (unencrypted token guard, certificate validation, encryption)
+                // sees the same value. An unknown policy cannot protect a token.
+                SecurityPolicyInfo? info = securityPolicies.GetInfo(effectivePolicyUri);
+                if (info != null)
+                {
+                    return info.Uri;
+                }
+
+                if (identity.TokenType == UserTokenType.Anonymous)
+                {
+                    return effectivePolicyUri;
+                }
+
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The user token security policy '{0}' is not supported.",
+                    effectivePolicyUri);
             }
 
             string? identityProfileUri = identity.IssuedTokenType?.Namespace;
@@ -6203,7 +6231,7 @@ namespace Opc.Ua.Client
                     "An IssuedToken without token encryption requires a SignAndEncrypt channel.");
             }
 
-            return effectivePolicyUri;
+            return tokenSecurityPolicy.Uri;
         }
 
         /// <summary>
@@ -6268,14 +6296,11 @@ namespace Opc.Ua.Client
 
             EnsureUnencryptedUserNameTokenAllowed(identity, effectiveTokenPolicyUri);
 
-            requireEncryption = securityPolicyUri != SecurityPolicies.None;
-
-            if (!requireEncryption)
-            {
-                requireEncryption =
-                    identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
-                    !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
-            }
+            // the effective token policy is the normalized token policy URI, or
+            // the channel policy when the token policy is empty.
+            requireEncryption =
+                securityPolicyUri != SecurityPolicies.None ||
+                effectiveTokenPolicyUri != SecurityPolicies.None;
         }
 
         /// <summary>
