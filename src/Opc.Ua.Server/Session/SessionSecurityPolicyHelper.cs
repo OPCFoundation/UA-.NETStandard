@@ -79,6 +79,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Processes additional request parameters during CreateSession.
         /// </summary>
+        /// <remarks>
+        /// A session holds one EphemeralKey, so like ActivateSession only the first
+        /// ECDHPolicyUri of the request is processed and answered with an ECDHKey;
+        /// further ECDHPolicyUri entries are dropped from the response without
+        /// creating a key. Other parameters are echoed back unchanged.
+        /// </remarks>
         public static AdditionalParametersType? ProcessCreateSessionAdditionalParameters(
             ISession session,
             AdditionalParametersType parameters,
@@ -91,15 +97,27 @@ namespace Opc.Ua.Server
             }
 
             var responseParameters = new List<KeyValuePair>();
+            bool policyRequested = false;
             foreach (KeyValuePair parameter in parameters.Parameters)
             {
-                if (parameter.Key != AdditionalParameterNames.ECDHPolicyUri ||
-                    !parameter.Value.TryGetValue(out string policyUri))
+                if (parameter.Key != AdditionalParameterNames.ECDHPolicyUri)
                 {
                     responseParameters.Add(parameter);
                     continue;
                 }
 
+                if (policyRequested)
+                {
+                    continue;
+                }
+
+                if (!parameter.Value.TryGetValue(out string policyUri))
+                {
+                    responseParameters.Add(parameter);
+                    continue;
+                }
+
+                policyRequested = true;
                 logger.ReceivedRequestForNewEphmeralKeyUsingSecurityPolicyUri(policyUri);
 
                 SecurityPolicyInfo? securityPolicy = (securityPolicies ?? SecurityPolicies.Default)

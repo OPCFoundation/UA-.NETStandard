@@ -28,9 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -776,6 +778,109 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.SecureChannelId, Is.EqualTo("channel-2"));
         }
 
+        /// <summary>
+        /// OPC 10000-4 7.40.6: once the identity token has expired, requests of the
+        /// session fail with Bad_IdentityTokenInvalid until it is activated with a new
+        /// token. CloseSession is still served.
+        /// </summary>
+        [Test]
+        public async Task ValidateRequestAfterIdentityTokenExpiryRequiresReactivationAsync()
+        {
+            var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var tokens = new UserTokenPolicy[]
+            {
+                new() { PolicyId = "anon", TokenType = UserTokenType.Anonymous }
+            };
+            EndpointDescription endpoint = CreateEndpoint(tokens: tokens);
+            OperationContext context = CreateContext(endpoint, channelId: "channel-1");
+            using var session = new ServerSession(
+                context,
+                m_serverMock.Object,
+                m_serverCertificate,
+                new NodeId(Guid.NewGuid()),
+                ByteString.Empty,
+                Nonce.CreateNonce(SecurityPolicies.None),
+                "ExpirySession",
+                new ApplicationDescription { ApplicationUri = "urn:coverage:client" },
+                endpoint.EndpointUrl!,
+                null!,
+                [],
+                600_000,
+                10,
+                10,
+                timeProvider);
+
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? _) = await session.ValidateBeforeActivateAsync(
+                context,
+                new SignatureData(),
+                default,
+                new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            var expiring = new ExpiringIdentity(timeProvider.GetUtcNow().UtcDateTime.AddSeconds(10));
+            session.Activate(
+                context,
+                handler!,
+                expiring,
+                expiring,
+                new ArrayOf<string>(s_singlePreferredLocale),
+                Nonce.CreateNonce(SecurityPolicies.None));
+
+            var channelContext = new SecureChannelContext("channel-1", endpoint, RequestEncoding.Binary);
+            Assert.That(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read),
+                Throws.Nothing);
+
+            timeProvider.Advance(TimeSpan.FromSeconds(11));
+
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            ex = Assert.Throws<ServiceResultException>(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Publish));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.CloseSession),
+                Throws.Nothing);
+
+            // activation with a new token restores access.
+            var renewed = new ExpiringIdentity(timeProvider.GetUtcNow().UtcDateTime.AddSeconds(10));
+            session.Activate(
+                context,
+                handler!,
+                renewed,
+                renewed,
+                new ArrayOf<string>(s_singlePreferredLocale),
+                Nonce.CreateNonce(SecurityPolicies.None));
+            Assert.That(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read),
+                Throws.Nothing);
+
+            // an identity without an expiration never expires.
+            session.Activate(
+                context,
+                handler!,
+                new UserIdentity(),
+                new UserIdentity(),
+                new ArrayOf<string>(s_singlePreferredLocale),
+                Nonce.CreateNonce(SecurityPolicies.None));
+            // (within the session timeout, far past the earlier token expirations)
+            timeProvider.Advance(TimeSpan.FromMinutes(5));
+            Assert.That(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read),
+                Throws.Nothing);
+        }
+
+        private sealed class ExpiringIdentity : UserIdentity, Opc.Ua.Identity.IIdentityExpiration
+        {
+            public ExpiringIdentity(DateTime expiresAt)
+            {
+                ExpiresAt = expiresAt;
+            }
+
+            public DateTime? ExpiresAt { get; }
+        }
+
         [Test]
         public void ProcessCreateSessionAdditionalParametersReturnsNullForNullInput()
         {
@@ -883,6 +988,90 @@ namespace Opc.Ua.Server.Tests
             Assert.That(actualKey, Is.SameAs(key));
             session.Verify(s => s.SetUserTokenSecurityPolicy(policyUri), Times.Once);
             session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
+        }
+
+        /// <summary>
+        /// A session holds one EphemeralKey: only the first ECDHPolicyUri is answered
+        /// and only one key is created, however many entries the request carries.
+        /// Other parameters are still echoed.
+        /// </summary>
+        [Test]
+        public void ProcessCreateSessionAdditionalParametersCreatesOneKeyForTheFirstEcdhPolicy()
+        {
+            var key = new EphemeralKeyType();
+            var session = new Mock<ISession>();
+            session.Setup(s => s.GetNewEphemeralKey()).Returns(key);
+            var parameters = new List<KeyValuePair>
+            {
+                new() { Key = QualifiedName.From("Existing"), Value = Variant.From("value") }
+            };
+            for (int i = 0; i < 1000; i++)
+            {
+                parameters.Add(new KeyValuePair
+                {
+                    Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                    Value = Variant.From(i % 2 == 0
+                        ? SecurityPolicies.ECC_nistP256
+                        : SecurityPolicies.ECC_nistP384)
+                });
+            }
+
+            AdditionalParametersType? result =
+                SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
+                    session.Object,
+                    new AdditionalParametersType { Parameters = parameters },
+                    NullLogger<SessionCoverageTests>.Instance);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.Parameters, Has.Count.EqualTo(2));
+            Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From("Existing")));
+            Assert.That(result.Parameters[1].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
+            Assert.That(
+                result.Parameters[1].Value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey),
+                Is.True);
+            Assert.That(actualKey, Is.SameAs(key));
+            session.Verify(s => s.SetUserTokenSecurityPolicy(SecurityPolicies.ECC_nistP256), Times.Once);
+            session.Verify(s => s.SetUserTokenSecurityPolicy(It.IsAny<string>()), Times.Once);
+            session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
+        }
+
+        /// <summary>
+        /// When the first ECDHPolicyUri is rejected, later entries are not tried.
+        /// </summary>
+        [Test]
+        public void ProcessCreateSessionAdditionalParametersIgnoresEcdhPoliciesAfterARejectedOne()
+        {
+            var session = new Mock<ISession>();
+            session.Setup(s => s.GetNewEphemeralKey()).Returns(new EphemeralKeyType());
+            var input = new AdditionalParametersType
+            {
+                Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = Variant.From("http://example.org/UA/SecurityPolicy#Unknown")
+                    },
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = Variant.From(SecurityPolicies.ECC_nistP256)
+                    }
+                ]
+            };
+
+            AdditionalParametersType? result =
+                SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
+                    session.Object,
+                    input,
+                    NullLogger<SessionCoverageTests>.Instance);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.Parameters, Has.Count.EqualTo(1));
+            Assert.That(result.Parameters[0].Value.TryGetValue(out StatusCode status), Is.True);
+            Assert.That(status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            session.Verify(s => s.SetUserTokenSecurityPolicy(It.IsAny<string>()), Times.Never);
+            session.Verify(s => s.GetNewEphemeralKey(), Times.Never);
         }
 
         [Test]
