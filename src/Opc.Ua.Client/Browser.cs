@@ -312,10 +312,10 @@ namespace Opc.Ua.Client
 
             var counter = new BrowsePageCounter();
 
-            // Pages are collected in a list rather than appended to the array,
-            // which would copy everything collected so far on every page.
-            var collected = new List<ReferenceDescription>(references.Count * 2);
-            AddReferences(collected, references);
+            // The pages are kept and joined once at the end; appending each
+            // page to the array would copy everything collected so far.
+            var pages = new List<ArrayOf<ReferenceDescription>> { references };
+            int collected = references.Count;
 
             try
             {
@@ -335,7 +335,7 @@ namespace Opc.Ua.Client
 
                     if (!ContinueUntilDone && m_MoreReferences != null)
                     {
-                        references = collected.ToArrayOf();
+                        references = Concat(pages, collected);
                         var args = new BrowserEventArgs(references);
                         m_MoreReferences(this, args);
 
@@ -367,7 +367,11 @@ namespace Opc.Ua.Client
                         continuationPoint,
                         false,
                         ct).ConfigureAwait(false);
-                    AddReferences(collected, additionalReferences);
+                    if (!additionalReferences.IsEmpty)
+                    {
+                        pages.Add(additionalReferences);
+                        collected += additionalReferences.Count;
+                    }
                     stop = counter.Record(
                         limits,
                         additionalReferences.Count,
@@ -392,18 +396,25 @@ namespace Opc.Ua.Client
                 throw;
             }
             // return the results.
-            return collected.ToArrayOf();
+            return Concat(pages, collected);
         }
 
-        private static void AddReferences(
-            List<ReferenceDescription> target,
-            ArrayOf<ReferenceDescription> references)
+        private static ArrayOf<ReferenceDescription> Concat(
+            List<ArrayOf<ReferenceDescription>> pages,
+            int count)
         {
-            ReadOnlySpan<ReferenceDescription> span = references.Span;
-            for (int ii = 0; ii < span.Length; ii++)
+            if (pages.Count == 1)
             {
-                target.Add(span[ii]);
+                return pages[0];
             }
+            var result = new ReferenceDescription[count];
+            int offset = 0;
+            foreach (ArrayOf<ReferenceDescription> page in pages)
+            {
+                page.Span.CopyTo(result.AsSpan(offset));
+                offset += page.Count;
+            }
+            return result.ToArrayOf();
         }
 
         private static void LogStoppedFollowing(ILogger logger, ServiceResult stop)
@@ -855,16 +866,16 @@ namespace Opc.Ua.Client
                 errorAnchors.Add(previousErrors[^1]);
             }
 
-            var nextContinuationPoints = new List<ByteString>();
-            var nextResults = new List<List<ReferenceDescription>>();
-            var nextErrors = new List<ReferenceWrapper<ServiceResult>>();
+            var nextContinuationPoints = new List<ByteString>(nodeIds.Count);
+            var nextResults = new List<List<ReferenceDescription>>(nodeIds.Count);
+            var nextErrors = new List<ReferenceWrapper<ServiceResult>>(nodeIds.Count);
 
             // Pages followed per point, checked against the paging limits. An
             // empty page with a continuation point is a legal "not done yet"
             // answer (Part 4 §5.9.2.1) and is followed, but only for a bounded
             // number of rounds, and the references, pages and time spent on
             // one node are bounded as well.
-            var nextCounters = new List<BrowsePageCounter>();
+            var nextCounters = new List<BrowsePageCounter>(nodeIds.Count);
             List<ByteString>? abandoned = null;
 
             for (int ii = 0; ii < nodeIds.Count; ii++)
@@ -916,10 +927,12 @@ namespace Opc.Ua.Client
                 previousErrors = nextErrors;
                 List<BrowsePageCounter> previousCounters = nextCounters;
 
-                nextResults = [];
-                nextErrors = [];
-                nextContinuationPoints = [];
-                nextCounters = [];
+                // At most the points just followed are followed again.
+                int capacity = revisedContinuationPoints.Count;
+                nextResults = new List<List<ReferenceDescription>>(capacity);
+                nextErrors = new List<ReferenceWrapper<ServiceResult>>(capacity);
+                nextContinuationPoints = new List<ByteString>(capacity);
+                nextCounters = new List<BrowsePageCounter>(capacity);
                 abandoned = null;
 
                 for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
