@@ -3177,32 +3177,45 @@ namespace Opc.Ua.Client
             HashSet<ExpandedNodeId> visited,
             CancellationToken ct)
         {
-            ct.ThrowIfCancellationRequested();
+            // Two levels of subtypes per pass, iteratively: the depth of the
+            // type tree is chosen by the server.
             ArrayOf<NodeId> referenceTypeIds = [ReferenceTypeIds.HasSubtype];
-            ArrayOf<INode> nodes = await NodeCache
-                .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
-                .ConfigureAwait(false);
-            foreach (INode node in nodes)
+            for (int depth = 0; ; depth += 2)
             {
-                visited.Add(node.NodeId);
-            }
-            var subTypes = new List<ExpandedNodeId>();
-            foreach (INode inode in nodes)
-            {
-                if (inode is Node node)
+                ct.ThrowIfCancellationRequested();
+                if (depth > Client.NodeCache.MaxTypeHierarchyDepth)
                 {
-                    foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadQueryTooComplex,
+                        "The type tree is deeper than {0} levels.",
+                        Client.NodeCache.MaxTypeHierarchyDepth);
+                }
+                ArrayOf<INode> nodes = await NodeCache
+                    .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
+                    .ConfigureAwait(false);
+                foreach (INode node in nodes)
+                {
+                    visited.Add(node.NodeId);
+                }
+                var subTypes = new List<ExpandedNodeId>();
+                foreach (INode inode in nodes)
+                {
+                    if (inode is Node node)
                     {
-                        if (visited.Add(reference.TargetId))
+                        foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                         {
-                            subTypes.Add(reference.TargetId);
+                            if (visited.Add(reference.TargetId))
+                            {
+                                subTypes.Add(reference.TargetId);
+                            }
                         }
                     }
                 }
-            }
-            if (subTypes.Count > 0)
-            {
-                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
+                if (subTypes.Count == 0)
+                {
+                    return;
+                }
+                typeIds = subTypes.ToArrayOf();
             }
         }
 

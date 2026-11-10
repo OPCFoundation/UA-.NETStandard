@@ -399,31 +399,49 @@ namespace Opc.Ua.Client
             return LoadTypeHierarchyCoreAsync(typeIds, [], ct);
         }
 
+        /// <summary>
+        /// The deepest type hierarchy that is walked below a type. Deeper
+        /// hierarchies fail with <see cref="StatusCodes.BadQueryTooComplex"/>
+        /// when they are loaded, and are not searched further when a reference
+        /// type is looked up by name.
+        /// </summary>
+        public const int MaxTypeHierarchyDepth = 256;
+
         private async ValueTask LoadTypeHierarchyCoreAsync(
             ArrayOf<NodeId> typeIds,
             HashSet<NodeId> visited,
             CancellationToken ct)
         {
-            ArrayOf<NodeId> pending = typeIds.Filter(id => !id.IsNull && visited.Add(id));
-            if (pending.Count == 0)
+            // One level of subtypes per pass, iteratively: the depth of the
+            // hierarchy is chosen by the server.
+            ArrayOf<NodeId> pending = typeIds;
+            for (int depth = 0; ; depth++)
             {
-                return;
-            }
+                pending = pending.Filter(id => !id.IsNull && visited.Add(id));
+                if (pending.Count == 0)
+                {
+                    return;
+                }
+                if (depth > MaxTypeHierarchyDepth)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadQueryTooComplex,
+                        "The type hierarchy is deeper than {0} levels.",
+                        MaxTypeHierarchyDepth);
+                }
 
-            ArrayOf<INode> nodes = await GetReferencesAsync(
-                pending,
-                [ReferenceTypeIds.HasSubtype],
-                false,
-                false,
-                ct)
-            .ConfigureAwait(false);
-            if (nodes.Count > 0)
-            {
-                await LoadTypeHierarchyCoreAsync(
-                        nodes.ConvertAll(n => ToNodeId(n.NodeId)),
-                        visited,
-                        ct)
-                    .ConfigureAwait(false);
+                ArrayOf<INode> nodes = await GetReferencesAsync(
+                    pending,
+                    [ReferenceTypeIds.HasSubtype],
+                    false,
+                    false,
+                    ct)
+                .ConfigureAwait(false);
+                if (nodes.Count == 0)
+                {
+                    return;
+                }
+                pending = nodes.ConvertAll(n => ToNodeId(n.NodeId));
             }
         }
 
@@ -1105,58 +1123,62 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Recursively searches the reference type hierarchy starting from
-        /// <paramref name="startNodeId"/> for a node whose BrowseName matches
-        /// <paramref name="browseName"/>.
+        /// Searches the reference type hierarchy starting from
+        /// <paramref name="startNodeId"/> depth first, in the order the
+        /// subtypes are returned, for a node whose BrowseName matches
+        /// <paramref name="browseName"/>. The walk keeps its own stack, and
+        /// does not descend below <see cref="MaxTypeHierarchyDepth"/>.
         /// </summary>
         private async ValueTask<NodeId> FindReferenceTypeInHierarchyAsync(
             NodeId startNodeId,
             QualifiedName browseName,
-            CancellationToken ct,
-            HashSet<NodeId>? visited = null)
+            CancellationToken ct)
         {
             if (startNodeId.IsNull)
             {
                 return NodeId.Null;
             }
-            visited ??= [];
-            if (!visited.Add(startNodeId))
+            var visited = new HashSet<NodeId>();
+            var stack = new Stack<(NodeId NodeId, int Depth)>();
+            stack.Push((startNodeId, 0));
+            while (stack.Count > 0)
             {
-                return NodeId.Null;
-            }
-
-            INode node;
-            try
-            {
-                node = await GetNodeAsync(startNodeId, ct).ConfigureAwait(false);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                return NodeId.Null;
-            }
-            if (node.BrowseName == browseName)
-            {
-                return startNodeId;
-            }
-            ArrayOf<INode> subtypes = await GetReferencesAsync(
-                startNodeId, ReferenceTypeIds.HasSubtype, false, false, ct)
-                .ConfigureAwait(false);
-            foreach (INode subtype in subtypes.ToList())
-            {
-                NodeId subtypeId = ToNodeId(subtype.NodeId);
-                if (subtypeId.IsNull)
+                (NodeId nodeId, int depth) = stack.Pop();
+                if (!visited.Add(nodeId))
                 {
                     continue;
                 }
-                NodeId found = await FindReferenceTypeInHierarchyAsync(
-                    subtypeId,
-                    browseName,
-                    ct,
-                    visited)
-                    .ConfigureAwait(false);
-                if (!found.IsNull)
+
+                INode node;
+                try
                 {
-                    return found;
+                    node = await GetNodeAsync(nodeId, ct).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    // the subtree of a node that cannot be read is not searched.
+                    continue;
+                }
+                if (node.BrowseName == browseName)
+                {
+                    return nodeId;
+                }
+                if (depth >= MaxTypeHierarchyDepth)
+                {
+                    continue;
+                }
+                ArrayOf<INode> subtypes = await GetReferencesAsync(
+                    nodeId, ReferenceTypeIds.HasSubtype, false, false, ct)
+                    .ConfigureAwait(false);
+
+                // pushed in reverse, so the first subtype is searched first.
+                for (int ii = subtypes.Count - 1; ii >= 0; ii--)
+                {
+                    NodeId subtypeId = ToNodeId(subtypes[ii].NodeId);
+                    if (!subtypeId.IsNull && !visited.Contains(subtypeId))
+                    {
+                        stack.Push((subtypeId, depth + 1));
+                    }
                 }
             }
             return NodeId.Null;
