@@ -1501,7 +1501,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = 0,
-                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1),
+                        Filter = CreateAggregateFilter()
                     };
                     if (m_itemCallback)
                     {
@@ -1575,7 +1576,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = TimeSpan.Zero,
-                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1),
+                        Filter = CreateAggregateFilter()
                     },
                     out _))
                 {
@@ -1584,6 +1586,34 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
             await setup.WaitForReadyAsync(subscription, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The AggregateFilter of the monitored items (--aggregate), or null for plain data changes.
+        /// </summary>
+        private static AggregateFilter? CreateAggregateFilter()
+        {
+            string aggregate = Program.Arg("aggregate", string.Empty);
+            if (aggregate.Length == 0)
+            {
+                return null;
+            }
+            return new AggregateFilter
+            {
+                AggregateType = aggregate switch
+                {
+                    "Average" => ObjectIds.AggregateFunction_Average,
+                    "Interpolative" => ObjectIds.AggregateFunction_Interpolative,
+                    "Minimum" => ObjectIds.AggregateFunction_Minimum,
+                    "Maximum" => ObjectIds.AggregateFunction_Maximum,
+                    "TimeAverage" => ObjectIds.AggregateFunction_TimeAverage,
+                    "Count" => ObjectIds.AggregateFunction_Count,
+                    _ => throw new ArgumentException("Unknown aggregate: " + aggregate)
+                },
+                StartTime = DateTime.UtcNow,
+                ProcessingInterval = Program.ArgInt("aggregate-interval", 1000),
+                AggregateConfiguration = new AggregateConfiguration { UseServerCapabilitiesDefaults = true }
+            };
         }
 
         /// <summary>
