@@ -2971,6 +2971,8 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var nodesToNotify = new List<NodeState>();
+            List<PendingWriteAudit>? auditsToReport = null;
+            List<PendingSemanticChange>? semanticChanges = null;
 
             lock (Lock)
             {
@@ -3108,13 +3110,16 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         valueToWrite);
 
-                    // report the write value audit event
-                    Server.ReportAuditWriteUpdateEvent(
-                        systemContext,
-                        nodeToWrite,
-                        oldValue.WrappedValue,
-                        errors[ii]?.StatusCode ?? StatusCodes.Good,
-                        m_logger);
+                    // the write value audit event is reported after the lock is released;
+                    // its action time is the time of the write, not of the report.
+                    if (Server?.Auditing == true)
+                    {
+                        (auditsToReport ??= []).Add(new PendingWriteAudit(
+                            nodeToWrite,
+                            oldValue.WrappedValue,
+                            errors[ii]?.StatusCode ?? StatusCodes.Good,
+                            DateTime.UtcNow));
+                    }
 
                     if (!ServiceResult.IsGood(errors[ii]))
                     {
@@ -3125,11 +3130,19 @@ namespace Opc.Ua.Server
                     {
                         // compare the stored value after the write: the written DataValue
                         // (possibly an IndexRange slice) is not comparable with the old value.
-                        CheckIfSemanticsHaveChanged(
+                        // The monitored items of the owner are marked under the lock, so no
+                        // later value of the owner is published without the SemanticsChanged
+                        // bit; only the SemanticChangeEvent is reported after the lock is released.
+                        NodeState? changedNode = MarkSemanticChange(
                             systemContext,
                             propertyState,
                             propertyState.Value,
-                            previousPropertyValue);
+                            previousPropertyValue,
+                            force: false);
+                        if (changedNode != null)
+                        {
+                            (semanticChanges ??= []).Add(new PendingSemanticChange(changedNode, propertyState));
+                        }
                     }
 
                     //not needed for sampling groups
@@ -3137,6 +3150,32 @@ namespace Opc.Ua.Server
                     {
                         nodesToNotify.Add(handle.Node);
                     }
+                }
+            }
+
+            // Events and notifications are reported after releasing the node-manager lock:
+            // the event consumers of a monitored node may need the lock (permission checks
+            // through GetNodeMetadata) while the reporting thread waits for room in their
+            // bounded channel, which would deadlock with the lock held.
+            if (auditsToReport != null)
+            {
+                foreach (PendingWriteAudit audit in auditsToReport)
+                {
+                    Server.ReportAuditWriteUpdateEvent(
+                        systemContext,
+                        audit.NodeToWrite,
+                        audit.OldValue,
+                        audit.StatusCode,
+                        audit.ActionTimeStamp,
+                        m_logger);
+                }
+            }
+
+            if (semanticChanges != null)
+            {
+                foreach (PendingSemanticChange change in semanticChanges)
+                {
+                    RaiseSemanticChangeEvent(systemContext, change.Node, change.Property);
                 }
             }
 
@@ -3154,6 +3193,41 @@ namespace Opc.Ua.Server
 
             // validates the nodes and writes the value to the underlying system.
             Write(systemContext, nodesToWrite, errors, nodesToValidate, operationCache);
+        }
+
+        /// <summary>
+        /// A write audit event that is reported once the node-manager lock is released.
+        /// </summary>
+        private readonly struct PendingWriteAudit
+        {
+            public PendingWriteAudit(WriteValue nodeToWrite, Variant oldValue, StatusCode statusCode, DateTime actionTimeStamp)
+            {
+                NodeToWrite = nodeToWrite;
+                OldValue = oldValue;
+                StatusCode = statusCode;
+                ActionTimeStamp = actionTimeStamp;
+            }
+
+            public WriteValue NodeToWrite { get; }
+            public Variant OldValue { get; }
+            public StatusCode StatusCode { get; }
+            public DateTime ActionTimeStamp { get; }
+        }
+
+        /// <summary>
+        /// A semantic change whose monitored items were marked under the node-manager lock
+        /// and whose SemanticChangeEvent is raised once the lock is released.
+        /// </summary>
+        private readonly struct PendingSemanticChange
+        {
+            public PendingSemanticChange(NodeState node, PropertyState property)
+            {
+                Node = node;
+                Property = property;
+            }
+
+            public NodeState Node { get; }
+            public PropertyState Property { get; }
         }
 
         /// <summary>
@@ -3233,6 +3307,34 @@ namespace Opc.Ua.Server
             Variant previousPropertyValue,
             bool force = false)
         {
+            NodeState? changedNode = MarkSemanticChange(
+                systemContext,
+                property,
+                newPropertyValue,
+                previousPropertyValue,
+                force);
+
+            if (changedNode != null)
+            {
+                RaiseSemanticChangeEvent(systemContext, changedNode, property);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Queues the semantic resample (SemanticsChanged bit) on the monitored items of the
+        /// owner of a changed Property and returns the node to raise the SemanticChangeEvent
+        /// for, or <c>null</c> if the change has no semantic meaning.
+        /// </summary>
+        private NodeState? MarkSemanticChange(
+            ISystemContext systemContext,
+            PropertyState property,
+            Variant newPropertyValue,
+            Variant previousPropertyValue,
+            bool force)
+        {
             // check if the changed property is one that can trigger semantic changes
             string? propertyName = property.BrowseName.Name;
             bool hasSemanticChangeFlag = force || AsyncCustomNodeManager.HasSemanticChangeFlag(property);
@@ -3250,13 +3352,13 @@ namespace Opc.Ua.Server
                     and not BrowseNames.YAxisDefinition
                     and not BrowseNames.ZAxisDefinition)
             {
-                return false;
+                return null;
             }
 
             // ceck if property value changed
             if (!force && Utils.IsEqual(newPropertyValue, previousPropertyValue))
             {
-                return false;
+                return null;
             }
 
             // the SemanticChangeEvent is raised once per change, whether or not the
@@ -3266,7 +3368,7 @@ namespace Opc.Ua.Server
                 !hasSemanticChangeFlag &&
                 !AsyncCustomNodeManager.IsSemanticChangeProperty(changedNode, propertyName))
             {
-                return false;
+                return null;
             }
 
             foreach (KeyValuePair<uint, IMonitoredItem> kvp in MonitoredItems)
@@ -3298,13 +3400,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (changedNode != null)
-            {
-                RaiseSemanticChangeEvent(systemContext, changedNode, property);
-                return true;
-            }
-
-            return false;
+            return changedNode;
         }
 
         /// <summary>

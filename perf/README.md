@@ -49,7 +49,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `translate` (`--nodes` TranslateBrowsePaths of Server/ServerStatus/CurrentTime per request), `call` (`--nodes` calls of the reference server's `Methods_Void` per request), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, or `native-read`/`native-counters` (see below). |
+| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `translate` (`--nodes` TranslateBrowsePaths of Server/ServerStatus/CurrentTime per request), `call` (`--nodes` calls of the reference server's `Methods_Void` per request), `churn` (CreateMonitoredItems plus DeleteMonitoredItems of `--nodes` items on one subscription per session), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, or `native-read`/`native-counters` (see below). |
 | `--sessions` | 20 (`counters`: 1) | Concurrent sessions. |
 | `--nodes` | 100 | Values per Read/Write request, or monitored items per subscription. |
 | `--inflight` | 1 | Outstanding requests per session (closed loop). |
