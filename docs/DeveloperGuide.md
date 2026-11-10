@@ -239,28 +239,55 @@ you need to exercise:
 | `StripedCounterTests` | Balanced entries and cross-thread exits |
 | `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
 | `NodeManagerLifecycleCompatibilityTests` | Convenience-adapter retry and failure behavior |
+| `NodeManagerLifecycleBatchConflictTests` | Shared type-image conflicts and candidate historian binding cleanup |
+| `NodeManagerLifecycleChangeSetCleanupTests` | Failed and stale commits, candidate disposal and actual writer drain |
 | `NodeManagerLifecycleTests` | Hosted publication, concurrent candidate claims and startup behavior |
 
-The first five fixtures run without a server. Use them for isolated component
-behavior; use `NodeManagerLifecycleTests` when the test needs real routing,
-publication or server startup. To run the server-free selection:
+The first seven fixtures run without starting a server. The conflict and cleanup
+fixtures use the real lifecycle and master routing publisher over constructed
+server internals. Use `NodeManagerLifecycleTests` when the behavior needs hosted
+requests, runtime consumers or server startup. To run the component selection:
 
 ```powershell
-dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
-dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 -p:CustomTestTarget=net10.0 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests|FullyQualifiedName~NodeManagerLifecycleBatchConflictTests|FullyQualifiedName~NodeManagerLifecycleChangeSetCleanupTests"
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 -p:CustomTestTarget=net48 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests|FullyQualifiedName~NodeManagerLifecycleBatchConflictTests|FullyQualifiedName~NodeManagerLifecycleChangeSetCleanupTests"
 ```
 
 Use fully qualified fixture or method names to select a narrower regression.
 The `Server` and `NodeManagerLifecycle` categories include both component and
 hosted lifecycle tests.
 
-`NodeManagerLifecycleChangeSetCleanupTests` constructs an unstarted server and
-captures its actual lifecycle writer through the internal constructor factory.
+`NodeManagerLifecycleTests` creates a unique fixture PKI below the process
+temporary directory and deletes it during fixture teardown. For `net48` on
+Windows, use a short temporary root so certificate filenames remain within
+the legacy path limit:
+
+```powershell
+$env:TEMP = 'D:\temp'
+$env:TMP = $env:TEMP
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 `
+    -p:CustomTestTarget=net48 `
+    --filter 'FullyQualifiedName~Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests'
+```
+
+Keep NUnit's default work directory when running the full solution; other
+fixtures load copied test assets relative to that directory. The lifecycle
+PKI root does not depend on it.
+
+`NodeManagerLifecycleChangeSetCleanupTests` binds the lifecycle's server
+dependencies at construction and captures its actual writer through the
+internal constructor factory. It does not set private fields or rebind a live host.
 The factory must pass the lifecycle's cleanup-completion policy to the writer.
 Keep the exact active-operation counts and inspect the writer's shutdown-drain
 signal before disposing the caller's prepared unit; caller disposal could
 otherwise conceal an admission leak. Do not inspect private writer fields or
 replace the running server's master manager.
+
+Queued-notification retention controls hold a source-validation callback through
+the ownership assertion. Once that callback is released, the consumer may finish
+and allow retirement before the test resumes. Observe the next queued callback
+and release it after the assertion; an earlier release signal does not establish
+that queued work remains pending.
 
 ### Testing UaLens
 
@@ -631,6 +658,19 @@ Long-running WoT/sample suites use exhaustive, non-overlapping filters instead
 of larger project-specific timeouts. For example, the modern WoT sample suite
 separates ordinary cases, full generation replacement, and native comparisons.
 The matrix records each shard and its filter; no test is dropped to fit a budget.
+
+NUnit projects use `tests/nunit.runsettings.xml` when `dotnet test` runs without
+an explicit settings file. It sets `AssemblySelectLimit` to `2147483647` for
+direct and stress runs. The explicit coverage settings contain the same limit,
+and the CI executor also
+supplies it on the command line. TUnit and NativeAOT projects are unaffected.
+NUnit3TestAdapter otherwise replaces a non-category selection of more than
+2,000 cases with an empty engine filter.
+The engine then runs cases outside the shard, while VSTest can omit their
+results because discovery did not select them. A passing TRX alone therefore
+does not prove that the engine respected the shard. For a direct large filtered
+run with another settings file, include this limit in that file or append
+`-- NUnit.AssemblySelectLimit=2147483647` to `dotnet test`.
 
 The executor measures build and test time separately. Builds do not consume the
 test-execution budget, but remain bounded by the overall job timeout. The matrix

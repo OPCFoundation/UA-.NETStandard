@@ -451,7 +451,10 @@ namespace Opc.Ua.Server
             ServiceResult result;
             using (BeginNodeManagerOperation())
             {
-                await NodeManagerGenerationRegistry.GetOrCreate(this.ToAsyncNodeManager())
+                NodeManagerGeneration generation = monitoredItem is IMonitoredItemGenerationBinding binding
+                    ? MasterNodeManager.GetItemSourceGeneration(Server, this.ToAsyncNodeManager(), binding)
+                    : MasterNodeManager.GetSourceGeneration(Server, this.ToAsyncNodeManager());
+                await generation
                     .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
                 result = ReleaseMonitoredItemSource(monitoredItem, sourceRevision);
             }
@@ -468,7 +471,8 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this.ToAsyncNodeManager());
+            NodeManagerGeneration generation =
+                MasterNodeManager.GetItemSourceGeneration(Server, this.ToAsyncNodeManager(), binding);
             MonitoredItemSourceSnapshot source;
             MonitoredNode2? monitoredNode;
             NodeState? eventSource;
@@ -608,7 +612,10 @@ namespace Opc.Ua.Server
             ServiceResult result;
             using (BeginNodeManagerOperation())
             {
-                await NodeManagerGenerationRegistry.GetOrCreate(this.ToAsyncNodeManager())
+                NodeManagerGeneration generation = monitoredItem is IMonitoredItemGenerationBinding binding
+                    ? MasterNodeManager.GetItemSourceGeneration(Server, this.ToAsyncNodeManager(), binding)
+                    : MasterNodeManager.GetSourceGeneration(Server, this.ToAsyncNodeManager());
+                await generation
                     .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
                 result = AdoptMonitoredItemSource(monitoredItem, adoption);
             }
@@ -691,6 +698,7 @@ namespace Opc.Ua.Server
             NodeState? eventSource = null;
             NodeHandle? eventHandle = null;
             MonitoredNode2? monitoredNode = null;
+            NodeManagerGeneration? boundGeneration = null;
             long boundRevision = 0;
             ServiceResult result;
             lock (Lock)
@@ -755,6 +763,8 @@ namespace Opc.Ua.Server
                     RemoveNodeFromComponentCache,
                     sourceRevision,
                     adoption);
+                boundGeneration = adoption.Generation;
+                adoption.Generation = null;
                 if (ServiceResult.IsGood(result) && changed && !isEvent)
                 {
                     if (sampledMonitoredItem is MonitoredItem concreteItem &&
@@ -786,6 +796,10 @@ namespace Opc.Ua.Server
             bool providerInvoked = false;
             try
             {
+                if (boundGeneration is null)
+                {
+                    throw new InvalidOperationException("The adopted source has no generation.");
+                }
                 lock (Lock)
                 {
                     if (!OwnsNativeSource())
@@ -852,8 +866,7 @@ namespace Opc.Ua.Server
                         compensationException is not OutOfMemoryException)
                     {
                         compensationFailures.Add(compensationException);
-                        NodeManagerGeneration generation =
-                            NodeManagerGenerationRegistry.GetOrCreate(this.ToAsyncNodeManager());
+                        NodeManagerGeneration generation = boundGeneration!;
                         generation.RetainSourceRelease(monitoredItem, boundRevision, _ =>
                         {
                             lock (Lock)

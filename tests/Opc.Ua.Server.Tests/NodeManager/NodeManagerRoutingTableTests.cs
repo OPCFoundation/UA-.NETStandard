@@ -32,6 +32,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+#if NET8_0_OR_GREATER
+using System.Runtime.CompilerServices;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -318,6 +321,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Ordinary request-owned dispatch allocates no cohort or per-service ownership token.
         /// </summary>
         [Test]
+#if NET8_0_OR_GREATER
+        // Exclude tiered loop instrumentation from the allocation measurement.
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void RequestOwnedRoutingCaptureAddsNoManagedAllocations()
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
@@ -327,14 +334,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 context.CaptureRouting(table).Dispose();
             }
-            long before = GC.GetAllocatedBytesForCurrentThread();
             long started = Stopwatch.GetTimestamp();
+            long before = GC.GetAllocatedBytesForCurrentThread();
             for (int ii = 0; ii < 10000; ii++)
             {
                 context.CaptureRouting(table).Dispose();
             }
-            long elapsed = Stopwatch.GetTimestamp() - started;
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            long elapsed = Stopwatch.GetTimestamp() - started;
             Assert.That(allocated, Is.Zero);
             Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
             TestContext.Out.WriteLine(

@@ -79,9 +79,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(NodeManagerLifecycleNamespaceRefreshTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-namespace-refresh-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {

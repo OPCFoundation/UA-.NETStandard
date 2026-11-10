@@ -797,7 +797,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             m_nodes.SystemContext, NodeId.Null, replacement, ct).ConfigureAwait(false);
                         return (ServiceResult.Good, id);
                     });
-                return DeterministicServerMock.CreateMasterNodeManager(m_server, [manager.Object]);
+                IMasterNodeManager servingNodeManager = m_server.Object.NodeManager;
+                MasterNodeManager dispatcher = DeterministicServerMock.CreateMasterNodeManager(
+                    m_server, [manager.Object]);
+                m_server.SetupGet(value => value.NodeManager).Returns(servingNodeManager);
+                return dispatcher;
             }
 
             /// <summary>Proves repeated event delivery used the cached verdict for each unchanged recipient.</summary>

@@ -63,9 +63,8 @@ namespace Opc.Ua.History.Tests
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(HistoryClientEventIntegrationTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-history-events-" + Guid.NewGuid().ToString("N"));
             m_serverFixture = new ServerFixture<ReferenceServer>(
                 telemetry => new ReferenceServer(telemetry))
             {

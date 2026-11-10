@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -833,6 +834,115 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Malformed provider cleanup preserves the construction failure when disposal also fails.
+        /// </summary>
+        [Test]
+        public async Task SlotChangeSetMalformedProviderCleanupFailurePreservesBothFailuresAsync()
+        {
+            var cleanupFailure = new InvalidOperationException("Provider cleanup failed.");
+            var provider = new Mock<INodeManagerLifecycle>();
+            var prepared = new Mock<IPreparedNodeManagerBatch>();
+            prepared.SetupGet(value => value.Registrations).Returns([]);
+            prepared.Setup(value => value.DisposeAsync())
+                .Returns(new ValueTask(Task.FromException(cleanupFailure)));
+            provider.Setup(value => value.PrepareAsync(
+                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(prepared.Object);
+
+            Exception? observed = null;
+            try
+            {
+                _ = await provider.Object.PrepareAsync(
+                    [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
+                    .ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                observed = failure;
+            }
+
+            AssertAdapterCleanupFailures(
+                observed,
+                "The provider returned a different number of candidate registrations.",
+                cleanupFailure);
+            prepared.Verify(value => value.DisposeAsync(), Times.Once);
+            prepared.Verify(value => value.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// The read-image adapter preserves validation and cleanup failures with one disposal attempt.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SlotChangeSetReadImageAdapterPreservesFailuresAndDisposesOnceAsync(bool cleanupFails)
+        {
+            const string ExpectedValidationFailure =
+                "A prepared read image owner has no registered NodeManager generation.";
+            var owner = new Mock<IAsyncNodeManager>().Object;
+            var image = new Mock<INodeManagerReadImage>();
+            image.SetupGet(value => value.Owner).Returns(owner);
+            var prepared = new Mock<IPreparedNodeManagerBatch>();
+            prepared.SetupGet(value => value.Registrations).Returns([]);
+            InvalidOperationException? cleanupFailure = cleanupFails
+                ? new InvalidOperationException("Read-image provider cleanup failed.")
+                : null;
+            prepared.Setup(value => value.DisposeAsync()).Returns(cleanupFailure is null
+                ? default
+                : new ValueTask(Task.FromException(cleanupFailure)));
+            var publication = new Mock<INodeManagerPublication>();
+            publication.Setup(value => value.PrepareReadImagesAsync(
+                It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(prepared.Object);
+
+            Exception? observed = null;
+            try
+            {
+                _ = await new LifecyclePublicationWriter(publication.Object)
+                    .PrepareReadImagesAsync([image.Object])
+                    .ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                observed = failure;
+            }
+
+            if (cleanupFailure is null)
+            {
+                Assert.That(observed, Is.TypeOf<InvalidOperationException>());
+                Assert.That(observed!.Message, Is.EqualTo(ExpectedValidationFailure));
+            }
+            else
+            {
+                AssertAdapterCleanupFailures(observed, ExpectedValidationFailure, cleanupFailure);
+            }
+            prepared.Verify(value => value.DisposeAsync(), Times.Once);
+            prepared.Verify(value => value.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()), Times.Never);
+            publication.Verify(value => value.PrepareReadImagesAsync(
+                It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Asserts that adapter construction and its single cleanup attempt both remain observable.
+        /// </summary>
+        /// <param name="observed">The exception returned by the adapter.</param>
+        /// <param name="validationFailureMessage">The original adapter validation failure message.</param>
+        /// <param name="cleanupFailure">The cleanup failure that must be preserved.</param>
+        private static void AssertAdapterCleanupFailures(
+            Exception? observed,
+            string validationFailureMessage,
+            Exception cleanupFailure)
+        {
+            Assert.That(observed, Is.TypeOf<AggregateException>());
+            AggregateException aggregate = (AggregateException)observed!;
+            Assert.That(aggregate.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(aggregate.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
+            Assert.That(aggregate.InnerExceptions[0].Message, Is.EqualTo(validationFailureMessage));
+            Assert.That(aggregate.InnerExceptions[1], Is.SameAs(cleanupFailure));
+        }
+
+        /// <summary>
         /// An old provider cannot turn a slot reload into an unrelated addition without failing before decision.
         /// </summary>
         [Test]
@@ -1118,7 +1228,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 namespace Opc.Ua.Server.Tests.NodeManager
 {
     /// <summary>
-    /// Exercises change-set cleanup on a real, unstarted server facade without opening listeners.
+    /// Exercises the real lifecycle and writer over server internals without starting runtime workers.
     /// </summary>
     [TestFixture]
     [Category("NodeManagerLifecycle")]
@@ -1127,13 +1237,141 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private const string kNamespaceUri = "urn:test:change-set-cleanup";
 
         /// <summary>
+        /// Completed disposal tasks and their ordinary failures do not retain a private candidate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompletedPreparedDisposalTasksDoNotRetainPrivateCandidatesAsync(bool failCleanup)
+        {
+            (WeakReference candidate, Task disposal) = await CompletePrivateCandidateDisposalAsync(failCleanup)
+                .ConfigureAwait(false);
+            // Do not run collection inline in the producer's completion callback.
+            await Task.Yield();
+            try
+            {
+                for (int attempt = 0; attempt < 3 && candidate.IsAlive; attempt++)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(candidate.IsAlive, Is.False);
+                    Assert.That(disposal.Status, Is.EqualTo(
+                        failCleanup ? TaskStatus.Faulted : TaskStatus.RanToCompletion));
+                }
+            }
+            finally
+            {
+                GC.KeepAlive(disposal);
+            }
+        }
+
+        /// <summary>
+        /// Concurrent prepared-unit disposal joins the actual abort owner and its cleanup outcome.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedUnitDisposalJoinsAbortAndSharesCleanupOutcomeAsync(bool failCleanup)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using var harness = new ChangeSetCleanupHarness();
+            Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failure = new InvalidOperationException("Private candidate abort failed.");
+            candidate.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (failCleanup)
+                    {
+                        throw failure;
+                    }
+                });
+            IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateFactory(candidate))], timeout.Token).ConfigureAwait(false);
+            Task disposal = prepared.DisposeAsync().AsTask();
+            Task? joined = null;
+            Task? drained = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                joined = prepared.DisposeAsync().AsTask();
+                drained = await harness.Writer.BeginShutdownAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(disposal.IsCompleted, Is.False);
+                    Assert.That(joined.IsCompleted, Is.False);
+                    Assert.That(drained.IsCompleted, Is.False);
+                    Assert.That(harness.Writer.ActiveOperationCount, Is.EqualTo(1));
+                    candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+                }
+                release.TrySetResult(true);
+                await ObserveCleanupAsync(disposal).ConfigureAwait(false);
+                await ObserveCleanupAsync(joined).ConfigureAwait(false);
+                await drained.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
+                    Assert.That(prepared.IsCommitted, Is.False);
+                    if (failCleanup)
+                    {
+                        Assert.That(joined.Exception!.InnerException, Is.SameAs(disposal.Exception!.InnerException));
+                    }
+                    candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                    candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+                }
+                await prepared.DisposeAsync().ConfigureAwait(false);
+                candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    await ObserveCleanupAsync(disposal).ConfigureAwait(false);
+                    if (joined is not null)
+                    {
+                        await ObserveCleanupAsync(joined).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    if (drained is not null)
+                    {
+                        await drained.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        harness.Writer.EndShutdown(prepared: false);
+                        harness.Writer.BeginStartup(static () => { });
+                    }
+                }
+            }
+
+            async Task ObserveCleanupAsync(Task cleanup)
+            {
+                if (failCleanup)
+                {
+                    await Assert.ThatAsync(() => cleanup.WaitAsync(timeout.Token),
+                        Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+                }
+                else
+                {
+                    await cleanup.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Stale commit itself disposes the candidate and releases admission before caller disposal.
         /// </summary>
         [Test]
         public async Task SlotChangeSetStaleCommitDisposesCandidateAndDrainsOperationBeforeCallerDisposalAsync()
         {
             await using var harness = new ChangeSetCleanupHarness();
-            INodeManagerLifecycle lifecycle = harness.Server.NodeManagerLifecycle;
+            NodeManagerLifecycle lifecycle = harness.Lifecycle;
             LifecycleResult added = await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(CreateFactory(CreateManager(kNamespaceUri)))])
                 .ConfigureAwait(false);
@@ -1215,7 +1453,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task SlotChangeSetFailedDecisionDisposesCandidateAndDrainsOperationBeforeCallerDisposalAsync()
         {
             await using var harness = new ChangeSetCleanupHarness();
-            INodeManagerLifecycle lifecycle = harness.Server.NodeManagerLifecycle;
+            NodeManagerLifecycle lifecycle = harness.Lifecycle;
             LifecycleResult added = await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(CreateFactory(CreateManager(kNamespaceUri)))])
                 .ConfigureAwait(false);
@@ -1286,6 +1524,53 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(writer.ActiveOperationCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Finishes candidate cleanup outside the collection test's stack while retaining its disposal task.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(WeakReference Candidate, Task Disposal)> CompletePrivateCandidateDisposalAsync(
+            bool failCleanup)
+        {
+            await using var harness = new ChangeSetCleanupHarness();
+            Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
+            var reference = new WeakReference(candidate.Object);
+            var failure = new InvalidOperationException("Private candidate abort failed.");
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            candidate.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    await release.Task.ConfigureAwait(false);
+                    if (failCleanup)
+                    {
+                        throw failure;
+                    }
+                });
+            IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateFactory(candidate))]).ConfigureAwait(false);
+            Task disposal = prepared.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(disposal.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            if (failCleanup)
+            {
+                await Assert.ThatAsync(() => disposal,
+                    Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+            }
+            else
+            {
+                await disposal.ConfigureAwait(false);
+            }
+            await prepared.DisposeAsync().ConfigureAwait(false);
+            candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+            candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            return (reference, disposal);
+        }
+
         private static Mock<IAsyncNodeManager> CreateManager(string namespaceUri)
         {
             var manager = new Mock<IAsyncNodeManager>();
@@ -1320,10 +1605,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Creates the actual server lifecycle and master manager without starting the server or binding ports.
+        /// Creates the actual lifecycle, writer and master manager without listeners or background workers.
         /// </summary>
         private sealed class ChangeSetCleanupHarness : IAsyncDisposable
         {
+            /// <summary>
+            /// Creates the serving metadata and captures the lifecycle's actual writer.
+            /// </summary>
             public ChangeSetCleanupHarness()
             {
                 ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
@@ -1332,31 +1620,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ApplicationUri = "urn:test:change-set-cleanup:server",
                     ServerConfiguration = new ServerConfiguration()
                 };
-                LifecycleWriter? writer = null;
-                Server = new StandardServer(telemetry, null, null, canDispose =>
-                {
-                    writer = new LifecycleWriter(canDispose);
-                    return writer;
-                })
-                {
-                    LoadComplexTypes = false
-                };
-                Writer = writer ?? throw new InvalidOperationException("The lifecycle writer was not constructed.");
+                var status = new ServerStatusValue(new ServerStatusState(null),
+                    new ServerStatusDataType { State = ServerState.Running }, new Lock());
                 Data = new ServerInternalData(new ServerProperties(), configuration,
-                    new ServiceMessageContext(telemetry, EncodeableFactory.Create()));
+                    new ServiceMessageContext(telemetry, EncodeableFactory.Create()), null, null, status);
                 Data.NamespaceUris.GetIndexOrAppend(DeterministicServerMock.TestNamespaceUri);
                 Data.TypeTree.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
                 Data.TypeTree.AddSubtype(DataTypeIds.Structure, DataTypeIds.BaseDataType);
-                var status = new ServerStatusValue(new ServerStatusState(null),
-                    new ServerStatusDataType { State = ServerState.Running }, new Lock());
-                typeof(ServerInternalData).GetProperty("NonThreadSafeStatus",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Data, status);
-                typeof(ServerBase).GetProperty("Configuration",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                    .SetValue(Server, configuration);
-                typeof(StandardServer).GetField("m_serverInternal",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                    .SetValue(Server, Data);
                 var mainFactory = new Mock<IMainNodeManagerFactory>();
                 var configurationNodeManager = new Mock<IConfigurationNodeManager>();
                 configurationNodeManager.As<IDiagnosticsNodeManager>()
@@ -1370,11 +1640,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ServingManager = CreateManager(DeterministicServerMock.TestNamespaceUri);
                 Master = new MasterNodeManager(Data, configuration, null, [ServingManager.Object], null);
                 Data.SetNodeManager(Master);
+                var host = new Mock<INodeManagerLifecycleHost>(MockBehavior.Strict);
+                host.SetupGet(value => value.CurrentInstance).Returns(Data);
+                host.SetupGet(value => value.CurrentConfiguration).Returns(configuration);
+                host.Setup(value => value.PrepareComplexTypesAsync(
+                        It.IsAny<IServerInternal>(), It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                    .Returns(default(ValueTask<IDataTypeDefinitionResolver?>));
+                LifecycleWriter? writer = null;
+                Lifecycle = new NodeManagerLifecycle(host.Object, TimeProvider.System, canDispose =>
+                {
+                    writer = new LifecycleWriter(canDispose);
+                    return writer;
+                });
+                Writer = writer ?? throw new InvalidOperationException("The lifecycle writer was not constructed.");
                 Assert.That(Data.IsRunning, Is.True);
                 Assert.That(Master.AsyncNodeManagers, Does.Contain(ServingManager.Object));
             }
 
-            public StandardServer Server { get; }
+            /// <summary>
+            /// Gets the lifecycle owning this harness's publication and cleanup state.
+            /// </summary>
+            public NodeManagerLifecycle Lifecycle { get; }
 
             /// <summary>
             /// Gets the actual writer constructed for this server's lifecycle.
@@ -1387,13 +1673,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public async ValueTask DisposeAsync()
             {
-                // This facade was never started, so the harness owns no listeners or background server work.
-                ((NodeManagerLifecycle)Server.NodeManagerLifecycle).Dispose();
-                typeof(StandardServer).GetField("m_serverInternal",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                    .SetValue(Server, null);
+                Lifecycle.Dispose();
                 await Data.DisposeAsync().ConfigureAwait(false);
-                Server.Dispose();
             }
         }
     }

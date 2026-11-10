@@ -77,12 +77,14 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The new native owner.</param>
         /// <param name="managerHandle">The prepared source handle.</param>
         /// <param name="boundRevision">The revision of the committed binding.</param>
+        /// <param name="adoption">The adoption that temporarily owns the committed generation, if any.</param>
         /// <returns>Whether the prepared source was still current and committed.</returns>
         bool TryBindSource(
             long sourceRevision,
             IAsyncNodeManager nodeManager,
             object managerHandle,
-            out long boundRevision);
+            out long boundRevision,
+            MonitoredItemAdoption? adoption = null);
 
         /// <summary>
         /// Clears a failed registration without clearing a newer source binding.
@@ -137,8 +139,10 @@ namespace Opc.Ua.Server
     /// <param name="Generation">The source generation, when the item is bound.</param>
     /// <param name="Handle">The native source handle, when supported by the base managers.</param>
     /// <param name="Revision">The item's binding incarnation.</param>
+    /// <param name="ReleasedGeneration">The weak identity of the last released source, if available.</param>
     internal readonly record struct MonitoredItemSourceSnapshot(
         NodeManagerGenerationReference? Generation,
         NodeHandle? Handle,
-        long Revision);
+        long Revision,
+        NodeManagerGenerationReference? ReleasedGeneration);
 }

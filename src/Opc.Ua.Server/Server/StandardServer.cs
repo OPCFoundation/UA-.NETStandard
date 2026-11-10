@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
     /// so the shutdown does not block their thread.
     /// </remarks>
     public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
-        IRequestParkingPolicySource, IServerApplicationCertificateActivator
+        IRequestParkingPolicySource, IServerApplicationCertificateActivator, INodeManagerLifecycleHost
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -208,6 +208,24 @@ namespace Opc.Ua.Server
         internal ApplicationConfiguration CurrentConfiguration
             => Configuration
                 ?? throw new InvalidOperationException("The server has not been configured.");
+
+        /// <inheritdoc/>
+        ApplicationConfiguration INodeManagerLifecycleHost.CurrentConfiguration => CurrentConfiguration;
+
+        /// <inheritdoc/>
+        ValueTask<IDataTypeDefinitionResolver?> INodeManagerLifecycleHost.PrepareComplexTypesAsync(
+            IServerInternal server,
+            IAsyncNodeManager manager,
+            CancellationToken cancellationToken)
+        {
+            return RefreshComplexTypesAsync(server, manager, publishResolver: false, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        void INodeManagerLifecycleHost.PublishComplexTypeResolver(IDataTypeDefinitionResolver resolver)
+        {
+            ComplexTypeResolverHolder?.SetResolver(resolver);
+        }
 
         /// <summary>
         /// The <see cref="TimeProvider"/> used by the server for all

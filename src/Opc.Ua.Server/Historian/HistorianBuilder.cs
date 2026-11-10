@@ -503,6 +503,8 @@ namespace Opc.Ua.Server.Historian
         /// server makes during shutdown, awaits that same drain and observes its failure. The
         /// builder leaves the server's shutdown list only after the drain has finished, so server
         /// shutdown cannot dispose the historian registry while a drain is still running.
+        /// Concurrent callers await the same active drain and observe its original failure.
+        /// Later calls do not repeat cleanup when no new capture pipelines have been registered.
         /// </remarks>
         /// <exception cref="AggregateException"></exception>
         public ValueTask DisposeAsync()
@@ -544,61 +546,90 @@ namespace Opc.Ua.Server.Historian
         /// <exception cref="AggregateException"></exception>
         private async ValueTask DrainCapturePipelinesAsync()
         {
-            CaptureHandlerRegistration[] handlers;
-            EventCaptureHandlerRegistration[] eventHandlers;
+            CaptureHandlerRegistration[] handlers = [];
+            EventCaptureHandlerRegistration[] eventHandlers = [];
+            HistorianCaptureSink? sink = null;
+            TaskCompletionSource<bool> completion;
+            bool ownsDisposal = false;
             lock (m_captureSinkLock)
             {
-                handlers = [.. m_captureHandlers];
-                m_captureHandlers.Clear();
-                eventHandlers = [.. m_eventCaptureHandlers];
-                m_eventCaptureHandlers.Clear();
-            }
-            // Detach handlers first so no new samples enqueue while we drain.
-            foreach (CaptureHandlerRegistration reg in handlers)
-            {
-                reg.Variable.StateChanged -= reg.Handler;
-            }
-            foreach (EventCaptureHandlerRegistration reg in eventHandlers)
-            {
-                reg.Notifier.EventReported -= reg.Handler;
-            }
-            HistorianCaptureSink? sink;
-            lock (m_captureSinkLock)
-            {
-                sink = m_captureSink;
-                m_captureSink = null;
-            }
-            List<Exception>? errors = null;
-            foreach (EventCaptureHandlerRegistration reg in eventHandlers)
-            {
-                try
+                if (m_disposalFinished is { Task.IsCompleted: false } active)
                 {
-                    await reg.Capture.DisposeAsync().ConfigureAwait(false);
+                    completion = active;
                 }
-                catch (Exception exception)
+                else
                 {
-                    errors ??= [];
-                    errors.Add(exception);
+                    if (m_captureHandlers.Count == 0 &&
+                        m_eventCaptureHandlers.Count == 0 &&
+                        m_captureSink == null)
+                    {
+                        return;
+                    }
+                    completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_disposalFinished = completion;
+                    ownsDisposal = true;
+                    handlers = [.. m_captureHandlers];
+                    m_captureHandlers.Clear();
+                    eventHandlers = [.. m_eventCaptureHandlers];
+                    m_eventCaptureHandlers.Clear();
+                    sink = m_captureSink;
+                    m_captureSink = null;
                 }
             }
-            if (sink != null)
+            if (!ownsDisposal)
             {
-                try
+                await completion.Task.ConfigureAwait(false);
+                return;
+            }
+            try
+            {
+                // Detach handlers first so no new samples enqueue while we drain.
+                foreach (CaptureHandlerRegistration reg in handlers)
                 {
-                    await sink.DisposeAsync().ConfigureAwait(false);
+                    reg.Variable.StateChanged -= reg.Handler;
                 }
-                catch (Exception exception)
+                foreach (EventCaptureHandlerRegistration reg in eventHandlers)
                 {
-                    errors ??= [];
-                    errors.Add(exception);
+                    reg.Notifier.EventReported -= reg.Handler;
+                }
+                List<Exception>? errors = null;
+                foreach (EventCaptureHandlerRegistration reg in eventHandlers)
+                {
+                    try
+                    {
+                        await reg.Capture.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        errors ??= [];
+                        errors.Add(exception);
+                    }
+                }
+                if (sink != null)
+                {
+                    try
+                    {
+                        await sink.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        errors ??= [];
+                        errors.Add(exception);
+                    }
+                }
+                if (errors != null)
+                {
+                    throw new AggregateException(
+                        "One or more historian capture pipelines failed during shutdown.",
+                        errors);
                 }
             }
-            if (errors != null)
+            catch (Exception failure) when (failure is not OutOfMemoryException)
             {
-                throw new AggregateException(
-                    "One or more historian capture pipelines failed during shutdown.",
-                    errors);
+                completion.TrySetException(failure);
+                throw;
             }
+            completion.TrySetResult(true);
         }
 
         /// <summary>
@@ -637,6 +668,9 @@ namespace Opc.Ua.Server.Historian
         private readonly Lock m_captureSinkLock = new();
         private Task? m_disposal;
         private bool m_registeredWithLifecycle;
+
+        /// <summary>The active capture-disposal attempt shared by concurrent callers.</summary>
+        private TaskCompletionSource<bool>? m_disposalFinished;
 
         /// <summary>
         /// Ensures that <paramref name="variable"/> has an <c>Annotations</c>

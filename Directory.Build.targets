@@ -92,6 +92,15 @@
     <None Remove="@(None)" />
     <Content Remove="@(Content)" />
   </ItemGroup>
+  <Target Name="_SetNUnitRunSettings" BeforeTargets="VSTest"
+          Condition="'@(PackageReference->WithMetadataValue('Identity', 'NUnit3TestAdapter'))' != ''
+                  AND '$(RunSettingsFilePath)' == ''">
+    <!-- Item-based selection must run after evaluation. Explicit coverage
+         settings carry the same NUnit limit. TUnit projects do not use this file. -->
+    <PropertyGroup>
+      <RunSettingsFilePath>$(MSBuildThisFileDirectory)tests/nunit.runsettings.xml</RunSettingsFilePath>
+    </PropertyGroup>
+  </Target>
   <Target Name="_LogSkippedForLegacyTfm" BeforeTargets="Build" Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
     <Message Importance="high" Text="Skipping $(MSBuildProjectName) for CustomTestTarget=$(CustomTestTarget) (.NET 8+ only)." />
   </Target>

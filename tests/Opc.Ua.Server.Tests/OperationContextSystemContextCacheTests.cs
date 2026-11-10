@@ -153,14 +153,15 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Concurrent readers share the same copy for every template beyond the previous cache bound.
         /// </summary>
-        [Test]
-        public void ConcurrentLargeTemplateSetKeepsOneCopyPerTemplate()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ConcurrentLargeTemplateSetKeepsOneCopyPerTemplate(bool pinRouting)
         {
             const int templateCount = 24;
             ServerSystemContext[] templates = Enumerable.Range(0, templateCount)
                 .Select(index => CreateTemplate(systemHandle: index))
                 .ToArray();
-            using OperationContext operation = CreateOperation();
+            using OperationContext operation = CreateOperation(pinRouting);
             var copies = new ServerSystemContext?[templateCount];
             int mismatches = 0;
 
@@ -226,6 +227,77 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(retention.RetiredCopy.IsAlive, Is.False);
             });
             GC.KeepAlive(retention.Operation);
+        }
+
+        /// <summary>
+        /// Unpinned and borrowed operations do not retain retired templates beyond their first copy.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReplacedTemplateIsNotRetainedWithoutAnOwnedRoutingPin(bool borrowRouting)
+        {
+            var retention = CreateReplacementReferences(weak: false, pinRouting: false, borrowRouting);
+            try
+            {
+                CollectGarbage();
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(retention.RetiredTemplate.IsAlive, Is.False);
+                    Assert.That(retention.RetiredCopy.IsAlive, Is.False);
+                }
+            }
+            finally
+            {
+                retention.Operation.Dispose();
+                GC.KeepAlive(retention.Operation);
+            }
+        }
+
+        /// <summary>
+        /// Pinning after weak-cache lookups does not create a second copy for an existing template.
+        /// </summary>
+        [Test]
+        public void PinningAfterTemplateLookupsPreservesExistingCopies()
+        {
+            using OperationContext operation = CreateOperation();
+            ServerSystemContext firstTemplate = CreateTemplate(systemHandle: "first");
+            ServerSystemContext secondTemplate = CreateTemplate(systemHandle: "second");
+            ServerSystemContext first = operation.GetSystemContext(firstTemplate);
+            ServerSystemContext second = operation.GetSystemContext(secondTemplate);
+            operation.PinRouting(new NodeManagerRoutingTable());
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(operation.GetSystemContext(firstTemplate), Is.SameAs(first));
+                Assert.That(operation.GetSystemContext(secondTemplate), Is.SameAs(second));
+            }
+        }
+
+        /// <summary>
+        /// Switching an existing operation to subscriber ownership releases all strongly cached templates.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EnablingWeakCacheReleasesFirstTemplateAndCopy(bool pinRouting)
+        {
+            var retention = CreateOperationReferences(pinRouting);
+            try
+            {
+                retention.Operation.EnableWeakSystemContextCache();
+                CollectGarbage();
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(retention.FirstTemplate.IsAlive, Is.False);
+                    Assert.That(retention.FirstCopy.IsAlive, Is.False);
+                    Assert.That(retention.CachedTemplate.IsAlive, Is.False);
+                    Assert.That(retention.CachedCopy.IsAlive, Is.False);
+                }
+            }
+            finally
+            {
+                retention.Operation.Dispose();
+                GC.KeepAlive(retention.Operation);
+            }
         }
 
         /// <summary>
@@ -361,11 +433,15 @@ namespace Opc.Ua.Server.Tests
         private static (
             OperationContext Operation,
             WeakReference RetiredTemplate,
-            WeakReference RetiredCopy) CreateReplacementReferences(bool weak)
+            WeakReference RetiredCopy) CreateReplacementReferences(
+                bool weak, bool pinRouting = true, bool borrowRouting = false)
         {
             ServerSystemContext firstTemplate = CreateTemplate(systemHandle: "first");
             ServerSystemContext retiredTemplate = CreateTemplate(systemHandle: "retired");
-            OperationContext operation = CreateOperation();
+            OperationContext operation = CreateOperation(pinRouting);
+            using OperationContext.RoutingScope scope = borrowRouting
+                ? operation.CaptureRouting(new NodeManagerRoutingTable())
+                : default;
             if (weak)
             {
                 operation.EnableWeakSystemContextCache();
@@ -389,9 +465,9 @@ namespace Opc.Ua.Server.Tests
             WeakReference FirstTemplate,
             WeakReference FirstCopy,
             WeakReference CachedTemplate,
-            WeakReference CachedCopy) CreateOperationReferences()
+            WeakReference CachedCopy) CreateOperationReferences(bool pinRouting = true)
         {
-            OperationContext operation = CreateOperation();
+            OperationContext operation = CreateOperation(pinRouting);
             ServerSystemContext firstTemplate = CreateTemplate(systemHandle: "first");
             ServerSystemContext cachedTemplate = CreateTemplate(systemHandle: "cached");
             ServerSystemContext firstCopy = operation.GetSystemContext(firstTemplate);
@@ -425,13 +501,18 @@ namespace Opc.Ua.Server.Tests
             return new ServerSystemContext(server.Object) { SystemHandle = systemHandle };
         }
 
-        private static OperationContext CreateOperation()
+        private static OperationContext CreateOperation(bool pinRouting = false)
         {
-            return new OperationContext(
+            var operation = new OperationContext(
                 new RequestHeader(),
                 null,
                 RequestType.Read,
                 RequestLifetime.None);
+            if (pinRouting)
+            {
+                operation.PinRouting(new NodeManagerRoutingTable());
+            }
+            return operation;
         }
     }
 }

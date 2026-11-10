@@ -102,9 +102,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void OneTimeSetUp()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(RuntimeNodeSetLifecycleTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-lifecycle-" + Guid.NewGuid().ToString("N"));
         }
 
         /// <summary>

@@ -41,10 +41,131 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> when the source generation is live.</returns>
         internal bool IsSourceEmissionAllowed(IAsyncNodeManager? nodeManager)
         {
-            return nodeManager is not null && m_nodeManagers.Revision.TryGetGeneration(
+            return nodeManager is not null && m_nodeManagers.Revision.TryGetSourceGeneration(
                     nodeManager,
                     out NodeManagerGeneration? generation) &&
                 generation!.Gate.State == NodeManagerGenerationState.Live;
+        }
+
+        /// <summary>
+        /// Resolves a source against the current published routing image.
+        /// </summary>
+        /// <param name="nodeManager">The source node manager.</param>
+        /// <param name="generation">The published generation, when unambiguous.</param>
+        /// <returns>Whether the routing image identifies the source.</returns>
+        internal bool TryGetSourceGeneration(
+            IAsyncNodeManager nodeManager,
+            out NodeManagerGeneration? generation)
+        {
+            return m_nodeManagers.Revision.TryGetSourceGeneration(nodeManager, out generation);
+        }
+
+        /// <summary>
+        /// Finds an exact legacy owner already bound outside every managed route.
+        /// </summary>
+        internal bool TryGetLegacySourceGeneration(
+            IAsyncNodeManager nodeManager,
+            out NodeManagerGeneration? generation)
+        {
+            if (!m_nodeManagers.Revision.ContainsSourceResource(nodeManager) &&
+                NodeManagerGenerationRegistry.TryGet(nodeManager, out generation) &&
+                generation is not null &&
+                ReferenceEquals(generation.NodeManager, nodeManager) &&
+                ReferenceEquals(generation.Slot.Current, generation))
+            {
+                return true;
+            }
+            generation = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Uses the published source generation when available and preserves standalone manager bindings.
+        /// </summary>
+        /// <param name="server">The server owning the source.</param>
+        /// <param name="nodeManager">The source node manager.</param>
+        /// <param name="operationContext">The request whose routing image owns the binding, when available.</param>
+        /// <returns>The generation associated with the source.</returns>
+        internal static NodeManagerGeneration GetSourceGeneration(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            OperationContext? operationContext = null)
+        {
+            if (server.NodeManager is MasterNodeManager master)
+            {
+                NodeManagerRoutingTable.RoutingSnapshot routing =
+                    operationContext?.RoutingSnapshot ?? master.m_nodeManagers.Revision;
+                if (routing.TryGetSourceGeneration(nodeManager, out NodeManagerGeneration? generation) ||
+                    routing.TryGetSourceGeneration(nodeManager, out generation, includeHidden: true))
+                {
+                    return generation!;
+                }
+                if (routing.ContainsSourceResource(nodeManager))
+                {
+                    throw new InvalidOperationException(
+                        "The monitored source does not have a unique registered owner.");
+                }
+                return master.m_nodeManagers.ResolveUnregisteredSource(
+                    nodeManager, operationContext?.RoutingSnapshot);
+            }
+            return NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
+        }
+
+        /// <summary>
+        /// Uses the item's bound or last released generation when retrying native source cleanup.
+        /// </summary>
+        internal static NodeManagerGeneration GetItemSourceGeneration(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            IMonitoredItemGenerationBinding binding)
+        {
+            MonitoredItemSourceSnapshot source = binding.CaptureSource();
+            NodeManagerGenerationReference? reference = source.Generation ?? source.ReleasedGeneration;
+            if (reference?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
+                generation is not null &&
+                IsBoundSource(generation, nodeManager))
+            {
+                return generation;
+            }
+            return GetSourceGeneration(server, nodeManager);
+        }
+
+        /// <summary>
+        /// Matches an exact generation owner or its canonical underlying resource.
+        /// </summary>
+        /// <param name="generation">The already bound generation.</param>
+        /// <param name="nodeManager">The manager emitting through that generation.</param>
+        /// <returns>Whether the manager is authorized by the bound identity.</returns>
+        private static bool IsBoundSource(NodeManagerGeneration generation, IAsyncNodeManager nodeManager)
+        {
+            return ReferenceEquals(generation.NodeManager, nodeManager) ||
+                (NodeManagerGenerationRegistry.TryGet(nodeManager, out NodeManagerGeneration? associated) &&
+                    ReferenceEquals(associated, generation)) ||
+                (nodeManager is AsyncNodeManagerAdapter &&
+                    NodeManagerGenerationRegistry.HasSameGenerationIdentity(generation.NodeManager, nodeManager)) ||
+                (ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(nodeManager), nodeManager) &&
+                    ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager), nodeManager));
+        }
+
+        /// <summary>
+        /// Accepts the published binding or an exact legacy owner outside all managed routes.
+        /// </summary>
+        private bool IsCurrentOrLegacyBoundSource(
+            NodeManagerGeneration generation,
+            IAsyncNodeManager nodeManager)
+        {
+            if (!IsBoundSource(generation, nodeManager))
+            {
+                return false;
+            }
+            NodeManagerRoutingTable.RoutingSnapshot routing = m_nodeManagers.Revision;
+            if (routing.TryGetSourceGeneration(nodeManager, out NodeManagerGeneration? current))
+            {
+                return ReferenceEquals(generation, current);
+            }
+            return ReferenceEquals(generation.NodeManager, nodeManager) &&
+                ReferenceEquals(generation.Slot.Current, generation) &&
+                !routing.ContainsSourceResource(nodeManager);
         }
 
         /// <summary>
@@ -76,12 +197,12 @@ namespace Opc.Ua.Server
             {
                 if (!generationReference.TryGetGeneration(out generation) ||
                     generation is null ||
-                    !ReferenceEquals(generation.NodeManager, nodeManager))
+                    !master.IsCurrentOrLegacyBoundSource(generation, nodeManager))
                 {
                     return false;
                 }
             }
-            else if (!master.m_nodeManagers.Revision.TryGetGeneration(nodeManager, out generation))
+            else if (!master.m_nodeManagers.Revision.TryGetSourceGeneration(nodeManager, out generation))
             {
                 return false;
             }
@@ -140,7 +261,7 @@ namespace Opc.Ua.Server
             {
                 if (!generationReference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) ||
                     boundGeneration is null ||
-                    !ReferenceEquals(boundGeneration.NodeManager, nodeManager))
+                    !master.IsCurrentOrLegacyBoundSource(boundGeneration, nodeManager))
                 {
                     return false;
                 }
@@ -148,7 +269,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                if (!master.m_nodeManagers.Revision.TryGetGeneration(
+                if (!master.m_nodeManagers.Revision.TryGetSourceGeneration(
                         nodeManager,
                         out NodeManagerGeneration? currentGeneration))
                 {
@@ -183,7 +304,7 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            if (!master.m_nodeManagers.Revision.TryGetGeneration(
+            if (!master.m_nodeManagers.Revision.TryGetSourceGeneration(
                     nodeManager,
                     out NodeManagerGeneration? generation))
             {
@@ -402,7 +523,7 @@ namespace Opc.Ua.Server
                 if (generation is null ||
                     !ReferenceEquals(Volatile.Read(ref m_owner), owner) ||
                     (!(globalSink || ReferenceEquals(nodeManager, owner.CoreNodeManager)) &&
-                        (!ReferenceEquals(nodeManager, generation.NodeManager) ||
+                        (!IsBoundSource(generation, nodeManager) ||
                             (reference is not null &&
                                 (!reference.TryGetGeneration(out NodeManagerGeneration? bound) ||
                                     !ReferenceEquals(bound, generation))))) ||
