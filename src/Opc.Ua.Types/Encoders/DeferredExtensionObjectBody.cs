@@ -202,7 +202,8 @@ namespace Opc.Ua
 
     /// <summary>
     /// What the decoders of one response share: the budget of bodies recovered as raw
-    /// bytes and whether the first failure was logged. Bodies decoded on first use can
+    /// bytes, whether the first failure was logged, and the work of structures decoded
+    /// from a DataTypeDefinition. Bodies decoded on first use can
     /// run on any thread, after the decoder of the response is gone.
     /// </summary>
     internal sealed class DecoderRecoveries
@@ -234,7 +235,28 @@ namespace Opc.Ua
             return Interlocked.Exchange(ref m_failureLogged, 1) == 0;
         }
 
+        /// <summary>
+        /// Adds the input length of a decoder of the response to the structure
+        /// work it may do, see BinaryDecoder.ChargeStructureWork.
+        /// </summary>
+        public void AddStructureWorkCredit(long bytes)
+        {
+            Interlocked.Add(ref m_structureWorkCredit, bytes);
+        }
+
+        /// <summary>
+        /// Charges structure work to the response, false when its total exceeds
+        /// the credit plus <paramref name="allowance"/>.
+        /// </summary>
+        public bool TryChargeStructureWork(int units, long allowance)
+        {
+            long work = Interlocked.Add(ref m_structureWork, units);
+            return work <= Volatile.Read(ref m_structureWorkCredit) + allowance;
+        }
+
         private int m_count;
         private int m_failureLogged;
+        private long m_structureWork;
+        private long m_structureWorkCredit;
     }
 }

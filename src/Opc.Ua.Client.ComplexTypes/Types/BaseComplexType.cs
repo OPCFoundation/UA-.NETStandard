@@ -144,6 +144,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
+            ChargeDecodeWork(decoder);
             decoder.PushNamespace(XmlNamespace);
 
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
@@ -258,6 +259,20 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get => m_propertyDict[name].GetValue(this);
             set => m_propertyDict[name].SetValue(this, value);
+        }
+
+        /// <summary>
+        /// Charges the decoding of this instance and its fields to the work limit
+        /// of a binary decoder. A structure can encode to zero bytes, so the input
+        /// length alone does not bound the work of nested structures.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private protected void ChargeDecodeWork(IDecoder decoder)
+        {
+            if (decoder is BinaryDecoder binaryDecoder)
+            {
+                binaryDecoder.ChargeStructureWork((m_propertyList?.Count ?? 0) + 1);
+            }
         }
 
         /// <inheritdoc/>

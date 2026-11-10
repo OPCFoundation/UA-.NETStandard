@@ -177,6 +177,7 @@ namespace Opc.Ua.Encoders
         /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
+            ChargeDecodeWork(decoder);
             decoder.PushNamespace(XmlNamespace);
 
             EncodingMask = decoder.ReadEncodingMask(null!);

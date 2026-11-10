@@ -134,6 +134,7 @@ namespace Opc.Ua.Encoders
         /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
+            ChargeDecodeWork(decoder);
             decoder.PushNamespace(XmlNamespace);
 
             foreach (Field property in PropertyList)
@@ -477,6 +478,20 @@ namespace Opc.Ua.Encoders
                 }
             }
             property.Value = variant;
+        }
+
+        /// <summary>
+        /// Charges the decoding of this instance and its fields to the work limit
+        /// of a binary decoder. A structure can encode to zero bytes, so the input
+        /// length alone does not bound the work of nested structures.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private protected void ChargeDecodeWork(IDecoder decoder)
+        {
+            if (decoder is BinaryDecoder binaryDecoder)
+            {
+                binaryDecoder.ChargeStructureWork(PropertyList.Count + 1);
+            }
         }
 
         /// <inheritdoc/>

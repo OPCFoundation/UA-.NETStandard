@@ -3236,6 +3236,63 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Charges the work of decoding one structure whose layout comes from
+        /// a <see cref="DataTypeDefinition"/>: one unit for the instance and one
+        /// per field. Such a structure can encode to zero bytes, so neither the
+        /// remaining input nor the nesting level bounds how many of them one
+        /// message decodes. The work of the decoders of one response, which
+        /// share their <see cref="DecoderRecoveries"/>, may reach the length of
+        /// their inputs plus <see cref="kStructureWorkAllowance"/>.
+        /// </summary>
+        /// <remarks>
+        /// A decoder counts its work locally while it stays within its own input
+        /// length, which is the common case. Only then does it move the count
+        /// to the shared state, so decoding ordinary values allocates nothing.
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        internal void ChargeStructureWork(int units)
+        {
+            if (m_structureWork != kStructureWorkShared)
+            {
+                int work = m_structureWork + units;
+                if (work < kStructureWorkShared && work <= GetInputLength())
+                {
+                    m_structureWork = (ushort)work;
+                    return;
+                }
+                DecoderRecoveries shared = m_recoveries ??= new DecoderRecoveries();
+                shared.AddStructureWorkCredit(GetInputLength());
+                m_structureWork = kStructureWorkShared;
+                units = work;
+            }
+            if (!m_recoveries!.TryChargeStructureWork(units, kStructureWorkAllowance))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Decoding structures exceeded the input length by more than {0} units of work.",
+                    kStructureWorkAllowance);
+            }
+        }
+
+        /// <summary>
+        /// The length of the input, or the message size limit when the input is a
+        /// stream of unknown length.
+        /// </summary>
+        private long GetInputLength()
+        {
+            if (m_hasBuffer)
+            {
+                return m_buffer.Length;
+            }
+            Stream? stream = m_reader?.BaseStream;
+            if (stream != null && stream.CanSeek)
+            {
+                return stream.Length;
+            }
+            return Context.MaxMessageSize > 0 ? Context.MaxMessageSize : int.MaxValue;
+        }
+
+        /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -3325,6 +3382,17 @@ namespace Opc.Ua
 
         // Shared with the decoders of the bodies of the same response.
         private DecoderRecoveries? m_recoveries;
+
+        // The structure work counted locally, or kStructureWorkShared once the
+        // count moved to m_recoveries. See ChargeStructureWork.
+        private ushort m_structureWork;
+        private const ushort kStructureWorkShared = ushort.MaxValue;
+
+        /// <summary>
+        /// The structure work a response may do beyond the length of its input,
+        /// enough for an array of the default maximum length of empty structures.
+        /// </summary>
+        internal const long kStructureWorkAllowance = 1 << 17;
 
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.
