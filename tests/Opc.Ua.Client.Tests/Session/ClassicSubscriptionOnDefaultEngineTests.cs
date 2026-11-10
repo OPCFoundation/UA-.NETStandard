@@ -196,6 +196,96 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Publish requests of a session that holds only classic subscriptions keep
+        /// their timeout hint within half the operation timeout, like those of the
+        /// engine's own subscriptions.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task PublishTimeoutHintOfClassicSubscriptionsStaysWithinTheOperationTimeoutAsync(
+            CancellationToken ct)
+        {
+            const uint kSubscriptionId = 9;
+            const int kOperationTimeout = 10_000;
+            await using var harness = new SessionChannelHarness();
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            var hints = new ConcurrentQueue<uint>();
+
+            channel.RequestHandler = async (request, requestCt) =>
+            {
+                switch (request)
+                {
+                    case CreateSubscriptionRequest create:
+                        return new CreateSubscriptionResponse
+                        {
+                            ResponseHeader = channel.CreateGoodHeader(),
+                            SubscriptionId = kSubscriptionId,
+                            RevisedPublishingInterval = create.RequestedPublishingInterval,
+                            RevisedLifetimeCount = create.RequestedLifetimeCount,
+                            RevisedMaxKeepAliveCount = create.RequestedMaxKeepAliveCount
+                        };
+                    case SetPublishingModeRequest publishing:
+                        return new SetPublishingModeResponse
+                        {
+                            ResponseHeader = channel.CreateGoodHeader(),
+                            Results = publishing.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
+                        };
+                    case DeleteSubscriptionsRequest delete:
+                        return new DeleteSubscriptionsResponse
+                        {
+                            ResponseHeader = channel.CreateGoodHeader(),
+                            Results = delete.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
+                        };
+                    case PublishRequest publish:
+                        hints.Enqueue(publish.RequestHeader.TimeoutHint);
+                        await Task.Delay(50, requestCt).ConfigureAwait(false);
+                        return new PublishResponse
+                        {
+                            ResponseHeader = channel.CreateGoodHeader(),
+                            SubscriptionId = kSubscriptionId,
+                            NotificationMessage = new NotificationMessage
+                            {
+                                SequenceNumber = 1,
+                                PublishTime = DateTime.UtcNow
+                            },
+                            Results = publish.SubscriptionAcknowledgements.ConvertAll(_ => (StatusCode)StatusCodes.Good)
+                        };
+                    default:
+                        return channel.CreateResponse(request);
+                }
+            };
+
+            await using var session = new Session(
+                channel.Channel, harness.Configuration, endpoint,
+                engineFactory: DefaultSubscriptionEngineFactory.Instance);
+            session.MinPublishRequestCount = 1;
+            session.MaxPublishRequestCount = 1;
+            session.OperationTimeout = kOperationTimeout;
+
+            // The keep-alive period (20 s) is longer than the operation timeout.
+            using var subscription = new Subscription(session.DefaultSubscription)
+            {
+                PublishingInterval = 2000,
+                KeepAliveCount = 10,
+                LifetimeCount = 100,
+                PublishingEnabled = true,
+                DisableMonitoredItemCache = true
+            };
+
+            await session.OpenAsync("classic-hint", new UserIdentity(), ct).ConfigureAwait(false);
+            Assert.That(session.AddSubscription(subscription), Is.True);
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            while (hints.Count < 3)
+            {
+                await Task.Delay(20, ct).ConfigureAwait(false);
+            }
+            Assert.That(hints, Is.All.InRange(1u, (uint)(kOperationTimeout / 2)));
+            await session.CloseAsync(ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// A Publish response for a subscription that is being transferred to the
         /// session cannot be dispatched yet. The default engine must not delete
         /// that subscription on the server as abandoned.

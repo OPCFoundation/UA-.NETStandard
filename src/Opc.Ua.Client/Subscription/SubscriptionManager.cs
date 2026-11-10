@@ -2851,17 +2851,25 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Puts acknowledgements of an abandoned or failed Publish attempt back into
-        /// the queue, except those that must not be sent anymore.
-        /// </summary>
-        /// <summary>
         /// Queues the acknowledgement of a message delivered to a subscription the
         /// session holds outside this manager's registry (the classic API). Those
         /// subscriptions have no processor that could own a tracked acknowledgement,
         /// so they are sent as they are with the next Publish request, as the classic
-        /// engine does.
+        /// engine does. The acknowledgement keeps the lifetime of its subscription and
+        /// is dropped once that subscription is deleted or recreated.
         /// </summary>
         internal void QueueSessionAcknowledgement(uint subscriptionId, uint sequenceNumber)
+        {
+            QueueSessionAcknowledgement(new SessionAcknowledgement(
+                new SubscriptionAcknowledgement
+                {
+                    SubscriptionId = subscriptionId,
+                    SequenceNumber = sequenceNumber
+                },
+                m_session.GetSessionSubscriptionScope(subscriptionId)));
+        }
+
+        private void QueueSessionAcknowledgement(SessionAcknowledgement acknowledgement)
         {
             lock (m_sessionAcknowledgements)
             {
@@ -2870,54 +2878,87 @@ namespace Opc.Ua.Client.Subscriptions
                     // Nothing sends them; the oldest is the least likely to still be held.
                     m_sessionAcknowledgements.Dequeue();
                 }
-                m_sessionAcknowledgements.Enqueue(new SubscriptionAcknowledgement
-                {
-                    SubscriptionId = subscriptionId,
-                    SequenceNumber = sequenceNumber
-                });
+                m_sessionAcknowledgements.Enqueue(acknowledgement);
                 Volatile.Write(ref m_sessionAcknowledgementCount, m_sessionAcknowledgements.Count);
             }
         }
 
         /// <summary>
-        /// Takes the queued acknowledgements of session subscriptions, or returns
-        /// <c>null</c> when there are none.
+        /// Takes the queued acknowledgements of session subscriptions that are still
+        /// current, or returns <c>null</c> when there are none.
         /// </summary>
-        private List<SubscriptionAcknowledgement>? TakeSessionAcknowledgements()
+        private List<SessionAcknowledgement>? TakeSessionAcknowledgements()
         {
             if (Volatile.Read(ref m_sessionAcknowledgementCount) == 0)
             {
                 return null;
             }
+            List<SessionAcknowledgement> taken;
             lock (m_sessionAcknowledgements)
             {
                 if (m_sessionAcknowledgements.Count == 0)
                 {
                     return null;
                 }
-                var taken = new List<SubscriptionAcknowledgement>(m_sessionAcknowledgements);
+                taken = new List<SessionAcknowledgement>(m_sessionAcknowledgements);
                 m_sessionAcknowledgements.Clear();
                 Volatile.Write(ref m_sessionAcknowledgementCount, 0);
-                return taken;
             }
+            RemoveRetiredSessionAcknowledgements(taken);
+            return taken.Count == 0 ? null : taken;
         }
 
         /// <summary>
         /// Puts session acknowledgements back after the Publish request carrying them
         /// failed or was not sent.
         /// </summary>
-        private void RequeueSessionAcknowledgements(List<SubscriptionAcknowledgement>? acknowledgements)
+        private void RequeueSessionAcknowledgements(List<SessionAcknowledgement>? acknowledgements)
         {
             if (acknowledgements == null)
             {
                 return;
             }
-            foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+            RemoveRetiredSessionAcknowledgements(acknowledgements);
+            foreach (SessionAcknowledgement acknowledgement in acknowledgements)
             {
-                QueueSessionAcknowledgement(acknowledgement.SubscriptionId, acknowledgement.SequenceNumber);
+                QueueSessionAcknowledgement(acknowledgement);
             }
         }
 
+        /// <summary>
+        /// Removes the acknowledgements whose subscription was deleted or recreated
+        /// since they were queued: sending them could confirm a message of a
+        /// subscription that reuses the identifier.
+        /// </summary>
+        private void RemoveRetiredSessionAcknowledgements(List<SessionAcknowledgement> acknowledgements)
+        {
+            int kept = 0;
+            for (int i = 0; i < acknowledgements.Count; i++)
+            {
+                SessionAcknowledgement acknowledgement = acknowledgements[i];
+                if (acknowledgement.Scope != null &&
+                    !acknowledgement.Scope.Equals(m_session.GetSessionSubscriptionScope(
+                        acknowledgement.Scope.SubscriptionId)))
+                {
+                    continue;
+                }
+                acknowledgements[kept++] = acknowledgement;
+            }
+            acknowledgements.RemoveRange(kept, acknowledgements.Count - kept);
+        }
+
+        /// <summary>
+        /// An acknowledgement of a session subscription and the lifetime of that
+        /// subscription when it was queued.
+        /// </summary>
+        private readonly record struct SessionAcknowledgement(
+            SubscriptionAcknowledgement Acknowledgement,
+            AcknowledgementScope? Scope);
+
+        /// <summary>
+        /// Puts acknowledgements of an abandoned or failed Publish attempt back into
+        /// the queue, except those that must not be sent anymore.
+        /// </summary>
         private void RequeueAcknowledgements(List<PendingAcknowledgement> acknowledgements)
         {
             if (acknowledgements.Count == 0)
@@ -3553,7 +3594,7 @@ namespace Opc.Ua.Client.Subscriptions
                         continue;
                     }
                     List<PendingAcknowledgement> batch = ResetBatch();
-                    List<SubscriptionAcknowledgement>? sessionAcks = null;
+                    List<SessionAcknowledgement>? sessionAcks = null;
                     ArrayOf<SubscriptionAcknowledgement> acks = [];
                     uint handle = 0;
                     bool publishActive = true;
@@ -3596,7 +3637,7 @@ namespace Opc.Ua.Client.Subscriptions
                             }
                             for (int i = 0; i < sessionAckCount; i++)
                             {
-                                wireAcknowledgements[batch.Count + i] = sessionAcks![i];
+                                wireAcknowledgements[batch.Count + i] = sessionAcks![i].Acknowledgement;
                             }
                             acks = wireAcknowledgements;
                         }
@@ -4188,6 +4229,14 @@ namespace Opc.Ua.Client.Subscriptions
                 List<IManagedSubscription> created = m_outer.Created;
                 if (created.Count == 0)
                 {
+                    // Requests can still serve subscriptions the session holds through
+                    // the classic API, whose keep-alive is not known here. A zero hint
+                    // would be replaced with the whole operation timeout, so use the
+                    // longest hint within it.
+                    if (m_outer.m_session.OperationTimeout > 0)
+                    {
+                        currentTimeout = ClampTimeoutHint(uint.MaxValue);
+                    }
                     return 0;
                 }
 
@@ -4282,7 +4331,7 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 256;
         private const int kMaxSessionAcknowledgements = 4096;
-        private readonly Queue<SubscriptionAcknowledgement> m_sessionAcknowledgements = new();
+        private readonly Queue<SessionAcknowledgement> m_sessionAcknowledgements = new();
         private int m_sessionAcknowledgementCount;
         private const int kDeferredAcknowledgementWarningThreshold = 1000;
         private const int kStackAllocThreshold = 256;

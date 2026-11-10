@@ -263,6 +263,18 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return MayDeleteUnknownSubscriptionHandler(subscriptionId);
         }
 
+        /// <summary>
+        /// The acknowledgement scope of a session-owned subscription. Defaults to
+        /// <c>null</c> (no lifetime tracked).
+        /// </summary>
+        public Func<uint, AcknowledgementScope?> SessionSubscriptionScopeHandler { get; set; } = _ => null;
+
+        /// <inheritdoc/>
+        public AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+        {
+            return SessionSubscriptionScopeHandler(subscriptionId);
+        }
+
         /// <summary>Recorded dispatches to session-owned subscriptions.</summary>
         public int SessionDispatchCount => Volatile.Read(ref m_sessionDispatchCount);
 

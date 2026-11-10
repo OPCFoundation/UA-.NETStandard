@@ -89,6 +89,14 @@ namespace Opc.Ua.Client.Subscriptions
         bool MayDeleteUnknownSubscription(uint subscriptionId);
 
         /// <summary>
+        /// Gets the acknowledgement scope of the current lifetime of the subscription
+        /// with this identifier that the session holds outside this manager's
+        /// registry, or <c>null</c> when the session holds none.
+        /// </summary>
+        /// <param name="subscriptionId">The server-assigned identifier.</param>
+        AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId);
+
+        /// <summary>
         /// Create a managed subscription
         /// </summary>
         /// <param name="handler"></param>

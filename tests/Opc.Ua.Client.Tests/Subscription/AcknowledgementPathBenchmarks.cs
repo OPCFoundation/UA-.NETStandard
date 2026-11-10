@@ -255,6 +255,11 @@ namespace Opc.Ua.Client.Subscriptions
                 return true;
             }
 
+            public AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+            {
+                return null;
+            }
+
             /// <summary>
             /// The benchmark context has no server session to abandon.
             /// </summary>

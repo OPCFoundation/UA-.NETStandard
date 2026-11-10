@@ -607,6 +607,11 @@ namespace Opc.Ua.Subscriptions.Tests
                 return true;
             }
 
+            public Opc.Ua.Client.AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+            {
+                return null;
+            }
+
             public int CreateSubscriptionCallCount { get; private set; }
 
             public IMessageAckQueue? LastCreateQueue { get; private set; }

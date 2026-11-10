@@ -228,17 +228,27 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Reserves room for a message in the byte budget of the ingress queue. A
         /// message is always admitted into an empty queue, so a message larger than
-        /// the budget cannot block the subscription.
+        /// the budget cannot block the subscription. A rejected reservation leaves
+        /// the count unchanged, so concurrent attempts never see each other's
+        /// rejected sizes and miss the release that empties the queue.
         /// </summary>
         private bool TryReserveQueuedBytes(int size)
         {
-            long queued = Interlocked.Add(ref m_queuedBytes, size);
-            if (queued <= kMaxQueuedBytes || queued == size)
+            long queued = Interlocked.Read(ref m_queuedBytes);
+            while (true)
             {
-                return true;
+                long reserved = queued + size;
+                if (reserved > kMaxQueuedBytes && queued != 0)
+                {
+                    return false;
+                }
+                long seen = Interlocked.CompareExchange(ref m_queuedBytes, reserved, queued);
+                if (seen == queued)
+                {
+                    return true;
+                }
+                queued = seen;
             }
-            Interlocked.Add(ref m_queuedBytes, -size);
-            return false;
         }
 
         /// <summary>
@@ -947,6 +957,21 @@ namespace Opc.Ua.Client.Subscriptions
             if (IsPendingBufferFull || IsGapRecoveryExpired())
             {
                 await SkipExpiredGapAsync(ct).ConfigureAwait(false);
+
+                // A skip delivers the oldest buffered message and those that follow
+                // it. Buffered messages behind further holes can keep the buffer at
+                // its limit, so skip on before the next message is admitted.
+                int pending = m_pendingMessages.Count;
+                while (IsPendingBufferFull && HasUnresolvedGap)
+                {
+                    await SkipExpiredGapAsync(ct).ConfigureAwait(false);
+                    int remaining = m_pendingMessages.Count;
+                    if (remaining >= pending)
+                    {
+                        break;
+                    }
+                    pending = remaining;
+                }
             }
         }
 

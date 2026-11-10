@@ -3530,6 +3530,75 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A large message that fills the gap buffer behind several holes is not
+        /// left above the byte limit: the gaps are skipped until the buffer is
+        /// below it again, without waiting for further messages or the deadline.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task GapBufferReturnsBelowItsByteLimitBehindSeveralHolesAsync()
+        {
+            var item = new MonitoredItemNotification { ClientHandle = 1 };
+            NotificationMessage Sized(uint sequenceNumber, int items)
+            {
+                var notifications = new MonitoredItemNotification[items];
+                for (int i = 0; i < notifications.Length; i++)
+                {
+                    notifications[i] = item;
+                }
+                return new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber,
+                    NotificationData = [new ExtensionObject(
+                        new DataChangeNotification { MonitoredItems = notifications })]
+                };
+            }
+            const int kSmallItems = 8190;
+            const int kLargeItems = 516_000;
+            const int kSmallMessages = 7;
+            long small = MessageProcessor.EstimateRetainedSize(Sized(1, kSmallItems));
+            long large = MessageProcessor.EstimateRetainedSize(Sized(1, kLargeItems));
+            Assert.That(large, Is.LessThan(MessageProcessor.kMaxPendingBytes));
+            Assert.That((kSmallMessages - 1) * small + large,
+                Is.GreaterThanOrEqualTo(MessageProcessor.kMaxPendingBytes),
+                "Skipping only the oldest gap must leave the buffer full.");
+
+            var timeProvider = new FakeTimeProvider();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 93
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [], []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+
+                // 3, 5, ... 15 wait behind holes; 17 brings the buffer over its limit.
+                uint sequenceNumber = 3;
+                for (int i = 0; i < kSmallMessages; i++, sequenceNumber += 2)
+                {
+                    await sut.OnPublishReceivedAsync(Sized(sequenceNumber, kSmallItems), [], [])
+                        .ConfigureAwait(false);
+                }
+                await sut.OnPublishReceivedAsync(Sized(sequenceNumber, kLargeItems), [], [])
+                    .ConfigureAwait(false);
+
+                // The oldest small messages are delivered until the rest fits.
+                var expected = new List<uint> { 1 };
+                int remaining = kSmallMessages;
+                while (remaining * small + large >= MessageProcessor.kMaxPendingBytes)
+                {
+                    expected.Add(3 + (2 * (uint)(kSmallMessages - remaining)));
+                    remaining--;
+                }
+                Assert.That(expected, Has.Count.GreaterThan(2));
+                await WaitForDataSeqNumberAsync(sut, expected[expected.Count - 1], 10).ConfigureAwait(false);
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
         /// The retained size of a decoded body grows with its notifications.
         /// </summary>
         [Test]

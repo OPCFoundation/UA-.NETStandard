@@ -3238,6 +3238,61 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// The acknowledgement of a session subscription's message is not sent when
+        /// that subscription was deleted or recreated before the next Publish request.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerDropsAcknowledgementsOfRecreatedSessionSubscriptionAsync(
+            CancellationToken testCt)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(4242u);
+            object owner = new();
+            int scopeLookups = 0;
+            // The lookup when the first message is acknowledged sees the old lifetime;
+            // every later lookup sees the recreated subscription.
+            session.SessionSubscriptionScopeHandler = id => new AcknowledgementScope(
+                owner, Interlocked.Increment(ref scopeLookups) == 1 ? 1 : 2, id);
+            var acknowledged = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            int sequenceNumber = 0;
+            session.OnPublishAsync = (h, acks, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement ack in acks)
+                {
+                    acknowledged.Enqueue(ack);
+                }
+                uint seq = (uint)Interlocked.Increment(ref sequenceNumber);
+                PublishResponse response = CreatePublishResponse(4242u, seq);
+                response.NotificationMessage.NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems = [new MonitoredItemNotification { ClientHandle = 1 }]
+                    })
+                ];
+                response.AvailableSequenceNumbers = [seq];
+                response.Results = acks.ConvertAll(_ => (StatusCode)StatusCodes.Good);
+                return new ValueTask<PublishResponse>(response);
+            };
+
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+                sut.Update();
+
+                await WaitUntilAsync(() => acknowledged.Count >= 2, testCt).ConfigureAwait(false);
+                SubscriptionAcknowledgement[] acks = [.. acknowledged];
+                Assert.That(acks.Select(a => a.SequenceNumber), Does.Not.Contain(1u));
+                Assert.That(acks.Take(2).Select(a => a.SequenceNumber), Is.EqualTo(new uint[] { 2, 3 }));
+            }
+        }
+
+        /// <summary>
         /// The creation can complete between the worker's id lookup and its
         /// pending-creation check (the id is assigned before the in-progress
         /// flag clears). The freshly created subscription must receive the

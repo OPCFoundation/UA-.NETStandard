@@ -314,22 +314,34 @@ namespace Opc.Ua.Client.Tests
                 await subscription.CreateAsync(ct).ConfigureAwait(false);
 
                 subscription.SaveMessageInCache([1], BuildDataMessage(1));
+                int saved = 1;
                 for (uint sequenceNumber = 3; sequenceNumber < kMessages + 3; sequenceNumber++)
                 {
                     subscription.SaveMessageInCache([2, sequenceNumber], BuildDataMessage(sequenceNumber));
+                    saved++;
                     Assert.That(CountIncomingMessages(subscription, out _),
                         Is.LessThanOrEqualTo(Subscription.kMaxIncomingMessages));
+                    if (saved % 256 == 0)
+                    {
+                        // Let the worker deliver each batch, so the limit gives up
+                        // processed entries rather than messages still waiting for it.
+                        await WaitForDeliveredAsync(saved).ConfigureAwait(false);
+                    }
                 }
 
                 // Every message after the gap is delivered without the missing one.
-                DateTime deadline = DateTime.UtcNow.AddSeconds(10);
-                while (Volatile.Read(ref delivered) < kMessages + 1 && DateTime.UtcNow < deadline)
-                {
-                    await Task.Delay(10, ct).ConfigureAwait(false);
-                }
+                await WaitForDeliveredAsync(kMessages + 1).ConfigureAwait(false);
                 Assert.That(Volatile.Read(ref delivered), Is.EqualTo(kMessages + 1));
                 CountIncomingMessages(subscription, out int retained);
                 Assert.That(retained, Is.Zero, "Processed entries must not keep their messages.");
+            }
+
+            async Task WaitForDeliveredAsync(int count)
+            {
+                while (Volatile.Read(ref delivered) < count)
+                {
+                    await Task.Delay(5, ct).ConfigureAwait(false);
+                }
             }
         }
 

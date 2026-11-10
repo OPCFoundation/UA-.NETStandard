@@ -304,6 +304,24 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
+            public AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+            {
+#if OPCUA_V1_CLIENT
+                if (subscriptionId != default)
+                {
+                    foreach (Subscription subscription in m_context.Subscriptions)
+                    {
+                        if (subscription.Id == subscriptionId)
+                        {
+                            return subscription.GetAcknowledgementScope();
+                        }
+                    }
+                }
+#endif
+                return null;
+            }
+
+            /// <inheritdoc/>
             public IManagedSubscription CreateSubscription(
                 ISubscriptionNotificationHandler handler,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
