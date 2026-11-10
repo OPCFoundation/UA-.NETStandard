@@ -289,6 +289,89 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// While a message is missing at the head of the incoming queue, later
+        /// messages are delivered but their entries stay queued behind it. The
+        /// queue stays within its limit, and processed entries do not keep their
+        /// messages.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task IncomingMessageQueueIsBoundedWhileAMessageIsMissingAsync(CancellationToken ct)
+        {
+            const int kMessages = Subscription.kMaxIncomingMessages + 1000;
+            int delivered = 0;
+            var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                DisableMonitoredItemCache = true,
+                FastDataChangeCallback = (_, _, _) => Interlocked.Increment(ref delivered)
+            };
+            using (subscription)
+            {
+                // Republish never succeeds; message 2 stays listed as available.
+                subscription.Session = BuildSessionMock((_, _) => false);
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+                subscription.SaveMessageInCache([1], BuildDataMessage(1));
+                for (uint sequenceNumber = 3; sequenceNumber < kMessages + 3; sequenceNumber++)
+                {
+                    subscription.SaveMessageInCache([2, sequenceNumber], BuildDataMessage(sequenceNumber));
+                    Assert.That(CountIncomingMessages(subscription, out _),
+                        Is.LessThanOrEqualTo(Subscription.kMaxIncomingMessages));
+                }
+
+                // Every message after the gap is delivered without the missing one.
+                DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                while (Volatile.Read(ref delivered) < kMessages + 1 && DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(10, ct).ConfigureAwait(false);
+                }
+                Assert.That(Volatile.Read(ref delivered), Is.EqualTo(kMessages + 1));
+                CountIncomingMessages(subscription, out int retained);
+                Assert.That(retained, Is.Zero, "Processed entries must not keep their messages.");
+            }
+        }
+
+        private static NotificationMessage BuildDataMessage(uint sequenceNumber)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = [new(new DataChangeNotification
+                {
+                    SequenceNumber = sequenceNumber,
+                    MonitoredItems = [new MonitoredItemNotification { ClientHandle = 1 }]
+                })]
+            };
+        }
+
+        /// <summary>
+        /// Counts the entries of the incoming message queue, and those that still
+        /// reference a message.
+        /// </summary>
+        private static int CountIncomingMessages(Subscription subscription, out int withMessage)
+        {
+            System.Reflection.FieldInfo field = typeof(Subscription).GetField(
+                "m_incomingMessages",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            // Only the thread that saves messages changes the structure of the queue.
+            withMessage = 0;
+            if (field.GetValue(subscription) is not System.Collections.ICollection entries)
+            {
+                return 0;
+            }
+            foreach (object entry in entries)
+            {
+                if (entry.GetType().GetField("Message")!.GetValue(entry) != null)
+                {
+                    withMessage++;
+                }
+            }
+            return entries.Count;
+        }
+
+        /// <summary>
         /// Whole-message diagnostics come from the wire array even when caching is disabled
         /// or the message contains client handles that are not registered locally.
         /// </summary>

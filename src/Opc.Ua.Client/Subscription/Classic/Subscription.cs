@@ -50,6 +50,12 @@ namespace Opc.Ua.Client
         private const uint kMaxSequenceNumberGap = 1024;
 
         /// <summary>
+        /// The most entries the incoming message queue keeps: a full sequence gap
+        /// of placeholders plus as many received messages.
+        /// </summary>
+        internal const int kMaxIncomingMessages = 2 * (int)kMaxSequenceNumberGap;
+
+        /// <summary>
         /// Orders the server id claims of all subscriptions in the process.
         /// </summary>
         private static long s_idClaims;
@@ -2500,6 +2506,28 @@ namespace Opc.Ua.Client
 
                     node = next;
                 }
+
+                // Bound the queue. Entries stay queued behind the oldest one that is
+                // neither processed nor given up, for example a message the server
+                // keeps listing as available while its Republish fails, or messages
+                // that arrive while the message worker is stopped. Past the limit
+                // the oldest entries are given up, as if their recovery had expired.
+                while (m_incomingMessages.Count > kMaxIncomingMessages)
+                {
+                    entry = m_incomingMessages.First!.Value;
+                    if (!entry.Processed)
+                    {
+                        m_logger.SubscriptionIdSubscriptionIdSkippingPublishResponseSequenceNumber(
+                            Id,
+                            entry.SequenceNumber,
+                            Session?.SessionId);
+                    }
+                    if (IsNewerSequenceNumber(entry.SequenceNumber, m_lastSequenceNumberProcessed))
+                    {
+                        m_lastSequenceNumberProcessed = entry.SequenceNumber;
+                    }
+                    m_incomingMessages.RemoveFirst();
+                }
             }
 
             // send notification that publishing received a keep alive or has to republish.
@@ -3408,6 +3436,12 @@ namespace Opc.Ua.Client
                             }
 
                             ii.Value.Processed = true;
+
+                            // The entry stays queued until the messages before it
+                            // are resolved. It only needs its sequence number for
+                            // that; the message is cached above and handed to the
+                            // dispatch below.
+                            ii.Value.Message = null;
 
                             // Keep the last sequence number processed going up
                             if (IsNewerSequenceNumber(ii.Value.SequenceNumber, m_lastSequenceNumberProcessed))
