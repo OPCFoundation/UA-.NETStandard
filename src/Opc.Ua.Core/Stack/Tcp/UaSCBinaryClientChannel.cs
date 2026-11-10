@@ -1232,9 +1232,23 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private async void OnScheduledHandshakeAsync(object? state)
         {
+            // An async void handler must never throw, because the exception
+            // would escape on the thread pool. A channel without an endpoint
+            // (a reverse channel before ConnectAsync) has nothing to reconnect to.
             if (m_via == null)
             {
-                throw ServiceResultException.Unexpected("Endpoint not defined.");
+                m_logger.UaSCClientLog23(null, ChannelId);
+                try
+                {
+                    Shutdown(ServiceResult.Create(
+                        StatusCodes.BadNotConnected,
+                        "Endpoint not defined."));
+                }
+                catch (Exception e)
+                {
+                    m_logger.UaSCClientLog23(e, ChannelId);
+                }
+                return;
             }
             try
             {
@@ -1375,11 +1389,18 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.UaSCClientLog23(e, ChannelId);
-                ForceReconnect(
-                    ServiceResult.Create(
-                        e,
-                        StatusCodes.BadUnexpectedError,
-                        "Unexpected error reconnecting or renewing a token."));
+                try
+                {
+                    ForceReconnect(
+                        ServiceResult.Create(
+                            e,
+                            StatusCodes.BadUnexpectedError,
+                            "Unexpected error reconnecting or renewing a token."));
+                }
+                catch (Exception inner)
+                {
+                    m_logger.UaSCClientLog23(inner, ChannelId);
+                }
             }
         }
 
@@ -2218,7 +2239,9 @@ namespace Opc.Ua.Bindings
         private ITimer? m_timeoutTimer;
         private long m_nextTimeoutScan = long.MaxValue;
         private bool m_reconnecting;
-        private int m_waitBetweenReconnects;
+        // reconnects stay disabled before ConnectAsync, e.g. while a reverse
+        // channel already receives.
+        private int m_waitBetweenReconnects = Timeout.Infinite;
         private readonly IUaSCByteTransportFactory m_transportFactory;
         private int m_transportReceiveBufferSize;
         private readonly string m_implementationString;
