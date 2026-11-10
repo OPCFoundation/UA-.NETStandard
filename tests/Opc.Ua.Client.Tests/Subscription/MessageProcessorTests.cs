@@ -3350,6 +3350,211 @@ namespace Opc.Ua.Client.Subscriptions
             };
         }
 
+        /// <summary>
+        /// Keep-alives that list many sequence numbers inside an open gap are
+        /// remembered only up to a limit, and the recovery at the gap timeout
+        /// sends a bounded number of Republish requests before it skips the rest.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task GapRecoveryRepublishesABoundedNumberOfListedMessagesAsync()
+        {
+            const uint kGapEnd = 200_000;
+            var timeProvider = new FakeTimeProvider();
+            int republishCalls = 0;
+            m_mockServices
+                .Setup(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref republishCalls);
+                    throw new ServiceResultException(StatusCodes.BadMessageNotAvailable);
+                });
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 90
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+
+                // Message 2 is not listed, so nothing is recoverable in order and
+                // the keep-alives only open the gap and list what lies inside it.
+                for (uint k = 0; k < 20; k++)
+                {
+                    uint first = 3 + (k * 5000);
+                    var listed = new List<uint>(5000);
+                    for (uint i = 0; i < 5000; i++)
+                    {
+                        listed.Add(first + i);
+                    }
+                    await sut.OnPublishReceivedAsync(
+                        new NotificationMessage { SequenceNumber = kGapEnd }, listed, [])
+                        .ConfigureAwait(false);
+                }
+                await WaitForReceivedCountAsync(sut, 21).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref republishCalls), Is.Zero);
+
+                // The last response lists no messages, so recovery only has what
+                // the gap remembered.
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = kGapEnd }, [], [])
+                    .ConfigureAwait(false);
+                await WaitForReceivedCountAsync(sut, 22).ConfigureAwait(false);
+
+                await AdvanceUntilAsync(timeProvider,
+                    () => sut.LastDataSequenceNumberProcessed == kGapEnd - 1,
+                    timeoutSeconds: 30).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref republishCalls),
+                    Is.InRange(1, MessageProcessor.kMaxGapAvailableSequenceNumbers));
+            }
+        }
+
+        /// <summary>
+        /// A recovery stops sending Republish requests after several in a row
+        /// failed, and skips the remaining messages instead of holding delivery.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task GapRecoveryStopsAfterConsecutiveRepublishFailuresAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            int republishCalls = 0;
+            m_mockServices
+                .Setup(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref republishCalls);
+                    throw new ServiceResultException(StatusCodes.BadTimeout);
+                });
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 91
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 20 },
+                    [.. Enumerable.Range(3, 17).Select(i => (uint)i)],
+                    []).ConfigureAwait(false);
+                await WaitForReceivedCountAsync(sut, 2).ConfigureAwait(false);
+
+                await AdvanceUntilAsync(timeProvider,
+                    () => sut.LastDataSequenceNumberProcessed == 19).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref republishCalls),
+                    Is.EqualTo(MessageProcessor.kMaxConsecutiveRepublishFailures));
+            }
+        }
+
+        /// <summary>
+        /// The ingress queue holds messages up to a byte budget besides its message
+        /// count. A message beyond the budget waits until the queue drains.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task IngressQueueWaitsWhenItsByteBudgetIsFullAsync()
+        {
+            // One large notification body shared by all messages.
+            const int kItems = 100_000;
+            var items = new MonitoredItemNotification[kItems];
+            for (int i = 0; i < items.Length; i++)
+            {
+                items[i] = new MonitoredItemNotification { ClientHandle = 1 };
+            }
+            var body = new DataChangeNotification { MonitoredItems = items };
+            NotificationMessage Large(uint sequenceNumber)
+            {
+                return new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber,
+                    NotificationData = [new ExtensionObject(body)]
+                };
+            }
+            int size = MessageProcessor.EstimateRetainedSize(Large(1));
+            Assert.That(size, Is.GreaterThan(kItems * 64));
+            int fits = (int)(MessageProcessor.kMaxQueuedBytes / size);
+            Assert.That(fits, Is.InRange(2, 1000));
+
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                Id = 92
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.Block.WaitAsync().ConfigureAwait(false);
+                bool blockHeld = true;
+                try
+                {
+                    // The first message is taken by the worker and blocks in its callback.
+                    await sut.OnPublishReceivedAsync(Large(1), [], []).ConfigureAwait(false);
+                    await sut.DataChangeNotificationReceived.WaitAsync()
+                        .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    for (uint i = 0; i < fits - 1; i++)
+                    {
+                        await sut.OnPublishReceivedAsync(Large(2 + i), [], [])
+                            .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    }
+
+                    Task overBudget = sut.OnPublishReceivedAsync(Large(1 + (uint)fits), [], []).AsTask();
+                    await Task.Delay(200).ConfigureAwait(false);
+                    Assert.That(overBudget.IsCompleted, Is.False,
+                        "A message beyond the byte budget must wait for room.");
+
+                    sut.Block.Release();
+                    blockHeld = false;
+                    await overBudget.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    await WaitForDataSeqNumberAsync(sut, 1 + (uint)fits, 10).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (blockHeld)
+                    {
+                        sut.Block.Release();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The retained size of a decoded body grows with its notifications.
+        /// </summary>
+        [Test]
+        public void RetainedSizeEstimateCountsNotificationsOfDecodedBodies()
+        {
+            NotificationMessage keepAlive = new() { SequenceNumber = 1 };
+            NotificationMessage data = BuildDataChangeMessage(2);
+            var events = new NotificationMessage
+            {
+                SequenceNumber = 3,
+                NotificationData =
+                [
+                    new ExtensionObject(new EventNotificationList
+                    {
+                        Events = [new EventFieldList(), new EventFieldList()]
+                    })
+                ]
+            };
+            int empty = MessageProcessor.EstimateRetainedSize(keepAlive);
+            Assert.That(empty, Is.GreaterThan(0));
+            Assert.That(MessageProcessor.EstimateRetainedSize(data), Is.GreaterThan(empty));
+            Assert.That(MessageProcessor.EstimateRetainedSize(events),
+                Is.GreaterThan(MessageProcessor.EstimateRetainedSize(data)));
+        }
+
         private static NotificationMessage BuildDataChangeMessage(uint sequenceNumber)
         {
             return new NotificationMessage
