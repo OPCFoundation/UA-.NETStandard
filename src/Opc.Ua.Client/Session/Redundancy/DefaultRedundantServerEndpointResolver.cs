@@ -183,9 +183,50 @@ namespace Opc.Ua.Client
 
             // Keep the address mapping even when an offline peer cannot yet answer GetEndpoints.
             server = CoreUtils.Clone(server)!;
-            m_discoveredServers[serverUri] = server;
+            if (server.DiscoveryUrls.Count > MaxDiscoveryUrlsPerServer)
+            {
+                server.DiscoveryUrls = server.DiscoveryUrls.Slice(0, MaxDiscoveryUrlsPerServer);
+            }
+            CacheDiscoveredServer(serverUri, server);
             return await ResolveServerEndpointsAsync(server, currentEndpoint, failure, ct).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Caches the description of a discovered Server. The cache keeps at
+        /// most <see cref="MaxDiscoveredServers"/> Servers; a new Server that
+        /// does not fit replaces older entries.
+        /// </summary>
+        private void CacheDiscoveredServer(string serverUri, ApplicationDescription server)
+        {
+            if (!m_discoveredServers.ContainsKey(serverUri) &&
+                m_discoveredServers.Count >= MaxDiscoveredServers)
+            {
+                foreach (string cachedUri in m_discoveredServers.Keys)
+                {
+                    m_discoveredServers.TryRemove(cachedUri, out _);
+                    if (m_discoveredServers.Count < MaxDiscoveredServers)
+                    {
+                        break;
+                    }
+                }
+            }
+            m_discoveredServers[serverUri] = server;
+        }
+
+        /// <summary>
+        /// The number of Servers whose discovered description is cached.
+        /// </summary>
+        internal int DiscoveredServerCount => m_discoveredServers.Count;
+
+        /// <summary>
+        /// The maximum number of Servers whose discovered description is cached.
+        /// </summary>
+        internal const int MaxDiscoveredServers = 64;
+
+        /// <summary>
+        /// The discovery URLs of a discovered Server that are kept and tried.
+        /// </summary>
+        internal const int MaxDiscoveryUrlsPerServer = 8;
 
         private async ValueTask<ConfiguredEndpoint?> ResolveServerEndpointsAsync(
             ApplicationDescription server,
