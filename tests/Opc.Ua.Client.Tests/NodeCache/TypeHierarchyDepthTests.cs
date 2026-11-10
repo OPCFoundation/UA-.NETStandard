@@ -133,6 +133,71 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task LoadTypeHierarchyAtTheLimitSucceedsAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            var server = new SubtypeChainServer(
+                session,
+                ReferenceTypeIds.HierarchicalReferences,
+                NodeClass.ReferenceType,
+                NodeCache.MaxTypeHierarchyDepth);
+
+            await session.NodeCache.LoadTypeHierarchyAsync(
+                [ReferenceTypeIds.HierarchicalReferences], default).ConfigureAwait(false);
+
+            Assert.That(server.MaxLevelBrowsed, Is.EqualTo(NodeCache.MaxTypeHierarchyDepth));
+        }
+
+        [Test]
+        public async Task LoadTypeHierarchyOneLevelBeyondTheLimitFailsAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            _ = new SubtypeChainServer(
+                session,
+                ReferenceTypeIds.HierarchicalReferences,
+                NodeClass.ReferenceType,
+                NodeCache.MaxTypeHierarchyDepth + 1);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.NodeCache.LoadTypeHierarchyAsync(
+                    [ReferenceTypeIds.HierarchicalReferences], default).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadQueryTooComplex));
+        }
+
+        [Test]
+        public async Task FetchTypeTreeAtTheLimitSucceedsAsync([Values] bool arrayOverload)
+        {
+            using SessionMock session = SessionMock.Create();
+            var server = new SubtypeChainServer(
+                session, ObjectTypeIds.FileType, NodeClass.ObjectType, NodeCache.MaxTypeHierarchyDepth);
+
+            await FetchFileTypeTreeAsync(session, arrayOverload).ConfigureAwait(false);
+
+            Assert.That(server.MaxLevelBrowsed, Is.GreaterThanOrEqualTo(NodeCache.MaxTypeHierarchyDepth - 1));
+        }
+
+        [Test]
+        public async Task FetchTypeTreeOneLevelBeyondTheLimitFailsAsync([Values] bool arrayOverload)
+        {
+            using SessionMock session = SessionMock.Create();
+            _ = new SubtypeChainServer(
+                session, ObjectTypeIds.FileType, NodeClass.ObjectType, NodeCache.MaxTypeHierarchyDepth + 1);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                () => FetchFileTypeTreeAsync(session, arrayOverload)).ConfigureAwait(false);
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadQueryTooComplex));
+        }
+
+        private static Task FetchFileTypeTreeAsync(SessionMock session, bool arrayOverload)
+        {
+            return arrayOverload
+                ? session.FetchTypeTreeAsync(new ExpandedNodeId[] { ObjectTypeIds.FileType }.ToArrayOf())
+                : session.FetchTypeTreeAsync(ObjectTypeIds.FileType);
+        }
+
+        [Test]
         public async Task FindReferenceTypeFindsANameInTheChainAsync()
         {
             using SessionMock session = SessionMock.Create();

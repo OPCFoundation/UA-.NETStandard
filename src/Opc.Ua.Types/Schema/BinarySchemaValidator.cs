@@ -217,18 +217,18 @@ namespace Opc.Ua.Schema.Binary
             Justification = "XmlSerializer is used with known schema types at design time.")]
         private void Import(string? location, string? namespaceUri, int depth)
         {
+            // check if already loaded: a cycle or a shared import ends here.
+            if (LoadedFiles.ContainsKey(namespaceUri!))
+            {
+                return;
+            }
+
             if (depth > MaxImportDepth)
             {
                 throw Exception(
                     "Imports of dictionary {0} nest deeper than {1} levels.",
                     namespaceUri,
                     MaxImportDepth);
-            }
-
-            // check if already loaded.
-            if (LoadedFiles.ContainsKey(namespaceUri!))
-            {
-                return;
             }
 
             TypeDictionary dictionary = Load<TypeDictionary>(location, namespaceUri);

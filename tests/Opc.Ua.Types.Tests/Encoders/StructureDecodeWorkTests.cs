@@ -95,6 +95,28 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void BinaryBodiesInOneJsonMessageShareTheAllowance()
+        {
+            // T15 decodes 131069 units of work from an empty body: one body is
+            // within the allowance, two bodies of one message are not.
+            ServiceMessageContext context = CreateContext(15, out _);
+            string body = "{\"UaTypeId\":\"nsu=" + kNs + ";s=T15\",\"UaEncoding\":1,\"UaBody\":\"\"}";
+
+            using (var decoder = new JsonDecoder("{\"F\":[" + body + "]}", context))
+            {
+                ArrayOf<IEncodeable> one = decoder.ReadEncodeableArrayAsExtensionObjects<IEncodeable>("F");
+                Assert.That(one.Count, Is.EqualTo(1));
+            }
+
+            using (var decoder = new JsonDecoder("{\"F\":[" + body + "," + body + "]}", context))
+            {
+                ServiceResultException? error = Assert.Throws<ServiceResultException>(
+                    () => decoder.ReadEncodeableArrayAsExtensionObjects<IEncodeable>("F"));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            }
+        }
+
+        [Test]
         public void LongArrayOfEmptyStructuresDecodes()
         {
             ServiceMessageContext context = CreateContext(0, out ExpandedNodeId empty);

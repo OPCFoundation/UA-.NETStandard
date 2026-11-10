@@ -3144,7 +3144,7 @@ namespace Opc.Ua.Client
                 visited.Add(typeId);
             }
 
-            await FetchTypeTreeAsync(typeIds, visited, ct).ConfigureAwait(false);
+            await FetchTypeTreeAsync(typeIds, visited, 0, ct).ConfigureAwait(false);
         }
 
         private async Task FetchTypeTreeAsync(
@@ -3168,31 +3168,30 @@ namespace Opc.Ua.Client
 
             if (subTypes.Count > 0)
             {
-                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
+                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, 1, ct).ConfigureAwait(false);
             }
         }
 
+        /// <summary>
+        /// Fetches the subtypes below <paramref name="typeIds"/>, which are
+        /// <paramref name="depth"/> levels below the type the walk started at.
+        /// </summary>
         private async Task FetchTypeTreeAsync(
             ArrayOf<ExpandedNodeId> typeIds,
             HashSet<ExpandedNodeId> visited,
+            int depth,
             CancellationToken ct)
         {
             // Two levels of subtypes per pass, iteratively: the depth of the
             // type tree is chosen by the server.
             ArrayOf<NodeId> referenceTypeIds = [ReferenceTypeIds.HasSubtype];
-            for (int depth = 0; ; depth += 2)
+            for (; ; depth += 2)
             {
                 ct.ThrowIfCancellationRequested();
-                if (depth > Client.NodeCache.MaxTypeHierarchyDepth)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadQueryTooComplex,
-                        "The type tree is deeper than {0} levels.",
-                        Client.NodeCache.MaxTypeHierarchyDepth);
-                }
                 ArrayOf<INode> nodes = await NodeCache
                     .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
                     .ConfigureAwait(false);
+                ThrowIfDeeperThanTypeHierarchyLimit(nodes.Count, depth + 1);
                 foreach (INode node in nodes)
                 {
                     visited.Add(node.NodeId);
@@ -3215,7 +3214,23 @@ namespace Opc.Ua.Client
                 {
                     return;
                 }
+                ThrowIfDeeperThanTypeHierarchyLimit(subTypes.Count, depth + 2);
                 typeIds = subTypes.ToArrayOf();
+            }
+        }
+
+        /// <summary>
+        /// Fails when types were found at a level below the type hierarchy limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void ThrowIfDeeperThanTypeHierarchyLimit(int count, int level)
+        {
+            if (count > 0 && level > Client.NodeCache.MaxTypeHierarchyDepth)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadQueryTooComplex,
+                    "The type tree is deeper than {0} levels.",
+                    Client.NodeCache.MaxTypeHierarchyDepth);
             }
         }
 

@@ -172,6 +172,20 @@ namespace Opc.Ua.Types.Tests.Schema
         }
 
         [Test]
+        public void BinaryDictionaryImportCycleAtTheLimitValidates()
+        {
+            // The last dictionary of a chain of the maximum depth imports one
+            // that is already loaded: the import ends there without descending.
+            Dictionary<string, byte[]> table = BuildImportChain(BinarySchemaValidator.MaxImportDepth);
+            string last = "urn:chain:" + BinarySchemaValidator.MaxImportDepth;
+            table[last] = Dictionary(last, "urn:chain:1");
+            var validator = new BinarySchemaValidator(table);
+            using var stream = new MemoryStream(table["urn:chain:0"]);
+
+            Assert.That(() => validator.Validate(stream), Throws.Nothing);
+        }
+
+        [Test]
         public void BinaryDictionaryImportCycleValidates()
         {
             var table = new Dictionary<string, byte[]>
