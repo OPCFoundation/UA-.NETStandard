@@ -73,6 +73,22 @@ namespace Opc.Ua.Client.Subscriptions
         int SessionSubscriptionCount { get; }
 
         /// <summary>
+        /// Gets the operation timeout of the session's channel in milliseconds, after
+        /// which the client abandons a request. Zero or less when not known.
+        /// </summary>
+        int OperationTimeout { get; }
+
+        /// <summary>
+        /// Whether a Publish response for an identifier that resolves to no
+        /// subscription may be taken as an abandoned subscription and deleted on the
+        /// server. It may not while the session transfers or restores subscriptions,
+        /// while a subscription of the session is still waiting for its identifier,
+        /// or when the session keeps its subscriptions on close.
+        /// </summary>
+        /// <param name="subscriptionId">The unresolved identifier.</param>
+        bool MayDeleteUnknownSubscription(uint subscriptionId);
+
+        /// <summary>
         /// Create a managed subscription
         /// </summary>
         /// <param name="handler"></param>

@@ -600,6 +600,13 @@ namespace Opc.Ua.Subscriptions.Tests
 
             public int SessionSubscriptionCount => 0;
 
+            public int OperationTimeout => 0;
+
+            public bool MayDeleteUnknownSubscription(uint subscriptionId)
+            {
+                return true;
+            }
+
             public int CreateSubscriptionCallCount { get; private set; }
 
             public IMessageAckQueue? LastCreateQueue { get; private set; }

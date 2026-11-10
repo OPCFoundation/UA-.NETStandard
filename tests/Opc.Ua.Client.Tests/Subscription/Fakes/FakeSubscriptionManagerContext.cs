@@ -248,6 +248,21 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// <inheritdoc/>
         public int SessionSubscriptionCount => SessionOwnedSubscriptionIds.Count;
 
+        /// <inheritdoc/>
+        public int OperationTimeout { get; set; }
+
+        /// <summary>
+        /// Whether unresolved subscription identifiers may be deleted on the
+        /// server. Defaults to <c>true</c>.
+        /// </summary>
+        public Func<uint, bool> MayDeleteUnknownSubscriptionHandler { get; set; } = _ => true;
+
+        /// <inheritdoc/>
+        public bool MayDeleteUnknownSubscription(uint subscriptionId)
+        {
+            return MayDeleteUnknownSubscriptionHandler(subscriptionId);
+        }
+
         /// <summary>Recorded dispatches to session-owned subscriptions.</summary>
         public int SessionDispatchCount => Volatile.Read(ref m_sessionDispatchCount);
 

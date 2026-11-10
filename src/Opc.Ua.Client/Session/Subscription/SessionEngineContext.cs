@@ -360,6 +360,37 @@ namespace Opc.Ua.Client
                 return true;
             }
 
+            /// <summary>
+            /// Delivers a message recovered with Republish to the classic
+            /// subscription that holds <paramref name="subscriptionId"/>. A
+            /// Republish response lists no available sequence numbers, so the
+            /// subscription keeps the ones from the last Publish response.
+            /// </summary>
+            /// <returns><c>true</c> when a subscription took the message.</returns>
+            internal bool TryDispatchRepublishedToSessionSubscription(
+                uint subscriptionId,
+                NotificationMessage message,
+                ArrayOf<string> stringTable)
+            {
+                if (subscriptionId == 0 || message == null)
+                {
+                    return false;
+                }
+                foreach (Subscription subscription in m_session.Subscriptions)
+                {
+                    if (subscription.Id == subscriptionId)
+                    {
+                        message.StringTable = stringTable;
+                        subscription.SaveRepublishedMessageInCache(message);
+                        OnPublishNotification(
+                            subscription,
+                            new NotificationEventArgs(subscription, message, stringTable));
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             private void RaisePublishNotification(
                 NotificationEventHandler callback,
                 NotificationEventArgs args)

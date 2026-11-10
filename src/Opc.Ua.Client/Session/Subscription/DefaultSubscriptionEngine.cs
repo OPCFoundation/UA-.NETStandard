@@ -175,6 +175,19 @@ namespace Opc.Ua.Client
                 previousSessionId, ct));
         }
 
+        /// <summary>
+        /// Queues the acknowledgement of a message delivered to a subscription the
+        /// session holds through the classic API, for example one recovered with
+        /// Republish. It is sent with the next Publish request.
+        /// </summary>
+        internal void QueueSessionAcknowledgement(uint subscriptionId, uint sequenceNumber)
+        {
+            if (!m_disposed)
+            {
+                m_manager.QueueSessionAcknowledgement(subscriptionId, sequenceNumber);
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -262,6 +275,32 @@ namespace Opc.Ua.Client
                     return 0;
 #endif
                 }
+            }
+
+            /// <inheritdoc/>
+            public int OperationTimeout => m_context.OperationTimeout;
+
+            /// <inheritdoc/>
+            public bool MayDeleteUnknownSubscription(uint subscriptionId)
+            {
+                // The guards of the classic engine: a transfer or restore sets
+                // Reconnecting while subscriptions are bound to their identifiers,
+                // and a subscription without an identifier is being created.
+                if (m_context.Reconnecting ||
+                    !m_context.DeleteSubscriptionsOnClose)
+                {
+                    return false;
+                }
+#if OPCUA_V1_CLIENT
+                foreach (Subscription subscription in m_context.Subscriptions)
+                {
+                    if (subscription.Id == default)
+                    {
+                        return false;
+                    }
+                }
+#endif
+                return true;
             }
 
             /// <inheritdoc/>

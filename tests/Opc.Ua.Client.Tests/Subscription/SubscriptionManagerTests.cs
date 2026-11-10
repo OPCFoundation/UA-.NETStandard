@@ -3134,6 +3134,110 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// While the session transfers or restores subscriptions, an identifier
+        /// that resolves to no subscription can belong to one being bound to it.
+        /// It is kept on the server until the session allows deleting it.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerKeepsUnknownSubscriptionWhileSessionTransfersAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            int mayDelete = 0;
+            var session = new FakeSubscriptionManagerContext
+            {
+                MayDeleteUnknownSubscriptionHandler = _ => Volatile.Read(ref mayDelete) != 0
+            };
+            OptionsMonitor<SubscriptionOptions> options =
+                OptionsFactory.Create<SubscriptionOptions>();
+            var created = new FakeManagedSubscription { Id = 1u, Created = true };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (handler, opts, queue) => created;
+                sut.Add(m_mockNotificationDataHandler.Object, options);
+
+                int publishCount = 0;
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Interlocked.Increment(ref publishCount);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h!.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => Volatile.Read(ref publishCount) >= 3,
+                    testCt).ConfigureAwait(false);
+                Assert.That(session.DeleteCalls, Is.Empty,
+                    "An identifier must not be deleted while the session transfers subscriptions.");
+
+                Volatile.Write(ref mayDelete, 1);
+                await WaitUntilAsync(() => session.DeleteCallsCount > 0, testCt)
+                    .ConfigureAwait(false);
+                Assert.That(session.DeleteCalls[0].SubscriptionIds.ToList(), Does.Contain(4242u));
+            }
+        }
+
+        /// <summary>
+        /// A message delivered to a subscription the session holds through the
+        /// classic API is acknowledged with a later Publish request, so the
+        /// server can release it from its retransmission queue.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerAcknowledgesSessionSubscriptionMessagesAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(4242u);
+            var acknowledged = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            int sequenceNumber = 0;
+            session.OnPublishAsync = (h, acks, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement ack in acks)
+                {
+                    acknowledged.Enqueue(ack);
+                }
+                uint seq = (uint)Interlocked.Increment(ref sequenceNumber);
+                PublishResponse response = CreatePublishResponse(4242u, seq);
+                response.NotificationMessage.NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems = [new MonitoredItemNotification { ClientHandle = 1 }]
+                    })
+                ];
+                response.AvailableSequenceNumbers = [seq];
+                response.Results = acks.ConvertAll(_ => (StatusCode)StatusCodes.Good);
+                return new ValueTask<PublishResponse>(response);
+            };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+                sut.Update();
+
+                await WaitUntilAsync(() => acknowledged.Count >= 2, testCt).ConfigureAwait(false);
+                Assert.That(session.SessionDispatchCount, Is.GreaterThanOrEqualTo(2));
+                SubscriptionAcknowledgement[] acks = [.. acknowledged];
+                Assert.That(acks.Select(a => a.SubscriptionId), Is.All.EqualTo(4242u));
+                Assert.That(acks.Take(2).Select(a => a.SequenceNumber), Is.EqualTo(new uint[] { 1, 2 }));
+                Assert.That(session.DeleteCalls, Is.Empty);
+            }
+        }
+
+        /// <summary>
         /// The creation can complete between the worker's id lookup and its
         /// pending-creation check (the id is assigned before the in-progress
         /// flag clears). The freshly created subscription must receive the

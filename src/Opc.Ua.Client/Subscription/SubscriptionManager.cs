@@ -2854,6 +2854,70 @@ namespace Opc.Ua.Client.Subscriptions
         /// Puts acknowledgements of an abandoned or failed Publish attempt back into
         /// the queue, except those that must not be sent anymore.
         /// </summary>
+        /// <summary>
+        /// Queues the acknowledgement of a message delivered to a subscription the
+        /// session holds outside this manager's registry (the classic API). Those
+        /// subscriptions have no processor that could own a tracked acknowledgement,
+        /// so they are sent as they are with the next Publish request, as the classic
+        /// engine does.
+        /// </summary>
+        internal void QueueSessionAcknowledgement(uint subscriptionId, uint sequenceNumber)
+        {
+            lock (m_sessionAcknowledgements)
+            {
+                if (m_sessionAcknowledgements.Count >= kMaxSessionAcknowledgements)
+                {
+                    // Nothing sends them; the oldest is the least likely to still be held.
+                    m_sessionAcknowledgements.Dequeue();
+                }
+                m_sessionAcknowledgements.Enqueue(new SubscriptionAcknowledgement
+                {
+                    SubscriptionId = subscriptionId,
+                    SequenceNumber = sequenceNumber
+                });
+                Volatile.Write(ref m_sessionAcknowledgementCount, m_sessionAcknowledgements.Count);
+            }
+        }
+
+        /// <summary>
+        /// Takes the queued acknowledgements of session subscriptions, or returns
+        /// <c>null</c> when there are none.
+        /// </summary>
+        private List<SubscriptionAcknowledgement>? TakeSessionAcknowledgements()
+        {
+            if (Volatile.Read(ref m_sessionAcknowledgementCount) == 0)
+            {
+                return null;
+            }
+            lock (m_sessionAcknowledgements)
+            {
+                if (m_sessionAcknowledgements.Count == 0)
+                {
+                    return null;
+                }
+                var taken = new List<SubscriptionAcknowledgement>(m_sessionAcknowledgements);
+                m_sessionAcknowledgements.Clear();
+                Volatile.Write(ref m_sessionAcknowledgementCount, 0);
+                return taken;
+            }
+        }
+
+        /// <summary>
+        /// Puts session acknowledgements back after the Publish request carrying them
+        /// failed or was not sent.
+        /// </summary>
+        private void RequeueSessionAcknowledgements(List<SubscriptionAcknowledgement>? acknowledgements)
+        {
+            if (acknowledgements == null)
+            {
+                return;
+            }
+            foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+            {
+                QueueSessionAcknowledgement(acknowledgement.SubscriptionId, acknowledgement.SequenceNumber);
+            }
+        }
+
         private void RequeueAcknowledgements(List<PendingAcknowledgement> acknowledgements)
         {
             if (acknowledgements.Count == 0)
@@ -3489,6 +3553,7 @@ namespace Opc.Ua.Client.Subscriptions
                         continue;
                     }
                     List<PendingAcknowledgement> batch = ResetBatch();
+                    List<SubscriptionAcknowledgement>? sessionAcks = null;
                     ArrayOf<SubscriptionAcknowledgement> acks = [];
                     uint handle = 0;
                     bool publishActive = true;
@@ -3518,12 +3583,20 @@ namespace Opc.Ua.Client.Subscriptions
                             .ConfigureAwait(false);
                         // Pool size and revised settings may change while waiting for acknowledgements.
                         _ = CalculateTimeouts(currentLatencyMs, ref timeoutHint);
-                        if (batch.Count != 0)
+                        // Session acknowledgements follow the batch, so the server's
+                        // results for the batch keep their indices.
+                        sessionAcks = m_outer.TakeSessionAcknowledgements();
+                        int sessionAckCount = sessionAcks?.Count ?? 0;
+                        if (batch.Count != 0 || sessionAckCount != 0)
                         {
-                            var wireAcknowledgements = new SubscriptionAcknowledgement[batch.Count];
-                            for (int i = 0; i < wireAcknowledgements.Length; i++)
+                            var wireAcknowledgements = new SubscriptionAcknowledgement[batch.Count + sessionAckCount];
+                            for (int i = 0; i < batch.Count; i++)
                             {
                                 wireAcknowledgements[i] = batch[i].Acknowledgement;
+                            }
+                            for (int i = 0; i < sessionAckCount; i++)
+                            {
+                                wireAcknowledgements[batch.Count + i] = sessionAcks![i];
                             }
                             acks = wireAcknowledgements;
                         }
@@ -3534,6 +3607,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (!m_outer.TryCapturePublishDispatch(out epoch, out requestSequence))
                         {
                             m_outer.RequeueAcknowledgements(batch);
+                            m_outer.RequeueSessionAcknowledgements(sessionAcks);
                             continue;
                         }
                         publishPending = true;
@@ -3634,6 +3708,16 @@ namespace Opc.Ua.Client.Subscriptions
                             publishActive = false;
 
                             //
+                            // Decide before the session lookup whether the identifier
+                            // may be deleted. A transfer binds a subscription to its
+                            // identifier before it ends, so a lookup that missed a
+                            // subscription still being transferred is covered by this
+                            // earlier snapshot; a later check could observe the
+                            // transfer completed after the lookup missed it.
+                            //
+                            bool mayDelete = m_outer.m_session.MayDeleteUnknownSubscription(subscriptionId);
+
+                            //
                             // The identifier does not resolve to any subscription
                             // this manager owns. Delete the orphan on the server,
                             // but only when no subscription is currently awaiting
@@ -3684,10 +3768,35 @@ namespace Opc.Ua.Client.Subscriptions
                                 // The session holds this subscription through the classic
                                 // API. It is live and owned by the application, so the
                                 // notification belongs to it: deliver rather than drop it,
-                                // and never delete it as abandoned.
+                                // and never delete it as abandoned. Acknowledge it like
+                                // the classic engine does on receipt, so the server can
+                                // release it from its retransmission queue.
+                                if (notificationMessage.NotificationData.Count != 0)
+                                {
+                                    m_outer.QueueSessionAcknowledgement(
+                                        subscriptionId, notificationMessage.SequenceNumber);
+                                }
                                 Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
                                 m_lastUnknownSubscriptionId = 0;
                                 m_consecutiveUnresolvedResponses = 0;
+                            }
+                            else if (!mayDelete)
+                            {
+                                //
+                                // The session is transferring or restoring subscriptions,
+                                // or one of its subscriptions does not have its identifier
+                                // yet: the identifier can belong to one of those. Keep it
+                                // on the server, as the classic engine does.
+                                //
+                                if (m_lastUnknownSubscriptionId != subscriptionId)
+                                {
+                                    m_lastUnknownSubscriptionId = subscriptionId;
+                                    m_logger.PublishWorkerDeferredUnknownSubscription(
+                                        Index, handle, subscriptionId);
+                                }
+                                moreNotifications = false;
+                                await DelayUnresolvedSubscriptionAsync(ct)
+                                    .ConfigureAwait(false);
                             }
                             else
                             {
@@ -3722,6 +3831,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (publishActive)
                         {
                             m_outer.RequeueAcknowledgements(batch);
+                            m_outer.RequeueSessionAcknowledgements(sessionAcks);
                         }
                         if (!ct.IsCancellationRequested)
                         {
@@ -3745,6 +3855,7 @@ namespace Opc.Ua.Client.Subscriptions
                             if (publishActive)
                             {
                                 m_outer.RequeueAcknowledgements(batch);
+                                m_outer.RequeueSessionAcknowledgements(sessionAcks);
                             }
                             break;
                         }
@@ -3755,6 +3866,7 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             // Only a failed service request needs acknowledgement rollback.
                             m_outer.RequeueAcknowledgements(batch);
+                            m_outer.RequeueSessionAcknowledgements(sessionAcks);
                             m_outer.EndPublishRequest();
                             publishActive = false;
                         }
@@ -3820,9 +3932,10 @@ namespace Opc.Ua.Client.Subscriptions
                         else if (statusCode == StatusCodes.BadTimeout ||
                             statusCode == StatusCodes.BadRequestTimeout)
                         {
-                            // Timed out - retry with larger timeout
-                            timeoutHint = (uint)Math.Min(
-                                (long)timeoutHint + 1000, (long)s_maxOperationTimeout.TotalMilliseconds);
+                            // Timed out - retry with larger timeout, still within the
+                            // operation timeout.
+                            timeoutHint = ClampTimeoutHint((uint)Math.Min(
+                                (long)timeoutHint + 1000, (long)s_maxOperationTimeout.TotalMilliseconds));
                             m_logger.TimedOutIncreasingTimeout(Index, handle, timeoutHint);
                             moreNotifications = true;
                         }
@@ -4113,13 +4226,41 @@ namespace Opc.Ua.Client.Subscriptions
                 uint newTimeout = (uint)Math.Min(
                     Math.Ceiling(timeout.TotalMilliseconds + margin.TotalMilliseconds),
                     s_maxOperationTimeout.TotalMilliseconds);
-                currentTimeout = Math.Min(
-                    Math.Max(newTimeout, currentTimeout), (uint)s_maxOperationTimeout.TotalMilliseconds);
+                currentTimeout = ClampTimeoutHint(Math.Max(newTimeout, currentTimeout));
                 if (minPublishInterval < latency)
                 {
                     return 0;
                 }
                 return minPublishInterval - (int)latency;
+            }
+
+            /// <summary>
+            /// Keeps the Publish timeout hint within the operation timeout of the
+            /// channel. The channel abandons a request after its operation timeout; a
+            /// hint beyond that lets the server keep a request the client no longer
+            /// tracks and answer it with a notification the client then drops. Like
+            /// the classic engine, the hint is at most half the operation timeout, so
+            /// the server completes a request before the client gives up on it.
+            /// </summary>
+            /// <param name="timeoutHint">The desired hint in milliseconds.</param>
+            internal uint ClampTimeoutHint(uint timeoutHint)
+            {
+                return ClampTimeoutHint(timeoutHint, m_outer.m_session.OperationTimeout);
+            }
+
+            /// <summary>
+            /// Keeps <paramref name="timeoutHint"/> within half of
+            /// <paramref name="operationTimeout"/> and the overall maximum. A
+            /// non-positive operation timeout is not known and does not clamp.
+            /// </summary>
+            internal static uint ClampTimeoutHint(uint timeoutHint, int operationTimeout)
+            {
+                uint max = (uint)s_maxOperationTimeout.TotalMilliseconds;
+                if (operationTimeout > 0)
+                {
+                    max = Math.Min(max, Math.Max((uint)operationTimeout / 2, 1u));
+                }
+                return Math.Min(timeoutHint, max);
             }
 
             private const int kMaxRetainedBatchCapacity = 4096;
@@ -4140,6 +4281,9 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_maxOperationTimeout = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 256;
+        private const int kMaxSessionAcknowledgements = 4096;
+        private readonly Queue<SubscriptionAcknowledgement> m_sessionAcknowledgements = new();
+        private int m_sessionAcknowledgementCount;
         private const int kDeferredAcknowledgementWarningThreshold = 1000;
         private const int kStackAllocThreshold = 256;
 #pragma warning disable IDE0032 // Use auto property
