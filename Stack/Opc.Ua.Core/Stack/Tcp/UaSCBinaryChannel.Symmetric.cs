@@ -122,6 +122,30 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Activates the pending renewed token once the current token is close to expiry.
+        /// </summary>
+        /// <remarks>
+        /// A server keeps securing its messages with the current token until the client
+        /// uses the renewed one, but only until the current token expires (OPC 10000-4
+        /// 5.6.2.1). A client that sends nothing - one waiting on outstanding Publish
+        /// requests - would otherwise receive responses secured with an expired token.
+        /// </remarks>
+        protected void ActivateRenewedTokenIfDue()
+        {
+            ChannelToken renewedToken = RenewedToken;
+            if (renewedToken != null &&
+                CurrentToken != null &&
+                CurrentToken.ActivationRequired)
+            {
+                ActivateToken(renewedToken);
+                m_logger.LogInformation(
+                    "ChannelId {Id}: Token #{TokenId} activated forced.",
+                    Id,
+                    CurrentToken.TokenId);
+            }
+        }
+
+        /// <summary>
         /// Discards the tokens.
         /// </summary>
         protected void DiscardTokens()
@@ -751,13 +775,9 @@ namespace Opc.Ua.Bindings
                 ActivateToken(RenewedToken);
             }
             // check if activation of the new token should be forced.
-            else if (RenewedToken != null && CurrentToken.ActivationRequired)
+            else
             {
-                ActivateToken(RenewedToken);
-                m_logger.LogInformation(
-                    "ChannelId {Id}: Token #{TokenId} activated forced.",
-                    Id,
-                    CurrentToken.TokenId);
+                ActivateRenewedTokenIfDue();
             }
 
             // check for valid token.
@@ -789,8 +809,11 @@ namespace Opc.Ua.Bindings
                 token = PreviousToken;
             }
 
-            // check if token has expired.
-            if (token.Expired)
+            // check if token has expired. A client accepts responses secured with an expired
+            // token for a grace period (OPC 10000-4 5.6.2.1): the server keeps securing its
+            // responses with the old token until it sees the new one, so a response sent just
+            // before expiry can arrive after it. Rejecting it shuts the channel down.
+            if (token.IsExpired(isRequest ? 0 : TcpMessageLimits.TokenExpiryGracePeriod))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,

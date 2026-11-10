@@ -63,9 +63,13 @@ namespace Opc.Ua.Server
                 .MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration
                 .MaxHistoryContinuationPoints;
+            m_minSessionNonceLength = (uint)Math.Min(
+                kMaxSessionNonceLength,
+                Math.Max(
+                    kMinSessionNonceLength,
+                    configuration.SecurityConfiguration?.NonceLength ?? 0));
 
             m_sessions = new NodeIdDictionary<ISession>(m_maxSessionCount);
-            m_lastSessionId = BitConverter.ToUInt32(Nonce.CreateRandomNonceData(sizeof(uint)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -192,22 +196,12 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // can assign a simple identifier if secured.
-                authenticationToken = default;
-                if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
-                    context.ChannelContext.EndpointDescription
-                        .SecurityMode != MessageSecurityMode.None)
-                {
-                    authenticationToken = new NodeId(
-                        Utils.IncrementIdentifier(ref m_lastSessionId));
-                }
-
-                // must assign a hard-to-guess id if not secured.
-                if (authenticationToken == null)
-                {
-                    byte[] token = Nonce.CreateRandomNonceData(32);
-                    authenticationToken = new NodeId(token);
-                }
+                // always assign a hard-to-guess id. A secure channel id does not
+                // make a sequential token safe: HTTPS shares one SecureChannelId
+                // between every client of a listener, so the token is the only
+                // secret that binds a request to its session (Part 6 7.4.1).
+                byte[] token = Nonce.CreateRandomNonceData(32);
+                authenticationToken = new NodeId(token);
 
                 // determine session timeout.
                 if (requestedSessionTimeout > m_maxSessionTimeout)
@@ -221,7 +215,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                var serverNonceObject = Nonce.CreateNonce(
+                Nonce serverNonceObject = CreateSessionNonce(
                     context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 
                 // assign client name.
@@ -325,7 +319,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create new server nonce.
-                serverNonceObject = Nonce.CreateNonce(
+                serverNonceObject = CreateSessionNonce(
                     context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 
                 // validate before activation.
@@ -538,6 +532,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the serverNonce returned by CreateSession and ActivateSession.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-4 5.7.2.2 and 5.7.3.2 require a session nonce of 32 to 128
+        /// bytes. For RSA policies the SecureChannel nonce length of the policy
+        /// can be shorter (16 bytes for Basic128Rsa15, OPC 10000-4 5.6.2.2), so
+        /// the session nonce uses the larger of the policy length and the
+        /// configured minimum. ECC policies keep their ephemeral key nonce.
+        /// </remarks>
+        private Nonce CreateSessionNonce(string securityPolicyUri)
+        {
+            if (EccUtils.IsEccPolicy(securityPolicyUri))
+            {
+                return Nonce.CreateNonce(securityPolicyUri);
+            }
+
+            uint length = Math.Max(Nonce.GetNonceLength(securityPolicyUri), m_minSessionNonceLength);
+            return Nonce.CreateNonce(securityPolicyUri, Nonce.CreateRandomNonceData(length));
+        }
+
+        /// <summary>
         /// Creates a new instance of a session.
         /// </summary>
         protected virtual ISession CreateSession(
@@ -719,7 +734,6 @@ namespace Opc.Ua.Server
         private HashSet<string> m_activatedChannels = new(StringComparer.Ordinal);
 
         private readonly NodeIdDictionary<ISession> m_sessions;
-        private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;
 
         private readonly int m_minSessionTimeout;
@@ -729,6 +743,14 @@ namespace Opc.Ua.Server
 
         private readonly int m_maxBrowseContinuationPoints;
         private readonly int m_maxHistoryContinuationPoints;
+        private readonly uint m_minSessionNonceLength;
+
+        /// <summary>
+        /// OPC 10000-4 5.7.2.2 / 5.7.3.2: the session serverNonce shall have a
+        /// length between 32 and 128 bytes inclusive.
+        /// </summary>
+        private const int kMinSessionNonceLength = 32;
+        private const int kMaxSessionNonceLength = 128;
 
         private readonly Lock m_eventLock = new();
         private event SessionEventHandler m_SessionCreated;

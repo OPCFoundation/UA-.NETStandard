@@ -202,7 +202,10 @@ namespace Quickstarts.Servers
                     result,
                     s_settings);
 
-                var queue = new DurableEventMonitoredItemQueue(template, m_batchPersistor);
+                var queue = new DurableEventMonitoredItemQueue(
+                    template,
+                    m_batchPersistor,
+                    m_telemetry);
                 m_eventQueues.AddOrUpdate(id, queue, (_, _) => queue);
 
                 return queue;
@@ -236,7 +239,10 @@ namespace Quickstarts.Servers
                     result,
                     s_settings);
 
-                var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
+                var queue = new DurableDataChangeMonitoredItemQueue(
+                    template,
+                    m_batchPersistor,
+                    m_telemetry);
                 m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
 
                 return queue;

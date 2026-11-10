@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -1417,6 +1418,89 @@ namespace Opc.Ua.Server.Tests
                 if (i % 501 == 0)
                 {
                     await Task.Delay(1200).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
+        [NonParallelizable]
+        public async Task DurableQueuesWithPersistedBatchSurviveRestartAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            if (m_factory.Create(telemetry) is not DurableMonitoredItemQueueFactory factory)
+            {
+                Assert.Ignore("Test only works with durable queues");
+                return;
+            }
+
+            const uint kDataChangeId = 4711;
+            const uint kEventId = 4712;
+            const uint kCount = 3000;
+            string baseDirectory = Path.Combine(
+                Path.GetTempPath(),
+                "DurableQueueRestart_" + Guid.NewGuid().ToString("N"));
+
+            try
+            {
+                IDataChangeMonitoredItemQueue dataChangeQueue = factory.CreateDataChangeQueue(
+                    true,
+                    kDataChangeId);
+                dataChangeQueue.ResetQueue(kCount, false);
+                IEventMonitoredItemQueue eventQueue = factory.CreateEventQueue(true, kEventId);
+                eventQueue.SetQueueSize(kCount, false);
+
+                // three batches each, the middle one is offloaded to disk
+                for (uint i = 0; i < kCount; i++)
+                {
+                    dataChangeQueue.Enqueue(new DataValue(new Variant(i)), null);
+                    eventQueue.Enqueue(new EventFieldList { ClientHandle = i });
+                }
+
+                // wait for persisting to take place
+                await Task.Delay(2000).ConfigureAwait(false);
+
+                // server shutdown stores the queues, a new factory restores them
+                factory.PersistQueues([kDataChangeId, kEventId], baseDirectory);
+                var restartedFactory = new DurableMonitoredItemQueueFactory(telemetry);
+                IDataChangeMonitoredItemQueue restoredDataChangeQueue =
+                    restartedFactory.RestoreDataChangeQueue(kDataChangeId, baseDirectory);
+                IEventMonitoredItemQueue restoredEventQueue =
+                    restartedFactory.RestoreEventQueue(kEventId, baseDirectory);
+                Assert.That(restoredDataChangeQueue, Is.Not.Null);
+                Assert.That(restoredEventQueue, Is.Not.Null);
+                Assert.That(restoredDataChangeQueue.ItemsInQueue, Is.EqualTo((int)kCount));
+                Assert.That(restoredEventQueue.ItemsInQueue, Is.EqualTo((int)kCount));
+
+                for (uint i = 0; i < kCount; i++)
+                {
+                    DataValue value = null;
+                    EventFieldList fields = null;
+                    // a batch on disk is restored in the background, retry until it is back
+                    for (int retry = 0;
+                        retry < 500 && !restoredDataChangeQueue.Dequeue(out value, out _);
+                        retry++)
+                    {
+                        await Task.Delay(10).ConfigureAwait(false);
+                    }
+                    for (int retry = 0;
+                        retry < 500 && !restoredEventQueue.Dequeue(out fields);
+                        retry++)
+                    {
+                        await Task.Delay(10).ConfigureAwait(false);
+                    }
+
+                    Assert.That(value, Is.Not.Null, $"Data change {i} was not restored");
+                    Assert.That((uint)value.Value, Is.EqualTo(i));
+                    Assert.That(fields, Is.Not.Null, $"Event {i} was not restored");
+                    Assert.That(fields.ClientHandle, Is.EqualTo(i));
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(baseDirectory))
+                {
+                    Directory.Delete(baseDirectory, true);
                 }
             }
         }

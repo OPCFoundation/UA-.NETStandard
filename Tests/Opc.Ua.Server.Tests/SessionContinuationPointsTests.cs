@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -89,6 +90,78 @@ namespace Opc.Ua.Server.Tests
                         session.RestoreContinuationPoint(points[ii].Id.ToByteArray());
                     Assert.That(restored, Is.SameAs(points[ii]));
                 }
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.9: points of prior requests are freed when needed, but a
+        /// request that already holds MaxHistoryContinuationPoints points gets no
+        /// more (the caller reports Bad_NoContinuationPoints). The legacy
+        /// SaveHistoryContinuationPoint keeps evicting the oldest point.
+        /// </summary>
+        [Test]
+        public async Task TrySaveHistoryContinuationPointFreesPriorRequestsButRefusesWithinRequestAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>();
+            await fixture.StartAsync().ConfigureAwait(false);
+
+            try
+            {
+                StandardServer server = fixture.Server;
+                int max = fixture.Config.ServerConfiguration.MaxHistoryContinuationPoints;
+
+                (RequestHeader requestHeader, SecureChannelContext _) =
+                    await ServerFixtureUtils.CreateAndActivateSessionAsync(
+                        server,
+                        "HistoryContinuationPointLimitTest").ConfigureAwait(false);
+
+                var session = server.CurrentInstance.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken) as Session;
+                Assert.That(session, Is.Not.Null);
+
+                // request 1 fills the session.
+                var request1 = new List<Guid>();
+                for (int ii = 0; ii < max; ii++)
+                {
+                    var id = Guid.NewGuid();
+                    request1.Add(id);
+                    Assert.That(session.TrySaveHistoryContinuationPoint(id, new object(), 1), Is.True);
+                }
+
+                // one more point for request 1 is refused and nothing is evicted.
+                var refused = Guid.NewGuid();
+                Assert.That(session.TrySaveHistoryContinuationPoint(refused, new object(), 1), Is.False);
+                Assert.That(session.RestoreHistoryContinuationPoint(refused.ToByteArray()), Is.Null);
+                object first = session.RestoreHistoryContinuationPoint(request1[0].ToByteArray());
+                Assert.That(first, Is.Not.Null, "The oldest point of the request must not be evicted.");
+                Assert.That(
+                    session.TrySaveHistoryContinuationPoint(request1[0], first, 1),
+                    Is.True,
+                    "Restoring freed a slot that the same request can use again.");
+
+                // request 2 frees the points of the prior request 1.
+                var request2 = new List<Guid>();
+                for (int ii = 0; ii < max; ii++)
+                {
+                    var id = Guid.NewGuid();
+                    request2.Add(id);
+                    Assert.That(session.TrySaveHistoryContinuationPoint(id, new object(), 2), Is.True);
+                }
+
+                Assert.That(
+                    request1.All(id => session.RestoreHistoryContinuationPoint(id.ToByteArray()) == null),
+                    Is.True,
+                    "The points of the prior request must have been freed.");
+
+                // the legacy method keeps evicting the oldest point.
+                var legacy = Guid.NewGuid();
+                session.SaveHistoryContinuationPoint(legacy, new object());
+                Assert.That(session.RestoreHistoryContinuationPoint(request2[0].ToByteArray()), Is.Null);
+                Assert.That(session.RestoreHistoryContinuationPoint(legacy.ToByteArray()), Is.Not.Null);
             }
             finally
             {

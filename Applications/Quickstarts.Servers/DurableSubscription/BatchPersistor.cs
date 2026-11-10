@@ -72,6 +72,7 @@ namespace Quickstarts.Servers
                     return;
                 }
                 batch.PersistingInProgress = true;
+                batch.CancelBatchPersist = new CancellationTokenSource();
 
                 if (m_batchesToPersist.TryAdd(batch.Id, batch))
                 {
@@ -149,10 +150,26 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void PersistSynchronously(BatchBase batch)
         {
-            using var cancellationTokenSource = new CancellationTokenSource();
-            batch.CancelBatchPersist = cancellationTokenSource;
+            CancellationTokenSource cancellationTokenSource;
+            lock (batch)
+            {
+                // the source is created when the persist is requested, so a restore
+                // requested before this task runs cancels the persist
+                cancellationTokenSource = batch.CancelBatchPersist ??= new CancellationTokenSource();
+            }
             try
             {
+                if (cancellationTokenSource.IsCancellationRequested)
+                {
+                    lock (batch)
+                    {
+                        batch.PersistingInProgress = false;
+                        batch.CancelBatchPersist = null;
+                    }
+                    m_batchesToPersist.TryRemove(batch.Id, out _);
+                    return;
+                }
+
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                 string result = JsonConvert.SerializeObject(batch, s_settings);
 
@@ -167,21 +184,19 @@ namespace Quickstarts.Servers
 
                 File.WriteAllText(filePath, result);
 
-                if (cancellationTokenSource.IsCancellationRequested)
+                // check under the lock, a restore request cancels under the same lock
+                lock (batch)
                 {
-                    File.Delete(filePath);
-                    lock (batch)
+                    if (cancellationTokenSource.IsCancellationRequested)
                     {
+                        File.Delete(filePath);
                         batch.PersistingInProgress = false;
-                        batch.CancelBatchPersist = null;
                     }
-                }
-                else
-                {
-                    lock (batch)
+                    else
                     {
                         batch.SetPersisted();
                     }
+                    batch.CancelBatchPersist = null;
                 }
                 m_batchesToPersist.TryRemove(batch.Id, out _);
             }
@@ -194,6 +209,10 @@ namespace Quickstarts.Servers
                     m_batchesToPersist.TryRemove(batch.Id, out _);
                     batch.CancelBatchPersist = null;
                 }
+            }
+            finally
+            {
+                cancellationTokenSource.Dispose();
             }
         }
 

@@ -523,6 +523,32 @@ namespace TestData
         }
 
         /// <summary>
+        /// Saves a data reader as continuation point unless the request has used all
+        /// continuation points of the session.
+        /// </summary>
+        /// <remarks>
+        /// A subclass that overrides <see cref="SaveDataReader"/> keeps its own
+        /// storage and is called as before.
+        /// </remarks>
+        private bool TrySaveDataReader(ServerSystemContext context, HistoryDataReader reader)
+        {
+            m_saveDataReaderOverridden ??= GetType().GetMethod(
+                nameof(SaveDataReader),
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+                null,
+                [typeof(ServerSystemContext), typeof(HistoryDataReader)],
+                null)?.DeclaringType != typeof(TestDataNodeManager);
+
+            if (m_saveDataReaderOverridden.Value)
+            {
+                SaveDataReader(context, reader);
+                return true;
+            }
+
+            return HistoryContinuationPoints.TrySave(context, reader.Id, reader);
+        }
+
+        /// <summary>
         /// Returns the history data source for a node.
         /// </summary>
         protected virtual ServiceResult GetHistoryDataSource(
@@ -626,7 +652,16 @@ namespace TestData
             // save continuation point.
             if (!complete)
             {
-                SaveDataReader(serverContext, reader);
+                // OPC 10000-4 7.9: no more continuation points for this request.
+                if (!TrySaveDataReader(serverContext, reader))
+                {
+                    Utils.SilentDispose(reader);
+                    result.ContinuationPoint = null;
+                    result.HistoryData = null;
+                    result.StatusCode = StatusCodes.BadNoContinuationPoints;
+                    return result.StatusCode;
+                }
+
                 result.ContinuationPoint = reader.Id.ToByteArray();
                 result.StatusCode = StatusCodes.Good;
             }
@@ -1039,5 +1074,6 @@ namespace TestData
         private VectorVariableValue m_dataDynamicStructureVectorStructure;
         private VectorVariableValue m_dataStaticVectorScalarValue;
         private VectorVariableValue m_dataDynamicVectorScalarValue;
+        private bool? m_saveDataReaderOverridden;
     }
 }

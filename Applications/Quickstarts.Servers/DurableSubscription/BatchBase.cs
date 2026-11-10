@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using Newtonsoft.Json;
 
 namespace Quickstarts.Servers
 {
@@ -48,7 +49,8 @@ namespace Quickstarts.Servers
         /// <summary>
         /// The unique Id of the batch
         /// </summary>
-        public Guid Id { get; }
+        [JsonProperty]
+        public Guid Id { get; private set; }
 
         /// <summary>
         /// The number of values in the batch
@@ -63,16 +65,19 @@ namespace Quickstarts.Servers
         /// <summary>
         /// The batch has been persisted to disk
         /// </summary>
+        [JsonProperty]
         public bool IsPersisted { get; protected set; }
 
         /// <summary>
         /// Restore is currently in progress in a background thread
         /// </summary>
+        [JsonIgnore]
         public bool RestoreInProgress { get; set; }
 
         /// <summary>
         /// Peristing is currently in progress in a background thread
         /// </summary>
+        [JsonIgnore]
         public bool PersistingInProgress { get; set; }
 
         /// <summary>
@@ -83,6 +88,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Cancel this token to stop the persisting of the batch
         /// </summary>
+        [JsonIgnore]
         public CancellationTokenSource CancelBatchPersist { get; set; }
     }
 }

@@ -494,6 +494,46 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// An event the where clause rejects is never queued, so on a full queue it is no
+        /// overflow and, for a Condition, no lost Condition event (no RefreshRequired).
+        /// </summary>
+        [Test]
+        public void FilteredEventDoesNotSetOverflowOnFullQueue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: false,
+                filterRetainValue: false,
+                telemetry);
+            SystemContext systemContext = GetSystemContext(telemetry);
+            EventFilter highOnly = GetRetainEventFilter(GetHighOnlyFilter(), telemetry);
+            MonitoredItem monitoredItem = CreateMonitoredItem(highOnly, telemetry, queueSize: 2);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+
+            var notifications = new Queue<EventFieldList>();
+            _ = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                notifications,
+                10);
+
+            Assert.That(notifications, Has.Count.EqualTo(2));
+            Assert.That(
+                notifications,
+                Has.None.Matches<EventFieldList>(
+                    fields => fields.Handle is EventQueueOverflowEventState));
+            Assert.That(
+                notifications,
+                Has.None.Matches<EventFieldList>(
+                    fields => fields.Handle is RefreshRequiredEventState));
+        }
+
+        /// <summary>
         /// A select clause the wrapper cannot resolve - here Retain asked for on a type the
         /// condition is not - must stay null rather than be turned into a false.
         /// </summary>
@@ -862,7 +902,10 @@ namespace Opc.Ua.Server.Tests
             return m_filterContext;
         }
 
-        private MonitoredItem CreateMonitoredItem(MonitoringFilter filter, ITelemetryContext telemetry)
+        private MonitoredItem CreateMonitoredItem(
+            MonitoringFilter filter,
+            ITelemetryContext telemetry,
+            uint queueSize = 10)
         {
             var serverMock = new Mock<IServerInternal>();
 
@@ -890,7 +933,7 @@ namespace Opc.Ua.Server.Tests
                 filter,
                 null,
                 1000.0,
-                10,
+                queueSize,
                 false,
                 1000);
         }
