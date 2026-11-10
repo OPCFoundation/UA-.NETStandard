@@ -2091,7 +2091,8 @@ namespace Opc.Ua.Wot
                 referenceTypeCatalog);
             var references = new List<Reference>
             {
-                new() {
+                new Reference
+                {
                     ReferenceType = "HasTypeDefinition",
                     IsForward = true,
                     Value = typeDefinition ?? WotVocabulary.BaseDataVariableType
@@ -2431,7 +2432,7 @@ namespace Opc.Ua.Wot
             JsonElement schema, string? dataType)
         {
             if (schema.ValueKind != JsonValueKind.Object ||
-                ReadValueRank(schema) != ScalarValueRank ||
+                ReadValueRank(schema) is not (ScalarValueRank or ValueRanks.Any or ValueRanks.ScalarOrOneDimension) ||
                 (!schema.TryGetProperty("const", out JsonElement constant) &&
                     !schema.TryGetProperty("default", out constant)))
             {
@@ -2578,7 +2579,7 @@ namespace Opc.Ua.Wot
         internal static bool MapsVariableValue(JsonElement schema)
         {
             if (schema.ValueKind != JsonValueKind.Object ||
-                ReadValueRank(schema) != ScalarValueRank ||
+                ReadValueRank(schema) is not (ScalarValueRank or ValueRanks.Any or ValueRanks.ScalarOrOneDimension) ||
                 (!schema.TryGetProperty("const", out JsonElement constant) &&
                     !schema.TryGetProperty("default", out constant)))
             {
@@ -2896,8 +2897,7 @@ namespace Opc.Ua.Wot
             carrier.DisplayName = MakeText(typeLocal);
             var references = new List<Reference>(undeclared.Count + 1)
             {
-                new Reference
-                {
+                new() {
                     ReferenceType = "HasSubtype",
                     IsForward = false,
                     Value = typeDefinition.Value

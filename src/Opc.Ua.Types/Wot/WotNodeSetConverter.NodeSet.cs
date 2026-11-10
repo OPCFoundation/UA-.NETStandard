@@ -2610,7 +2610,9 @@ namespace Opc.Ua.Wot
                 }
                 if (rawBrowseName[ii] is not (>= '0' and <= '9'))
                 {
-                    return rawBrowseName;
+                    return rawBrowseName.Contains(':', StringComparison.Ordinal)
+                        ? "nsu=" + WotVocabulary.OpcUaNamespace + ";" + rawBrowseName
+                        : rawBrowseName;
                 }
             }
             if (separator <= 0 || separator + 1 >= rawBrowseName.Length)
@@ -2630,7 +2632,9 @@ namespace Opc.Ua.Wot
             string name = rawBrowseName[(separator + 1)..];
             if (namespaceIndex == 0)
             {
-                return name;
+                return name.Contains(':', StringComparison.Ordinal)
+                    ? "nsu=" + WotVocabulary.OpcUaNamespace + ";" + name
+                    : name;
             }
             if (namespaceUris is null || namespaceIndex > namespaceUris.Length)
             {

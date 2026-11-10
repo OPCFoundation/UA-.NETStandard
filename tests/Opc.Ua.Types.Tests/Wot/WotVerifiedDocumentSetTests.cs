@@ -49,6 +49,236 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public sealed class WotVerifiedDocumentSetTests
     {
+        /// <summary>
+        /// Checks that colons in namespace-zero BrowseNames are not mistaken for unbound context prefixes.
+        /// </summary>
+        [TestCase("http://opcfoundation.org/UA/")]
+        [TestCase("0:http://opcfoundation.org/UA/")]
+        public async Task NamespaceZeroBrowseNamesWithColonsUseExplicitPortableNamesAsync(string browseName)
+        {
+            UANodeSet source = CreateReadableRoots();
+            source.Items![0].BrowseName = browseName;
+
+            WotConversionResult<WotDocumentSet> result =
+                await WotNodeSetConverter.FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, Describe(result));
+            using WotDocumentSet set = result.Value!;
+            Assert.That(set.Entries[0].Document.RootElement.GetProperty("uav:browseName").GetString(),
+                Is.EqualTo("nsu=http://opcfoundation.org/UA/;http://opcfoundation.org/UA/"));
+            await AssertEquivalentAsync(source, set, new WotNodeSetConverterOptions()).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Checks shared inverse names against their pinned identity and rejects changed reference claims.
+        /// </summary>
+        [TestCase("unchanged")]
+        [TestCase("direction")]
+        [TestCase("pin")]
+        public async Task PinnedSharedInverseNamesRetainExactReferenceTypeAndDirectionAsync(string change)
+        {
+            UANodeSet source = CreateReadableRoots();
+            source.Items![0].SymbolicName = "NativeAlpha";
+            source.Items[0].References =
+            [
+                .. source.Items[0].References!,
+                new Reference
+                {
+                    ReferenceType = "ns=1;i=4001",
+                    IsForward = false,
+                    Value = source.Items[1].NodeId
+                }
+            ];
+            source.Items =
+            [
+                .. source.Items,
+                new UAReferenceType
+                {
+                    NodeId = "ns=1;i=4001",
+                    BrowseName = "1:HasAlpha",
+                    InverseName = [new Export.LocalizedText { Value = "SharedOwner" }],
+                    References = [new Reference { ReferenceType = "i=45", IsForward = false, Value = "i=32" }]
+                },
+                new UAReferenceType
+                {
+                    NodeId = "ns=1;i=4002",
+                    BrowseName = "1:HasBeta",
+                    InverseName = [new Export.LocalizedText { Value = "SharedOwner" }],
+                    References = [new Reference { ReferenceType = "i=45", IsForward = false, Value = "i=32" }]
+                }
+            ];
+
+            WotConversionResult<WotDocumentSet> result =
+                await WotNodeSetConverter.FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, Describe(result));
+            using WotDocumentSet set = result.Value!;
+            if (change == "unchanged")
+            {
+                await AssertEquivalentAsync(source, set, new WotNodeSetConverterOptions()).ConfigureAwait(false);
+                return;
+            }
+            JsonObject altered = JsonNode.Parse(set.Entries[0].Document.Utf8Json.Span)!.AsObject();
+            JsonNode link = altered["links"]!.AsArray()
+                .Single(candidate => candidate!["rel"]!.GetValue<string>() == "ns1:SharedOwner")!;
+            link[change == "direction" ? "rel" : "uav:refId"] = change == "direction"
+                ? "ns1:HasAlpha"
+                : "nsu=urn:test:documents;i=4002";
+            var entries = new List<WotDocumentSetEntry>();
+            for (int index = 0; index < set.Entries.Count; index++)
+            {
+                WotDocument document = index == 0
+                    ? WotDocument.Parse(Encoding.UTF8.GetBytes(altered.ToJsonString()))
+                    : WotDocument.Parse(set.Entries[index].Document.Utf8Json);
+                entries.Add(new WotDocumentSetEntry(set.Entries[index].Href, document));
+            }
+            using var changed = new WotDocumentSet(set.RootHref, entries.ToArrayOf());
+
+            WotConversionResult<UANodeSet> restored =
+                await WotNodeSetConverter.ToNodeSetAsync(changed).ConfigureAwait(false);
+
+            Assert.That(restored.Success, Is.False);
+            Assert.That(restored.Diagnostics.Any(
+                diagnostic => diagnostic.Code == WotDiagnosticCode.NativeProjectionConflict), Is.True);
+        }
+
+        /// <summary>
+        /// Checks that a readable derived structure resolves its native base without taking ownership of it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StructureResolvesNativeBaseAndRetainsSourceFieldOwnershipAsync(bool completePrefix)
+        {
+            UANodeSet source = CreateReadableRoots();
+            source.Items =
+            [
+                new UADataType
+                {
+                    NodeId = "ns=1;i=3001",
+                    BrowseName = "1:BaseRecord",
+                    DisplayName = [new Export.LocalizedText { Value = "BaseRecord" }],
+                    SymbolicName = "RetainedBase",
+                    References = [new Reference { ReferenceType = "i=45", IsForward = false, Value = "i=22" }],
+                    Definition = new Export.DataTypeDefinition
+                    {
+                        Name = "1:BaseRecord",
+                        Field = [new DataTypeField { Name = "Label", DataType = "i=12" }]
+                    }
+                },
+                new UADataType
+                {
+                    NodeId = "ns=1;i=3002",
+                    BrowseName = "1:DerivedRecord",
+                    DisplayName = [new Export.LocalizedText { Value = "DerivedRecord" }],
+                    References =
+                    [
+                        new Reference { ReferenceType = "i=45", IsForward = false, Value = "ns=1;i=3001" }
+                    ],
+                    Definition = new Export.DataTypeDefinition
+                    {
+                        Name = "1:DerivedRecord",
+                        Field = completePrefix
+                            ?
+                            [
+                                new DataTypeField { Name = "Label", DataType = "i=12" },
+                                new DataTypeField { Name = "Count", DataType = "i=6" }
+                            ]
+                            : [new DataTypeField { Name = "Count", DataType = "i=6" }]
+                    }
+                }
+            ];
+
+            WotConversionResult<WotDocumentSet> result =
+                await WotNodeSetConverter.FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, Describe(result));
+            using WotDocumentSet set = result.Value!;
+            Assert.That(set.Entries[0].Document.TryGetNativeProjection(out _), Is.True);
+            Assert.That(set.Entries[1].Document.TryGetNativeProjection(out _), Is.EqualTo(!completePrefix));
+            Assert.That(set.Entries[1].Document.RootElement.GetProperty("uav:dataTypeDefinitions")[0]
+                .GetProperty("uav:fields").GetArrayLength(), Is.EqualTo(2));
+            await AssertEquivalentAsync(source, set, new WotNodeSetConverterOptions()).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Checks that a scalar Value is represented directly when the ValueRank also permits arrays.
+        /// </summary>
+        [TestCase(ValueRanks.Any)]
+        [TestCase(ValueRanks.ScalarOrOneDimension)]
+        public async Task FlexibleValueRankPreservesScalarValuesWithoutResidueAsync(int valueRank)
+        {
+            using WotDocument scalar = ScalarDocument("i=6", "const", "42");
+            JsonObject root = JsonNode.Parse(scalar.Utf8Json.Span)!.AsObject();
+            root["properties"]!["Value"]!["uav:valueRank"] = valueRank;
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
+
+            WotConversionResult<UANodeSet> result =
+                await WotNodeSetConverter.ToNodeSetResultAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.ToString())));
+            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().Single();
+            Assert.That(variable.ValueRank, Is.EqualTo(valueRank));
+            Assert.That(variable.Value, Is.Not.Null);
+            Assert.That(variable.Value!.InnerText, Is.EqualTo("42"));
+            Assert.That(result.Value.Extensions, Is.Null.Or.Empty);
+            WotConversionResult<WotDocumentSet> exported =
+                await WotNodeSetConverter.FromNodeSetDocumentsAsync(result.Value, "model").ConfigureAwait(false);
+            Assert.That(exported.Success, Is.True, Describe(exported));
+            using WotDocumentSet set = exported.Value!;
+            await AssertEquivalentAsync(result.Value, set, new WotNodeSetConverterOptions()).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Checks that generated inherited event data does not become an extra source extension.
+        /// </summary>
+        [Test]
+        public async Task NativeEventPartitionsDoNotRetainGeneratedInheritedDataAsResidueAsync()
+        {
+            UANodeSet source = CreateReadableRoots();
+            source.Extensions = [];
+            source.Items =
+            [
+                new UAObjectType
+                {
+                    NodeId = "ns=1;i=1",
+                    BrowseName = "1:BaseEvent",
+                    SymbolicName = "NativeBaseEvent",
+                    References =
+                    [
+                        new Reference { ReferenceType = "i=45", IsForward = false, Value = "i=2041" },
+                        new Reference { ReferenceType = "i=46", Value = "ns=1;i=3" }
+                    ]
+                },
+                new UAObjectType
+                {
+                    NodeId = "ns=1;i=2",
+                    BrowseName = "1:DerivedEvent",
+                    SymbolicName = "NativeDerivedEvent",
+                    References = [new Reference { ReferenceType = "i=45", IsForward = false, Value = "ns=1;i=1" }]
+                },
+                new UAVariable
+                {
+                    NodeId = "ns=1;i=3",
+                    BrowseName = "1:Reading",
+                    ParentNodeId = "ns=1;i=1",
+                    DataType = "i=11",
+                    References =
+                    [
+                        new Reference { ReferenceType = "i=40", Value = "i=68" },
+                        new Reference { ReferenceType = "i=37", Value = "i=78" }
+                    ]
+                }
+            ];
+
+            WotConversionResult<WotDocumentSet> result =
+                await WotNodeSetConverter.FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, Describe(result));
+            using WotDocumentSet set = result.Value!;
+            Assert.That(set.Entries, Has.Count.EqualTo(2));
+            await AssertEquivalentAsync(source, set, new WotNodeSetConverterOptions()).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task CompleteReadableSetIsVerifiedWithoutNativeFallbackAsync()
         {

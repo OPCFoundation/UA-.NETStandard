@@ -494,14 +494,18 @@ namespace Opc.Ua.Wot
                 using var encoded = JsonDocument.Parse(
                     projection, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
                 UANodeSet? restored = WotNativeProjection.Read(encoded.RootElement, options, diagnostics);
+                NodeSetComparisonResult? comparison = restored is null
+                    ? null
+                    : NodeSetComparer.Compare(partition, restored, options.ToComparisonOptions());
                 if (restored is null ||
                     HasErrors(diagnostics) ||
-                    !NodeSetComparer.Compare(partition, restored, options.ToComparisonOptions()).AreEquivalent)
+                    comparison is { AreEquivalent: false })
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.NativeProjectionIncomplete,
-                        "The structured partition did not reproduce its complete source."));
+                        "The structured partition did not reproduce its complete source." +
+                        (comparison is { AreEquivalent: false } ? " " + comparison.Differences[0] : string.Empty)));
                     return [];
                 }
             }
@@ -570,6 +574,12 @@ namespace Opc.Ua.Wot
                 resolver.ArchiveContext = CopyDocumentSetHeader(archiveHeader);
                 resolver.ArchiveContext.Items = [.. archived];
             }
+            using WotDocument? nativeTypes = CreateDocumentSetNativeDataTypes(resolver.ArchiveContext, options);
+            if (nativeTypes is not null)
+            {
+                resolver.DataTypeDefinitions = ReadDataTypeDefinitions(nativeTypes).ToArrayOf(source =>
+                    new WotDataTypeDefinitionSource(source.Document, source.Definition) { ProjectedSeparately = true });
+            }
             for (int index = 0; index < documents.Entries.Count; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -578,6 +588,48 @@ namespace Opc.Ua.Wot
                     schemaResolver, cancellationToken).ConfigureAwait(false));
             }
             return results;
+        }
+
+        /// <summary>
+        /// Supplies authoritative native definitions to readable sibling partitions without emitting their nodes again.
+        /// </summary>
+        private static WotDocument? CreateDocumentSetNativeDataTypes(
+            UANodeSet? context,
+            WotNodeSetConverterOptions options)
+        {
+            if (context is null)
+            {
+                return null;
+            }
+            var types = new List<UADataType>();
+            foreach (UANode node in context.Items ?? [])
+            {
+                if (node is UADataType { Definition: not null } dataType)
+                {
+                    types.Add(dataType);
+                }
+            }
+            if (types.Count == 0)
+            {
+                return null;
+            }
+            Dictionary<string, UANode> index = BuildIndex(context);
+            var referenceTypes = WotReferenceTypeNames.Build(context);
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(output))
+            {
+                writer.WriteStartObject();
+                WriteContext(writer, context, null, null);
+                writer.WritePropertyName("uav:dataTypeDefinitions");
+                writer.WriteStartArray();
+                foreach (UADataType dataType in types)
+                {
+                    WriteDataTypeDefinition(writer, dataType, context, referenceTypes, string.Empty, index);
+                }
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+            }
+            return WotDocument.FromOwnedBytes(output.ToArray(), options);
         }
 
         private static void ValidateDocumentSetPreservedFacts(
@@ -733,10 +785,17 @@ namespace Opc.Ua.Wot
                 }
                 part.Items = [.. owned];
             }
+            var contextNodes = new List<UANode>();
+            foreach (UANodeSet part in parts)
+            {
+                contextNodes.AddRange(part.Items ?? []);
+            }
+            UANodeSet residueContext = CopyDocumentSetHeader(parts.Count == 0 ? new UANodeSet() : parts[0]);
+            residueContext.Items = [.. contextNodes];
             for (int index = 0; index < parts.Count; index++)
             {
                 WotJsonResidue.RemoveDocumentSetLinks(
-                    parts[index], documents.Entries[index].Document, documents, options, diagnostics);
+                    parts[index], documents.Entries[index].Document, documents, options, diagnostics, residueContext);
             }
             return parts;
         }
@@ -845,7 +904,7 @@ namespace Opc.Ua.Wot
                 extensions.AddRange(part.Extensions ?? []);
             }
             result.Items = [.. nodes];
-            result.Extensions = extensions.Count == 0 ? null : [.. extensions];
+            result.Extensions = extensions.Count == 0 && result.Extensions is null ? null : [.. extensions];
             return NodeSetAliasCompleter.Complete(result, WotNodeSetAliases.Instance)!;
         }
 
@@ -918,7 +977,16 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
-            UANode? root = SelectRootNode(nodeSet);
+            UANode? root = null;
+            string? identity = GetUavString(document, "id");
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                if (identity is not null && ToPortableNodeId(node.NodeId, nodeSet.NamespaceUris) == identity)
+                {
+                    root = node;
+                    break;
+                }
+            }
             if (root is null)
             {
                 return false;

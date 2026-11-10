@@ -220,6 +220,18 @@ values, permissions, and extensions remain part of the fidelity check. Duplicate
 native ownership, conflicting shared headers, and attempts to add readable Nodes
 to another native partition are rejected.
 
+Native records retain explicit empty strings and arrays as distinct from absent
+members. Readable structures can resolve authoritative DataType definitions in
+native sibling partitions without copying those Nodes into their own partition.
+Readable structure definitions include the complete inherited field prefix;
+native preservation keeps the source's original field list when it declares
+only new fields. Scalar Values remain scalar when the ValueRank also permits
+arrays; no array rank is inferred from the current Value alone.
+Generated event data is checked against the event's identity and the complete
+set of inherited fields before it is excluded from JSON residue. A typed link
+with a shared inverse name uses `uav:refId` to select the exact ReferenceType;
+the reference direction and target must still agree with the source.
+
 `WotNodeSetConverter.CompareDocumentSet` compares the reconstructed set with
 its source, normalizing only the order of top-level Node records that partitioning
 can regroup. Reference direction and order, definition-field and argument order,

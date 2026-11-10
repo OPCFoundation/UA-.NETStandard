@@ -168,7 +168,7 @@ namespace Opc.Ua.Wot
                 extensions.Add(CreateExtension(entries));
             }
 
-            nodeSet.Extensions = extensions.Count == 0 ? null : [.. extensions];
+            nodeSet.Extensions = extensions.Count == 0 && nodeSet.Extensions is null ? null : [.. extensions];
         }
 
         /// <summary>
@@ -196,12 +196,17 @@ namespace Opc.Ua.Wot
                 return null;
             }
         }
+
+        /// <summary>
+        /// Removes linked-set bookkeeping and exactly regenerated event data without discarding authored residue.
+        /// </summary>
         internal static void RemoveDocumentSetLinks(
             UANodeSet nodeSet,
             WotDocument document,
             WotDocumentSet documents,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            UANodeSet? context = null)
         {
             List<Entry> entries = ReadEntries(nodeSet, options, diagnostics);
             var retained = new List<Entry>();
@@ -221,7 +226,7 @@ namespace Opc.Ua.Wot
                 {
                     if (entry.Pointer == "/data" &&
                         WotNodeSetConverter.IsGeneratedEventDefinitionData(
-                            document, nodeSet, value.RootElement, options.MaxJsonDepth))
+                            document, context ?? nodeSet, value.RootElement, options.MaxJsonDepth))
                     {
                         continue;
                     }
@@ -260,7 +265,11 @@ namespace Opc.Ua.Wot
             {
                 extensions.Add(CreateExtension(retained));
             }
-            nodeSet.Extensions = extensions.Count == 0 ? null : [.. extensions];
+            bool emptyNativeExtensions = document.TryGetNativeProjection(out JsonElement projection) &&
+                projection.TryGetProperty("extensions", out JsonElement nativeExtensions) &&
+                nativeExtensions.ValueKind == JsonValueKind.Array &&
+                nativeExtensions.GetArrayLength() == 0;
+            nodeSet.Extensions = extensions.Count == 0 && !emptyNativeExtensions ? null : [.. extensions];
         }
 
         private static bool IsDocumentSetParentLink(JsonElement value)
