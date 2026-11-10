@@ -4569,6 +4569,7 @@ namespace Opc.Ua.Schema.Model
                 else
                 {
                     ValidateStructureFieldKinds(dataType);
+                    ValidateValueTypeUse(dataType);
 
                     // add the default encodings.
                     if (!dataType.HasEncodings)
@@ -4991,6 +4992,66 @@ namespace Opc.Ua.Schema.Model
                     dataType.SymbolicId.Name,
                     optional.Name,
                     subtyped.Name);
+            }
+        }
+
+        /// <summary>
+        /// A value type is emitted as a struct: nothing can derive from it, and it
+        /// cannot contain itself through scalar value type fields (a struct of
+        /// infinite size). Recursion through arrays or reference types is fine.
+        /// </summary>
+        private void ValidateValueTypeUse(DataTypeDesign dataType)
+        {
+            if (dataType.BaseTypeNode is DataTypeDesign { IsValueType: true } baseType)
+            {
+                throw Exception(
+                    "The DataType {0} cannot derive from {1}: a value type cannot have subtypes.",
+                    dataType.SymbolicId.Name,
+                    baseType.SymbolicId.Name);
+            }
+
+            if (!dataType.IsValueType)
+            {
+                return;
+            }
+
+            var visited = new HashSet<DataTypeDesign>();
+            var pending = new Stack<DataTypeDesign>();
+            pending.Push(dataType);
+            while (pending.Count > 0)
+            {
+                DataTypeDesign current = pending.Pop();
+                foreach (Parameter field in current.Fields ?? [])
+                {
+                    if (field == null ||
+                        field.ValueRank != ValueRank.Scalar ||
+                        field.AllowSubTypes)
+                    {
+                        continue;
+                    }
+                    DataTypeDesign? fieldType = field.DataTypeNode ??
+                        this.FindNode<DataTypeDesign>(
+                            field.DataType,
+                            current.SymbolicId.Name,
+                            "DataType");
+                    if (fieldType is not { IsValueType: true })
+                    {
+                        continue;
+                    }
+                    if (fieldType == dataType)
+                    {
+                        throw Exception(
+                            "The value type {0} contains itself through the scalar field {1}.{2}; " +
+                            "make a field on the cycle an array or the type a reference type.",
+                            dataType.SymbolicId.Name,
+                            current.SymbolicId.Name,
+                            field.Name);
+                    }
+                    if (visited.Add(fieldType))
+                    {
+                        pending.Push(fieldType);
+                    }
+                }
             }
         }
 

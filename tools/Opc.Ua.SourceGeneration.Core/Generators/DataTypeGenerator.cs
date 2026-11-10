@@ -1776,9 +1776,12 @@ namespace Opc.Ua.SourceGeneration
                 if (field.DataTypeNode!.BasicDataType == BasicDataType.UserDefined ||
                     field.ValueRank == ValueRank.Array)
                 {
+                    // a scalar value type is never null, so it has no null fallback.
                     if (field.AllowSubTypes ||
                         (field.ValueRank != ValueRank.Array &&
-                            field.ValueRank != ValueRank.Scalar))
+                            field.ValueRank != ValueRank.Scalar) ||
+                        (field.ValueRank == ValueRank.Scalar &&
+                            field.DataTypeNode is DataTypeDesign { IsValueType: true }))
                     {
                         return DataTypeTemplates.ScalarProperty;
                     }

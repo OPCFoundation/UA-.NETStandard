@@ -107,6 +107,38 @@ namespace Opc.Ua.Core.Encoders.Tests
             Assert.That(notification.DiagnosticInfos.Count, Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// An all-default value is a message like any other, not a missing one.
+        /// </summary>
+        [Test]
+        public void DefaultValueIsEncodedAsMessage()
+        {
+            ServiceMessageContext context = CreateContext();
+            MonitoredItemNotification empty = default;
+            ExpandedNodeId typeId = empty.TypeId;
+
+            using var binary = new BinaryEncoder(context);
+            binary.EncodeMessage(empty);
+            MonitoredItemNotification decoded = BinaryDecoder.DecodeMessage<MonitoredItemNotification>(
+                binary.CloseAndReturnBuffer()!,
+                context);
+            using var binaryWithType = new BinaryEncoder(context);
+            using var json = new JsonEncoder(context, JsonEncoderOptions.Verbose);
+            using var jsonWithType = new JsonEncoder(context, JsonEncoderOptions.Verbose);
+            using var xml = new XmlEncoder(context);
+            using var xmlWithType = new XmlEncoder(context);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoded.ClientHandle, Is.Zero);
+                Assert.That(() => binaryWithType.EncodeMessage(empty, typeId), Throws.Nothing);
+                Assert.That(() => json.EncodeMessage(empty), Throws.Nothing);
+                Assert.That(() => jsonWithType.EncodeMessage(empty, typeId), Throws.Nothing);
+                Assert.That(() => xml.EncodeMessage(empty), Throws.Nothing);
+                Assert.That(() => xmlWithType.EncodeMessage(empty, typeId), Throws.Nothing);
+            });
+        }
+
         private static string EncodeJson(JsonEncoderOptions options)
         {
             using var encoder = new JsonEncoder(CreateContext(), options);

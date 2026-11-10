@@ -29,7 +29,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
@@ -61,6 +65,96 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Where(f => f.Key.EndsWith(".cs", StringComparison.Ordinal))
                 .Select(f => f.Value));
             Assert.That(code, Does.Contain("partial struct Point"));
+        }
+
+        [Test]
+        public void StructureHoldingValueTypeFieldsCompiles()
+        {
+            Dictionary<string, string> generated = DataTypeModelTests.Generate(Model(
+                """
+                <opc:DataType SymbolicName="Point" BaseType="ua:Structure" IsValueType="true">
+                  <opc:Fields>
+                    <opc:Field Name="X" DataType="ua:Int32" />
+                  </opc:Fields>
+                </opc:DataType>
+                <opc:DataType SymbolicName="Holder" BaseType="ua:Structure">
+                  <opc:Fields>
+                    <opc:Field Name="One" DataType="Point" />
+                    <opc:Field Name="Many" DataType="Point" ValueRank="Array" />
+                  </opc:Fields>
+                </opc:DataType>
+                <opc:DataType SymbolicName="Pair" BaseType="ua:Structure" IsValueType="true">
+                  <opc:Fields>
+                    <opc:Field Name="First" DataType="Point" />
+                    <opc:Field Name="Rest" DataType="Pair" ValueRank="Array" />
+                    <opc:Field Name="Owner" DataType="Holder" />
+                  </opc:Fields>
+                </opc:DataType>
+                """));
+
+            string code = string.Join("\n", generated
+                .Where(f => f.Key.EndsWith(".cs", StringComparison.Ordinal))
+                .Select(f => f.Value));
+
+            // a scalar value type field has a plain setter: comparing it with
+            // null is always false.
+            Assert.That(code, Does.Contain("set => m_one = value;"));
+            Assert.That(code, Does.Contain("set => m_first = value;"));
+            Assert.That(CompileProblems(generated), Is.Empty);
+        }
+
+        [TestCase(
+            """
+            <opc:DataType SymbolicName="Bad" BaseType="ua:Structure" IsValueType="true">
+              <opc:Fields><opc:Field Name="Self" DataType="Bad" /></opc:Fields>
+            </opc:DataType>
+            """,
+            "contains itself",
+            TestName = "DirectSelfContainmentIsRejected")]
+        [TestCase(
+            """
+            <opc:DataType SymbolicName="Bad" BaseType="ua:Structure" IsValueType="true">
+              <opc:Fields><opc:Field Name="Next" DataType="Other" /></opc:Fields>
+            </opc:DataType>
+            <opc:DataType SymbolicName="Other" BaseType="ua:Structure" IsValueType="true">
+              <opc:Fields><opc:Field Name="Back" DataType="Bad" /></opc:Fields>
+            </opc:DataType>
+            """,
+            "contains itself",
+            TestName = "IndirectSelfContainmentIsRejected")]
+        [TestCase(
+            """
+            <opc:DataType SymbolicName="Base" BaseType="ua:Structure" IsValueType="true">
+              <opc:Fields><opc:Field Name="X" DataType="ua:Int32" /></opc:Fields>
+            </opc:DataType>
+            <opc:DataType SymbolicName="Bad" BaseType="Base">
+              <opc:Fields><opc:Field Name="Y" DataType="ua:Int32" /></opc:Fields>
+            </opc:DataType>
+            """,
+            "cannot have subtypes",
+            TestName = "SubtypeOfValueTypeIsRejected")]
+        public void InvalidValueTypeUseIsRejected(string dataTypes, string reason)
+        {
+            Assert.That(
+                () => DataTypeModelTests.Generate(Model(dataTypes)),
+                Throws.Exception.With.Message.Contains("Bad").And.Message.Contains(reason));
+        }
+
+        private static List<string> CompileProblems(Dictionary<string, string> generated)
+        {
+            IEnumerable<KeyValuePair<string, string>> sources = generated
+                .Where(f => f.Key.EndsWith(".cs", StringComparison.Ordinal))
+                .Append(new KeyValuePair<string, string>("OpcUa.cs", CompilerUtils.OpcUa));
+            using var peStream = new MemoryStream();
+            EmitResult result = OptimizationLevel.Debug
+                .CreateCompilation("ValueTypeDesign.Generated")
+                .AddCode(sources, LanguageVersion.Latest)
+                .Emit(peStream);
+
+            // CS0472: comparing a value type with null, always false.
+            return [.. result.Diagnostics
+                .Where(d => d.Severity == DiagnosticSeverity.Error || d.Id == "CS0472")
+                .Select(d => d.ToString())];
         }
 
         [TestCase("BaseType=\"ua:Structure\" IsAbstract=\"true\"", "", TestName = "AbstractStructureIsRejected")]
