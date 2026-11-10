@@ -517,20 +517,28 @@ namespace Opc.Ua.Server
         /// The queue is not drained: a durable queue may not hand back every queued event at
         /// once, and events taken out of a FIFO queue cannot be put back in front of the
         /// ones that stay, so a drain could reorder events (Part 4 5.13.1.5). Transforms of
-        /// successive modifications are composed per segment of queued events.
+        /// successive modifications are combined per segment of queued events with
+        /// <see cref="QueuedEventTransform.Then"/>: they are applied one after the other,
+        /// never by nested calls, and a transform that supersedes the previous ones
+        /// replaces them.
         /// </remarks>
         /// <param name="transform">Produces the replacement for a queued event.</param>
         internal void TransformQueuedEvents(Func<EventFieldList, EventFieldList?> transform)
         {
+            TransformQueuedEvents(new DelegateTransform(transform));
+        }
+
+        /// <summary>
+        /// Brings every event queued now in line with a modification, see
+        /// <see cref="TransformQueuedEvents(Func{EventFieldList, EventFieldList})"/>.
+        /// </summary>
+        /// <param name="transform">Produces the replacement for a queued event.</param>
+        internal void TransformQueuedEvents(QueuedEventTransform transform)
+        {
             int covered = 0;
             foreach (PendingTransform pending in m_pendingTransforms)
             {
-                Func<EventFieldList, EventFieldList?> previous = pending.Transform;
-                pending.Transform = fields =>
-                {
-                    EventFieldList? intermediate = previous(fields);
-                    return intermediate == null ? null : transform(intermediate);
-                };
+                pending.Transform = pending.Transform.Then(transform);
                 covered += pending.Count;
             }
 
@@ -538,6 +546,22 @@ namespace Opc.Ua.Server
             if (queued > covered)
             {
                 m_pendingTransforms.Add(new PendingTransform(queued - covered, transform));
+            }
+        }
+
+        /// <summary>
+        /// The largest number of transforms a queued event goes through when it is published.
+        /// </summary>
+        internal int PendingTransformSteps
+        {
+            get
+            {
+                int steps = 0;
+                foreach (PendingTransform pending in m_pendingTransforms)
+                {
+                    steps = Math.Max(steps, pending.Transform.StepCount);
+                }
+                return steps;
             }
         }
 
@@ -561,7 +585,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                return pending.Transform(fields);
+                return pending.Transform.Apply(fields);
             }
             catch (Exception ex)
             {
@@ -613,7 +637,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class PendingTransform
         {
-            public PendingTransform(int count, Func<EventFieldList, EventFieldList?> transform)
+            public PendingTransform(int count, QueuedEventTransform transform)
             {
                 Count = count;
                 Transform = transform;
@@ -621,7 +645,25 @@ namespace Opc.Ua.Server
 
             public int Count { get; set; }
 
-            public Func<EventFieldList, EventFieldList?> Transform { get; set; }
+            public QueuedEventTransform Transform { get; set; }
+        }
+
+        /// <summary>
+        /// A transform given as a delegate.
+        /// </summary>
+        private sealed class DelegateTransform : QueuedEventTransform
+        {
+            public DelegateTransform(Func<EventFieldList, EventFieldList?> transform)
+            {
+                m_transform = transform;
+            }
+
+            public override EventFieldList? Apply(EventFieldList fields)
+            {
+                return m_transform(fields);
+            }
+
+            private readonly Func<EventFieldList, EventFieldList?> m_transform;
         }
 
         private readonly List<PendingTransform> m_pendingTransforms = [];

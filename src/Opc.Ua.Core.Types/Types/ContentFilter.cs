@@ -45,6 +45,15 @@ namespace Opc.Ua
         public const int MaxElementCount = 1024;
 
         /// <summary>
+        /// The matching steps all <see cref="FilterOperator.Like"/> elements of one
+        /// evaluation of a filter may take together. Parsing a pattern costs one step per
+        /// pattern character, matching about one step per target character, and up to the
+        /// product of both lengths for patterns that retry many wildcard positions. A Like
+        /// element that would exceed the budget evaluates to NULL.
+        /// </summary>
+        public const int MaxLikeMatchSteps = 1_000_000;
+
+        /// <summary>
         /// Set the default StringComparison to use when evaluating the Equals operator.
         /// This property is meant to be set as a config setting and not set / reset on
         /// a per context basis, to ensure consistency
@@ -615,7 +624,7 @@ namespace Opc.Ua
                     ii == 1 &&
                     filterOperand is LiteralOperand literal &&
                     TryGetLikePattern(literal.Value, out string? pattern) &&
-                    !LikePattern.IsValid(pattern))
+                    !literal.TryGetLikePattern(pattern, out _))
                 {
                     result.OperandResults.Add(ServiceResult.Create(
                         StatusCodes.BadFilterOperandInvalid,
@@ -1198,6 +1207,41 @@ namespace Opc.Ua
         {
             m_value = value;
         }
+
+        /// <summary>
+        /// Returns the Like search pattern parsed from <paramref name="pattern"/>, the text
+        /// of this operand's value. The parsed pattern is kept with the operand, so a filter
+        /// evaluated for many events parses its literal patterns once.
+        /// </summary>
+        /// <returns><c>false</c> when the pattern is not a valid search string.</returns>
+        internal bool TryGetLikePattern(string pattern, [NotNullWhen(true)] out LikePattern? likePattern)
+        {
+            likePattern = m_likePattern;
+            if (likePattern != null && ReferenceEquals(likePattern.Pattern, pattern))
+            {
+                return true;
+            }
+            if (!LikePattern.TryParse(pattern, out likePattern))
+            {
+                return false;
+            }
+            m_likePattern = likePattern;
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the Like search pattern cached for <paramref name="pattern"/>, or
+        /// <c>null</c> when it was not parsed yet.
+        /// </summary>
+        internal LikePattern? GetCachedLikePattern(string pattern)
+        {
+            LikePattern? likePattern = m_likePattern;
+            return likePattern != null && ReferenceEquals(likePattern.Pattern, pattern)
+                ? likePattern
+                : null;
+        }
+
+        private LikePattern? m_likePattern;
 
         /// <summary>
         /// Formats the value of the current instance using the specified format.

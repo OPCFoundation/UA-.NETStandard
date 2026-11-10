@@ -1362,19 +1362,22 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            ArrayOf<SimpleAttributeOperand> previousSelectClauses =
+                (previousFilter as EventFilter)?.SelectClauses ?? default;
             bool selectClausesChanged = !AreSelectClausesEqual(
-                (previousFilter as EventFilter)?.SelectClauses ?? default,
+                previousSelectClauses,
                 filter.SelectClauses);
 
             if (!selectClausesChanged)
             {
                 if (previousClientHandle != clientHandle)
                 {
-                    m_eventQueueHandler.TransformQueuedEvents(fields =>
-                    {
-                        fields.ClientHandle = clientHandle;
-                        return fields;
-                    });
+                    m_eventQueueHandler.TransformQueuedEvents(new QueuedEventFieldsTransform(
+                        this,
+                        previousSelectClauses,
+                        null,
+                        null,
+                        clientHandle));
                 }
 
                 return;
@@ -1386,26 +1389,114 @@ namespace Opc.Ua.Server
                 Session?.PreferredLocales!,
                 m_server.Telemetry);
 
-            // where each new select clause was in the previous layout, for the events
-            // without a filter target, e.g. restored from a durable queue.
-            int[]? previousIndexes = null;
+            m_eventQueueHandler.TransformQueuedEvents(new QueuedEventFieldsTransform(
+                this,
+                previousSelectClauses,
+                filter,
+                context,
+                clientHandle));
+        }
 
-            m_eventQueueHandler.TransformQueuedEvents(fields =>
+        /// <summary>
+        /// The largest number of transforms a queued event of this item goes through when
+        /// it is published.
+        /// </summary>
+        internal int PendingQueuedEventTransformSteps
+        {
+            get
             {
+                lock (m_lock)
+                {
+                    return m_eventQueueHandler?.PendingTransformSteps ?? 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Brings a queued event in line with the select clauses and client handle of the
+        /// item after one or more modifications.
+        /// </summary>
+        /// <remarks>
+        /// Each modification supersedes the previous ones: an event with a filter target is
+        /// resolved again with the latest select clauses, and one without is moved from the
+        /// layout it was queued with onto the latest select clauses. Successive
+        /// modifications therefore combine into one transform per segment of queued events,
+        /// whatever their number.
+        /// </remarks>
+        private sealed class QueuedEventFieldsTransform : QueuedEventTransform
+        {
+            /// <summary>
+            /// Creates the transform of one modification.
+            /// </summary>
+            /// <param name="owner">The item whose events are transformed.</param>
+            /// <param name="previousSelectClauses">The select clauses the events were queued with.</param>
+            /// <param name="filter">The new filter, or <c>null</c> when the select clauses
+            /// are unchanged and only the client handle changes.</param>
+            /// <param name="context">The context to resolve the new select clauses with.</param>
+            /// <param name="clientHandle">The new client handle.</param>
+            public QueuedEventFieldsTransform(
+                MonitoredItem owner,
+                ArrayOf<SimpleAttributeOperand> previousSelectClauses,
+                EventFilter? filter,
+                FilterContext? context,
+                uint clientHandle)
+            {
+                m_owner = owner;
+                m_previousSelectClauses = previousSelectClauses;
+                m_filter = filter;
+                m_context = context;
+                m_clientHandle = clientHandle;
+            }
+
+            public override EventFieldList? Apply(EventFieldList fields)
+            {
+                if (m_filter == null)
+                {
+                    fields.ClientHandle = m_clientHandle;
+                    return fields;
+                }
+
                 if (fields.Handle is not IFilterTarget target)
                 {
-                    previousIndexes ??= MapSelectClauses(
-                        (previousFilter as EventFilter)?.SelectClauses ?? default,
-                        filter.SelectClauses);
-                    return ProjectEventFields(fields, previousIndexes, clientHandle);
+                    // where each new select clause was in the layout the event was queued
+                    // with, for the events without a filter target, e.g. restored from a
+                    // durable queue.
+                    m_previousIndexes ??= MapSelectClauses(
+                        m_previousSelectClauses,
+                        m_filter.SelectClauses);
+                    return ProjectEventFields(fields, m_previousIndexes, m_clientHandle);
                 }
 
                 // a trailing filtered retain event keeps its FilteredRetainTarget handle,
                 // so the rebuilt fields report the same Retain override.
-                EventFieldList rebuilt = GetEventFields(context, filter, target);
-                rebuilt.ClientHandle = clientHandle;
+                EventFieldList rebuilt = m_owner.GetEventFields(m_context!, m_filter, target);
+                rebuilt.ClientHandle = m_clientHandle;
                 return rebuilt;
-            });
+            }
+
+            public override QueuedEventTransform Then(QueuedEventTransform next)
+            {
+                if (next is not QueuedEventFieldsTransform later || !ReferenceEquals(later.m_owner, m_owner))
+                {
+                    return base.Then(next);
+                }
+
+                // the later modification decides the client handle and, when it changed
+                // them, the select clauses; the events keep the layout they were queued with.
+                return new QueuedEventFieldsTransform(
+                    m_owner,
+                    m_previousSelectClauses,
+                    later.m_filter ?? m_filter,
+                    later.m_filter != null ? later.m_context : m_context,
+                    later.m_clientHandle);
+            }
+
+            private readonly MonitoredItem m_owner;
+            private readonly ArrayOf<SimpleAttributeOperand> m_previousSelectClauses;
+            private readonly EventFilter? m_filter;
+            private readonly FilterContext? m_context;
+            private readonly uint m_clientHandle;
+            private int[]? m_previousIndexes;
         }
 
         /// <summary>

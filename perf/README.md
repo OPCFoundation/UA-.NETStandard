@@ -66,6 +66,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--queue-size` | 1 (`sub`), 10000 (`events`) | Monitored item queue size. |
 | `--publish-requests` | engine default (`counters`: subscriptions + 1, at least 4) | Minimum outstanding Publish requests per session. `counters` also sets the server's `MaxPublishRequestCount` to it. |
 | `--event-rate` | 0 | Events per second the server reports (`events`); 0 reports as fast as one thread can. |
+| `--event-where` | 0 | 1: the event filter also has a where clause every load event passes, `OfType(BaseEventType) And Like(Message, "Load event %")` (`events`). |
 | `--duration`, `--warmup` | 20, 10 | Measurement window and warm-up in seconds. |
 | `--diag`, `--audit` | 0 | Server diagnostics and auditing. |
 | `--threads`, `--queue` | 200, 2000 | `MaxRequestThreadCount` and `MaxQueuedRequestCount` of the server; `MinRequestThreadCount` is the smaller of 50 and `--threads`. |
