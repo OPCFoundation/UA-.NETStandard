@@ -4595,11 +4595,20 @@ namespace Opc.Ua.Client
                 SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
                 EndpointDescription endpoint = m_endpoint.Description;
 
-                // check that the user identity is supported by the endpoint.
-                UserTokenPolicy? identityPolicy = endpoint.FindUserTokenPolicy(
-                    m_identity.TokenType,
-                    m_identity.IssuedTokenType,
-                    m_userTokenSecurityPolicyUri ?? endpoint.SecurityPolicyUri!);
+                // check that the user identity is supported by the endpoint. The
+                // stored token policy is the normalized URI, so prefer the policy
+                // that resolves to it over a lookup by the advertised string.
+                UserTokenPolicy? identityPolicy = (m_userTokenSecurityPolicyUri != null
+                    ? FindUserTokenPolicyByEffectivePolicy(
+                        endpoint,
+                        m_identity,
+                        m_userTokenSecurityPolicyUri,
+                        m_securityPolicies)
+                    : null) ??
+                    endpoint.FindUserTokenPolicy(
+                        m_identity.TokenType,
+                        m_identity.IssuedTokenType,
+                        m_userTokenSecurityPolicyUri ?? endpoint.SecurityPolicyUri!);
 
                 if (identityPolicy == null)
                 {
@@ -6232,6 +6241,52 @@ namespace Opc.Ua.Client
             }
 
             return tokenSecurityPolicy.Uri;
+        }
+
+        /// <summary>
+        /// Finds the user token policy for the identity whose security policy,
+        /// resolved like <see cref="ValidateIssuedTokenPolicy"/> resolves it,
+        /// is <paramref name="effectivePolicyUri"/>. A policy with the
+        /// identity's policy id is preferred.
+        /// </summary>
+        internal static UserTokenPolicy? FindUserTokenPolicyByEffectivePolicy(
+            EndpointDescription endpoint,
+            IUserIdentity identity,
+            string effectivePolicyUri,
+            ISecurityPolicyRegistry securityPolicies)
+        {
+            string channelPolicyUri = endpoint.SecurityPolicyUri ?? SecurityPolicies.None;
+            string? issuedTokenType = identity.IssuedTokenType?.Namespace;
+            string? policyId = identity.TokenHandler.Token.PolicyId;
+            UserTokenPolicy? match = null;
+            foreach (UserTokenPolicy policy in endpoint.UserIdentityTokens)
+            {
+                if (policy == null ||
+                    policy.TokenType != identity.TokenType ||
+                    (identity.TokenType == UserTokenType.IssuedToken &&
+                        !string.Equals(policy.IssuedTokenType, issuedTokenType, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                string policyUri = string.IsNullOrEmpty(policy.SecurityPolicyUri)
+                    ? channelPolicyUri
+                    : policy.SecurityPolicyUri!;
+                if (securityPolicies.GetInfo(policyUri)?.Uri != effectivePolicyUri)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(policyId) &&
+                    string.Equals(policy.PolicyId, policyId, StringComparison.Ordinal))
+                {
+                    return policy;
+                }
+
+                match ??= policy;
+            }
+
+            return match;
         }
 
         /// <summary>

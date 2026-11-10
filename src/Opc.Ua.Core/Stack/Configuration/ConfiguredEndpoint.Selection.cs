@@ -103,8 +103,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Compares the security mode, security policy, transport profile and
-        /// security level of two endpoint lists, ignoring order and URLs.
+        /// Compares the security mode, security policy, transport profile,
+        /// security level and user token policies of two endpoint lists,
+        /// ignoring order and URLs.
         /// </summary>
         private static bool HaveSameSecurityOptions(
             ArrayOf<EndpointDescription> first,
@@ -136,7 +137,8 @@ namespace Opc.Ua
                     string.Equals(
                         candidate.TransportProfileUri,
                         endpoint.TransportProfileUri,
-                        System.StringComparison.Ordinal));
+                        System.StringComparison.Ordinal) &&
+                    HaveSameUserTokenPolicies(candidate.UserIdentityTokens, endpoint.UserIdentityTokens));
                 if (match < 0)
                 {
                     return false;
@@ -145,6 +147,51 @@ namespace Opc.Ua
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Compares the user token policies of two endpoints, ignoring order:
+        /// policy id, token type, security policy, issued token type and issuer.
+        /// </summary>
+        private static bool HaveSameUserTokenPolicies(
+            ArrayOf<UserTokenPolicy> first,
+            ArrayOf<UserTokenPolicy> second)
+        {
+            if (first.Count != second.Count)
+            {
+                return false;
+            }
+
+            var unmatched = new List<UserTokenPolicy?>(second.Count);
+            for (int ii = 0; ii < second.Count; ii++)
+            {
+                unmatched.Add(second[ii]);
+            }
+
+            for (int ii = 0; ii < first.Count; ii++)
+            {
+                UserTokenPolicy? policy = first[ii];
+                int match = unmatched.FindIndex(candidate =>
+                    candidate != null &&
+                    policy != null &&
+                    candidate.TokenType == policy.TokenType &&
+                    SameText(candidate.PolicyId, policy.PolicyId) &&
+                    SameText(candidate.SecurityPolicyUri, policy.SecurityPolicyUri) &&
+                    SameText(candidate.IssuedTokenType, policy.IssuedTokenType) &&
+                    SameText(candidate.IssuerEndpointUrl, policy.IssuerEndpointUrl));
+                if (match < 0)
+                {
+                    return false;
+                }
+                unmatched.RemoveAt(match);
+            }
+
+            return true;
+        }
+
+        private static bool SameText(string? first, string? second)
+        {
+            return string.Equals(first ?? string.Empty, second ?? string.Empty, System.StringComparison.Ordinal);
         }
 
         private sealed class SelectionEndpoints

@@ -142,5 +142,56 @@ namespace Opc.Ua.Client.Tests
             }))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
+
+        /// <summary>
+        /// A selection list whose user token policies differ from the server's
+        /// is refused as well, also when the channel security options match.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UserTokenPoliciesThatDifferFromTheSelectionAreRefusedAsync(bool updateBeforeConnect)
+        {
+            ApplicationConfiguration config = ClientFixture.Config;
+            ArrayOf<EndpointDescription> honest = await ClientFixture
+                .GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+
+            // the same endpoints, each with one user token policy more.
+            EndpointDescription[] changed = honest.ToArray()!
+                .Select(e => CoreUtils.Clone(e)!)
+                .ToArray();
+            foreach (EndpointDescription endpoint in changed)
+            {
+                endpoint.UserIdentityTokens =
+                [
+                    .. endpoint.UserIdentityTokens.ToArray()!,
+                    new UserTokenPolicy(UserTokenType.UserName)
+                    {
+                        PolicyId = "not-offered",
+                        SecurityPolicyUri = SecurityPolicies.None
+                    }
+                ];
+            }
+            ArrayOf<EndpointDescription> partial = changed;
+            EndpointDescription? selected = CoreClientUtils.SelectEndpoint(
+                config, ServerUrl, partial, useSecurity: true, Telemetry);
+            Assert.That(selected, Is.Not.Null);
+
+            typeof(ConfiguredEndpoint).GetMethod(
+                "SetSelectionEndpoints",
+                BindingFlags.Static | BindingFlags.NonPublic)!
+                .Invoke(null, [selected, partial]);
+
+            var configured = new ConfiguredEndpoint(
+                null, selected!, EndpointConfiguration.Create(config));
+
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                ISession session = await new DefaultSessionFactory(Telemetry).CreateAsync(
+                    config, configured, updateBeforeConnect, false, "selection-token-mismatch",
+                    60000, new UserIdentity(), default).ConfigureAwait(false);
+                session.Dispose();
+            }))!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
     }
 }

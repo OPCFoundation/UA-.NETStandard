@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
 using System.Reflection;
 using System.Threading;
@@ -81,12 +82,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(
                 await transport.Received.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
                 Is.True);
-            await Task.Delay(200).ConfigureAwait(false);
+            Assert.That(
+                await transport.Closed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                Is.True,
+                "the transport that reported the close is released");
 
             Assert.That(
                 timeProvider.HandshakeTimers,
                 Is.Empty,
                 "no reconnect handshake may be scheduled for a channel without an endpoint");
+
+            // A later connect fails at once instead of waiting for its timeout.
+            var connect = Stopwatch.StartNew();
+            Assert.That(
+                async () => await channel.ConnectAsync(
+                    new Uri("opc.tcp://localhost:4840/ReverseEarly"), 30000, CancellationToken.None)
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<ServiceResultException>());
+            Assert.That(connect.Elapsed, Is.LessThan(TimeSpan.FromSeconds(10)));
         }
 
         /// <summary>
@@ -299,8 +312,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 throw new ServiceResultException(StatusCodes.BadConnectionClosed, "Peer closed.");
             }
 
+            public TaskCompletionSource<bool> Closed { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             public void Close()
             {
+                Closed.TrySetResult(true);
             }
         }
 

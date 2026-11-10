@@ -1550,7 +1550,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void Shutdown(ServiceResult reason)
         {
-            if (State == TcpChannelState.Closed)
+            if (State == TcpChannelState.Closed && Transport == null)
             {
                 return;
             }
@@ -1575,6 +1575,17 @@ namespace Opc.Ua.Bindings
             // channel may already be closed
             if (State == TcpChannelState.Closed)
             {
+                // A reverse channel receives on its transport before it is
+                // connected. Release that transport, so a later ConnectAsync
+                // fails at once instead of waiting on a transport that no
+                // longer receives.
+                IUaSCByteTransport? attached = Transport;
+                if (attached != null)
+                {
+                    Transport = null;
+                    m_logger.UaSCClientLog27(ChannelId, attached.RemoteEndpoint);
+                    attached.Close();
+                }
                 return;
             }
 
