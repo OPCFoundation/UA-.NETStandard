@@ -111,6 +111,8 @@ namespace Opc.Ua.AutoID.Tests
             var sink = new RecordingSink();
             await verifier.AttachAsync(sink).ConfigureAwait(false);
 
+            AutoIdScanOutcome synchronous = await verifier.ScanAsync(
+                AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false);
             AutoIdOperationStatusEnumeration started = await verifier.StartScanAsync(
                 AutoIdTestData.Settings(dataAvailable: true)).ConfigureAwait(false);
             await sink.WaitForCompletionAsync().ConfigureAwait(false);
@@ -120,6 +122,9 @@ namespace Opc.Ua.AutoID.Tests
             await Assert.MultipleAsync(async () =>
             {
                 Assert.That(verifier.Kind, Is.EqualTo(AutoIdReaderKind.OpticalVerifier));
+                Assert.That(synchronous.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
+                Assert.That(synchronous.Results, Has.Count.EqualTo(1));
+                Assert.That(((OpticalVerifierScanResult)synchronous.Results[0]).IsoGrade, Is.EqualTo("A"));
                 Assert.That(started, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
                 Assert.That(((OpticalVerifierScanResult)sink.Scans[0][0]).IsoGrade, Is.EqualTo("A"));
                 Assert.Throws<ArgumentNullException>(() => verifier.Present(null!));

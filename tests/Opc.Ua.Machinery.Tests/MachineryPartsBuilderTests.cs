@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -181,7 +182,18 @@ namespace Opc.Ua.Machinery.Tests
                             .WithApplicationTag("air")
                             .WithNonElectricalEnergy(1234.5, 0)
                             .WithVolumeFlow(10f, 0.5f)
-                            .WithBaseFlow(620000f, 294.65f);
+                            .WithBaseFlow(620000f, 294.65f)
+                            .AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(12.5f))
+                            .AddMeasurementValue(
+                                new QualifiedName("AcCurrentPe"),
+                                Variant.FromStructure(
+                                    new Opc.Ua.ECM.AcPeDataType { L1 = 1f, L2 = 2f, L3 = 3f }))
+                            .AddMeasurementValue(
+                                new QualifiedName("AcVoltagePp"),
+                                Variant.FromStructure(
+                                    new Opc.Ua.ECM.AcPpDataType { L1L2 = 400f, L2L3 = 401f, L3L1 = 402f }));
                         air.AddMeteringPoint(
                             new QualifiedName("Clamping"),
                             point => point.WithNonElectricalEnergy(12.0, 0));
@@ -245,6 +257,71 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(import, Is.Not.Null);
             Assert.That(import!.WrappedValue.TryGetValue(out double importValue), Is.True);
             Assert.That(importValue, Is.EqualTo(1234.5));
+
+            var activePower = main.FindChild(
+                context,
+                new QualifiedName("AcActivePowerTotal", ecmNamespaceIndex))
+                as Opc.Ua.ECM.EnergyMeasurementValueState;
+            Assert.That(activePower, Is.Not.Null);
+            Opc.Ua.ECM.EnergyMeasurementValueState publishedPower = activePower!;
+            Assert.That(publishedPower.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Float));
+            Assert.That(publishedPower.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.Scalar));
+            Assert.That(
+                publishedPower.ReferenceTypeId,
+                Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            Assert.That(publishedPower.WrappedValue.TryGetValue(out float activePowerValue), Is.True);
+            Assert.That(activePowerValue, Is.EqualTo(12.5f));
+
+            var phaseCurrent = main.FindChild(
+                context,
+                new QualifiedName("AcCurrentPe", ecmNamespaceIndex))
+                as Opc.Ua.ECM.EnergyMeasurementValueState;
+            Assert.That(phaseCurrent, Is.Not.Null);
+            Assert.That(
+                phaseCurrent!.DataType,
+                Is.EqualTo(ExpandedNodeId.ToNodeId(
+                    Opc.Ua.ECM.DataTypeIds.AcPeDataType,
+                    context.NamespaceUris)));
+            Assert.That(
+                phaseCurrent.WrappedValue.TryGetStructure<Opc.Ua.ECM.AcPeDataType>(
+                    out Opc.Ua.ECM.AcPeDataType? currentValue),
+                Is.True);
+            Assert.That(currentValue!.L2, Is.EqualTo(2f));
+
+            var lineVoltage = main.FindChild(
+                context,
+                new QualifiedName("AcVoltagePp", ecmNamespaceIndex))
+                as Opc.Ua.ECM.EnergyMeasurementValueState;
+            Assert.That(lineVoltage, Is.Not.Null);
+            Assert.That(
+                lineVoltage!.DataType,
+                Is.EqualTo(ExpandedNodeId.ToNodeId(
+                    Opc.Ua.ECM.DataTypeIds.AcPpDataType,
+                    context.NamespaceUris)));
+            Assert.That(
+                lineVoltage.WrappedValue.TryGetStructure<Opc.Ua.ECM.AcPpDataType>(
+                    out Opc.Ua.ECM.AcPpDataType? voltageValue),
+                Is.True);
+            Assert.That(voltageValue!.L2L3, Is.EqualTo(401f));
+
+            var measurementChildren = new List<BaseInstanceState>();
+            publishedPower.GetChildren(context, measurementChildren);
+            BaseVariableState engineeringUnits = measurementChildren
+                .OfType<BaseVariableState>()
+                .Single(child => child.BrowseName.Name == Opc.Ua.BrowseNames.EngineeringUnits);
+            Assert.That(
+                engineeringUnits.WrappedValue.TryGetStructure<EUInformation>(out EUInformation? actualUnits),
+                Is.True);
+            Assert.That(actualUnits!.DisplayName.Text, Is.EqualTo("W"));
+            Assert.That(actualUnits.NamespaceUri, Is.EqualTo(
+                "http://www.opcfoundation.org/UA/units/un/cefact"));
+            Assert.That(actualUnits.UnitId, Is.EqualTo(5_723_220));
+
+            BaseVariableState measurementId = measurementChildren
+                .OfType<BaseVariableState>()
+                .Single(child => child.BrowseName.Name == "MeasurementID");
+            Assert.That(measurementId.WrappedValue.TryGetValue(out ushort actualMeasurementId), Is.True);
+            Assert.That(actualMeasurementId, Is.EqualTo((ushort)1412));
 
             // OPC 40001-4 §8.1: Contains runs from Main to a sub-meter whose
             // readings are part of it, and both ends are metering points.

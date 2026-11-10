@@ -622,6 +622,8 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// The maximum number of messages to keep in the internal cache.
+        /// The newest message is always kept, so a value below one keeps one
+        /// message. A lowered value takes effect when the next message arrives.
         /// </summary>
         public int MaxMessageCount
         {
@@ -3394,15 +3396,17 @@ namespace Opc.Ua.Client
                                 (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration,
                                     ii.Value.AcknowledgementScope, ii.Value.IsRepublishResponse));
 
-                            // remove the oldest items. The emptiness check keeps a
-                            // negative MaxMessageCount from throwing on RemoveFirst.
-                            while (m_messageCache.Count > 0 &&
+                            m_messageCache.AddLast(ii.Value.Message);
+
+                            // remove the oldest items. The newest message always
+                            // stays cached because the last notification properties
+                            // read it, also when MaxMessageCount is zero or negative.
+                            while (m_messageCache.Count > 1 &&
                                 m_messageCache.Count > MaxMessageCount)
                             {
                                 m_messageCache.RemoveFirst();
                             }
 
-                            m_messageCache.AddLast(ii.Value.Message);
                             ii.Value.Processed = true;
 
                             // Keep the last sequence number processed going up

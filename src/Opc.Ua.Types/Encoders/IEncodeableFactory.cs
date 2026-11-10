@@ -282,10 +282,47 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Supports committing registrations without replacing mappings already held by the factory.
+    /// </summary>
+    public interface IAdditiveEncodeableFactoryBuilder : IEncodeableFactoryBuilder
+    {
+        /// <summary>
+        /// Adds missing type identifiers and XML names while preserving existing mappings.
+        /// The existence checks and updates are serialized with other factory commits.
+        /// </summary>
+        /// <remarks>
+        /// Type identifiers are checked across both structure and enumeration registrations.
+        /// An existing XML-name mapping is preserved independently of the type-identifier mappings.
+        /// Readers can observe individual maps during publication; this is not a single-snapshot update.
+        /// A later ordinary commit can still replace mappings.
+        /// </remarks>
+        void CommitIfAbsent();
+    }
+
+    /// <summary>
     /// Obsolete methods on the IEncodeableFactory interface.
     /// </summary>
     public static class EncodeableFactoryExtensions
     {
+        /// <summary>
+        /// Commits missing registrations without replacing existing factory mappings.
+        /// </summary>
+        /// <param name="builder">The builder containing the registrations.</param>
+        /// <exception cref="ArgumentNullException">The builder is null.</exception>
+        /// <exception cref="NotSupportedException">The builder does not support additive commits.</exception>
+        public static void CommitIfAbsent(this IEncodeableFactoryBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (builder is not IAdditiveEncodeableFactoryBuilder additiveBuilder)
+            {
+                throw new NotSupportedException("The encodeable factory builder does not support additive commits.");
+            }
+            additiveBuilder.CommitIfAbsent();
+        }
+
         /// <summary>
         /// Adds an extension type to the factory builder.
         /// </summary>

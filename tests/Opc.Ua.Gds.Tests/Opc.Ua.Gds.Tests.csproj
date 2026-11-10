@@ -33,6 +33,34 @@
     <Compile Include="..\Opc.Ua.Client.Tests\Session\SessionRequestContextTestContext.cs"
              Link="AuthorizationService\SessionRequestContextTestContext.cs" />
     <Compile Include="..\..\samples\Reference\ConsoleReferenceServer\GdsNodeManagerFactory.cs" Link="GdsNodeManagerFactory.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingClient\OnboardingDeviceCredentials.cs"
+             Link="Onboarding\OnboardingDeviceCredentials.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingClient\OnboardingSoftwareStatus.cs"
+             Link="Onboarding\OnboardingSoftwareStatus.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingDevice\DevicePullCredentials.cs"
+             Link="Onboarding\DevicePullCredentials.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PullRegistrarPolicy.cs"
+             Link="Onboarding\PullRegistrarPolicy.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\OnboardingRegistrarNodeManager.cs"
+             Link="Onboarding\OnboardingRegistrarNodeManager.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushManagedApplicationTargetProvider.cs"
+             Link="Onboarding\PushManagedApplicationTargetProvider.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushRegistrarCheckpointFiles.cs"
+             Link="Onboarding\PushRegistrarCheckpointFiles.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushEnrollmentCheckpointStore.cs"
+             Link="Onboarding\PushEnrollmentCheckpointStore.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushRegistrarIssuanceStore.cs"
+             Link="Onboarding\PushRegistrarIssuanceStore.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingDevice\DeviceSecurityCheckpointStore.cs"
+             Link="Onboarding\DeviceSecurityCheckpointStore.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingDevice\DeviceSampleOptions.cs"
+             Link="Onboarding\DeviceSampleOptions.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingDevice\DevicePullTask.cs"
+             Link="Onboarding\DevicePullTask.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingDevice\DevicePullSession.cs"
+             Link="Onboarding\DevicePullSession.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />

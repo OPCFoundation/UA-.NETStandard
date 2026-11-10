@@ -58,6 +58,12 @@ namespace Opc.Ua.Server
     public sealed class ServerConfigurationOptions
     {
         /// <summary>
+        /// Gets or sets additional asynchronous authorization for standard push configuration mutations.
+        /// The built-in channel, role and transaction checks remain required. Null preserves existing policy.
+        /// </summary>
+        public IPushConfigurationAuthorization? PushAuthorization { get; set; }
+
+        /// <summary>
         /// When set, exposes the Optional <c>HasSecureElement</c> Property and
         /// seeds it with this value (§7.10.3): <see langword="true"/> if the
         /// application has access to hardware-based secure storage for the

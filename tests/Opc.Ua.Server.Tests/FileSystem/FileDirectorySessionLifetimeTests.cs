@@ -179,6 +179,88 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
+        /// A directory disposal deadline cancels admitted I/O without disposing its active provider stream.
+        /// </summary>
+        [Test]
+        public async Task DisposalDeadlineRetainsActiveDirectoryReadAsync()
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync(TimeSpan.Zero).ConfigureAwait(false);
+            using var stream = new SuspendedReadStream();
+            harness.Provider.Setup(value => value.OpenReadAsync("program", It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Stream>(stream));
+            uint id = await FileReadRegressionTests.OpenAsync(harness.File, harness.Context).ConfigureAwait(false);
+            Task<ReadMethodStateResult> read = harness.File.Read!.OnCallAsync!(
+                harness.Context, harness.File.Read, harness.File.NodeId, id, 1, CancellationToken.None).AsTask();
+            try
+            {
+                await harness.Binding.DisposeAsync().ConfigureAwait(false);
+                await stream.Cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(read.IsCompleted, Is.False);
+                Assert.That(stream.CanRead, Is.True);
+                Assert.That(stream.Disposed.Task.IsCompleted, Is.False);
+            }
+            finally
+            {
+                stream.Release.TrySetResult(true);
+                await read.ConfigureAwait(false);
+            }
+            await stream.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(stream.CanRead, Is.False);
+        }
+
+        /// <summary>
+        /// Keeps a provider read active after cancellation until explicitly released.
+        /// </summary>
+        private sealed class SuspendedReadStream : MemoryStream
+        {
+            /// <summary>
+            /// Creates one byte of provider content.
+            /// </summary>
+            public SuspendedReadStream()
+                : base(new byte[1])
+            {
+            }
+
+            /// <summary>Signals actual provider read completion.</summary>
+            public TaskCompletionSource<bool> Release { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>Signals cancellation requested by directory disposal.</summary>
+            public TaskCompletionSource<bool> Cancelled { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>Signals actual provider stream cleanup.</summary>
+            public TaskCompletionSource<bool> Disposed { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <inheritdoc/>
+            public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken ct)
+            {
+                using CancellationTokenRegistration registration = ct.Register(() => Cancelled.TrySetResult(true));
+                await Release.Task.ConfigureAwait(false);
+                return base.Read(buffer, offset, count);
+            }
+
+#if NET5_0_OR_GREATER
+            /// <inheritdoc/>
+            public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+            {
+                using CancellationTokenRegistration registration = ct.Register(() => Cancelled.TrySetResult(true));
+                await Release.Task.ConfigureAwait(false);
+                return base.Read(buffer.Span);
+            }
+#endif
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                Disposed.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
         /// Owns a directory binding with a controllable server session lifecycle.
         /// </summary>
         private sealed class Harness : IAsyncDisposable
@@ -250,9 +332,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// <summary>
             /// Materializes the provider through the public binder.
             /// </summary>
-            public async ValueTask InitializeAsync()
+            public async ValueTask InitializeAsync(TimeSpan? closeTimeout = null)
             {
-                Binding = await new FileDirectoryBinder().BindAsync(Root, Provider.Object, Context)
+                Binding = await new FileDirectoryBinder().BindAsync(Root, Provider.Object, Context,
+                    new FileDirectoryBindingOptions { CloseTimeout = closeTimeout ?? TimeSpan.FromSeconds(10) })
                     .ConfigureAwait(false);
                 var children = new List<BaseInstanceState>();
                 Root.GetChildren(Context, children);

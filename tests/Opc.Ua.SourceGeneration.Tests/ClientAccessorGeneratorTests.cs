@@ -65,11 +65,17 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Typed codecs and repeated-object factories compile without re-emitting the referenced model.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public void ClientAccessorsCompileAgainstReferencedModels(bool customizeNames)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void ClientAccessorsCompileAgainstReferencedModels(bool customizeNames, bool internalAccessors)
         {
             var options = new Dictionary<string, string>();
+            if (internalAccessors)
+            {
+                options["build_property.ModelSourceGeneratorClientAccessorsInternal"] = "true";
+            }
             string fullName = "Example.Model.Client.ClientAccessorsClientMembers";
             if (customizeNames)
             {
@@ -86,6 +92,8 @@ namespace Opc.Ua.SourceGeneration
             AssertCompiles(output);
             INamedTypeSymbol accessors = output.GetTypeByMetadataName(fullName)!;
             Assert.That(accessors, Is.Not.Null);
+            Assert.That(accessors.DeclaredAccessibility,
+                Is.EqualTo(internalAccessors ? Accessibility.Internal : Accessibility.Public));
             IMethodSymbol[] methods = accessors.GetMembers().OfType<IMethodSymbol>().ToArray();
             Assert.That(methods.Select(method => method.Name), Is.EquivalentTo(s_expectedMembers));
             Assert.Multiple(() =>

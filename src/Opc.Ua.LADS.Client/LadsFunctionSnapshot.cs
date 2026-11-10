@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -83,6 +83,13 @@ namespace Opc.Ua.LADS.Client
                 return null;
             }
         }
+
+        /// <summary>
+        /// Gets the active optional running substate, or null when absent or inactive.
+        /// </summary>
+        public string? RunningState => TryGetValue(LadsFunctionMembers.RunningState, out DataValue value)
+            ? LadsClient.AsString(value)
+            : null;
 
         /// <summary>
         /// Gets the value of a variable by its relative path.

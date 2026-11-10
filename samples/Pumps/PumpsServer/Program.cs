@@ -34,6 +34,9 @@ using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.AMB.Server.Configuration;
+using Opc.Ua.Server.FileSystem;
+using Opc.Ua.Server.Historian.InMemory;
 using PumpsSample;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
@@ -60,6 +63,12 @@ if (pkiRoot is not null && !Path.IsPathFullyQualified(pkiRoot))
     await Console.Error.WriteLineAsync("--pki-root must be an absolute path.").ConfigureAwait(false);
     return 2;
 }
+string? stateRoot = builder.Configuration["state-root"];
+if (stateRoot is not null && !Path.IsPathFullyQualified(stateRoot))
+{
+    await Console.Error.WriteLineAsync("--state-root must be an absolute path.").ConfigureAwait(false);
+    return 2;
+}
 bool autoAccept = true;
 if (builder.Configuration["autoaccept"] is { } acceptOption && !bool.TryParse(acceptOption, out autoAccept))
 {
@@ -80,6 +89,16 @@ string endpointUrl = new UriBuilder("opc.tcp", bindHost, port, "/PumpsServer").U
 // simulation writes the live values through the handles it keeps.
 builder.Services.AddSingleton<PumpFleet>();
 builder.Services.AddHostedService<PumpSimulation>();
+builder.Services.AddSingleton<IFileTypeBinder, FileTypeBinder>();
+builder.Services.AddSingleton(_ => new InMemoryHistorianProvider(new InMemoryHistorianOptions
+{
+    RawDataRetentionPeriod = TimeSpan.FromMinutes(5),
+    MaxSamplesPerNode = 300
+}));
+if (stateRoot is not null)
+{
+    builder.Services.AddSingleton<IAssetConfigurationStore>(_ => new FileSystemAssetConfigurationStore(stateRoot));
+}
 
 builder.Services
     .AddOpcUa()

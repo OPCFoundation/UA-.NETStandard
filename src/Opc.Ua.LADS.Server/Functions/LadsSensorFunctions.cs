@@ -93,19 +93,14 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(double value, double? rawValue = null)
         {
-            double raw = rawValue ?? value;
-            lock (m_lock)
-            {
-                m_value = value;
-                m_raw = raw;
-            }
-            Runtime.Update(m_node.SensorValue, Variant.From(value));
-            Runtime.Update(m_node.RawValue, Variant.From(raw));
+            Unit.Device.UpdateSensor(this, value, rawValue ?? value);
+            Node.ClearChangeMasks(Runtime.Context, true);
         }
 
         /// <inheritdoc/>
         public void UpdateCompensationValue(double value)
         {
+            Unit.Device.RequireStorageHealthy();
             if (m_node is not AnalogScalarSensorFunctionWithCompensationState compensated)
             {
                 throw ServiceResultException.Create(
@@ -113,7 +108,21 @@ namespace Opc.Ua.LADS.Server
                     "The sensor '{0}' has no compensation value.",
                     Path);
             }
-            Runtime.Update(compensated.CompensationValue, Variant.From(value));
+            Unit.Device.SetFunctionParameter(compensated.CompensationValue, Variant.From(value));
+        }
+
+        /// <summary>
+        /// Assigns the measured and raw values without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(double value, double raw)
+        {
+            lock (m_lock)
+            {
+                m_value = value;
+                m_raw = raw;
+            }
+            LadsRuntime.AssignValue(m_node.SensorValue, Variant.From(value));
+            LadsRuntime.AssignValue(m_node.RawValue, Variant.From(raw));
         }
 
         private readonly AnalogScalarSensorFunctionState m_node;
@@ -158,13 +167,21 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(ArrayOf<double> values, ArrayOf<double> rawValues = default)
         {
-            ArrayOf<double> raw = rawValues.IsNull ? values : rawValues;
+            Unit.Device.UpdateSensor(this, values, rawValues.IsNull ? values : rawValues);
+            Node.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Assigns the measured and raw arrays without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(ArrayOf<double> values, ArrayOf<double> raw)
+        {
             lock (m_lock)
             {
                 m_values = values;
             }
-            Runtime.Update(m_node.SensorValue, Variant.From(values));
-            Runtime.Update(m_node.RawValue, Variant.From(raw));
+            LadsRuntime.AssignValue(m_node.SensorValue, Variant.From(values));
+            LadsRuntime.AssignValue(m_node.RawValue, Variant.From(raw));
         }
 
         private readonly AnalogArraySensorFunctionState m_node;
@@ -197,8 +214,17 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(bool value)
         {
+            Unit.Device.UpdateSensor(this, value);
+            m_variable?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        /// <summary>
+        /// Assigns the discrete reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(bool value)
+        {
             Volatile.Write(ref m_value, value);
-            Runtime.Update(m_variable, Variant.From(value));
+            LadsRuntime.AssignValue(m_variable, Variant.From(value));
         }
 
         private readonly TwoStateDiscreteState? m_variable;
@@ -231,9 +257,18 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(uint value)
         {
+            Unit.Device.UpdateSensor(this, value);
+            m_variable?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        /// <summary>
+        /// Validates and assigns the discrete reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(uint value)
+        {
             LadsMultiStateDiscreteControlFunction.Check(m_states, value);
             Volatile.Write(ref m_value, value);
-            Runtime.Update(m_variable, Variant.From(value));
+            LadsRuntime.AssignValue(m_variable, Variant.From(value));
         }
 
         private readonly int m_states;
@@ -284,6 +319,7 @@ namespace Opc.Ua.LADS.Server
             : base(unit, node, path)
         {
             m_lockable = options.Lockable;
+            m_controllable = options.Controllable;
             if (!m_lockable && options.InitialState is LadsCoverStateValue.Locked or
                 LadsCoverStateValue.Locking or LadsCoverStateValue.Unlocking)
             {
@@ -294,17 +330,21 @@ namespace Opc.Ua.LADS.Server
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     "The cover state machine is missing.");
-            stateMachine.AddOpen(context).AddClose(context).AddReset(context);
-            if (m_lockable)
+            if (m_controllable)
             {
-                stateMachine.AddLock(context).AddUnlock(context);
+                stateMachine.AddOpen(context).AddClose(context).AddReset(context);
+                if (m_lockable)
+                {
+                    stateMachine.AddLock(context).AddUnlock(context);
+                }
             }
             m_machine = new LadsStateMachine<LadsCoverStateValue>(
                 stateMachine,
                 context,
                 LadsStateMaps.Cover,
-                options.InitialState);
-            m_machine.StateChanged += state =>
+                options.InitialState,
+                Unit.Device);
+            m_machine.StateChangedInternal += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
                 {
@@ -312,13 +352,25 @@ namespace Opc.Ua.LADS.Server
                 }
                 StateChanged?.Invoke(state);
             };
-            Runtime.Bind(stateMachine.Open, (_, ct) => OpenAsync(ct));
-            Runtime.Bind(stateMachine.Close, (_, ct) => CloseAsync(ct));
-            Runtime.Bind(stateMachine.Reset, (_, ct) => ResetAsync(ct));
-            if (m_lockable)
+            m_machine.StateChangedAsync += (state, _) =>
             {
-                Runtime.Bind(stateMachine.Lock, (_, ct) => LockAsync(ct));
-                Runtime.Bind(stateMachine.Unlock, (_, ct) => UnlockAsync(ct));
+                if (Runtime.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    Runtime.Logger.StateChanged(Path, state);
+                }
+                StateChanged?.Invoke(state);
+                return default;
+            };
+            if (m_controllable)
+            {
+                Runtime.Bind(stateMachine.Open, (_, ct) => OpenAsync(ct));
+                Runtime.Bind(stateMachine.Close, (_, ct) => CloseAsync(ct));
+                Runtime.Bind(stateMachine.Reset, (_, ct) => ResetAsync(ct));
+                if (m_lockable)
+                {
+                    Runtime.Bind(stateMachine.Lock, (_, ct) => LockAsync(ct));
+                    Runtime.Bind(stateMachine.Unlock, (_, ct) => UnlockAsync(ct));
+                }
             }
         }
 
@@ -398,10 +450,29 @@ namespace Opc.Ua.LADS.Server
                         !await m_machine.TransitionToAsync(LadsCoverStateValue.Error, cancellationToken)
                             .ConfigureAwait(false))
                     {
-                        m_machine.SetState(LadsCoverStateValue.Error);
+                        await m_machine.SetStateAsync(LadsCoverStateValue.Error, CancellationToken.None)
+                            .ConfigureAwait(false);
                     }
                 },
                 cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReportStateAsync(
+            LadsCoverStateValue state, CancellationToken cancellationToken = default)
+        {
+            if (state < LadsCoverStateValue.Opened || state > LadsCoverStateValue.Error)
+            {
+                throw new ArgumentOutOfRangeException(nameof(state));
+            }
+            if (!m_lockable && state is LadsCoverStateValue.Locked or
+                LadsCoverStateValue.Locking or LadsCoverStateValue.Unlocking)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported, "The cover '{0}' cannot be locked.", Path);
+            }
+            return ExclusiveAsync(
+                () => m_machine.SetStateAsync(state, cancellationToken), cancellationToken);
         }
 
         /// <summary>
@@ -413,6 +484,11 @@ namespace Opc.Ua.LADS.Server
             CancellationToken cancellationToken,
             params LadsCoverStateValue[] states)
         {
+            if (!m_controllable)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported, "The cover '{0}' only reports hardware state.", Path);
+            }
             return ExclusiveAsync(
                 async () =>
                 {
@@ -446,5 +522,8 @@ namespace Opc.Ua.LADS.Server
 
         private readonly LadsStateMachine<LadsCoverStateValue> m_machine;
         private readonly bool m_lockable;
+
+        /// <summary>Whether the application exposes cover commands.</summary>
+        private readonly bool m_controllable;
     }
 }

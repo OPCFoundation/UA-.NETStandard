@@ -390,7 +390,8 @@ namespace Opc.Ua.Gds.Server
             ICertificateGroup certificateGroup,
             bool autoApprove,
             IAccessTokenProvider? accessTokenProvider = null,
-            IKeyCredentialRequestStore? keyCredentialStore = null) : IAsyncNodeManagerFactory
+            IKeyCredentialRequestStore? keyCredentialStore = null,
+            Action<ApplicationsNodeManager>? configure = null) : IAsyncNodeManagerFactory
         {
             /// <inheritdoc/>
             public ArrayOf<string> NamespacesUris =>
@@ -416,6 +417,7 @@ namespace Opc.Ua.Gds.Server
                     {
                         manager.KeyCredentialRequestStore = keyCredentialStore;
                     }
+                    configure?.Invoke(manager);
                     IAsyncNodeManager result = await new ValueTask<IAsyncNodeManager>(manager).ConfigureAwait(false);
                     manager = null;
                     return result;

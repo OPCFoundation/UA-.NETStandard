@@ -99,6 +99,11 @@ namespace Opc.Ua.AMB.Server
             bool deviceHealth = true;
             bool healthAlarms = true;
             bool maintenance = true;
+            bool healthHistory = true;
+            bool anyHealth = false;
+            bool healthEventHistory = true;
+            bool anyHealthAlarms = false;
+            bool maintenanceHistory = true;
             bool anyLinks = false;
             bool editableLinks = persistentStore;
             bool userLinks = persistentStore;
@@ -115,6 +120,20 @@ namespace Opc.Ua.AMB.Server
                 deviceHealth &= asset.HasDiChild(Opc.Ua.Di.BrowseNames.DeviceHealth);
                 healthAlarms &= asset.Health?.AlarmCount > 0;
                 maintenance &= asset.Maintenance?.ActivityCount > 0;
+                if (asset.HasDiChild(Opc.Ua.Di.BrowseNames.DeviceHealth))
+                {
+                    anyHealth = true;
+                    healthHistory &= ((asset.History?.Kinds ?? AssetHistoryKinds.None) &
+                        AssetHistoryKinds.DeviceHealth) != 0;
+                }
+                if (asset.Health?.AlarmCount > 0)
+                {
+                    anyHealthAlarms = true;
+                    healthEventHistory &= ((asset.History?.Kinds ?? AssetHistoryKinds.None) &
+                        AssetHistoryKinds.HealthEvents) != 0;
+                }
+                maintenanceHistory &= ((asset.History?.Kinds ?? AssetHistoryKinds.None) &
+                    AssetHistoryKinds.MaintenanceEvents) != 0;
                 anyLinks |= asset.DocumentationLinks?.PublishedLinkCount > 0;
                 editableLinks &= asset.DocumentationLinks?.HasEditableLink == true;
                 userLinks &= asset.DocumentationLinks?.AllowsUserLinks == true;
@@ -144,6 +163,18 @@ namespace Opc.Ua.AMB.Server
             if (deviceHealth)
             {
                 units.Add(new QualifiedName(ConformanceUnitNames.AssetHealthStatusBase));
+            }
+            if (anyHealth && healthHistory)
+            {
+                units.Add(new QualifiedName(ConformanceUnitNames.AssetHealthTrackingOverallAssetStatus));
+            }
+            if (anyHealthAlarms && healthEventHistory)
+            {
+                units.Add(new QualifiedName(ConformanceUnitNames.AssetHealthTrackingEvents));
+            }
+            if (maintenance && maintenanceHistory && interfacesOnTypes)
+            {
+                units.Add(new QualifiedName(ConformanceUnitNames.PastMaintenanceActivities));
             }
 
             // Every health alarm the manager creates reports an AMB condition

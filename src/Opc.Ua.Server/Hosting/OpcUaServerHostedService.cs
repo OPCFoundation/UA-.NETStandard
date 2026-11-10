@@ -264,6 +264,7 @@ namespace Opc.Ua.Server.Hosting
                 m_services.GetService<ServerComplexTypeOptions>();
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
+            m_services.GetService<ServerApplicationCertificateActivator>()?.Attach(m_server);
             m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
             if (m_server is not DependencyInjectionStandardServer)
             {
@@ -415,6 +416,7 @@ namespace Opc.Ua.Server.Hosting
                 OpcUaServerApplicationConfigurationFeature.Configure(
                     m_application.Build(m_options.ApplicationUri, m_options.ProductUri),
                     m_options);
+            ApplyDependencyInjectedCertificateManager(certificateManager);
             ArrayOf<CertificateIdentifier> certificates =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     subject,
@@ -430,7 +432,6 @@ namespace Opc.Ua.Server.Hosting
                     m_options.MinCertificateKeySize);
             }
 
-            ApplyDependencyInjectedCertificateManager(certificateManager);
             await securityOptions.CreateAsync(ct).ConfigureAwait(false);
         }
 
@@ -687,7 +688,7 @@ namespace Opc.Ua.Server.Hosting
                 return;
             }
 
-            m_application.ApplicationConfiguration.CertificateManager = certificateManager;
+            m_application.ApplicationConfiguration.SetBorrowedCertificateManager(certificateManager);
         }
 
         private static async Task<bool> HasApplicationCertificateAsync(

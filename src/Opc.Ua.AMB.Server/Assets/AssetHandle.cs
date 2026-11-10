@@ -43,7 +43,7 @@ namespace Opc.Ua.AMB.Server.Assets
     /// <summary>
     /// What an application asked for when it registered an asset.
     /// </summary>
-    internal sealed class AssetBuilder : IAssetBuilder
+    internal sealed class AssetBuilder : IAssetBuilder, IAssetHistoryBuilder
     {
         /// <summary>
         /// Gets whether the <c>AssetId</c> is configurable.
@@ -90,6 +90,24 @@ namespace Opc.Ua.AMB.Server.Assets
         /// structure of the asset.
         /// </summary>
         public AssetStructureRequest Structure { get; } = new();
+
+        /// <summary>
+        /// Gets whether history configuration was overridden for this asset.
+        /// </summary>
+        public bool HistoryConfigured { get; private set; }
+
+        /// <summary>
+        /// Gets the per-asset history override.
+        /// </summary>
+        public AssetHistoryOptions? History { get; private set; }
+
+        /// <inheritdoc/>
+        public IAssetBuilder WithHistory(AssetHistoryOptions? history)
+        {
+            HistoryConfigured = true;
+            History = history;
+            return this;
+        }
 
         /// <inheritdoc/>
         public IAssetBuilder WithConfigurableAssetId(string? defaultAssetId = null)
@@ -476,6 +494,11 @@ namespace Opc.Ua.AMB.Server.Assets
         /// locations, classification and structure.
         /// </summary>
         public AssetStructure? Structure { get; set; }
+
+        /// <summary>
+        /// Gets or sets the shared historian bindings owned by this registration.
+        /// </summary>
+        public AssetHistoryBinding? History { get; set; }
 
         /// <inheritdoc/>
         public ValueTask<int> IncrementRevisionCounterAsync(CancellationToken cancellationToken = default)

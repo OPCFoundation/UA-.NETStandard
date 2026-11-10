@@ -261,6 +261,26 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Retains manager resources until a companion operation and its awaited cleanup finish.
+        /// Nested manager calls remain available to that operation after shutdown closes admission.
+        /// </summary>
+        /// <typeparam name="T">The companion operation's result type.</typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ObjectDisposedException"></exception>
+        protected async ValueTask<T> ExecuteNodeManagerOperationAsync<T>(
+            Func<CancellationToken, ValueTask<T>> operation,
+            CancellationToken cancellationToken = default)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            using NodeManagerOperation admitted = BeginNodeManagerOperation();
+            return await operation(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Admits an operation until it exits, allowing nested access by an admitted operation or teardown callback.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
@@ -4777,6 +4797,8 @@ namespace Opc.Ua.Server
                 await ValidateNodeAsync(systemContext, handle, null!, cancellationToken).ConfigureAwait(false)
                 ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
+            using IDisposable? activity = BeginBrowseActivity(systemContext, source);
+
             // check if node is in the view.
             if (!IsNodeInView(systemContext, continuationPoint, source))
             {
@@ -5070,6 +5092,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            using IDisposable? activity = BeginBrowseActivity(systemContext, source);
+
             // get list of references that relative path. The node guards the browser build itself.
             INodeBrowser browser = source.CreateBrowser(
                 systemContext,
@@ -5161,6 +5185,18 @@ namespace Opc.Ua.Server
                     browser.Dispose();
                 }
             }
+        }
+
+        /// <summary>
+        /// Begins optional activity accounting for a resolved browse source.
+        /// The returned scope is disposed after browsing or translating the relative path finishes.
+        /// </summary>
+        /// <param name="context">The requesting session context.</param>
+        /// <param name="source">The resolved source node.</param>
+        /// <returns>The activity scope, or null when no accounting is needed.</returns>
+        protected virtual IDisposable? BeginBrowseActivity(ISystemContext context, NodeState source)
+        {
+            return null;
         }
 
         /// <summary>

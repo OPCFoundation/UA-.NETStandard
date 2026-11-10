@@ -596,7 +596,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                if (!monitoredNode.DataChangeMonitoredItems.TryGetValue(
+                if (!monitoredNode.TryGetDataChangeItem(
                     monitoredItem.Id,
                     out IDataChangeMonitoredItem2? dataChangeItem) ||
                     !ReferenceEquals(dataChangeItem, monitoredItem))
@@ -736,7 +736,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    if (monitoredNode.DataChangeMonitoredItems.TryGetValue(
+                    if (monitoredNode.TryGetDataChangeItem(
                         monitoredItem.Id,
                         out IDataChangeMonitoredItem2? linkedDataChangeItem))
                     {

@@ -1723,6 +1723,7 @@ namespace Opc.Ua.WotCon.Server
         private sealed class ResourceAdapter :
             IXRegistryProjectionResource,
             IXRegistryProjectionResourceMeta,
+            IXRegistryProjectionResourceChangeToken,
             IResourceAdapter
         {
             /// <summary>
@@ -1747,6 +1748,12 @@ namespace Opc.Ua.WotCon.Server
             /// </summary>
             public IWotRegistryVersionLease? PreparedLease { get; }
             public bool IsConcreteVersion => true;
+
+            /// <summary>
+            /// Gets the immutable registry Resource, which every snapshot replaces when
+            /// anything projected for it (including any of its Versions) changes.
+            /// </summary>
+            public object ChangeToken => Resource;
             public string GroupId => Resource.GroupId;
             public string ResourceId => Resource.ResourceId;
             public string Xid => $"{Resource.Xid}/versions/{Version.VersionId}";
@@ -1777,6 +1784,7 @@ namespace Opc.Ua.WotCon.Server
         private sealed class LegacyResourceAdapter :
             IXRegistryProjectionResource,
             IXRegistryProjectionResourceMeta,
+            IXRegistryProjectionResourceChangeToken,
             IResourceAdapter
         {
             public LegacyResourceAdapter(WotResource resource)
@@ -1788,6 +1796,9 @@ namespace Opc.Ua.WotCon.Server
             public WotResource Resource { get; }
             public WotResourceVersion? Version { get; }
             public bool IsConcreteVersion => false;
+
+            /// <inheritdoc cref="ResourceAdapter.ChangeToken"/>
+            public object ChangeToken => Resource;
             public string GroupId => Resource.GroupId;
             public string ResourceId => Resource.ResourceId;
             public string Xid => Resource.Xid;

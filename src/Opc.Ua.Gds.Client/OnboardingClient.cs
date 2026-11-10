@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Opc.Ua.Onboarding;
 
@@ -68,6 +71,69 @@ namespace Opc.Ua.Gds.Client
         /// The NodeId of the registrar administration instance.
         /// </summary>
         public NodeId RegistrarNodeId => ObjectId;
+
+        /// <summary>
+        /// Registers signed JSON tickets using the Part 21 String wire representation.
+        /// </summary>
+        public new ValueTask<ArrayOf<StatusCode>> RegisterTicketsAsync(
+            ArrayOf<string> tickets,
+            CancellationToken ct = default)
+        {
+            return base.RegisterTicketsAsync(tickets, ct);
+        }
+
+        /// <summary>
+        /// Removes signed JSON tickets using the Part 21 String wire representation.
+        /// </summary>
+        public new ValueTask<ArrayOf<StatusCode>> UnregisterTicketsAsync(
+            ArrayOf<string> tickets,
+            CancellationToken ct = default)
+        {
+            return base.UnregisterTicketsAsync(tickets, ct);
+        }
+
+        /// <summary>
+        /// Registers UTF-8 encoded JSON tickets through the corrected String wire representation.
+        /// </summary>
+        [Obsolete("EncodedTicket is a String subtype. Pass ArrayOf<string> instead.")]
+        public ValueTask<ArrayOf<StatusCode>> RegisterTicketsAsync(
+            ArrayOf<ByteString> tickets,
+            CancellationToken ct = default)
+        {
+            return base.RegisterTicketsAsync(DecodeTickets(tickets), ct);
+        }
+
+        /// <summary>
+        /// Removes UTF-8 encoded JSON tickets through the corrected String wire representation.
+        /// </summary>
+        [Obsolete("EncodedTicket is a String subtype. Pass ArrayOf<string> instead.")]
+        public ValueTask<ArrayOf<StatusCode>> UnregisterTicketsAsync(
+            ArrayOf<ByteString> tickets,
+            CancellationToken ct = default)
+        {
+            return base.UnregisterTicketsAsync(DecodeTickets(tickets), ct);
+        }
+
+        /// <summary>
+        /// Rejects invalid UTF-8 instead of silently changing signed ticket content.
+        /// </summary>
+        private static ArrayOf<string> DecodeTickets(ArrayOf<ByteString> tickets)
+        {
+            if (tickets.IsNull)
+            {
+                return ArrayOf<string>.Null;
+            }
+            var utf8 = new UTF8Encoding(false, true);
+            var decoded = new string[tickets.Count];
+            for (int i = 0; i < tickets.Count; i++)
+            {
+                if (!tickets[i].IsNull)
+                {
+                    decoded[i] = utf8.GetString(tickets[i].ToArray());
+                }
+            }
+            return decoded;
+        }
 
         private static ISession PrepareSession(ISession session)
         {

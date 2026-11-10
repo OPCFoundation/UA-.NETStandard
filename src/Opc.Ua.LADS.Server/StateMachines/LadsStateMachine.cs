@@ -50,11 +50,17 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// <param name="stateMachine">The state machine instance.</param>
         /// <param name="context">The system context of the owning node manager.</param>
         /// <param name="table">The states and transitions of the state machine type.</param>
-        public LadsStateMachine(FiniteStateMachineState stateMachine, ISystemContext context, LadsStateTable table)
+        /// <param name="device">The owning device, when the machine belongs to a device.</param>
+        public LadsStateMachine(
+            FiniteStateMachineState stateMachine,
+            ISystemContext context,
+            LadsStateTable table,
+            LadsDevice? device = null)
         {
             StateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             Table = table ?? throw new ArgumentNullException(nameof(table));
+            m_device = device;
             int index = context.NamespaceUris.GetIndex(table.NamespaceUri);
             m_namespaceIndex = index < 0 ? (ushort)0 : (ushort)index;
         }
@@ -89,9 +95,30 @@ namespace Opc.Ua.LADS.Server.StateMachines
         public string CurrentStateName => Table.FindState(CurrentStateId).Name;
 
         /// <summary>
-        /// Raised after a transition was committed, with the new state identifier.
+        /// Raised after a transition or explicit state write, with the current state identifier.
         /// </summary>
         public event Action<uint>? StateChanged;
+
+        /// <summary>
+        /// Raised asynchronously after a committed transition and its state notifications.
+        /// </summary>
+        public event Func<uint, CancellationToken, ValueTask>? StateChangedAsync;
+
+        /// <summary>
+        /// Raised after the state changes on synchronous paths for internal observers.
+        /// </summary>
+        internal event Action<uint>? StateChangedInternal;
+
+        /// <summary>
+        /// Raised asynchronously after a committed state change for internal observers.
+        /// </summary>
+        internal event Func<uint, CancellationToken, ValueTask>? StateChangedInternalAsync;
+
+        /// <summary>
+        /// Updates internal state invariants after assignment and before any notification sinks run.
+        /// Handlers must only assign local data without dispatching notifications.
+        /// </summary>
+        internal event Action<uint>? StateAssigned;
 
         /// <summary>
         /// Writes a state without a transition, the way a freshly created or reset machine starts.
@@ -99,14 +126,40 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// <param name="stateId">The state identifier.</param>
         public void SetInitialState(uint stateId)
         {
-            LadsStateDefinition state = Table.FindState(stateId);
-            lock (m_lock)
+            m_device?.EnsureSynchronousStateWriteAllowed();
+            if (m_device == null)
             {
-                WriteStateLocked(state);
-                m_currentStateId = state.Id;
+                AssignState(stateId);
             }
-            StateMachine.ClearChangeMasks(m_context, true);
-            StateChanged?.Invoke(state.Id);
+            else
+            {
+                m_device.SetMachineState(this, stateId);
+            }
+            NotifyStateChanged(stateId);
+        }
+
+        /// <summary>
+        /// Writes a state without a transition and awaits its state notifications.
+        /// </summary>
+        /// <param name="stateId">The state identifier.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before writing the state. Notifications for a written state complete without
+        /// observing caller cancellation.
+        /// </param>
+        public async ValueTask SetInitialStateAsync(
+            uint stateId,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_device == null)
+            {
+                AssignState(stateId);
+            }
+            else
+            {
+                m_device.SetMachineState(this, stateId);
+            }
+            await NotifyStateChangedAsync(stateId).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -128,27 +181,15 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// <exception cref="ServiceResultException">
         /// <see cref="StatusCodes.BadInvalidState"/> when no transition leads to the target state.
         /// </exception>
-        public ValueTask<bool> TransitionToAsync(uint targetStateId, CancellationToken cancellationToken = default)
-        {
-            return new ValueTask<bool>(TransitionTo(targetStateId, cancellationToken));
-        }
-
-        /// <summary>
-        /// Applies the transition from the current state to <paramref name="targetStateId"/> synchronously.
-        /// The guards of the state machine are synchronous, so no work is deferred.
-        /// </summary>
-        /// <param name="targetStateId">The target state identifier.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns><see langword="false"/> when a guard vetoed the transition.</returns>
-        /// <exception cref="ServiceResultException">
-        /// <see cref="StatusCodes.BadInvalidState"/> when no transition leads to the target state.
-        /// </exception>
-        public bool TransitionTo(uint targetStateId, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> TransitionToAsync(
+            uint targetStateId,
+            CancellationToken cancellationToken = default)
         {
             LadsStateDefinition target = Table.FindState(targetStateId);
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                m_device?.RequireStorageHealthy();
                 LadsTransitionDefinition transition;
                 lock (m_lock)
                 {
@@ -167,23 +208,64 @@ namespace Opc.Ua.LADS.Server.StateMachines
                 {
                     return false;
                 }
-                bool committed = false;
+                bool committed = m_device == null
+                    ? AssignTransition(transition)
+                    : m_device.TransitionMachine(this, transition);
+                if (!committed)
+                {
+                    continue;
+                }
+                await NotifyTransitionAsync(transition, target.Id).ConfigureAwait(false);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Applies the transition from the current state to <paramref name="targetStateId"/> synchronously.
+        /// The guards of the state machine are synchronous, so no work is deferred.
+        /// </summary>
+        /// <param name="targetStateId">The target state identifier.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns><see langword="false"/> when a guard vetoed the transition.</returns>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadInvalidState"/> when no transition leads to the target state.
+        /// </exception>
+        public bool TransitionTo(uint targetStateId, CancellationToken cancellationToken = default)
+        {
+            m_device?.EnsureSynchronousStateWriteAllowed();
+            LadsStateDefinition target = Table.FindState(targetStateId);
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                m_device?.RequireStorageHealthy();
+                LadsTransitionDefinition transition;
                 lock (m_lock)
                 {
-                    if (m_currentStateId == transition.FromStateId)
+                    if (!Table.TryFindTransition(m_currentStateId, target.Id, out transition))
                     {
-                        WriteStateLocked(target);
-                        WriteTransitionLocked(transition);
-                        m_currentStateId = target.Id;
-                        committed = true;
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadInvalidState,
+                            "The state machine '{0}' cannot move from '{1}' to '{2}'.",
+                            StateMachine.BrowseName,
+                            Table.FindState(m_currentStateId).Name,
+                            target.Name);
                     }
                 }
+                ServiceResult guard = Invoke(StateMachine.OnBeforeTransition, transition.Id);
+                if (ServiceResult.IsBad(guard))
+                {
+                    return false;
+                }
+                bool committed = m_device == null
+                    ? AssignTransition(transition)
+                    : m_device.TransitionMachine(this, transition);
                 if (!committed)
                 {
                     continue;
                 }
                 StateMachine.ClearChangeMasks(m_context, true);
                 Invoke(StateMachine.OnAfterTransition, transition.Id);
+                StateChangedInternal?.Invoke(target.Id);
                 StateChanged?.Invoke(target.Id);
                 return true;
             }
@@ -207,6 +289,103 @@ namespace Opc.Ua.LADS.Server.StateMachines
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Writes state attributes without dispatching observable notifications.
+        /// </summary>
+        internal void AssignState(uint stateId)
+        {
+            LadsStateDefinition state = Table.FindState(stateId);
+            lock (m_lock)
+            {
+                WriteStateLocked(state);
+                m_currentStateId = state.Id;
+            }
+            StateAssigned?.Invoke(state.Id);
+        }
+
+        /// <summary>
+        /// Commits a transition only if its source state is still current, without notifying observers.
+        /// </summary>
+        internal bool AssignTransition(LadsTransitionDefinition transition)
+        {
+            LadsStateDefinition state = Table.FindState(transition.ToStateId);
+            lock (m_lock)
+            {
+                if (m_currentStateId != transition.FromStateId)
+                {
+                    return false;
+                }
+                WriteStateLocked(state);
+                WriteTransitionLocked(transition);
+                m_currentStateId = state.Id;
+            }
+            StateAssigned?.Invoke(state.Id);
+            return true;
+        }
+
+        /// <summary>
+        /// Dispatches state notifications after the owning device finished its state write.
+        /// </summary>
+        internal void NotifyStateChanged(uint stateId)
+        {
+            StateMachine.ClearChangeMasks(m_context, true);
+            StateChangedInternal?.Invoke(stateId);
+            StateChanged?.Invoke(stateId);
+        }
+
+        /// <summary>
+        /// Dispatches state notifications and asynchronous observers after a committed state write.
+        /// </summary>
+        internal async ValueTask NotifyStateChangedAsync(
+            uint stateId)
+        {
+            await StateMachine.ClearChangeMasksAsync(m_context, true, CancellationToken.None)
+                .ConfigureAwait(false);
+            await InvokeStateChangedInternalAsync(stateId, CancellationToken.None).ConfigureAwait(false);
+            StateChanged?.Invoke(stateId);
+            await InvokeStateChangedAsync(stateId, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private async ValueTask NotifyTransitionAsync(LadsTransitionDefinition transition, uint stateId)
+        {
+            await StateMachine.ClearChangeMasksAsync(m_context, true, CancellationToken.None)
+                .ConfigureAwait(false);
+            Invoke(StateMachine.OnAfterTransition, transition.Id);
+            await InvokeStateChangedInternalAsync(stateId, CancellationToken.None).ConfigureAwait(false);
+            StateChanged?.Invoke(stateId);
+            await InvokeStateChangedAsync(stateId, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private async ValueTask InvokeStateChangedInternalAsync(
+            uint stateId,
+            CancellationToken cancellationToken)
+        {
+            Func<uint, CancellationToken, ValueTask>? stateChangedInternalAsync = StateChangedInternalAsync;
+            if (stateChangedInternalAsync == null)
+            {
+                return;
+            }
+            foreach (Delegate handler in stateChangedInternalAsync.GetInvocationList())
+            {
+                await ((Func<uint, CancellationToken, ValueTask>)handler)(stateId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask InvokeStateChangedAsync(uint stateId, CancellationToken cancellationToken)
+        {
+            Func<uint, CancellationToken, ValueTask>? stateChangedAsync = StateChangedAsync;
+            if (stateChangedAsync == null)
+            {
+                return;
+            }
+            foreach (Delegate handler in stateChangedAsync.GetInvocationList())
+            {
+                await ((Func<uint, CancellationToken, ValueTask>)handler)(stateId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
 
         private ServiceResult Invoke(StateMachineTransitionHandler? handler, uint transitionId)
@@ -277,6 +456,9 @@ namespace Opc.Ua.LADS.Server.StateMachines
         private readonly ISystemContext m_context;
         private readonly ushort m_namespaceIndex;
         private readonly Lock m_lock = new();
+
+        /// <summary>The owning device, or null for a standalone machine.</summary>
+        private readonly LadsDevice? m_device;
         private uint m_currentStateId;
     }
 

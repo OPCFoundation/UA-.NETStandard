@@ -268,6 +268,26 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// <para>
+        /// Decode the notifications of a Publish response right before they
+        /// are dispatched instead of when the response arrives. Under load,
+        /// responses wait for their subscription; as raw bytes they do not
+        /// cost the garbage collector anything while they wait.
+        /// </para>
+        /// <para>
+        /// A notification body that cannot be decoded is logged and not
+        /// delivered, instead of failing the whole Publish response.
+        /// Default: <c>true</c>.
+        /// </para>
+        /// <para>
+        /// Has no effect when the classic subscription engine is in
+        /// use; this option only applies to the V2
+        /// <see cref="Subscriptions.ISubscriptionManager"/>.
+        /// </para>
+        /// </summary>
+        public bool DeferNotificationDecoding { get; init; } = true;
+
+        /// <summary>
+        /// <para>
         /// When <c>true</c>, the <see cref="ManagedSession"/> automatically
         /// enables address-space model change tracking once connected.
         /// It subscribes to <c>GeneralModelChangeEventType</c> on the

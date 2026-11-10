@@ -93,7 +93,8 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddSingleton(static services => new AutoIdNodeManagerFactory(
                 services.GetService<IDiPostSetupRunner>(),
                 services.GetService<IOptions<AutoIdServerOptions>>(),
-                services.GetServices<IDiModelProvider>().ToArray()));
+                services.GetServices<IDiModelProvider>().ToArray(),
+                services.GetService<Opc.Ua.Server.FileSystem.IFileTypeBinder>()));
             builder.Services.AddSingleton(static services => new OpcUaServerNodeManagerRegistration(
                 services.GetRequiredService<AutoIdNodeManagerFactory>()));
             return builder;

@@ -107,7 +107,12 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Resets a cover in the error state.
         /// </summary>
-        Reset
+        Reset,
+
+        /// <summary>
+        /// Writes the member identified by <see cref="LadsFunctionCommand.ParameterPath"/>.
+        /// </summary>
+        SetParameter
     }
 
     /// <summary>
@@ -145,10 +150,35 @@ namespace Opc.Ua.LADS.Server
         /// <param name="value">The argument of the command, if it has one.</param>
         /// <exception cref="ArgumentNullException"><paramref name="function"/> is <c>null</c>.</exception>
         public LadsFunctionCommand(ILadsFunction function, LadsFunctionCommandKind kind, Variant value = default)
+            : this(function, kind, value, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a command with an explicit parameter identity for a named parameter write.
+        /// </summary>
+        /// <param name="function">The function the command is issued to.</param>
+        /// <param name="kind">The command kind.</param>
+        /// <param name="value">The command value.</param>
+        /// <param name="parameterPath">The function-relative path, required only for SetParameter.</param>
+        public LadsFunctionCommand(
+            ILadsFunction function, LadsFunctionCommandKind kind, Variant value, string? parameterPath)
         {
             Function = function ?? throw new ArgumentNullException(nameof(function));
+            if (kind == LadsFunctionCommandKind.SetParameter)
+            {
+                if (string.IsNullOrWhiteSpace(parameterPath))
+                {
+                    throw new ArgumentException("A named parameter path is required.", nameof(parameterPath));
+                }
+            }
+            else if (parameterPath != null)
+            {
+                throw new ArgumentException("Only SetParameter carries a parameter path.", nameof(parameterPath));
+            }
             Kind = kind;
             Value = value;
+            ParameterPath = parameterPath;
         }
 
         /// <summary>
@@ -165,6 +195,12 @@ namespace Opc.Ua.LADS.Server
         /// The argument of the command: the target value, the modification or the mode index.
         /// </summary>
         public Variant Value { get; }
+
+        /// <summary>
+        /// Gets the function-relative parameter path for SetParameter; other commands carry null.
+        /// Dynamic browse-name segments are URI-escaped.
+        /// </summary>
+        public string? ParameterPath { get; }
     }
 
     /// <summary>
@@ -242,5 +278,64 @@ namespace Opc.Ua.LADS.Server
         /// <param name="cancellationToken">Cancelled when the run is stopped or aborted.</param>
         /// <returns>A task that completes when the run has finished.</returns>
         ValueTask ExecuteAsync(LadsProgramRun run, CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// A program executor that acknowledges physical pause, resume and orderly completion.
+    /// </summary>
+    /// <remarks>
+    /// The callback must finish only after processing has stopped or resumed as requested.
+    /// Completing must request orderly shutdown, not cancel execution or fabricate a successful result.
+    /// An implementation may retain sample-preservation activities while processing is paused.
+    /// </remarks>
+    public interface ILadsControlledProgramExecutor : ILadsProgramExecutor
+    {
+        /// <summary>
+        /// Applies an execution change before the runtime publishes the corresponding stable state.
+        /// </summary>
+        /// <param name="run">The active run.</param>
+        /// <param name="target">Held, Suspended, Execute or Completing.</param>
+        /// <param name="cancellationToken">Cancellation of the command, not of the run.</param>
+        /// <returns>The hardware acknowledgment; a bad result leaves the acting state visible.</returns>
+        ValueTask<ServiceResult> ChangeExecutionAsync(
+            LadsProgramRun run,
+            LadsRunningStateValue target,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Optional running operations of a functional unit.
+    /// </summary>
+    public interface ILadsRunningOperations
+    {
+        /// <summary>
+        /// Pauses processing because of internal conditions and waits for acknowledgment.
+        /// </summary>
+        ValueTask HoldAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resumes processing after internal conditions have cleared.
+        /// </summary>
+        ValueTask UnholdAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Pauses processing because of external conditions and waits for acknowledgment.
+        /// </summary>
+        ValueTask SuspendAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resumes processing after external conditions have cleared.
+        /// </summary>
+        ValueTask UnsuspendAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resets Complete to Idle without starting physical execution.
+        /// </summary>
+        ValueTask ResetAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Requests orderly completion; the result is available when the executor finishes.
+        /// </summary>
+        ValueTask ToCompleteAsync(CancellationToken cancellationToken = default);
     }
 }

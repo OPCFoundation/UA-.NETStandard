@@ -396,14 +396,17 @@ namespace Opc.Ua.Pumps.Client
             return new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value };
         }
 
-        private NodeId TargetAt(TranslateBrowsePathsToNodeIdsResponse response, int index)
+        private NodeId TargetAt(
+            TranslateBrowsePathsToNodeIdsResponse response,
+            int index,
+            bool requireCompleteTarget = false)
         {
             if (index < 0 || index >= response.Results.Count)
             {
                 return NodeId.Null;
             }
             BrowsePathResult result = response.Results[index];
-            if (m_maximumBrowseReferences != 0)
+            if (m_maximumBrowseReferences != 0 || requireCompleteTarget)
             {
                 if (result.StatusCode == StatusCodes.BadNoMatch)
                 {

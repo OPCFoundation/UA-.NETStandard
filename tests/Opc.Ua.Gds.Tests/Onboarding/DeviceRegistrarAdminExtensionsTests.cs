@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,7 +59,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             };
 
             Assert.Throws<ServiceResultException>(
-                () => bare.BindToTicketStore(new MemoryTicketStore()));
+                () => bare.BindToTicketStore(new MemoryTicketStore(), AcceptTickets()));
         }
 
         [Test]
@@ -66,22 +67,22 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             (_, DeviceRegistrarAdminState registrar) = CreateRegistrar();
             Assert.Throws<ArgumentNullException>(
-                () => registrar.BindToTicketStore(null!));
+                () => registrar.BindToTicketStore(null!, AcceptTickets()));
             BaseObjectState? nullState = null;
             Assert.Throws<ArgumentNullException>(
-                () => nullState!.BindToTicketStore(new MemoryTicketStore()));
+                () => nullState!.BindToTicketStore(new MemoryTicketStore(), AcceptTickets()));
         }
 
         [Test]
         public async Task RegisterTicketsStoresTicketsAndReplacesSeededOutput()
         {
-            (SystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
             var store = new MemoryTicketStore();
-            registrar.BindToTicketStore(store);
-            ArrayOf<ByteString> tickets =
+            registrar.BindToTicketStore(store, AcceptTickets());
+            ArrayOf<string> tickets =
             [
-                new ByteString(new byte[] { 1, 2, 3 }),
-                new ByteString(new byte[] { 4, 5, 6 })
+                "first-ticket",
+                "second-ticket"
             ];
 
             (ServiceResult result, List<ServiceResult> argumentErrors, List<Variant> outputs) =
@@ -117,12 +118,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [Test]
         public async Task UnregisterTicketsRemovesPreviouslyStored()
         {
-            (SystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
             var store = new MemoryTicketStore();
-            registrar.BindToTicketStore(store);
-            ArrayOf<ByteString> tickets =
+            registrar.BindToTicketStore(store, AcceptTickets());
+            ArrayOf<string> tickets =
             [
-                new ByteString(new byte[] { 0xAA })
+                "ticket"
             ];
 
             _ = await CallAsync(
@@ -157,10 +158,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [Test]
         public async Task RegisterTicketsRequiresRegistrarAdminRole()
         {
-            (SystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
             var store = new MemoryTicketStore();
-            registrar.BindToTicketStore(store);
-            ArrayOf<ByteString> tickets = [new ByteString(new byte[] { 1, 2, 3 })];
+            registrar.BindToTicketStore(store, AcceptTickets());
+            ArrayOf<string> tickets = ["ticket"];
             byte[] password = "password"u8.ToArray();
 
             var userContext = new SessionSystemContext(context.Telemetry)
@@ -198,7 +199,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [Test]
         public async Task RegisterTicketsReportsPerTicketStoreFailure()
         {
-            (SystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
             var store = new Mock<ITicketStore>(MockBehavior.Strict);
             store
                 .Setup(s => s.AddAsync(
@@ -207,17 +208,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     It.IsAny<TicketMetadata>(),
                     It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(StatusCodes.BadEntryExists));
-            registrar.BindToTicketStore(store.Object);
+            registrar.BindToTicketStore(store.Object, AcceptTickets());
+            ArrayOf<string> tickets = ["ticket"];
 
             (_, _, List<Variant> outputs) = await CallAsync(
                 registrar.RegisterTickets!,
                 context,
                 registrar.NodeId,
-                Variant.From(
-                    new ByteString[]
-                    {
-                        new(new byte[] { 1 })
-                    }.ToArrayOf()))
+                Variant.From(tickets))
                 .ConfigureAwait(false);
 
             Assert.That(
@@ -228,12 +226,133 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(new StatusCode[] { StatusCodes.BadEntryExists }.ToArrayOf()));
         }
 
-        [Test]
-        public async Task RegisterTicketsRejectsNonByteStringWireType()
+        /// <summary>
+        /// A failed middle storage operation preserves earlier results and does not skip later tickets.
+        /// </summary>
+        [TestCase(false, "io")]
+        [TestCase(true, "io")]
+        [TestCase(false, "checkpoint")]
+        [TestCase(true, "checkpoint")]
+        [TestCase(false, "service")]
+        [TestCase(true, "service")]
+        [TestCase(false, "uncancelled")]
+        [TestCase(true, "uncancelled")]
+        public async Task TicketMethodsReportStorageFailureAndContinueBatch(bool remove, string failureKind)
         {
-            (SystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
-            registrar.BindToTicketStore(new MemoryTicketStore());
-            ArrayOf<string> invalidTickets = ["not-a-ticket"];
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            Exception failure = failureKind switch
+            {
+                "io" => new IOException("Storage unavailable."),
+                "checkpoint" => new InvalidDataException("Checkpoint limit exceeded."),
+                "service" => new ServiceResultException(StatusCodes.BadEntryExists),
+                _ => new OperationCanceledException("Provider cancelled without caller cancellation.")
+            };
+            var store = new Mock<ITicketStore>(MockBehavior.Strict);
+            if (remove)
+            {
+                store.SetupSequence(value => value.RemoveAsync(
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<bool>(true))
+                    .Throws(failure)
+                    .Returns(new ValueTask<bool>(true));
+            }
+            else
+            {
+                store.SetupSequence(value => value.AddAsync(
+                    It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<TicketMetadata>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns(default(ValueTask))
+                    .Throws(failure)
+                    .Returns(default(ValueTask));
+            }
+            registrar.BindToTicketStore(store.Object, AcceptTickets());
+            MethodState method = remove ? registrar.UnregisterTickets! : registrar.RegisterTickets!;
+            ArrayOf<string> tickets = ["before", "failed", "after"];
+
+            (ServiceResult result, _, List<Variant> outputs) = await CallAsync(
+                method, context, registrar.NodeId, Variant.From(tickets)).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(outputs, Has.Count.EqualTo(1));
+            Assert.That(outputs[0].TryGetValue(out ArrayOf<StatusCode> statuses), Is.True);
+            StatusCode expectedFailure = failureKind == "service"
+                ? StatusCodes.BadEntryExists
+                : StatusCodes.BadUnexpectedError;
+            Assert.That(statuses, Is.EqualTo(
+                new StatusCode[] { StatusCodes.Good, expectedFailure, StatusCodes.Good }.ToArrayOf()));
+            if (remove)
+            {
+                store.Verify(value => value.RemoveAsync(
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            }
+            else
+            {
+                store.Verify(value => value.AddAsync(
+                    It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<TicketMetadata>(),
+                    It.IsAny<CancellationToken>()), Times.Exactly(3));
+            }
+            store.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Caller cancellation raised during storage stops the batch instead of becoming a ticket status.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TicketMethodsPropagateCallerCancellationDuringStorage(bool remove)
+        {
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            using var cancellation = new CancellationTokenSource();
+            var store = new Mock<ITicketStore>(MockBehavior.Strict);
+            int calls = 0;
+            if (remove)
+            {
+                store.Setup(value => value.RemoveAsync(It.IsAny<string>(), cancellation.Token))
+                    .Returns<string, CancellationToken>((_, ct) =>
+                    {
+                        if (++calls == 2)
+                        {
+                            cancellation.Cancel();
+                            ct.ThrowIfCancellationRequested();
+                        }
+                        return new ValueTask<bool>(true);
+                    });
+            }
+            else
+            {
+                store.Setup(value => value.AddAsync(
+                    It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<TicketMetadata>(), cancellation.Token))
+                    .Returns<string, byte[], TicketMetadata, CancellationToken>((_, _, _, ct) =>
+                    {
+                        if (++calls == 2)
+                        {
+                            cancellation.Cancel();
+                            ct.ThrowIfCancellationRequested();
+                        }
+                        return default;
+                    });
+            }
+            registrar.BindToTicketStore(store.Object, AcceptTickets());
+            MethodState method = remove ? registrar.UnregisterTickets! : registrar.RegisterTickets!;
+            List<Variant> outputs = [Variant.Null];
+            ArrayOf<string> tickets = ["before", "cancelled", "after"];
+
+            OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await method.OnCallMethod2Async!(
+                    context, method, registrar.NodeId, [Variant.From(tickets)], outputs, cancellation.Token)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.CancellationToken, Is.EqualTo(cancellation.Token));
+            Assert.That(calls, Is.EqualTo(2), "The remaining ticket must not reach storage after cancellation.");
+            Assert.That(outputs[0].IsNull, Is.True);
+        }
+
+        [Test]
+        public async Task RegisterTicketsRejectsNonStringWireType()
+        {
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            registrar.BindToTicketStore(new MemoryTicketStore(), AcceptTickets());
+            ArrayOf<ByteString> invalidTickets = [ByteString.From("not-a-ticket"u8)];
 
             (ServiceResult result, List<ServiceResult> argumentErrors, List<Variant> outputs) =
                 await CallAsync(
@@ -251,10 +370,32 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(outputs, Is.Empty);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TicketMethodsRejectExtraArgumentsBeforeCallingProviders(bool remove)
+        {
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            var store = new Mock<ITicketStore>(MockBehavior.Strict);
+            var validator = new Mock<IOnboardingTicketValidator>(MockBehavior.Strict);
+            registrar.BindToTicketStore(store.Object, validator.Object);
+            MethodState method = remove ? registrar.UnregisterTickets! : registrar.RegisterTickets!;
+            List<Variant> outputs = [Variant.Null];
+
+            ServiceResult result = await method.OnCallMethod2Async!(
+                context, method, registrar.NodeId,
+                [Variant.From(ArrayOf<string>.Empty), Variant.Null], outputs, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyArguments));
+            Assert.That(outputs[0].IsNull, Is.True);
+            store.VerifyNoOtherCalls();
+            validator.VerifyNoOtherCalls();
+        }
+
         [Test]
         public async Task RegisterTicketsPropagatesCancellationToTicketStore()
         {
-            (_, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
             var store = new Mock<ITicketStore>(MockBehavior.Strict);
             store
                 .Setup(s => s.AddAsync(
@@ -268,26 +409,159 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         ct.ThrowIfCancellationRequested();
                         return default;
                     });
-            registrar.BindToTicketStore(store.Object);
+            registrar.BindToTicketStore(store.Object, AcceptTickets());
             using var cts = new CancellationTokenSource();
             cts.Cancel();
             List<Variant> outputs = [Variant.Null];
+            ArrayOf<string> tickets = ["ticket"];
 
             await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await registrar.RegisterTickets!.OnCallMethod2Async!(
-                    new SystemContext(NUnitTelemetryContext.Create()),
+                    context,
                     registrar.RegisterTickets,
                     registrar.NodeId,
-                    [Variant.From(
-                        new ByteString[]
-                        {
-                            new(new byte[] { 1 })
-                        }.ToArrayOf())],
+                    [Variant.From(tickets)],
                     outputs,
                     cts.Token).ConfigureAwait(false));
         }
 
-        private static (SystemContext Context, DeviceRegistrarAdminState Registrar)
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TicketMethodsRejectMissingSessionIdentity(bool remove)
+        {
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            var store = new Mock<ITicketStore>(MockBehavior.Strict);
+            registrar.BindToTicketStore(store.Object, AcceptTickets());
+            context.UserIdentity = null;
+            MethodState method = remove ? registrar.UnregisterTickets! : registrar.RegisterTickets!;
+            ArrayOf<string> tickets = ["ticket"];
+
+            (ServiceResult denied, _, _) = await CallAsync(
+                method, context, registrar.NodeId, Variant.From(tickets))
+                .ConfigureAwait(false);
+
+            Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            store.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Legacy callers cannot register unverified tickets.
+        /// </summary>
+        [Test]
+        public async Task LegacyBindingRejectsRegistrationWithoutValidator()
+        {
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            var store = new Mock<ITicketStore>(MockBehavior.Strict);
+            var method = typeof(DeviceRegistrarAdminExtensions).GetMethod(
+                nameof(DeviceRegistrarAdminExtensions.BindToTicketStore), s_legacyBindingSignature) ??
+                throw new AssertionException("The legacy unvalidated binding overload is missing.");
+#if NETFRAMEWORK
+            var bind = (Action<BaseObjectState, ITicketStore>)method.CreateDelegate(
+                typeof(Action<BaseObjectState, ITicketStore>));
+#else
+            Action<BaseObjectState, ITicketStore> bind = method.CreateDelegate<Action<BaseObjectState, ITicketStore>>();
+#endif
+            bind(registrar, store.Object);
+            ArrayOf<string> tickets = ["ticket"];
+
+            (ServiceResult result, _, _) = await CallAsync(
+                registrar.RegisterTickets!, context, registrar.NodeId,
+                Variant.From(tickets)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            store.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Invalid tickets do not prevent independently valid inputs from being stored.
+        /// </summary>
+        [Test]
+        public async Task RegisterTicketsRejectsInvalidTicketAndStoresValidatedMetadata()
+        {
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            var store = new MemoryTicketStore();
+            var validator = Mock.Get(AcceptTickets());
+            validator.Setup(value => value.ValidateAsync(
+                "invalid", OnboardingTicketSource.OutOfBand, It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadTicketInvalid));
+            registrar.BindToTicketStore(store, validator.Object);
+            ArrayOf<string> tickets = ["before", "invalid", "after"];
+
+            (ServiceResult result, _, List<Variant> outputs) = await CallAsync(
+                registrar.RegisterTickets!, context, registrar.NodeId,
+                Variant.From(tickets)).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(outputs[0].TryGetValue(out ArrayOf<StatusCode> statuses), Is.True);
+            Assert.That(statuses, Is.EqualTo(
+                new StatusCode[] { StatusCodes.Good, StatusCodes.BadTicketInvalid, StatusCodes.Good }.ToArrayOf()));
+            var serials = new List<string>();
+            await foreach (TicketRecord record in store.ListAsync().ConfigureAwait(false))
+            {
+                Assert.That(record.Metadata.Kind, Is.EqualTo(TicketKind.DeviceIdentity));
+                Assert.That(record.Metadata.ManufacturerName, Is.EqualTo("Test manufacturer"));
+                serials.Add(record.Metadata.SerialNumber);
+            }
+            string[] expectedSerials = ["before", "after"];
+            Assert.That(serials, Is.EquivalentTo(expectedSerials));
+        }
+
+        /// <summary>
+        /// A null input is reported independently without blocking the remaining tickets.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TicketMethodsRejectNullElementsAndContinueProcessing(bool remove)
+        {
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            var store = new MemoryTicketStore();
+            registrar.BindToTicketStore(store, AcceptTickets());
+            if (remove)
+            {
+                ArrayOf<string> registeredTickets = ["before", "after"];
+                _ = await CallAsync(
+                    registrar.RegisterTickets!, context, registrar.NodeId,
+                    Variant.From(registeredTickets)).ConfigureAwait(false);
+            }
+            MethodState method = remove ? registrar.UnregisterTickets! : registrar.RegisterTickets!;
+            ArrayOf<string> tickets = ["before", null!, "after"];
+
+            (ServiceResult result, _, List<Variant> outputs) = await CallAsync(
+                method, context, registrar.NodeId, Variant.From(tickets)).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(outputs[0].TryGetValue(out ArrayOf<StatusCode> statuses), Is.True);
+            Assert.That(statuses, Is.EqualTo(
+                new StatusCode[] { StatusCodes.Good, StatusCodes.BadTicketInvalid, StatusCodes.Good }.ToArrayOf()));
+            Assert.That(
+                await store.ListAsync().CountAsync().ConfigureAwait(false),
+                Is.EqualTo(remove ? 0 : 2));
+        }
+
+        /// <summary>
+        /// Supplies a test verifier; envelope and trust behavior have separate tests.
+        /// </summary>
+        private static IOnboardingTicketValidator AcceptTickets()
+        {
+            var validator = new Mock<IOnboardingTicketValidator>(MockBehavior.Strict);
+            validator.Setup(value => value.ValidateAsync(
+                It.IsAny<string>(), OnboardingTicketSource.OutOfBand, It.IsAny<CancellationToken>()))
+                .Returns<string, OnboardingTicketSource, CancellationToken>((ticket, _, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return new ValueTask<ValidatedOnboardingTicket>(new ValidatedOnboardingTicket(
+                        new DeviceIdentityTicketType
+                        {
+                            ManufacturerName = "Test manufacturer",
+                            ModelName = "Test model",
+                            SerialNumber = ticket,
+                            ProductInstanceUri = "urn:test:" + ticket
+                        }, string.Empty));
+                });
+            return validator.Object;
+        }
+
+        private static (SessionSystemContext Context, DeviceRegistrarAdminState Registrar)
             CreateRegistrar()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -297,16 +571,21 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             messageContext.NamespaceUris.GetIndexOrAppend(
                 Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding);
             var typeTable = new TypeTable(messageContext.NamespaceUris);
-            typeTable.AddSubtype(Opc.Ua.DataTypeIds.ByteString, NodeId.Null);
+            typeTable.AddSubtype(Opc.Ua.DataTypeIds.String, NodeId.Null);
             typeTable.AddSubtype(
                 Opc.Ua.DataTypeIds.EncodedTicket,
-                Opc.Ua.DataTypeIds.ByteString);
-            var context = new SystemContext(telemetry)
+                Opc.Ua.DataTypeIds.String);
+            var context = new SessionSystemContext(telemetry)
             {
                 NamespaceUris = messageContext.NamespaceUris,
                 ServerUris = messageContext.ServerUris,
                 EncodeableFactory = messageContext.Factory,
-                TypeTable = typeTable
+                TypeTable = typeTable,
+                UserIdentity = new Opc.Ua.Server.RoleBasedIdentity(
+                    new UserIdentity(),
+                    [new Opc.Ua.Server.Role(
+                        Opc.Ua.Onboarding.ObjectIds.WellKnownRole_RegistrarAdmin, "RegistrarAdmin")],
+                    messageContext.NamespaceUris)
             };
             NodeStateCollection nodes = new NodeStateCollection().AddOpcUaOnboarding(context);
             DeviceRegistrarState root = nodes.OfType<DeviceRegistrarState>().Single();
@@ -336,6 +615,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .ConfigureAwait(false);
             return (result, argumentErrors, outputs);
         }
+
+        /// <summary>The legacy binding intentionally omits the required ticket validator.</summary>
+        private static readonly Type[] s_legacyBindingSignature = [typeof(BaseObjectState), typeof(ITicketStore)];
     }
 
     internal static class AsyncEnumerableTestExtensions

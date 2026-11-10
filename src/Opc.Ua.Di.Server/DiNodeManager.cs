@@ -77,7 +77,7 @@ namespace Opc.Ua.Di.Server
     /// must still call <c>base</c>.
     /// </para>
     /// </remarks>
-    public class DiNodeManager : FluentNodeManagerBase, INodeIdFactory, IConformanceContributor,
+    public partial class DiNodeManager : FluentNodeManagerBase, INodeIdFactory, IConformanceContributor,
         INodeManagerReadinessNotification
     {
         /// <summary>
@@ -1435,8 +1435,11 @@ namespace Opc.Ua.Di.Server
             {
                 if (node is LockingServicesState lockState &&
                     (lockState.InitLock?.OnCall != null ||
+                        lockState.InitLock?.OnCallAsync != null ||
                         lockState.RenewLock?.OnCall != null ||
-                        lockState.ExitLock?.OnCall != null))
+                        lockState.RenewLock?.OnCallAsync != null ||
+                        lockState.ExitLock?.OnCall != null ||
+                        lockState.ExitLock?.OnCallAsync != null))
                 {
                     return true;
                 }
@@ -1449,7 +1452,8 @@ namespace Opc.Ua.Di.Server
             foreach (NodeState node in PredefinedNodes.Values)
             {
                 if (node is LockingServicesState lockState &&
-                    lockState.BreakLock?.OnCall != null)
+                    (lockState.BreakLock?.OnCall != null ||
+                        lockState.BreakLock?.OnCallAsync != null))
                 {
                     return true;
                 }

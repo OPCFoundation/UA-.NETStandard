@@ -284,8 +284,11 @@ namespace Opc.Ua.Server.Hosting
                 services.GetService<IServerConfigurationResetProvider>();
             IApplicationConfigurationFileProvider? configurationFileProvider =
                 services.GetService<IApplicationConfigurationFileProvider>();
+            IPushConfigurationAuthorization? pushAuthorization =
+                services.GetService<IPushConfigurationAuthorization>();
 
-            if (options == null && resetProvider == null && configurationFileProvider == null)
+            if (options == null && resetProvider == null && configurationFileProvider == null &&
+                pushAuthorization == null)
             {
                 return null;
             }
@@ -293,6 +296,7 @@ namespace Opc.Ua.Server.Hosting
             options ??= new ServerConfigurationOptions();
             options.ResetProvider ??= resetProvider;
             options.ConfigurationFileProvider ??= configurationFileProvider;
+            options.PushAuthorization ??= pushAuthorization;
             return options;
         }
 

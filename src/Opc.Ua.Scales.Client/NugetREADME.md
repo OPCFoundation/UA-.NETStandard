@@ -15,9 +15,16 @@ companion specification, version 2.00.
   `RegisterWeightAsync` drive the scale.
 - Products: `ReadProductsAsync`, `ReadCurrentProductsAsync`,
   `Select/Deselect/Switch/Add/RemoveProductAsync`.
+- `ReadLastItemAsync` reads typed product measurements, dimensions, zone and
+  price/currency fields with independent source status and timestamps.
+  `ReadTipCounterAsync` preserves the full unsigned counter range.
+- `ReadRecipeStatusAsync` and `ObserveRecipeReportsAsync` expose selected
+  recipes and typed report entries without converting missing values to zero.
+- Catchweigher zones and recipe graphs can be managed with the typed add/remove
+  methods; recipe processing methods operate on the selected recipe.
 - PackML: `ReadPackMLStateAsync` and `ExecutePackMLCommandAsync`.
 - Type-specific methods (piece counting, laboratory, vehicle, loss-in-weight,
-  feeder, recipes, totalizers, scale systems) and
+  feeder, totalizers, scale systems) and
   `ObserveNotificationsAsync` for scale events and alarms with their Annex C
   notification ids.
 - `ReadSnapshotAsync` reads everything in one pass.

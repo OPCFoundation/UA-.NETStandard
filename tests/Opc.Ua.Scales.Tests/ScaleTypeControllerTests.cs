@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Scales.Server.Builders;
@@ -288,6 +289,151 @@ namespace Opc.Ua.Scales.Tests
                 ? ServiceResult.Create(StatusCodes.BadUserAccessDenied, "interlocked")
                 : ServiceResult.Good;
             AssertStatus(counting.StartReference(20), StatusCodes.BadUserAccessDenied);
+        }
+
+        [Test]
+        public async Task PieceCountingTotalsTrackSuccessfulRegistrationsAndResetOnProductChangeAsync()
+        {
+            ScaleHandle scale = await CreateAsync(
+                ScaleKind.PieceCounting,
+                b => b
+                    .WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
+                    .WithPieceCountingTotals()
+                    .WithProductionPreset(p => p
+                        .AllowSelection()
+                        .AddProduct("A", new LocalizedText("A"))
+                        .AddProduct("B", new LocalizedText("B"))
+                        .Select("A")));
+            Assert.That(scale.Scale.RegisterWeight, Is.Not.Null);
+            Assert.That(scale.Scale.RegisteredWeight, Is.Not.Null);
+            PieceCountingController counting = scale.PieceCounting!;
+            var first = (PieceCountingProductState)scale.ProductionPreset!.Find("A")!;
+            var second = (PieceCountingProductState)scale.ProductionPreset.Find("B")!;
+            AssertGood(counting.SetReferencePieceWeight(0.001));
+
+            scale.PublishLoad(0.05);
+            AssertGood(scale.RegisterWeight());
+            Assert.That(first.RegisteredPieceCount!.WrappedValue.TryGetValue(out uint registeredCount), Is.True);
+            Assert.That(registeredCount, Is.EqualTo(50u));
+            Assert.That(first.TotalizedItemCount!.WrappedValue.TryGetValue(out uint totalCount), Is.True);
+            Assert.That(totalCount, Is.EqualTo(50u));
+            Assert.That(first.TotalizedWeight!.Value.Net, Is.EqualTo(0.05).Within(1e-12));
+
+            scale.PublishLoad(0.04);
+            AssertGood(await scale.RegisterWeightAsync().ConfigureAwait(false));
+            Assert.That(first.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
+            Assert.That(totalCount, Is.EqualTo(90u));
+            Assert.That(first.TotalizedWeight.Value.Net, Is.EqualTo(0.09).Within(1e-12));
+
+            AssertGood(scale.ProductionPreset.Switch("B"));
+            Assert.That(second.TotalizedItemCount!.WrappedValue.TryGetValue(out totalCount), Is.True);
+            Assert.That(totalCount, Is.Zero, "selecting a product clears its previous totals");
+            Assert.That(second.TotalizedWeight!.Value.Net, Is.Zero);
+            AssertGood(counting.SetReferencePieceWeight(0.002));
+            scale.PublishLoad(0.06);
+            AssertGood(await scale.RegisterWeightAsync().ConfigureAwait(false));
+            Assert.That(second.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
+            Assert.That(totalCount, Is.EqualTo(30u));
+
+            AssertGood(scale.ProductionPreset.Switch("A"));
+            Assert.That(first.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
+            Assert.That(totalCount, Is.Zero, "returning to a product starts a new production total");
+            Assert.That(first.TotalizedWeight.Value.Net, Is.Zero);
+
+            scale.PublishLoad(0.05);
+            AssertGood(await scale.RegisterWeightAsync().ConfigureAwait(false));
+            Assert.That(first.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
+            Assert.That(totalCount, Is.EqualTo(50u));
+            AssertGood(await counting.ResetTotalsAsync("A").ConfigureAwait(false));
+            Assert.That(first.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
+            Assert.That(totalCount, Is.Zero);
+            Assert.That(first.TotalizedWeight.Value.Net, Is.Zero);
+
+            AssertGood(scale.ProductionPreset.Switch("B"));
+            Assert.That(second.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
+            Assert.That(totalCount, Is.Zero, "selecting a product clears its previous accumulation");
+            Assert.That(second.TotalizedWeight.Value.Net, Is.Zero);
+        }
+
+        [Test]
+        public async Task PieceCountingTotalsIgnoreFailedAndCancelledRegistrationsAsync()
+        {
+            ScaleHandle scale = await CreateAsync(
+                ScaleKind.PieceCounting,
+                b => b
+                    .WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
+                    .WithPieceCountingTotals()
+                    .WithProductionPreset(p => p
+                        .AllowSelection()
+                        .AddProduct("Screws", new LocalizedText("M4"))
+                        .Select("Screws")));
+            PieceCountingController counting = scale.PieceCounting!;
+            var product = (PieceCountingProductState)scale.ProductionPreset!.ActiveProduct!;
+            AssertGood(counting.SetReferencePieceWeight(0.001));
+
+            scale.PublishLoad(0.03);
+            AssertGood(await scale.RegisterWeightAsync().ConfigureAwait(false));
+            Assert.That(product.TotalizedItemCount!.WrappedValue.TryGetValue(out uint totalCount), Is.True);
+            Assert.That(totalCount, Is.EqualTo(30u));
+            Assert.That(product.TotalizedWeight!.Value.Net, Is.EqualTo(0.03).Within(1e-12));
+
+            scale.PublishLoad(0.003, stable: false);
+            AssertStatus(await scale.RegisterWeightAsync().ConfigureAwait(false), StatusCodes.BadInvalidState);
+            Assert.That(product.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
+            Assert.That(totalCount, Is.EqualTo(30u));
+            Assert.That(product.TotalizedWeight.Value.Net, Is.EqualTo(0.03).Within(1e-12));
+
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            product.TotalizedItemCount.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+
+            try
+            {
+                Task<ServiceResult> pendingReset = counting.ResetTotalsAsync("Screws").AsTask();
+                Assert.That(await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false), Is.True);
+                using var cancellation = new CancellationTokenSource();
+                Task<ServiceResult> pendingRegistration = scale.RegisterWeightAsync(cancellation.Token).AsTask();
+                cancellation.Cancel();
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await pendingRegistration.ConfigureAwait(false));
+                release.TrySetResult(true);
+                AssertGood(await pendingReset.ConfigureAwait(false));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                product.TotalizedItemCount.OnStateChangedAsync = null;
+            }
+
+            Assert.That(product.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
+            Assert.That(totalCount, Is.Zero);
+            Assert.That(product.TotalizedWeight.Value.Net, Is.Zero);
+        }
+
+        [Test]
+        public async Task PieceCountingRegistrationWithoutReferenceStillAddsWeightOnlyAsync()
+        {
+            ScaleHandle scale = await CreateAsync(
+                ScaleKind.PieceCounting,
+                b => b
+                    .WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
+                    .WithPieceCountingTotals()
+                    .WithProductionPreset(p => p
+                        .AllowSelection()
+                        .AddProduct("Screws", new LocalizedText("M4"))
+                        .Select("Screws")));
+            var product = (PieceCountingProductState)scale.ProductionPreset!.Find("Screws")!;
+
+            scale.PublishLoad(0.03);
+            AssertGood(await scale.RegisterWeightAsync().ConfigureAwait(false));
+            Assert.That(product.TotalizedWeight!.Value.Net, Is.EqualTo(0.03).Within(1e-12));
+            Assert.That(product.RegisteredPieceCount!.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(product.TotalizedItemCount!.WrappedValue.TryGetValue(out uint totalCount), Is.True);
+            Assert.That(totalCount, Is.Zero, "a missing reference weight cannot produce a piece count");
         }
 
         [Test]

@@ -337,6 +337,9 @@ namespace Quickstarts.Servers
             }
         }
 
+        /// <summary>
+        /// Decodes a data-change queue while preserving a shared enqueue/dequeue batch.
+        /// </summary>
         public static StorableDataChangeQueue DecodeDataChangeQueue(BinaryDecoder decoder)
         {
             var q = new StorableDataChangeQueue
@@ -392,11 +395,17 @@ namespace Quickstarts.Servers
             }
         }
 
+        /// <summary>
+        /// Decodes a stored data-change batch.
+        /// </summary>
         internal static DataChangeBatch? DecodeDataChangeBatch(BinaryDecoder decoder)
         {
             return DecodeDataChangeBatch(decoder, out _);
         }
 
+        /// <summary>
+        /// Decodes a data-change batch and exposes its stored identity for queue reconstruction.
+        /// </summary>
         private static DataChangeBatch? DecodeDataChangeBatch(BinaryDecoder decoder, out Uuid batchId)
         {
             batchId = default;

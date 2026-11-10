@@ -264,6 +264,7 @@ namespace Opc.Ua.Client
                 engineFactory,
                 transferSubscriptionsOnRecreate,
                 poolNotifications,
+                deferNotificationDecoding: true,
                 enableTokenReuseFailover,
                 identityProvider,
                 timeProvider,
@@ -388,6 +389,7 @@ namespace Opc.Ua.Client
                 options.SubscriptionEngineFactory,
                 options.TransferSubscriptionsOnRecreate,
                 options.PoolNotifications,
+                options.DeferNotificationDecoding,
                 options.EnableTokenReuseFailover,
                 options.IdentityProvider,
                 options.TimeProvider,
@@ -439,6 +441,7 @@ namespace Opc.Ua.Client
             ISubscriptionEngineFactory? engineFactory,
             bool transferSubscriptionsOnRecreate,
             bool poolNotifications,
+            bool deferNotificationDecoding,
             bool enableTokenReuseFailover,
             IClientIdentityProvider? identityProvider,
             TimeProvider? timeProvider,
@@ -503,6 +506,7 @@ namespace Opc.Ua.Client
                 channelManager,
                 connectGate)
             {
+                m_deferNotificationDecoding = deferNotificationDecoding,
                 m_engineFactory = engineFactory,
                 m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
                 m_reverseConnectManager = reverseConnectManager,
@@ -539,6 +543,7 @@ namespace Opc.Ua.Client
                     engineFactory,
                     transferSubscriptionsOnRecreate,
                     poolNotifications,
+                    deferNotificationDecoding,
                     enableTokenReuseFailover,
                     identityProvider,
                     timeProvider,
@@ -1892,6 +1897,13 @@ namespace Opc.Ua.Client
                     // session so a redundancy failover re-activates the existing
                     // session instead of creating a new one.
                     session.EnableTokenReuseFailover = m_enableTokenReuseFailover;
+
+                    // The V2 engine dispatches from its own queues and drops each body
+                    // afterwards, which is what deferred decoding needs to pay off.
+                    if (session.SubscriptionEngine is DefaultSubscriptionEngine)
+                    {
+                        session.DeferNotificationBodies = m_deferNotificationDecoding;
+                    }
 
                     // Apply opt-in V2 transfer-on-recreate. The V2 engine
                     // and SubscriptionManager survive in-place re-creates
@@ -4031,6 +4043,7 @@ namespace Opc.Ua.Client
         private readonly bool m_checkDomain;
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
+        private bool m_deferNotificationDecoding = true;
         private bool m_enableTokenReuseFailover;
         private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;

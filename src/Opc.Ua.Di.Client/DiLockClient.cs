@@ -104,7 +104,7 @@ namespace Opc.Ua.Di.Client
         /// Calls <c>InitLock</c> on the server. Returns the status code
         /// reported by the device (see
         /// <c>Opc.Ua.Di.Server.Locking.LockStatus</c>): 0 = OK,
-        /// 1 = already locked, 2 = could not lock.
+        /// -1 = already locked, -2 = could not lock.
         /// </summary>
         public ValueTask<int> InitLockAsync(string context, CancellationToken ct = default)
         {
@@ -112,7 +112,7 @@ namespace Opc.Ua.Di.Client
         }
 
         /// <summary>
-        /// Calls <c>RenewLock</c>. 0 = OK, 1 = not locked, 2 = wrong client.
+        /// Calls <c>RenewLock</c>. 0 = OK, -1 = not locked, -2 = wrong client.
         /// </summary>
         public ValueTask<int> RenewLockAsync(CancellationToken ct = default)
         {
@@ -120,7 +120,7 @@ namespace Opc.Ua.Di.Client
         }
 
         /// <summary>
-        /// Calls <c>ExitLock</c>. 0 = OK, 1 = not locked, 2 = wrong client.
+        /// Calls <c>ExitLock</c>. 0 = OK, -1 = not locked, -2 = wrong client.
         /// </summary>
         public ValueTask<int> ExitLockAsync(CancellationToken ct = default)
         {
@@ -128,7 +128,7 @@ namespace Opc.Ua.Di.Client
         }
 
         /// <summary>
-        /// Calls <c>BreakLock</c>. 0 = OK, 1 = not locked.
+        /// Calls <c>BreakLock</c>. 0 = OK, -1 = not locked.
         /// </summary>
         public ValueTask<int> BreakLockAsync(CancellationToken ct = default)
         {

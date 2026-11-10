@@ -42,6 +42,7 @@
   </Folder>
   <Folder Name="/samples/Gds/">
     <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
+    <Project Path="samples/Gds/OnboardingDevice/OnboardingDevice.csproj" />
     <Project Path="samples/Gds/OnboardingRegistrar/OnboardingRegistrar.csproj" />
   </Folder>
   <Folder Name="/samples/AutoID/">
@@ -59,6 +60,13 @@
   <Folder Name="/samples/Pumps/">
     <Project Path="samples/Pumps/PumpsServer/PumpsServer.csproj" />
     <Project Path="samples/Pumps/PumpsClient/PumpsClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/ECM/">
+    <Project Path="samples/ECM/EcmServer/EcmServer.csproj" />
+    <Project Path="samples/ECM/EcmClient/EcmClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/PADIM/">
+    <Project Path="samples/PADIM/PadimDemo/PadimDemo.csproj" />
   </Folder>
   <Folder Name="/samples/Scales/">
     <Project Path="samples/Scales/ScalesServer/ScalesServer.csproj" />
@@ -80,6 +88,9 @@
     <Project Path="samples/MinimalApi/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalApi/MinimalClient/MinimalClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/Network/">
+    <Project Path="samples/Network/NetworkModelSample/NetworkModelSample.csproj" />
   </Folder>
   <Folder Name="/samples/OpenUsd/">
     <Project Path="samples/OpenUsd/GeneratorServer/GeneratorServer.csproj" />
@@ -179,7 +190,11 @@
     <Project Path="src/Opc.Ua.IA.Server/Opc.Ua.IA.Server.csproj" />
     <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
     <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
+    <Project Path="src/Opc.Ua.ECM.Client/Opc.Ua.ECM.Client.csproj" />
+    <Project Path="src/Opc.Ua.ECM.Server/Opc.Ua.ECM.Server.csproj" />
     <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
+    <Project Path="src/Opc.Ua.PADIM.Client/Opc.Ua.PADIM.Client.csproj" />
+    <Project Path="src/Opc.Ua.PADIM.Server/Opc.Ua.PADIM.Server.csproj" />
     <Project Path="src/Opc.Ua.PackML/Opc.Ua.PackML.csproj" />
     <Project Path="src/Opc.Ua.Machinery/Opc.Ua.Machinery.csproj" />
     <Project Path="src/Opc.Ua.Machinery.Jobs/Opc.Ua.Machinery.Jobs.csproj" />
@@ -434,6 +449,9 @@
     <Project Path="tests/Opc.Ua.PlasticsRubber.Tests/Opc.Ua.PlasticsRubber.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.ECM.Tests/Opc.Ua.ECM.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.ECM.IntegrationTests/Opc.Ua.ECM.Integration.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PADIM.Tests/Opc.Ua.PADIM.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AMB.Tests/Opc.Ua.AMB.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AutoID.Tests/Opc.Ua.AutoID.Tests.csproj" />

@@ -248,6 +248,141 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Companion registration and nested rollback retain manager resources after admission closes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompanionOperationCompletesRegistrationAndRollbackDuringDisposal(bool registerBeforeShutdown)
+        {
+            await using Harness harness = CreateHarness();
+            var entered = Signal();
+            var release = Signal();
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("companion", harness.Manager.NamespaceIndex),
+                BrowseName = new QualifiedName("Companion", harness.Manager.NamespaceIndex),
+                TypeDefinitionId = ObjectTypeIds.BaseObjectType
+            };
+            Task<int> operation = harness.Manager.RunOperationAsync<int>(async token =>
+            {
+                if (registerBeforeShutdown)
+                {
+                    await harness.Manager.AddPredefinedNodeAsync(node, token);
+                }
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                if (!registerBeforeShutdown)
+                {
+                    await harness.Manager.AddPredefinedNodeAsync(node, token);
+                }
+                Assert.That(harness.Manager.FindPredefinedNode<BaseObjectState>(node.NodeId), Is.SameAs(node));
+                Assert.That(await harness.Manager.DeleteNodeAsync(harness.Manager.SystemContext, node.NodeId, token),
+                    Is.True);
+                Assert.That(harness.Manager.FindPredefinedNode<BaseObjectState>(node.NodeId), Is.Null);
+                return 42;
+            }).AsTask();
+            Task? disposing = null;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                disposing = harness.Manager.DisposeAsync().AsTask();
+                Assert.That(disposing.IsCompleted, Is.False);
+                bool invoked = false;
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await harness.Manager.RunOperationAsync<int>(_ =>
+                    {
+                        invoked = true;
+                        return new ValueTask<int>(0);
+                    }));
+                Assert.That(invoked, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                Assert.That(await operation.WaitAsync(TimeSpan.FromSeconds(10)), Is.EqualTo(42));
+                if (disposing != null)
+                {
+                    await disposing.WaitAsync(TimeSpan.FromSeconds(10));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Exceptions and cancellation release companion admission so disposal can finish.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompanionFailureReleasesAdmissionAndCompletesDisposal(bool cancelled)
+        {
+            await using Harness harness = CreateHarness();
+            using var cancellation = new CancellationTokenSource();
+            var entered = Signal();
+            var release = Signal();
+            Task<int> operation = harness.Manager.RunOperationAsync<int>(async token =>
+            {
+                Assert.That(token, Is.EqualTo(cancellation.Token));
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                throw new InvalidOperationException("Companion registration failed.");
+            }, cancellation.Token).AsTask();
+            Task? disposing = null;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                disposing = harness.Manager.DisposeAsync().AsTask();
+                Assert.That(disposing.IsCompleted, Is.False);
+                if (cancelled)
+                {
+                    cancellation.Cancel();
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (cancelled)
+                {
+                    await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                        await operation.WaitAsync(TimeSpan.FromSeconds(10)));
+                }
+                else
+                {
+                    InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await operation.WaitAsync(TimeSpan.FromSeconds(10))))!;
+                    Assert.That(error.Message, Is.EqualTo("Companion registration failed."));
+                }
+                if (disposing != null)
+                {
+                    await disposing.WaitAsync(TimeSpan.FromSeconds(10));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invalid or already cancelled callbacks do not enter companion work or retain resources.
+        /// </summary>
+        [Test]
+        public async Task CompanionOperationValidatesBeforeInvokingCallback()
+        {
+            await using Harness harness = CreateHarness();
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            bool invoked = false;
+
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await harness.Manager.RunOperationAsync<int>(null!));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await harness.Manager.RunOperationAsync<int>(_ =>
+                {
+                    invoked = true;
+                    return new ValueTask<int>(1);
+                }, cancellation.Token));
+
+            Assert.That(invoked, Is.False);
+            await harness.Manager.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+        }
+
+        /// <summary>
         /// Managers with no composed session resources retain the existing no-op base behavior.
         /// </summary>
         [Test]
@@ -327,6 +462,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Gets whether the custom override ran after awaited base cleanup.
             /// </summary>
             public bool OverrideCompleted { get; private set; }
+
+            /// <summary>
+            /// Runs one companion operation through the protected lifetime boundary.
+            /// </summary>
+            public ValueTask<T> RunOperationAsync<T>(
+                Func<CancellationToken, ValueTask<T>> operation,
+                CancellationToken cancellationToken = default)
+            {
+                return ExecuteNodeManagerOperationAsync(operation, cancellationToken);
+            }
 
             /// <inheritdoc/>
             public override async ValueTask SessionClosingAsync(

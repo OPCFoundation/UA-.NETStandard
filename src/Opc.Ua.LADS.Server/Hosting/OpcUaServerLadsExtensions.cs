@@ -35,6 +35,7 @@ using Opc.Ua.AMB.Server.Assets;
 using Opc.Ua.Di.Server;
 using Opc.Ua.LADS.Server;
 using Opc.Ua.Machinery.Server;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
 using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server.Hosting;
@@ -67,6 +68,7 @@ namespace Microsoft.Extensions.DependencyInjection
             configure?.Invoke(options);
             options.Validate();
             ThrowIfRegistered(builder);
+            ValidateStoreSelection(builder, options);
             builder.AddMachinery(owner =>
             {
                 owner.Parts = options.RequiredMachineryParts;
@@ -109,12 +111,34 @@ namespace Microsoft.Extensions.DependencyInjection
             var options = new LadsServerOptions();
             configure?.Invoke(options);
             options.Validate();
+            ValidateStoreSelection(builder, options);
+            bool useLeasePublication = options.LeasePublicationTokenProvider != null;
             builder.Services.AddOptions<LadsServerOptions>().Configure(selected => Copy(options, selected));
             builder.Services.TryAddSingleton(TimeProvider.System);
             builder.Services.TryAddSingleton<IFileTypeBinder, FileTypeBinder>();
             builder.Services.TryAddSingleton<ILadsDeviceProvider, InMemoryLadsDeviceProvider>();
             builder.Services.TryAddSingleton<ILadsFunctionProvider, InMemoryLadsFunctionProvider>();
             builder.Services.TryAddSingleton<ILadsProgramExecutor, InMemoryLadsProgramExecutor>();
+            if (useLeasePublication)
+            {
+                builder.Services.AddSingleton<ILadsStore>(services =>
+                {
+                    ILeasePublicationAuthority authority = services.GetService<ILeasePublicationAuthority>() ??
+                        throw new NotSupportedException(
+                            "Strict lease publication requires an ILeasePublicationAuthority registration.");
+                    return new LeasePublicationLadsStore(
+                        authority,
+                        options.LeasePublicationGroupIdentity!,
+                        options.LeasePublicationTokenProvider!);
+                });
+            }
+            else
+            {
+                builder.Services.TryAddSingleton<ILadsStore, InMemoryLadsStore>();
+            }
+            builder.Services.TryAddSingleton<Opc.Ua.Di.Server.Locking.ILockActivityService>(services =>
+                new Opc.Ua.Di.Server.Locking.DefaultLockService(
+                    timeProvider: services.GetRequiredService<TimeProvider>()));
             builder.Services.TryAddSingleton<ILadsDeviceRegistry>(_ => new LadsDeviceRegistry());
             if (!assetManagement)
             {
@@ -218,6 +242,36 @@ namespace Microsoft.Extensions.DependencyInjection
             target.InstanceNamespaceUri = source.InstanceNamespaceUri;
             target.MaxResultFileBytes = source.MaxResultFileBytes;
             target.MaxRetainedResults = source.MaxRetainedResults;
+            target.Store = source.Store;
+            if (source.LeasePublicationGroupIdentity != null &&
+                source.LeasePublicationTokenProvider != null)
+            {
+                target.UseLeasePublicationStore(
+                    source.LeasePublicationGroupIdentity,
+                    source.LeasePublicationTokenProvider);
+            }
+            target.ConfirmInterruptedDeviceReadinessAsync = source.ConfirmInterruptedDeviceReadinessAsync;
+            target.TimeProvider = source.TimeProvider;
+        }
+
+        /// <summary>
+        /// Rejects a strict store selection that would leave another registered provider in place.
+        /// </summary>
+        private static void ValidateStoreSelection(IOpcUaServerBuilder builder, LadsServerOptions options)
+        {
+            if (options.LeasePublicationTokenProvider == null)
+            {
+                return;
+            }
+
+            foreach (ServiceDescriptor service in builder.Services)
+            {
+                if (service.ServiceType == typeof(ILadsStore))
+                {
+                    throw new InvalidOperationException(
+                        "Strict lease publication cannot replace a separately registered ILadsStore.");
+                }
+            }
         }
     }
 }

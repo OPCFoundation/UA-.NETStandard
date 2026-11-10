@@ -84,7 +84,10 @@ namespace Opc.Ua.AMB.Tests
         public static async Task<AmbHostedServer> StartAsync(
             string name, Action<IOpcUaServerBuilder> compose, CancellationToken ct = default)
         {
-            string testRoot = Path.Combine(Path.GetTempPath(), "amb-host", Guid.NewGuid().ToString("N")[..12]);
+            string testRoot = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "amb",
+                Guid.NewGuid().ToString("N"));
             string endpointUrl = "opc.tcp://localhost:" +
                 GetAvailablePort().ToString(CultureInfo.InvariantCulture) +
                 "/" +

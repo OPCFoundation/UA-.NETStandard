@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.AMB.Server.Assets;
 using Opc.Ua.Machinery.Server.StateMachines;
 
 namespace Opc.Ua.LADS.Server
@@ -41,6 +42,12 @@ namespace Opc.Ua.LADS.Server
     public interface ILadsDevice
     {
         /// <summary>
+        /// Commits the current stored data, including application-updated counters.
+        /// This does not persist or resume physical execution state.
+        /// </summary>
+        ValueTask SaveStoredDataAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// The browse name of the device.
         /// </summary>
         string Name { get; }
@@ -49,6 +56,22 @@ namespace Opc.Ua.LADS.Server
         /// The NodeId of the device object.
         /// </summary>
         NodeId NodeId { get; }
+
+        /// <summary>
+        /// Gets the shared asset-management handle after opted-in registration, or null when not configured.
+        /// The handle reports its registration state after the device is disposed.
+        /// </summary>
+        IAssetHandle? Asset { get; }
+
+        /// <summary>
+        /// Gets the DI Lock node when configured, or NodeId.Null for a legacy unlocked device.
+        /// </summary>
+        NodeId LockNodeId { get; }
+
+        /// <summary>
+        /// Gets whether a recovered interruption requires equipment-readiness confirmation before a new start.
+        /// </summary>
+        bool RequiresReadinessConfirmation { get; }
 
         /// <summary>
         /// The current state of the device state machine.
@@ -93,11 +116,22 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the device state changed.
         /// </summary>
+        /// <remarks>
+        /// Handlers run inline. <see cref="GotoOperateAsync"/>, <see cref="GotoSleepAsync"/>, and
+        /// <see cref="GotoShutdownAsync"/> raise this event from <c>ChangeStateAsync</c> while the device command
+        /// and state-admission gates are held. Initial publication raises the event while holding the
+        /// state-admission gate. A handler must not wait or synchronously block on an operation that needs either
+        /// gate before returning.
+        /// </remarks>
         event Action<LadsDeviceStateValue>? StateChanged;
 
         /// <summary>
         /// Raised after the operation mode changed.
         /// </summary>
+        /// <remarks>
+        /// Handlers run inline. <see cref="SetOperationModeAsync"/> raises this event while holding the device gate.
+        /// A handler must not wait or synchronously block on an operation that needs that gate before returning.
+        /// </remarks>
         event Action<MachineryOperationModeValue>? OperationModeChanged;
 
         /// <summary>
@@ -188,6 +222,11 @@ namespace Opc.Ua.LADS.Server
         LadsRunningStateValue RunningState { get; }
 
         /// <summary>
+        /// Gets the optional running commands, or null when the legacy lifecycle is selected.
+        /// </summary>
+        ILadsRunningOperations? RunningOperations { get; }
+
+        /// <summary>
         /// The top level functions of the functional unit.
         /// </summary>
         ArrayOf<ILadsFunction> Functions { get; }
@@ -200,6 +239,16 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the functional unit state changed.
         /// </summary>
+        /// <remarks>
+        /// This synchronous event invokes handlers inline on the state-transition path, even when an asynchronous
+        /// command raises it.
+        /// <see cref="StartAsync"/> and <see cref="ILadsProgramManager.StartProgramAsync"/> when they start a stopped
+        /// unit hold this unit's gate and the device state-admission gate while publishing the Running transition.
+        /// <see cref="StopAsync"/>, <see cref="AbortAsync"/>, <see cref="ClearAsync"/>, and program-run state
+        /// finalization hold this unit's gate. A handler must not wait or synchronously block on an operation that
+        /// needs a gate held by the current transition before returning. Device state commands use the admission
+        /// gate; unrelated device and program-manager operations do not all share this unit's gate.
+        /// </remarks>
         event Action<LadsFunctionalStateValue>? StateChanged;
 
         /// <summary>
@@ -258,6 +307,11 @@ namespace Opc.Ua.LADS.Server
     /// </summary>
     public interface ILadsProgramManager
     {
+        /// <summary>
+        /// Gets the last stored interrupted run identifier, without resuming its execution.
+        /// </summary>
+        string? InterruptedRunId { get; }
+
         /// <summary>
         /// The functional unit the program manager belongs to.
         /// </summary>
@@ -412,6 +466,16 @@ namespace Opc.Ua.LADS.Server
     public interface ILadsControlFunction : ILadsFunction
     {
         /// <summary>
+        /// Gets the optional running commands, or null when they were not configured.
+        /// </summary>
+        ILadsRunningOperations? RunningOperations { get; }
+
+        /// <summary>
+        /// Gets the optional running substate.
+        /// </summary>
+        LadsRunningStateValue? RunningState { get; }
+
+        /// <summary>
         /// The current state of the control function state machine.
         /// </summary>
         LadsFunctionalStateValue State { get; }
@@ -419,7 +483,22 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the control function state changed.
         /// </summary>
+        /// <remarks>
+        /// Handlers run inline. <see cref="StartAsync"/>, <see cref="StopAsync"/>, <see cref="AbortAsync"/>, and
+        /// <see cref="ClearAsync"/> raise this event while holding this function's <c>ExclusiveAsync</c> command gate.
+        /// A handler must not wait or synchronously block on an operation that needs that gate before returning.
+        /// </remarks>
         event Action<LadsFunctionalStateValue>? StateChanged;
+
+        /// <summary>
+        /// Writes a configured numeric parameter after hardware acceptance.
+        /// Dynamic browse-name segments in the function-relative path are URI-escaped.
+        /// </summary>
+        /// <param name="parameterPath">The configured function-relative parameter path.</param>
+        /// <param name="value">The finite parameter value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after accepted publication and notifications.</returns>
+        ValueTask SetParameterAsync(string parameterPath, double value, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Starts the control function with its current target value.
@@ -539,11 +618,45 @@ namespace Opc.Ua.LADS.Server
         ValueTask ResetTotalizerAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Resets the totalized value to the supplied value without changing the current reading.
+        /// </summary>
+        /// <param name="value">The finite totalized value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after provider acceptance and publication.</returns>
+        ValueTask ResetTotalizerAsync(double value, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads a published target member of a <see cref="LadsAnalogControlKind.Composed"/> function.
+        /// </summary>
+        /// <param name="name">The member name.</param>
+        /// <returns>The published member value.</returns>
+        double GetComposedTargetValue(string name);
+
+        /// <summary>
         /// Writes a part of the target value of a <see cref="LadsAnalogControlKind.Composed"/> function.
         /// </summary>
         /// <param name="name">The name of the composed target value.</param>
         /// <param name="value">The value.</param>
         void SetComposedTargetValue(string name, double value);
+
+        /// <summary>
+        /// Writes a composed target member through the function provider without computing an aggregate target.
+        /// </summary>
+        /// <param name="name">The member name.</param>
+        /// <param name="value">The member value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after accepted publication.</returns>
+        ValueTask SetComposedTargetValueAsync(
+            string name, double value, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Publishes the aggregate target calculated by the equipment without invoking the function provider.
+        /// Clients cannot write the calculated target directly.
+        /// </summary>
+        /// <param name="value">The calculated target value.</param>
+        /// <param name="cancellationToken">The cancellation token, checked before publication.</param>
+        /// <returns>A task that completes after publication and notifications.</returns>
+        ValueTask ReportComputedTargetValueAsync(double value, CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -582,6 +695,15 @@ namespace Opc.Ua.LADS.Server
         /// <param name="mode">The mode name.</param>
         /// <param name="value">The target value.</param>
         void SetTargetValue(string mode, double value);
+
+        /// <summary>
+        /// Writes the named mode's target through the function provider without selecting that mode.
+        /// </summary>
+        /// <param name="mode">The mode name.</param>
+        /// <param name="value">The target value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after accepted publication.</returns>
+        ValueTask SetTargetValueAsync(string mode, double value, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Publishes the measured value of a controller parameter.
@@ -812,6 +934,13 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the cover state changed.
         /// </summary>
+        /// <remarks>
+        /// Handlers run inline. <see cref="OpenAsync"/>, <see cref="CloseAsync"/>, <see cref="LockAsync"/>,
+        /// <see cref="UnlockAsync"/>, <see cref="ResetAsync"/>, <see cref="ReportStateAsync"/>, and
+        /// <see cref="ReportErrorAsync"/> raise this event
+        /// while holding this cover's <c>ExclusiveAsync</c> command gate. A handler must not wait or synchronously
+        /// block on an operation that needs that gate before returning.
+        /// </remarks>
         event Action<LadsCoverStateValue>? StateChanged;
 
         /// <summary>
@@ -855,6 +984,14 @@ namespace Opc.Ua.LADS.Server
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task that completes when the cover is in the error state.</returns>
         ValueTask ReportErrorAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Publishes an observed hardware state without issuing a cover command.
+        /// </summary>
+        /// <param name="state">The state reported by the equipment.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after state publication and notifications.</returns>
+        ValueTask ReportStateAsync(LadsCoverStateValue state, CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -895,6 +1032,13 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the maintenance state changed.
         /// </summary>
+        /// <remarks>
+        /// This synchronous event invokes handlers inline on the maintenance transition path, even when an
+        /// asynchronous command raises it. <see cref="StartAsync"/>, <see cref="StopAsync"/>, and
+        /// <see cref="ResetAsync"/> publish their transitions while holding the task's serialization gate. A handler
+        /// must not wait for an operation that needs that gate before returning, including by synchronously blocking
+        /// within the callback. This warning applies only to work that needs this task's gate.
+        /// </remarks>
         event Action<LadsMaintenanceStateValue>? StateChanged;
 
         /// <summary>

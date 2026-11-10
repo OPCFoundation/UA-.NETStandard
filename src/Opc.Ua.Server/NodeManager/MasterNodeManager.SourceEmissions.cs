@@ -139,6 +139,8 @@ namespace Opc.Ua.Server
         private static bool IsBoundSource(NodeManagerGeneration generation, IAsyncNodeManager nodeManager)
         {
             return ReferenceEquals(generation.NodeManager, nodeManager) ||
+                (NodeManagerGenerationRegistry.TryGet(nodeManager, out NodeManagerGeneration? associated) &&
+                    ReferenceEquals(associated, generation)) ||
                 (nodeManager is AsyncNodeManagerAdapter &&
                     NodeManagerGenerationRegistry.HasSameGenerationIdentity(generation.NodeManager, nodeManager)) ||
                 (ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(nodeManager), nodeManager) &&

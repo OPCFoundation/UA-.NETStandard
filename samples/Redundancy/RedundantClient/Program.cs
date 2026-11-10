@@ -887,12 +887,9 @@ namespace RedundantClient
                         "HISTORY: portable continuations ready (raw, event, processed); " +
                         "remove the active server now.");
                     await Task.Delay(failoverDelay, ct).ConfigureAwait(false);
-                    if (Volatile.Read(ref connectionInterrupted) != 0)
-                    {
-                        await reconnected.Task
-                            .WaitAsync(TimeSpan.FromSeconds(90), ct)
-                            .ConfigureAwait(false);
-                    }
+                    await reconnected.Task
+                        .WaitAsync(TimeSpan.FromSeconds(90), ct)
+                        .ConfigureAwait(false);
 
                     while (await raw.MoveNextAsync().ConfigureAwait(false))
                     {

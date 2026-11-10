@@ -37,6 +37,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\..\samples\Network\NetworkModelSample\NetworkScenario.cs">
+      <Link>Network\NetworkScenario.cs</Link>
+    </Compile>
     <Compile Include="..\Opc.Ua.Types.Tests\Wot\WotSpecRequirementLedger.cs">
       <Link>Wot\WotSpecRequirementLedger.cs</Link>
     </Compile>

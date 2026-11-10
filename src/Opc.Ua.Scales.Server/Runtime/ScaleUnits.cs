@@ -169,6 +169,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 return true;
             }
             if (from != null && to != null &&
+                string.Equals(from.NamespaceUri, UneceNamespaceUri, StringComparison.Ordinal) &&
+                string.Equals(to.NamespaceUri, UneceNamespaceUri, StringComparison.Ordinal) &&
                 s_kilogramsPer.TryGetValue(from.UnitId, out double fromFactor) &&
                 s_kilogramsPer.TryGetValue(to.UnitId, out double toFactor))
             {

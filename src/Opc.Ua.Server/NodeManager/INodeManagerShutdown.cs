@@ -35,7 +35,7 @@ namespace Opc.Ua.Server
     /// Drains accepted work that can call back into the server before serialized
     /// address-space deletion or disposal begins.
     /// </summary>
-    internal interface INodeManagerShutdown
+    public interface INodeManagerShutdown
     {
         /// <summary>
         /// Stops admission and drains accepted work while session notifications and

@@ -221,5 +221,39 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(resolved, Is.Null,
                 "with nothing registered the default identity-properties-only path must be used");
         }
+
+        /// <summary>
+        /// Standalone policy creates options and augments existing options without replacing their explicit policy.
+        /// </summary>
+        [TestCase("none")]
+        [TestCase("empty")]
+        [TestCase("explicit")]
+        public void PushAuthorizationResolvesWithExplicitOptionsPrecedence(string registration)
+        {
+            var services = new ServiceCollection();
+            IPushConfigurationAuthorization standalone = Mock.Of<IPushConfigurationAuthorization>();
+            IPushConfigurationAuthorization explicitPolicy = Mock.Of<IPushConfigurationAuthorization>();
+            var options = new ServerConfigurationOptions
+            {
+                PushAuthorization = registration == "explicit" ? explicitPolicy : null
+            };
+            if (registration != "none")
+            {
+                services.AddSingleton(options);
+            }
+            services.AddSingleton(standalone);
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            ServerConfigurationOptions? resolved =
+                DependencyInjectionStandardServer.ResolveServerConfigurationOptions(provider);
+
+            Assert.That(resolved, Is.Not.Null);
+            Assert.That(resolved!.PushAuthorization,
+                Is.SameAs(registration == "explicit" ? explicitPolicy : standalone));
+            if (registration != "none")
+            {
+                Assert.That(resolved, Is.SameAs(options));
+            }
+        }
     }
 }

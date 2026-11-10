@@ -28,7 +28,24 @@
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Pumps\Opc.Ua.Pumps.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.Machinery\Model\Opc.Ua.Machinery.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/Machinery/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>Machinery</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorClientAccessorsOnly>true</ModelSourceGeneratorClientAccessorsOnly>
+    <ModelSourceGeneratorClientAccessorsInternal>true</ModelSourceGeneratorClientAccessorsInternal>
+    <ModelSourceGeneratorClientAccessorNamespace>Opc.Ua.Pumps.Client</ModelSourceGeneratorClientAccessorNamespace>
+    <ModelSourceGeneratorClientAccessorClassName>PumpsIdentityClientMembers</ModelSourceGeneratorClientAccessorClassName>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>

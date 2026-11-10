@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.LADS.Server;
+using LadsNotificationTestSupport = Opc.Ua.LADS.Tests.Server.LadsMaintenanceTaskTests.LadsNotificationTestSupport;
 
 namespace Opc.Ua.LADS.Tests.Server
 {
@@ -47,6 +48,148 @@ namespace Opc.Ua.LADS.Tests.Server
     [NonParallelizable]
     public sealed class LadsProgramTests
     {
+        /// <summary>
+        /// Verifies program start waits for notification of the committed active-program state.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task StartProgramAwaitsCommittedActiveProgramNotificationAsync(
+            bool cancelAfterCommit,
+            bool failNotification)
+        {
+            var notification = new LadsNotificationTestSupport.Gate();
+            var executor = new NotificationExecutor();
+            var store = new InMemoryLadsStore();
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(StartProgramAwaitsCommittedActiveProgramNotificationAsync),
+                builder =>
+                {
+                    builder.Services.AddSingleton<ILadsProgramExecutor>(executor);
+                    builder.Services.AddSingleton<ILadsStore>(store);
+                }).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            var programs = (LadsProgramManager)unit.Programs!;
+            var runIdNode = programs.Node.ActiveProgram!.DeviceProgramRunId!;
+            NodeStateChangedHandler? previousSync = runIdNode.OnStateChanged;
+            NodeStateChangedAsyncHandler? previous = runIdNode.OnStateChangedAsync;
+            var syncNotified = LadsNotificationTestSupport.NewSignal();
+            runIdNode.OnStateChanged = (context, node, masks) =>
+            {
+                previousSync?.Invoke(context, node, masks);
+                syncNotified.TrySetResult(true);
+            };
+            var failure = new InvalidOperationException("Active-program notification failed.");
+            notification.Failure = failNotification ? failure : null;
+            string? notifiedRunId = null;
+            runIdNode.OnStateChangedAsync = async (context, node, masks, token) =>
+            {
+                // Re-enter read-only public handles from the sink, after the device mutation lock.
+                if (notification.Calls == 0)
+                {
+                    Assert.That(syncNotified.Task.IsCompleted, Is.True,
+                        "The synchronous state sink must still run before the asynchronous sink.");
+                    notifiedRunId = programs.ActiveRun?.RunId;
+                    Assert.That(runIdNode.Value, Is.EqualTo(notifiedRunId));
+                    Assert.That(programs.ActiveRun!.Template.Id, Is.EqualTo(LadsIncubator.QuickTemplate));
+                    Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Execute));
+                    Assert.That(masks & NodeStateChangeMasks.Value, Is.Not.EqualTo(NodeStateChangeMasks.None));
+                }
+                await notification.WaitAsync(token).ConfigureAwait(false);
+                if (previous != null)
+                {
+                    await previous(context, node, masks, token).ConfigureAwait(false);
+                }
+            };
+
+            using var cancellation = new CancellationTokenSource();
+            var returned = LadsNotificationTestSupport.NewSignal();
+            Task<string>? start = null;
+            Task<ILadsResult>? result = null;
+            try
+            {
+                // Do not unwrap Task.Run around the call alone: that would hide a blocking bridge.
+                start = Task.Run(() =>
+                {
+                    Task<string> pending = programs.StartProgramAsync(
+                        LadsIncubator.QuickTemplate, cancellationToken: cancellation.Token).AsTask();
+                    returned.TrySetResult(true);
+                    return pending;
+                });
+                await notification.Entered.Task.WaitAsync(LadsNotificationTestSupport.Timeout)
+                    .ConfigureAwait(false);
+                await returned.Task.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                Assert.That(start.IsCompleted, Is.False);
+                Assert.That(executor.Started.Task.IsCompleted, Is.False);
+                Assert.That(unit.Gate.CurrentCount, Is.Zero);
+                Assert.That(notifiedRunId, Is.Not.Null.And.Not.Empty);
+                result = programs.WaitForResultAsync(notifiedRunId!).AsTask();
+                Assert.That(result.IsCompleted, Is.False);
+                LadsStoredDeviceData saved = (await store.LoadAsync(device.StoreIdentity).ConfigureAwait(false))!;
+                Assert.That(
+                    saved.FunctionalUnits.ToList().Single(value => value.Name == unit.Name).InterruptedRunId,
+                    Is.EqualTo(notifiedRunId));
+
+                if (cancelAfterCommit)
+                {
+                    cancellation.Cancel();
+                }
+                Assert.That(notification.Token.CanBeCanceled, Is.False,
+                    "The committed active program must notify independently of the caller token.");
+                Assert.That(start.IsCompleted, Is.False);
+                notification.Release.TrySetResult(true);
+                if (failNotification)
+                {
+                    await Assert.ThatAsync(
+                        () => start.WaitAsync(LadsNotificationTestSupport.Timeout),
+                        Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                    await Assert.ThatAsync(
+                        () => result.WaitAsync(LadsNotificationTestSupport.Timeout),
+                        Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                    Assert.That(programs.ActiveRun, Is.Null);
+                    Assert.That(runIdNode.Value, Is.Empty);
+                    Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+                    Assert.That(executor.Started.Task.IsCompleted, Is.False);
+                }
+                else
+                {
+                    Assert.That(
+                        await start.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false),
+                        Is.EqualTo(notifiedRunId));
+                    await executor.Started.Task.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                    Assert.That(programs.ActiveRun!.RunId, Is.EqualTo(notifiedRunId));
+                    Assert.That(programs.Results.Count, Is.Zero);
+                    Assert.That(result.IsCompleted, Is.False);
+                }
+                Assert.That(unit.Gate.CurrentCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                // Remove the sink before cleanup/reset notifications, including failure cleanup.
+                runIdNode.OnStateChanged = previousSync;
+                runIdNode.OnStateChangedAsync = previous;
+                notification.Release.TrySetResult(true);
+                executor.Release.TrySetResult(true);
+                if (start != null)
+                {
+                    await LadsNotificationTestSupport.DrainAsync(start).ConfigureAwait(false);
+                }
+                if (result != null)
+                {
+                    await LadsNotificationTestSupport.DrainAsync(result).ConfigureAwait(false);
+                }
+            }
+            if (!failNotification)
+            {
+                ILadsResult completed = await result!.WaitAsync(LadsNotificationTestSupport.Timeout)
+                    .ConfigureAwait(false);
+                Assert.That(completed.RunId, Is.EqualTo(notifiedRunId));
+                Assert.That(completed.Outcome, Is.EqualTo(LadsProgramOutcome.Completed));
+                Assert.That(device.OperationCycleCounter, Is.EqualTo(1));
+            }
+        }
+
         [Test]
         public async Task QuickProgramCompletesWithAResultFileAsync()
         {
@@ -356,33 +499,137 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(names, Does.Not.Contain("Overnight"));
         }
 
-        [Test]
-        public void TemplateContentRoundTrips()
+        [TestCase("Spin", "ShakerSpeed")]
+        [TestCase("Ramp; \"fast\"\r\nthen hold", "Speed; \"target\"\nvalue")]
+        [TestCase("\"Quoted\"", "\"Function\"")]
+        [TestCase(" Leading and trailing ", " Spaced ")]
+        public void TemplateContentRoundTrips(string stepName, string functionName)
         {
             LadsProgramTemplate template = new LadsProgramTemplate("Shake")
                 .WithDescription(new LocalizedText("Shake it"))
                 .Step(
-                    "Spin",
+                    stepName,
                     TimeSpan.FromSeconds(90),
-                    new LadsSetpoint("ShakerSpeed", Variant.From(300.0)),
-                    new LadsSetpoint("Door", Variant.From(true)))
+                    new LadsSetpoint(functionName, Variant.From(300.0)),
+                    new LadsSetpoint("Door", Variant.From(true)),
+                    new LadsSetpoint("Mode", Variant.From(2u)))
                 .Step("Rest", TimeSpan.FromSeconds(30));
 
             LadsProgramTemplate parsed = LadsProgramTemplate.Parse("Shake", template.ToContent());
 
             Assert.That(parsed.Id, Is.EqualTo("Shake"));
             Assert.That(parsed.Steps.Count, Is.EqualTo(2));
-            Assert.That(parsed.Steps[0].Name, Is.EqualTo("Spin"));
+            Assert.That(parsed.Steps[0].Name, Is.EqualTo(stepName));
             Assert.That(parsed.Steps[0].Duration, Is.EqualTo(TimeSpan.FromSeconds(90)));
-            Assert.That(parsed.Steps[0].Setpoints.Count, Is.EqualTo(2));
-            Assert.That(parsed.Steps[0].Setpoints[0].FunctionName, Is.EqualTo("ShakerSpeed"));
+            Assert.That(parsed.Steps[0].Setpoints.Count, Is.EqualTo(3));
+            Assert.That(parsed.Steps[0].Setpoints[0].FunctionName, Is.EqualTo(functionName));
             Assert.That(parsed.Steps[0].Setpoints[0].Value.TryGetValue(out double speed), Is.True);
             Assert.That(speed, Is.EqualTo(300));
+            Assert.That(parsed.Steps[0].Setpoints[1].Value.TryGetValue(out bool door), Is.True);
+            Assert.That(door, Is.True);
+            Assert.That(parsed.Steps[0].Setpoints[2].Value.TryGetValue(out uint mode), Is.True);
+            Assert.That(mode, Is.EqualTo(2u));
             Assert.That(parsed.EstimatedRuntime, Is.EqualTo(TimeSpan.FromMinutes(2)));
             Assert.That(template.EstimatedRuntime, Is.EqualTo(TimeSpan.FromMinutes(2)));
             Assert.That(
                 () => LadsProgramTemplate.Parse("Bad", ByteString.From(Encoding.UTF8.GetBytes("{not json"))),
                 Throws.InstanceOf<ServiceResultException>());
+        }
+
+        [TestCase("step;\"Unclosed;1")]
+        [TestCase("step;\"Closed\"suffix;1")]
+        [TestCase("step;Too;Many;1")]
+        [TestCase("step;Missing")]
+        [TestCase("set;BeforeStep;true")]
+        public void TemplateContentRejectsMalformedRecords(string text)
+        {
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(
+                () => LadsProgramTemplate.Parse("Bad", ByteString.From(Encoding.UTF8.GetBytes(text))));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public void TemplateContentPreservesLegacyUnquotedRecords()
+        {
+            var template = new LadsProgramTemplate("Legacy")
+                .Step("Spin", TimeSpan.FromMilliseconds(125), new LadsSetpoint("Mode", Variant.From(2u)));
+            Assert.That(Encoding.UTF8.GetString(template.ToContent().ToArray()),
+                Is.EqualTo("step;Spin;125\nset;Mode;u2\n"));
+            LadsProgramTemplate parsed = LadsProgramTemplate.Parse(
+                "Legacy", ByteString.From(Encoding.UTF8.GetBytes("\r\nstep;Spin;125\r\nset;Mode;u2\r\n")));
+            Assert.That(parsed.Steps.Count, Is.EqualTo(1));
+            Assert.That(parsed.Steps[0].Name, Is.EqualTo("Spin"));
+            Assert.That(parsed.Steps[0].Duration, Is.EqualTo(TimeSpan.FromMilliseconds(125)));
+            Assert.That(parsed.Steps[0].Setpoints[0].Value.TryGetValue(out uint mode), Is.True);
+            Assert.That(mode, Is.EqualTo(2u));
+        }
+
+        /// <summary>
+        /// Accepts legacy trailing record whitespace without changing step or function names.
+        /// </summary>
+        [TestCase(" \n")]
+        [TestCase("\t\r\n")]
+        [TestCase(" \t")]
+        public void TemplateContentPreservesTrailingRecordWhitespace(string ending)
+        {
+            string text = "step; Spin ;1" + ending + "\n"
+                + "set; Door ;true" + ending + "\n"
+                + "set;Other;false" + ending + "\n"
+                + "set;Mode;u2" + ending + "\n"
+                + "set;Speed;1.5" + ending;
+            LadsProgramTemplate parsed = LadsProgramTemplate.Parse(
+                "Legacy", ByteString.From(Encoding.UTF8.GetBytes(text)));
+
+            Assert.That(parsed.Steps.Count, Is.EqualTo(1));
+            Assert.That(parsed.Steps[0].Name, Is.EqualTo(" Spin "));
+            Assert.That(parsed.Steps[0].Duration, Is.EqualTo(TimeSpan.FromMilliseconds(1)));
+            ArrayOf<LadsSetpoint> setpoints = parsed.Steps[0].Setpoints;
+            Assert.That(setpoints.Count, Is.EqualTo(4));
+            Assert.That(setpoints[0].FunctionName, Is.EqualTo(" Door "));
+            Assert.That(setpoints[0].Value.TryGetValue(out bool opened), Is.True);
+            Assert.That(opened, Is.True);
+            Assert.That(setpoints[1].Value.TryGetValue(out bool closed), Is.True);
+            Assert.That(closed, Is.False);
+            Assert.That(setpoints[2].Value.TryGetValue(out uint mode), Is.True);
+            Assert.That(mode, Is.EqualTo(2u));
+            Assert.That(setpoints[3].Value.TryGetValue(out double speed), Is.True);
+            Assert.That(speed, Is.EqualTo(1.5));
+        }
+
+        [Test]
+        public async Task ActiveRecipeKeepsFullDurationAndIsDetachedFromCallerMutationsAsync()
+        {
+            var executor = new GatedExecutor();
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(ActiveRecipeKeepsFullDurationAndIsDetachedFromCallerMutationsAsync),
+                builder => builder.Services.AddSingleton<ILadsProgramExecutor>(executor)).ConfigureAwait(false);
+            ILadsProgramManager programs = (await server.DeviceAsync().ConfigureAwait(false))
+                .GetFunctionalUnit(LadsIncubator.UnitName).Programs!;
+            LadsSetpoint[] setpoints = [new("Temperature", Variant.From(20.0))];
+            var template = new LadsProgramTemplate("Detached")
+                .WithAuthor("Original")
+                .Step(new LadsProgramStep("Submillisecond", TimeSpan.FromTicks(12345), setpoints));
+            await programs.AddTemplateAsync(template).ConfigureAwait(false);
+            string runId = await programs.StartProgramAsync(template.Id).ConfigureAwait(false);
+            try
+            {
+                await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                template.Author = "Changed";
+                template.Step("Later", TimeSpan.FromHours(1));
+                setpoints[0] = new LadsSetpoint("Temperature", Variant.From(99.0));
+                LadsProgramTemplate active = programs.ActiveRun!.Template;
+                Assert.That(active, Is.Not.SameAs(template));
+                Assert.That(active.Author, Is.EqualTo("Original"));
+                Assert.That(active.Steps.Count, Is.EqualTo(1));
+                Assert.That(active.Steps[0].Duration, Is.EqualTo(TimeSpan.FromTicks(12345)));
+                Assert.That(active.Steps[0].Setpoints[0].Value.TryGetValue(out double target), Is.True);
+                Assert.That(target, Is.EqualTo(20.0));
+            }
+            finally
+            {
+                executor.Release.TrySetResult(true);
+            }
+            await programs.WaitForResultAsync(runId).ConfigureAwait(false);
         }
 
         [Test]
@@ -574,6 +821,20 @@ namespace Opc.Ua.LADS.Tests.Server
             public ValueTask ExecuteAsync(LadsProgramRun run, CancellationToken cancellationToken)
             {
                 throw new InvalidOperationException("The device failed.");
+            }
+        }
+
+        private sealed class NotificationExecutor : ILadsProgramExecutor
+        {
+            public TaskCompletionSource<bool> Started { get; } = LadsNotificationTestSupport.NewSignal();
+
+            public TaskCompletionSource<bool> Release { get; } = LadsNotificationTestSupport.NewSignal();
+
+            public async ValueTask ExecuteAsync(LadsProgramRun run, CancellationToken cancellationToken)
+            {
+                Started.TrySetResult(true);
+                await Release.Task.WaitAsync(LadsNotificationTestSupport.Timeout, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 

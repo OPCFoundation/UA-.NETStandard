@@ -273,6 +273,7 @@ A missing or differently prefixed model producer is a generation error.
 | Property | Default | Purpose |
 | --- | --- | --- |
 | `ModelSourceGeneratorClientAccessorsOnly` | `false` | Emit client extensions over a referenced model. |
+| `ModelSourceGeneratorClientAccessorsInternal` | `false` | Keep the generated extension class internal to the consuming assembly. |
 | `ModelSourceGeneratorClientAccessorNamespace` | Model prefix plus `.Client` | Namespace for the extensions. |
 | `ModelSourceGeneratorClientAccessorClassName` | Model name plus `ClientMembers` | Partial extension class name. |
 
@@ -284,6 +285,15 @@ existing streaming subscription. Repeated Object placeholders get typed
 `Enumerate<Name>Async()` extensions, including conforming vendor subtypes.
 The helpers use the proxy's existing `ISession` or `ManagedSession`, not a second
 connection owner. Unavailable optional variables are not fabricated as defaults.
+
+`WriteAsync` follows the model's static `Writable` declaration. For a server
+that explicitly makes an instance writable, resolve that variable with the
+application's required bounds and call `WriteInstanceAsync(resolvedNode, value)`.
+This operation uses the generated codec, performs no additional resolution and
+requires one Good operation result under a Good service response. It does not
+change `Writable` or bypass server authorization. Use the internal-accessor
+option when generated views support a library's implementation without becoming
+part of its public API.
 
 ## Implementation details
 

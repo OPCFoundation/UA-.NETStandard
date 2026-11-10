@@ -50,6 +50,7 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(options.InstanceNamespaceUri, Is.EqualTo("urn:opcua-netstandard:lads:instances"));
             Assert.That(options.MaxResultFileBytes, Is.EqualTo(16 * 1024 * 1024));
             Assert.That(options.MaxRetainedResults, Is.EqualTo(100));
+            Assert.That(options.ConfirmInterruptedDeviceReadinessAsync, Is.Null);
             Assert.That(options.RequiredMachineryParts, Is.EqualTo(MachineryParts.BuildingBlocks));
             Assert.That(options.Validate, Throws.Nothing);
         }
@@ -103,6 +104,23 @@ namespace Opc.Ua.LADS.Tests.Server
             };
 
             Assert.That(options.Validate, Throws.Nothing);
+        }
+
+        /// <summary>
+        /// Direct option composition retains the injected asynchronous readiness callback.
+        /// </summary>
+        [Test]
+        public void CopyPreservesReadinessCallback()
+        {
+            var source = new LadsServerOptions
+            {
+                ConfirmInterruptedDeviceReadinessAsync = (_, _) =>
+                    new System.Threading.Tasks.ValueTask<bool>(false)
+            };
+            var copy = new LadsServerOptions();
+            source.CopyTo(copy);
+            Assert.That(copy.ConfirmInterruptedDeviceReadinessAsync,
+                Is.SameAs(source.ConfirmInterruptedDeviceReadinessAsync));
         }
     }
 }

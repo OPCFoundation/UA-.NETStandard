@@ -81,7 +81,7 @@ namespace PumpsSample
                     }
                     try
                     {
-                        Advance(units);
+                        await AdvanceAsync(units, stoppingToken).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -95,13 +95,14 @@ namespace PumpsSample
             }
         }
 
-        private void Advance(IReadOnlyList<PumpUnit> units)
+        private async ValueTask AdvanceAsync(IReadOnlyList<PumpUnit> units, CancellationToken cancellationToken)
         {
             long tick = ++m_tick;
             int duty = (int)(tick / ExchangeIntervalSeconds % units.Count);
             for (int ii = 0; ii < units.Count; ii++)
             {
                 Update(units[ii], running: ii == duty, tick);
+                await units[ii].EvaluateAlarmsAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 

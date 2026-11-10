@@ -35,6 +35,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.LADS.Client;
 using Opc.Ua.LADS.Server;
@@ -60,6 +61,478 @@ namespace Opc.Ua.LADS.Tests.Integration
     [NonParallelizable]
     public sealed class LadsClientServerTests
     {
+        /// <summary>
+        /// A passive cover remains readable by the client without offering equipment-control methods.
+        /// </summary>
+        [Test]
+        public async Task ClientReadsPassiveCoverAndRejectsOmittedMethodsAsync()
+        {
+            ICoverFunction? hardware = null;
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(ClientReadsPassiveCoverAndRejectsOmittedMethodsAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit("Unit", unit => unit.Cover(
+                        "Guard", options => options.Controllable = false, out hardware)))),
+                "Device").ConfigureAwait(false);
+            LadsDevice device = await connection.Client.GetDeviceAsync("Device").ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Unit").ConfigureAwait(false);
+            LadsFunction cover = await unit.GetFunctionAsync("Guard").ConfigureAwait(false);
+            LadsFunctionSnapshot initial = await cover.ReadAsync().ConfigureAwait(false);
+            Assert.That(initial.Kind, Is.EqualTo(LadsFunctionKind.Cover));
+            Assert.That(initial.State, Is.EqualTo("Closed"));
+
+            await hardware!.ReportStateAsync(LadsCoverStateValue.Opened).ConfigureAwait(false);
+            LadsFunctionSnapshot observed = await cover.ReadAsync().ConfigureAwait(false);
+            Assert.That(observed.State, Is.EqualTo("Opened"));
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.OpenAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.CloseAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.ResetAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.LockAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.UnlockAsync())
+                .ConfigureAwait(false);
+            Assert.That(hardware.State, Is.EqualTo(LadsCoverStateValue.Opened));
+            Assert.That((await cover.ReadAsync().ConfigureAwait(false)).State, Is.EqualTo("Opened"));
+        }
+
+        /// <summary>
+        /// Selected template-transfer methods execute over the wire; omitted methods cannot change templates.
+        /// </summary>
+        [TestCase(LadsTemplateOperations.None)]
+        [TestCase(LadsTemplateOperations.Download)]
+        [TestCase(LadsTemplateOperations.Upload)]
+        [TestCase(LadsTemplateOperations.Remove)]
+        [TestCase(LadsTemplateOperations.All)]
+        public async Task ClientTemplateOperationsMatchSelectionAsync(LadsTemplateOperations operations)
+        {
+            var template = new Opc.Ua.LADS.Server.LadsProgramTemplate("Seed").Step("Retained", TimeSpan.Zero);
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(ClientTemplateOperationsMatchSelectionAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit("Unit", unit => unit.Programs(operations)))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice hardware = await connection.Server.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsProgramManager programs = hardware.GetFunctionalUnit("Unit").Programs!;
+            await programs.AddTemplateAsync(template).ConfigureAwait(false);
+            LadsDevice device = await connection.Client.GetDeviceAsync("Device").ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Unit").ConfigureAwait(false);
+            ByteString content = template.ToContent();
+
+            if ((operations & LadsTemplateOperations.Download) != 0)
+            {
+                (ArrayOf<KeyValueType> _, ByteString downloaded) = await unit.DownloadProgramTemplateAsync("Seed")
+                    .ConfigureAwait(false);
+                Assert.That(downloaded.ToArray(), Is.EqualTo(content.ToArray()));
+            }
+            else
+            {
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadNotImplemented, () => unit.DownloadProgramTemplateAsync("Seed"))
+                    .ConfigureAwait(false);
+            }
+            ArrayOf<KeyValueType> parameters = [new KeyValueType { Key = "TemplateId", Value = "Copy" }];
+            if ((operations & LadsTemplateOperations.Upload) != 0)
+            {
+                string uploaded = await unit.UploadProgramTemplateAsync(content, parameters).ConfigureAwait(false);
+                Assert.That(uploaded, Is.EqualTo("Copy"));
+                Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Contain("Copy"));
+            }
+            else
+            {
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadNotImplemented, () => unit.UploadProgramTemplateAsync(content, parameters))
+                    .ConfigureAwait(false);
+                Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Not.Contain("Copy"));
+            }
+            if ((operations & LadsTemplateOperations.Remove) != 0)
+            {
+                await unit.RemoveProgramTemplateAsync("Seed").ConfigureAwait(false);
+                Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Not.Contain("Seed"));
+            }
+            else
+            {
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadNotImplemented, () => unit.RemoveProgramTemplateAsync("Seed")).ConfigureAwait(false);
+                Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Contain("Seed"));
+            }
+        }
+
+        /// <summary>
+        /// Direct and client writes identify the exact member, preserve unrelated values and obey provider veto.
+        /// </summary>
+        [TestCase("Mode", "ControllerModeSet/Cool/TargetValue")]
+        [TestCase("Mode", "ControllerModeSet/Heat%2FHigh/TargetValue")]
+        [TestCase("Mode", "ControllerModeSet/Percent%25%20Space/TargetValue")]
+        [TestCase("Composed", "TargetValueSet/Sample%2FPrimary")]
+        [TestCase("Composed", "TargetValueSet/Percent%25%20Space")]
+        [TestCase("Pid", "ControllerTuningParameter/CtrlP")]
+        [TestCase("Pid", "ControllerTuningParameter/CtrlTi")]
+        [TestCase("Pid", "ControllerTuningParameter/CtrlTd")]
+        public async Task NamedParameterWritesRequireProviderAcceptanceAsync(string name, string parameterPath)
+        {
+            var commands = new List<LadsFunctionCommand>();
+            ServiceResult outcome = ServiceResult.Good;
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken _) =>
+                {
+                    commands.Add(command);
+                    return new ValueTask<ServiceResult>(outcome);
+                });
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(NamedParameterWritesRequireProviderAcceptanceAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit(
+                        "Unit", unit => ConfigureParameterFunctions(unit.FunctionProvider(provider.Object))))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice hardware = await connection.Server.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsControlFunction direct = hardware.GetFunctionalUnit("Unit").GetFunction<ILadsControlFunction>(name);
+            LadsDevice device = await connection.Client.GetDeviceAsync("Device").ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Unit").ConfigureAwait(false);
+            LadsFunction function = await unit.GetFunctionAsync(name).ConfigureAwait(false);
+            LadsFunctionSnapshot before = await function.ReadAsync().ConfigureAwait(false);
+
+            string memberName = Uri.UnescapeDataString(parameterPath.Split('/')[1]);
+            double directValue = name == "Pid" ? -12.5 : 12.5;
+            if (direct is IMultiModeAnalogControlFunction mode)
+            {
+                await mode.SetTargetValueAsync(memberName, directValue).ConfigureAwait(false);
+            }
+            else if (direct is IAnalogControlFunction { Kind: LadsAnalogControlKind.Composed } composed)
+            {
+                await composed.SetComposedTargetValueAsync(memberName, directValue).ConfigureAwait(false);
+            }
+            else
+            {
+                await direct.SetParameterAsync(parameterPath, directValue).ConfigureAwait(false);
+            }
+            Assert.That(commands, Has.Count.EqualTo(1));
+            Assert.That(commands[0].Function, Is.SameAs(direct));
+            Assert.That(commands[0].Kind, Is.EqualTo(LadsFunctionCommandKind.SetParameter));
+            Assert.That(commands[0].ParameterPath, Is.EqualTo(parameterPath));
+            Assert.That(commands[0].Value, Is.EqualTo(Variant.From(directValue)));
+            LadsFunctionSnapshot directRead = await function.ReadAsync().ConfigureAwait(false);
+            Assert.That(directRead.ValueOf(parameterPath), Is.EqualTo(Variant.From(directValue)));
+
+            await function.SetParameterAsync(parameterPath, 17.5).ConfigureAwait(false);
+            Assert.That(commands, Has.Count.EqualTo(2));
+            Assert.That(commands[1].ParameterPath, Is.EqualTo(parameterPath));
+            Assert.That(commands[1].Kind, Is.EqualTo(LadsFunctionCommandKind.SetParameter));
+            Assert.That(commands[1].Value, Is.EqualTo(Variant.From(17.5)));
+            LadsFunctionSnapshot accepted = await function.ReadAsync().ConfigureAwait(false);
+            Assert.That(accepted.ValueOf(parameterPath), Is.EqualTo(Variant.From(17.5)));
+
+            outcome = StatusCodes.BadDeviceFailure;
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadDeviceFailure, () => direct.SetParameterAsync(parameterPath, 20)).ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadDeviceFailure, () => function.SetParameterAsync(parameterPath, 21))
+                .ConfigureAwait(false);
+            Assert.That(commands, Has.Count.EqualTo(4));
+            Assert.That(commands[3].ParameterPath, Is.EqualTo(parameterPath));
+            Assert.That(commands[3].Value, Is.EqualTo(Variant.From(21.0)));
+            LadsFunctionSnapshot rejected = await function.ReadAsync().ConfigureAwait(false);
+            Assert.That(rejected.ValueOf(parameterPath), Is.EqualTo(Variant.From(17.5)));
+            foreach (LadsFunctionValue member in before.Values)
+            {
+                if (member.Name != parameterPath && (member.Name.StartsWith("ControllerModeSet/",
+                    StringComparison.Ordinal) || member.Name.StartsWith("TargetValueSet/", StringComparison.Ordinal) ||
+                    member.Name.StartsWith("ControllerTuningParameter/", StringComparison.Ordinal) ||
+                    member.Name == LadsFunctionMembers.CurrentMode))
+                {
+                    Assert.That(rejected.ValueOf(member.Name), Is.EqualTo(member.Value.WrappedValue), member.Name);
+                }
+            }
+            if (direct is IMultiModeAnalogControlFunction multiMode)
+            {
+                Assert.That(multiMode.CurrentMode, Is.Zero);
+                Assert.That(multiMode.GetTargetValue(memberName), Is.EqualTo(17.5));
+            }
+            else if (direct is IAnalogControlFunction { Kind: LadsAnalogControlKind.Composed } composedTarget)
+            {
+                Assert.That(composedTarget.GetComposedTargetValue(memberName), Is.EqualTo(17.5));
+                Assert.That(composedTarget.TargetValue, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// Invalid paths and values cannot reach the hardware provider.
+        /// </summary>
+        [TestCaseSource(nameof(s_invalidParameterValues))]
+        public async Task NamedParameterValidationPrecedesProviderAsync(
+            string name, string parameterPath, double value, StatusCode status)
+        {
+            var provider = new Mock<ILadsFunctionProvider>(MockBehavior.Strict);
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(NamedParameterValidationPrecedesProviderAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit(
+                        "Unit", unit => ConfigureParameterFunctions(unit.FunctionProvider(provider.Object))))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice hardware = await connection.Server.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsControlFunction direct = hardware.GetFunctionalUnit("Unit").GetFunction<ILadsControlFunction>(name);
+            await LadsAssert.ThrowsStatusAsync(status, () => direct.SetParameterAsync(parameterPath, value))
+                .ConfigureAwait(false);
+            if (status == StatusCodes.BadOutOfRange)
+            {
+                string[] segments = parameterPath.Split('/');
+                segments[1] = Uri.UnescapeDataString(segments[1]);
+                NodeId parameter = await connection.Server.ChildAsync(direct.NodeId, segments).ConfigureAwait(false);
+                WriteResponse response = await connection.Session.WriteAsync(null,
+                [
+                    new WriteValue { NodeId = parameter, AttributeId = Attributes.Value, Value = new DataValue(value) }
+                ], CancellationToken.None).ConfigureAwait(false);
+                Assert.That(response.Results[0], Is.EqualTo(status));
+            }
+            provider.Verify(p => p.OnCommandAsync(
+                It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Client paths cannot reinterpret an unescaped separator or a differently escaped member identity.
+        /// </summary>
+        [Test]
+        public async Task ClientNamedParameterPathsRejectNoncanonicalNamesAsync()
+        {
+            var provider = new Mock<ILadsFunctionProvider>(MockBehavior.Strict);
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(ClientNamedParameterPathsRejectNoncanonicalNamesAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit(
+                        "Unit", unit => ConfigureParameterFunctions(unit.FunctionProvider(provider.Object))))),
+                "Device").ConfigureAwait(false);
+            LadsDevice device = await connection.Client.GetDeviceAsync("Device").ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Unit").ConfigureAwait(false);
+            LadsFunction function = await unit.GetFunctionAsync("Composed").ConfigureAwait(false);
+            foreach (string path in s_invalidParameterPaths)
+            {
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await function.SetParameterAsync(path, 10).ConfigureAwait(false));
+            }
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await function.SetParameterAsync(null!, 10).ConfigureAwait(false));
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Configured PID members have the concrete model type; omitted members remain absent and unwritable.
+        /// </summary>
+        [TestCase(0, 0)]
+        [TestCase(1, 1)]
+        [TestCase(2, 1)]
+        [TestCase(4, 1)]
+        [TestCase(7, 3)]
+        public async Task PidParametersExposeConfiguredMembersAndRouteWritesAsync(int selection, int expectedCount)
+        {
+            var commands = new List<LadsFunctionCommand>();
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken _) =>
+                {
+                    commands.Add(command);
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(PidParametersExposeConfiguredMembersAndRouteWritesAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit("Unit", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .AnalogControl("Pid", options => options.Pid = new LadsPidOptions
+                        {
+                            CtrlP = (selection & 1) != 0 ? 1 : null,
+                            CtrlTi = (selection & 2) != 0 ? 2 : null,
+                            CtrlTd = (selection & 4) != 0 ? 3 : null
+                        })
+                        .AnalogControl("Plain")))), "Device").ConfigureAwait(false);
+            ILadsDevice hardware = await connection.Server.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsFunctionalUnit hardwareUnit = hardware.GetFunctionalUnit("Unit");
+            IAnalogControlFunction direct = hardwareUnit.GetFunction<IAnalogControlFunction>("Pid");
+            NodeId tuning = await connection.Server.ChildAsync(direct.NodeId, "ControllerTuningParameter")
+                .ConfigureAwait(false);
+            IReadOnlyList<ReferenceDescription> types = await connection.Server.BrowseAsync(
+                tuning, Ua.ReferenceTypeIds.HasTypeDefinition).ConfigureAwait(false);
+            Assert.That(types, Has.Count.EqualTo(1));
+            Assert.That(types[0].BrowseName.Name, Is.EqualTo("PidControllerParameterType"));
+            string[] children = await connection.Server.ChildNamesAsync(tuning).ConfigureAwait(false);
+            LadsDevice device = await connection.Client.GetDeviceAsync("Device").ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Unit").ConfigureAwait(false);
+            LadsFunction function = await unit.GetFunctionAsync("Pid").ConfigureAwait(false);
+            LadsFunctionSnapshot initial = await function.ReadAsync().ConfigureAwait(false);
+            for (int index = 0; index < s_pidMembers.Length; index++)
+            {
+                string path = "ControllerTuningParameter/" + s_pidMembers[index];
+                bool enabled = (selection & (1 << index)) != 0;
+                Assert.That(children.Contains(s_pidMembers[index]), Is.EqualTo(enabled));
+                Assert.That(initial.TryGetValue(path, out DataValue value), Is.EqualTo(enabled));
+                if (enabled)
+                {
+                    Assert.That(value.WrappedValue, Is.EqualTo(Variant.From((double)index + 1)));
+                    await function.SetParameterAsync(path, index + 10).ConfigureAwait(false);
+                    Assert.That(commands[^1].ParameterPath, Is.EqualTo(path));
+                    Assert.That(commands[^1].Value, Is.EqualTo(Variant.From((double)index + 10)));
+                }
+                else
+                {
+                    await LadsAssert.ThrowsStatusAsync(
+                        StatusCodes.BadNotFound, () => direct.SetParameterAsync(path, 10)).ConfigureAwait(false);
+                }
+            }
+            IAnalogControlFunction plain = hardwareUnit.GetFunction<IAnalogControlFunction>("Plain");
+            string[] plainChildren = await connection.Server.ChildNamesAsync(plain.NodeId).ConfigureAwait(false);
+            Assert.That(plainChildren, Does.Not.Contain("ControllerTuningParameter"));
+            Assert.That(commands, Has.Count.EqualTo(expectedCount));
+        }
+
+        /// <summary>
+        /// Every concrete control builder passes PID configuration into the shared named-parameter surface.
+        /// </summary>
+        [Test]
+        public async Task EveryControlBuilderPublishesPidParametersAsync()
+        {
+            var commands = new List<LadsFunctionCommand>();
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken _) =>
+                {
+                    commands.Add(command);
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            var pid = new LadsPidOptions { CtrlP = 1 };
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(EveryControlBuilderPublishesPidParametersAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit("Unit", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .AnalogControl("Analog", options => options.Pid = pid)
+                        .MultiModeAnalogControl("Mode", options =>
+                        {
+                            options.Modes = s_modes.ToArrayOf();
+                            options.Pid = pid;
+                        })
+                        .TwoStateDiscreteControl("Valve", options => options.Pid = pid)
+                        .MultiStateDiscreteControl("Level", options =>
+                        {
+                            options.States = [new LocalizedText("Low"), new LocalizedText("High")];
+                            options.Pid = pid;
+                        })
+                        .Timer("Timer", options => options.Pid = pid)))), "Device").ConfigureAwait(false);
+            ILadsDevice hardware = await connection.Server.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsFunctionalUnit direct = hardware.GetFunctionalUnit("Unit");
+            LadsDevice device = await connection.Client.GetDeviceAsync("Device").ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Unit").ConfigureAwait(false);
+            foreach (string name in s_pidControlFunctions)
+            {
+                LadsFunction function = await unit.GetFunctionAsync(name).ConfigureAwait(false);
+                LadsFunctionSnapshot initial = await function.ReadAsync().ConfigureAwait(false);
+                Assert.That(initial.ValueOf(LadsFunctionMembers.CtrlP), Is.EqualTo(Variant.From(1.0)), name);
+                await direct.GetFunction<ILadsControlFunction>(name)
+                    .SetParameterAsync(LadsFunctionMembers.CtrlP, 5).ConfigureAwait(false);
+                LadsFunctionSnapshot changed = await function.ReadAsync().ConfigureAwait(false);
+                Assert.That(changed.ValueOf(LadsFunctionMembers.CtrlP), Is.EqualTo(Variant.From(5.0)), name);
+                Assert.That(commands[^1].Function.Name, Is.EqualTo(name));
+                Assert.That(commands[^1].Kind, Is.EqualTo(LadsFunctionCommandKind.SetParameter));
+                Assert.That(commands[^1].ParameterPath, Is.EqualTo(LadsFunctionMembers.CtrlP));
+            }
+            Assert.That(commands, Has.Count.EqualTo(5));
+        }
+
+        /// <summary>
+        /// A composed target is hardware-calculated, not a writable aggregate or an invented sum of its parts.
+        /// </summary>
+        [Test]
+        public async Task ComposedTargetIsReadOnlyAndAcceptsEquipmentReportsAsync()
+        {
+            var provider = new Mock<ILadsFunctionProvider>(MockBehavior.Strict);
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(ComposedTargetIsReadOnlyAndAcceptsEquipmentReportsAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit(
+                        "Unit", unit => ConfigureParameterFunctions(unit.FunctionProvider(provider.Object))))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice hardware = await connection.Server.DeviceAsync("Device").ConfigureAwait(false);
+            IAnalogControlFunction direct = hardware.GetFunctionalUnit("Unit")
+                .GetFunction<IAnalogControlFunction>("Composed");
+            await direct.ReportComputedTargetValueAsync(43).ConfigureAwait(false);
+            Assert.That(direct.TargetValue, Is.EqualTo(43));
+            Assert.That(direct.GetComposedTargetValue("Sample/Primary"), Is.Zero);
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadNotSupported, () => direct.SetTargetValueAsync(20)).ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadNotSupported, () => direct.StartWithTargetValueAsync(20)).ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadOutOfRange, () => direct.ReportComputedTargetValueAsync(double.NaN))
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadOutOfRange, () => direct.ReportComputedTargetValueAsync(101)).ConfigureAwait(false);
+            LadsAssert.ThrowsStatus(
+                StatusCodes.BadNotFound, () => direct.GetComposedTargetValue("Missing"));
+            IAnalogControlFunction plain = hardware.GetFunctionalUnit("Unit")
+                .GetFunction<IAnalogControlFunction>("Pid");
+            LadsAssert.ThrowsStatus(
+                StatusCodes.BadNotSupported, () => plain.GetComposedTargetValue("Missing"));
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadNotSupported, () => plain.ReportComputedTargetValueAsync(20)).ConfigureAwait(false);
+            NodeId target = await connection.Server.ChildAsync(direct.NodeId, "TargetValue").ConfigureAwait(false);
+            WriteResponse response = await connection.Session.WriteAsync(null,
+            [
+                new WriteValue { NodeId = target, AttributeId = Attributes.Value, Value = new DataValue(20.0) }
+            ], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.BadNotWritable));
+            Assert.That(direct.TargetValue, Is.EqualTo(43));
+            Assert.That((await connection.Server.ReadAsync(target).ConfigureAwait(false)).WrappedValue,
+                Is.EqualTo(Variant.From(43.0)));
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Provider exceptions and cancellation do not publish a named value or retain the function gate.
+        /// </summary>
+        [Test]
+        public async Task NamedParameterFailureAndCancellationPreserveValueAsync()
+        {
+            Exception? failure = new OperationCanceledException();
+            int calls = 0;
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand _, CancellationToken _) =>
+                {
+                    calls++;
+                    return failure == null
+                        ? new ValueTask<ServiceResult>(ServiceResult.Good)
+                        : new ValueTask<ServiceResult>(Task.FromException<ServiceResult>(failure));
+                });
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(NamedParameterFailureAndCancellationPreserveValueAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit(
+                        "Unit", unit => ConfigureParameterFunctions(unit.FunctionProvider(provider.Object))))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync("Device").ConfigureAwait(false);
+            IAnalogControlFunction function = device.GetFunctionalUnit("Unit")
+                .GetFunction<IAnalogControlFunction>("Composed");
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await function.SetComposedTargetValueAsync("Sample/Primary", 10).ConfigureAwait(false));
+            Assert.That(function.GetComposedTargetValue("Sample/Primary"), Is.Zero);
+            failure = new InvalidOperationException("Hardware unavailable.");
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await function.SetComposedTargetValueAsync("Sample/Primary", 11).ConfigureAwait(false));
+            Assert.That(function.GetComposedTargetValue("Sample/Primary"), Is.Zero);
+            using var cancelled = new CancellationTokenSource();
+            await cancelled.CancelAsync().ConfigureAwait(false);
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await function.SetComposedTargetValueAsync("Sample/Primary", 12, cancelled.Token)
+                    .ConfigureAwait(false));
+            Assert.That(calls, Is.EqualTo(2));
+            failure = null;
+            await function.SetComposedTargetValueAsync("Sample/Primary", 0).ConfigureAwait(false);
+            await function.SetComposedTargetValueAsync("Sample/Primary", 100).ConfigureAwait(false);
+            Assert.That(function.GetComposedTargetValue("Sample/Primary"), Is.EqualTo(100));
+            Assert.That(calls, Is.EqualTo(4));
+        }
 
         [Test]
         public async Task ClientDiscoversDeviceAndReadsSnapshotAsync()
@@ -230,6 +703,12 @@ namespace Opc.Ua.LADS.Tests.Integration
             Assert.That(target, Is.EqualTo(42));
             await temperature.StopAsync().ConfigureAwait(false);
             Assert.That(serverTemperature.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            await temperature.StartAsync().ConfigureAwait(false);
+            await temperature.AbortAsync().ConfigureAwait(false);
+            Assert.That(serverTemperature.State, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+            await temperature.ClearAsync().ConfigureAwait(false);
+            Assert.That(serverTemperature.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            Assert.That((await temperature.ReadAsync().ConfigureAwait(false)).State, Is.EqualTo("Stopped"));
 
             LadsFunction door = await unit.GetFunctionAsync("Door").ConfigureAwait(false);
             Assert.That(serverDoor.State, Is.EqualTo(LadsCoverStateValue.Closed));
@@ -245,6 +724,162 @@ namespace Opc.Ua.LADS.Tests.Integration
             Assert.That(serverDoor.State, Is.EqualTo(LadsCoverStateValue.Closed));
             await door.OpenAsync().ConfigureAwait(false);
             Assert.That(serverDoor.State, Is.EqualTo(LadsCoverStateValue.Opened));
+        }
+
+        /// <summary>
+        /// The generated method proxy transports a nonzero reset value to the runtime and totalized node.
+        /// </summary>
+        [Test]
+        public async Task ClientResetTotalizerAppliesWireArgumentAsync()
+        {
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(ClientResetTotalizerAppliesWireArgumentAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .AnalogControl("Flow", options => options.Kind = LadsAnalogControlKind.Totalizer)))))
+                .ConfigureAwait(false);
+            ILadsDevice serverDevice = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            IAnalogControlFunction serverFunction = serverDevice.GetFunctionalUnit("Aux")
+                .GetFunction<IAnalogControlFunction>("Flow");
+            LadsDevice device = await connection.Client.GetDeviceAsync(LadsIncubator.DeviceName).ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Aux").ConfigureAwait(false);
+            LadsFunction flow = await unit.GetFunctionAsync("Flow").ConfigureAwait(false);
+
+            await flow.ResetTotalizerAsync(12.5).ConfigureAwait(false);
+
+            Assert.That(serverFunction.TotalizedValue, Is.EqualTo(12.5));
+            NodeId total = await connection.Server.ChildAsync(serverFunction.NodeId, "TotalizedValue")
+                .ConfigureAwait(false);
+            DataValue read = await connection.Server.ReadAsync(total).ConfigureAwait(false);
+            Assert.That(read.WrappedValue.TryGetValue(out double value), Is.True);
+            Assert.That(value, Is.EqualTo(12.5));
+        }
+
+        /// <summary>
+        /// Ordinary UA target writes use the same provider command and authoritative state as direct handle calls.
+        /// </summary>
+        [TestCase("Analog")]
+        [TestCase("Valve")]
+        [TestCase("Level")]
+        [TestCase("Timer")]
+        public async Task RawTargetWritesUpdateRuntimeOnlyAfterProviderAcceptanceAsync(string name)
+        {
+            var commands = new List<LadsFunctionCommand>();
+            ServiceResult outcome = ServiceResult.Good;
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken _) =>
+                {
+                    commands.Add(command);
+                    return new ValueTask<ServiceResult>(outcome);
+                });
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(RawTargetWritesUpdateRuntimeOnlyAfterProviderAcceptanceAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .AnalogControl("Analog")
+                        .TwoStateDiscreteControl("Valve")
+                        .MultiStateDiscreteControl("Level", options => options.States = new[]
+                        {
+                            new LocalizedText("Low"),
+                            new LocalizedText("High")
+                        }.ToArrayOf())
+                        .Timer("Timer"))))).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            ILadsFunction function = device.GetFunctionalUnit("Aux").GetFunction<ILadsFunction>(name);
+            Func<Variant> readTarget = function switch
+            {
+                IAnalogControlFunction analog => () => Variant.From(analog.TargetValue),
+                ITwoStateDiscreteControlFunction discrete => () => Variant.From(discrete.TargetValue),
+                IMultiStateDiscreteControlFunction discrete => () => Variant.From(discrete.TargetValue),
+                ITimerFunction timer => () => Variant.From(timer.TargetValue),
+                _ => throw new InvalidOperationException("The configured control function is missing.")
+            };
+            Variant accepted = name == "Valve" ? Variant.From(true) :
+                name == "Level" ? Variant.From(1u) : Variant.From(12.5);
+            Variant rejected = name == "Valve" ? Variant.From(false) :
+                name == "Level" ? Variant.From(0u) : Variant.From(13.5);
+            NodeId target = await connection.Server.ChildAsync(function.NodeId, "TargetValue").ConfigureAwait(false);
+            WriteResponse response = await connection.Session.WriteAsync(null,
+            [
+                new WriteValue { NodeId = target, AttributeId = Attributes.Value, Value = new DataValue(accepted) }
+            ], CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(commands, Has.Count.EqualTo(1));
+            Assert.That(commands[0].Kind, Is.EqualTo(LadsFunctionCommandKind.SetTargetValue));
+            Assert.That(commands[0].Value, Is.EqualTo(accepted));
+            Assert.That(readTarget(), Is.EqualTo(accepted));
+            Assert.That((await connection.Server.ReadAsync(target).ConfigureAwait(false)).WrappedValue,
+                Is.EqualTo(accepted));
+
+            outcome = StatusCodes.BadDeviceFailure;
+            response = await connection.Session.WriteAsync(null,
+            [
+                new WriteValue { NodeId = target, AttributeId = Attributes.Value, Value = new DataValue(rejected) }
+            ], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.BadDeviceFailure));
+            Assert.That(commands, Has.Count.EqualTo(2));
+            Assert.That(commands[1].Value, Is.EqualTo(rejected));
+            Assert.That(readTarget(), Is.EqualTo(accepted));
+            Assert.That((await connection.Server.ReadAsync(target).ConfigureAwait(false)).WrappedValue,
+                Is.EqualTo(accepted));
+        }
+
+        /// <summary>
+        /// Raw mode selection validates the index and preserves both the node and selected runtime mode on veto.
+        /// </summary>
+        [Test]
+        public async Task RawModeWritesUseProviderAndRejectInvalidIndicesAsync()
+        {
+            int calls = 0;
+            ServiceResult outcome = ServiceResult.Good;
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken _) =>
+                {
+                    calls++;
+                    Assert.That(command.Kind, Is.EqualTo(LadsFunctionCommandKind.SetMode));
+                    return new ValueTask<ServiceResult>(outcome);
+                });
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(RawModeWritesUseProviderAndRejectInvalidIndicesAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .MultiModeAnalogControl("Mode", options => options.Modes = s_modes.ToArrayOf())))))
+                .ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            IMultiModeAnalogControlFunction function = device.GetFunctionalUnit("Aux")
+                .GetFunction<IMultiModeAnalogControlFunction>("Mode");
+            NodeId current = await connection.Server.ChildAsync(function.NodeId, "CurrentMode").ConfigureAwait(false);
+            WriteResponse response = await connection.Session.WriteAsync(null,
+            [
+                new WriteValue { NodeId = current, AttributeId = Attributes.Value, Value = new DataValue(1u) }
+            ], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(function.CurrentMode, Is.EqualTo(1));
+
+            outcome = StatusCodes.BadDeviceFailure;
+            response = await connection.Session.WriteAsync(null,
+            [
+                new WriteValue { NodeId = current, AttributeId = Attributes.Value, Value = new DataValue(0u) },
+                new WriteValue { NodeId = current, AttributeId = Attributes.Value, Value = new DataValue(99u) }
+            ], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.BadDeviceFailure));
+            Assert.That(response.Results[1], Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(function.CurrentMode, Is.EqualTo(1));
+            DataValue read = await connection.Server.ReadAsync(current).ConfigureAwait(false);
+            Assert.That(read.WrappedValue.TryGetValue(out uint mode), Is.True);
+            Assert.That(mode, Is.EqualTo(1));
         }
 
         [Test]
@@ -611,9 +1246,58 @@ namespace Opc.Ua.LADS.Tests.Integration
             }
         }
 
+        /// <summary>
+        /// Builds all named-parameter categories with distinguishable initial values.
+        /// </summary>
+        private static void ConfigureParameterFunctions(ILadsFunctionalUnitBuilder unit)
+        {
+            unit.MultiModeAnalogControl("Mode", options =>
+            {
+                options.Modes = s_parameterModes.ToArrayOf();
+                options.Range = new Range(100, 0);
+            }).AnalogControl("Composed", options =>
+            {
+                options.Kind = LadsAnalogControlKind.Composed;
+                options.ComposedTargetValues = s_parameterTargets.ToArrayOf();
+                options.Range = new Range(100, 0);
+            }).AnalogControl("Pid", options => options.Pid = new LadsPidOptions
+            {
+                CtrlP = 1,
+                CtrlTi = 2,
+                CtrlTd = 3
+            });
+        }
+
+        /// <summary>Invalid parameter paths and values with their expected service errors.</summary>
+        private static readonly TestCaseData[] s_invalidParameterValues =
+        [
+            new("Mode", "ControllerModeSet/Missing/TargetValue", 1.0, StatusCodes.BadNotFound),
+            new("Composed", "TargetValueSet/Missing", 1.0, StatusCodes.BadNotFound),
+            new("Pid", "ControllerTuningParameter/Unknown", 1.0, StatusCodes.BadNotFound),
+            new("Mode", "ControllerModeSet/Cool/TargetValue", -1.0, StatusCodes.BadOutOfRange),
+            new("Mode", "ControllerModeSet/Cool/TargetValue", 101.0, StatusCodes.BadOutOfRange),
+            new("Composed", "TargetValueSet/Sample%2FPrimary", double.NaN, StatusCodes.BadOutOfRange),
+            new("Pid", "ControllerTuningParameter/CtrlP", double.PositiveInfinity, StatusCodes.BadOutOfRange),
+            new("Pid", "ControllerTuningParameter/CtrlP", double.NegativeInfinity, StatusCodes.BadOutOfRange)
+        ];
+
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
         private static readonly string[] s_chamberFunctions = ["Temperature", "ShakerSpeed", "CO2", "Door", "Timer"];
         private static readonly string[] s_composedNames = ["A", "B"];
         private static readonly string[] s_modes = ["Heat", "Cool"];
-        private static readonly double[] s_spectrum = [1.0, 2.0];    }
+        private static readonly double[] s_spectrum = [1.0, 2.0];
+        private static readonly string[] s_parameterModes = ["Heat/High", "Cool", "Percent% Space"];
+        private static readonly string[] s_parameterTargets = ["Sample/Primary", "Reference", "Percent% Space"];
+        private static readonly string[] s_pidMembers = ["CtrlP", "CtrlTi", "CtrlTd"];
+        private static readonly string[] s_pidControlFunctions = ["Analog", "Mode", "Valve", "Level", "Timer"];
+        private static readonly string[] s_invalidParameterPaths =
+        [
+            "TargetValueSet/",
+            "TargetValueSet/Sample/Primary",
+            "TargetValueSet/Sample%2fPrimary",
+            "TargetValueSet/Percent% Space",
+            "ControllerModeSet/Cool",
+            "ControllerTuningParameter/Unknown"
+        ];
+    }
 }

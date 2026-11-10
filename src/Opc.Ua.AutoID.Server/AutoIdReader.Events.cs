@@ -58,6 +58,7 @@ namespace Opc.Ua.AutoID.Server
             try
             {
                 ISystemContext context = Runtime.SystemContext;
+                await PublishPresenceAsync(presence, cancellationToken).ConfigureAwait(false);
                 AutoIdPresenceEventState e = context.CreateInstanceOfAutoIdPresenceEventType(Device, default);
                 e.Initialize(context, Device, EventSeverity.Low, new LocalizedText("Presence changed"));
                 e.DeviceName!.Value = DeviceNameOf();
@@ -86,6 +87,7 @@ namespace Opc.Ua.AutoID.Server
             try
             {
                 ISystemContext context = Runtime.SystemContext;
+                await PublishLogEntryAsync(entry, cancellationToken).ConfigureAwait(false);
                 AutoIdLogEntryEventState e = context.CreateInstanceOfAutoIdLogEntryEventType(Device, default);
                 e.Initialize(context, Device, EventSeverity.Low, new LocalizedText(entry));
                 e.DeviceName!.Value = DeviceNameOf();
@@ -118,15 +120,25 @@ namespace Opc.Ua.AutoID.Server
             {
                 throw new ObjectDisposedException(nameof(AutoIdReader));
             }
+            return ReportAccessCoreAsync(command, client, results, cancellationToken);
+        }
+
+        /// <summary>
+        /// Retains report admission through diagnostic formatting, notifications and event publication.
+        /// </summary>
+        private async ValueTask ReportAccessCoreAsync(
+            string command, string client, ArrayOf<AccessResult> results, CancellationToken cancellationToken)
+        {
             try
             {
-                RaiseAccessEvent(client ?? DeviceClient, command, results);
+                await RaiseAccessEventAsync(
+                    client ?? DeviceClient, command, results, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
                 m_operations.Exit();
             }
-            return default;
         }
 
         /// <summary>
@@ -158,10 +170,11 @@ namespace Opc.Ua.AutoID.Server
         /// Raises the scan event of the reader kind (OPC 30010 7.2 to 7.7).
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        private void RaiseScanEvent(ArrayOf<ScanResult> results)
+        private async ValueTask RaiseScanEventAsync(ArrayOf<ScanResult> results, CancellationToken cancellationToken)
         {
             ISystemContext context = Runtime.SystemContext;
             var message = new LocalizedText("Scan result");
+            IFilterTarget e;
             switch (Kind)
             {
                 case AutoIdReaderKind.Rfid:
@@ -169,21 +182,21 @@ namespace Opc.Ua.AutoID.Server
                     rfid.Initialize(context, Device, EventSeverity.Medium, message);
                     rfid.DeviceName!.Value = DeviceNameOf();
                     rfid.ScanResult!.Value = Cast<RfidScanResult>(results);
-                    Device.ReportEvent(context, rfid);
+                    e = rfid;
                     break;
                 case AutoIdReaderKind.Ocr:
                     OcrScanEventState ocr = context.CreateInstanceOfOcrScanEventType(Device, default);
                     ocr.Initialize(context, Device, EventSeverity.Medium, message);
                     ocr.DeviceName!.Value = DeviceNameOf();
                     ocr.ScanResult!.Value = Cast<OcrScanResult>(results);
-                    Device.ReportEvent(context, ocr);
+                    e = ocr;
                     break;
                 case AutoIdReaderKind.Optical:
                     OpticalScanEventState optical = context.CreateInstanceOfOpticalScanEventType(Device, default);
                     optical.Initialize(context, Device, EventSeverity.Medium, message);
                     optical.DeviceName!.Value = DeviceNameOf();
                     optical.ScanResult!.Value = Cast<OpticalScanResult>(results);
-                    Device.ReportEvent(context, optical);
+                    e = optical;
                     break;
                 case AutoIdReaderKind.OpticalVerifier:
                     OpticalVerifierScanEventState verifier =
@@ -191,43 +204,88 @@ namespace Opc.Ua.AutoID.Server
                     verifier.Initialize(context, Device, EventSeverity.Medium, message);
                     verifier.DeviceName!.Value = DeviceNameOf();
                     verifier.ScanResult!.Value = Cast<OpticalVerifierScanResult>(results);
-                    Device.ReportEvent(context, verifier);
+                    e = verifier;
                     break;
                 case AutoIdReaderKind.Rtls:
                     RtlsLocationEventState rtls = context.CreateInstanceOfRtlsLocationEventType(Device, default);
                     rtls.Initialize(context, Device, EventSeverity.Medium, message);
                     rtls.DeviceName!.Value = DeviceNameOf();
                     rtls.ScanResult!.Value = Cast<RtlsLocationResult>(results);
-                    Device.ReportEvent(context, rtls);
+                    e = rtls;
                     break;
                 default:
                     throw new InvalidOperationException("Unknown reader kind.");
             }
+            await Device.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Raises the access event (OPC 30010 7.10 and 7.11) when access events are enabled.
+        /// Projects the access report and raises its event (OPC 30010 7.10 and 7.11) when enabled.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
-        private void TryRaiseAccessEvent(string client, string command, ArrayOf<AccessResult> results)
+        private async ValueTask TryRaiseAccessEventAsync(
+            string client, string command, ArrayOf<AccessResult> results)
         {
-            // The operation has already happened: a failure to publish its audit event must not
+            // The operation has already happened: a failure to publish its diagnostics or event must not
             // turn an executed command into a failed call.
             try
             {
-                RaiseAccessEvent(client, command, results);
+                await RaiseAccessEventAsync(
+                    client, command, results, tolerateDiagnosticCopyFailure: true).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger.ReaderShutdownStepFailed(ex, Name.Name, "publishing the access event");
+                m_logger.ReaderShutdownStepFailed(ex, Name.Name, "publishing the access diagnostics or event");
             }
         }
 
-        private void RaiseAccessEvent(string client, string command, ArrayOf<AccessResult> results)
+        /// <summary>
+        /// Projects and reports an access asynchronously without blocking on asynchronous sinks.
+        /// </summary>
+        private async ValueTask RaiseAccessEventAsync(
+            string client, string command, ArrayOf<AccessResult> results, bool tolerateDiagnosticCopyFailure = false,
+            CancellationToken cancellationToken = default)
         {
-            if (!Runtime.Options.PublishAccessEvents || results.Count == 0)
+            if (results.Count == 0)
             {
                 return;
+            }
+            ValidateAccessResults(results);
+            await PublishLastAccessAsync(client, command, results[0], tolerateDiagnosticCopyFailure, cancellationToken)
+                .ConfigureAwait(false);
+            if (CreateAccessEvent(client, command, results) is { } e)
+            {
+                await Device.ReportEventAsync(Runtime.SystemContext, e, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Validates reports consumed by diagnostics or event publication.
+        /// </summary>
+        private void ValidateAccessResults(ArrayOf<AccessResult> results)
+        {
+            if (Device.Diagnostics != null || Runtime.Options.PublishAccessEvents)
+            {
+                for (int index = 0; index < results.Count; index++)
+                {
+                    if (results[index] is null ||
+                        (Kind == AutoIdReaderKind.Rfid && results[index] is not RfidAccessResult))
+                    {
+                        throw new ArgumentException(
+                            "The access result type does not match the reader.", nameof(results));
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Creates the configured access event, or returns null when event publication is disabled.
+        /// </summary>
+        private IFilterTarget? CreateAccessEvent(string client, string command, ArrayOf<AccessResult> results)
+        {
+            if (!Runtime.Options.PublishAccessEvents)
+            {
+                return null;
             }
             ISystemContext context = Runtime.SystemContext;
             var message = new LocalizedText(command + " accessed an identifier");
@@ -248,8 +306,7 @@ namespace Opc.Ua.AutoID.Server
                 rfid.Client!.Value = client;
                 rfid.Command!.Value = command;
                 rfid.AccessResult!.Value = typed.ToArrayOf();
-                Device.ReportEvent(context, rfid);
-                return;
+                return rfid;
             }
             AutoIdAccessEventState access = context.CreateInstanceOfAutoIdAccessEventType(Device, default);
             access.Initialize(context, Device, EventSeverity.Low, message);
@@ -258,7 +315,7 @@ namespace Opc.Ua.AutoID.Server
             access.Client!.Value = client;
             access.Command!.Value = command;
             access.AccessResult!.Value = results;
-            Device.ReportEvent(context, access);
+            return access;
         }
 
         /// <summary>

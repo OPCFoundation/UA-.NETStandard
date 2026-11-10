@@ -27,25 +27,35 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Scales.Server.Runtime
 {
     /// <summary>
-    /// Adds the product's session-owner restriction without replacing its existing value handlers.
+    /// Composes product session-owner access and native cache writes without replacing application value handlers.
     /// </summary>
     internal sealed class ScaleProductWriteGuard
     {
         /// <summary>
         /// Captures the existing callbacks and watches for subsequently materialised children.
         /// </summary>
-        private ScaleProductWriteGuard(ScaleRuntimeServices services, ProductState product, NodeState node)
+        private ScaleProductWriteGuard(
+            ScaleRuntimeServices services,
+            ProductState? product,
+            ScaleDeviceState? scaleRoot,
+            NodeState node,
+            ScaleWriteGate? writeGate)
         {
             m_services = services;
             m_product = product;
+            m_scaleRoot = scaleRoot;
+            m_writeGate = writeGate;
             m_stateChanged = node.OnStateChanged;
             node.OnStateChanged = OnStateChanged;
-            if (node is BaseVariableState variable)
+            if (product != null && node is BaseVariableState variable)
             {
                 m_readUserAccessLevel = variable.OnReadUserAccessLevel;
                 variable.OnReadUserAccessLevel = ReadUserAccessLevel;
@@ -55,18 +65,25 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Binds every product descendant in a subtree, including a separately registered optional member.
         /// </summary>
-        internal static void Bind(ScaleRuntimeServices services, NodeState node)
+        internal static void Bind(ScaleRuntimeServices services, NodeState node, ScaleWriteGate? writeGate)
         {
             ProductState? product = null;
+            ScaleDeviceState? scaleRoot = null;
+            bool asynchronousChangeMaskNotifications = false;
             for (NodeState? ancestor = node; ancestor is BaseInstanceState instance; ancestor = instance.Parent)
             {
+                asynchronousChangeMaskNotifications |= instance is MultiStateValueDiscreteState;
                 if (instance is ProductState owner)
                 {
                     product = owner;
+                }
+                if (instance is ScaleDeviceState scale)
+                {
+                    scaleRoot = scale;
                     break;
                 }
             }
-            Bind(services, node, product);
+            Bind(services, node, product, scaleRoot, writeGate, asynchronousChangeMaskNotifications);
         }
 
         /// <summary>
@@ -77,7 +94,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             ServiceResult result = m_readUserAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
             if (ServiceResult.IsBad(result) ||
                 ((value & AccessLevels.CurrentWrite) != 0 &&
-                    ServiceResult.IsBad(ScaleValues.CheckLock(m_services, context, m_product.NodeId))))
+                    m_product is { } product &&
+                    ServiceResult.IsBad(ScaleValues.CheckLock(m_services, context, product.NodeId))))
             {
                 value = (byte)(value & ~AccessLevels.CurrentWrite);
             }
@@ -91,7 +109,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             if ((changeMasks & NodeStateChangeMasks.Children) != 0)
             {
-                m_services.BindProductWriteGuards(node);
+                m_services.BindProductWriteGuards(node, m_writeGate);
             }
             m_stateChanged?.Invoke(context, node, changeMasks);
         }
@@ -99,29 +117,228 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Walks a subtree while retaining its nearest product owner.
         /// </summary>
-        private static void Bind(ScaleRuntimeServices services, NodeState node, ProductState? product)
+        private static void Bind(
+            ScaleRuntimeServices services,
+            NodeState node,
+            ProductState? product,
+            ScaleDeviceState? scaleRoot,
+            ScaleWriteGate? writeGate,
+            bool asynchronousChangeMaskNotifications)
         {
             product = node as ProductState ?? product;
-            if (product != null &&
+            scaleRoot = node as ScaleDeviceState ?? scaleRoot;
+            asynchronousChangeMaskNotifications |= node is MultiStateValueDiscreteState;
+            writeGate ??= FindWriteGate(services, node, product, scaleRoot);
+            if (writeGate != null)
+            {
+                ScaleWriteGate gate = writeGate;
+                var executor = new NodeWriteOperationExecutor(
+                    operation =>
+                    {
+                        BaseVariableState? derived = null;
+                        return gate.TryExecuteWithNotifications(() =>
+                            {
+                                ServiceResult writeResult = operation();
+                                if (ServiceResult.IsGood(writeResult))
+                                {
+                                    derived = services.RefreshNominalDerivedValue(node);
+                                }
+                                return writeResult;
+                            },
+                            () => derived?.ClearChangeMasks(services.Context, includeChildren: false),
+                            out ServiceResult result)
+                            ? result
+                            : ServiceResult.Create(
+                                StatusCodes.BadInvalidState,
+                                "A scale write is awaiting an asynchronous state notification.");
+                    },
+                    (operation, cancellationToken) =>
+                    {
+                        BaseVariableState? derived = null;
+                        return gate.ExecuteWithNotificationsAsync(async ct =>
+                        {
+                            ServiceResult writeResult = await operation(ct).ConfigureAwait(false);
+                            if (ServiceResult.IsGood(writeResult))
+                            {
+                                derived = services.RefreshNominalDerivedValue(node);
+                            }
+                            return writeResult;
+                        }, async () =>
+                        {
+                            if (derived != null)
+                            {
+                                await derived.ClearChangeMasksAsync(services.Context, includeChildren: false)
+                                    .ConfigureAwait(false);
+                            }
+                        }, cancellationToken);
+                    },
+                    gate.NodeWriteExecutor.ExecuteNotificationsAsync);
+                node.BindWriteOperationExecutor(
+                    product is CheckweigherProductState checkweigher &&
+                        ReferenceEquals(checkweigher.NominalWeight, node)
+                        ? executor : gate.NodeWriteExecutor,
+                    asynchronousChangeMaskNotifications);
+                if (node is BaseVariableState variable &&
+                    (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
+                    variable.OnWriteValueAsync == null &&
+                    variable.OnSimpleWriteValueAsync == null &&
+                    variable.OnWriteValue == null &&
+                    variable.OnSimpleWriteValue == null)
+                {
+                    if (IsOrdinaryCacheVariable(variable) || IsNativeEnumerationVariable(variable))
+                    {
+                        variable.SetWriteValueAsyncPolicyWithSimpleOverride(WriteCachedValueAsync);
+                    }
+                }
+            }
+            if ((product != null || writeGate != null) &&
                 (node.OnStateChanged?.Target is not ScaleProductWriteGuard guard ||
                     guard.m_services != services ||
-                    guard.m_product != product))
+                    guard.m_product != product ||
+                    guard.m_scaleRoot != scaleRoot ||
+                    guard.m_writeGate != writeGate))
             {
-                _ = new ScaleProductWriteGuard(services, product, node);
+                _ = new ScaleProductWriteGuard(services, product, scaleRoot, node, writeGate);
             }
             var children = new List<BaseInstanceState>();
             node.GetChildren(services.Context, children);
             foreach (BaseInstanceState child in children)
             {
-                Bind(services, child, product);
+                if (child is ScaleDeviceState childScale &&
+                    scaleRoot != null &&
+                    !ReferenceEquals(childScale, scaleRoot))
+                {
+                    continue;
+                }
+                Bind(services, child, product, scaleRoot, writeGate, asynchronousChangeMaskNotifications);
             }
+        }
+
+        /// <summary>
+        /// Limits automatic cache policy to exact audited stock types, never their derived application types.
+        /// </summary>
+        private static bool IsOrdinaryCacheVariable(BaseVariableState variable)
+        {
+            Type type = variable.GetType();
+            if (type == typeof(BaseDataVariableState) ||
+                type == typeof(PropertyState) ||
+                type == typeof(DataItemState) ||
+                type == typeof(AnalogItemState) ||
+                type == typeof(AnalogUnitState) ||
+                type == typeof(AnalogUnitRangeState) ||
+                type == typeof(TwoStateDiscreteState) ||
+                type == typeof(TargetItemState) ||
+                type == typeof(MeasuredItemState) ||
+                type == typeof(WeightItemState))
+            {
+                return true;
+            }
+            if (!type.IsGenericType)
+            {
+                return false;
+            }
+            Type definition = type.GetGenericTypeDefinition();
+            return definition == typeof(BaseDataVariableState<>.Implementation<>) ||
+                definition == typeof(PropertyState<>.Implementation<>) ||
+                definition == typeof(DataItemState<>.Implementation<>) ||
+                definition == typeof(AnalogItemState<>.Implementation<>) ||
+                definition == typeof(AnalogUnitState<>.Implementation<>) ||
+                definition == typeof(AnalogUnitRangeState<>.Implementation<>) ||
+                definition == typeof(TargetItemState<>.Implementation<>) ||
+                definition == typeof(MeasuredItemState<>.Implementation<>);
+        }
+
+        /// <summary>
+        /// Selects only the stock semantic type whose sparse enum and dependent text writes are native.
+        /// </summary>
+        private static bool IsNativeEnumerationVariable(BaseVariableState variable)
+        {
+            Type type = variable.GetType();
+            return type == typeof(MultiStateValueDiscreteState) ||
+                (type.IsGenericType &&
+                    type.GetGenericTypeDefinition() == typeof(MultiStateValueDiscreteState<>.Implementation<>));
+        }
+
+        /// <summary>
+        /// Accepts the Scales cache-writing policy for audited stock variable types.
+        /// </summary>
+        /// <remarks>
+        /// The native async core validates the request and applies copy policy, indexed writes and cache
+        /// publication. It selects a later simple-write handler instead of this policy.
+        /// Variables with SelectionList and MultiStateDiscrete overrides and all unknown types are excluded by
+        /// the exact type list.
+        /// </remarks>
+        /// <param name="context">The context used for the write.</param>
+        /// <param name="node">The variable receiving the write.</param>
+        /// <param name="indexRange">The elements to replace, or a null range for the whole value.</param>
+        /// <param name="value">The value being written.</param>
+        /// <param name="cancellationToken">The token passed to the async write.</param>
+        private static ValueTask<AttributeWriteResult> WriteCachedValueAsync(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            Variant value,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _ = context;
+            _ = indexRange;
+            _ = value;
+            var variable = (BaseVariableState)node;
+            ServiceResult result = variable.OnWriteValue != null || variable.OnSimpleWriteValue != null
+                ? new ServiceResult(StatusCodes.BadNotSupported)
+                : ServiceResult.Good;
+            return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(result)
+            {
+                UseOrdinaryCacheWrite = true
+            });
+        }
+
+        /// <summary>
+        /// Retains an existing product gate when a manager registers an already bound subtree.
+        /// </summary>
+        private static ScaleWriteGate? FindWriteGate(
+            ScaleRuntimeServices services,
+            NodeState node,
+            ProductState? product,
+            ScaleDeviceState? scaleRoot)
+        {
+            if (product == null && scaleRoot == null)
+            {
+                return null;
+            }
+
+            for (NodeState? ancestor = node;
+                ancestor is BaseInstanceState instance;
+                ancestor = instance.Parent)
+            {
+                if (instance.OnStateChanged?.Target is ScaleProductWriteGuard guard &&
+                    guard.m_services == services &&
+                    guard.m_product == product &&
+                    guard.m_scaleRoot == scaleRoot &&
+                    guard.m_writeGate is { } existingGate)
+                {
+                    return existingGate;
+                }
+            }
+            return null;
         }
 
         /// <summary>The runtime supplying the DI lock service.</summary>
         private readonly ScaleRuntimeServices m_services;
 
         /// <summary>The product whose lock restricts these values.</summary>
-        private readonly ProductState m_product;
+        private readonly ProductState? m_product;
+
+        /// <summary>
+        /// The scale that owns this subtree, when present.
+        /// </summary>
+        private readonly ScaleDeviceState? m_scaleRoot;
+
+        /// <summary>
+        /// The executor for the owning scale.
+        /// </summary>
+        private readonly ScaleWriteGate? m_writeGate;
 
         /// <summary>The existing access-level policy, which must never be broadened.</summary>
         private readonly NodeAttributeEventHandler<byte>? m_readUserAccessLevel;

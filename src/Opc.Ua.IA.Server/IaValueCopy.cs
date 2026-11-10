@@ -69,9 +69,12 @@ namespace Opc.Ua.IA.Server
         /// type whose ownership cannot be established.</exception>
         public static Variant Own(in Variant value, ISystemContext context, bool allowEcm = false)
         {
-            int maxDepth = context is ServerSystemContext serverContext
-                ? serverContext.Server.MessageContext.MaxEncodingNestingLevels
-                : DefaultEncodingLimits.MaxEncodingNestingLevels;
+            int maxDepth = context is ServerSystemContext
+                {
+                    Server.MessageContext: { } messageContext
+                }
+                    ? messageContext.MaxEncodingNestingLevels
+                    : DefaultEncodingLimits.MaxEncodingNestingLevels;
             return Own(value, maxDepth, 0, allowEcm);
         }
 

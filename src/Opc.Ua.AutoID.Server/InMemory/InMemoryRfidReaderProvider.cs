@@ -51,7 +51,8 @@ namespace Opc.Ua.AutoID.Server
     /// </para>
     /// </remarks>
     public sealed class InMemoryRfidReaderProvider :
-        IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRfidProvider, IAutoIdRfidAccessEventPolicy, IDisposable
+        IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRfidProvider, IAutoIdRfidAccessEventPolicy,
+        IAutoIdRfidDiagnosticFormatter, IDisposable
     {
         /// <summary>
         /// Creates a reader without tags.
@@ -76,6 +77,60 @@ namespace Opc.Ua.AutoID.Server
 
         /// <inheritdoc/>
         public AutoIdRfidOperations SupportedOperations => AutoIdRfidOperations.All;
+
+        /// <inheritdoc/>
+        public ArrayOf<string> SupportedCodeTypes => ["EPC"];
+
+        /// <inheritdoc/>
+        public AutoIdReaderParameterCapabilities ReaderParameterCapabilities =>
+            new() { CodeTypesRWData = ["RAW:BYTES"] };
+
+        /// <inheritdoc/>
+        public ValueTask<AutoIdRfidDiagnosticData> FormatRWDataAsync(
+            ScanData data,
+            string sourceCodeType,
+            ArrayOf<string> selectedCodeTypes,
+            CancellationToken cancellationToken = default)
+        {
+            if (data is null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (selectedCodeTypes.Count != 1 || selectedCodeTypes[0] != "RAW:BYTES" ||
+                data.SwitchField != ScanDataFields.ByteString)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The simulated reader formats only raw byte data.");
+            }
+            return new ValueTask<AutoIdRfidDiagnosticData>(new AutoIdRfidDiagnosticData("RAW:BYTES",
+                new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = data.ByteString }));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<AutoIdScanParameters> ReadParametersAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                return new ValueTask<AutoIdScanParameters>(AutoIdReader.SnapshotParameters(m_parameters));
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask WriteParametersAsync(
+            AutoIdScanParameters parameters,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            AutoIdReader.ValidateParameters(parameters, SupportedCodeTypes);
+            AutoIdReader.ValidateReaderParameters(parameters, Kind, ReaderParameterCapabilities);
+            lock (m_lock)
+            {
+                m_parameters = AutoIdReader.SnapshotParameters(parameters);
+            }
+            return default;
+        }
 
         /// <summary>
         /// Gets the number of tags in range.
@@ -744,6 +799,7 @@ namespace Opc.Ua.AutoID.Server
         }
 
         private readonly Lock m_lock = new();
+        private AutoIdScanParameters m_parameters = new() { CodeType = "EPC", CodeTypes = [0], CodeTypesRWData = [0] };
         private readonly List<TagState> m_tags = [];
         private readonly InMemoryScanEngine m_engine;
     }

@@ -28,6 +28,7 @@ them and reads them back into records.
 - [Discovery](#discovery)
 - [Health](#health)
 - [Maintenance](#maintenance)
+- [History](#history)
 - [Documentation links](#documentation-links)
 - [Locations, version information, classification and structure](#locations-version-information-classification-and-structure)
 - [Conformance matrix](#conformance-matrix)
@@ -48,7 +49,7 @@ them and reads them back into records.
 | --- | --- |
 | `Opc.Ua.AMB` | The source-generated AMB model (interfaces, condition classes, the maintenance state machine, `DocumentationLinksType`, the reference types, `RootCauseDataType`, `NameNodeIdDataType`, `AddOpcUaAMB`), `AmbBrowseNames`, `AmbConditionClass` and the shared contracts `MaintenanceStateKind`, `AssetFaultSeverity` and `AssetLocationKind` |
 | `Opc.Ua.AMB.Server` | `AmbNodeManager`, the asset registry `IAssetManagement` with its builders and handles, the configuration stores, and `AddAssetManagement()` / `ConfigureAssetManagement()` |
-| `Opc.Ua.AMB.Client` | `AmbClient` for discovery, identification, health alarms, maintenance, documentation links, locations and structure, plus `AddAssetManagementClient()` |
+| `Opc.Ua.AMB.Client` | `AmbClient` for discovery, identification, health alarms, maintenance, documentation links, locations, structure and cross-server traversal, plus `AddAssetManagementClient()` |
 
 The model package depends on the base namespace only. The server and client
 packages use the OPC 10000-100 Device Integration building blocks AMB applies
@@ -205,6 +206,7 @@ Without hosting, create an `AssetManagement` and pass it to
 | `MaxLocationLength` | 1024 | Longest value a client may write to a writable location Property |
 | `AuthorizeLinkEdit` | authenticated users | Who may change documentation links |
 | `UseFileSystemStores(directory)` | memory | Persist what clients configure below a directory |
+| `History` / `UseHistory(provider, kinds)` | disabled | Capture selected health and maintenance history through an existing Part 11 provider |
 
 ### Persistence
 
@@ -239,6 +241,7 @@ assets registered later as well.
 | `WithDeviceHealth(initial, deriveFromAlarms)` | `2:DeviceHealth`, with `2:IDeviceHealthType` where the type lacks it | 9.2 |
 | `WithHealthAlarm(name, kind, class)` | an OPC 10000-100 health alarm with root causes, and `2:DeviceHealth` following the alarms unless `WithDeviceHealth` sets it up | 9.2 to 9.4 |
 | `WithMaintenance(name, class, details, onStateChanged)` | a maintenance condition with its state machine | 12 |
+| `WithHistory(options)` | a per-asset history override; `null` disables AMB capture for this asset | 9.6, 12 |
 | `WithDocumentationLinks(links)` | the DocumentationLinks AddIn | 10.5 |
 | `WithVersionInformation(hardware, software, counter)` | revisions and `RevisionCounter` | 10.2 |
 | `WithLocation(kind, value, writable)` | `HierarchicalLocation`, `OperationalLocation` or `DigitalLocation` | 13.3.2, 13.4.2, 13.5 |
@@ -358,6 +361,180 @@ while its guard ran is refused. An
 example to switch a machine into its `Maintenance` operation mode, as the
 sample does.
 
+## History
+
+History is opt-in. `UseHistory` binds the asset owner's `DeviceHealth` variable
+and asset event notifier to the existing [Part 11 historian](HistoricalAccess.md);
+the AMB sidecar does not own those nodes or maintain a separate archive.
+Applications that leave `History` unset retain live-only behavior.
+
+```csharp
+using Opc.Ua.Server.Historian.InMemory;
+
+var historian = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+{
+    RawDataRetentionPeriod = TimeSpan.FromDays(1),
+    MaxSamplesPerNode = 100_000
+});
+
+services.AddOpcUa()
+    .AddServer(ConfigureServer)
+    .AddOpcUaDi()
+    .AddAssetManagement(options => options.UseHistory(historian));
+```
+
+`AssetHistoryKinds` selects `DeviceHealth`, `HealthEvents`,
+`MaintenanceEvents`, or `All`. Selection does not create missing health nodes
+or maintenance activities. On the asset builder,
+`WithHistory(new AssetHistoryOptions(provider, kinds))` overrides the registry
+setting; `WithHistory(null)` disables AMB capture for that asset without
+changing history its owner installed.
+The `WithHistory` extension requires the optional `IAssetHistoryBuilder`
+capability. Existing `IAssetBuilder` implementations remain valid; builders
+without that capability reject the call with `NotSupportedException`.
+The same options work with direct `new AssetManagement(options)` construction.
+For a provider resolved from DI, use
+`AddAssetManagement((services, options) => options.UseHistory(
+services.GetRequiredService<IHistorianProvider>()))`.
+
+The bundled memory provider is provisioned automatically for nodes that it does
+not already track. Existing per-node capabilities remain unchanged and must
+satisfy the requested capture kinds. Other providers
+must provision the stable health and asset NodeIds and report their per-node
+capabilities before asset registration. Raw capture requires
+`IHistorianDataProvider`, raw reads and inserts; event capture requires
+`IHistorianEventProvider`, event reads and inserts. A requested capability that
+the provider cannot supply aborts registration with `BadConfigurationError`;
+provider exceptions are reported rather than replaced with an empty archive.
+Existing owner-installed `DeviceHealth` capture is not attached a second time.
+Do not enable AMB capture on that variable as well.
+An existing exact-node provider binding also rejects registration without
+replacing it. Namespace and default provider fallbacks do not prevent AMB from
+installing its own exact-node binding. Disposal removes only the registration
+AMB installed. The scoped registration also restores the original history
+attributes, but only while AMB remains the exact-node owner. A later registration,
+including one using the same provider instance, retains its mapping and attributes
+when the older AMB binding is disposed. Replacement owners must register before
+setting their history attributes. Custom registries must implement the
+`IHistorianNodeBindingRegistry` overload taking `NodeState` and return an
+`IHistorianNodeBinding` that supports ownership-aware metadata release. AMB rejects
+a registration without that release capability before changing history metadata
+or provisioning the provider.
+An owner that overrides `GetHistorianProvider` must return this same provider
+for the bound nodes; node-manager overrides take precedence over the shared
+registry during service dispatch.
+An already-historizing asset notifier is also rejected to avoid duplicate
+event capture. With server-defined alarm types disabled, health and maintenance
+conditions can share one event type. If a selection cannot distinguish them by
+type, registration rejects it; select both event kinds or enable the
+server-defined AMB types.
+
+Registration installs `Historizing`, history-read access and
+`HasHistoricalConfiguration` on `DeviceHealth`, and event history-read access
+and historical event configuration on the asset notifier. AMB accepts an existing
+`HAConfiguration` only if its type, forward and inverse historical-configuration
+references, and provider-derived properties agree with the selected provider.
+A malformed or different configuration rejects registration with
+`BadConfigurationError`; its existing values and references remain unchanged.
+Additional configuration children that AMB cannot verify also reject registration.
+If registration fails after adding configuration, AMB removes its new children,
+references and any entries already published in the owner's node index before
+returning the error. Metadata indexing starts only after all requested history
+kinds have been accepted and completes before capture is attached or an initial
+record is emitted, so a rejected event binding cannot add a health sample to the
+archive.
+If cleanup also fails, an `AggregateException` retains the initiating error and
+the cleanup errors. AMB does not enable client HistoryUpdate access.
+The shared capture queues store value changes with
+their source timestamps and immutable event snapshots after live forwarding.
+Events include condition identity, EventId, time, class, acknowledgement and
+active state, root causes, and the AMB maintenance fields. Replanning a
+recurring condition retains earlier events and gives each new occurrence its
+own EventId. Historical reads never invoke condition refresh.
+
+History initialization awaits health notifications and condition event reporting.
+Provider reads and capture setup observe the registration cancellation token;
+notification dispatch uses `CancellationToken.None`, as the synchronous
+notification bridges do. A sink failure aborts registration and triggers binding
+cleanup; a failure while notifying a restored health timestamp restores its
+previous timestamp. The initial event snapshot is taken after condition change
+notifications complete and before the event is forwarded.
+Owner-defined conditions and notifier ancestors that customize synchronous
+`ReportEvent` must also override `ReportEventAsync` to customize initial history
+events. Async reporting does not invoke a synchronous override; existing
+synchronous reporting is unchanged.
+
+The provider controls retention and persistence. Configure health and event
+retention for the same period where the backend supports it (§9.6); AMB adds no
+retention default. The memory provider keeps event history for the server
+process lifetime; its raw-data retention is configured separately. It is not
+a persistent production backend. `UseFileSystemStores` persists asset
+configuration, not history. With a persistent historian and stable NodeIds,
+registration reads the latest archived health sample: if it agrees with the
+owner's current health, the source timestamp is preserved; otherwise the
+current health starts a new state at registration. This does not restore
+active alarms or resume maintenance work.
+
+Capture uses the shared historian's queue, error logging and shutdown drain.
+`AssetHistoryOptions.Capture` configures batching and queue limits.
+Unregistering an asset detaches its capture and history bindings, removes only
+the historical configuration and annotations AMB created, and restores access on
+pre-existing annotations. The owning node manager keeps the asset and any
+pre-existing historical configuration. A successor binding retains its metadata;
+otherwise metadata cleanup completes before another historian can bind that node,
+so re-registration can install configuration for a provider with different capabilities.
+Repeated disposal shares the first cleanup operation and reports its completed
+success or failure. Unregistration attempts the history, configurable-identifier,
+documentation, alias and location cleanup even when an earlier operation fails,
+and reports the collected errors. The server historian registry owns a
+registered provider's lifetime. Keep providers alive until server shutdown.
+
+The typed client delegates range direction, paging, early-disposal continuation
+release and cancellation to `HistoryClient`:
+
+```csharp
+AmbClient amb = session.AssetManagement(telemetry);
+DateTime end = DateTime.UtcNow;
+DateTime start = end.AddHours(-1);
+
+await foreach (AssetHealthHistoryValue sample in amb.ReadHealthHistoryAsync(
+    assetId, start, end, maxValuesPerNode: 100, cancellationToken: ct))
+{
+    Console.WriteLine($"{sample.Value.SourceTimestamp}: {sample.DeviceHealth} ({sample.Value.StatusCode})");
+}
+await foreach (AssetAlarmRecord alarm in amb.ReadHealthEventsAsync(
+    assetId, start, end, cancellationToken: ct))
+{
+    Console.WriteLine($"{alarm.Time}: {alarm.ConditionName}, {alarm.PotentialRootCauses.Count} root causes");
+}
+await foreach (MaintenanceActivityRecord activity in amb.ReadPastMaintenanceAsync(
+    assetId, start, end, cancellationToken: ct))
+{
+    Console.WriteLine($"{activity.Time}: {activity.State}, planned {activity.PlannedDate}");
+}
+```
+
+Event reads filter by `SourceNode` and maintenance condition class, including
+vendor subtypes. They use the asset as archive notifier unless a
+server-specific `notifier` is supplied. Failure to discover the complete
+maintenance class hierarchy aborts a history query instead of misclassifying
+events. Health samples retain their original `DataValue`; event records retain
+the original select-clause `Variant` values, including nulls and field
+StatusCodes, in `HistoryFields`. `GetHistoryEventFields()` gives their
+namespace-qualified field identities and ordering. The typed convenience
+properties do not replace this evidence.
+
+`GetHistoryCapabilitiesAsync` reports health and event history-read attributes
+as seen by the session. A missing `DeviceHealth` yields false for health history;
+an existing node's bad or uncertain attribute-read status remains an error,
+including when an explicit notifier cannot be read. This applies to both client
+constructors. Event access does not imply that every possible event
+type has been retained. A read without history access fails with
+`BadNotSupported`, denied access remains an error, and a supported range with
+no entries yields an empty stream. Pass `HistoryClientOptions` to bound decoded
+page sizes and total read duration. Node and provider authorization still
+applies to the actual HistoryRead request.
+
 ## Documentation links
 
 `WithDocumentationLinks` adds the AddIn `AMB:DocumentationLinks`:
@@ -455,8 +632,8 @@ client session, "in-process" that a test checks it inside the server only.
 | AMB Asset Health Status Alarms | Implemented | every asset has a health alarm | session |
 | AMB Asset Health Status Root Causes | Implemented | as Alarms; the alarm types implement `IRootCauseIndicationType` (`UseServerDefinedAlarmTypes`) | session |
 | AMB Asset Health Status Alarm Categories | Implemented | as Alarms; every alarm reports a condition class | session |
-| AMB Asset Health Tracking Overall Asset Status | Not implemented yet (history) | - | - |
-| AMB Asset Health Tracking Events | Not implemented yet (history) | - | - |
+| AMB Asset Health Tracking Overall Asset Status | Opt-in | at least one asset has DeviceHealth, and every asset that has it has a bound raw-read/capture provider | history integration |
+| AMB Asset Health Tracking Events | Opt-in | at least one asset has health alarms, and every asset that has them has a bound event-read/capture provider | history integration |
 | AMB Version Information | Implemented | every asset has a non-empty hardware or software revision and a RevisionCounter of at least 0 | session |
 | AMB Operation Counters | Inspected only; AMB defines no counters (§10.3) | an asset has `2:OperationCounters` with a counter | in-process |
 | AMB DocumentationLinks Base | Implemented | an asset has a link with a value | session |
@@ -466,7 +643,7 @@ client session, "in-process" that a test checks it inside the server only.
 | AMB Capabilities | Implemented | an asset has a Capabilities folder with an entry | in-process |
 | AMB Classification | Implemented | an asset has a `HasDictionaryEntry` reference to a dictionary entry object (OPC 10000-19) | session |
 | AMB Current and Future Maintenance Activities | Implemented | every asset has a maintenance activity, and the condition type implements `IMaintenanceEventType` (`UseServerDefinedAlarmTypes`) | session |
-| AMB Past Maintenance Activities | Not implemented yet (history) | - | - |
+| AMB Past Maintenance Activities | Opt-in | every asset has maintenance activities and bound event history; the condition types implement IMaintenanceEventType | history integration |
 | AMB Local Time | Implemented | an asset has `0:LocalTime` | session |
 | AMB Hierarchical Location Property | Implemented | an asset has the property | session |
 | AMB Hierarchical Location Objects | Implemented | an asset is contained in a hierarchical location | session |
@@ -492,11 +669,11 @@ whose only mandatory unit is AMB Client Asset Identification.
 | AMB Client Asset Discovery by ProductInstanceUri | Implemented | `FindAssetsAsync`, `EnumerateAssetsAsync` |
 | AMB Client Asset Discovery by AssetId | Implemented | `FindAssetsAsync`, `EnumerateAssetsAsync` |
 | AMB Client Asset Health Status | Implemented | `ReadDeviceHealthAsync`, `ReadHealthAlarmsAsync`, `ObserveHealthAlarmsAsync` |
-| AMB Client Asset Health Tracking Status | Not implemented yet (history) | - |
+| AMB Client Asset Health Tracking Status | Implemented | `ReadHealthHistoryAsync`, `ReadHealthEventsAsync` |
 | AMB Client Current and Future Maintenance Activities | Implemented | `ReadMaintenanceActivitiesAsync`, `ObserveMaintenanceAsync` |
-| AMB Client Past Maintenance Activities | Not implemented yet (history) | - |
+| AMB Client Past Maintenance Activities | Implemented | `ReadPastMaintenanceAsync` |
 | AMB Client sub-assets | Implemented | `EnumerateSubAssetsAsync` |
-| AMB Client sub-assets remote | Partly: an asset of another server is reported, not followed | `EnumerateSubAssetsAsync` |
+| AMB Client sub-assets remote | Implemented | `EnumerateSubAssetsAcrossServersAsync` |
 
 ## Client reference
 
@@ -544,6 +721,40 @@ options directly to the three-argument `AmbClientFactory` constructor. Without
 options, the existing factory and builder APIs retain tolerant behavior.
 Invalid limits are rejected before the factory opens a session.
 
+`EnumerateSubAssetsAsync` keeps its existing single-session behavior: it
+reports a remote reference without following it. To follow the hierarchy
+across servers, configure a resolver and call the explicit cross-server
+operation on a client constructed with `AmbClientOptions`:
+
+```csharp
+Func<string, CancellationToken, Task<ManagedSession>> resolveRemoteSession =
+    ResolveRemoteSessionAsync;
+var amb = new AmbClient(session, telemetry, new AmbClientOptions
+{
+    MaximumBrowseReferences = 1024,
+    MaximumBrowsePages = 128,
+    RemoteSessionResolver = resolveRemoteSession
+});
+
+await foreach (AssetSubAssetReference subAsset in amb
+    .EnumerateSubAssetsAcrossServersAsync(assetId, cancellationToken))
+{
+    Console.WriteLine($"{subAsset.ServerUri}: {subAsset.NodeId}");
+}
+```
+
+The resolver receives the referenced server's application URI and returns a
+borrowed `ManagedSession`; `AmbClient` does not close or dispose that session.
+The application supplies endpoint discovery, trust, and credentials. The
+returned `AssetSubAssetReference` pairs the owning server URI with an
+`ExpandedNodeId` that carries its namespace URI, so a client does not mistake
+a remote namespace index for one in its original session. The operation shares
+the configured reference budget and the depth limit across every server. The
+resolver is invoked only when traversal encounters a remote link; if that link
+has no server URI, no resolver is configured, resolution fails, the session
+belongs to another server, or the namespace cannot be mapped, the stream fails
+rather than completing with a truncated hierarchy.
+
 Strict traversal limits apply while collecting pages and walking the asset
 graph. Reads are batched, and returned records expose source identity, browse
 path and the original `DataValue` in `Values`. Non-Good and wrongly typed reads
@@ -575,8 +786,9 @@ for the prepared, owned-simulation workflow.
 | Identification | `ReadIdentificationAsync` (on the asset, then in `2:Identification`; empty values count as not set), `WriteAssetIdAsync` |
 | Health | `ReadDeviceHealthAsync`, `ReadHealthAlarmsAsync`, `ObserveHealthAlarmsAsync`, `AcknowledgeAsync` |
 | Maintenance | `ReadMaintenanceActivitiesAsync`, `ObserveMaintenanceAsync`, `AcknowledgeAsync` |
+| History | `GetHistoryCapabilitiesAsync`, `ReadHealthHistoryAsync`, `ReadHealthEventsAsync`, `ReadPastMaintenanceAsync`, `GetHistoryEventFields` |
 | Documentation links | `ReadDocumentationLinksAsync` (with `IsWritable` from the `UserAccessLevel` and `IsUserLink` from the `UserLink` Property), `AddDocumentationLinkAsync`, `RemoveDocumentationLinkAsync`, `WriteDocumentationLinkAsync` |
-| Locations and structure | `BrowseLocationsAsync`, `ReadLocationsOfAssetAsync`, `ReadContextAsync`, `ReadEntriesAsync`, `EnumerateSubAssetsAsync`, `ReadRelationsAsync` |
+| Locations and structure | `BrowseLocationsAsync`, `ReadLocationsOfAssetAsync`, `ReadContextAsync`, `ReadEntriesAsync`, `EnumerateSubAssetsAsync`, `EnumerateSubAssetsAcrossServersAsync`, `ReadRelationsAsync` |
 | Snapshot | `ReadAssetAsync` |
 
 The observe calls need an `IStreamingSubscription`; without one they use the
@@ -598,7 +810,7 @@ read as not set.
 | Sample | Shows |
 | --- | --- |
 | [AmbServer](../samples/AMB/AmbServer) | A cooling pump and a flow sensor (DI devices) and a hydraulic press (Machinery machine) registered as assets, with every building block, file-system persistence, and a simulation of alarms and maintenance; the press switches into its Maintenance operation mode while it is serviced |
-| [AmbClient](../samples/AMB/AmbClient) | Discovery, snapshots of every asset, the location hierarchies, AddLink and RemoveLink, writing an AssetId, and streams of health alarms and maintenance activities |
+| [AmbClient](../samples/AMB/AmbClient) | Discovery, snapshots of every asset, location hierarchies, AddLink and RemoveLink, writing an AssetId, streams of health alarms and maintenance activities, and explicitly requested cross-server sub-asset traversal |
 
 See [samples/AMB](../samples/AMB/README.md) for how to run them.
 
@@ -623,7 +835,8 @@ dotnet test tests/Opc.Ua.AMB.Tests
 | `HealthAlarmTests`, `MaintenanceActivityTests`, `DocumentationLinksTests`, `AssetStructureTests` | The building blocks in-process |
 | `Amb*SessionTests` | Each area over a real client session |
 | `AmbClientTests` | The client without a server |
-| `AmbClientServerE2eTests` | `AmbClient` against a hosted server, a restart with persistence, and a Machinery machine as an asset |
+| `AmbBoundedClientTests` | Strict reads and traversal, including cross-server namespace mapping, shared limits, cycles, resolver failures and borrowed-session ownership |
+| `AmbClientServerE2eTests` | `AmbClient` against hosted servers, cross-server sub-assets, a restart with persistence, and a Machinery machine as an asset |
 
 ## Troubleshooting
 
@@ -646,11 +859,11 @@ dotnet test tests/Opc.Ua.AMB.Tests
 
 | Topic | Behaviour | Section |
 | --- | --- | --- |
-| Source timestamp of `DeviceHealth` after a restart | The timestamp marks when the asset entered its state while the server runs; after a restart it is the time of the restart, since the state is not persisted | 9.2 ("should") |
+| Source timestamp of `DeviceHealth` after a restart | Preserved when an opted-in historian retains the last matching state under the same NodeId; otherwise the timestamp starts at registration | 9.2 ("should") |
 | Optional members of a maintenance activity | Once published, a member keeps its property; `UpdateAsync` changes its value but does not remove it | 12.2 |
-| `2:PatchIdentifiers` | `WithVersionInformation` does not create it; an asset that publishes it keeps it | 10.2 |
+| `2:PatchIdentifiers` | `WithVersionInformation` does not create this optional DI property; AMB Version Information does not require it | 10.2 |
 | Location objects | An asset is contained by the deepest level of each path it is put into, not by the levels above | 13.3.3.1 |
-| Event history | "AMB Asset Health Tracking" and "AMB Past Maintenance Activities" need a historian and are left for a later change | Table 54 |
+| History backend | Opt-in Part 11 providers supply retention, availability and persistence; the memory provider loses its archive on restart | 9.6, 12 |
 
 ## Model provenance
 

@@ -9,6 +9,7 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorReleaseCandidate" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorPublicDataTypeExtensions" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitObjectTypeProxies" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorObjectTypeProxyMethodsWithStatus" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorObjectTypeProxyNamespace" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorUseTypeDefinitionModellingRules" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorEmitNodeSetNodesOnly" />
@@ -17,6 +18,7 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitFluentApi" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorFluentAccessorsOnly" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorsOnly" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorsInternal" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorNamespace" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorClassName" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitEventRecords" />

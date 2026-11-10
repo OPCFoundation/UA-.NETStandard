@@ -162,6 +162,32 @@ namespace Opc.Ua.Server.Historian.InMemory
         }
 
         /// <summary>
+        /// Provisions an unregistered node without replacing existing capabilities or archives.
+        /// The check and registration are performed together under the provider's synchronization.
+        /// </summary>
+        /// <param name="nodeId">The node to provision.</param>
+        /// <param name="capabilities">The initial capabilities, or the configured default.</param>
+        /// <returns>Whether the node was newly provisioned.</returns>
+        /// <exception cref="ArgumentException"><paramref name="nodeId"/> is null.</exception>
+        public bool TryRegister(NodeId nodeId, HistorianNodeCapabilities? capabilities = null)
+        {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
+            }
+            lock (m_lock)
+            {
+                if (m_capabilities.ContainsKey(nodeId) || m_archives.ContainsKey(nodeId))
+                {
+                    return false;
+                }
+                _ = GetOrCreateArchive(nodeId);
+                m_capabilities[nodeId] = capabilities ?? m_options.DefaultCapabilities;
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Pre-registers a variable that stores StructuredHistoryData
         /// (Part 11 §6.8.3). Entries of the node are identified by the
         /// composite <see cref="HistoricalValueKey"/> built from the source

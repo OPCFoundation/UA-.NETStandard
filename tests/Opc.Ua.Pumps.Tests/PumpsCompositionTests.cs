@@ -104,7 +104,7 @@ namespace Opc.Ua.Pumps.Tests
             var name = new QualifiedName("Feed", runtime.InstanceNamespaceIndex);
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
-            Assert.That(async () => await runtime.CreatePumpAsync(name, cancelled.Token),
+            await Assert.ThatAsync(async () => await runtime.CreatePumpAsync(name, cancelled.Token),
                 Throws.InstanceOf<OperationCanceledException>());
             await runtime.CreatePumpAsync(name);
             ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
@@ -135,6 +135,25 @@ namespace Opc.Ua.Pumps.Tests
             ServiceResultException error = Assert.Throws<ServiceResultException>(
                 () => fixture.Manager.CreatePumpsRuntime())!;
             Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+        }
+
+        /// <summary>
+        /// The stock owner aggregates native Pumps units and withdraws them when its runtime stops.
+        /// </summary>
+        [Test]
+        public async Task ComposedOwnerPublishesOnlyItsLivePumpsContributionAsync()
+        {
+            await using var fixture = new ComposedOwner();
+            await fixture.StartAsync();
+            PumpsRuntime runtime = fixture.Manager.CreatePumpsRuntime();
+            var unit = new QualifiedName("Base System", runtime.NamespaceIndices.Pumps);
+            Assert.That(fixture.Manager.ConformanceUnits.ToArray(), Does.Not.Contain(unit));
+            await runtime.CreatePumpAsync(new QualifiedName("Conformance", runtime.InstanceNamespaceIndex));
+            Assert.That(fixture.Manager.ConformanceUnits.ToArray(), Does.Contain(unit));
+            Assert.That(fixture.Manager.ServerProfiles.ToArray(),
+                Does.Not.Contain("http://opcfoundation.org/UA-Profile/Pumps/Server/Advanced"));
+            await runtime.DisposeAsync();
+            Assert.That(fixture.Manager.ConformanceUnits.ToArray(), Does.Not.Contain(unit));
         }
 
         /// <summary>

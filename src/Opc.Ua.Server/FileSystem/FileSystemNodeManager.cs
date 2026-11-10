@@ -88,6 +88,16 @@ namespace Opc.Ua.Server.FileSystem
         public IFileSystemProvider Provider { get; }
 
         /// <summary>
+        /// Gets or sets the lifecycle wait limit for subsequently opened files. Unfinished operations keep
+        /// their writer reservation until the provider operation and stream cleanup have actually finished.
+        /// </summary>
+        public TimeSpan CloseTimeout
+        {
+            get => m_closeTimeout;
+            set => m_closeTimeout = FileHandle.ValidateCloseTimeout(value);
+        }
+
+        /// <summary>
         /// Namespace index assigned to this provider's nodes.
         /// </summary>
         public new ushort NamespaceIndex { get; }
@@ -267,19 +277,19 @@ namespace Opc.Ua.Server.FileSystem
             lock (m_lock)
             {
                 handles = [.. m_handles.Values];
-                m_handles.Clear();
             }
 
+            await CloseHandlesAsync(handles).ConfigureAwait(false);
             foreach (FileHandle handle in handles)
             {
-                handle.Dispose();
+                ReleaseHandle(handle);
             }
 
             await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public override ValueTask SessionClosingAsync(
+        public override async ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
             bool deleteSubscriptions,
@@ -291,17 +301,28 @@ namespace Opc.Ua.Server.FileSystem
                 handles = [.. m_handles.Values];
             }
 
+            List<Task> cleanup = [];
             foreach (FileHandle handle in handles)
             {
-                handle.CloseSession(sessionId);
-                ReleaseHandle(handle);
+                cleanup.Add(handle.CloseSessionAsync(sessionId).AsTask());
             }
-
-            return base.SessionClosingAsync(
-                context,
-                sessionId,
-                deleteSubscriptions,
-                cancellationToken);
+            cleanup.Add(base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken).AsTask());
+            Task all = Task.WhenAll(cleanup);
+            try
+            {
+                await all.ConfigureAwait(false);
+            }
+            catch
+            {
+                throw all.Exception ?? new AggregateException("Session file cleanup failed.");
+            }
+            finally
+            {
+                foreach (FileHandle handle in handles)
+                {
+                    ReleaseHandle(handle);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -314,27 +335,47 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     m_fileSystemDisposed = true;
                     handles = [.. m_handles.Values];
-                    m_handles.Clear();
                 }
 
                 foreach (FileHandle handle in handles)
                 {
-                    handle.Dispose();
+                    _ = handle.RequestShutdown();
                 }
             }
             base.Dispose(disposing);
         }
 
         /// <inheritdoc/>
+        public override async ValueTask DisposeAsync()
+        {
+            Task cleanup = base.DisposeAsync().AsTask();
+            if (await Task.WhenAny(cleanup, Task.Delay(CloseTimeout)).ConfigureAwait(false) == cleanup)
+            {
+                await cleanup.ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         protected override async ValueTask DisposeAsyncCore()
         {
             await WaitForCursorCleanupsAsync().ConfigureAwait(false);
-            await base.DisposeAsyncCore().ConfigureAwait(false);
+            FileHandle[] handles;
+            lock (m_lock)
+            {
+                handles = [.. m_handles.Values];
+            }
+            try
+            {
+                await CloseHandlesAsync(handles, waitUntilFinished: true).ConfigureAwait(false);
+            }
+            finally
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
         }
 
         /// <summary>
-        /// Waits for the cursor cleanup tasks recorded by the host, including tasks added while an
-        /// earlier batch is being awaited.
+        /// Waits for recorded cursor cleanup tasks, including tasks added while an earlier batch is awaited.
         /// </summary>
         private async ValueTask WaitForCursorCleanupsAsync()
         {
@@ -354,6 +395,51 @@ namespace Opc.Ua.Server.FileSystem
                 await Task.WhenAll(pending).ConfigureAwait(false);
             }
         }
+
+        private static async ValueTask CloseHandlesAsync(FileHandle[] handles, bool waitUntilFinished = false)
+        {
+            List<Task> cleanup = [];
+            foreach (FileHandle handle in handles)
+            {
+                if (waitUntilFinished)
+                {
+                    cleanup.Add(handle.RequestShutdown());
+                }
+                else
+                {
+                    cleanup.Add(handle.DisposeAsync().AsTask());
+                }
+            }
+            Task all = Task.WhenAll(cleanup);
+            try
+            {
+                await all.ConfigureAwait(false);
+            }
+            catch
+            {
+                throw all.Exception ?? new AggregateException("File cleanup failed.");
+            }
+        }
+
+        private bool IsSessionTerminated(NodeId sessionId)
+        {
+            ISessionManager? sessions = Server.SessionManager;
+            if (sessions == null)
+            {
+                return false;
+            }
+            foreach (ISession session in sessions.GetSessions())
+            {
+                if (session.Id == sessionId)
+                {
+                    return SessionTermination.IsClosingOrClaimed(session) || session.HasExpired;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Bounds lifecycle waiting without shortening provider operation ownership.</summary>
+        private TimeSpan m_closeTimeout = TimeSpan.FromSeconds(10);
 
         /// <inheritdoc/>
         protected override async ValueTask<NodeState> ValidateNodeAsync(
@@ -538,7 +624,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return handle;
                 }
-                handle = new FileHandle(Provider, providerPath);
+                handle = new FileHandle(Provider, providerPath, IsSessionTerminated) { CloseTimeout = CloseTimeout };
                 FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                 m_handles.Add(identity, handle);
                 return handle;

@@ -35,6 +35,12 @@ dotnet run --project samples\Redundancy\RedundantClient\RedundantClient.csproj -
 
 The workflow first writes a distinctive raw-history marker and reads it back through the active replica. When the client prints `HISTORY: portable continuations ready`, stop the active server. The managed session uses token-reuse takeover, resumes the raw, event, and processed cursors without duplicates or gaps, reads the same marker through the promoted replica, verifies that the promoted writer adds new shared raw and event history, and prints `HISTORY HA OK`.
 
+The configured pause is a minimum delay, not evidence that failover has completed.
+After it, the client waits up to 90 seconds for an observed connection interruption
+and reconnection before resuming the cursors. This also applies when the pause is
+zero. If no failover completes, the scenario fails instead of reporting the original
+server as a promoted replica.
+
 See [HighAvailability.md](../../../docs/HighAvailability.md) for the redundancy design and the [RedundantServer](../RedundantServer/README.md) sample for the server side.
 
 For the NodeId identity workflow, run the client with `--identity` against a

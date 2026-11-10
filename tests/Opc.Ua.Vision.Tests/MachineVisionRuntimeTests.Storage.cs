@@ -305,6 +305,14 @@ namespace Opc.Ua.Vision.Tests
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             var sessions = new Mock<ISessionManager>();
+            NodeId owner = new(1u);
+            NodeId other = new(2u);
+            var closedSession = new Mock<Opc.Ua.Server.ISession>();
+            closedSession.SetupGet(session => session.Id).Returns(owner);
+            var otherSession = new Mock<Opc.Ua.Server.ISession>();
+            otherSession.SetupGet(session => session.Id).Returns(other);
+            var liveSessions = new List<Opc.Ua.Server.ISession> { closedSession.Object, otherSession.Object };
+            sessions.Setup(manager => manager.GetSessions()).Returns(() => liveSessions);
             ServerSystemContext context = CreateFileBindingContext(fixture, sessions.Object);
             var file = new FileState(null);
             file.Create(context, new NodeId("session-file", fixture.Manager.NamespaceIndex),
@@ -319,8 +327,6 @@ namespace Opc.Ua.Vision.Tests
                     return default;
                 },
                 commitOnClose: true);
-            NodeId owner = new(1u);
-            NodeId other = new(2u);
             uint first = await binding.OpenAsync(owner, writer ? (byte)6 : (byte)1).ConfigureAwait(false);
             uint second = 0;
             if (writer)
@@ -333,8 +339,7 @@ namespace Opc.Ua.Vision.Tests
                 second = await binding.OpenAsync(other, 1).ConfigureAwait(false);
             }
 
-            var closedSession = new Mock<Opc.Ua.Server.ISession>();
-            closedSession.SetupGet(session => session.Id).Returns(owner);
+            liveSessions.Remove(closedSession.Object);
             sessions.Raise(manager => manager.SessionClosing += null!,
                 closedSession.Object, SessionEventReason.Closing);
 

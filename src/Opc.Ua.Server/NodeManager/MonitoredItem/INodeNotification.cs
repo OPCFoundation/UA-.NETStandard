@@ -78,12 +78,46 @@ namespace Opc.Ua.Server
         public NodeStateChangeMasks Changes { get; set; }
 
         /// <summary>
-        /// Pre-read raw <see cref="DataValue"/>s keyed by attribute id, captured without
-        /// any index range or data encoding applied. Each consumer (monitored item) applies
-        /// its own <see cref="IDataChangeMonitoredItem2.IndexRange"/> and
+        /// Gets or sets whether <see cref="ValueSnapshot"/> holds the Value attribute read for
+        /// this change.
+        /// </summary>
+        public bool HasValueSnapshot { get; set; }
+
+        /// <summary>
+        /// The pre-read raw Value attribute, captured without any index range or data encoding
+        /// applied. Each consumer (monitored item) applies its own
+        /// <see cref="IDataChangeMonitoredItem2.IndexRange"/> and
         /// <see cref="IDataChangeMonitoredItem2.DataEncoding"/> at queue time.
         /// </summary>
-        public Dictionary<uint, DataValue> AttributeSnapshots { get; set; } = [];
+        public DataValue ValueSnapshot { get; set; }
+
+        /// <summary>
+        /// Pre-read raw <see cref="DataValue"/>s of the other attributes keyed by attribute id,
+        /// captured like <see cref="ValueSnapshot"/>; <c>null</c> when only the Value attribute
+        /// was read.
+        /// </summary>
+        public Dictionary<uint, DataValue>? AttributeSnapshots { get; set; }
+
+        /// <summary>
+        /// Gets the raw value captured for an attribute.
+        /// </summary>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="value">The captured value.</param>
+        /// <returns><c>true</c> when the attribute was read for this change.</returns>
+        public bool TryGetAttributeSnapshot(uint attributeId, out DataValue value)
+        {
+            if (attributeId == Attributes.Value)
+            {
+                value = ValueSnapshot;
+                return HasValueSnapshot;
+            }
+            if (AttributeSnapshots != null)
+            {
+                return AttributeSnapshots.TryGetValue(attributeId, out value);
+            }
+            value = default;
+            return false;
+        }
 
         /// <summary>
         /// Value snapshots read at enqueue time in the context of each Value monitored item's

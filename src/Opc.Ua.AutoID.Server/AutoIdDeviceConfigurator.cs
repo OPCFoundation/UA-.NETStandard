@@ -63,6 +63,24 @@ namespace Opc.Ua.AutoID.Server
             device.LastScanData!.StatusCode = StatusCodes.UncertainInitialValue;
             device.LastScanTimestamp!.StatusCode = StatusCodes.UncertainInitialValue;
 
+            if (builder.Parameters != null)
+            {
+                AutoIdReader.ConfigureParameters(context, device, builder.Parameters,
+                    ((IAutoIdScanParametersProvider)provider).SupportedCodeTypes, builder.HasScanControl,
+                    builder.ScanWritePermissions, builder.ParameterCapabilities);
+                builder.ConfigureParameters?.Invoke(context, device.RuntimeParameters!);
+            }
+            if (builder.HasDiagnostics)
+            {
+                AutoIdReader.ConfigureDiagnostics(context, device);
+            }
+            AutoIdReader.ConfigureImages(context, device, builder.Images);
+            if (builder.ConfigureIOData != null)
+            {
+                device.AddIOData(context);
+                builder.ConfigureIOData(context, device.IOData!);
+            }
+
             if (builder.DeviceInfo != null)
             {
                 device.AddDeviceInfo(context);
@@ -92,6 +110,9 @@ namespace Opc.Ua.AutoID.Server
                 case OcrReaderDeviceState ocr when scan:
                     ocr.AddScan(context);
                     break;
+                case OpticalVerifierDeviceState verifier when scan:
+                    verifier.AddScan(context);
+                    break;
                 case OpticalReaderDeviceState optical when scan:
                     optical.AddScan(context);
                     break;
@@ -112,6 +133,8 @@ namespace Opc.Ua.AutoID.Server
                 rfid.AddScan(context);
             }
             rfid.AddLastScanAntenna(context).AddLastScanRSSI(context);
+            rfid.LastScanAntenna!.StatusCode = StatusCodes.UncertainInitialValue;
+            rfid.LastScanRSSI!.StatusCode = StatusCodes.UncertainInitialValue;
             if (builder.HasAntennaNames)
             {
                 rfid.AddAntennaNames(context);

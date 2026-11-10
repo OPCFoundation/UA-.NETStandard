@@ -116,20 +116,54 @@ namespace Opc.Ua.AMB.Server
         /// </summary>
         internal async ValueTask OnAssetUnregisteredAsync(AssetHandle handle, CancellationToken cancellationToken)
         {
+            var failures = new List<Exception>();
             await m_aliasLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await WithdrawAsync(handle, handle.ProductInstanceUriAlias, cancellationToken).ConfigureAwait(false);
-                handle.ProductInstanceUriAlias = null;
-                await WithdrawAsync(handle, handle.AssetIdAlias, cancellationToken).ConfigureAwait(false);
-                handle.AssetIdAlias = null;
+                try
+                {
+                    await WithdrawAsync(handle, handle.ProductInstanceUriAlias, cancellationToken)
+                        .ConfigureAwait(false);
+                    handle.ProductInstanceUriAlias = null;
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+                try
+                {
+                    await WithdrawAsync(handle, handle.AssetIdAlias, cancellationToken).ConfigureAwait(false);
+                    handle.AssetIdAlias = null;
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
             }
             finally
             {
                 m_aliasLock.Release();
             }
-            await ReleaseLocationsAsync(handle, cancellationToken).ConfigureAwait(false);
-            await OnAssetsChangedAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await ReleaseLocationsAsync(handle, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                await OnAssetsChangedAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Asset discovery cleanup failed.", failures);
+            }
         }
 
         /// <summary>

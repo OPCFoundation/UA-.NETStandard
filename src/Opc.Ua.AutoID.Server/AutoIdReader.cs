@@ -54,6 +54,14 @@ namespace Opc.Ua.AutoID.Server
     /// and 6.1.3.5). State transitions happen under a lock; provider calls, node updates that
     /// notify subscribers and events are made after the lock is released.
     /// </para>
+    /// <para>
+    /// Reader operations await NodeState's asynchronous notification hooks. A custom
+    /// device or parent that overrides only <see cref="NodeState.ReportEvent"/> will not receive
+    /// events through that override; it must also override <see cref="NodeState.ReportEventAsync"/>.
+    /// The reader keeps an operation active until its state-change and event sinks finish. A sink
+    /// must not await this reader's <see cref="DisposeAsync"/> or another operation serialized behind
+    /// the current callback; those operations wait for the callback to return.
+    /// </para>
     /// </remarks>
     public sealed partial class AutoIdReader : IAutoIdReaderSink, IAsyncDisposable
     {
@@ -62,7 +70,9 @@ namespace Opc.Ua.AutoID.Server
             AutoIdDeviceState device,
             IAutoIdReaderProvider provider,
             bool ownsProvider,
-            bool hasDeviceLocation)
+            bool hasDeviceLocation,
+            AutoIdScanParameters? parameters = null,
+            AutoIdReaderParameterCapabilities? parameterCapabilities = null)
         {
             Runtime = runtime;
             Device = device;
@@ -74,6 +84,8 @@ namespace Opc.Ua.AutoID.Server
             m_asyncProvider = provider as IAutoIdAsyncScanProvider;
             m_rfidProvider = provider as IAutoIdRfidProvider;
             m_rtlsProvider = provider as IAutoIdRtlsProvider;
+            m_parameters = parameters;
+            m_parameterCapabilities = parameterCapabilities;
         }
 
         /// <summary>
@@ -144,39 +156,45 @@ namespace Opc.Ua.AutoID.Server
         /// <remarks>
         /// A faulty device reports <c>Error_1</c> and fails new <c>Scan</c> and <c>ScanStart</c>
         /// calls with the status <c>DEVICE_NOT_READY_17</c>; an asynchronous scan that is active
-        /// is stopped. Repairing it returns <c>Idle_0</c>.
+        /// is asked to stop. If stopping fails, the device retains its error status and active scan.
+        /// Repairing it restores the status of the current activity.
         /// </remarks>
         /// <param name="faulted">Whether the device has an error condition.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
         public async ValueTask SetFaultedAsync(bool faulted, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
-            bool stopAsync = false;
-            lock (m_lock)
+            if (!m_operations.TryEnter())
             {
-                if (m_faulted == faulted)
-                {
-                    return;
-                }
-                m_faulted = faulted;
-                if (faulted && m_activity == ScanActivity.Asynchronous)
-                {
-                    stopAsync = true;
-                }
-                else
-                {
-                    UpdateStatusLocked();
-                }
+                throw new ObjectDisposedException(nameof(AutoIdReader));
             }
-            PublishStatus();
-            if (stopAsync)
+            try
             {
-                await StopAsynchronousScanAsync(NodeId.Null, cancellationToken).ConfigureAwait(false);
+                bool stopAsync = false;
                 lock (m_lock)
                 {
+                    if (m_faulted == faulted)
+                    {
+                        return;
+                    }
+                    m_faulted = faulted;
+                    stopAsync = faulted && m_activity == ScanActivity.Asynchronous;
                     UpdateStatusLocked();
                 }
-                PublishStatus();
+                await PublishStatusAsync().ConfigureAwait(false);
+                if (stopAsync)
+                {
+                    await StopAsynchronousScanAsync(NodeId.Null, cancellationToken).ConfigureAwait(false);
+                    lock (m_lock)
+                    {
+                        UpdateStatusLocked();
+                    }
+                    await PublishStatusAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                m_operations.Exit();
             }
         }
 
@@ -258,7 +276,7 @@ namespace Opc.Ua.AutoID.Server
                     m_generation++;
                     UpdateStatusLocked();
                 }
-                PublishStatus();
+                await PublishStatusAsync().ConfigureAwait(false);
                 if (stopScan && m_asyncProvider != null)
                 {
                     await TryAsync(
@@ -274,6 +292,10 @@ namespace Opc.Ua.AutoID.Server
                 m_controlGate.Release();
             }
             await drained.ConfigureAwait(false);
+            foreach (var image in m_images.Values)
+            {
+                await TryAsync(image.Binding.DisposeAsync, "disposing an image binding").ConfigureAwait(false);
+            }
             if (m_ownsProvider)
             {
                 await DisposeProviderAsync().ConfigureAwait(false);
@@ -352,14 +374,30 @@ namespace Opc.Ua.AutoID.Server
                 Device.DeviceStatus.Value = m_status;
                 Device.DeviceStatus.Timestamp = DateTimeUtc.Now;
             }
+            if (Device.ScanActive != null)
+            {
+                Device.ScanActive.Value = m_activity != ScanActivity.Idle;
+                Device.ScanActive.Timestamp = DateTimeUtc.Now;
+            }
         }
 
         /// <summary>
         /// Notifies subscribers of the status; called after the lock is released.
         /// </summary>
-        private void PublishStatus()
+        private async ValueTask PublishStatusAsync()
         {
-            Device.DeviceStatus?.ClearChangeMasks(Runtime.SystemContext, false);
+            if (Device.DeviceStatus != null)
+            {
+                await Device.DeviceStatus
+                    .ClearChangeMasksAsync(Runtime.SystemContext, false)
+                    .ConfigureAwait(false);
+            }
+            if (Device.ScanActive != null)
+            {
+                await Device.ScanActive
+                    .ClearChangeMasksAsync(Runtime.SystemContext, false)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -436,5 +474,34 @@ namespace Opc.Ua.AutoID.Server
             string? name,
             string? type,
             string expected);
+
+        /// <summary>
+        /// Reports an unavailable formatted diagnostic without logging the user-data payload or exception text.
+        /// </summary>
+        [LoggerMessage(
+            EventId = AutoIdServerEventIds.AutoIdReader + 3,
+            Level = LogLevel.Error,
+            Message = "Diagnostic RWData formatting failed with status '{StatusCode}'; RWData is unavailable.")]
+        public static partial void DiagnosticFormattingFailed(this ILogger logger, StatusCode statusCode);
+
+        /// <summary>
+        /// Reports a rejected provider commit without exposing provider exception text.
+        /// </summary>
+        [LoggerMessage(
+            EventId = AutoIdServerEventIds.AutoIdReader + 4,
+            Level = LogLevel.Error,
+            Message = "The parameter provider failed to commit with status '{StatusCode}'; " +
+                "published settings are unchanged.")]
+        public static partial void ParameterCommitFailed(this ILogger logger, StatusCode statusCode);
+
+        /// <summary>
+        /// Reports a notification failure after a parameter write has already been applied.
+        /// </summary>
+        [LoggerMessage(
+            EventId = AutoIdServerEventIds.AutoIdReader + 5,
+            Level = LogLevel.Error,
+            Message = "Parameter change notification failed with status '{StatusCode}'; " +
+                "the parameter write remains committed.")]
+        public static partial void ParameterNotificationFailed(this ILogger logger, StatusCode statusCode);
     }
 }

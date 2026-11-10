@@ -34,12 +34,13 @@ using System.Threading.Tasks;
 namespace Opc.Ua.AutoID.Server
 {
     /// <summary>
-    /// Optional provider policy classifying tag memory safe for broadcast access-event telemetry.
+    /// Optional provider policy classifying tag memory for access-event and diagnostic projections.
     /// </summary>
     /// <remarks>
     /// Implement on the injected RFID provider. Without this policy, generic ReadTag and WriteTag
-    /// events omit data while direct method results remain unchanged. Never approve credentials
-    /// or unknown memory layouts. EPC reserved password bytes are always excluded by the runtime.
+    /// events and Diagnostics/LastAccess omit data while direct method results remain unchanged.
+    /// Never approve credentials or unknown memory layouts. EPC reserved password bytes are always
+    /// excluded by the runtime.
     /// </remarks>
     public interface IAutoIdRfidAccessEventPolicy
     {

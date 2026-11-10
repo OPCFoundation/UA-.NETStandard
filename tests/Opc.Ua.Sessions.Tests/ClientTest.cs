@@ -482,11 +482,18 @@ namespace Opc.Ua.Sessions.Tests
                 ServiceResultException sre = await Assert
                     .ThrowsAsync<ServiceResultException>(() =>
                         client.GetEndpointsAsync(profileUris));
-                // race condition, if socket closed is detected before the error was returned,
-                // client may report channel closed instead of security policy rejected
-                if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
+                // Race: the server rejects the oversized request and closes the socket.
+                // If the close is seen while the client is still writing the multi-chunk
+                // request, the client reports a transport error instead of the rejection.
+                // The failed socket send surfaces as BadTcpInternalError
+                // ("Unexpected error during write operation", e.g. EPIPE/ECONNRESET on
+                // macOS); a closed transport or channel surfaces as one of the others.
+                if (sre.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    sre.StatusCode == StatusCodes.BadConnectionClosed ||
+                    sre.StatusCode == StatusCodes.BadNotConnected ||
+                    sre.StatusCode == StatusCodes.BadTcpInternalError)
                 {
-                    Assert.Inconclusive($"Unexpected Status: {sre}");
+                    Assert.Inconclusive($"Socket closed before the rejection was read: {sre}");
                 }
                 Assert.That(
                     sre.StatusCode,

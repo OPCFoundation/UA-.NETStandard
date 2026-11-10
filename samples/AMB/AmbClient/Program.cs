@@ -55,11 +55,21 @@ Console.CancelKeyPress += (_, eventArgs) =>
 CancellationToken ct = cancellation.Token;
 
 SampleSession connection = await SampleSession.ConnectAsync(options, telemetry, ct).ConfigureAwait(false);
-await using ConfiguredAsyncDisposable _ = connection.ConfigureAwait(false);
+await using ConfiguredAsyncDisposable connectionLifetime = connection.ConfigureAwait(false);
+var remoteSessionResolver = new SampleRemoteSessionResolver(options, telemetry);
+await using ConfiguredAsyncDisposable remoteSessionLifetime = remoteSessionResolver.ConfigureAwait(false);
 
 // session.AssetManagement(...) also teaches the session the AMB structures,
 // so root causes and maintenance details decode into their generated types.
-AmbClient amb = connection.Session.AssetManagement(telemetry);
+AmbClient amb = options.FollowRemoteSubAssets
+    ? new AmbClient(
+        connection.Session,
+        telemetry,
+        new Opc.Ua.AMB.Client.AmbClientOptions
+        {
+            RemoteSessionResolver = remoteSessionResolver.ResolveAsync
+        })
+    : connection.Session.AssetManagement(telemetry);
 if (!amb.IsSupported)
 {
     Console.Error.WriteLine("The server does not publish the OPC 10000-110 AMB namespace.");
@@ -69,6 +79,16 @@ if (!amb.IsSupported)
 // Every asset of the server, once, from the AMB alias categories.
 ArrayOf<NodeId> assets = await amb.DiscoverAssetsAsync(ct).ConfigureAwait(false);
 Console.WriteLine($"{assets.Count} manageable assets");
+if (options.FollowRemoteSubAssets && assets.Count > 0)
+{
+    Console.WriteLine("Sub-assets across servers:");
+    await foreach (AssetSubAssetReference subAsset in amb
+        .EnumerateSubAssetsAcrossServersAsync(assets[0], ct)
+        .ConfigureAwait(false))
+    {
+        Console.WriteLine($"  {subAsset.ServerUri} / {subAsset.NodeId}");
+    }
+}
 var snapshots = new List<AssetSnapshot>();
 foreach (NodeId asset in assets.ToList())
 {
@@ -137,6 +157,40 @@ if (options.WatchSeconds > 0)
     Task alarms = WatchAlarmsAsync(amb, watch.Token);
     Task maintenance = WatchMaintenanceAsync(amb, watch.Token);
     await Task.WhenAll(alarms, maintenance).ConfigureAwait(false);
+}
+foreach (NodeId asset in assets.ToList())
+{
+    AssetHistoryCapabilities capabilities = await amb.GetHistoryCapabilitiesAsync(
+        asset, cancellationToken: ct).ConfigureAwait(false);
+    DateTime end = DateTime.UtcNow;
+    DateTime start = end.AddHours(-1);
+    if (capabilities.HealthValues)
+    {
+        await foreach (AssetHealthHistoryValue value in amb.ReadHealthHistoryAsync(
+            asset, start, end, maxValuesPerNode: 100, cancellationToken: ct).ConfigureAwait(false))
+        {
+            Console.WriteLine(
+                $"  health history {asset}: {value.Value.SourceTimestamp} " +
+                $"{value.DeviceHealth} ({value.Value.StatusCode})");
+        }
+    }
+    if (capabilities.Events)
+    {
+        await foreach (AssetAlarmRecord alarm in amb.ReadHealthEventsAsync(
+            asset, start, end, maxValuesPerNode: 100, cancellationToken: ct).ConfigureAwait(false))
+        {
+            Console.WriteLine(
+                $"  alarm history {alarm.Time}: {alarm.ConditionName} " +
+                $"{alarm.Message.Text} ({alarm.EventId})");
+        }
+        await foreach (MaintenanceActivityRecord activity in amb.ReadPastMaintenanceAsync(
+            asset, start, end, maxValuesPerNode: 100, cancellationToken: ct).ConfigureAwait(false))
+        {
+            Console.WriteLine(
+                $"  maintenance history {activity.Time}: {activity.ConditionName} {activity.State}, " +
+                $"planned {Format(activity.PlannedDate)}, configuration changed {activity.ConfigurationChanged}");
+        }
+    }
 }
 return 0;
 

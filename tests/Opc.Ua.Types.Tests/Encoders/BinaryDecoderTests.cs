@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -2214,6 +2215,80 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.EqualTo(testString));
+        }
+
+        [Test]
+        public void ReadStringDecodesShortAndLongStringsLikeUtf8GetString()
+        {
+            // Arrange: distinct values that share a cache slot sooner or later, both sides
+            // of the cached length limit, multi-byte characters and invalid UTF-8.
+            var values = new List<byte[]>();
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                values.Add(System.Text.Encoding.UTF8.GetBytes("Value" + ii.ToString(CultureInfo.InvariantCulture)));
+            }
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('a', 32)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('a', 33)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('ä', 16)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('ä', 17)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes("中文\U0001F600"));
+            values.Add([0x41, 0xC3, 0x28, 0xFF, 0x42]);
+            values.Add([0xE4, 0xB8]);
+            values.Add(System.Text.Encoding.UTF8.GetBytes("Value1"));
+            values.Add([0x41, 0x00, 0x00]);
+            byte[] buffer = EncodeStrings(values);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act / Assert
+            foreach (byte[] value in values)
+            {
+                int length = value.Length;
+                while (length > 0 && value[length - 1] == 0)
+                {
+                    length--;
+                }
+                string expected = System.Text.Encoding.UTF8.GetString(value, 0, length);
+                Assert.That(decoder.ReadString(null), Is.EqualTo(expected));
+            }
+        }
+
+#if NET6_0_OR_GREATER
+        [Test]
+        public void ReadStringReusesInstanceOfRepeatedShortString()
+        {
+            // Arrange
+            byte[] source = System.Text.Encoding.UTF8.GetBytes("Server");
+            byte[] longValue = System.Text.Encoding.UTF8.GetBytes(new string('x', 40));
+            byte[] buffer = EncodeStrings([source, source, longValue, longValue]);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            string first = decoder.ReadString(null)!;
+            string second = decoder.ReadString(null)!;
+            string firstLong = decoder.ReadString(null)!;
+            string secondLong = decoder.ReadString(null)!;
+
+            // Assert: short strings share one instance, long ones are decoded separately.
+            Assert.That(second, Is.SameAs(first));
+            Assert.That(first, Is.EqualTo("Server"));
+            Assert.That(secondLong, Is.EqualTo(firstLong));
+            Assert.That(secondLong, Is.Not.SameAs(firstLong));
+        }
+#endif
+
+        private static byte[] EncodeStrings(IEnumerable<byte[]> values)
+        {
+            using var stream = new MemoryStream();
+            foreach (byte[] value in values)
+            {
+                stream.Write(BitConverter.GetBytes(value.Length), 0, 4);
+                stream.Write(value, 0, value.Length);
+            }
+            return stream.ToArray();
         }
 
         [Test]

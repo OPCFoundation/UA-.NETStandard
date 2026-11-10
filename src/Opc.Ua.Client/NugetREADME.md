@@ -92,6 +92,15 @@ to generated Program proxies. Program event streams retain captured
 intermediate results instead of rereading changing state Variables. See the
 [Programs guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Programs.md).
 
+## Base Network Model
+
+`AddNetworkModelClient` registers a session-bound Part 22 client factory.
+`NetworkModelClient` provides generated-proxy access, interface and stream
+discovery, lower-layer mapping resolution, quality-preserving reads,
+subscription observations and priority-mapping methods. The caller retains
+session and subscription ownership. See the
+[Base Network Model guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/BaseNetworkModel.md).
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`,

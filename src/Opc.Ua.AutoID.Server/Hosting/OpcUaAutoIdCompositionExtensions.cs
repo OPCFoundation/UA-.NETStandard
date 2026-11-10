@@ -112,7 +112,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 return configure(
                     new AutoIdBuildContext(
                         context.Manager.CreateAutoIdRuntime(
-                            context.GetRequiredService<IOptions<AutoIdServerOptions>>().Value),
+                            context.GetRequiredService<IOptions<AutoIdServerOptions>>().Value,
+                            context.GetRequiredService<IServiceProvider>()
+                                .GetService<Opc.Ua.Server.FileSystem.IFileTypeBinder>()),
                         context.GetRequiredService<IServiceProvider>(),
                         context.CancellationToken),
                     context.CancellationToken);

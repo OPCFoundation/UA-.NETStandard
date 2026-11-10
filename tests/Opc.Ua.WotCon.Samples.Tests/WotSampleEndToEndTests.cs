@@ -405,7 +405,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task RealSamplesRouteManagementAndConditionActionsToEachSourceAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            using var timeout = new CancellationTokenSource(s_fullSampleLoadTimeout);
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -566,7 +566,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task BadTargetMappingFailsRefreshAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            using var timeout = new CancellationTokenSource(s_fullSampleLoadTimeout);
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -592,7 +592,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task UnavailableUpstreamEndpointFailsMappedReadAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            using var timeout = new CancellationTokenSource(s_fullSampleLoadTimeout);
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -1293,6 +1293,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
             return string.Join("; ", details);
         }
+
+        /// <summary>
+        /// Bounds a test that loads and refreshes the full 535-document sample set. It takes
+        /// about 2-3 minutes in Debug; the cap stays below the CI blame hang timeout (10 minutes)
+        /// so a slowdown fails as a timeout instead of a crash with hang dumps.
+        /// </summary>
+        private static readonly TimeSpan s_fullSampleLoadTimeout = TimeSpan.FromMinutes(6);
 
         private static readonly string[] s_controlPairs =
             ["Pump1/SourceA", "Pump1/SourceB", "Pump2/SourceA", "Pump2/SourceB"];

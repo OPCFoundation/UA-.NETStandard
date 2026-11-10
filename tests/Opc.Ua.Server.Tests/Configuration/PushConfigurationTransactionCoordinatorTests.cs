@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -52,6 +53,7 @@ namespace Opc.Ua.Server.Tests
         private static readonly int[] s_expectedRollbackOrder = [2, 1];
         private static readonly string[] s_expectedPrepareCommitOrder =
             ["prepare-1", "prepare-2", "commit-1", "commit-2"];
+        private static readonly string[] s_expectedStoreCompletionOrder = ["store", "checkpoint"];
 
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
         private static readonly NodeId s_sessionA = new(Guid.NewGuid(), 1);
@@ -65,6 +67,148 @@ namespace Opc.Ua.Server.Tests
             Assert.That(coordinator.IsTransactionActive, Is.False);
             Assert.That(coordinator.OwnerSessionId.IsNull, Is.True);
             Assert.That(coordinator.HasOpenTrustListWriter, Is.False);
+        }
+
+        /// <summary>
+        /// Completion observes every committed mutation and retains ownership until its checkpoint finishes.
+        /// </summary>
+        [Test]
+        public async Task CompletionRunsLastAndRetainsTransactionOwnership()
+        {
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            var observed = new List<string>();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ =>
+                {
+                    observed.Add("store");
+                    return Task.CompletedTask;
+                }
+            });
+            Task<ServiceResult> applying = coordinator.ApplyChangesAsync(
+                s_sessionA,
+                new PushConfigurationApplyEffects(),
+                new PushConfigurationOperation
+                {
+                    CommitAsync = async _ =>
+                    {
+                        observed.Add("checkpoint");
+                        entered.SetResult(true);
+                        await release.Task.ConfigureAwait(false);
+                    }
+                }).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                Assert.That(observed, Is.EqualTo(s_expectedStoreCompletionOrder));
+                Assert.That(coordinator.OwnerSessionId, Is.EqualTo(s_sessionA));
+                ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                    coordinator.Stage(s_sessionB, new PushConfigurationOperation
+                    {
+                        CommitAsync = _ => Task.CompletedTask
+                    }));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTransactionPending));
+                Assert.That(applying.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.SetResult(true);
+            }
+            Assert.That(ServiceResult.IsGood(await applying.ConfigureAwait(false)), Is.True);
+            Assert.That(coordinator.IsTransactionActive, Is.False);
+        }
+
+        /// <summary>
+        /// Earlier commit failure skips completion; completion failure compensates committed stores.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompletionFailureCompensatesStoresAndEarlierFailureSkipsCompletion(bool failCompletion)
+        {
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            int stored = 0;
+            int completed = 0;
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ =>
+                {
+                    stored++;
+                    return Task.CompletedTask;
+                },
+                RollbackAsync = _ =>
+                {
+                    stored--;
+                    return Task.CompletedTask;
+                }
+            });
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ => failCompletion ? Task.CompletedTask :
+                    Task.FromException(new ServiceResultException(StatusCodes.BadInternalError))
+            });
+            ServiceResult result = await coordinator.ApplyChangesAsync(
+                s_sessionA,
+                new PushConfigurationApplyEffects(),
+                new PushConfigurationOperation
+                {
+                    CommitAsync = _ =>
+                    {
+                        completed++;
+                        throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
+                    }
+                }).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode,
+                Is.EqualTo(failCompletion ? StatusCodes.BadResourceUnavailable : StatusCodes.BadInternalError));
+            Assert.That(stored, Is.Zero);
+            Assert.That(completed, Is.EqualTo(failCompletion ? 1 : 0));
+            Assert.That(coordinator.IsTransactionActive, Is.False);
+        }
+
+        /// <summary>
+        /// Invalid or empty apply requests do not create or execute a host checkpoint operation.
+        /// </summary>
+        [TestCase("empty")]
+        [TestCase("owner")]
+        [TestCase("writer")]
+        public async Task InvalidApplyDoesNotRunCompletion(string scenario)
+        {
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            int completed = 0;
+            if (scenario != "empty")
+            {
+                coordinator.Stage(s_sessionA, new PushConfigurationOperation
+                {
+                    CommitAsync = _ => Task.CompletedTask
+                });
+            }
+            if (scenario == "writer")
+            {
+                coordinator.SetTrustListWriteOpen(new NodeId(42), true);
+            }
+            ServiceResult result = await coordinator.ApplyChangesAsync(
+                scenario == "owner" ? s_sessionB : s_sessionA,
+                new PushConfigurationApplyEffects(),
+                new PushConfigurationOperation
+                {
+                    CommitAsync = _ =>
+                    {
+                        completed++;
+                        return Task.CompletedTask;
+                    }
+                }).ConfigureAwait(false);
+            StatusCode expected = scenario switch
+            {
+                "owner" => StatusCodes.BadSessionIdInvalid,
+                "writer" => StatusCodes.BadInvalidState,
+                _ => StatusCodes.BadNothingToDo
+            };
+
+            Assert.That(result.StatusCode, Is.EqualTo(expected));
+            Assert.That(completed, Is.Zero);
+            coordinator.Reset();
         }
 
         [Test]

@@ -32,7 +32,7 @@ using System;
 namespace Opc.Ua.AutoID.Client
 {
     /// <summary>
-    /// The state of a reader device read in one pass by <see cref="AutoIdClient.ReadDeviceAsync"/>.
+    /// The state of a reader returned by the typed device or acquisition reads.
     /// </summary>
     /// <remarks>
     /// Members of optional variables the device does not publish, or that
@@ -43,13 +43,19 @@ namespace Opc.Ua.AutoID.Client
     /// the device and knows which optional methods (OPC 30010 6.1, 6.5.3, 6.6.3) it may call
     /// without browsing again. <see cref="AutoIdClient.RefreshDeviceAsync"/> reads these
     /// variables again through the NodeIds, in one Read and without a Browse.
+    /// RFID antenna and RSSI values are read only by <see cref="AutoIdClient.ReadLastScanAsync"/>;
+    /// ordinary reads retain their existing request shape.
     /// </remarks>
     public sealed record AutoIdDeviceSnapshot
     {
-        /// <summary>Gets the NodeId of the device.</summary>
+        /// <summary>
+        /// Gets the NodeId of the device.
+        /// </summary>
         public NodeId NodeId { get; init; }
 
-        /// <summary>Gets the NodeId of <c>DeviceStatus</c> (OPC 30010 6.1.3.15).</summary>
+        /// <summary>
+        /// Gets the NodeId of <c>DeviceStatus</c> (OPC 30010 6.1.3.15).
+        /// </summary>
         public NodeId DeviceStatusId { get; init; }
 
         /// <summary>
@@ -65,6 +71,18 @@ namespace Opc.Ua.AutoID.Client
         public NodeId LastScanTimestampId { get; init; }
 
         /// <summary>
+        /// Gets the NodeId of <c>LastScanAntenna</c> for an RFID reader, or a null NodeId when it
+        /// does not publish the variable.
+        /// </summary>
+        public NodeId LastScanAntennaId { get; init; }
+
+        /// <summary>
+        /// Gets the NodeId of <c>LastScanRSSI</c> for an RFID reader, or a null NodeId when it does
+        /// not publish the variable.
+        /// </summary>
+        public NodeId LastScanRssiId { get; init; }
+
+        /// <summary>
         /// Gets the NodeId of <c>DeviceLocation</c> (OPC 30010 6.1.3.12), or a null NodeId when the
         /// device does not publish it.
         /// </summary>
@@ -77,43 +95,94 @@ namespace Opc.Ua.AutoID.Client
         /// </summary>
         public ArrayOf<QualifiedName> Methods { get; init; }
 
-        /// <summary>Gets the <c>DeviceName</c> (OPC 30010 6.1.3.14).</summary>
+        /// <summary>
+        /// Gets the <c>DeviceName</c> (OPC 30010 6.1.3.14).
+        /// </summary>
         public string DeviceName { get; init; } = string.Empty;
 
-        /// <summary>Gets the <c>DeviceStatus</c> (OPC 30010 6.1.3.15).</summary>
+        /// <summary>
+        /// Gets the <c>DeviceStatus</c> (OPC 30010 6.1.3.15).
+        /// </summary>
         public DeviceStatusEnumeration DeviceStatus { get; init; }
 
-        /// <summary>Gets the <c>AutoIdModelVersion</c> (OPC 30010 6.1.3.16).</summary>
+        /// <summary>
+        /// Gets the <c>AutoIdModelVersion</c> (OPC 30010 6.1.3.16).
+        /// </summary>
         public string ModelVersion { get; init; } = string.Empty;
 
-        /// <summary>Gets the <c>DeviceInfo</c>, or empty.</summary>
+        /// <summary>
+        /// Gets the <c>DeviceInfo</c>, or empty.
+        /// </summary>
         public string DeviceInfo { get; init; } = string.Empty;
 
-        /// <summary>Gets the <c>DeviceLocationName</c>, or empty.</summary>
+        /// <summary>
+        /// Gets the <c>DeviceLocationName</c>, or empty.
+        /// </summary>
         public string DeviceLocationName { get; init; } = string.Empty;
 
-        /// <summary>Gets the <c>DeviceLocation</c>, or <see langword="null"/>.</summary>
+        /// <summary>
+        /// Gets the <c>DeviceLocation</c>, or <see langword="null"/>.
+        /// </summary>
         public Location? DeviceLocation { get; init; }
 
-        /// <summary>Gets the <c>AntennaNames</c> of an RFID reader, or an empty array.</summary>
+        /// <summary>
+        /// Gets the <c>AntennaNames</c> of an RFID reader, or an empty array.
+        /// </summary>
         public ArrayOf<AntennaNameIdPair> AntennaNames { get; init; }
 
-        /// <summary>Gets the <c>LastScanData</c> value, or a null variant.</summary>
+        /// <summary>
+        /// Gets the <c>LastScanData</c> value, or a null variant.
+        /// </summary>
         public Variant LastScanData { get; init; }
 
-        /// <summary>Gets the status of <c>LastScanData</c>; uncertain until the first scan.</summary>
+        /// <summary>
+        /// Gets the status of <c>LastScanData</c>; uncertain until the first scan.
+        /// </summary>
         public StatusCode LastScanStatus { get; init; }
 
-        /// <summary>Gets the <c>LastScanTimestamp</c>, or a null time.</summary>
+        /// <summary>
+        /// Gets the <c>LastScanTimestamp</c>, or a null time.
+        /// </summary>
         public DateTimeUtc LastScanTimestamp { get; init; }
 
-        /// <summary>Gets the manufacturer of the DI nameplate, or an empty text.</summary>
+        /// <summary>
+        /// Gets the RFID antenna that observed the last scan, or null.
+        /// </summary>
+        public int? LastScanAntenna { get; init; }
+
+        /// <summary>
+        /// Gets the last scan's received signal strength indicator, or null.
+        /// </summary>
+        public int? LastScanRssi { get; init; }
+
+        /// <summary>
+        /// Gets the status of <c>LastScanTimestamp</c>.
+        /// </summary>
+        public StatusCode LastScanTimestampStatus { get; init; }
+
+        /// <summary>
+        /// Gets the status of <c>LastScanAntenna</c>.
+        /// </summary>
+        public StatusCode LastScanAntennaStatus { get; init; }
+
+        /// <summary>
+        /// Gets the status of <c>LastScanRSSI</c>.
+        /// </summary>
+        public StatusCode LastScanRssiStatus { get; init; }
+
+        /// <summary>
+        /// Gets the manufacturer of the DI nameplate, or an empty text.
+        /// </summary>
         public LocalizedText Manufacturer { get; init; }
 
-        /// <summary>Gets the model of the DI nameplate, or an empty text.</summary>
+        /// <summary>
+        /// Gets the model of the DI nameplate, or an empty text.
+        /// </summary>
         public LocalizedText Model { get; init; }
 
-        /// <summary>Gets the serial number of the DI nameplate, or empty.</summary>
+        /// <summary>
+        /// Gets the serial number of the DI nameplate, or empty.
+        /// </summary>
         public string SerialNumber { get; init; } = string.Empty;
 
         /// <summary>

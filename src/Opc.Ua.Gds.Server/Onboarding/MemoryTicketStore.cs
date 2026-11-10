@@ -75,6 +75,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(metadata));
             }
+            cancellationToken.ThrowIfCancellationRequested();
             m_tickets[ticketId] = new TicketRecord(
                 ticketId,
                 (byte[])encodedTicket.Clone(),
@@ -92,6 +93,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(ticketId));
             }
+            cancellationToken.ThrowIfCancellationRequested();
             bool removed = m_tickets.TryRemove(ticketId, out _);
             return new ValueTask<bool>(removed);
         }
@@ -105,19 +107,21 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(ticketId));
             }
+            cancellationToken.ThrowIfCancellationRequested();
             return new ValueTask<TicketRecord?>(
-                m_tickets.TryGetValue(ticketId, out TicketRecord? r) ? r : null);
+                m_tickets.TryGetValue(ticketId, out TicketRecord? r) ? Copy(r) : null);
         }
 
         /// <inheritdoc/>
         public async IAsyncEnumerable<TicketRecord> ListAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();
             foreach (KeyValuePair<string, TicketRecord> kvp in m_tickets)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                yield return kvp.Value;
+                yield return Copy(kvp.Value);
             }
         }
 
@@ -130,6 +134,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(productInstanceUri));
             }
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (KeyValuePair<string, TicketRecord> kvp in m_tickets)
             {
                 if (string.Equals(
@@ -137,10 +142,18 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     productInstanceUri,
                     StringComparison.Ordinal))
                 {
-                    return new ValueTask<TicketRecord?>(kvp.Value);
+                    return new ValueTask<TicketRecord?>(Copy(kvp.Value));
                 }
             }
             return new ValueTask<TicketRecord?>((TicketRecord?)null);
+        }
+
+        /// <summary>
+        /// Keeps the store's accepted payload independent of caller-owned buffers.
+        /// </summary>
+        private static TicketRecord Copy(TicketRecord record)
+        {
+            return record with { EncodedTicket = (byte[])record.EncodedTicket.Clone() };
         }
 
         private readonly TimeProvider m_time;

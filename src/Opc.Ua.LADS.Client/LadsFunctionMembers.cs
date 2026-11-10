@@ -83,9 +83,30 @@ namespace Opc.Ua.LADS.Client
         public const string CurrentMode = BrowseNames.CurrentMode;
 
         /// <summary>
+        /// The proportional PID tuning parameter.
+        /// </summary>
+        public const string CtrlP = BrowseNames.ControllerTuningParameter + "/" + BrowseNames.CtrlP;
+
+        /// <summary>
+        /// The integral PID tuning parameter.
+        /// </summary>
+        public const string CtrlTi = BrowseNames.ControllerTuningParameter + "/" + BrowseNames.CtrlTi;
+
+        /// <summary>
+        /// The derivative PID tuning parameter.
+        /// </summary>
+        public const string CtrlTd = BrowseNames.ControllerTuningParameter + "/" + BrowseNames.CtrlTd;
+
+        /// <summary>
         /// <c>ControlFunctionState/CurrentState</c> of the control functions.
         /// </summary>
         public const string ControlFunctionState = BrowseNames.ControlFunctionState + "/CurrentState";
+
+        /// <summary>
+        /// The current state of the optional running submachine of a control function.
+        /// </summary>
+        public const string RunningState =
+            BrowseNames.ControlFunctionState + "/" + BrowseNames.RunningStateMachine + "/CurrentState";
 
         /// <summary>
         /// <c>CoverState/CurrentState</c> of the cover function.
@@ -106,7 +127,11 @@ namespace Opc.Ua.LADS.Client
             TotalizedValue,
             DifferenceValue,
             CurrentMode,
+            CtrlP,
+            CtrlTi,
+            CtrlTd,
             ControlFunctionState,
+            RunningState,
             CoverState
         ];
     }

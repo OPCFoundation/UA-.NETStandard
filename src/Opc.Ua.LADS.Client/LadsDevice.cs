@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Di.Client;
 
 namespace Opc.Ua.LADS.Client
 {
@@ -78,6 +79,17 @@ namespace Opc.Ua.LADS.Client
         public ValueTask<LadsDeviceSnapshot> ReadAsync(CancellationToken cancellationToken = default)
         {
             return Client.ReadDeviceAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resolves the optional DI Lock and returns the shared DI client on this device's session.
+        /// A device without locking returns BadNotSupported.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The borrowed-session DI lock client.</returns>
+        public ValueTask<DiLockClient> GetLockAsync(CancellationToken cancellationToken = default)
+        {
+            return Client.GetLockAsync(NodeId, cancellationToken);
         }
 
         /// <summary>

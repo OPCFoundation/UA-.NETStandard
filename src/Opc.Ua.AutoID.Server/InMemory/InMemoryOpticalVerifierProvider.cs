@@ -38,11 +38,10 @@ namespace Opc.Ua.AutoID.Server
     /// A simulated optical code verifier that reports the print quality of the codes presented to it.
     /// </summary>
     /// <remarks>
-    /// A verifier reports through <c>ScanStart</c> and the scan events: the NodeSet declares the
-    /// verifier's synchronous <c>Scan</c> method with a result type that contradicts OPC 30010
-    /// 6.4.3.1, so the runtime does not publish it.
+    /// Synchronous scans and asynchronous scan events return the verification results
+    /// defined by OPC 30010 6.4.3.1.
     /// </remarks>
-    public sealed class InMemoryOpticalVerifierProvider : IAutoIdAsyncScanProvider, IDisposable
+    public sealed class InMemoryOpticalVerifierProvider : IAutoIdScanProvider, IAutoIdAsyncScanProvider, IDisposable
     {
         /// <summary>
         /// Creates a verifier.
@@ -104,6 +103,14 @@ namespace Opc.Ua.AutoID.Server
         public ValueTask DetachAsync(CancellationToken cancellationToken = default)
         {
             return m_engine.DetachAsync();
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<AutoIdScanOutcome> ScanAsync(
+            ScanSettings settings,
+            CancellationToken cancellationToken = default)
+        {
+            return m_engine.ScanAsync(settings, cancellationToken);
         }
 
         /// <inheritdoc/>

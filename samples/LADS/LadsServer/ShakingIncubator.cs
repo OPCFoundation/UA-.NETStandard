@@ -57,8 +57,11 @@ namespace LadsSample.Server
                     id.Manufacturer = new LocalizedText("OPC Foundation");
                     id.Model = new LocalizedText("Shaking incubator");
                     id.SerialNumber = "SN-0001";
+                    id.ProductInstanceUri = "urn:opcfoundation.org:LadsServer:Incubator:SN-0001";
                     id.SoftwareRevision = "1.0.0";
                 })
+                .AssetManagement(asset => asset.WithConfigurableAssetId("Incubator-1").WithDeviceHealth())
+                .Locking()
                 .Location("Lab 1", "Site/Building A/Lab 1")
                 .MaintenanceTask("Calibration", task =>
                 {
@@ -66,12 +69,14 @@ namespace LadsSample.Server
                     task.RecurrencePeriod = TimeSpan.FromDays(30);
                 })
                 .FunctionalUnit(UnitName, unit => unit
+                    .RunningOperations()
                     .AnalogControl("Temperature", options =>
                     {
                         options.EngineeringUnits = LadsUnits.Celsius;
                         options.Range = new Opc.Ua.Range(60, 4);
                         options.InitialTargetValue = AmbientTemperature;
                         options.InitialCurrentValue = AmbientTemperature;
+                        options.Pid = new LadsPidOptions { CtrlP = 1.5, CtrlTi = 10, CtrlTd = 0 };
                     })
                     .AnalogControl("ShakerSpeed", options =>
                     {
@@ -87,7 +92,7 @@ namespace LadsSample.Server
                     .Cover("Door")
                     .Timer("Timer")
                     .SupportedProperty("Volume")
-                    .Programs(programs => programs
+                    .Programs(LadsTemplateOperations.All, programs => programs
                         .Template("Incubation", template => template
                             .WithDescription(new LocalizedText("Warm up, shake and cool down a culture."))
                             .Step("WarmUp", Seconds(5), Setpoint("Temperature", 37), Setpoint("ShakerSpeed", 150))

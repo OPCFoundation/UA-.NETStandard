@@ -135,9 +135,9 @@ namespace Opc.Ua.Server
             // so it requires an encrypted SecureChannel.
             try
             {
-                HasApplicationSecureAdminAccess(context, requireEncryptedChannel: true);
+                await AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct).ConfigureAwait(false);
             }
-            catch (ServiceResultException accessDenied)
+            catch (Exception accessDenied)
             {
                 Server.ReportCertificateUpdateRequestedAuditEvent(
                     context,
@@ -215,6 +215,14 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
                         "Certificate type of new certificate doesn't match the provided certificate type.");
+                }
+
+                if (m_applicationPushTarget != null && isApplicationCertificateGroup &&
+                    !X509Utils.CompareApplicationUriWithCertificate(newCert, m_configuration.ApplicationUri!))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateUriInvalid,
+                        "The certificate does not identify the managed application.");
                 }
 
                 // identify the existing certificate to be updated
@@ -716,7 +724,8 @@ namespace Opc.Ua.Server
         {
             // §7.10.6: CreateSelfSignedCertificate does not transfer a
             // private key, so an authenticated SecureChannel is sufficient.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
+            await AuthorizePushMutationAsync(context, requireEncryptedChannel: false, cancellationToken)
+                .ConfigureAwait(false);
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
@@ -1005,7 +1014,8 @@ namespace Opc.Ua.Server
         {
             // §7.10.7: DeleteCertificate requires an authenticated (but not
             // necessarily encrypted) SecureChannel.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
+            await AuthorizePushMutationAsync(context, requireEncryptedChannel: false, cancellationToken)
+                .ConfigureAwait(false);
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
@@ -1163,7 +1173,8 @@ namespace Opc.Ua.Server
         {
             // §7.10.10: CreateSigningRequest may return a regenerated key's
             // signing request, so it requires an encrypted SecureChannel.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: true);
+            await AuthorizePushMutationAsync(context, requireEncryptedChannel: true, cancellationToken)
+                .ConfigureAwait(false);
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,

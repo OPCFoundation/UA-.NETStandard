@@ -149,6 +149,7 @@ namespace Opc.Ua.Server.FileSystem
             Write = new WriteMethodState(this)
             {
                 OnCall = OnWrite,
+                OnCallAsync = OnWriteAsync,
                 OnReadUserExecutable = OnReadWriteUserExecutable,
                 Executable = true,
                 UserExecutable = true
@@ -173,6 +174,7 @@ namespace Opc.Ua.Server.FileSystem
             Close = new CloseMethodState(this)
             {
                 OnCall = OnClose,
+                OnCallAsync = OnCloseAsync,
                 Executable = true,
                 UserExecutable = true
             };
@@ -184,6 +186,7 @@ namespace Opc.Ua.Server.FileSystem
             GetPosition = new GetPositionMethodState(this)
             {
                 OnCall = OnGetPosition,
+                OnCallAsync = OnGetPositionAsync,
                 Executable = true,
                 UserExecutable = true
             };
@@ -195,6 +198,7 @@ namespace Opc.Ua.Server.FileSystem
             SetPosition = new SetPositionMethodState(this)
             {
                 OnCall = OnSetPosition,
+                OnCallAsync = OnSetPositionAsync,
                 Executable = true,
                 UserExecutable = true
             };
@@ -361,13 +365,13 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            Stream? stream = handle.GetStream(sessionId, fileHandle);
-            if (stream == null)
+            using FileHandle.Operation? operation = handle.Acquire(sessionId, fileHandle, 0);
+            if (operation == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "File handle not open.");
             }
-            stream.Position = (long)Math.Min(position, (ulong)stream.Length);
+            operation.Stream.Position = (long)Math.Min(position, (ulong)operation.Stream.Length);
             return ServiceResult.Good;
         }
 
@@ -385,13 +389,13 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            Stream? stream = handle.GetStream(sessionId, fileHandle);
-            if (stream == null)
+            using FileHandle.Operation? operation = handle.Acquire(sessionId, fileHandle, 0);
+            if (operation == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "File handle not open.");
             }
-            position = (ulong)stream.Position;
+            position = (ulong)operation.Stream.Position;
             return ServiceResult.Good;
         }
 
@@ -401,13 +405,19 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnRead(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, int length, ref ByteString data)
         {
-            ServiceResult result = PrepareRead(context, fileHandle, length, out Stream? stream, out int count);
+            ServiceResult result = PrepareRead(
+                context, fileHandle, length, out FileHandle? handle, out NodeId session, out int count);
             if (ServiceResult.IsBad(result))
             {
                 return result;
             }
+            using FileHandle.Operation? operation = handle!.Acquire(session, fileHandle, 1);
+            if (operation == null)
+            {
+                return StatusCodes.BadInvalidState;
+            }
             byte[] buffer = new byte[count];
-            int read = stream!.Read(buffer, 0, count);
+            int read = operation.Stream.Read(buffer, 0, count);
             data = ByteString.From(read == count ? buffer : buffer.AsSpan(0, read).ToArray());
             return ServiceResult.Good;
         }
@@ -423,16 +433,25 @@ namespace Opc.Ua.Server.FileSystem
             int length,
             CancellationToken cancellationToken)
         {
-            ServiceResult result = PrepareRead(context, fileHandle, length, out Stream? stream, out int count);
+            ServiceResult result = PrepareRead(
+                context, fileHandle, length, out FileHandle? handle, out NodeId session, out int count);
             if (ServiceResult.IsBad(result))
             {
                 return new ReadMethodStateResult { ServiceResult = result };
             }
+            using FileHandle.Operation? operation = await handle!.AcquireAsync(
+                session, fileHandle, 1, cancellationToken).ConfigureAwait(false);
+            if (operation == null)
+            {
+                return new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+            }
             byte[] buffer = new byte[count];
 #if NET5_0_OR_GREATER
-            int read = await stream!.ReadAsync(buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
+            int read = await operation.Stream.ReadAsync(buffer.AsMemory(0, count), operation.CancellationToken)
+                .ConfigureAwait(false);
 #else
-            int read = await stream!.ReadAsync(buffer, 0, count, cancellationToken).ConfigureAwait(false);
+            int read = await operation.Stream.ReadAsync(buffer, 0, count, operation.CancellationToken)
+                .ConfigureAwait(false);
 #endif
             return new ReadMethodStateResult
             {
@@ -448,29 +467,27 @@ namespace Opc.Ua.Server.FileSystem
             ISystemContext context,
             uint fileHandle,
             int length,
-            out Stream? stream,
+            out FileHandle? handle,
+            out NodeId sessionId,
             out int count)
         {
-            stream = null;
+            sessionId = default;
             count = 0;
-            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
+            if (!TryGetHandle(context, out handle, out ServiceResult result))
             {
                 return result;
             }
             if (!FileSystemNodeManager.TryGetSessionId(
                     context,
-                    out NodeId sessionId,
+                    out sessionId,
                     out result))
             {
                 return result;
             }
-            stream = handle.GetStream(sessionId, fileHandle, requiredMode: 1);
-            if (stream == null)
+            if (handle.GetStream(sessionId, fileHandle, 1) == null)
             {
-                return ServiceResult.Create(StatusCodes.BadInvalidState,
-                    "File handle not open.");
+                return StatusCodes.BadInvalidState;
             }
-
             if (length <= 0)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidArgument,
@@ -529,15 +546,114 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            Stream? stream = handle.GetStream(sessionId, fileHandle, requiredMode: 2);
-            if (stream == null)
+            using FileHandle.Operation? operation = handle.Acquire(sessionId, fileHandle, 2);
+            if (operation == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "File handle not open.");
             }
             byte[] bytes = data.ToArray();
-            stream.Write(bytes, 0, bytes.Length);
+            operation.Stream.Write(bytes, 0, bytes.Length);
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Closes admission and drains all previously admitted stream operations.
+        /// </summary>
+        private async ValueTask<CloseMethodStateResult> OnCloseAsync(
+            ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result) ||
+                !FileSystemNodeManager.TryGetSessionId(context, out NodeId session, out result))
+            {
+                return new CloseMethodStateResult { ServiceResult = result };
+            }
+            try
+            {
+                bool closed = await handle.CloseAsync(session, fileHandle).ConfigureAwait(false);
+                return new CloseMethodStateResult
+                {
+                    ServiceResult = closed ? ServiceResult.Good : StatusCodes.BadInvalidState
+                };
+            }
+            finally
+            {
+                ResolveHost(context)!.ReleaseHandle(handle);
+            }
+        }
+
+        /// <summary>
+        /// Writes using the handle's serialized cursor and linked lifetime cancellation.
+        /// </summary>
+        private async ValueTask<WriteMethodStateResult> OnWriteAsync(
+            ISystemContext context, MethodState method, NodeId objectId, uint fileHandle,
+            ByteString data, CancellationToken ct)
+        {
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result) ||
+                !FileSystemNodeManager.TryGetSessionId(context, out NodeId session, out result))
+            {
+                return new WriteMethodStateResult { ServiceResult = result };
+            }
+            using FileHandle.Operation? operation =
+                await handle.AcquireAsync(session, fileHandle, 2, ct).ConfigureAwait(false);
+            if (operation == null)
+            {
+                return new WriteMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+            }
+            byte[] buffer = data.ToArray();
+#if NET5_0_OR_GREATER
+            await operation.Stream.WriteAsync(buffer.AsMemory(), operation.CancellationToken).ConfigureAwait(false);
+#else
+            await operation.Stream.WriteAsync(buffer, 0, buffer.Length, operation.CancellationToken)
+                .ConfigureAwait(false);
+#endif
+            return new WriteMethodStateResult { ServiceResult = ServiceResult.Good };
+        }
+
+        /// <summary>
+        /// Reads the position in the same serialized operation order as reads and writes.
+        /// </summary>
+        private async ValueTask<GetPositionMethodStateResult> OnGetPositionAsync(
+            ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, CancellationToken ct)
+        {
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result) ||
+                !FileSystemNodeManager.TryGetSessionId(context, out NodeId session, out result))
+            {
+                return new GetPositionMethodStateResult { ServiceResult = result };
+            }
+            using FileHandle.Operation? operation =
+                await handle.AcquireAsync(session, fileHandle, 0, ct).ConfigureAwait(false);
+            return operation == null
+                ? new GetPositionMethodStateResult { ServiceResult = StatusCodes.BadInvalidState }
+                : new GetPositionMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    Position = (ulong)operation.Stream.Position
+                };
+        }
+
+        /// <summary>
+        /// Seeks in the same serialized operation order as reads and writes.
+        /// </summary>
+        private async ValueTask<SetPositionMethodStateResult> OnSetPositionAsync(
+            ISystemContext context, MethodState method, NodeId objectId, uint fileHandle,
+            ulong position, CancellationToken ct)
+        {
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result) ||
+                !FileSystemNodeManager.TryGetSessionId(context, out NodeId session, out result))
+            {
+                return new SetPositionMethodStateResult { ServiceResult = result };
+            }
+            using FileHandle.Operation? operation =
+                await handle.AcquireAsync(session, fileHandle, 0, ct).ConfigureAwait(false);
+            if (operation == null)
+            {
+                return new SetPositionMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+            }
+            Stream stream = operation.Stream;
+            stream.Position = (long)Math.Min(position, (ulong)stream.Length);
+            return new SetPositionMethodStateResult { ServiceResult = ServiceResult.Good };
         }
 
         protected override void PopulateBrowser(ISystemContext context, NodeBrowser browser)
@@ -606,15 +722,31 @@ namespace Opc.Ua.Server.FileSystem
                 Open.OnCall = null;
                 Open.OnCallAsync = null;
             }
-            Write?.OnCall = null;
+            if (Write != null)
+            {
+                Write.OnCall = null;
+                Write.OnCallAsync = null;
+            }
             if (Read != null)
             {
                 Read.OnCall = null;
                 Read.OnCallAsync = null;
             }
-            Close?.OnCall = null;
-            GetPosition?.OnCall = null;
-            SetPosition?.OnCall = null;
+            if (Close != null)
+            {
+                Close.OnCall = null;
+                Close.OnCallAsync = null;
+            }
+            if (GetPosition != null)
+            {
+                GetPosition.OnCall = null;
+                GetPosition.OnCallAsync = null;
+            }
+            if (SetPosition != null)
+            {
+                SetPosition.OnCall = null;
+                SetPosition.OnCallAsync = null;
+            }
         }
 
         /// <summary>

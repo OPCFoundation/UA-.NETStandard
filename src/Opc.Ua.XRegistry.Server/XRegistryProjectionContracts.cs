@@ -335,6 +335,25 @@ namespace Opc.Ua.XRegistry.Server
         XRegistryProjectionEventSnapshot? Events);
 
     /// <summary>
+    /// Optionally lets the projection engine skip Resources that did not change since
+    /// the last reconcile, so reconciling one change does not revisit every projected
+    /// Resource.
+    /// </summary>
+    /// <remarks>
+    /// The token must be an immutable object that is reference-equal between two
+    /// snapshots only when nothing the strategy projects for the logical Resource
+    /// changed: none of its Versions, Meta, labels or strategy-specific properties.
+    /// All Versions of one logical Resource in a snapshot must return the same token.
+    /// </remarks>
+    public interface IXRegistryProjectionResourceChangeToken
+    {
+        /// <summary>
+        /// Gets the immutable change token of the logical Resource.
+        /// </summary>
+        object ChangeToken { get; }
+    }
+
+    /// <summary>
     /// Supplies Resource Meta independently from the projected Version properties.
     /// </summary>
     public interface IXRegistryProjectionResourceMeta

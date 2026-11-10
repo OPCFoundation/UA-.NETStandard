@@ -22,4 +22,9 @@ net48, net8.0, net9.0, net10.0
 
 ## Additional documentation
 
-See the [Machinery developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Machinery.md).
+See the [ECM developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ECM.md)
+for standalone standby/WOL server bindings, typed clients and samples.
+Standalone measurement profiles, accuracy domains and shared IA statistics
+integration remain incomplete; specification support is Partial.
+The [Machinery developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Machinery.md)
+describes the existing energy-management composition.

@@ -6211,8 +6211,13 @@ namespace Opc.Ua.Schema.Model
                     continue;
                 }
 
-                // suppress inhierited non-hierarchial references.
+                // Dictionary classifications apply to inherited values and overridden
+                // declarations (OPC 30081 section 6.3). Interfaces declared on a type
+                // remain on that type rather than being duplicated on every instance.
                 if (inherited &&
+                    (source.References[ii].IsInverse ||
+                        source.References[ii].ReferenceType !=
+                            new XmlQualifiedName("HasDictionaryEntry", Ua.Types.Namespaces.OpcUa)) &&
                     m_nodes.TryGetValue(source.References[ii].ReferenceType, out NodeDesign? target))
                 {
                     var referenceType = target as ReferenceTypeDesign;

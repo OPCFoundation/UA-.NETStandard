@@ -40,6 +40,9 @@ Minimal Client together.
   browsing, and method calls.
 - [Console LDS Server](../samples/Lds/ConsoleLdsServer) — a standalone
   Local Discovery Server built on `Opc.Ua.Lds.Server`.
+- [Simulated Base Network Model](../samples/Network/README.md) — a Part 22
+  server/client scenario for layered interfaces, priority mappings, TSN stream
+  failures and LLDP neighbor changes; no host-network configuration.
 
 ## PubSub samples
 

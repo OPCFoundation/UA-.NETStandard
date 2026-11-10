@@ -797,6 +797,180 @@ namespace Opc.Ua.AMB.Tests
             VerifyNoMutationOrDisposal(session);
         }
 
+        [TestCaseSource(nameof(HistoryAccessFailures))]
+        public async Task HistoryCapabilitiesRejectUnreadableAttributesForBothConstructorsAsync(
+            bool bounded,
+            bool healthFailure,
+            StatusCode status)
+        {
+            Mock<ISession> session = CreateSession();
+            var health = new NodeId("Health", 4);
+            var notifier = new NodeId("ExplicitNotifier", 4);
+            SetupTranslate(session, _ => [Resolved(health)]);
+            SetupRead(session, (node, attribute) =>
+            {
+                Assert.That(attribute, Is.EqualTo(
+                    node == health ? Attributes.UserAccessLevel : Attributes.EventNotifier));
+                return node == (healthFailure ? health : notifier)
+                    ? DataValue.FromStatusCode(status)
+                    : new DataValue(Variant.From(
+                        node == health ? AccessLevels.HistoryRead : EventNotifiers.HistoryRead));
+            }, bounded ? TimestampsToReturn.Both : TimestampsToReturn.Source);
+            AmbClient client = bounded
+                ? CreateClient(session)
+                : new AmbClient(session.Object, NUnitTelemetryContext.Create());
+
+            ServiceResultException? failure = await Assert.CatchAsync<ServiceResultException>(async () =>
+                await client.GetHistoryCapabilitiesAsync(s_asset, notifier).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(status));
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HistoryCapabilitiesTreatOnlyAnAbsentHealthNodeAsUnsupportedAsync(bool bounded)
+        {
+            Mock<ISession> session = CreateSession();
+            SetupTranslate(session, _ => [Missing()]);
+            SetupRead(session, (node, attribute) =>
+            {
+                Assert.That(node, Is.EqualTo(s_asset));
+                Assert.That(attribute, Is.EqualTo(Attributes.EventNotifier));
+                return new DataValue(Variant.From(EventNotifiers.HistoryRead));
+            }, bounded ? TimestampsToReturn.Both : TimestampsToReturn.Source);
+            AmbClient client = bounded
+                ? CreateClient(session)
+                : new AmbClient(session.Object, NUnitTelemetryContext.Create());
+
+            AssetHistoryCapabilities capabilities = await client.GetHistoryCapabilitiesAsync(s_asset)
+                .ConfigureAwait(false);
+
+            Assert.That(capabilities.HealthValues, Is.False);
+            Assert.That(capabilities.Events, Is.True);
+            session.Verify(s => s.ReadAsync(
+                It.IsAny<RequestHeader?>(), 0, It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Once);
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HistoryCapabilitiesRejectMalformedAccessValuesAsync(bool bounded)
+        {
+            Mock<ISession> session = CreateSession();
+            SetupTranslate(session, _ => [Resolved(new NodeId("Health", 4))]);
+            SetupRead(session, (_, _) => new DataValue(Variant.From("not a Byte")),
+                bounded ? TimestampsToReturn.Both : TimestampsToReturn.Source);
+            AmbClient client = bounded
+                ? CreateClient(session)
+                : new AmbClient(session.Object, NUnitTelemetryContext.Create());
+
+            ServiceResultException? failure = await Assert.CatchAsync<ServiceResultException>(async () =>
+                await client.GetHistoryCapabilitiesAsync(s_asset).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        [TestCaseSource(nameof(HistoryAccessFailures))]
+        public async Task HistoryHealthResolutionPropagatesTranslationFailuresForBothConstructorsAsync(
+            bool bounded,
+            bool rawHistory,
+            StatusCode status)
+        {
+            Mock<ISession> session = CreateSession();
+            SetupTranslate(session, _ => [new BrowsePathResult { StatusCode = status }]);
+            AmbClient client = bounded
+                ? CreateClient(session)
+                : new AmbClient(session.Object, NUnitTelemetryContext.Create());
+
+            ServiceResultException? failure = await Assert.CatchAsync<ServiceResultException>(async () =>
+            {
+                if (rawHistory)
+                {
+                    await using IAsyncEnumerator<AssetHealthHistoryValue> values = client.ReadHealthHistoryAsync(
+                        s_asset, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow).GetAsyncEnumerator();
+                    await values.MoveNextAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await client.GetHistoryCapabilitiesAsync(s_asset).ConfigureAwait(false);
+                }
+            });
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(status));
+            VerifyNoRead(session);
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        [TestCaseSource(nameof(HistoryAccessFailures))]
+        public async Task HistoryEventsRequireCompleteMaintenanceClassDiscoveryForBothConstructorsAsync(
+            bool bounded,
+            bool maintenance,
+            StatusCode status)
+        {
+            Mock<ISession> session = CreateSession();
+            SetupRead(session, (_, _) => new DataValue(Variant.From(EventNotifiers.HistoryRead)),
+                bounded ? TimestampsToReturn.Both : TimestampsToReturn.Source);
+            SetupBrowse(session, description =>
+            {
+                Assert.That(description.NodeId, Is.EqualTo(Ua.ObjectTypeIds.MaintenanceConditionClassType));
+                Assert.That(description.ReferenceTypeId, Is.EqualTo(Ua.ReferenceTypeIds.HasSubtype));
+                return new BrowseResult { StatusCode = status };
+            });
+            AmbClient client = bounded
+                ? CreateClient(session)
+                : new AmbClient(session.Object, NUnitTelemetryContext.Create());
+            DateTime end = DateTime.UtcNow;
+            DateTime start = end.AddHours(-1);
+
+            ServiceResultException? failure = await Assert.CatchAsync<ServiceResultException>(async () =>
+            {
+                if (maintenance)
+                {
+                    await using IAsyncEnumerator<MaintenanceActivityRecord> values = client.ReadPastMaintenanceAsync(
+                        s_asset, start, end).GetAsyncEnumerator();
+                    await values.MoveNextAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await using IAsyncEnumerator<AssetAlarmRecord> values = client.ReadHealthEventsAsync(
+                        s_asset, start, end).GetAsyncEnumerator();
+                    await values.MoveNextAsync().ConfigureAwait(false);
+                }
+            });
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(status));
+            session.Verify(s => s.HistoryReadAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ExtensionObject>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<bool>(), It.IsAny<ArrayOf<HistoryReadValueId>>(), It.IsAny<CancellationToken>()), Times.Never);
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        /// <summary>
+        /// Exercises non-good access attributes with each constructor and each history target.
+        /// </summary>
+        private static IEnumerable<TestCaseData> HistoryAccessFailures()
+        {
+            StatusCode[] statuses =
+            [
+                StatusCodes.BadNodeIdUnknown,
+                StatusCodes.BadUserAccessDenied,
+                StatusCodes.Uncertain
+            ];
+            foreach (bool bounded in new[] { false, true })
+            {
+                foreach (bool healthFailure in new[] { false, true })
+                {
+                    foreach (StatusCode status in statuses)
+                    {
+                        yield return new TestCaseData(bounded, healthFailure, status);
+                    }
+                }
+            }
+        }
+
         private static IEnumerable<TestCaseData> NonGoodStatuses()
         {
             yield return new TestCaseData(StatusCodes.BadUserAccessDenied);
@@ -813,6 +987,9 @@ namespace Opc.Ua.AMB.Tests
             context.NamespaceUris.GetIndexOrAppend(InstanceNamespace);
             session.SetupGet(s => s.NamespaceUris).Returns(context.NamespaceUris);
             session.SetupGet(s => s.MessageContext).Returns(context);
+            session.SetupGet(s => s.OperationLimits).Returns(new OperationLimits { MaxNodesPerBrowse = 64 });
+            session.SetupGet(s => s.ServerCapabilities).Returns(new ServerCapabilities());
+            session.SetupGet(s => s.ContinuationPointPolicy).Returns(ContinuationPointPolicy.Default);
             return session;
         }
 
@@ -878,10 +1055,13 @@ namespace Opc.Ua.AMB.Tests
                     }));
         }
 
-        private static void SetupRead(Mock<ISession> session, Func<NodeId, uint, DataValue> response)
+        private static void SetupRead(
+            Mock<ISession> session,
+            Func<NodeId, uint, DataValue> response,
+            TimestampsToReturn timestamps = TimestampsToReturn.Both)
         {
             session.Setup(s => s.ReadAsync(
-                It.IsAny<RequestHeader?>(), 0, TimestampsToReturn.Both,
+                It.IsAny<RequestHeader?>(), 0, timestamps,
                 It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
                 .Returns((RequestHeader? _, double _, TimestampsToReturn _, ArrayOf<ReadValueId> reads,
                     CancellationToken _) =>
@@ -900,7 +1080,10 @@ namespace Opc.Ua.AMB.Tests
                 });
         }
 
-        private static void SetupBrowse(Mock<ISession> session, Func<BrowseDescription, BrowseResult> response)
+        private static void SetupBrowse(
+            Mock<ISession> session,
+            Func<BrowseDescription, BrowseResult> response,
+            uint minimumMaximumReferences = 1)
         {
             session.Setup(s => s.BrowseAsync(
                 It.IsAny<RequestHeader?>(), It.IsAny<ViewDescription?>(), It.IsAny<uint>(),
@@ -909,7 +1092,7 @@ namespace Opc.Ua.AMB.Tests
                     CancellationToken _) =>
                 {
                     Assert.That(requests.Count, Is.EqualTo(1));
-                    Assert.That(maximum, Is.InRange(1u, 64u));
+                    Assert.That(maximum, Is.InRange(minimumMaximumReferences, 64u));
                     return new ValueTask<BrowseResponse>(new BrowseResponse
                     {
                         ResponseHeader = new ResponseHeader(),
@@ -1010,6 +1193,292 @@ namespace Opc.Ua.AMB.Tests
                 It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()),
                 Times.Never);
             session.Verify(s => s.Dispose(), Times.Never);
+        }
+
+        [Test]
+        public async Task LegacySubAssetTraversalYieldsRemoteTargetWithoutBrowsingItAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var alias = new NodeId("alias", 4);
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 2);
+            SetupCall(session, _ => new CallMethodResult
+            {
+                OutputArguments =
+                [
+                    Variant.FromStructure((ArrayOf<AliasNameDataType>)
+                    [
+                        new AliasNameDataType
+                        {
+                            AliasName = new QualifiedName("asset"),
+                            ReferencedNodes = [remote]
+                        }
+                    ])
+                ]
+            });
+            var browsed = new List<NodeId>();
+            SetupBrowse(session, request =>
+            {
+                browsed.Add(request.NodeId);
+                if (request.NodeId == s_asset)
+                {
+                    return new BrowseResult { References = [Reference(remote)] };
+                }
+                return new BrowseResult();
+            }, minimumMaximumReferences: 0);
+
+            var found = new List<ExpandedNodeId>();
+            var client = new AmbClient(session.Object, NUnitTelemetryContext.Create());
+            await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+            {
+                found.Add(sub);
+            }
+
+            Assert.That(found, Is.EqualTo(new[] { remote }));
+            Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+            session.Verify(s => s.CallAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            session.Verify(s => s.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(s => s.Dispose(), Times.Never);
+        }
+
+        [Test]
+        public async Task EnumerateSubAssetsAcrossServersAsyncFailsWhenRemoteResolverIsMissingAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local", "urn:amb:remote");
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 1);
+            var browsed = new List<NodeId>();
+            SetupRemoteTraversalBrowse(session, s_asset, remote, browsed);
+
+            await AssertStatusAsync(
+                () => CollectSubAssetsAcrossServersAsync(CreateClient(session), s_asset),
+                StatusCodes.BadNotSupported).ConfigureAwait(false);
+
+            Assert.That(browsed, Does.Contain(s_asset));
+            Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+        }
+
+        [Test]
+        public async Task LocalSubAssetTraversalYieldsRemoteTargetWithoutInvokingConfiguredResolverAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 1);
+            var browsed = new List<NodeId>();
+            SetupRemoteTraversalBrowse(session, s_asset, remote, browsed);
+            var resolverCalls = new List<string>();
+            AmbClient client = CreateRemoteTraversalClient(
+                session,
+                (serverUri, _) =>
+                {
+                    resolverCalls.Add(serverUri);
+                    return Task.FromException<ManagedSession>(
+                        new InvalidOperationException("The local traversal must not resolve remote sessions."));
+                });
+
+            var found = new List<ExpandedNodeId>();
+            await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+            {
+                found.Add(sub);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found, Is.EqualTo(new[] { remote }));
+                Assert.That(resolverCalls, Is.Empty);
+                Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+            });
+        }
+
+        [Test]
+        public async Task EnumerateSubAssetsAcrossServersAsyncRejectsUnknownServerBeforeResolverAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local");
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 1);
+            var browsed = new List<NodeId>();
+            SetupRemoteTraversalBrowse(session, s_asset, remote, browsed);
+            var resolverCalls = new List<string>();
+            AmbClient client = CreateRemoteTraversalClient(
+                session,
+                (serverUri, _) =>
+                {
+                    resolverCalls.Add(serverUri);
+                    return Task.FromException<ManagedSession>(
+                        new InvalidOperationException("The resolver must not run for an unknown server index."));
+                });
+
+            await AssertStatusAsync(
+                () => CollectSubAssetsAcrossServersAsync(client, s_asset),
+                StatusCodes.BadServerUriInvalid).ConfigureAwait(false);
+
+            Assert.That(resolverCalls, Is.Empty);
+            Assert.That(browsed, Does.Contain(s_asset));
+            Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+        }
+
+        [Test]
+        public async Task EnumerateSubAssetsAcrossServersAsyncPropagatesResolverFailureAsync()
+        {
+            const string remoteServerUri = "urn:amb:remote";
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local", remoteServerUri);
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 1);
+            var browsed = new List<NodeId>();
+            SetupRemoteTraversalBrowse(session, s_asset, remote, browsed);
+            var expected = new InvalidOperationException("Remote session resolution failed.");
+            var resolverCalls = new List<(string ServerUri, CancellationToken Token)>();
+            AmbClient client = CreateRemoteTraversalClient(
+                session,
+                (serverUri, token) =>
+                {
+                    resolverCalls.Add((serverUri, token));
+                    return Task.FromException<ManagedSession>(expected);
+                });
+
+            InvalidOperationException failure = await FailureAsync<InvalidOperationException>(
+                () => CollectSubAssetsAcrossServersAsync(client, s_asset)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure, Is.SameAs(expected));
+                Assert.That(resolverCalls, Has.Count.EqualTo(1));
+                Assert.That(resolverCalls[0].ServerUri, Is.EqualTo(remoteServerUri));
+                Assert.That(resolverCalls[0].Token, Is.EqualTo(CancellationToken.None));
+                Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+            });
+        }
+
+        [Test]
+        public async Task CanceledRemoteTraversalDoesNotResolveOrBrowseAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var resolverCalls = new List<string>();
+            AmbClient client = CreateRemoteTraversalClient(
+                session,
+                (serverUri, _) =>
+                {
+                    resolverCalls.Add(serverUri);
+                    return Task.FromException<ManagedSession>(
+                        new InvalidOperationException("The resolver must not run after cancellation."));
+                });
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await FailureAsync<OperationCanceledException>(
+                () => CollectSubAssetsAcrossServersAsync(client, s_asset, cancellation.Token))
+                .ConfigureAwait(false);
+
+            Assert.That(resolverCalls, Is.Empty);
+            session.Verify(s => s.BrowseAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ViewDescription?>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task RemoteTraversalRejectsNullResolverResultAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local", "urn:amb:remote");
+            SetupRemoteTraversalBrowse(
+                session, s_asset, new ExpandedNodeId(new NodeId("remote", 4), null, 1), []);
+            AmbClient client = CreateRemoteTraversalClient(session, (_, _) => Task.FromResult<ManagedSession>(null!));
+
+            await AssertStatusAsync(
+                () => CollectSubAssetsAcrossServersAsync(client, s_asset),
+                StatusCodes.BadServerUriInvalid).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task RemoteTraversalWithoutRemoteLinksDoesNotNeedResolverAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local");
+            SetupRemoteTraversalBrowse(session, NodeId.Null, ExpandedNodeId.Null, []);
+
+            List<AssetSubAssetReference> found = await CollectSubAssetsAcrossServersAsync(
+                CreateRemoteTraversalClient(session, null), s_asset).ConfigureAwait(false);
+
+            Assert.That(found, Is.Empty);
+        }
+
+        [Test]
+        public async Task NullRemoteTraversalRootNeedsNoSessionRequestsAsync()
+        {
+            Mock<ISession> session = CreateSession();
+
+            List<AssetSubAssetReference> found = await CollectSubAssetsAcrossServersAsync(
+                CreateClient(session), NodeId.Null).ConfigureAwait(false);
+
+            Assert.That(found, Is.Empty);
+            VerifyNoMutationOrDisposal(session);
+            session.Verify(s => s.BrowseAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ViewDescription?>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        private static void ConfigureRemoteTraversalSession(
+            Mock<ISession> session,
+            string localServerUri,
+            params string[] serverUris)
+        {
+            var table = new StringTable();
+            table.GetIndexOrAppend(localServerUri);
+            foreach (string serverUri in serverUris)
+            {
+                table.GetIndexOrAppend(serverUri);
+            }
+            session.SetupGet(s => s.ServerUris).Returns(table);
+            session.SetupGet(s => s.ConfiguredEndpoint).Returns(new ConfiguredEndpoint(
+                null,
+                new EndpointDescription
+                {
+                    Server = new ApplicationDescription { ApplicationUri = localServerUri }
+                },
+                null));
+        }
+
+        private static void SetupRemoteTraversalBrowse(
+            Mock<ISession> session,
+            NodeId asset,
+            ExpandedNodeId remote,
+            List<NodeId> browsed)
+        {
+            SetupBrowse(session, request =>
+            {
+                browsed.Add(request.NodeId);
+                return request.NodeId == asset
+                    ? new BrowseResult { References = [Reference(remote)] }
+                    : new BrowseResult();
+            });
+        }
+
+        private static AmbClient CreateRemoteTraversalClient(
+            Mock<ISession> session,
+            Func<string, CancellationToken, Task<ManagedSession>>? resolver)
+        {
+            return new AmbClient(session.Object, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                MaximumBrowseReferences = 1024,
+                MaximumBrowsePages = 128,
+                RemoteSessionResolver = resolver
+            });
+        }
+
+        private static async Task<List<AssetSubAssetReference>> CollectSubAssetsAcrossServersAsync(
+            AmbClient client,
+            NodeId asset,
+            CancellationToken cancellationToken = default)
+        {
+            var references = new List<AssetSubAssetReference>();
+            await foreach (AssetSubAssetReference reference in client
+                .EnumerateSubAssetsAcrossServersAsync(asset, cancellationToken).ConfigureAwait(false))
+            {
+                references.Add(reference);
+            }
+            return references;
         }
 
         private const string InstanceNamespace = "urn:amb:bounded:instances";

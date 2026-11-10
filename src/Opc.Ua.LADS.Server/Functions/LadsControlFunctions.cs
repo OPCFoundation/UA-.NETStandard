@@ -36,13 +36,14 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server;
 using Opc.Ua.LADS.Server.StateMachines;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.LADS.Server
 {
     /// <summary>
     /// The base of all function handles.
     /// </summary>
-    internal abstract class LadsFunction : ILadsFunction, IDisposable
+    internal abstract class LadsFunction : ILadsFunction, IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// Creates the handle of a function node.
@@ -90,9 +91,19 @@ namespace Opc.Ua.LADS.Server
             get => Volatile.Read(ref m_enabled);
             set
             {
-                Volatile.Write(ref m_enabled, value);
-                Runtime.Update(Node.IsEnabled, Variant.From(value));
+                Unit.Device.SetFunctionEnabled(this, value);
+                Node.IsEnabled?.ClearChangeMasks(Runtime.Context, false);
+                (this as LadsControlFunction)?.UpdateRunningExecutability();
             }
+        }
+
+        /// <summary>
+        /// Assigns the enabled value without dispatching notifications.
+        /// </summary>
+        internal void AssignEnabled(bool enabled)
+        {
+            Volatile.Write(ref m_enabled, enabled);
+            LadsRuntime.AssignValue(Node.IsEnabled, Variant.From(enabled));
         }
 
         /// <summary>
@@ -175,6 +186,13 @@ namespace Opc.Ua.LADS.Server
             {
                 stateMachine.GetChildren(context, children);
                 members.AddRange(children.OfType<MethodState>());
+                foreach (RunningStateMachineState runningStateMachine in
+                    children.OfType<RunningStateMachineState>().ToArray())
+                {
+                    children.Clear();
+                    runningStateMachine.GetChildren(context, children);
+                    members.AddRange(children.OfType<MethodState>());
+                }
             }
             children.Clear();
             Node.GetChildren(context, children);
@@ -265,11 +283,17 @@ namespace Opc.Ua.LADS.Server
         protected async ValueTask InvokeProviderAsync(
             LadsFunctionCommandKind kind,
             Variant value,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string? parameterPath = null)
         {
+            if (kind is LadsFunctionCommandKind.Start or LadsFunctionCommandKind.StartWithTargetValue)
+            {
+                await Unit.Device.ConfirmReadinessAsync(cancellationToken).ConfigureAwait(false);
+            }
             ServiceResult result = await Unit.FunctionProvider
-                .OnCommandAsync(new LadsFunctionCommand(this, kind, value), cancellationToken)
+                .OnCommandAsync(new LadsFunctionCommand(this, kind, value, parameterPath), cancellationToken)
                 .ConfigureAwait(false);
+            Unit.Device.RequireStorageHealthy();
             if (ServiceResult.IsBad(result))
             {
                 Runtime.Logger.CommandRejected(Path, kind.ToString(), result.StatusCode);
@@ -280,11 +304,16 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Runs a command exclusively.
         /// </summary>
-        protected async ValueTask ExclusiveAsync(Func<ValueTask> command, CancellationToken cancellationToken)
+        protected async ValueTask ExclusiveAsync(
+            Func<ValueTask> command, CancellationToken cancellationToken, bool releasing = false)
         {
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                if (!releasing)
+                {
+                    Unit.Device.RequireStorageHealthy();
+                }
                 await command().ConfigureAwait(false);
             }
             finally
@@ -315,6 +344,15 @@ namespace Opc.Ua.LADS.Server
             m_gate.Dispose();
         }
 
+        /// <summary>
+        /// Releases the function after any specialized asynchronous cleanup.
+        /// </summary>
+        public virtual ValueTask DisposeAsync()
+        {
+            Dispose();
+            return default;
+        }
+
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private bool m_enabled = true;
     }
@@ -322,15 +360,49 @@ namespace Opc.Ua.LADS.Server
     /// <summary>
     /// The base of the control functions with a control function state machine.
     /// </summary>
-    internal abstract class LadsControlFunction : LadsFunction, ILadsControlFunction
+    internal abstract class LadsControlFunction : LadsFunction, ILadsControlFunction, ILadsRunningOperations
     {
         /// <summary>
         /// Creates the handle and binds the methods of the control function state machine.
         /// </summary>
-        protected LadsControlFunction(LadsFunctionalUnit unit, BaseControlFunctionState node, string path)
+        protected LadsControlFunction(
+            LadsFunctionalUnit unit,
+            BaseControlFunctionState node,
+            string path,
+            bool enableRunningOperations = false,
+            LadsPidOptions? pid = null)
             : base(unit, node, path)
         {
             ISystemContext context = Runtime.Context;
+            if (pid != null)
+            {
+                PidControllerParameterState tuning = LadsRuntime.Named(
+                    context.CreateInstanceOfPidControllerParameterType(
+                        node, new QualifiedName(BrowseNames.ControllerTuningParameter, Runtime.LadsNamespaceIndex)),
+                    global::Opc.Ua.ReferenceTypeIds.HasComponent);
+                node.ControllerTuningParameter = tuning;
+                if (pid.CtrlP is double proportional)
+                {
+                    CheckRange(null, proportional);
+                    tuning.AddCtrlP(context);
+                    Runtime.Update(tuning.CtrlP, Variant.From(proportional));
+                    RegisterParameter(BrowseNames.ControllerTuningParameter + "/" + BrowseNames.CtrlP, tuning.CtrlP!);
+                }
+                if (pid.CtrlTi is double integral)
+                {
+                    CheckRange(null, integral);
+                    tuning.AddCtrlTi(context);
+                    Runtime.Update(tuning.CtrlTi, Variant.From(integral));
+                    RegisterParameter(BrowseNames.ControllerTuningParameter + "/" + BrowseNames.CtrlTi, tuning.CtrlTi!);
+                }
+                if (pid.CtrlTd is double derivative)
+                {
+                    CheckRange(null, derivative);
+                    tuning.AddCtrlTd(context);
+                    Runtime.Update(tuning.CtrlTd, Variant.From(derivative));
+                    RegisterParameter(BrowseNames.ControllerTuningParameter + "/" + BrowseNames.CtrlTd, tuning.CtrlTd!);
+                }
+            }
             ControlFunctionStateMachineState stateMachine = node.ControlFunctionState ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
@@ -341,14 +413,25 @@ namespace Opc.Ua.LADS.Server
                 stateMachine,
                 context,
                 LadsStateMaps.Functional,
-                LadsFunctionalStateValue.Stopped);
-            m_machine.StateChanged += state =>
+                LadsFunctionalStateValue.Stopped,
+                Unit.Device);
+            m_machine.StateChangedInternal += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
                 {
                     Runtime.Logger.StateChanged(Path, state);
                 }
                 StateChanged?.Invoke(state);
+                UpdateRunningExecutability();
+            };
+            m_machine.StateChangedInternalAsync += (state, cancellationToken) =>
+            {
+                if (Runtime.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    Runtime.Logger.StateChanged(Path, state);
+                }
+                StateChanged?.Invoke(state);
+                return UpdateRunningExecutabilityAsync(cancellationToken);
             };
             Runtime.Bind(stateMachine.Start, (_, ct) => StartAsync(ct));
             Runtime.Bind(stateMachine.Stop, (_, ct) => StopAsync(ct));
@@ -357,6 +440,31 @@ namespace Opc.Ua.LADS.Server
             Runtime.Bind(
                 stateMachine.StartWithTargetValue,
                 (inputs, ct) => StartWithTargetVariantAsync(inputs.Count > 0 ? inputs[0] : default, ct));
+            if (enableRunningOperations)
+            {
+                stateMachine.AddRunningStateMachine(context);
+                RunningStateMachineState runningNode = stateMachine.RunningStateMachine!;
+                runningNode.AddHold(context).AddUnhold(context)
+                    .AddSuspend(context).AddUnsuspend(context)
+                    .AddReset(context).AddToComplete(context);
+                m_running = new LadsStateMachine<LadsRunningStateValue>(
+                    runningNode,
+                    context,
+                    LadsStateMaps.Running,
+                    LadsRunningStateValue.Idle,
+                    Unit.Device);
+                m_running.StateChangedInternal += _ => UpdateRunningExecutability();
+                UpdateRunningExecutability();
+                m_running.StateChangedInternalAsync += (_, cancellationToken) =>
+                    UpdateRunningExecutabilityAsync(cancellationToken);
+                Runtime.Bind(runningNode.Hold, (_, ct) => HoldAsync(ct));
+                Runtime.Bind(runningNode.Unhold, (_, ct) => UnholdAsync(ct));
+                Runtime.Bind(runningNode.Suspend, (_, ct) => SuspendAsync(ct));
+                Runtime.Bind(runningNode.Unsuspend, (_, ct) => UnsuspendAsync(ct));
+                Runtime.Bind(runningNode.Reset, (_, ct) => ResetAsync(ct));
+                Runtime.Bind(runningNode.ToComplete, (_, ct) => ToCompleteAsync(ct));
+                UpdateRunningExecutability();
+            }
         }
 
         /// <inheritdoc/>
@@ -365,6 +473,260 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public event Action<LadsFunctionalStateValue>? StateChanged;
 
+        /// <summary>
+        /// Gets the optional running operations.
+        /// </summary>
+        public ILadsRunningOperations? RunningOperations => m_running == null ? null : this;
+
+        /// <summary>
+        /// Gets the optional running substate.
+        /// </summary>
+        public LadsRunningStateValue? RunningState => m_running?.Current;
+
+        /// <inheritdoc/>
+        public ValueTask SetParameterAsync(
+            string parameterPath, double value, CancellationToken cancellationToken = default)
+        {
+            if (parameterPath == null)
+            {
+                throw new ArgumentNullException(nameof(parameterPath));
+            }
+            return ExclusiveAsync(
+                async () =>
+                {
+                    if (!m_writableParameters.TryGetValue(parameterPath, out var parameter))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNotFound, "The function has no writable parameter '{0}'.", parameterPath);
+                    }
+                    CheckRange(parameter.Range, value);
+                    Variant argument = Variant.From(value);
+                    await InvokeProviderAsync(
+                        LadsFunctionCommandKind.SetParameter, argument, cancellationToken, parameterPath)
+                        .ConfigureAwait(false);
+                    await Unit.Device.SetFunctionParameterAsync(parameter.Node, argument).ConfigureAwait(false);
+                },
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask DisposeAsync()
+        {
+            var failures = new List<Exception>();
+            Task drained = Task.CompletedTask;
+            try
+            {
+                await ExclusiveAsync(
+                    () =>
+                    {
+                        lock (m_runningLock)
+                        {
+                            m_runningDisposed = true;
+                            drained = m_runningIdle?.Task ?? Task.CompletedTask;
+                            m_runningCancellation?.Cancel();
+                        }
+                        return default;
+                    },
+                    CancellationToken.None,
+                    releasing: true).ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                await drained.ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            finally
+            {
+                m_runningCancellation?.Dispose();
+                m_runningGate.Dispose();
+                await base.DisposeAsync().ConfigureAwait(false);
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The LADS control function cleanup failed.", failures);
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask HoldAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Holding,
+                LadsRunningStateValue.Held,
+                LadsRunningStateValue.Held,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask UnholdAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Unholding,
+                LadsRunningStateValue.Execute,
+                LadsRunningStateValue.Execute,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SuspendAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Suspending,
+                LadsRunningStateValue.Suspended,
+                LadsRunningStateValue.Suspended,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask UnsuspendAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Unsuspending,
+                LadsRunningStateValue.Execute,
+                LadsRunningStateValue.Execute,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ResetAsync(CancellationToken cancellationToken = default)
+        {
+            return ExclusiveAsync(
+                async () =>
+                {
+                    lock (m_runningLock)
+                    {
+                        if (m_runningDisposed)
+                        {
+                            throw new ObjectDisposedException(nameof(LadsControlFunction));
+                        }
+                    }
+                    RequireEnabled();
+                    m_machine.Require(LadsFunctionalStateValue.Running);
+                    LadsStateMachine<LadsRunningStateValue> running = RequireRunningStateMachine();
+                    running.Require(LadsRunningStateValue.Complete);
+                    await TransitionRunningAsync(
+                        cancellationToken,
+                        LadsRunningStateValue.Resetting,
+                        LadsRunningStateValue.Idle).ConfigureAwait(false);
+                },
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ToCompleteAsync(CancellationToken cancellationToken = default)
+        {
+            await ChangeRunningAsync(
+                LadsRunningStateValue.Completing,
+                LadsRunningStateValue.Complete,
+                LadsRunningStateValue.Completing,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Recomputes the executability of optional running methods.
+        /// </summary>
+        internal void UpdateRunningExecutability()
+        {
+            if (m_running == null)
+            {
+                return;
+            }
+            RunningStateMachineState node = ((BaseControlFunctionState)Node).ControlFunctionState!
+                .RunningStateMachine!;
+            bool running = State == LadsFunctionalStateValue.Running;
+            bool providerAvailable = IsEnabled && Unit.FunctionProvider is ILadsControlFunctionRunningProvider;
+            if (node.CurrentState != null)
+            {
+                node.CurrentState.StatusCode = running ? StatusCodes.Good : StatusCodes.BadStateNotActive;
+                if (node.CurrentState.Id != null)
+                {
+                    node.CurrentState.Id.StatusCode = node.CurrentState.StatusCode;
+                }
+                node.CurrentState.ClearChangeMasks(Runtime.Context, true);
+            }
+            Set(node.Hold, running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Holding));
+            Set(node.Unhold,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Unholding));
+            Set(node.Suspend,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Suspending));
+            Set(node.Unsuspend,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Unsuspending));
+            Set(
+                node.ToComplete,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Completing));
+            Set(node.Reset, running && IsEnabled && m_running.Current == LadsRunningStateValue.Complete);
+
+            void Set(MethodState? method, bool executable)
+            {
+                if (method != null)
+                {
+                    method.Executable = executable;
+                    method.UserExecutable = executable;
+                    method.ClearChangeMasks(Runtime.Context, false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Recomputes running-operation executability and awaits its state notifications.
+        /// </summary>
+        internal async ValueTask UpdateRunningExecutabilityAsync(CancellationToken cancellationToken)
+        {
+            if (m_running == null)
+            {
+                return;
+            }
+            RunningStateMachineState node = ((BaseControlFunctionState)Node).ControlFunctionState!
+                .RunningStateMachine!;
+            bool running = State == LadsFunctionalStateValue.Running;
+            bool providerAvailable = IsEnabled && Unit.FunctionProvider is ILadsControlFunctionRunningProvider;
+            if (node.CurrentState != null)
+            {
+                node.CurrentState.StatusCode = running ? StatusCodes.Good : StatusCodes.BadStateNotActive;
+                if (node.CurrentState.Id != null)
+                {
+                    node.CurrentState.Id.StatusCode = node.CurrentState.StatusCode;
+                }
+                await node.CurrentState.ClearChangeMasksAsync(Runtime.Context, true, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            await SetAsync(node.Hold,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Holding))
+                .ConfigureAwait(false);
+            await SetAsync(node.Unhold,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Unholding))
+                .ConfigureAwait(false);
+            await SetAsync(node.Suspend,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Suspending))
+                .ConfigureAwait(false);
+            await SetAsync(node.Unsuspend,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Unsuspending))
+                .ConfigureAwait(false);
+            await SetAsync(node.ToComplete,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Completing))
+                .ConfigureAwait(false);
+            await SetAsync(node.Reset, running && IsEnabled && m_running.Current == LadsRunningStateValue.Complete)
+                .ConfigureAwait(false);
+
+            async ValueTask SetAsync(MethodState? method, bool executable)
+            {
+                if (method != null)
+                {
+                    method.Executable = executable;
+                    method.UserExecutable = executable;
+                    await method.ClearChangeMasksAsync(Runtime.Context, false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
@@ -372,11 +734,21 @@ namespace Opc.Ua.LADS.Server
                 async () =>
                 {
                     RequireEnabled();
-                    m_machine.Require(LadsFunctionalStateValue.Stopped);
+                    RequireStartable();
                     await InvokeProviderAsync(LadsFunctionCommandKind.Start, default, cancellationToken)
                         .ConfigureAwait(false);
-                    await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
-                        .ConfigureAwait(false);
+                    if (State == LadsFunctionalStateValue.Stopped)
+                    {
+                        await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
+                            .ConfigureAwait(false);
+                    }
+                    if (m_running != null)
+                    {
+                        await TransitionRunningAsync(
+                            cancellationToken,
+                            LadsRunningStateValue.Starting,
+                            LadsRunningStateValue.Execute).ConfigureAwait(false);
+                    }
                 },
                 cancellationToken);
         }
@@ -384,6 +756,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public ValueTask StopAsync(CancellationToken cancellationToken = default)
         {
+            CancelRunningCommand();
             return ExclusiveAsync(
                 async () =>
                 {
@@ -394,6 +767,11 @@ namespace Opc.Ua.LADS.Server
                         cancellationToken,
                         LadsFunctionalStateValue.Stopping,
                         LadsFunctionalStateValue.Stopped).ConfigureAwait(false);
+                    if (m_running != null)
+                    {
+                        await m_running.SetStateAsync(LadsRunningStateValue.Idle, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 },
                 cancellationToken);
         }
@@ -401,6 +779,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public ValueTask AbortAsync(CancellationToken cancellationToken = default)
         {
+            CancelRunningCommand();
             return ExclusiveAsync(
                 async () =>
                 {
@@ -411,6 +790,11 @@ namespace Opc.Ua.LADS.Server
                         cancellationToken,
                         LadsFunctionalStateValue.Aborting,
                         LadsFunctionalStateValue.Aborted).ConfigureAwait(false);
+                    if (m_running != null)
+                    {
+                        await m_running.SetStateAsync(LadsRunningStateValue.Idle, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 },
                 cancellationToken);
         }
@@ -438,9 +822,31 @@ namespace Opc.Ua.LADS.Server
         protected abstract Variant NormalizeTarget(Variant value);
 
         /// <summary>
+        /// Registers one named numeric parameter before publication and routes UA writes through its provider.
+        /// </summary>
+        protected void RegisterParameter(string parameterPath, BaseVariableState variable, Range? range = null)
+        {
+            m_writableParameters.Add(parameterPath, (variable, range));
+            LadsRuntime.BindWrite(variable, (value, ct) => SetParameterAsync(parameterPath, ToDouble(value), ct));
+        }
+
+        /// <summary>
         /// Writes an accepted target value.
         /// </summary>
-        protected abstract void ApplyTarget(Variant value);
+        protected void ApplyTarget(Variant value)
+        {
+            Unit.Device.SetControlTarget(this, value);
+            Node.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Writes an accepted target value and awaits its state notifications.
+        /// </summary>
+        protected async ValueTask ApplyTargetAsync(Variant value, CancellationToken cancellationToken)
+        {
+            Unit.Device.SetControlTarget(this, value);
+            await Node.ClearChangeMasksAsync(Runtime.Context, true, cancellationToken).ConfigureAwait(false);
+        }
 
         /// <summary>
         /// Sets the target value after the provider accepted it.
@@ -453,7 +859,7 @@ namespace Opc.Ua.LADS.Server
                     Variant target = NormalizeTarget(value);
                     await InvokeProviderAsync(LadsFunctionCommandKind.SetTargetValue, target, cancellationToken)
                         .ConfigureAwait(false);
-                    ApplyTarget(target);
+                    await ApplyTargetAsync(target, CancellationToken.None).ConfigureAwait(false);
                 },
                 cancellationToken);
         }
@@ -468,14 +874,24 @@ namespace Opc.Ua.LADS.Server
                 {
                     RequireEnabled();
                     Variant target = NormalizeTarget(value);
-                    m_machine.Require(LadsFunctionalStateValue.Stopped);
+                    RequireStartable();
                     await InvokeProviderAsync(
                         LadsFunctionCommandKind.StartWithTargetValue,
                         target,
                         cancellationToken).ConfigureAwait(false);
-                    ApplyTarget(target);
-                    await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
-                        .ConfigureAwait(false);
+                    await ApplyTargetAsync(target, CancellationToken.None).ConfigureAwait(false);
+                    if (State == LadsFunctionalStateValue.Stopped)
+                    {
+                        await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
+                            .ConfigureAwait(false);
+                    }
+                    if (m_running != null)
+                    {
+                        await TransitionRunningAsync(
+                            cancellationToken,
+                            LadsRunningStateValue.Starting,
+                            LadsRunningStateValue.Execute).ConfigureAwait(false);
+                    }
                 },
                 cancellationToken);
         }
@@ -496,7 +912,164 @@ namespace Opc.Ua.LADS.Server
             }
         }
 
+        /// <summary>
+        /// Applies an acknowledged running-state operation.
+        /// </summary>
+        private async ValueTask ChangeRunningAsync(
+            LadsRunningStateValue acting,
+            LadsRunningStateValue stable,
+            LadsRunningStateValue providerTarget,
+            CancellationToken cancellationToken)
+        {
+            CancellationTokenSource? command = null;
+            ILadsControlFunctionRunningProvider? provider = null;
+            await ExclusiveAsync(
+                async () =>
+                {
+                    lock (m_runningLock)
+                    {
+                        if (m_runningDisposed)
+                        {
+                            throw new ObjectDisposedException(nameof(LadsControlFunction));
+                        }
+                    }
+                    RequireEnabled();
+                    m_machine.Require(LadsFunctionalStateValue.Running);
+                    LadsStateMachine<LadsRunningStateValue> running = RequireRunningStateMachine();
+                    if (Unit.FunctionProvider is not ILadsControlFunctionRunningProvider available)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNotSupported,
+                            "Running operations are not supported by the function provider.");
+                    }
+                    provider = available;
+                    await TransitionRunningAsync(cancellationToken, acting).ConfigureAwait(false);
+                    lock (m_runningLock)
+                    {
+                        m_runningCancellation?.Cancel();
+                        command = CancellationTokenSource.CreateLinkedTokenSource(
+                            cancellationToken, Runtime.Stopping);
+                        m_runningCancellation = command;
+                        if (m_pendingRunningCommands++ == 0)
+                        {
+                            m_runningIdle = new TaskCompletionSource<bool>(
+                                TaskCreationOptions.RunContinuationsAsynchronously);
+                        }
+                    }
+                },
+                cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await m_runningGate.WaitAsync(command!.Token).ConfigureAwait(false);
+                ServiceResult acknowledgment;
+                try
+                {
+                    acknowledgment = await provider!.ChangeExecutionAsync(this, providerTarget, command.Token)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_runningGate.Release();
+                }
+                if (ServiceResult.IsBad(acknowledgment))
+                {
+                    throw new ServiceResultException(acknowledgment);
+                }
+                await ExclusiveAsync(
+                    async () =>
+                    {
+                        command.Token.ThrowIfCancellationRequested();
+                        m_machine.Require(LadsFunctionalStateValue.Running);
+                        RequireRunningStateMachine().Require(acting);
+                        if (acting != stable)
+                        {
+                            await TransitionRunningAsync(CancellationToken.None, stable).ConfigureAwait(false);
+                        }
+                        await UpdateRunningExecutabilityAsync(CancellationToken.None).ConfigureAwait(false);
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (m_runningLock)
+                {
+                    if (ReferenceEquals(m_runningCancellation, command))
+                    {
+                        m_runningCancellation = null;
+                    }
+                    command!.Dispose();
+                    if (--m_pendingRunningCommands == 0)
+                    {
+                        m_runningIdle!.TrySetResult(true);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cancels a pending physical operation before Stop or Abort takes the command gate.
+        /// </summary>
+        private void CancelRunningCommand()
+        {
+            lock (m_runningLock)
+            {
+                m_runningCancellation?.Cancel();
+            }
+        }
+
+        /// <summary>
+        /// Permits a first start or a new process after Complete-to-Reset.
+        /// </summary>
+        private void RequireStartable()
+        {
+            if (m_running != null && State == LadsFunctionalStateValue.Running)
+            {
+                m_running.Require(LadsRunningStateValue.Idle);
+                return;
+            }
+            m_machine.Require(LadsFunctionalStateValue.Stopped);
+        }
+
+        /// <summary>
+        /// Gets the running state machine or rejects an operation when it was not configured.
+        /// </summary>
+        private LadsStateMachine<LadsRunningStateValue> RequireRunningStateMachine()
+        {
+            return m_running ?? throw ServiceResultException.Create(
+                StatusCodes.BadNotSupported,
+                "Running operations are not configured for the function '{0}'.",
+                Path);
+        }
+
+        /// <summary>
+        /// Applies running-state transitions and rejects a vetoed transition.
+        /// </summary>
+        private async ValueTask TransitionRunningAsync(
+            CancellationToken cancellationToken,
+            params LadsRunningStateValue[] states)
+        {
+            LadsStateMachine<LadsRunningStateValue> running = RequireRunningStateMachine();
+            if (!await running.TransitionThroughAsync(cancellationToken, states).ConfigureAwait(false))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "A running-state transition of the function '{0}' was vetoed.",
+                    Path);
+            }
+        }
+
         private readonly LadsStateMachine<LadsFunctionalStateValue> m_machine;
+
+        /// <summary>Writable named parameters configured before the function is published.</summary>
+        private readonly Dictionary<string, (BaseVariableState Node, Range? Range)> m_writableParameters =
+            new(StringComparer.Ordinal);
+        private readonly LadsStateMachine<LadsRunningStateValue>? m_running;
+        private readonly Lock m_runningLock = new();
+        private readonly SemaphoreSlim m_runningGate = new(1, 1);
+        private CancellationTokenSource? m_runningCancellation;
+        private TaskCompletionSource<bool>? m_runningIdle;
+        private int m_pendingRunningCommands;
+        private bool m_runningDisposed;
     }
 
     /// <summary>
@@ -512,7 +1085,7 @@ namespace Opc.Ua.LADS.Server
             AnalogControlFunctionState node,
             string path,
             LadsAnalogControlOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             m_node = node;
             m_options = options;
@@ -524,14 +1097,33 @@ namespace Opc.Ua.LADS.Server
             m_target = options.InitialTargetValue;
             Runtime.Update(node.CurrentValue, Variant.From(m_current));
             Runtime.Update(node.TargetValue, Variant.From(m_target));
+            if (options.Kind != LadsAnalogControlKind.Composed)
+            {
+                LadsRuntime.BindWrite(node.TargetValue, SetTargetCoreAsync);
+            }
+            else if (node.TargetValue is { } computedTarget)
+            {
+                computedTarget.AccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
+                computedTarget.UserAccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
+            }
             m_lastUpdate = Runtime.TimeProvider.GetTimestamp();
             switch (node)
             {
                 case AnalogControlFunctionWithTotalizerState totalizer:
                     totalizer.AddResetTotalizer(context);
+                    totalizer.ResetTotalizer!.AddInputArguments(context, new Argument
+                    {
+                        Name = "Value",
+                        DataType = Opc.Ua.Types.DataTypeIds.Double,
+                        ValueRank = ValueRanks.Scalar,
+                        Description = new LocalizedText("The value to assign to the totalizer.")
+                    });
                     ConfigureAnalog(totalizer.TotalizedValue, options.EngineeringUnits, null);
                     Runtime.Update(totalizer.TotalizedValue, Variant.From(0.0));
-                    Runtime.Bind(totalizer.ResetTotalizer, (_, ct) => ResetTotalizerAsync(ct));
+                    Runtime.Bind(
+                        totalizer.ResetTotalizer,
+                        (inputs, ct) => ResetTotalizerAsync(
+                            ToDouble(inputs.Count > 0 ? inputs[0] : default), ct));
                     break;
                 case AnalogControlFunctionWithRelativeTargetValueState relative:
                     relative.AddModifyTargetValueBy(context);
@@ -574,6 +1166,8 @@ namespace Opc.Ua.LADS.Server
                         variable.Value = 0.0;
                         variable.NodeId = context.NodeIdFactory!.New(context, variable);
                         set.AddChild(variable);
+                        RegisterParameter(
+                            $"{BrowseNames.TargetValueSet}/{Uri.EscapeDataString(name)}", variable, options.Range);
                     }
                     break;
             }
@@ -621,24 +1215,9 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(double value)
         {
-            double total;
-            lock (m_lock)
-            {
-                long now = Runtime.TimeProvider.GetTimestamp();
-                if (State == LadsFunctionalStateValue.Running)
-                {
-                    m_total += m_current *
-                        Runtime.TimeProvider.GetElapsedTime(m_lastUpdate, now).TotalSeconds;
-                }
-                m_lastUpdate = now;
-                m_current = value;
-                total = m_total;
-            }
-            Runtime.Update(m_node.CurrentValue, Variant.From(value));
-            if (m_node is AnalogControlFunctionWithTotalizerState totalizer)
-            {
-                Runtime.Update(totalizer.TotalizedValue, Variant.From(total));
-            }
+            Unit.Device.UpdateControlReading(
+                this, value, Runtime.TimeProvider.GetTimestamp(), Runtime.TimeProvider.TimestampFrequency);
+            Node.ClearChangeMasks(Runtime.Context, true);
         }
 
         /// <inheritdoc/>
@@ -666,7 +1245,7 @@ namespace Opc.Ua.LADS.Server
                         LadsFunctionCommandKind.ModifyTargetValueBy,
                         Variant.From(delta),
                         cancellationToken).ConfigureAwait(false);
-                    ApplyTarget(Variant.From(target));
+                    await ApplyTargetAsync(Variant.From(target), CancellationToken.None).ConfigureAwait(false);
                 },
                 cancellationToken);
         }
@@ -674,27 +1253,50 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public ValueTask ResetTotalizerAsync(CancellationToken cancellationToken = default)
         {
+            return ResetTotalizerAsync(0, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ResetTotalizerAsync(double value, CancellationToken cancellationToken = default)
+        {
             RequireKind(LadsAnalogControlKind.Totalizer);
+            CheckRange(null, value);
             return ExclusiveAsync(
                 async () =>
                 {
-                    await InvokeProviderAsync(LadsFunctionCommandKind.ResetTotalizer, default, cancellationToken)
+                    await InvokeProviderAsync(
+                        LadsFunctionCommandKind.ResetTotalizer, Variant.From(value), cancellationToken)
                         .ConfigureAwait(false);
-                    lock (m_lock)
+                    Unit.Device.ResetTotalizer(this, Runtime.TimeProvider.GetTimestamp(), value);
+                    var totalizer = (AnalogControlFunctionWithTotalizerState)m_node;
+                    if (totalizer.TotalizedValue is { } totalizedValue)
                     {
-                        m_total = 0;
-                        m_lastUpdate = Runtime.TimeProvider.GetTimestamp();
+                        await totalizedValue.ClearChangeMasksAsync(
+                            Runtime.Context, false, CancellationToken.None).ConfigureAwait(false);
                     }
-                    Runtime.Update(
-                        ((AnalogControlFunctionWithTotalizerState)m_node).TotalizedValue,
-                        Variant.From(0.0));
                 },
                 cancellationToken);
         }
 
         /// <inheritdoc/>
+        public double GetComposedTargetValue(string name)
+        {
+            RequireKind(LadsAnalogControlKind.Composed);
+            if (name == null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+            var composed = (AnalogControlFunctionWithComposedTargetValueState)m_node;
+            BaseDataVariableState<double> variable =
+                Runtime.FindChild<BaseDataVariableState<double>>(composed.TargetValueSet!, name) ??
+                    throw ServiceResultException.Create(StatusCodes.BadNotFound, "No target value '{0}'.", name);
+            return variable.Value;
+        }
+
+        /// <inheritdoc/>
         public void SetComposedTargetValue(string name, double value)
         {
+            Unit.Device.RequireStorageHealthy();
             if (m_node is not AnalogControlFunctionWithComposedTargetValueState composed ||
                 composed.TargetValueSet == null)
             {
@@ -705,26 +1307,98 @@ namespace Opc.Ua.LADS.Server
             }
             BaseVariableState variable = Runtime.FindChild<BaseVariableState>(composed.TargetValueSet, name) ??
                 throw ServiceResultException.Create(StatusCodes.BadNotFound, "No target value '{0}'.", name);
-            Runtime.Update(variable, Variant.From(value));
+            Unit.Device.SetFunctionParameter(variable, Variant.From(value));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SetComposedTargetValueAsync(
+            string name, double value, CancellationToken cancellationToken = default)
+        {
+            RequireKind(LadsAnalogControlKind.Composed);
+            if (name == null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+            return SetParameterAsync(
+                $"{BrowseNames.TargetValueSet}/{Uri.EscapeDataString(name)}", value, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReportComputedTargetValueAsync(
+            double value, CancellationToken cancellationToken = default)
+        {
+            RequireKind(LadsAnalogControlKind.Composed);
+            CheckRange(m_options.Range, value);
+            cancellationToken.ThrowIfCancellationRequested();
+            return ApplyTargetAsync(Variant.From(value), CancellationToken.None);
         }
 
         /// <inheritdoc/>
         protected override Variant NormalizeTarget(Variant value)
         {
+            if (Kind == LadsAnalogControlKind.Composed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported, "The composed target is calculated by the equipment.");
+            }
             double target = ToDouble(value);
             CheckRange(m_options.Range, target);
             return Variant.From(target);
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns a normalized target without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
             double target = ToDouble(value);
             lock (m_lock)
             {
                 m_target = target;
             }
-            Runtime.Update(m_node.TargetValue, Variant.From(target));
+            LadsRuntime.AssignValue(m_node.TargetValue, Variant.From(target));
+        }
+
+        /// <summary>
+        /// Assigns the current reading and integrated total without invoking the clock provider or observers.
+        /// </summary>
+        internal void AssignReading(double value, long timestamp, long frequency)
+        {
+            if (frequency <= 0)
+            {
+                throw new InvalidOperationException("The LADS clock timestamp frequency must be positive.");
+            }
+            double total;
+            lock (m_lock)
+            {
+                timestamp = Math.Max(timestamp, m_lastUpdate);
+                if (State == LadsFunctionalStateValue.Running)
+                {
+                    m_total += m_current * ((double)(timestamp - m_lastUpdate) / frequency);
+                }
+                m_lastUpdate = timestamp;
+                m_current = value;
+                total = m_total;
+            }
+            LadsRuntime.AssignValue(m_node.CurrentValue, Variant.From(value));
+            if (m_node is AnalogControlFunctionWithTotalizerState totalizer)
+            {
+                LadsRuntime.AssignValue(totalizer.TotalizedValue, Variant.From(total));
+            }
+        }
+
+        /// <summary>
+        /// Resets the total and its clock sample without dispatching notifications.
+        /// </summary>
+        internal void AssignTotalizerReset(long timestamp, double value)
+        {
+            lock (m_lock)
+            {
+                m_total = value;
+                m_lastUpdate = Math.Max(timestamp, m_lastUpdate);
+            }
+            LadsRuntime.AssignValue(
+                ((AnalogControlFunctionWithTotalizerState)m_node).TotalizedValue, Variant.From(value));
         }
 
         /// <summary>
@@ -764,7 +1438,7 @@ namespace Opc.Ua.LADS.Server
             MultiModeAnalogControlFunctionState node,
             string path,
             LadsMultiModeAnalogControlOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             if (options.Modes.Count == 0)
             {
@@ -790,6 +1464,7 @@ namespace Opc.Ua.LADS.Server
             {
                 Runtime.Update(node.CurrentMode.EnumStrings, Variant.From((ArrayOf<LocalizedText>)texts));
                 Runtime.Update(node.CurrentMode, Variant.From(m_mode));
+                LadsRuntime.BindWrite(node.CurrentMode, SetModeValueAsync);
             }
             m_parameters = new ControllerParameterState[options.Modes.Count];
             NodeState set = node.ControllerModeSet ??
@@ -807,6 +1482,11 @@ namespace Opc.Ua.LADS.Server
                 Runtime.Update(parameter.TargetValue, Variant.From(0.0));
                 set.AddChild(parameter);
                 m_parameters[ii] = parameter;
+                RegisterParameter(
+                    $"{BrowseNames.ControllerModeSet}/{Uri.EscapeDataString(options.Modes[ii])}/" +
+                    BrowseNames.TargetValue,
+                    parameter.TargetValue!,
+                    options.Range);
             }
         }
 
@@ -831,8 +1511,12 @@ namespace Opc.Ua.LADS.Server
                     }
                     await InvokeProviderAsync(LadsFunctionCommandKind.SetMode, Variant.From(mode), cancellationToken)
                         .ConfigureAwait(false);
-                    Volatile.Write(ref m_mode, mode);
-                    Runtime.Update(m_node.CurrentMode, Variant.From(mode));
+                    Unit.Device.SetControlMode(this, mode);
+                    if (m_node.CurrentMode is { } currentMode)
+                    {
+                        await currentMode.ClearChangeMasksAsync(
+                            Runtime.Context, false, CancellationToken.None).ConfigureAwait(false);
+                    }
                 },
                 cancellationToken);
         }
@@ -847,14 +1531,29 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void SetTargetValue(string mode, double value)
         {
+            Unit.Device.RequireStorageHealthy();
             CheckRange(m_options.Range, value);
-            Runtime.Update(Find(mode).TargetValue, Variant.From(value));
+            Unit.Device.SetFunctionParameter(Find(mode).TargetValue, Variant.From(value));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SetTargetValueAsync(
+            string mode, double value, CancellationToken cancellationToken = default)
+        {
+            if (mode == null)
+            {
+                throw new ArgumentNullException(nameof(mode));
+            }
+            return SetParameterAsync(
+                $"{BrowseNames.ControllerModeSet}/{Uri.EscapeDataString(mode)}/{BrowseNames.TargetValue}",
+                value,
+                cancellationToken);
         }
 
         /// <inheritdoc/>
         public void UpdateCurrentValue(string mode, double value)
         {
-            Runtime.Update(Find(mode).CurrentValue, Variant.From(value));
+            Unit.Device.SetFunctionParameter(Find(mode).CurrentValue, Variant.From(value));
         }
 
         /// <inheritdoc/>
@@ -865,10 +1564,33 @@ namespace Opc.Ua.LADS.Server
             return Variant.From(target);
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns the target of the selected mode without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
-            Runtime.Update(m_parameters[CurrentMode].TargetValue, Variant.From(ToDouble(value)));
+            LadsRuntime.AssignValue(m_parameters[CurrentMode].TargetValue, Variant.From(ToDouble(value)));
+        }
+
+        /// <summary>
+        /// Assigns the selected mode without dispatching notifications.
+        /// </summary>
+        internal void AssignMode(uint mode)
+        {
+            Volatile.Write(ref m_mode, mode);
+            LadsRuntime.AssignValue(m_node.CurrentMode, Variant.From(mode));
+        }
+
+        /// <summary>
+        /// Validates a client mode write before invoking the same provider path as the direct API.
+        /// </summary>
+        private ValueTask SetModeValueAsync(Variant value, CancellationToken cancellationToken)
+        {
+            if (!value.TryGetValue(out uint mode))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "A mode index is expected.");
+            }
+            return SetModeAsync(mode, cancellationToken);
         }
 
         /// <summary>
@@ -906,7 +1628,7 @@ namespace Opc.Ua.LADS.Server
             TwoStateDiscreteControlFunctionState node,
             string path,
             LadsTwoStateDiscreteOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             m_current = Configure(node.CurrentValue, options);
             m_target = Configure(node.TargetValue, options);
@@ -914,6 +1636,7 @@ namespace Opc.Ua.LADS.Server
             m_targetValue = options.InitialValue;
             Runtime.Update(m_current, Variant.From(m_currentValue));
             Runtime.Update(m_target, Variant.From(m_targetValue));
+            LadsRuntime.BindWrite(m_target, SetTargetCoreAsync);
         }
 
         /// <inheritdoc/>
@@ -925,8 +1648,17 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(bool value)
         {
+            Unit.Device.UpdateControlReading(this, value);
+            m_current?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        /// <summary>
+        /// Assigns the current reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(bool value)
+        {
             Volatile.Write(ref m_currentValue, value);
-            Runtime.Update(m_current, Variant.From(value));
+            LadsRuntime.AssignValue(m_current, Variant.From(value));
         }
 
         /// <inheritdoc/>
@@ -973,12 +1705,14 @@ namespace Opc.Ua.LADS.Server
             throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "A Boolean value is expected.");
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns the normalized target without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
             value.TryGetValue(out bool flag);
             Volatile.Write(ref m_targetValue, flag);
-            Runtime.Update(m_target, Variant.From(flag));
+            LadsRuntime.AssignValue(m_target, Variant.From(flag));
         }
 
         private readonly TwoStateDiscreteState? m_current;
@@ -1001,7 +1735,7 @@ namespace Opc.Ua.LADS.Server
             MultiStateDiscreteControlFunctionState node,
             string path,
             LadsMultiStateDiscreteOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             m_states = Validate(options);
             m_current = Configure(Runtime, node.CurrentValue, options);
@@ -1010,6 +1744,7 @@ namespace Opc.Ua.LADS.Server
             m_targetValue = options.InitialValue;
             Runtime.Update(m_current, Variant.From(m_currentValue));
             Runtime.Update(m_target, Variant.From(m_targetValue));
+            LadsRuntime.BindWrite(m_target, SetTargetCoreAsync);
         }
 
         /// <inheritdoc/>
@@ -1021,9 +1756,18 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(uint value)
         {
+            Unit.Device.UpdateControlReading(this, value);
+            m_current?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        /// <summary>
+        /// Validates and assigns the current reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(uint value)
+        {
             Check(m_states, value);
             Volatile.Write(ref m_currentValue, value);
-            Runtime.Update(m_current, Variant.From(value));
+            LadsRuntime.AssignValue(m_current, Variant.From(value));
         }
 
         /// <inheritdoc/>
@@ -1099,12 +1843,14 @@ namespace Opc.Ua.LADS.Server
             return Variant.From(index);
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns the normalized target without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
             value.TryGetValue(out uint index);
             Volatile.Write(ref m_targetValue, index);
-            Runtime.Update(m_target, Variant.From(index));
+            LadsRuntime.AssignValue(m_target, Variant.From(index));
         }
 
         private readonly int m_states;
@@ -1127,7 +1873,7 @@ namespace Opc.Ua.LADS.Server
             TimerControlFunctionState node,
             string path,
             LadsTimerOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             m_node = node;
             m_options = options;
@@ -1138,7 +1884,9 @@ namespace Opc.Ua.LADS.Server
             ConfigureAnalog(node.TargetValue, units, options.Range);
             ConfigureAnalog(node.DifferenceValue, units, null);
             m_target = options.InitialTargetValue;
-            Publish();
+            AssignValues();
+            LadsRuntime.BindWrite(node.TargetValue, SetTargetCoreAsync);
+            Node.ClearChangeMasks(Runtime.Context, true);
         }
 
         /// <inheritdoc/>
@@ -1180,11 +1928,20 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(double value)
         {
+            Unit.Device.UpdateControlReading(this, value);
+            Node.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Assigns the current timer reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(double value)
+        {
             lock (m_lock)
             {
                 m_current = value;
             }
-            Publish();
+            AssignValues();
         }
 
         /// <inheritdoc/>
@@ -1207,20 +1964,22 @@ namespace Opc.Ua.LADS.Server
             return Variant.From(target);
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns the normalized timer target without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
             lock (m_lock)
             {
                 m_target = ToDouble(value);
             }
-            Publish();
+            AssignValues();
         }
 
         /// <summary>
         /// Writes the values of the timer.
         /// </summary>
-        private void Publish()
+        private void AssignValues()
         {
             double current;
             double target;
@@ -1229,9 +1988,9 @@ namespace Opc.Ua.LADS.Server
                 current = m_current;
                 target = m_target;
             }
-            Runtime.Update(m_node.CurrentValue, Variant.From(current));
-            Runtime.Update(m_node.TargetValue, Variant.From(target));
-            Runtime.Update(m_node.DifferenceValue, Variant.From(target - current));
+            LadsRuntime.AssignValue(m_node.CurrentValue, Variant.From(current));
+            LadsRuntime.AssignValue(m_node.TargetValue, Variant.From(target));
+            LadsRuntime.AssignValue(m_node.DifferenceValue, Variant.From(target - current));
         }
 
         private readonly TimerControlFunctionState m_node;

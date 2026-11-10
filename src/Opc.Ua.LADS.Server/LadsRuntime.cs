@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -59,16 +60,20 @@ namespace Opc.Ua.LADS.Server
             ILadsDeviceProvider deviceProvider,
             ILadsFunctionProvider functionProvider,
             ILadsProgramExecutor programExecutor,
+            ILadsStore store,
+            ILadsNodeOperations nodeOperations,
             LadsDeviceRegistry registry)
         {
             Stopping = m_stopping.Token;
             Manager = manager;
             Options = options;
-            TimeProvider = timeProvider;
+            TimeProvider = options.TimeProvider ?? timeProvider;
             FileBinder = fileBinder;
             DeviceProvider = deviceProvider;
             FunctionProvider = functionProvider;
             ProgramExecutor = programExecutor;
+            Store = options.Store ?? store;
+            m_nodeOperations = nodeOperations;
             Registry = registry;
             Logger = manager.SystemContext.Telemetry.CreateLogger<LadsRuntime>();
             NamespaceUris = manager.SystemContext.NamespaceUris;
@@ -123,6 +128,11 @@ namespace Opc.Ua.LADS.Server
         /// Gets the default program executor.
         /// </summary>
         public ILadsProgramExecutor ProgramExecutor { get; }
+
+        /// <summary>
+        /// Gets the stored-data provider; it never restores physical execution.
+        /// </summary>
+        public ILadsStore Store { get; }
 
         /// <summary>
         /// Gets the registry the devices are published to.
@@ -205,6 +215,8 @@ namespace Opc.Ua.LADS.Server
                         buildContext.GetService<ILadsDeviceProvider>() ?? new InMemoryLadsDeviceProvider(),
                         buildContext.GetService<ILadsFunctionProvider>() ?? new InMemoryLadsFunctionProvider(),
                         buildContext.GetService<ILadsProgramExecutor>() ?? new InMemoryLadsProgramExecutor(),
+                        buildContext.GetService<ILadsStore>() ?? new InMemoryLadsStore(),
+                        buildContext.GetService<ILadsNodeOperations>() ?? new LadsNodeOperations(),
                         buildContext.GetService<ILadsDeviceRegistry>() as LadsDeviceRegistry ??
                             new LadsDeviceRegistry());
                 })).Value;
@@ -271,7 +283,10 @@ namespace Opc.Ua.LADS.Server
         {
             lock (m_lock)
             {
-                m_reservedNames.Remove(name);
+                if (!m_orphanedNames.Contains(name))
+                {
+                    m_reservedNames.Remove(name);
+                }
             }
         }
 
@@ -282,41 +297,110 @@ namespace Opc.Ua.LADS.Server
         {
             ThrowIfDisposed();
             await m_registrationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            bool reserved = false;
+            bool registered = false;
+            bool orphaned = false;
+            NodeState? attachedParent = null;
+            List<NodeState>? registrationNodes = null;
             try
             {
                 ThrowIfDisposed();
+                if (!m_storageIdentities.Add(device.StoreIdentity))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "A LADS device already uses this stored-data identity.");
+                }
+                reserved = true;
                 LADSDeviceState node = device.Node;
+                await device.RestoreStoredDataAsync(cancellationToken).ConfigureAwait(false);
+                await device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
                 NodeState deviceSet = DeviceSet;
                 RemoveDeclarationReferences(node);
                 deviceSet.AddChild(node);
+                attachedParent = deviceSet;
                 node.EventNotifier |= EventNotifiers.SubscribeToEvents;
-                try
-                {
-                    await Manager.AddPredefinedNodeAsync(node, cancellationToken).ConfigureAwait(false);
-                    device.OrganizeOperationalGroups();
-                    await Manager.RegisterRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
-                }
-                catch
-                {
-                    await RemoveUnregisteredAsync(deviceSet, node).ConfigureAwait(false);
-                    throw;
-                }
+                registrationNodes = CaptureSubtree(node);
+                await device.RegisterLockingAsync(cancellationToken).ConfigureAwait(false);
+                await m_nodeOperations.AddAsync(Manager, node, cancellationToken).ConfigureAwait(false);
+                device.OrganizeOperationalGroups();
+                await Manager.RegisterRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
                 if (!Manager.TryOrganizeUnder(
                     ExpandedNodeId.ToNodeId(Opc.Ua.Machinery.ObjectIds.Machines, NamespaceUris), node))
                 {
                     Logger.MachinesFolderUnavailable(device.Name);
                 }
+                try
+                {
+                    await device.RegisterAssetManagementAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    registrationNodes = CaptureSubtree(node);
+                }
+                await device.StartAsync(cancellationToken).ConfigureAwait(false);
+                Registry.Add(device);
                 lock (m_lock)
                 {
                     m_devices.Add(device);
                 }
+                registered = true;
+            }
+            catch (Exception registrationFailure)
+            {
+                var failures = new List<Exception> { registrationFailure };
+                device.MarkRegistrationFailed();
+                Registry.Remove(device);
+                try
+                {
+                    await device.UnregisterAssetManagementAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    failures.Add(cleanupFailure);
+                    orphaned = true;
+                }
+                if (attachedParent != null)
+                {
+                    try
+                    {
+                        await RemoveUnregisteredAsync(attachedParent, device.Node).ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupFailure)
+                    {
+                        failures.Add(cleanupFailure);
+                    }
+                    orphaned |= registrationNodes != null && registrationNodes.Any(candidate =>
+                        ReferenceEquals(Manager.FindPredefinedNode(candidate.NodeId), candidate));
+                }
+                if (orphaned)
+                {
+                    lock (m_lock)
+                    {
+                        m_orphanedNames.Add(device.Name);
+                    }
+                }
+                try
+                {
+                    await device.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    failures.Add(cleanupFailure);
+                }
+                if (failures.Count > 1)
+                {
+                    throw new AggregateException("The LADS device registration and cleanup failed.", failures);
+                }
+                throw;
             }
             finally
             {
+                if (reserved && !registered && !orphaned)
+                {
+                    m_storageIdentities.Remove(device.StoreIdentity);
+                }
                 m_registrationGate.Release();
             }
-            await device.StartAsync(cancellationToken).ConfigureAwait(false);
-            Registry.Add(device);
             Logger.DevicePublished(device.Name, device.FunctionalUnits.Count, device.NodeId);
         }
 
@@ -330,15 +414,16 @@ namespace Opc.Ua.LADS.Server
         {
             ThrowIfDisposed();
             RemoveDeclarationReferences(child);
-            parent.AddChild(child);
-            try
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(Context, children);
+            if (!children.Any(existing => ReferenceEquals(existing, child)))
             {
-                await Manager.AddPredefinedNodeAsync(child, cancellationToken).ConfigureAwait(false);
+                parent.AddChild(child);
             }
-            catch
+            if (CaptureSubtree(child).Any(candidate =>
+                !ReferenceEquals(Manager.FindPredefinedNode(candidate.NodeId), candidate)))
             {
-                await RemoveUnregisteredAsync(parent, child).ConfigureAwait(false);
-                throw;
+                await m_nodeOperations.AddAsync(Manager, child, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -402,17 +487,70 @@ namespace Opc.Ua.LADS.Server
             BaseInstanceState child,
             CancellationToken cancellationToken)
         {
-            if (ReferenceEquals(Manager.FindPredefinedNode(child.NodeId), child))
+            var containment = new List<(NodeState Parent, BaseInstanceState[] Children)>();
+            foreach (NodeState node in CaptureSubtree(child))
             {
-                await Manager.DeleteNodeAsync(Context, child.NodeId, cancellationToken).ConfigureAwait(false);
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(Context, children);
+                containment.Add((node, children.ToArray()));
             }
-            parent.RemoveChild(child);
+            Exception? removalFailure = null;
+            try
+            {
+                if (ReferenceEquals(Manager.FindPredefinedNode(child.NodeId), child))
+                {
+                    await m_nodeOperations.RemoveAsync(Manager, child, cancellationToken).ConfigureAwait(false);
+                }
+                parent.RemoveChild(child);
+            }
+            catch (Exception failure)
+            {
+                removalFailure = failure;
+            }
+            // Deletion clears generated child slots as well as ordinary containment.
+            // Keep the detached object complete so compensation can register the same handles.
+            var failures = new List<Exception>();
+            foreach ((NodeState owner, BaseInstanceState[] children) in containment)
+            {
+                foreach (BaseInstanceState descendant in children)
+                {
+                    try
+                    {
+                        owner.ReplaceChild(Context, descendant);
+                    }
+                    catch (Exception failure)
+                    {
+                        failures.Add(failure);
+                    }
+                }
+            }
+            if (failures.Count > 0)
+            {
+                if (removalFailure != null)
+                {
+                    failures.Insert(0, removalFailure);
+                }
+                throw new AggregateException("The detached LADS subtree could not be retained.", failures);
+            }
+            if (removalFailure != null)
+            {
+                ExceptionDispatchInfo.Capture(removalFailure).Throw();
+            }
         }
 
         /// <summary>
         /// Writes the value of a variable and reports the change.
         /// </summary>
         public void Update(BaseVariableState? variable, Variant value)
+        {
+            AssignValue(variable, value);
+            variable?.ClearChangeMasks(Context, false);
+        }
+
+        /// <summary>
+        /// Assigns a variable's attributes without dispatching observable notifications.
+        /// </summary>
+        internal static void AssignValue(BaseVariableState? variable, Variant value)
         {
             if (variable == null)
             {
@@ -421,7 +559,6 @@ namespace Opc.Ua.LADS.Server
             variable.Value = value;
             variable.Timestamp = DateTimeUtc.Now;
             variable.StatusCode = StatusCodes.Good;
-            variable.ClearChangeMasks(Context, false);
         }
 
         /// <summary>
@@ -435,6 +572,34 @@ namespace Opc.Ua.LADS.Server
             }
             long version = Interlocked.Increment(ref m_version);
             Update(set.NodeVersion, Variant.From(version.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
+        /// <summary>
+        /// Routes client value writes through an asynchronous command that owns publication of the accepted value.
+        /// </summary>
+        public static void BindWrite(
+            BaseVariableState? variable,
+            Func<Variant, CancellationToken, ValueTask> handler)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.AccessLevel |= AccessLevels.CurrentWrite;
+            variable.UserAccessLevel |= AccessLevels.CurrentWrite;
+            variable.OnWriteValueAsync = null;
+            variable.OnSimpleWriteValueAsync = async (_, _, value, ct) =>
+            {
+                try
+                {
+                    await handler(value, ct).ConfigureAwait(false);
+                    return new AttributeWriteResult(ServiceResult.Good) { SuppressCacheUpdate = true };
+                }
+                catch (ServiceResultException exception)
+                {
+                    return new AttributeWriteResult(exception.Result);
+                }
+            };
         }
 
         /// <summary>
@@ -580,16 +745,18 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private async ValueTask RemoveUnregisteredAsync(NodeState parent, BaseInstanceState node)
         {
+            var failures = new List<Exception>();
             try
             {
                 if (ReferenceEquals(Manager.FindPredefinedNode(node.NodeId), node))
                 {
-                    await Manager.DeleteNodeAsync(Context, node.NodeId, CancellationToken.None).ConfigureAwait(false);
+                    await m_nodeOperations.RemoveAsync(Manager, node, CancellationToken.None).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
                 Logger.ReleaseFailed(ex);
+                failures.Add(ex);
             }
             try
             {
@@ -598,7 +765,27 @@ namespace Opc.Ua.LADS.Server
             catch (Exception ex)
             {
                 Logger.ReleaseFailed(ex);
+                failures.Add(ex);
             }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The failed LADS registration could not be removed.", failures);
+            }
+        }
+
+        /// <summary>
+        /// Captures the handles of a subtree before registration or destructive removal.
+        /// </summary>
+        private List<NodeState> CaptureSubtree(NodeState root)
+        {
+            var nodes = new List<NodeState> { root };
+            for (int index = 0; index < nodes.Count; index++)
+            {
+                var children = new List<BaseInstanceState>();
+                nodes[index].GetChildren(Context, children);
+                nodes.AddRange(children);
+            }
+            return nodes;
         }
 
         /// <summary>
@@ -617,11 +804,62 @@ namespace Opc.Ua.LADS.Server
         private readonly SemaphoreSlim m_registrationGate = new(1, 1);
         private readonly CancellationTokenSource m_stopping = new();
         private readonly HashSet<string> m_reservedNames = new(StringComparer.Ordinal);
+
+        /// <summary>The names retained while failed registrations still have indexed nodes.</summary>
+        private readonly HashSet<string> m_orphanedNames = new(StringComparer.Ordinal);
+
+        /// <summary>The stored-data keys reserved by registering or published devices.</summary>
+        private readonly HashSet<string> m_storageIdentities = new(StringComparer.Ordinal);
+
+        /// <summary>The dynamic node registration and deletion dispatcher.</summary>
+        private readonly ILadsNodeOperations m_nodeOperations;
         private readonly List<LadsDevice> m_devices = [];
         private NodeState? m_deviceSet;
         private Task? m_disposeTask;
         private bool m_disposed;
         private bool m_lifetimeRegistered;
         private long m_version;
+    }
+
+    /// <summary>
+    /// Dispatches dynamic LADS node changes through the owning node manager.
+    /// </summary>
+    internal interface ILadsNodeOperations
+    {
+        /// <summary>
+        /// Registers a dynamic subtree.
+        /// </summary>
+        ValueTask AddAsync(DiNodeManager manager, BaseInstanceState node, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Removes a registered dynamic subtree.
+        /// </summary>
+        ValueTask RemoveAsync(DiNodeManager manager, BaseInstanceState node, CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Uses the existing node-manager registration and deletion paths.
+    /// </summary>
+    internal sealed class LadsNodeOperations : ILadsNodeOperations
+    {
+        /// <inheritdoc/>
+        public ValueTask AddAsync(
+            DiNodeManager manager, BaseInstanceState node, CancellationToken cancellationToken)
+        {
+            return manager.AddPredefinedNodeAsync(node, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask RemoveAsync(
+            DiNodeManager manager, BaseInstanceState node, CancellationToken cancellationToken)
+        {
+            bool removed = await manager.DeleteNodeAsync(manager.SystemContext, node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!removed && ReferenceEquals(manager.FindPredefinedNode(node.NodeId), node))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The LADS node could not be removed from the address space.");
+            }
+        }
     }
 }

@@ -37,6 +37,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Identity;
+using DeviceRegistrarTypeClient = Opc.Ua.Onboarding.DeviceRegistrarTypeClient;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -286,6 +287,106 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers typed device-facing registrar clients that borrow the container-owned managed session.
+        /// </summary>
+        public static IGdsClientBuilder AddDeviceRegistrarClient(this IGdsClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<
+                Func<NodeId, CancellationToken, ValueTask<DeviceRegistrarTypeClient>>>(sp =>
+            {
+                Func<CancellationToken, Task<ManagedSession>> accessor = GetManagedSessionAccessor(sp);
+                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+                return async (nodeId, ct) => new DeviceRegistrarTypeClient(
+                    await accessor(ct).ConfigureAwait(false), nodeId, telemetry);
+            });
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the bounded pull-DCA workflow. Hosts register <see cref="IPullDcaIdentityProvider"/> and
+        /// <see cref="IPullDcaCredentialProvider"/> for real certificate selection and installation, and optionally
+        /// discovery and software-update providers. The existing managed-session accessor owns every session.
+        /// A multi-endpoint host may register a registrar-aware session accessor before resolving the workflow.
+        /// </summary>
+        public static IGdsClientBuilder AddPullDcaWorkflow(
+            this IGdsClientBuilder builder,
+            Action<PullDcaOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.AddOptions<PullDcaOptions>();
+            if (configure != null)
+            {
+                builder.Services.Configure(configure);
+            }
+            builder.AddDeviceRegistrarClient();
+            builder.Services.TryAddSingleton<
+                Func<PullDcaRegistrar, CancellationToken, ValueTask<ManagedSession>>>(sp =>
+            {
+                Func<CancellationToken, Task<ManagedSession>> accessor = GetManagedSessionAccessor(sp);
+                return (_, ct) => new ValueTask<ManagedSession>(accessor(ct));
+            });
+            builder.Services.TryAddSingleton(sp => new PullDcaWorkflow(
+                sp.GetRequiredService<IOptions<PullDcaOptions>>().Value,
+                sp.GetRequiredService<Func<PullDcaRegistrar, CancellationToken, ValueTask<ManagedSession>>>(),
+                sp.GetRequiredService<IPullDcaIdentityProvider>(),
+                sp.GetRequiredService<IPullDcaCredentialProvider>(),
+                sp.GetRequiredService<ITelemetryContext>(),
+                sp.GetService<IPullDcaSoftwareUpdateProvider>(),
+                sp.GetService<IPullDcaRegistrarDiscovery>(),
+                sp.GetService<IPullDcaCertificateReceiptStore>(),
+                sp.GetService<IPullDcaSigningRecoveryProvider>()));
+            return builder;
+        }
+
+        /// <summary>
+        /// Selects received-certificate persistence using a host-registered secret store.
+        /// One adapter instance exclusively owns scope. The namespace table must match the registrar's session;
+        /// hosts restore original keys and channel identity before resuming. Store durability is host-selected.
+        /// This cannot recover a server-accepted response lost before local receipt publication.
+        /// </summary>
+        public static IGdsClientBuilder AddPullDcaCertificateReceipts(
+            this IGdsClientBuilder builder,
+            NamespaceTable namespaceUris,
+            string scope)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+            if (string.IsNullOrWhiteSpace(scope))
+            {
+                throw new ArgumentException("An exclusive device receipt scope is required.", nameof(scope));
+            }
+            foreach (ServiceDescriptor descriptor in builder.Services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    (descriptor.ServiceType == typeof(IPullDcaCertificateReceiptStore) ||
+                    descriptor.ServiceType == typeof(SecretStorePullDcaCertificateReceiptStore)))
+                {
+                    throw new InvalidOperationException("Select only one pull certificate receipt store.");
+                }
+            }
+            builder.Services.AddSingleton(provider => new SecretStorePullDcaCertificateReceiptStore(
+                provider.GetRequiredService<ISecretStore>(), namespaceUris, scope,
+                provider.GetRequiredService<ITelemetryContext>()));
+            builder.Services.AddSingleton<IPullDcaCertificateReceiptStore>(provider =>
+                provider.GetRequiredService<SecretStorePullDcaCertificateReceiptStore>());
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the GDS certificate-management convenience surface.
         /// </summary>
         public static IGdsClientBuilder AddCertificateManagement(
@@ -363,6 +464,12 @@ namespace Microsoft.Extensions.DependencyInjection
             });
             services.TryAddSingleton<IServerPushConfigurationClient>(sp =>
                 sp.GetRequiredService<ServerPushConfigurationClient>());
+            services.TryAddSingleton<Func<ISession, CancellationToken, ValueTask<ServerPushConfigurationClient>>>(sp =>
+            {
+                ApplicationConfiguration configuration = sp.GetRequiredService<ApplicationConfiguration>();
+                GdsClientOptions options = sp.GetRequiredService<IOptions<GdsClientOptions>>().Value;
+                return (session, ct) => ServerPushConfigurationClient.CaptureAsync(configuration, session, options, ct);
+            });
 
             services.AddOpcUa();
         }

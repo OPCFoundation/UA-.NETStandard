@@ -27,10 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.LADS.Server;
 
@@ -273,6 +276,145 @@ namespace Opc.Ua.LADS.Tests.Server
                     .Select(reference => server.ToNodeId(reference.NodeId));
                 Assert.That(inverse, Does.Contain(operational), $"{function}/{member}");
             }
+        }
+
+        /// <summary>
+        /// Client template transfer methods follow configuration without removing mandatory program-manager nodes.
+        /// </summary>
+        [TestCase(LadsTemplateOperations.None)]
+        [TestCase(LadsTemplateOperations.Download)]
+        [TestCase(LadsTemplateOperations.Upload)]
+        [TestCase(LadsTemplateOperations.Remove)]
+        [TestCase(LadsTemplateOperations.Download | LadsTemplateOperations.Upload)]
+        [TestCase(LadsTemplateOperations.Download | LadsTemplateOperations.Remove)]
+        [TestCase(LadsTemplateOperations.Upload | LadsTemplateOperations.Remove)]
+        [TestCase(LadsTemplateOperations.All)]
+        public async Task ProgramTransferMethodsMatchConfiguredCapabilitiesAsync(LadsTemplateOperations operations)
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(ProgramTransferMethodsMatchConfiguredCapabilitiesAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit("Unit", unit => unit
+                        .Programs(operations, programs => programs.Template("Seed", _ => { }))))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsProgramManager programs = device.GetFunctionalUnit("Unit").Programs!;
+            NodeId manager = await server.ChildAsync(
+                device.GetFunctionalUnit("Unit").NodeId, "ProgramManager").ConfigureAwait(false);
+            string[] children = await server.ChildNamesAsync(manager).ConfigureAwait(false);
+
+            Assert.That(children.Contains("Download"), Is.EqualTo((operations & LadsTemplateOperations.Download) != 0));
+            Assert.That(children.Contains("Upload"), Is.EqualTo((operations & LadsTemplateOperations.Upload) != 0));
+            Assert.That(children.Contains("Remove"), Is.EqualTo((operations & LadsTemplateOperations.Remove) != 0));
+            await AssertChildrenAsync(server, manager, "ActiveProgram", "ProgramTemplateSet", "ResultSet")
+                .ConfigureAwait(false);
+            Assert.That(programs.Templates.Count, Is.EqualTo(1));
+            Assert.That(programs.Templates[0].Id, Is.EqualTo("Seed"));
+            await programs.AddTemplateAsync(new LadsProgramTemplate("Application")).ConfigureAwait(false);
+            Assert.That(programs.Templates.Count, Is.EqualTo(2));
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit("Unit");
+            Assert.That(unit.EnsureProgramManager(), Is.SameAs(programs));
+            Assert.That(unit.EnsureProgramManager(operations), Is.SameAs(programs));
+            Assert.That(() => unit.EnsureProgramManager((LadsTemplateOperations)8),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            LadsTemplateOperations different = operations == LadsTemplateOperations.None
+                ? LadsTemplateOperations.All : LadsTemplateOperations.None;
+            Assert.That(() => unit.EnsureProgramManager(different), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(programs.Templates.Count, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Passive cover instances expose state but no commands or unbound copies in their operational group.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PassiveCoverOmitsCommandsAndReportsObservedStateAsync(bool lockable)
+        {
+            var provider = new Mock<ILadsFunctionProvider>(MockBehavior.Strict);
+            ICoverFunction? cover = null;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(PassiveCoverOmitsCommandsAndReportsObservedStateAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit("Unit", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .Cover("Guard", options =>
+                        {
+                            options.Controllable = false;
+                            options.Lockable = lockable;
+                        }, out cover)))),
+                "Device").ConfigureAwait(false);
+            await server.DeviceAsync("Device").ConfigureAwait(false);
+            NodeId state = await server.ChildAsync(cover!.NodeId, "CoverState").ConfigureAwait(false);
+            Assert.That((await server.BrowseAsync(state).ConfigureAwait(false))
+                .Where(reference => reference.NodeClass == NodeClass.Method), Is.Empty);
+            NodeId operational = await server.ChildAsync(cover.NodeId, "Operational").ConfigureAwait(false);
+            Assert.That((await server.BrowseAsync(operational).ConfigureAwait(false))
+                .Where(reference => reference.NodeClass == NodeClass.Method), Is.Empty);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotSupported, () => cover.OpenAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotSupported, () => cover.CloseAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotSupported, () => cover.ResetAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotSupported, () => cover.LockAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotSupported, () => cover.UnlockAsync())
+                .ConfigureAwait(false);
+            Assert.That(cover.State, Is.EqualTo(LadsCoverStateValue.Closed));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await cover.ReportStateAsync((LadsCoverStateValue)(-1)).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await cover.ReportStateAsync((LadsCoverStateValue)8).ConfigureAwait(false))
+                .ConfigureAwait(false);
+
+            await cover.ReportStateAsync(LadsCoverStateValue.Opened).ConfigureAwait(false);
+            Assert.That(cover.State, Is.EqualTo(LadsCoverStateValue.Opened));
+            NodeId current = await server.ChildAsync(state, "CurrentState").ConfigureAwait(false);
+            DataValue value = await server.ReadAsync(current).ConfigureAwait(false);
+            Assert.That(value.WrappedValue.TryGetValue(out LocalizedText text), Is.True);
+            Assert.That(text.Text, Is.EqualTo("Opened"));
+            if (lockable)
+            {
+                await cover.ReportStateAsync(LadsCoverStateValue.Locked).ConfigureAwait(false);
+                Assert.That(cover.State, Is.EqualTo(LadsCoverStateValue.Locked));
+            }
+            else
+            {
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadNotSupported, () => cover.ReportStateAsync(LadsCoverStateValue.Locked))
+                    .ConfigureAwait(false);
+                Assert.That(cover.State, Is.EqualTo(LadsCoverStateValue.Opened));
+            }
+            LadsCoverStateValue[] states =
+            [
+                LadsCoverStateValue.Closing,
+                LadsCoverStateValue.Closed,
+                LadsCoverStateValue.Locking,
+                LadsCoverStateValue.Locked,
+                LadsCoverStateValue.Unlocking,
+                LadsCoverStateValue.Opening,
+                LadsCoverStateValue.Error
+            ];
+            foreach (LadsCoverStateValue observed in states)
+            {
+                if (!lockable && observed is LadsCoverStateValue.Locking or
+                    LadsCoverStateValue.Locked or LadsCoverStateValue.Unlocking)
+                {
+                    LadsCoverStateValue previous = cover.State;
+                    await LadsAssert.ThrowsStatusAsync(
+                        StatusCodes.BadNotSupported, () => cover.ReportStateAsync(observed)).ConfigureAwait(false);
+                    Assert.That(cover.State, Is.EqualTo(previous));
+                }
+                else
+                {
+                    await cover.ReportStateAsync(observed).ConfigureAwait(false);
+                    Assert.That(cover.State, Is.EqualTo(observed));
+                }
+            }
+            provider.Verify(p => p.OnCommandAsync(
+                It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+            provider.VerifyNoOtherCalls();
         }
 
         private static async Task AssertChildrenAsync(

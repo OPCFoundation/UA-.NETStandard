@@ -357,6 +357,28 @@ protected override void OnServerStarting(
 }
 ```
 
+Use `CommitIfAbsent()` when a generated model must fill gaps in a borrowed
+factory without replacing the caller's registrations:
+
+```csharp
+MessageContext.Factory.Builder
+    .AddMyAppConfigurationDataTypes()
+    .CommitIfAbsent();
+```
+
+The built-in factory checks datatype and encoding identifiers across structure
+and enum registrations, and checks XML names independently, under the same gate
+as ordinary commits. Existing mappings remain unchanged even when another
+builder commits them after the additive builder was created. A later ordinary
+`Commit()` can still replace them. Only writer checks and additions are
+serialized: readers do not take the commit gate and can observe the individual
+registration maps during publication, rather than one combined snapshot.
+The original factory and builder interfaces
+are unchanged; custom builders opt in through
+`IAdditiveEncodeableFactoryBuilder`. `CommitIfAbsent()` throws
+`NotSupportedException` for a builder without that capability and never falls
+back to an ordinary commit.
+
 ## Complete Example
 
 This example shows a node manager configuration type used in the

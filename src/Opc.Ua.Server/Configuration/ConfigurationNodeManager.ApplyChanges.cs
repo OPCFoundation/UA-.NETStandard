@@ -48,18 +48,18 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public Task DrainPendingApplyChangesAsync(CancellationToken cancellationToken = default)
         {
-            Task pending;
+            Task? pending;
             lock (m_pendingApplyChangesLock)
             {
                 pending = m_pendingApplyChangesTask;
             }
 
-            if (pending == null)
+            if (pending is null)
             {
                 return Task.CompletedTask;
             }
 
-            if (!cancellationToken.CanBeCanceled)
+            if (!cancellationToken.CanBeCanceled || pending.IsCompleted)
             {
                 return pending;
             }
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server
         /// Client can receive this response, and then invokes the injected
         /// <see cref="IServerConfigurationResetProvider"/>.
         /// </summary>
-        private ValueTask<ServiceResult> ResetToServerDefaultsAsync(
+        private async ValueTask<ServiceResult> ResetToServerDefaultsAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -106,12 +106,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             // §7.10.13: authenticated SecureChannel + SecurityAdmin Role.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
+            await AuthorizePushMutationAsync(context, requireEncryptedChannel: false, cancellationToken)
+                .ConfigureAwait(false);
 
             if (m_serverConfigurationOptions.ResetProvider == null)
             {
-                return new ValueTask<ServiceResult>(
-                    (ServiceResult)StatusCodes.BadNotSupported);
+                return StatusCodes.BadNotSupported;
             }
 
             // A reset invalidates the whole configuration, so it must not race
@@ -123,7 +123,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException ex)
             {
-                return new ValueTask<ServiceResult>((ServiceResult)ex.StatusCode);
+                return ex.StatusCode;
             }
 
             m_logger.ResetToServerDefaultsRequested(sessionId);
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server
             ScheduleDeferredReset();
 
             // §7.10.13: the response is returned before the reset/shutdown runs.
-            return new ValueTask<ServiceResult>(ServiceResult.Good);
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -314,7 +314,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             // §7.10.9: ApplyChanges requires an authenticated SecureChannel.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
+            await AuthorizePushMutationAsync(context, requireEncryptedChannel: false, cancellationToken)
+                .ConfigureAwait(false);
 
             NodeId sessionId = GetSessionId(context);
 
@@ -341,8 +342,28 @@ namespace Opc.Ua.Server
             try
             {
                 m_activeRotationCollector.Value = rotations;
-                result = await m_coordinator.ApplyChangesAsync(sessionId, committedEffects, cancellationToken)
-                    .ConfigureAwait(false);
+                if (m_serverConfigurationOptions.PushAuthorization is IPushConfigurationCompletion completion)
+                {
+                    if (m_coordinator is not IPushConfigurationTransactionCompletion transactionalCompletion)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported,
+                            "The selected push coordinator cannot serialize device security completion.");
+                    }
+                    result = await transactionalCompletion.ApplyChangesAsync(
+                        sessionId,
+                        committedEffects,
+                        new PushConfigurationOperation
+                        {
+                            CommitAsync = ct => completion.CompleteAsync(context, ct).AsTask()
+                        },
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    result = await m_coordinator.ApplyChangesAsync(sessionId, committedEffects, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -374,7 +395,8 @@ namespace Opc.Ua.Server
             List<TrustListChangeEffect> trustListEffects =
                 BuildTrustListEffects(committedEffects.TrustLists);
 
-            if (rotations.Count > 0 || trustListEffects.Count > 0)
+            if (rotations.Count > 0 || trustListEffects.Count > 0 ||
+                (m_applicationPushTarget != null && committedEffects.CertificateGroups.Count > 0))
             {
                 // Schedule the deferred apply: wait a short grace period for
                 // the method response to be flushed, then re-sync the
@@ -386,7 +408,7 @@ namespace Opc.Ua.Server
                 // completion handle is exposed via DrainPendingApplyChangesAsync
                 // so tests and hosts can deterministically await the effects
                 // rather than racing the delay.
-                ScheduleDeferredApplyChanges(rotations, trustListEffects);
+                ScheduleDeferredApplyChanges(rotations, trustListEffects, committedEffects.CertificateGroups);
             }
 
             // OPC 10000-12 §7.8.3: a committed TrustList change updates the
@@ -411,7 +433,7 @@ namespace Opc.Ua.Server
         /// transaction owned by the calling Session (OPC UA Part 12
         /// §7.10.2/§7.10.11).
         /// </summary>
-        private ValueTask<ServiceResult> CancelChangesAsync(
+        private async ValueTask<ServiceResult> CancelChangesAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -421,12 +443,13 @@ namespace Opc.Ua.Server
         {
             // §7.10.2/§7.10.11: CancelChanges requires an authenticated
             // SecureChannel.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
+            await AuthorizePushMutationAsync(context, requireEncryptedChannel: false, cancellationToken)
+                .ConfigureAwait(false);
 
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = m_coordinator.CancelChanges(sessionId);
             UpdateTransactionDiagnostics(context);
-            return new ValueTask<ServiceResult>(result);
+            return result;
         }
 
         /// <summary>
@@ -438,7 +461,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ScheduleDeferredApplyChanges(
             List<PendingCertificateRotation> rotations,
-            List<TrustListChangeEffect> trustListEffects)
+            List<TrustListChangeEffect> trustListEffects,
+            ArrayOf<NodeId> certificateGroups)
         {
             CancellationToken shutdownToken;
             try
@@ -533,13 +557,23 @@ namespace Opc.Ua.Server
 
                     m_logger.ApplyChangesRunning();
 
+                    if (m_applicationPushTarget != null)
+                    {
+                        await ApplyManagedApplicationChangesAsync(rotations, certificateGroups, trustListEffects)
+                            .ConfigureAwait(false);
+                        m_logger.ApplyChangesCompleted(0);
+                        completion.TrySetResult(null);
+                        return;
+                    }
+
                     // Reload the certificate manager only when a server
                     // application certificate actually rotated. A TrustList-
                     // only change does not touch the server's own
                     // certificates, and the validator's directory-backed
                     // trust stores refresh themselves, so an app-cert reload
                     // here would be needless work.
-                    if (rotations.Count > 0 && m_configuration.CertificateManager != null)
+                    if (rotations.Count > 0 &&
+                        m_configuration.CertificateManager != null)
                     {
                         // Deliberately not cancellable: a rotation that has begun
                         // must finish updating the configuration, otherwise the
@@ -554,9 +588,8 @@ namespace Opc.Ua.Server
                     // Force-close affected SecureChannels on every
                     // transport listener that opted into
                     // ITransportListenerCertificateRotation.
-                    IReadOnlyList<ITransportListener> listeners
-                        = (Server as ITransportListenerRegistryProvider)?.TransportListeners
-                            ?? [];
+                    IReadOnlyList<ITransportListener> listeners =
+                        (Server as ITransportListenerRegistryProvider)?.TransportListeners ?? [];
 
                     int totalCut = 0;
                     foreach (PendingCertificateRotation rotation in rotations)
@@ -627,14 +660,7 @@ namespace Opc.Ua.Server
                     // change may clear (or raise) the CertificateExpired /
                     // TrustListOutOfDate alarms, so re-evaluate now that the new
                     // certificate has been reloaded from disk.
-                    try
-                    {
-                        m_alarmScheduler.UpdateAndEvaluate(SystemContext, emitEvents: m_alarmScheduler.IsActive);
-                    }
-                    catch (Exception alarmEx)
-                    {
-                        m_logger.CertificateAlarmReevaluationFailed(alarmEx);
-                    }
+                    ReevaluateCertificateAlarms();
 
                     completion.TrySetResult(null);
                 }
@@ -648,6 +674,21 @@ namespace Opc.Ua.Server
                     DisposeRotations(rotations);
                 }
             });
+        }
+
+        /// <summary>
+        /// Updates certificate and trust alarms after the managed registry and runtime effects complete.
+        /// </summary>
+        private void ReevaluateCertificateAlarms()
+        {
+            try
+            {
+                m_alarmScheduler.UpdateAndEvaluate(SystemContext, emitEvents: m_alarmScheduler.IsActive);
+            }
+            catch (Exception alarmEx)
+            {
+                m_logger.CertificateAlarmReevaluationFailed(alarmEx);
+            }
         }
 
         /// <summary>

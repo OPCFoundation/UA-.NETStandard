@@ -92,9 +92,23 @@ namespace Opc.Ua.AutoID.Server
             IDiPostSetupRunner? postSetupRunner,
             IOptions<AutoIdServerOptions>? options,
             ArrayOf<IDiModelProvider> providers)
+            : this(server, configuration, postSetupRunner, options, providers, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates an AutoID owner with an injectable image FileType binder.
+        /// </summary>
+        public AutoIdNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            IDiPostSetupRunner? postSetupRunner,
+            IOptions<AutoIdServerOptions>? options,
+            ArrayOf<IDiModelProvider> providers,
+            Opc.Ua.Server.FileSystem.IFileTypeBinder? fileBinder)
             : base(server, configuration, postSetupRunner, providers, ManagerNamespaceUris(options?.Value))
         {
-            Runtime = new AutoIdRuntime(this, options?.Value ?? new AutoIdServerOptions());
+            Runtime = new AutoIdRuntime(this, options?.Value ?? new AutoIdServerOptions(), fileBinder);
         }
 
         /// <summary>

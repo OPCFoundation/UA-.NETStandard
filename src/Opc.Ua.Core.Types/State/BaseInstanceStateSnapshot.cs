@@ -43,15 +43,36 @@ namespace Opc.Ua
         public object? Handle { get; set; }
 
         /// <summary>
+        /// Gets the condition EventId captured with the snapshot.
+        /// </summary>
+        internal ByteString ConditionEventId { get; private set; }
+
+        /// <summary>
+        /// Gets the condition method state captured before publication.
+        /// </summary>
+        internal ConditionState.ReportedConditionEvent? ConditionEvent { get; private set; }
+
+        /// <summary>
         /// Initializes the snapshot from an instance.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="state">The state.</param>
+        /// <remarks>
+        /// Serialize initialization with mutations of the source state. Condition EventId and method state
+        /// are captured together so publication may occur after releasing the caller's serialization gate.
+        /// Do not change the snapshot's EventId or Handle after initialization.
+        /// </remarks>
         public void Initialize(ISystemContext context, BaseInstanceState state)
         {
             m_typeDefinitionId = state.TypeDefinitionId;
             m_snapshot = CreateChildNode(context, state);
             Handle = state;
+            ConditionEventId = default;
+            ConditionEvent = null;
+            if (state is ConditionState condition)
+            {
+                (ConditionEventId, ConditionEvent) = condition.CaptureReportedEvent();
+            }
         }
 
         /// <summary>

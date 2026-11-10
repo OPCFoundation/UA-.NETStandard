@@ -152,6 +152,34 @@ namespace Opc.Ua
             CancellationToken ct,
             params Variant[] args)
         {
+            (_, ArrayOf<Variant> outputArguments) = await CallMethodWithStatusAsync(
+                methodId, methodNamespaceUri, methodBrowseName, ct, args).ConfigureAwait(false);
+            return outputArguments;
+        }
+
+        /// <summary>
+        /// Calls a method with the same instance MethodId fallback as
+        /// <see cref="CallMethodAsync(NodeId, string, string, CancellationToken, Variant[])"/>
+        /// and returns its operation status separately from its output arguments.
+        /// Good and Uncertain statuses are preserved. Bad statuses throw before
+        /// output arguments can be interpreted; only BadMethodInvalid triggers fallback.
+        /// </summary>
+        /// <param name="methodId">The type-declaration MethodId.</param>
+        /// <param name="methodNamespaceUri">The method browse-name namespace URI.</param>
+        /// <param name="methodBrowseName">The method browse name.</param>
+        /// <param name="ct">Cancellation token for the request.</param>
+        /// <param name="args">The input arguments.</param>
+        /// <returns>The operation status and uninterpreted output arguments.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The service or operation returned a Bad status.
+        /// </exception>
+        protected async ValueTask<(StatusCode CallStatus, ArrayOf<Variant> OutputArguments)> CallMethodWithStatusAsync(
+            NodeId methodId,
+            string methodNamespaceUri,
+            string methodBrowseName,
+            CancellationToken ct,
+            params Variant[] args)
+        {
             // Reuse a previously resolved instance MethodId if we already
             // had to fall back for this method against a non-conformant
             // server; otherwise start with the type-declaration MethodId.
@@ -186,7 +214,8 @@ namespace Opc.Ua
                 }
             }
 
-            return ThrowOrGetOutputArguments(response);
+            ArrayOf<Variant> outputArguments = ThrowOrGetOutputArguments(response);
+            return (response.Results[0].StatusCode, outputArguments);
         }
 
         /// <summary>

@@ -144,6 +144,14 @@ namespace AmbSample
                     await activity.StartAsync(cancellationToken: ct).ConfigureAwait(false);
                     break;
                 case MaintenanceStateKind.Executing:
+                    await activity.UpdateAsync(
+                        details =>
+                        {
+                            details.ConfigurationChanged = true;
+                            details.EstimatedDowntime = TimeSpan.FromMinutes(15);
+                        },
+                        new LocalizedText("en", "Actual maintenance details recorded."),
+                        ct).ConfigureAwait(false);
                     await activity.FinishAsync(cancellationToken: ct).ConfigureAwait(false);
                     break;
                 default:

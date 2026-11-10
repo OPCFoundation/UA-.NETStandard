@@ -162,10 +162,159 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(preserved, Is.True);
         }
 
-        private static GeneratorDriver GenerateModel(out Compilation output)
+        /// <summary>
+        /// Dictionary classifications accumulate through type inheritance and declaration
+        /// overrides without copying dictionary objects, type interfaces or inverse references.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void InheritedSemanticReferencesSurviveDeclarationOverridesAndNamespaceRemapping(bool initialize)
+        {
+            GenerateModel(out Compilation output, kSemanticModel);
+            output.GetDiagnostics().Check(TestContext.Out, out int errors, out _);
+            Assert.That(errors, Is.Zero);
+            output = output.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+                """
+                using System.Collections.Generic;
+                using System.Linq;
+                using Opc.Ua;
+                using Test.InstanceReferences;
+
+                public static class SemanticReferenceProbe
+                {
+                    public static string Run(bool initialize)
+                    {
+                        var context = new SystemContext(null);
+                        context.NamespaceUris = new NamespaceTable();
+                        context.NamespaceUris.GetIndexOrAppend("urn:unrelated:first");
+                        context.NamespaceUris.GetIndexOrAppend("urn:unrelated:second");
+                        ushort ns = context.NamespaceUris.GetIndexOrAppend(
+                            "http://test.org/UA/InstanceReferences/");
+                        var state = context.CreateInstanceOfDerivedDeviceType();
+                        if (initialize)
+                        {
+                            state.Create(context, new NodeId("Device", ns),
+                                new QualifiedName("Device", ns), new LocalizedText("Device"), false);
+                        }
+                        string error = Check(context, state, ns, 0, "RootBase", "RootDerived");
+                        if (error.Length != 0)
+                        {
+                            return "Root: " + error;
+                        }
+                        var value = state.FindChild(context, new QualifiedName("Value", ns));
+                        if (value == null)
+                        {
+                            return "Mandatory inherited child missing";
+                        }
+                        error = Check(context, value, ns, 1, "VariableType", "DeclarationBase", "DeclarationOverride");
+                        if (error.Length != 0)
+                        {
+                            return "Override: " + error;
+                        }
+                        if (state.FindChild(context, new QualifiedName("Optional", ns)) != null)
+                        {
+                            return "Unrequested optional declaration instantiated";
+                        }
+                        state.AddOptional(context);
+                        var optional = state.FindChild(context, new QualifiedName("Optional", ns));
+                        if (optional == null)
+                        {
+                            return "Requested optional declaration missing";
+                        }
+                        error = Check(context, optional, ns, 1, "VariableType", "Optional");
+                        if (error.Length != 0)
+                        {
+                            return "Optional: " + error;
+                        }
+                        var entry = context.CreateRootBase();
+                        if (entry.NodeId != new NodeId("0112/2///61987#RootBase", ns) ||
+                            entry.DisplayName.Text != "Preserved IRDI display name")
+                        {
+                            return "Dictionary entry identity or display name changed";
+                        }
+                        var matrixNode = state.FindChild(context, new QualifiedName("MatrixEntries", ns))
+                            as BaseVariableState;
+                        if (matrixNode == null)
+                        {
+                            return "Matrix initializer missing";
+                        }
+                        var matrix = matrixNode.WrappedValue.GetNodeIdMatrix();
+                        if (!matrix.Dimensions.SequenceEqual(new[] { 1, 2 }) ||
+                            matrix.Span[0] != new NodeId("0112/2///61987#RootBase", ns) ||
+                            matrix.Span[1] != new NodeId(42))
+                        {
+                            return "Matrix initializer lost dimensions or namespace identity";
+                        }
+                        var children = new List<BaseInstanceState>();
+                        state.GetChildren(context, children);
+                        if (children.Count != 3)
+                        {
+                            return "Semantic targets were copied into the instance";
+                        }
+                        return "";
+                    }
+
+                    private static string Check(ISystemContext context, NodeState node, ushort ns, int interfaceCount,
+                        params string[] expectedEntries)
+                    {
+                        var references = new List<IReference>();
+                        node.GetReferences(context, references);
+                        var entries = references.Where(r => r.ReferenceTypeId == new NodeId(17597)).ToArray();
+                        var expected = expectedEntries.Select(s => new NodeId("0112/2///61987#" + s, ns));
+                        if (entries.Any(r => r.IsInverse) ||
+                            !entries.Select(r => ExpandedNodeId.ToNodeId(r.TargetId, context.NamespaceUris))
+                                .OrderBy(id => id.ToString()).SequenceEqual(expected.OrderBy(id => id.ToString())))
+                        {
+                            return "Dictionary entries: " + string.Join(",",
+                                entries.Select(r => r.TargetId.ToString()));
+                        }
+                        var interfaces = references.Where(r => r.ReferenceTypeId == new NodeId(17603)).ToArray();
+                        if (interfaces.Length != interfaceCount || interfaces.Any(r => r.IsInverse ||
+                            ExpandedNodeId.ToNodeId(r.TargetId, context.NamespaceUris) != new NodeId(17602)))
+                        {
+                            return "Declaration interface missing or type interface copied to instance";
+                        }
+                        if (references.Any(r => r.ReferenceTypeId == new NodeId(41)))
+                        {
+                            return "Unrelated non-hierarchical reference inherited";
+                        }
+                        return "";
+                    }
+                }
+                """,
+                new CSharpParseOptions(LanguageVersion.CSharp11)));
+
+            using var stream = new MemoryStream();
+            var emitted = output.Emit(stream);
+            Assert.That(emitted.Success, Is.True, string.Join("\n", emitted.Diagnostics));
+            Assembly assembly = Assembly.Load(stream.ToArray());
+            string result = (string)assembly.GetType("SemanticReferenceProbe")!.GetMethod("Run")!
+                .Invoke(null, [initialize])!;
+            Assert.That(result, Is.Empty);
+        }
+
+        private static GeneratorDriver GenerateModel(out Compilation output, string model = kModel)
         {
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
-                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), LanguageVersion.CSharp11);
+                .AddCode(new Dictionary<string, string>
+                {
+                    ["SemanticModelDependencies"] = """
+                        namespace Opc.Ua
+                        {
+                            public static partial class DataTypes
+                            {
+                                public const uint Double = 11;
+                            }
+
+                            public sealed class IrdiDictionaryEntryState : BaseObjectState
+                            {
+                                public IrdiDictionaryEntryState(NodeState parent) : base(parent)
+                                {
+                                }
+                            }
+                        }
+                        """
+                }.WithOpcUaGeneratedStack(), LanguageVersion.CSharp11);
             var options = new AnalyzerOptionsProvider(new Dictionary<string, string>
             {
                 ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
@@ -173,7 +322,7 @@ namespace Opc.Ua.SourceGeneration
             });
             GeneratorDriver driver = CSharpGeneratorDriver.Create(new ModelSourceGenerator())
                 .WithUpdatedParseOptions(new CSharpParseOptions(LanguageVersion.CSharp11))
-                .AddAdditionalTexts([EmbeddedText.Create("InstanceReferences.xml", kModel)])
+                .AddAdditionalTexts([EmbeddedText.Create("InstanceReferences.xml", model)])
                 .WithUpdatedAnalyzerConfigOptions(options);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation, out output, out ImmutableArray<Diagnostic> diagnostics);
@@ -202,6 +351,127 @@ namespace Opc.Ua.SourceGeneration
         private const string kHasNotifier = "48";
         private const string kHasAddIn = "17604";
         private const string kHasComponent = "47";
+
+        private const string kSemanticModel = """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                xmlns:ua="http://opcfoundation.org/UA/" xmlns="http://test.org/UA/InstanceReferences/"
+                TargetNamespace="http://test.org/UA/InstanceReferences/">
+              <opc:Namespaces>
+                <opc:Namespace XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                    Name="OpcUa" Prefix="Opc.Ua">http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="InstanceReferences"
+                    Prefix="Test.InstanceReferences">http://test.org/UA/InstanceReferences/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:Object SymbolicName="RootBase" StringId="0112/2///61987#RootBase"
+                  TypeDefinition="ua:IrdiDictionaryEntryType">
+                <opc:DisplayName>Preserved IRDI display name</opc:DisplayName>
+              </opc:Object>
+              <opc:Object SymbolicName="RootDerived" StringId="0112/2///61987#RootDerived"
+                  TypeDefinition="ua:IrdiDictionaryEntryType" />
+              <opc:Object SymbolicName="VariableType" StringId="0112/2///61987#VariableType"
+                  TypeDefinition="ua:IrdiDictionaryEntryType" />
+              <opc:Object SymbolicName="DeclarationBase" StringId="0112/2///61987#DeclarationBase"
+                  TypeDefinition="ua:IrdiDictionaryEntryType" />
+              <opc:Object SymbolicName="DeclarationOverride" StringId="0112/2///61987#DeclarationOverride"
+                  TypeDefinition="ua:IrdiDictionaryEntryType" />
+              <opc:Object SymbolicName="OptionalEntry" StringId="0112/2///61987#Optional"
+                  TypeDefinition="ua:IrdiDictionaryEntryType" />
+              <opc:VariableType SymbolicName="SemanticVariableType" BaseType="ua:BaseDataVariableType"
+                  DataType="ua:Double">
+                <opc:References>
+                  <opc:Reference>
+                    <opc:ReferenceType>ua:HasDictionaryEntry</opc:ReferenceType>
+                    <opc:TargetId>VariableType</opc:TargetId>
+                  </opc:Reference>
+                  <opc:Reference>
+                    <opc:ReferenceType>ua:HasInterface</opc:ReferenceType>
+                    <opc:TargetId>ua:BaseInterfaceType</opc:TargetId>
+                  </opc:Reference>
+                </opc:References>
+              </opc:VariableType>
+              <opc:ObjectType SymbolicName="BaseDeviceType" BaseType="ua:BaseObjectType">
+                <opc:Children>
+                  <opc:Variable SymbolicName="MatrixEntries" TypeDefinition="ua:BaseDataVariableType"
+                      DataType="ua:NodeId" ValueRank="OneOrMoreDimensions" ArrayDimensions="1,2"
+                      ModellingRule="Mandatory">
+                    <opc:DefaultValue>
+                      <uax:Matrix xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                        <uax:Dimensions><uax:Int32>1</uax:Int32><uax:Int32>2</uax:Int32></uax:Dimensions>
+                        <uax:Elements>
+                          <uax:NodeId><uax:Identifier>ns=1;s=0112/2///61987#RootBase</uax:Identifier></uax:NodeId>
+                          <uax:NodeId><uax:Identifier>i=42</uax:Identifier></uax:NodeId>
+                        </uax:Elements>
+                      </uax:Matrix>
+                    </opc:DefaultValue>
+                  </opc:Variable>
+                  <opc:Variable SymbolicName="Value" TypeDefinition="SemanticVariableType"
+                      ModellingRule="Mandatory">
+                    <opc:References>
+                      <opc:Reference>
+                        <opc:ReferenceType>ua:HasDictionaryEntry</opc:ReferenceType>
+                        <opc:TargetId>DeclarationBase</opc:TargetId>
+                      </opc:Reference>
+                      <opc:Reference>
+                        <opc:ReferenceType>ua:HasInterface</opc:ReferenceType>
+                        <opc:TargetId>ua:BaseInterfaceType</opc:TargetId>
+                      </opc:Reference>
+                    </opc:References>
+                  </opc:Variable>
+                  <opc:Variable SymbolicName="Optional" TypeDefinition="SemanticVariableType"
+                      ModellingRule="Optional">
+                    <opc:References>
+                      <opc:Reference>
+                        <opc:ReferenceType>ua:HasDictionaryEntry</opc:ReferenceType>
+                        <opc:TargetId>OptionalEntry</opc:TargetId>
+                      </opc:Reference>
+                      <opc:Reference>
+                        <opc:ReferenceType>ua:HasInterface</opc:ReferenceType>
+                        <opc:TargetId>ua:BaseInterfaceType</opc:TargetId>
+                      </opc:Reference>
+                    </opc:References>
+                  </opc:Variable>
+                </opc:Children>
+                <opc:References>
+                  <opc:Reference>
+                    <opc:ReferenceType>ua:HasInterface</opc:ReferenceType>
+                    <opc:TargetId>ua:BaseInterfaceType</opc:TargetId>
+                  </opc:Reference>
+                  <opc:Reference>
+                    <opc:ReferenceType>ua:HasDictionaryEntry</opc:ReferenceType>
+                    <opc:TargetId>RootBase</opc:TargetId>
+                  </opc:Reference>
+                  <opc:Reference IsInverse="true">
+                    <opc:ReferenceType>ua:HasDictionaryEntry</opc:ReferenceType>
+                    <opc:TargetId>RootDerived</opc:TargetId>
+                  </opc:Reference>
+                  <opc:Reference>
+                    <opc:ReferenceType>ua:GeneratesEvent</opc:ReferenceType>
+                    <opc:TargetId>ua:BaseEventType</opc:TargetId>
+                  </opc:Reference>
+                </opc:References>
+              </opc:ObjectType>
+              <opc:ObjectType SymbolicName="DerivedDeviceType" BaseType="BaseDeviceType">
+                <opc:Children>
+                  <opc:Variable SymbolicName="Value" TypeDefinition="SemanticVariableType"
+                      ModellingRule="Mandatory">
+                    <opc:References>
+                      <opc:Reference>
+                        <opc:ReferenceType>ua:HasDictionaryEntry</opc:ReferenceType>
+                        <opc:TargetId>DeclarationOverride</opc:TargetId>
+                      </opc:Reference>
+                    </opc:References>
+                  </opc:Variable>
+                </opc:Children>
+                <opc:References>
+                  <opc:Reference>
+                    <opc:ReferenceType>ua:HasDictionaryEntry</opc:ReferenceType>
+                    <opc:TargetId>RootDerived</opc:TargetId>
+                  </opc:Reference>
+                </opc:References>
+              </opc:ObjectType>
+            </opc:ModelDesign>
+            """;
 
         private const string kModel = """
             <?xml version="1.0" encoding="utf-8" ?>

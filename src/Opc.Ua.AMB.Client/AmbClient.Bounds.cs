@@ -68,7 +68,9 @@ namespace Opc.Ua.AMB.Client
                     ],
                     cancellationToken).ConfigureAwait(false);
                 unreconciled = response.Results;
-                ValidateResponse(response.ResponseHeader, response.Results.Count, 1, response.DiagnosticInfos.Count);
+                ValidateResponse(
+                    response.ResponseHeader, response.Results.Count, 1, response.DiagnosticInfos.Count,
+                    requireValid: true);
                 BrowseResult result = RequireBrowseResult(response.Results[0]);
                 owned = result.ContinuationPoint;
                 unreconciled = [];
@@ -89,14 +91,16 @@ namespace Opc.Ua.AMB.Client
                     {
                         break;
                     }
-                    if (page >= m_options!.MaximumBrowsePages)
+                    if (page >= (m_options?.MaximumBrowsePages ?? int.MaxValue))
                     {
                         throw LimitExceeded("The AMB browse page limit was exceeded.");
                     }
                     BrowseNextResponse next = await Session.BrowseNextAsync(
                         null, false, [owned], cancellationToken).ConfigureAwait(false);
                     unreconciled = next.Results;
-                    ValidateResponse(next.ResponseHeader, next.Results.Count, 1, next.DiagnosticInfos.Count);
+                    ValidateResponse(
+                        next.ResponseHeader, next.Results.Count, 1, next.DiagnosticInfos.Count,
+                        requireValid: true);
                     result = RequireBrowseResult(next.Results[0]);
                     // A successful next page consumes the old token, even when
                     // the server reuses its bytes for the new continuation.
@@ -158,7 +162,8 @@ namespace Opc.Ua.AMB.Client
                         response.ResponseHeader,
                         response.Results.Count,
                         response.Results.Count == 0 ? 0 : 1,
-                        response.DiagnosticInfos.Count);
+                        response.DiagnosticInfos.Count,
+                        requireValid: true);
                     if (response.Results.Count == 0)
                     {
                         continue;
@@ -216,9 +221,14 @@ namespace Opc.Ua.AMB.Client
             return false;
         }
 
-        private void ValidateResponse(ResponseHeader? header, int actual, int expected, int diagnostics = 0)
+        private void ValidateResponse(
+            ResponseHeader? header,
+            int actual,
+            int expected,
+            int diagnostics = 0,
+            bool requireValid = false)
         {
-            if (m_options is null)
+            if (m_options is null && !requireValid)
             {
                 return;
             }

@@ -117,6 +117,7 @@ namespace Opc.Ua.SourceGeneration
                     OptimizeForCompileSpeed =
                         m_compilationOptions.OptimizationLevel == OptimizationLevel.Debug,
                     OmitObjectTypeProxies = m_options.OmitObjectTypeProxies,
+                    ObjectTypeProxyMethodsWithStatus = m_options.ObjectTypeProxyMethodsWithStatus,
                     ObjectTypeProxyNamespace =
                         string.IsNullOrWhiteSpace(m_options.ObjectTypeProxyNamespace)
                             ? null
@@ -128,6 +129,7 @@ namespace Opc.Ua.SourceGeneration
                     OmitFluentApi = m_options.OmitFluentApi,
                     FluentAccessorsOnly = m_options.FluentAccessorsOnly,
                     ClientAccessorsOnly = m_options.ClientAccessorsOnly,
+                    ClientAccessorsInternal = m_options.ClientAccessorsInternal,
                     ClientAccessorNamespace = m_options.ClientAccessorNamespace,
                     ClientAccessorClassName = m_options.ClientAccessorClassName,
                     OmitEventRecords = m_options.OmitEventRecords

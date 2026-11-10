@@ -150,6 +150,7 @@ namespace Opc.Ua.Client
                     acknowledgements,
                 CancellationToken ct = default)
             {
+                m_session.ApplyDeferNotificationBodies();
                 return m_session.PublishAsync(
                     requestHeader,
                     acknowledgements,

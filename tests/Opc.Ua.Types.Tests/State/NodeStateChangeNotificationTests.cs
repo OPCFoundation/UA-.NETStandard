@@ -54,10 +54,10 @@ namespace Opc.Ua.Types.Tests.State
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task EventDiamondVisitsEachNodeOncePerPublicationAsync(bool synchronous)
+        public async Task EventDiamondNotifiesEachNodeOnceButCallsTheRootOverrideForEachPathAsync(bool synchronous)
         {
             SystemContext context = CreateSystemContext();
-            var root = new BaseObjectState(null);
+            var root = new PairedEventNode(null);
             var parent = new BaseObjectState(root);
             var alternate = new BaseObjectState(root);
             var source = new BaseObjectState(parent);
@@ -88,6 +88,8 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(parents, Is.EqualTo(2));
             Assert.That(alternates, Is.EqualTo(2));
             Assert.That(sources, Is.EqualTo(2));
+            Assert.That(root.SyncReports, Is.EqualTo(synchronous ? 4 : 0));
+            Assert.That(root.AsyncReports, Is.EqualTo(synchronous ? 0 : 4));
         }
 
         /// <summary>
@@ -276,6 +278,99 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(syncTarget, Is.SameAs(target));
             Assert.That(asyncTarget, Is.SameAs(target));
+        }
+
+        /// <summary>
+        /// Async reporting bypasses a synchronous-only override on a non-instance node.
+        /// </summary>
+        [Test]
+        public async Task ReportEventAsyncBypassesSynchronousOverrideOnTypeNodeAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var node = new SyncOnlyEventTypeNode();
+            var target = new BaseObjectState(null);
+            int reports = 0;
+            node.OnReportEvent = (_, _, _) => reports++;
+
+            await node.ReportEventAsync(context, target).ConfigureAwait(false);
+
+            Assert.That(node.SyncReports, Is.Zero);
+            Assert.That(reports, Is.EqualTo(1));
+
+            node.ReportEvent(context, target);
+
+            Assert.That(node.SyncReports, Is.EqualTo(1));
+            Assert.That(reports, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Async propagation bypasses synchronous-only overrides at the source, parent, and inverse notifier.
+        /// </summary>
+        [Test]
+        public async Task ReportEventAsyncBypassesSynchronousOverridesDuringInstancePropagationAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var parent = new SyncOnlyEventNode(null);
+            var inverse = new SyncOnlyEventNode(null);
+            var source = new SyncOnlyEventNode(parent);
+            source.AddNotifier(context, ReferenceTypeIds.HasNotifier, true, inverse);
+            var target = new BaseObjectState(null);
+            int sourceReports = 0;
+            int parentReports = 0;
+            int inverseReports = 0;
+            source.OnReportEvent = (_, _, _) => sourceReports++;
+            parent.OnReportEvent = (_, _, _) => parentReports++;
+            inverse.OnReportEvent = (_, _, _) => inverseReports++;
+
+            await source.ReportEventAsync(context, target).ConfigureAwait(false);
+
+            Assert.That(source.SyncReports, Is.Zero);
+            Assert.That(parent.SyncReports, Is.Zero);
+            Assert.That(inverse.SyncReports, Is.Zero);
+            Assert.That(sourceReports, Is.EqualTo(1));
+            Assert.That(parentReports, Is.EqualTo(1));
+            Assert.That(inverseReports, Is.EqualTo(1));
+
+            source.ReportEvent(context, target);
+
+            Assert.That(source.SyncReports, Is.EqualTo(1));
+            Assert.That(parent.SyncReports, Is.EqualTo(1));
+            Assert.That(inverse.SyncReports, Is.EqualTo(1));
+            Assert.That(sourceReports, Is.EqualTo(2));
+            Assert.That(parentReports, Is.EqualTo(2));
+            Assert.That(inverseReports, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Paired overrides customize async propagation without invoking the synchronous overrides.
+        /// </summary>
+        [Test]
+        public async Task ReportEventAsyncInvokesPairedOverridesDuringInstancePropagationAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var parent = new PairedEventNode(null);
+            var inverse = new PairedEventNode(null);
+            var source = new PairedEventNode(parent);
+            source.AddNotifier(context, ReferenceTypeIds.HasNotifier, true, inverse);
+            var target = new BaseObjectState(null);
+
+            await source.ReportEventAsync(context, target).ConfigureAwait(false);
+
+            Assert.That(source.AsyncReports, Is.EqualTo(1));
+            Assert.That(parent.AsyncReports, Is.EqualTo(1));
+            Assert.That(inverse.AsyncReports, Is.EqualTo(1));
+            Assert.That(source.SyncReports, Is.Zero);
+            Assert.That(parent.SyncReports, Is.Zero);
+            Assert.That(inverse.SyncReports, Is.Zero);
+
+            source.ReportEvent(context, target);
+
+            Assert.That(source.SyncReports, Is.EqualTo(1));
+            Assert.That(parent.SyncReports, Is.EqualTo(1));
+            Assert.That(inverse.SyncReports, Is.EqualTo(1));
+            Assert.That(source.AsyncReports, Is.EqualTo(1));
+            Assert.That(parent.AsyncReports, Is.EqualTo(1));
+            Assert.That(inverse.AsyncReports, Is.EqualTo(1));
         }
 
         [Test]
@@ -708,6 +803,99 @@ namespace Opc.Ua.Types.Tests.State
                     SynchronizationContext.SetSynchronizationContext(originalContext);
                 }
             }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Object type node with only the synchronous event reporting override.
+        /// </summary>
+        private sealed class SyncOnlyEventTypeNode : BaseObjectTypeState
+        {
+            /// <summary>
+            /// Gets the number of synchronous reports.
+            /// </summary>
+            public int SyncReports { get; private set; }
+
+            /// <summary>
+            /// Records synchronous reports before forwarding them.
+            /// </summary>
+            public override void ReportEvent(ISystemContext context, IFilterTarget e)
+            {
+                SyncReports++;
+                base.ReportEvent(context, e);
+            }
+        }
+
+        /// <summary>
+        /// Instance node with only the synchronous event reporting override.
+        /// </summary>
+        private sealed class SyncOnlyEventNode : BaseObjectState
+        {
+            /// <summary>
+            /// Creates a node with the specified parent.
+            /// </summary>
+            public SyncOnlyEventNode(NodeState? parent)
+                : base(parent)
+            {
+            }
+
+            /// <summary>
+            /// Gets the number of synchronous reports.
+            /// </summary>
+            public int SyncReports { get; private set; }
+
+            /// <summary>
+            /// Records synchronous reports before forwarding them.
+            /// </summary>
+            public override void ReportEvent(ISystemContext context, IFilterTarget e)
+            {
+                SyncReports++;
+                base.ReportEvent(context, e);
+            }
+        }
+
+        /// <summary>
+        /// Instance node with paired synchronous and asynchronous reporting overrides.
+        /// </summary>
+        private sealed class PairedEventNode : BaseObjectState
+        {
+            /// <summary>
+            /// Creates a node with the specified parent.
+            /// </summary>
+            public PairedEventNode(NodeState? parent)
+                : base(parent)
+            {
+            }
+
+            /// <summary>
+            /// Gets the number of synchronous reports.
+            /// </summary>
+            public int SyncReports { get; private set; }
+
+            /// <summary>
+            /// Gets the number of asynchronous reports.
+            /// </summary>
+            public int AsyncReports { get; private set; }
+
+            /// <summary>
+            /// Records synchronous reports before forwarding them.
+            /// </summary>
+            public override void ReportEvent(ISystemContext context, IFilterTarget e)
+            {
+                SyncReports++;
+                base.ReportEvent(context, e);
+            }
+
+            /// <summary>
+            /// Records asynchronous reports before forwarding them.
+            /// </summary>
+            public override ValueTask ReportEventAsync(
+                ISystemContext context,
+                IFilterTarget e,
+                CancellationToken cancellationToken = default)
+            {
+                AsyncReports++;
+                return base.ReportEventAsync(context, e, cancellationToken);
+            }
         }
 
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);

@@ -134,10 +134,11 @@ namespace Opc.Ua.AutoID.Tests
                 identifier, codeType, RfidPasswordTypeEnumeration.Access, password, bytes,
                 It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<AutoIdOperationStatusEnumeration>(AutoIdOperationStatusEnumeration.SUCCESS));
-            ISystemContext system = owner.SystemContext;
+            Opc.Ua.Server.ServerSystemContext system = owner.SystemContext;
             RfidReaderDeviceState device = system.CreateInstanceOfRfidReaderDeviceType(
                 null!, new QualifiedName("Reader", owner.InstanceNamespaceIndex));
             device.AddReadTag(system).AddWriteTag(system).AddSetTagPassword(system);
+            AutoIdReader.ConfigureDiagnostics(system, device);
             var events = new EventCapture(device);
             await using var reader = new AutoIdReader(owner.Runtime, device, provider.Object, false, false);
             reader.Bind();
@@ -157,6 +158,24 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(read.Status, Is.EqualTo(status));
                 Assert.That(write.Status, Is.EqualTo(status));
             });
+            ushort autoIdNamespace = system.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri);
+            var diagnostics = (BaseObjectState)device.Diagnostics!.FindChildWithQualifiedName(
+                system, new QualifiedName("LastAccess", autoIdNamespace))!;
+            var rwData = (BaseVariableState)diagnostics.FindChildWithQualifiedName(
+                system, new QualifiedName("RWData", autoIdNamespace))!;
+            if (AutoIdReader.TagWasAccessed(status))
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(rwData.StatusCode,
+                        Is.EqualTo(includeData ? StatusCodes.Good : StatusCodes.BadNoData));
+                    Assert.That(rwData.Value, Is.EqualTo(includeData ? Variant.From(bytes) : Variant.Null));
+                });
+            }
+            else
+            {
+                Assert.That(rwData.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
+            }
             RfidAccessEventState[] observed = events.Of<RfidAccessEventState>().ToArray();
             if (!publish || !AutoIdReader.TagWasAccessed(status))
             {
@@ -199,6 +218,11 @@ namespace Opc.Ua.AutoID.Tests
                 system, device.SetTagPassword, device.NodeId, identifier, codeType,
                 RfidPasswordTypeEnumeration.Access, password, bytes, CancellationToken.None).ConfigureAwait(false);
             Assert.That(changed.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
+            Assert.Multiple(() =>
+            {
+                Assert.That(rwData.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+                Assert.That(rwData.Value.IsNull, Is.True);
+            });
             if (publish)
             {
                 RfidAccessEventState passwordEvent = events.Of<RfidAccessEventState>().Last();

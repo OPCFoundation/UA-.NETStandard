@@ -108,6 +108,65 @@ namespace Opc.Ua.IA.Tests.Calibration
         }
 
         /// <summary>
+        /// Published nameplate values remain detached if retained configuration text is later mutated.
+        /// </summary>
+        [Test]
+        public async Task PublishedNameplateTextsDetachConfigurationStorage()
+        {
+            var fixture = new IaTestContext();
+            IaCalibrationFeature feature = Feature(fixture);
+            var manufacturerTranslations = new Dictionary<string, string>
+            {
+                ["en-US"] = "Original manufacturer"
+            };
+            object[] modelArguments = ["Original model"];
+            object[] componentArguments = ["Original component"];
+            var identity = new IaCalibrationIdentification
+            {
+                Manufacturer = new LocalizedText(manufacturerTranslations),
+                Model = new LocalizedText("model", "en-US", "Model {0}", modelArguments),
+                ComponentName = new LocalizedText(
+                    "component", "en-US", "Component {0}", componentArguments)
+            };
+            IaCalibrationTargetConfiguration configuration =
+                new IaCalibrationTargetBuilder(IaCalibrationTargetCategory.Dynamic, identity)
+                    .WithFeature(feature)
+                    .Build();
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+            var binding = new IaCalibrationTarget(
+                fixture.Context, node, Provider(configuration, Snapshot(feature, 25)).Object);
+
+            ((Dictionary<string, string>)binding.Configuration.Identification.Manufacturer.Translations!)
+                ["en-US"] = "Changed manufacturer";
+            binding.Configuration.Identification.Model.TranslationInfo.Args![0] = "Changed model";
+            binding.Configuration.Identification.ComponentName.TranslationInfo.Args![0] = "Changed component";
+
+            await binding.RefreshAsync().ConfigureAwait(false);
+
+            BaseVariableState[] properties = [.. fixture.Children(node.Identification!)
+                .OfType<BaseVariableState>()];
+            BaseVariableState manufacturerProperty = properties.Single(
+                property => property.BrowseName.Name == "Manufacturer");
+            BaseVariableState modelProperty = properties.Single(
+                property => property.BrowseName.Name == "Model");
+            BaseVariableState componentNameProperty = properties.Single(
+                property => property.BrowseName.Name == "ComponentName");
+            Assert.That(manufacturerProperty.WrappedValue.TryGetValue(out LocalizedText manufacturer), Is.True);
+            Assert.That(modelProperty.WrappedValue.TryGetValue(out LocalizedText model), Is.True);
+            Assert.That(componentNameProperty.WrappedValue.TryGetValue(out LocalizedText componentName), Is.True);
+            Assert.That(
+                manufacturer.FilterByPreferredLocales(["en-US"]).Text,
+                Is.EqualTo("Original manufacturer"));
+            Assert.That(
+                model.FilterByPreferredLocales(["en-US"]).Text,
+                Is.EqualTo("Model Original model"));
+            Assert.That(
+                componentName.FilterByPreferredLocales(["en-US"]).Text,
+                Is.EqualTo("Component Original component"));
+        }
+
+        /// <summary>
         /// Publishes units, resolution, status, timestamps and optional URI information without fetching it.
         /// </summary>
         [TestCase((byte)0)]

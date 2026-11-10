@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             try
             {
-                await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                await using (HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                     services =>
                     {
                         IOpcUaBuilder builder = services.AddOpcUa()
@@ -147,22 +147,27 @@ namespace Opc.Ua.Server.Tests.Hosting
                                 options.IncludeUnsecurePolicyNone = true;
                             })
                             .AddCertificateManager(certificateManager);
-                    }).ConfigureAwait(false);
+                    }).ConfigureAwait(false))
+                {
+                    Assert.That(
+                        await WaitForAsync(
+                            () => ObservedHostedServer.StartedApplicationType != null,
+                            TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                        Is.True);
+                    Assert.That(
+                        ObservedHostedServer.StartedApplicationName,
+                        Is.EqualTo("CombinedHostedApplication"));
+                    Assert.That(
+                        ObservedHostedServer.StartedApplicationType,
+                        Is.EqualTo(ApplicationType.ClientAndServer));
+                    Assert.That(
+                        ObservedHostedServer.StartedCertificateManager,
+                        Is.SameAs(certificateManager));
+                }
 
-                Assert.That(
-                    await WaitForAsync(
-                        () => ObservedHostedServer.StartedApplicationType != null,
-                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
-                    Is.True);
-                Assert.That(
-                    ObservedHostedServer.StartedApplicationName,
-                    Is.EqualTo("CombinedHostedApplication"));
-                Assert.That(
-                    ObservedHostedServer.StartedApplicationType,
-                    Is.EqualTo(ApplicationType.ClientAndServer));
-                Assert.That(
-                    ObservedHostedServer.StartedCertificateManager,
-                    Is.SameAs(certificateManager));
+                using ICertificateStore store = certificateManager.OpenCertificateStore(
+                    Path.Combine(pkiRoot, "own"),
+                    CertificateStoreType.Directory);
             }
             finally
             {

@@ -137,21 +137,154 @@ public sealed class PubSubWorkspaceTests
     public async Task CallerCancellationAfterStartStillStopsTheWholeOwnedWorkload()
     {
         var runtime = new PubSubTestRuntime();
-        var workspace = runtime.CreateWorkspace();
+        var terminalPhasePublished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRun = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var workspace = runtime.CreateWorkspace(runCompletionBarrier: async () =>
+        {
+            terminalPhasePublished.TrySetResult();
+            await releaseRun.Task.ConfigureAwait(false);
+        });
         await using (workspace.ConfigureAwait(false))
         {
             using var cancellation = new CancellationTokenSource();
-            await workspace.ConfigureAsync(PubSubTestRuntime.Configuration).ConfigureAwait(false);
-            await workspace.StartAsync(PubSubTestRuntime.ReceiveAuthorization, cancellation.Token)
-                .ConfigureAwait(false);
-            await cancellation.CancelAsync().ConfigureAwait(false);
-            await runtime.Stopped.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-            await workspace.StopAsync().ConfigureAwait(false);
+            Task stop;
+            try
+            {
+                await workspace.ConfigureAsync(PubSubTestRuntime.Configuration).ConfigureAwait(false);
+                await workspace.StartAsync(PubSubTestRuntime.ReceiveAuthorization, cancellation.Token)
+                    .ConfigureAwait(false);
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                await runtime.Stopped.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await terminalPhasePublished.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
-            Assert.That(runtime.Disposed.Task.IsCompletedSuccessfully, Is.True);
+                Assert.That(runtime.Disposed.Task.IsCompletedSuccessfully, Is.True);
+                Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
+                Assert.That(workspace.Snapshot().Observations.Evidence.Contains(entry => entry.Area == "Lifecycle"),
+                    Is.True);
+                stop = workspace.StopAsync();
+                Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
+            }
+            finally
+            {
+                releaseRun.TrySetResult();
+            }
+            await stop.ConfigureAwait(false);
             Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
-            Assert.That(workspace.Snapshot().Observations.Evidence.Contains(entry => entry.Area == "Lifecycle"),
-                Is.True);
+        }
+    }
+
+    [Test]
+    public async Task StopAfterTeardownPublishedOfflineCannotMoveThePhaseBackToStopping()
+    {
+        var runtime = new PubSubTestRuntime();
+        var teardown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var workspace = runtime.CreateWorkspace(teardownCompleted: () =>
+        {
+            teardown.TrySetResult();
+            return release.Task;
+        });
+        await using (workspace.ConfigureAwait(false))
+        {
+            try
+            {
+                await workspace.ConfigureAsync(PubSubTestRuntime.Configuration).ConfigureAwait(false);
+                using var cancellation = new CancellationTokenSource();
+                await workspace.StartAsync(PubSubTestRuntime.ReceiveAuthorization, cancellation.Token)
+                    .ConfigureAwait(false);
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                await teardown.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Task stop = workspace.StopAsync();
+
+                Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
+                release.TrySetResult();
+                await stop.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
+            }
+            finally
+            {
+                release.TrySetResult();
+            }
+        }
+    }
+
+    [Test]
+    public async Task BindingAfterTeardownPublishedOfflineDoesNotAwaitOrReportAStoppingWorkload()
+    {
+        var runtime = new PubSubTestRuntime();
+        runtime.Factory.Setup(factory => factory.UsesPrimarySession(It.IsAny<PubSubConfiguration>())).Returns(true);
+        var session = new Mock<ISession>();
+        session.SetupGet(value => value.Connected).Returns(true);
+        var teardown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var workspace = runtime.CreateWorkspace(teardownCompleted: () =>
+        {
+            teardown.TrySetResult();
+            return release.Task;
+        });
+        await using (workspace.ConfigureAwait(false))
+        {
+            try
+            {
+                await workspace.ConfigureAsync(PubSubTestRuntime.Configuration).ConfigureAwait(false);
+                await workspace.BindPrimarySessionAsync(session.Object).ConfigureAwait(false);
+                using var cancellation = new CancellationTokenSource();
+                await workspace.StartAsync(PubSubTestRuntime.ReceiveAuthorization, cancellation.Token)
+                    .ConfigureAwait(false);
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                await teardown.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                await workspace.BindPrimarySessionAsync(null).WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
+                Assert.That(workspace.Snapshot().Observations.Evidence.Contains(entry => entry.Area == "UA adapter"),
+                    Is.False);
+            }
+            finally
+            {
+                release.TrySetResult();
+            }
+        }
+    }
+
+    [Test]
+    public async Task StopDuringTeardownOfAFailedWorkloadKeepsTheFailureVisible()
+    {
+        var runtime = new PubSubTestRuntime();
+        var teardown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failure = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        runtime.Application.Setup(app => app.StopAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken _) =>
+            {
+                teardown.TrySetResult();
+                return new ValueTask(release.Task);
+            });
+        var workspace = runtime.CreateWorkspace((_, _) => failure.Task);
+        await using (workspace.ConfigureAwait(false))
+        {
+            try
+            {
+                await workspace.ConfigureAsync(PubSubTestRuntime.Configuration).ConfigureAwait(false);
+                await workspace.StartAsync(PubSubTestRuntime.ReceiveAuthorization).ConfigureAwait(false);
+                failure.SetException(new IOException("workload failed"));
+                await teardown.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Task stop = workspace.StopAsync();
+                release.TrySetResult();
+                await stop.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                PubSubWorkspaceSnapshot stopped = workspace.Snapshot();
+                Assert.That(stopped.Phase, Is.EqualTo(PubSubDocumentPhase.Faulted));
+                Assert.That(stopped.Status, Does.StartWith("Runtime: "));
+                Assert.That(runtime.Disposed.Task.IsCompletedSuccessfully, Is.True);
+            }
+            finally
+            {
+                release.TrySetResult();
+            }
         }
     }
 

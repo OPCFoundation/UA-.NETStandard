@@ -68,12 +68,17 @@ if (!autoId.IsSupported)
 
 // Discovery looks in the DI DeviceSet and returns readers of the five concrete kinds.
 AutoIdReaderEntry? rfid = null;
+AutoIdReaderEntry? verifier = null;
 await foreach (AutoIdReaderEntry entry in autoId.EnumerateReadersAsync(ct).ConfigureAwait(false))
 {
     Console.WriteLine($"{entry.Kind} reader {entry.BrowseName.Name}  ({entry.NodeId})");
     if (entry.Kind == AutoIdReaderKind.Rfid)
     {
         rfid ??= entry;
+    }
+    if (entry.Kind == AutoIdReaderKind.OpticalVerifier)
+    {
+        verifier ??= entry;
     }
 }
 if (rfid is null)
@@ -88,6 +93,77 @@ Console.WriteLine($"{device.DeviceName}: {device.DeviceStatus}, {device.Manufact
     $"serial {device.SerialNumber}");
 Console.WriteLine($"  {device.DeviceInfo} at {device.DeviceLocationName}");
 Console.WriteLine($"  antennas: {string.Join(", ", device.AntennaNames.ToArray()!.Select(a => $"{a.AntennaId}={a.AntennaName}"))}");
+
+AutoIdScanParameterReadResult parameters = await autoId.ReadScanParametersAsync(rfid, ct).ConfigureAwait(false);
+if (StatusCode.IsGood(parameters.Status.Duration))
+{
+    AutoIdScanParameterStatus configured = await autoId.WriteScanParametersAsync(
+        rfid, parameters.Parameters with { Duration = 0, Cycles = 0, DataAvailable = false }, ct)
+        .ConfigureAwait(false);
+    if (StatusCode.IsBad(configured.Duration) || StatusCode.IsBad(configured.Cycles) ||
+        StatusCode.IsBad(configured.DataAvailable) || StatusCode.IsBad(configured.CodeType) ||
+        StatusCode.IsBad(configured.CodeTypes))
+    {
+        Console.Error.WriteLine("The server rejected one or more scan parameters.");
+        return 1;
+    }
+    StatusCode started = await autoId.SetScanActiveAsync(rfid, true, ct).ConfigureAwait(false);
+    if (StatusCode.IsBad(started))
+    {
+        Console.Error.WriteLine($"ScanActive start rejected: {started}");
+        return 1;
+    }
+    StatusCode stopped = StatusCodes.Good;
+    try
+    {
+        AutoIdDeviceSnapshot acquired;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromSeconds(5));
+        do
+        {
+            await Task.Delay(50, deadline.Token).ConfigureAwait(false);
+            acquired = await autoId.ReadLastScanAsync(rfid, deadline.Token).ConfigureAwait(false);
+        }
+        while (!StatusCode.IsGood(acquired.LastScanStatus) ||
+            acquired.LastScanTimestamp == device.LastScanTimestamp);
+        Console.WriteLine($"ScanActive: coherent data at {acquired.LastScanTimestamp}, " +
+            $"antenna {acquired.LastScanAntenna}, {acquired.LastScanRssi} dBm");
+    }
+    finally
+    {
+        stopped = await autoId.SetScanActiveAsync(rfid, false, CancellationToken.None).ConfigureAwait(false);
+        if (StatusCode.IsBad(stopped))
+        {
+            Console.Error.WriteLine($"ScanActive stop rejected: {stopped}");
+        }
+    }
+    if (StatusCode.IsBad(stopped))
+    {
+        return 1;
+    }
+}
+
+if (verifier != null)
+{
+    AutoIdScanResponse verified = await autoId.ScanAsync(
+        verifier, new ScanSettings { Cycles = 1 }, ct).ConfigureAwait(false);
+    if (verified.Status != AutoIdOperationStatusEnumeration.SUCCESS)
+    {
+        Console.Error.WriteLine($"Verifier Scan rejected: {verified.Status}");
+        return 1;
+    }
+    foreach (ScanResult result in verified.Results)
+    {
+        var quality = (OpticalVerifierScanResult)result;
+        Console.WriteLine($"Verifier Scan: {verified.Status}, ISO grade {quality.IsoGrade}");
+    }
+    await foreach (Opc.Ua.Client.FileSystem.UaFileInfo image in autoId.EnumerateImagesAsync(verifier, ct)
+        .ConfigureAwait(false))
+    {
+        byte[] content = await image.ReadAllBytesAsync(ct).ConfigureAwait(false);
+        Console.WriteLine($"Verifier image: {image.MimeType}, {content.Length} byte(s)");
+    }
+}
 
 // A synchronous scan: the method returns after the pallets in range were read.
 AutoIdScanResponse scan = await autoId.ScanAsync(
