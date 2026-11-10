@@ -133,6 +133,8 @@ the companion
 
 ### Developer tools
 
+- [NodeSet2 to WoT export tool](docs/WotExportTool.md) - a .NET 10 global tool.
+  Read local NodeSet2 files and write W3C WoT Thing Models with progress and diagnostic messages.
 - [UaLens](docs/UaLens.md) — NativeAOT-capable desktop engineering workspace for secure connections,
   monitoring, alarms, structured values, history, administration, PubSub, continuity diagnostics, and guided
   companion-model tasks. See [build and artifact qualification](tools/Opc.Ua.Lens/README.md#publish-and-package).

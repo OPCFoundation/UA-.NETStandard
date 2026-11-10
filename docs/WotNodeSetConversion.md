@@ -1,5 +1,7 @@
 # WoT / NodeSet conversion
 
+For command-line export, see the [.NET 10 global tool](WotExportTool.md).
+
 `Opc.Ua.Wot.WotNodeSetConverter` converts OPC UA NodeSet2 documents to
 WoT Thing Models / Thing Descriptions and materializes WoT documents back
 to NodeSet2. The converter preserves a byte-exact `uav:nodeSet` envelope
