@@ -127,8 +127,15 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// </summary>
     internal sealed class EventWorkload : Workload
     {
-        public EventWorkload(ISession[] sessions, int subscriptions, int publishingInterval, int queueSize, int rate)
+        public EventWorkload(
+            ISession[] sessions,
+            int subscriptions,
+            int publishingInterval,
+            int queueSize,
+            int rate,
+            bool whereClause = false)
         {
+            m_whereClause = whereClause;
             m_sessions = sessions;
             m_subscriptions = subscriptions;
             m_publishingInterval = publishingInterval;
@@ -227,7 +234,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     StartNodeId = ObjectIds.Server,
                     AttributeId = Attributes.EventNotifier,
                     MonitoringMode = MonitoringMode.Reporting,
-                    Filter = CreateFilter(),
+                    Filter = CreateFilter(m_whereClause),
                     QueueSize = (uint)m_queueSize
                 });
                 session.AddSubscription(subscription);
@@ -259,7 +266,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     StartNodeId = ObjectIds.Server,
                     AttributeId = Attributes.EventNotifier,
                     MonitoringMode = MonitoringMode.Reporting,
-                    Filter = CreateFilter(),
+                    Filter = CreateFilter(m_whereClause),
                     QueueSize = (uint)m_queueSize
                 },
                 out _))
@@ -271,10 +278,34 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         /// <summary>
         /// The select clauses of the Sessions <c>ServerEventSubscribeLoadTest</c>; Time is field 4.
+        /// With <paramref name="whereClause"/> the filter also has a where clause that every load
+        /// event passes: OfType(BaseEventType) And Like(Message, "Load event %").
         /// </summary>
-        private static EventFilter CreateFilter()
+        private static EventFilter CreateFilter(bool whereClause)
         {
             var filter = new EventFilter();
+            if (whereClause)
+            {
+                filter.WhereClause = new ContentFilter
+                {
+                    Elements =
+                    [
+                        Element(FilterOperator.And, new ElementOperand(1), new ElementOperand(2)),
+                        Element(
+                            FilterOperator.OfType,
+                            new LiteralOperand(Variant.From(ObjectTypeIds.BaseEventType))),
+                        Element(
+                            FilterOperator.Like,
+                            new SimpleAttributeOperand
+                            {
+                                TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                                BrowsePath = [QualifiedName.From(BrowseNames.Message)],
+                                AttributeId = Attributes.Value
+                            },
+                            new LiteralOperand(Variant.From("Load event %")))
+                    ]
+                };
+            }
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventId));
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
@@ -284,6 +315,18 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
             return filter;
         }
+
+        private static ContentFilterElement Element(FilterOperator op, params FilterOperand[] operands)
+        {
+            var element = new ContentFilterElement { FilterOperator = op };
+            foreach (FilterOperand operand in operands)
+            {
+                element.FilterOperands = element.FilterOperands.AddItem(new ExtensionObject(operand));
+            }
+            return element;
+        }
+
+        private readonly bool m_whereClause;
 
         private void OnEvents(Subscription subscription, EventNotificationList notification, ArrayOf<string> stringTable)
         {
