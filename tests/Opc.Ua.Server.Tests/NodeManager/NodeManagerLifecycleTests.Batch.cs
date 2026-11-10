@@ -46,6 +46,118 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// Publishes manager contributions on add and replacement and withdraws them after retirement.
+        /// </summary>
+        [Test]
+        public async Task ConformanceContributorsFollowAddReplaceAndRetireWithoutRemovingHostProfilesAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            IServerInternal server = m_server.CurrentInstance;
+            ConformanceUnitsManager conformance =
+                ((IConformanceUnitsManagerProvider)server).ConformanceUnitsManager!;
+            var diagnostics = (DiagnosticsNodeManager)server.DiagnosticsNodeManager;
+            BaseVariableState profiles = diagnostics.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ServerProfileArray);
+            Assert.That(profiles.Value.TryGetValue(out ArrayOf<string> initialProfiles), Is.True);
+            var host = new Mock<IConformanceContributor>();
+            host.SetupGet(value => value.ConformanceUnits).Returns([new("Lifecycle Host Unit")]);
+            host.SetupGet(value => value.ServerProfiles).Returns(["urn:test:conformance:host"]);
+            Mock<IAsyncNodeManager> original = CreateLifecycleNodeManager(kModelNamespaceUri + ":Conformance");
+            Mock<IConformanceContributor> originalContributor = original.As<IConformanceContributor>();
+            originalContributor.SetupGet(value => value.ConformanceUnits).Returns([new("Lifecycle Original Unit")]);
+            originalContributor.SetupGet(value => value.ServerProfiles).Returns(["urn:test:conformance:original"]);
+            Mock<IAsyncNodeManager> replacement = CreateLifecycleNodeManager(kModelNamespaceUri + ":Conformance");
+            replacement.As<IConformanceContributor>()
+                .SetupGet(value => value.ConformanceUnits).Returns([new("Lifecycle Replacement Unit")]);
+            replacement.As<IConformanceContributor>()
+                .SetupGet(value => value.ServerProfiles).Returns(["urn:test:conformance:replacement"]);
+            conformance.Register(host.Object);
+            try
+            {
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                LifecycleResult added = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Add(CreateFactory(original))], timeout.Token).ConfigureAwait(false);
+                NodeManagerSlot slot = added.Registrations[0].Slot;
+                Assert.That(added.Issues.Count, Is.Zero);
+                Assert.That(conformance.IsSupported(new QualifiedName("Lifecycle Original Unit")), Is.True);
+                conformance.Register(originalContributor.Object);
+                Assert.That(conformance.Unregister(originalContributor.Object), Is.True);
+                Assert.That(conformance.IsSupported(new QualifiedName("Lifecycle Original Unit")), Is.True);
+
+                LifecycleResult replaced = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Replace(slot, CreateFactory(replacement))], timeout.Token).ConfigureAwait(false);
+                await replaced.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(replaced.Issues.Count, Is.Zero);
+                Assert.That(conformance.IsSupported(new QualifiedName("Lifecycle Original Unit")), Is.False);
+                Assert.That(conformance.IsSupported(new QualifiedName("Lifecycle Replacement Unit")), Is.True);
+                Assert.That(profiles.Value.TryGetValue(out ArrayOf<string> replacementProfiles), Is.True);
+                Assert.That(replacementProfiles.ToArray(), Does.Contain("urn:test:conformance:replacement"));
+                Assert.That(replacementProfiles.ToArray(), Does.Not.Contain("urn:test:conformance:original"));
+
+                LifecycleResult removed = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Remove(slot)], timeout.Token).ConfigureAwait(false);
+                await removed.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(removed.Issues.Count, Is.Zero);
+                Assert.That(conformance.IsSupported(new QualifiedName("Lifecycle Replacement Unit")), Is.False);
+                Assert.That(conformance.IsSupported(new QualifiedName("Lifecycle Host Unit")), Is.True);
+                Assert.That(profiles.Value.TryGetValue(out ArrayOf<string> finalProfiles), Is.True);
+                Assert.That(finalProfiles.ToArray(), Does.Contain("urn:test:conformance:host"));
+                Assert.That(finalProfiles.ToArray(), Does.Not.Contain("urn:test:conformance:replacement"));
+                foreach (string profile in initialProfiles)
+                {
+                    Assert.That(finalProfiles.ToArray(), Does.Contain(profile));
+                }
+                host.VerifyGet(value => value.ConformanceUnits, Times.AtLeastOnce);
+            }
+            finally
+            {
+                conformance.Unregister(host.Object);
+                await conformance.PublishAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Retries conformance publication after the lifecycle decision without repeating that decision.
+        /// </summary>
+        [Test]
+        public async Task FailedConformanceGetterRemainsRetryableAfterCommittedAdditionAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var failure = new InvalidOperationException("Conformance snapshot unavailable.");
+            bool failing = true;
+            int decisions = 0;
+            ArrayOf<QualifiedName> recoveredUnits = [new("Recovered Unit")];
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri + ":ConformanceRetry");
+            manager.As<IConformanceContributor>().SetupGet(value => value.ConformanceUnits)
+                .Returns(() => failing ? throw failure : recoveredUnits);
+            manager.As<IConformanceContributor>().SetupGet(value => value.ServerProfiles)
+                .Returns(["urn:test:conformance:recovered"]);
+            await using IPreparedNodeManagerBatch prepared = await m_server.NodeManagerLifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(CreateFactory(manager))], timeout.Token).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(
+                _ =>
+                {
+                    decisions++;
+                    return default;
+                },
+                cancellationToken: timeout.Token).ConfigureAwait(false);
+            Assert.That(result.Registrations.Count, Is.EqualTo(1));
+            Assert.That(result.Issues.Count, Is.EqualTo(1));
+            Assert.That(result.Issues[0].InitialFailure, Is.SameAs(failure));
+            Assert.That(result.Issues[0].IsRetryable, Is.True);
+            long revision = result.Revision;
+            failing = false;
+            await result.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
+            ConformanceUnitsManager conformance =
+                ((IConformanceUnitsManagerProvider)m_server.CurrentInstance).ConformanceUnitsManager!;
+            Assert.That(conformance.IsSupported(new QualifiedName("Recovered Unit")), Is.True);
+            Assert.That(result.Issues.Count, Is.Zero);
+            Assert.That(decisions, Is.EqualTo(1));
+            Assert.That(result.Revision, Is.EqualTo(revision));
+            Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(revision));
+        }
+
         [Test]
         public async Task RegistrationSlotTracksReplacementAndRemovalAsync()
         {

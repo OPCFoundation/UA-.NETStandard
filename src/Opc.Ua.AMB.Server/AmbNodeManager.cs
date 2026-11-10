@@ -189,7 +189,6 @@ namespace Opc.Ua.AMB.Server
         {
             if (Server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: { } conformance })
             {
-                conformance.Register(this);
                 await conformance.PublishAsync(cancellationToken).ConfigureAwait(false);
                 m_ambLogger.ConformanceRepublished();
             }

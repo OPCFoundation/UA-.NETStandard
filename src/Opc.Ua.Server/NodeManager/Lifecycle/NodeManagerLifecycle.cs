@@ -2380,6 +2380,17 @@ namespace Opc.Ua.Server
                 {
                     await initialPublication.WaitForRuntimeAsync().ConfigureAwait(false);
                 }
+                if (batch.Entries.Count != 0 &&
+                    batch.Server is IConformanceUnitsManagerProvider
+                    {
+                        ConformanceUnitsManager: { } conformanceUnitsManager
+                    })
+                {
+                    await reconciliation.RunAsync(
+                        NodeManagerReconciliationStage.Publication,
+                        [],
+                        () => conformanceUnitsManager.PublishAsync(CancellationToken.None)).ConfigureAwait(false);
+                }
                 try
                 {
                     if (committedReferences is not null)

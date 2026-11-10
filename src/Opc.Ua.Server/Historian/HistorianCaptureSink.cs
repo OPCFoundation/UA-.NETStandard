@@ -149,8 +149,16 @@ namespace Opc.Ua.Server.Historian
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions, OnSampleDropped);
             m_shutdownCts = new CancellationTokenSource();
-            CancellationToken shutdownToken = m_shutdownCts.Token;
-            m_consumer = Task.Run(() => ConsumeAsync(shutdownToken));
+            try
+            {
+                CancellationToken shutdownToken = m_shutdownCts.Token;
+                m_consumer = Task.Run(() => ConsumeAsync(shutdownToken));
+            }
+            catch
+            {
+                m_shutdownCts.Dispose();
+                throw;
+            }
         }
 
         /// <summary>

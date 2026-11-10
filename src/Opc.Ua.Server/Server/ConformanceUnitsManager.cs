@@ -132,7 +132,11 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Registering a contributor again has no effect and does not read it
         /// again; every contributor is read again on each
-        /// <see cref="PublishAsync"/>.
+        /// <see cref="PublishAsync"/>. An explicit registration is owned by
+        /// the caller, even when the contributor is also a node manager: it
+        /// stays until <see cref="Unregister"/> and is independent of the
+        /// contribution the node manager lifecycle publishes for a committed
+        /// manager.
         /// </remarks>
         /// <param name="contributor">
         /// The contributor whose supported units and profiles are added.
@@ -147,7 +151,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_contributors.Contains(contributor))
+                if (m_contributors.Exists(current => ReferenceEquals(current, contributor)))
                 {
                     return;
                 }
@@ -175,9 +179,11 @@ namespace Opc.Ua.Server
             bool removed;
             lock (m_lock)
             {
-                removed = m_contributors.Remove(contributor);
+                int index = m_contributors.FindIndex(current => ReferenceEquals(current, contributor));
+                removed = index >= 0;
                 if (removed)
                 {
+                    m_contributors.RemoveAt(index);
                     m_registrationVersion++;
                 }
             }
@@ -201,7 +207,7 @@ namespace Opc.Ua.Server
             await m_publishLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = Aggregate();
+                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = Aggregate(refreshNodeManagers: true);
                 await m_server.DiagnosticsNodeManager
                     .PublishConformanceUnitsAsync(units, profiles, cancellationToken)
                     .ConfigureAwait(false);
@@ -222,21 +228,125 @@ namespace Opc.Ua.Server
         /// the current contributors rather than replacing the set that
         /// registration already committed.
         /// </remarks>
-        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) Aggregate()
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) Aggregate(bool refreshNodeManagers = false)
+        {
+            if (refreshNodeManagers)
+            {
+                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = ReadNodeManagerContributions();
+                lock (m_lock)
+                {
+                    m_nodeManagerUnits = units;
+                    m_nodeManagerProfiles = profiles;
+                    m_registrationVersion++;
+                }
+            }
+            return AggregateExplicitContributors();
+        }
+
+        /// <summary>
+        /// Reads committed managers while their exact generations remain admitted.
+        /// </summary>
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) ReadNodeManagerContributions()
+        {
+            NodeManagerGeneration[] generations;
+            if (m_server.NodeManager is IDynamicNodeManagerBatchHost host)
+            {
+                generations = host.RoutingRevision.Generations;
+            }
+            else
+            {
+                var current = new List<NodeManagerGeneration>();
+                if (m_server.NodeManager is { } nodeManager)
+                {
+                    foreach (IAsyncNodeManager manager in nodeManager.AsyncNodeManagers)
+                    {
+                        current.Add(NodeManagerGenerationRegistry.GetOrCreate(manager));
+                    }
+                }
+                generations = [.. current];
+            }
+
+            var admissions = new List<(NodeManagerGeneration Generation, int Stripe)>();
+            try
+            {
+                foreach (NodeManagerGeneration generation in generations)
+                {
+                    if (!generation.Gate.TryEnter(out int stripe))
+                    {
+                        throw new InvalidOperationException(
+                            "A conformance contributor retired before its generation could be admitted.");
+                    }
+                    admissions.Add((generation, stripe));
+                }
+
+                var units = new List<QualifiedName>();
+                var profiles = new List<string>();
+                var contributors = new List<IConformanceContributor>();
+                foreach (NodeManagerGeneration generation in generations)
+                {
+                    IAsyncNodeManager manager = generation.NodeManager;
+                    if ((manager as IConformanceContributor ??
+                        manager.SyncNodeManager as IConformanceContributor) is { } contributor &&
+                        !contributors.Exists(current => ReferenceEquals(current, contributor)))
+                    {
+                        contributors.Add(contributor);
+                        foreach (QualifiedName unit in contributor.ConformanceUnits)
+                        {
+                            units.Add(unit);
+                        }
+                        foreach (string profile in contributor.ServerProfiles)
+                        {
+                            profiles.Add(profile);
+                        }
+                    }
+                }
+                return (units.ToArrayOf(), profiles.ToArrayOf());
+            }
+            finally
+            {
+                foreach ((NodeManagerGeneration generation, int stripe) in admissions)
+                {
+                    generation.Gate.Exit(stripe);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Combines explicit contributions with the last admitted manager snapshot.
+        /// </summary>
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) AggregateExplicitContributors()
         {
             while (true)
             {
                 IConformanceContributor[] contributors;
+                ArrayOf<QualifiedName> nodeManagerUnits;
+                ArrayOf<string> nodeManagerProfiles;
                 long registrationVersion;
                 lock (m_lock)
                 {
                     contributors = [.. m_contributors];
+                    nodeManagerUnits = m_nodeManagerUnits;
+                    nodeManagerProfiles = m_nodeManagerProfiles;
                     registrationVersion = m_registrationVersion;
                 }
 
                 var units = new HashSet<QualifiedName>();
                 var profiles = new HashSet<string>(StringComparer.Ordinal);
                 var orderedProfiles = new List<string>();
+                foreach (QualifiedName unit in nodeManagerUnits)
+                {
+                    if (!unit.IsNull)
+                    {
+                        units.Add(unit);
+                    }
+                }
+                foreach (string profile in nodeManagerProfiles)
+                {
+                    if (!string.IsNullOrEmpty(profile) && profiles.Add(profile))
+                    {
+                        orderedProfiles.Add(profile);
+                    }
+                }
                 foreach (IConformanceContributor contributor in contributors)
                 {
                     foreach (QualifiedName unit in contributor.ConformanceUnits)
@@ -274,6 +384,8 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_publishLock = new(1, 1);
         private readonly IServerInternal m_server;
         private readonly List<IConformanceContributor> m_contributors = [];
+        private ArrayOf<QualifiedName> m_nodeManagerUnits;
+        private ArrayOf<string> m_nodeManagerProfiles;
         private HashSet<QualifiedName> m_conformanceUnits;
         private long m_registrationVersion;
         private bool m_disposed;

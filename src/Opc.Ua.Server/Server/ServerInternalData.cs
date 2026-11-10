@@ -337,12 +337,12 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            if (Volatile.Read(ref m_disposed) != 0)
-            {
-                throw new ObjectDisposedException(nameof(ServerInternalData));
-            }
             lock (m_historianBuildersLock)
             {
+                if (Volatile.Read(ref m_disposed) != 0)
+                {
+                    throw new ObjectDisposedException(nameof(ServerInternalData));
+                }
                 if (!m_historianBuilders.Contains(builder))
                 {
                     m_historianBuilders.Add(builder);

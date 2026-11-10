@@ -1421,6 +1421,64 @@ namespace Opc.Ua.Server.Tests.Roles
             }
         }
 
+        /// <summary>
+        /// An admitted <c>AddRole</c> rolls back when the binding closes before materialization.
+        /// </summary>
+        [Test]
+        public async Task AddRoleRollsBackWhenBindingDisposesInRoleAddedCallbackAsync()
+        {
+            (TaskCompletionSource<bool> release, CancellationToken mutationToken) =
+                await BlockRoleRemovalAsync().ConfigureAwait(false);
+            NodeId addedId = NodeId.Null;
+            int addedCount = 0;
+            bool roleWasRegistered = false;
+            void DisposeAfterRoleAdded(object? sender, RoleConfigurationChangedEventArgs change)
+            {
+                if (change.Kind == RoleConfigurationChangeKind.RoleAdded)
+                {
+                    addedId = change.RoleId;
+                    addedCount++;
+                    roleWasRegistered = m_roleManager.GetRole(addedId)?.BrowseName == "ShutdownDuringAdd";
+                    m_binding!.Dispose();
+                }
+            }
+
+            m_roleManager.RoleConfigurationChanged += DisposeAfterRoleAdded;
+            Task<AddRoleMethodStateResult>? add = null;
+            try
+            {
+                add = InvokeAddRoleAsync(
+                    BuildAdminContext(MessageSecurityMode.SignAndEncrypt),
+                    "ShutdownDuringAdd", "http://test.org/role-binding/").AsTask();
+                AddRoleMethodStateResult result = await add.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(addedCount, Is.EqualTo(1));
+                    Assert.That(addedId.IsNull, Is.False);
+                    Assert.That(roleWasRegistered, Is.True);
+                    Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                    Assert.That(result.RoleNodeId.IsNull, Is.True);
+                    Assert.That(mutationToken.IsCancellationRequested, Is.True);
+                    Assert.That(m_roleManager.GetRole(addedId), Is.Null);
+                    Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(addedId), Is.Null);
+                }
+
+                Task drain = m_binding!.DisposeAsync().AsTask();
+                Assert.That(drain.IsCompleted, Is.False);
+                release.TrySetResult(true);
+                await drain.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                m_roleManager.RoleConfigurationChanged -= DisposeAfterRoleAdded;
+                if (add != null)
+                {
+                    await add.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+                }
+            }
+        }
+
         [Test]
         public async Task ScopeDrainTimeoutDoesNotReleaseInFlightRoleGateAsync()
         {

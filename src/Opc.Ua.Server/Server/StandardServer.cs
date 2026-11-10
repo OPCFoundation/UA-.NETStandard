@@ -5655,19 +5655,6 @@ namespace Opc.Ua.Server
         {
             var manager = new ConformanceUnitsManager(server);
 
-            foreach (IAsyncNodeManager nodeManager in server.NodeManager.AsyncNodeManagers)
-            {
-                // A natively-async node manager is the contributor itself; a
-                // wrapped synchronous node manager exposes it through its
-                // SyncNodeManager. Honour either shape.
-                if ((nodeManager as IConformanceContributor
-                    ?? nodeManager.SyncNodeManager as IConformanceContributor)
-                    is IConformanceContributor contributor)
-                {
-                    manager.Register(contributor);
-                }
-            }
-
             await manager.PublishAsync(cancellationToken).ConfigureAwait(false);
 
             return manager;
