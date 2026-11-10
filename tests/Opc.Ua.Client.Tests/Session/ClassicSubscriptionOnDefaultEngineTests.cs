@@ -52,12 +52,28 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// A Publish response that never arrives leaves a gap. The classic
         /// subscription recovers the message with Republish through the default
-        /// engine, and its messages are acknowledged.
+        /// engine, and its messages are acknowledged. A message the client cannot
+        /// receive is released on the server; a message the server no longer has
+        /// is skipped.
         /// </summary>
-        [Test]
+        [TestCase("Good")]
+        [TestCase("BadEncodingLimitsExceeded")]
+        [TestCase("BadMessageNotAvailable")]
         [CancelAfter(60_000)]
-        public async Task LostMessageIsRepublishedAndMessagesAreAcknowledgedAsync(CancellationToken ct)
+        public async Task LostMessageIsRepublishedAndMessagesAreAcknowledgedAsync(
+            string republishOutcome,
+            CancellationToken ct)
         {
+            StatusCode republishStatus = republishOutcome switch
+            {
+                "BadEncodingLimitsExceeded" => StatusCodes.BadEncodingLimitsExceeded,
+                "BadMessageNotAvailable" => StatusCodes.BadMessageNotAvailable,
+                _ => StatusCodes.Good
+            };
+            bool recovered = republishStatus == StatusCodes.Good;
+            bool released = republishStatus == StatusCodes.BadEncodingLimitsExceeded;
+            uint[] expectedDelivered = recovered ? [1, 2, 3, 4, 5] : [1, 3, 4, 5];
+            uint[] expectedAcknowledged = recovered || released ? [1, 2, 3, 4, 5] : [1, 3, 4, 5];
             const uint kSubscriptionId = 7;
             await using var harness = new SessionChannelHarness();
             ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
@@ -99,6 +115,17 @@ namespace Opc.Ua.Client.Tests
                         };
                     case RepublishRequest replay:
                         Interlocked.Increment(ref republishRequests);
+                        if (!recovered)
+                        {
+                            if (!released)
+                            {
+                                lock (gate)
+                                {
+                                    available.Remove(replay.RetransmitSequenceNumber);
+                                }
+                            }
+                            throw new ServiceResultException(republishStatus);
+                        }
                         return new RepublishResponse
                         {
                             ResponseHeader = channel.CreateGoodHeader(),
@@ -178,19 +205,21 @@ namespace Opc.Ua.Client.Tests
             await subscription.CreateAsync(ct).ConfigureAwait(false);
 
             // The placeholder for 2 is republished after RepublishMessageTimeout.
-            while (!(delivered.Contains(2u) && AllAcknowledged()))
+            while (!(Volatile.Read(ref republishRequests) >= 1 &&
+                expectedDelivered.All(delivered.Contains) &&
+                AllAcknowledged()))
             {
                 await Task.Delay(50, ct).ConfigureAwait(false);
             }
             Assert.That(Volatile.Read(ref republishRequests), Is.GreaterThanOrEqualTo(1));
-            Assert.That(delivered, Is.EquivalentTo(new uint[] { 1, 2, 3, 4, 5 }));
+            Assert.That(delivered, Is.EquivalentTo(expectedDelivered));
             await session.CloseAsync(ct).ConfigureAwait(false);
 
             bool AllAcknowledged()
             {
                 lock (gate)
                 {
-                    return acknowledged.IsSupersetOf(new uint[] { 1, 2, 3, 4, 5 });
+                    return acknowledged.IsSupersetOf(expectedAcknowledged);
                 }
             }
         }
