@@ -274,6 +274,43 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void OpaqueBodiesCountTowardTheInputLength([Values] bool forwardOnly)
+        {
+            // Three opaque bodies of 60,000 bytes and an empty T16 body, whose
+            // 262,141 units of work fit the input length plus the allowance.
+            ServiceMessageContext context = CreateContext(16, out _);
+            const int opaqueLength = 60000;
+            NodeId opaqueId = ExpandedNodeId.ToNodeId(
+                new ExpandedNodeId("Opaque_Binary", kNs),
+                context.NamespaceUris);
+            NodeId encodingId = ExpandedNodeId.ToNodeId(EncodingIdOf(16), context.NamespaceUris);
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteInt32(null, 4);
+                for (int i = 0; i < 3; i++)
+                {
+                    encoder.WriteNodeId(null, opaqueId);
+                    encoder.WriteByte(null, 1);
+                    encoder.WriteByteString(null, new byte[opaqueLength].ToByteString());
+                }
+                encoder.WriteNodeId(null, encodingId);
+                encoder.WriteByte(null, 1);
+                encoder.WriteInt32(null, 0);
+                buffer = encoder.CloseAndReturnBuffer()!;
+            }
+            using BinaryDecoder decoder = forwardOnly
+                ? new BinaryDecoder(new ForwardOnlyStream(buffer), context)
+                : new BinaryDecoder(buffer, context);
+
+            ArrayOf<ExtensionObject> values = decoder.ReadExtensionObjectArray(null);
+
+            Assert.That(values.Count, Is.EqualTo(4));
+            Assert.That(values[3].TryGetValue(out Structure? last), Is.True);
+            Assert.That(CountInstances(last!), Is.EqualTo((1 << 17) - 1));
+        }
+
+        [Test]
         public void NestedStructuresBeyondTheBudgetFailOnAnEmptyForwardOnlyStream(
             [Values(0, 2 * 1024 * 1024)] int maxMessageSize)
         {

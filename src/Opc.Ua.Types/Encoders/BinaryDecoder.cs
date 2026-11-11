@@ -1166,7 +1166,13 @@ namespace Opc.Ua
                     m_nestingLevel,
                     body.Length,
                     recoveries);
-                return bodyDecoder.ReadBinaryExtensionObject(typeId, extension, activator, length);
+                ExtensionObject replayed = bodyDecoder.ReadBinaryExtensionObject(
+                    typeId,
+                    extension,
+                    activator,
+                    length);
+                bodyDecoder.CreditUnusedStructureWork();
+                return replayed;
             }
 
             return ReadBinaryExtensionObject(typeId, extension, activator, length);
@@ -3323,6 +3329,26 @@ namespace Opc.Ua
                 recoveries.AddStructureWorkCredit(enclosing - stream.StructureWorkCredit);
             }
             stream.StructureWorkCredit = stream.Position;
+        }
+
+        /// <summary>
+        /// After a replayed ExtensionObject body is decoded, credits the shared
+        /// state with the part of the body length that its local count left
+        /// unused. The body then counts toward the input length of the response
+        /// once, whether or not its decoder moved its count to the shared state.
+        /// </summary>
+        private void CreditUnusedStructureWork()
+        {
+            if (m_structureWork == kStructureWorkShared || m_recoveries == null)
+            {
+                return;
+            }
+            long unused = GetInputLength() - m_structureWork;
+            if (unused > 0)
+            {
+                m_recoveries.AddStructureWorkCredit(unused);
+            }
+            m_structureWork = kStructureWorkShared;
         }
 
         /// <summary>
