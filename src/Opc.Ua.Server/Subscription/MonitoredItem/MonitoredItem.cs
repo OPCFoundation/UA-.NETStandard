@@ -2052,7 +2052,7 @@ namespace Opc.Ua.Server
             m_logger.QUEUEVALUEMonitoredItemIdValueValueCODECode(
                 Id,
                 m_lastValue.WrappedValue,
-                m_lastValue.StatusCode.Code,
+                m_lastValue.StatusCodeValue,
                 overflow,
                 SubscriptionId);
         }
@@ -2934,7 +2934,7 @@ namespace Opc.Ua.Server
                 {
                     m_logger.DequeueValue(
                         m_lastValue.WrappedValue,
-                        m_lastValue.StatusCode.Code,
+                        m_lastValue.StatusCodeValue,
                         m_lastValue.StatusCode.Overflow,
                         Id);
                     PublishObservedValue(
@@ -3314,7 +3314,7 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            return !value.IsNull && value.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code;
+            return !value.IsNull && value.StatusCodeValue == StatusCodes.BadNodeIdUnknown.Code;
         }
 
         /// <summary>
@@ -3380,31 +3380,31 @@ namespace Opc.Ua.Server
             }
 
             // get the current status.
-            StatusCode status = StatusCodes.Good;
+            uint status = 0;
 
             if (error != null)
             {
-                status = error.StatusCode;
+                status = error.StatusCode.Code;
             }
             else if (!lastValue.IsNull)
             {
-                status = value.StatusCode;
+                status = value.StatusCodeValue;
             }
 
             // get the last status.
-            StatusCode lastStatus = StatusCodes.Good;
+            uint lastStatus = 0;
 
             if (lastError != null)
             {
-                lastStatus = lastError.StatusCode;
+                lastStatus = lastError.StatusCode.Code;
             }
             else if (!lastValue.IsNull)
             {
-                lastStatus = lastValue.StatusCode;
+                lastStatus = lastValue.StatusCodeValue;
             }
 
             // value changed if any status change occurrs.
-            if (!status.Equals(lastStatus, StatusCodeComparison.AllBits))
+            if (status != lastStatus)
             {
                 return true;
             }

@@ -88,7 +88,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports a value written.
         /// </summary>
-        public static void ReportWriteValue(NodeId nodeId, DataValue value, StatusCode error)
+        public static void ReportWriteValue(NodeId nodeId, in DataValue value, StatusCode error)
         {
             if (!s_eventsEnabled)
             {
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports a value queued.
         /// </summary>
-        public static void ReportQueuedValue(NodeId nodeId, uint serverHandle, DataValue value)
+        public static void ReportQueuedValue(NodeId nodeId, uint serverHandle, in DataValue value)
         {
             if (!s_eventsEnabled)
             {
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports a value excluded by the filter.
         /// </summary>
-        public static void ReportFilteredValue(NodeId nodeId, uint serverHandle, DataValue value)
+        public static void ReportFilteredValue(NodeId nodeId, uint serverHandle, in DataValue value)
         {
             if (!s_eventsEnabled)
             {
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports a value discarded because of queue overflow.
         /// </summary>
-        public static void ReportDiscardedValue(NodeId nodeId, uint serverHandle, DataValue value)
+        public static void ReportDiscardedValue(NodeId nodeId, uint serverHandle, in DataValue value)
         {
             if (!s_eventsEnabled)
             {
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports a value published.
         /// </summary>
-        public static void ReportPublishValue(NodeId nodeId, uint serverHandle, DataValue value)
+        public static void ReportPublishValue(NodeId nodeId, uint serverHandle, in DataValue value)
         {
             if (!s_eventsEnabled)
             {

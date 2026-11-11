@@ -926,8 +926,8 @@ namespace Opc.Ua
                 encoding |= (byte)DataValueEncodingBits.Value;
             }
 
-            StatusCode statusCode = value.StatusCode;
-            if (!statusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
+            uint statusCode = value.StatusCodeValue;
+            if (statusCode != 0)
             {
                 encoding |= (byte)DataValueEncodingBits.StatusCode;
             }
@@ -969,7 +969,7 @@ namespace Opc.Ua
 
             if ((encoding & (byte)DataValueEncodingBits.StatusCode) != 0)
             {
-                WriteStatusCode(null, statusCode);
+                WriteUInt32(null, statusCode);
             }
 
             if ((encoding & (byte)DataValueEncodingBits.SourceTimestamp) != 0)

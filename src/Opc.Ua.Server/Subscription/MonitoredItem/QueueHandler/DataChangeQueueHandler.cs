@@ -301,7 +301,7 @@ namespace Opc.Ua.Server
 
                     m_logger.OVERWRITTENVALUETOOSOONFORANOTHERSAMPLE(
                         overwrittenValue.WrappedValue,
-                        overwrittenValue.StatusCode.Code,
+                        overwrittenValue.StatusCodeValue,
                         m_samplingInterval,
                         now,
                         m_nextSampleTime);
@@ -639,7 +639,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">The value that is not queued.</param>
         /// <param name="markerIndex">The marker's unchanged position after dropping the incoming value.</param>
-        private void DiscardIncomingValue(DataValue value, int markerIndex)
+        private void DiscardIncomingValue(in DataValue value, int markerIndex)
         {
             m_discardedValueHandler?.Invoke();
             ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, value);
