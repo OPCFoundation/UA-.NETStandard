@@ -403,14 +403,16 @@ response, `BadRequestTooLarge` for a request); a response past only the
 encoder's `MaxMessageSize` is answered with a `BadEncodingLimitsExceeded`
 ServiceFault, without encoding the response a second time.
 
-On the server, the Browse, BrowseNext and Call services also charge the
-results they keep for the response against the server's `MaxMessageSize`
+On the server, the Browse, BrowseNext and Call services of a binary encoded
+request also charge the results they keep for the response against the
+server's `MaxMessageSize`
 while the node managers build them, using a lower bound of the encoded size.
 A request whose results cannot fit fails with `BadResponseTooLarge` once the
 bound passes the limit, instead of after all results are built. Browse fetches
 at most one reference more per node than the rest of that budget holds at the
 smallest reference size, also when the client asks for no limit
-(`requestedMaxReferencesPerNode` 0). In-process callers of the node managers
+(`requestedMaxReferencesPerNode` 0). Requests in other encodings, which can
+encode below the binary bound, and in-process callers of the node managers
 have no budget.
 
 HTTPS binary, JSON, and OpenAPI clients obtain response headers before

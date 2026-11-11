@@ -925,8 +925,10 @@ namespace Opc.Ua.Server
                 // check if request has timed out or been cancelled.
                 if (StatusCode.IsBad(context.OperationStatus))
                 {
-                    ReleaseContinuationPoints(context, results);
-                    throw new ServiceResultException(context.OperationStatus);
+                    throw ReleaseContinuationPoints(
+                        context,
+                        results,
+                        new ServiceResultException(context.OperationStatus));
                 }
 
                 BrowseDescription nodeToBrowse = nodesToBrowse[ii];
@@ -972,10 +974,12 @@ namespace Opc.Ua.Server
                 if (hasResponseBudget &&
                     !context.TryChargeResponse(ResponseSizeEstimator.Estimate(result.References)))
                 {
-                    ReleaseContinuationPoints(context, results);
-                    throw new ServiceResultException(
-                        StatusCodes.BadResponseTooLarge,
-                        "The references of the Browse exceed the response size limit.");
+                    throw ReleaseContinuationPoints(
+                        context,
+                        results,
+                        new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            "The references of the Browse exceed the response size limit."));
                 }
 
                 // check for error.
@@ -1023,18 +1027,34 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Releases the continuation points assigned to the results of a Browse that fails.
+        /// A point whose release fails does not stop the release of the others.
         /// </summary>
-        private static void ReleaseContinuationPoints(OperationContext context, List<BrowseResult> results)
+        /// <returns>The failure of the Browse, or an <see cref="AggregateException"/> of it
+        /// and the release failures.</returns>
+        private static Exception ReleaseContinuationPoints(
+            OperationContext context,
+            List<BrowseResult> results,
+            ServiceResultException failure)
         {
+            List<Exception>? cleanupFailures = null;
             foreach (BrowseResult current in results)
             {
-                if (current != null && !current.ContinuationPoint.IsEmpty)
+                if (current == null || current.ContinuationPoint.IsEmpty)
                 {
-                    ContinuationPoint? cp = context.Session?
-                        .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
-                    cp?.Dispose();
+                    continue;
+                }
+                try
+                {
+                    context.Session?.ContinuationPoints.RestoreBrowse(current.ContinuationPoint)?.Dispose();
+                }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    (cleanupFailures ??= [failure]).Add(cleanupFailure);
                 }
             }
+            return cleanupFailures is null
+                ? failure
+                : new AggregateException("Browse and continuation cleanup failed.", cleanupFailures);
         }
 
         /// <summary>

@@ -1432,8 +1432,10 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A Browse whose references cannot fit the message size limit of the server
-        /// fails with BadResponseTooLarge, and a smaller one of the same node succeeds.
+        /// A binary encoded Browse whose references cannot fit the message size limit of
+        /// the server fails with BadResponseTooLarge, and a smaller one of the same node
+        /// succeeds. A JSON encoded request, whose encoding the binary lower bound does
+        /// not bound, has no response byte budget.
         /// </summary>
         [Test]
         public async Task BrowseWhoseReferencesExceedTheMessageSizeLimitFailsAsync()
@@ -1483,6 +1485,20 @@ namespace Opc.Ua.Server.Tests
                 async () => await services.BrowseAsync(m_requestHeader, null!, 0, nodes).ConfigureAwait(false));
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+
+            var jsonChannel = new SecureChannelContext(
+                m_secureChannelContext.SecureChannelId,
+                m_secureChannelContext.EndpointDescription,
+                RequestEncoding.Json,
+                m_secureChannelContext.ClientChannelCertificate.ToArray(),
+                m_secureChannelContext.ServerChannelCertificate.ToArray(),
+                m_secureChannelContext.ChannelThumbprint.ToArray(),
+                m_secureChannelContext.PeerAddress);
+            var jsonServices = new ServerTestServices(m_server, jsonChannel);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse json = await jsonServices.BrowseAsync(
+                m_requestHeader, null!, 0, nodes).ConfigureAwait(false);
+            Assert.That(json.Results.Count, Is.EqualTo(nodes.Length));
         }
 
         /// <summary>
