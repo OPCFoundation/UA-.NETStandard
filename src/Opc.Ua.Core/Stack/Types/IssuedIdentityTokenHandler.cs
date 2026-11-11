@@ -208,19 +208,28 @@ namespace Opc.Ua
         {
             await Task.CompletedTask.ConfigureAwait(false);
 
+            // a policy may be given by its short name; compare the canonical URI.
+            SecurityPolicyInfo? securityPolicy = string.IsNullOrEmpty(securityPolicyUri)
+                ? null
+                : m_securityPolicies.GetInfo(securityPolicyUri);
+
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
-                securityPolicyUri == SecurityPolicies.None)
+                securityPolicy?.Uri == SecurityPolicies.None)
             {
                 m_token.TokenData = m_decryptedTokenData.ToByteString();
                 m_token.EncryptionAlgorithm = string.Empty;
                 return;
             }
 
-            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
-                ?? throw new ServiceResultException(
+            if (securityPolicy == null)
+            {
+                throw new ServiceResultException(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unknown security policy: " + securityPolicyUri);
+            }
+
+            securityPolicyUri = securityPolicy.Uri;
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -283,24 +292,33 @@ namespace Opc.Ua
             ICertificateValidatorEx? validator = null,
             CancellationToken ct = default)
         {
+            // a policy may be given by its short name; compare the canonical URI.
+            SecurityPolicyInfo? securityPolicy = string.IsNullOrEmpty(securityPolicyUri)
+                ? null
+                : m_securityPolicies.GetInfo(securityPolicyUri);
+
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
-                securityPolicyUri == SecurityPolicies.None)
+                securityPolicy?.Uri == SecurityPolicies.None)
             {
                 DecryptedTokenData = m_token.TokenData.ToArray();
                 return;
             }
+
+            if (securityPolicy == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unknown security policy: " + securityPolicyUri);
+            }
+
+            securityPolicyUri = securityPolicy.Uri;
 
             var encryptedData = new EncryptedData
             {
                 Data = m_token.TokenData.ToArray(),
                 Algorithm = m_token.EncryptionAlgorithm
             };
-
-            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
-                ?? throw new ServiceResultException(
-                    StatusCodes.BadSecurityPolicyRejected,
-                    "Unknown security policy: " + securityPolicyUri);
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
