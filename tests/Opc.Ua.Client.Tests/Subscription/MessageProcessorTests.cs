@@ -3107,6 +3107,47 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Messages a transfer recovery could neither recover nor remember stay
+        /// ahead of the data gate, so a later recovery republishes them instead
+        /// of acknowledging them as delivered.
+        /// </summary>
+        [Test]
+        public async Task RecoverTransferredMessagesKeepsUnrememberedMessagesAheadOfTheGateAsync()
+        {
+            const uint kCount = 2100;
+            m_mockServices
+                .Setup(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadSecureChannelClosed));
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 31
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                var available = new List<uint>();
+                for (uint i = 1; i <= kCount; i++)
+                {
+                    available.Add(i);
+                }
+                await sut.RecoverTransferredMessagesAsync(available, default)
+                    .ConfigureAwait(false);
+                Assert.That(sut.ReceivedSequenceNumbers, Is.Empty);
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.LessThan(kCount));
+
+                SetupRepublish();
+                await sut.RecoverTransferredMessagesAsync([kCount], default)
+                    .ConfigureAwait(false);
+                Assert.That(sut.ReceivedSequenceNumbers, Does.Contain(kCount));
+            }
+        }
+
+        /// <summary>
         /// A gap republish that failed leaves the message undelivered although
         /// the data gate moved past it. Transfer recovery must republish it
         /// instead of acknowledging it as already dispatched, while messages

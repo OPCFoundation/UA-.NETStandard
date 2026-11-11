@@ -1704,13 +1704,18 @@ namespace Opc.Ua.Client.Subscriptions
                         // deliver it a second time.
                         await DispatchDataMessageAsync(pending, ct).ConfigureAwait(false);
                     }
-                    else
-                    {
-                        _ = await TryRepublishAsync(
+                    else if (!await TryRepublishAsync(
                             sequenceNumber,
                             sequenceNumber,
                             ct)
-                            .ConfigureAwait(false);
+                            .ConfigureAwait(false) &&
+                        !m_notDispatched.Contains(sequenceNumber))
+                    {
+                        // Not recovered and no longer remembered as such: moving
+                        // the gate past it would make a later recovery acknowledge
+                        // it as delivered. Stop here, the rest stays ahead of the
+                        // gate and is recovered later.
+                        break;
                     }
                     if (IsNewerSequenceNumber(
                         sequenceNumber,

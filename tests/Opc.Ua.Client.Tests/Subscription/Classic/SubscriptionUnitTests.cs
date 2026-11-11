@@ -787,6 +787,81 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A message republished for an earlier lifetime of the subscription is not
+        /// taken once the subscription was deleted and created again.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task RepublishedMessageOfAnEarlierLifetimeIsNotTakenAsync(CancellationToken ct)
+        {
+            var received = new ConcurrentQueue<uint>();
+            using var subscription = new Subscription(NUnitTelemetryContext.Create())
+            {
+                FastDataChangeCallback = (_, message, _) => received.Enqueue(message.SequenceNumber)
+            };
+            subscription.Session = BuildSessionMock();
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            AcknowledgementScope firstLifetime = subscription.GetAcknowledgementScope();
+
+            await subscription.DeleteAsync(true, ct).ConfigureAwait(false);
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            Assert.That(subscription.TrySaveRepublishedMessageInCache(
+                new NotificationMessage
+                {
+                    SequenceNumber = 1,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                },
+                firstLifetime), Is.False);
+            Assert.That(subscription.TrySaveRepublishedMessageInCache(
+                new NotificationMessage
+                {
+                    SequenceNumber = 1,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                },
+                subscription.GetAcknowledgementScope()), Is.True);
+            while (received.IsEmpty)
+            {
+                await Task.Delay(10, ct).ConfigureAwait(false);
+            }
+            Assert.That(received, Is.EqualTo(new uint[] { 1 }));
+        }
+
+        /// <summary>
+        /// Transfer recovery queues at most as many messages as the incoming queue
+        /// holds. The older messages stay in the acknowledgement list.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task TransferRecoveryQueuesNoMoreMessagesThanTheQueueBoundAsync(CancellationToken ct)
+        {
+            const int kAvailable = Subscription.kMaxIncomingMessages + 500;
+            using var subscription = new Subscription(NUnitTelemetryContext.Create())
+            {
+                RepublishAfterTransfer = true
+            };
+            var available = Enumerable.Range(1, kAvailable).Select(value => (uint)value).ToArrayOf();
+            ISession session = BuildSessionMock(
+                (_, _) => false,
+                mock =>
+                {
+                    mock.Setup(value => value.Subscriptions).Returns([]);
+                    mock.Setup(value => value.RemoveTransferredSubscription(subscription)).Returns(true);
+                    mock.Setup(value => value.AddSubscription(subscription)).Returns(true);
+                });
+            subscription.Session = session;
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            (bool transferred, ArrayOf<uint> acknowledgements) = await subscription
+                .TransferWithAcknowledgementsAsync(session, subscription.Id, available, false, ct)
+                .ConfigureAwait(false);
+
+            Assert.That(transferred, Is.True);
+            Assert.That(acknowledgements.Count, Is.EqualTo(kAvailable - Subscription.kMaxIncomingMessages));
+            Assert.That(acknowledgements.ToArray()!.Max(), Is.EqualTo((uint)(kAvailable - Subscription.kMaxIncomingMessages)));
+        }
+
+        /// <summary>
         /// Keep-alives do not turn disabled transfer recovery into Republish requests.
         /// </summary>
         [Test]

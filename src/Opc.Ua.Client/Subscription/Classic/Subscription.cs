@@ -2294,6 +2294,20 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Adds a notification message received in a Republish response to the
+        /// internal cache when the subscription is still in the lifetime the
+        /// Republish was requested for. A subscription deleted or recreated
+        /// meanwhile does not take a message of its former lifetime.
+        /// </summary>
+        /// <returns><c>true</c> when the message was taken.</returns>
+        internal bool TrySaveRepublishedMessageInCache(
+            NotificationMessage message,
+            AcknowledgementScope requiredScope)
+        {
+            return SaveMessageInCache(default, message, false, requiredScope, requiredScope);
+        }
+
+        /// <summary>
         /// Adds a received message to the cache of messages waiting for dispatch.
         /// </summary>
         /// <param name="availableSequenceNumbers">The sequence numbers the server holds.</param>
@@ -2303,16 +2317,24 @@ namespace Opc.Ua.Client
         /// <param name="acknowledgementScope">The scope the engine tracked the acknowledgement
         /// with, or <c>null</c> to capture the current one. Delivered notifications carry the
         /// same handle.</param>
-        private void SaveMessageInCache(
+        /// <param name="requiredScope">The lifetime the subscription must still be in
+        /// for the message to be taken, or <c>null</c> to take it in any lifetime.</param>
+        /// <returns><c>false</c> when the subscription left the required lifetime.</returns>
+        private bool SaveMessageInCache(
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message,
             bool updateAvailableSequenceNumbers,
-            AcknowledgementScope? acknowledgementScope)
+            AcknowledgementScope? acknowledgementScope,
+            AcknowledgementScope? requiredScope = null)
         {
             PublishStateChangedEventHandler? callback = null;
 
             lock (m_cache)
             {
+                if (requiredScope != null && !requiredScope.Equals(GetAcknowledgementScope()))
+                {
+                    return false;
+                }
                 if (updateAvailableSequenceNumbers)
                 {
                     m_availableSequenceNumbers = availableSequenceNumbers;
@@ -2320,7 +2342,7 @@ namespace Opc.Ua.Client
 
                 if (message == null)
                 {
-                    return;
+                    return true;
                 }
 
                 // check if a publish error was previously reported.
@@ -2535,6 +2557,7 @@ namespace Opc.Ua.Client
 
             // process messages.
             m_messageWorkerEvent.Set();
+            return true;
         }
 
         /// <summary>
@@ -2843,6 +2866,13 @@ namespace Opc.Ua.Client
                     int republishMessages = 0;
                     for (int i = 0; i < availableNumbers; i++)
                     {
+                        if (m_incomingMessages.Count >= kMaxIncomingMessages)
+                        {
+                            // The queue keeps its bound: the older messages stay
+                            // in the acknowledgement list and are released
+                            // instead of republished.
+                            break;
+                        }
                         bool found = false;
                         bool republishRequested = false;
                         foreach (uint sequenceNumber in availableSequenceNumberList)

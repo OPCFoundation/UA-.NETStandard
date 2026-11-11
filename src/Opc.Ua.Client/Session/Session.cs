@@ -5000,7 +5000,8 @@ namespace Opc.Ua.Client
                 if (context.TryDispatchRepublishedToSessionSubscription(
                         subscriptionId,
                         notificationMessage,
-                        responseHeader.StringTable) &&
+                        responseHeader.StringTable,
+                        scope) &&
                     notificationMessage.NotificationData.Count != 0)
                 {
                     engine.QueueSessionAcknowledgement(

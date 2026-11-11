@@ -2950,13 +2950,25 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private void RemoveRetiredSessionAcknowledgements(List<SessionAcknowledgement> acknowledgements)
         {
+            // Each lookup scans the session's subscriptions; look each one up once
+            // per batch.
+            Dictionary<uint, AcknowledgementScope?>? currentScopes = null;
             int kept = 0;
             for (int i = 0; i < acknowledgements.Count; i++)
             {
                 SessionAcknowledgement acknowledgement = acknowledgements[i];
-                if (acknowledgement.Scope == null ||
-                    !acknowledgement.Scope.Equals(m_session.GetSessionSubscriptionScope(
-                        acknowledgement.Scope.SubscriptionId)))
+                AcknowledgementScope? scope = acknowledgement.Scope;
+                if (scope == null)
+                {
+                    continue;
+                }
+                currentScopes ??= [];
+                if (!currentScopes.TryGetValue(scope.SubscriptionId, out AcknowledgementScope? current))
+                {
+                    current = m_session.GetSessionSubscriptionScope(scope.SubscriptionId);
+                    currentScopes.Add(scope.SubscriptionId, current);
+                }
+                if (!scope.Equals(current))
                 {
                     continue;
                 }
