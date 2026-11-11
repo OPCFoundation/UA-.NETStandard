@@ -147,7 +147,6 @@ namespace Opc.Ua.Encoders
         /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
-            ChargeDecodeWork(decoder);
             decoder.PushNamespace(XmlNamespace);
 
             uint unionSelector = decoder.ReadSwitchField(null!, out _);

@@ -105,7 +105,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
-            ChargeDecodeWork(decoder);
             decoder.PushNamespace(XmlNamespace);
 
             EncodingMask = decoder.ReadEncodingMask(null!);

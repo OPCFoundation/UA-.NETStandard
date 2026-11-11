@@ -3236,91 +3236,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Charges the work of decoding one structure whose layout comes from
-        /// a <see cref="DataTypeDefinition"/>: one unit for the instance and one
-        /// per field. Such a structure can encode to zero bytes, so neither the
-        /// remaining input nor the nesting level bounds how many of them one
-        /// message decodes. The work of the decoders of one response, which
-        /// share their <see cref="DecoderRecoveries"/>, may reach the length of
-        /// their inputs plus <see cref="kStructureWorkAllowance"/>.
-        /// </summary>
-        /// <remarks>
-        /// A decoder counts its work locally while it stays within its own input
-        /// length, which is the common case. Only then does it move the count
-        /// to the shared state, so decoding ordinary values allocates nothing.
-        /// On a forward-only stream the input length is the number of bytes
-        /// read so far, and the credit grows as the decoder reads further.
-        /// </remarks>
-        /// <exception cref="ServiceResultException"></exception>
-        internal void ChargeStructureWork(int units)
-        {
-            PositionTrackingStream? forwardOnly;
-            if (m_structureWork != kStructureWorkShared)
-            {
-                int work = m_structureWork + units;
-                if (work < kStructureWorkShared && work <= GetInputLength())
-                {
-                    m_structureWork = (ushort)work;
-                    return;
-                }
-                forwardOnly = GetForwardOnlyStream();
-                DecoderRecoveries shared = m_recoveries ??= new DecoderRecoveries();
-                if (forwardOnly == null)
-                {
-                    shared.AddStructureWorkCredit(GetInputLength());
-                }
-                m_structureWork = kStructureWorkShared;
-                units = work;
-            }
-            else
-            {
-                forwardOnly = GetForwardOnlyStream();
-            }
-            if (forwardOnly != null)
-            {
-                long read = forwardOnly.Position;
-                if (read > forwardOnly.StructureWorkCredit)
-                {
-                    m_recoveries!.AddStructureWorkCredit(read - forwardOnly.StructureWorkCredit);
-                    forwardOnly.StructureWorkCredit = read;
-                }
-            }
-            if (!m_recoveries!.TryChargeStructureWork(units, kStructureWorkAllowance))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Decoding structures exceeded the input length by more than {0} units of work.",
-                    kStructureWorkAllowance);
-            }
-        }
-
-        /// <summary>
-        /// The input stream when it is forward-only, otherwise <c>null</c>.
-        /// </summary>
-        private PositionTrackingStream? GetForwardOnlyStream()
-        {
-            return m_hasBuffer ? null : m_reader?.BaseStream as PositionTrackingStream;
-        }
-
-        /// <summary>
-        /// The length of the input, or the number of bytes read so far when the
-        /// input is a forward-only stream.
-        /// </summary>
-        private long GetInputLength()
-        {
-            if (m_hasBuffer)
-            {
-                return m_buffer.Length;
-            }
-            Stream? stream = m_reader?.BaseStream;
-            if (stream == null)
-            {
-                return 0;
-            }
-            return stream.CanSeek ? stream.Length : stream.Position;
-        }
-
-        /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -3361,12 +3276,6 @@ namespace Opc.Ua
                 get => m_position;
                 set => throw new NotSupportedException();
             }
-
-            /// <summary>
-            /// The bytes read so far that were already granted as structure
-            /// work credit (see <see cref="ChargeStructureWork"/>).
-            /// </summary>
-            public long StructureWorkCredit { get; set; }
 
             public override int Read(byte[] buffer, int offset, int count)
             {
@@ -3416,17 +3325,6 @@ namespace Opc.Ua
 
         // Shared with the decoders of the bodies of the same response.
         private DecoderRecoveries? m_recoveries;
-
-        // The structure work counted locally, or kStructureWorkShared once the
-        // count moved to m_recoveries. See ChargeStructureWork.
-        private ushort m_structureWork;
-        private const ushort kStructureWorkShared = ushort.MaxValue;
-
-        /// <summary>
-        /// The structure work a response may do beyond the length of its input,
-        /// enough for an array of the default maximum length of empty structures.
-        /// </summary>
-        internal const long kStructureWorkAllowance = 1 << 17;
 
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.
