@@ -917,9 +917,8 @@ namespace Opc.Ua.Server
             uint continuationPointsAssigned = 0;
 
             // the references kept for the response are charged against the response byte
-            // budget of the service while they are fetched (zero: no budget).
-            long responseBudget = context.ResponseByteLimit;
-            long responseBytes = 0;
+            // budget of the service while they are fetched.
+            bool hasResponseBudget = context.ResponseBytesRemaining >= 0;
 
             for (int ii = 0; ii < nodesToBrowse.Count; ii++)
             {
@@ -948,7 +947,7 @@ namespace Opc.Ua.Server
                     error = await BrowseAsync(
                         context,
                         view,
-                        LimitReferencesPerNode(maxReferencesPerNode, responseBudget, responseBytes),
+                        LimitReferencesPerNode(maxReferencesPerNode, context.ResponseBytesRemaining),
                         m_owner.MaxContinuationPointsPerBrowse == 0 ||
                         continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                         nodeToBrowse,
@@ -970,16 +969,13 @@ namespace Opc.Ua.Server
                 }
 
                 // a response that exceeds the message size limit cannot be sent.
-                if (responseBudget != 0)
+                if (hasResponseBudget &&
+                    !context.TryChargeResponse(ResponseSizeEstimator.Estimate(result.References)))
                 {
-                    responseBytes += ResponseSizeEstimator.Estimate(result.References);
-                    if (responseBytes > responseBudget)
-                    {
-                        ReleaseContinuationPoints(context, results);
-                        throw new ServiceResultException(
-                            StatusCodes.BadResponseTooLarge,
-                            "The references of the Browse exceed the response size limit.");
-                    }
+                    ReleaseContinuationPoints(context, results);
+                    throw new ServiceResultException(
+                        StatusCodes.BadResponseTooLarge,
+                        "The references of the Browse exceed the response size limit.");
                 }
 
                 // check for error.
@@ -1013,15 +1009,14 @@ namespace Opc.Ua.Server
         /// response could carry.
         /// </summary>
         /// <param name="requested">The limit of the client; zero means no limit.</param>
-        /// <param name="responseBudget">The response byte budget; zero means no limit.</param>
-        /// <param name="responseBytes">The bytes charged to the budget so far.</param>
-        internal static uint LimitReferencesPerNode(uint requested, long responseBudget, long responseBytes)
+        /// <param name="remaining">The bytes left in the response byte budget; negative
+        /// when the call has no budget.</param>
+        internal static uint LimitReferencesPerNode(uint requested, long remaining)
         {
-            if (responseBudget == 0)
+            if (remaining < 0)
             {
                 return requested;
             }
-            long remaining = Math.Max(0, responseBudget - responseBytes);
             long limit = Math.Min(uint.MaxValue, (remaining / ResponseSizeEstimator.MinReferenceDescriptionSize) + 1);
             return requested == 0 || requested > limit ? (uint)limit : requested;
         }
@@ -1138,8 +1133,7 @@ namespace Opc.Ua.Server
             var diagnosticInfos = new List<DiagnosticInfo>(continuationPoints.Count);
 
             uint continuationPointsAssigned = 0;
-            long responseBudget = context.ResponseByteLimit;
-            long responseBytes = 0;
+            bool hasResponseBudget = context.ResponseBytesRemaining >= 0;
 
             try
             {
@@ -1213,15 +1207,12 @@ namespace Opc.Ua.Server
                     }
 
                     // a response that exceeds the message size limit cannot be sent.
-                    if (responseBudget != 0)
+                    if (hasResponseBudget &&
+                        !context.TryChargeResponse(ResponseSizeEstimator.Estimate(result.References)))
                     {
-                        responseBytes += ResponseSizeEstimator.Estimate(result.References);
-                        if (responseBytes > responseBudget)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadResponseTooLarge,
-                                "The references of the BrowseNext exceed the response size limit.");
-                        }
+                        throw new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            "The references of the BrowseNext exceed the response size limit.");
                     }
                     result.StatusCode = error.StatusCode;
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)

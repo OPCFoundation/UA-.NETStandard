@@ -155,19 +155,40 @@ namespace Opc.Ua.Server.Tests
         /// The references fetched for one node are limited to one more than the rest
         /// of the response byte budget can hold at the smallest reference size.
         /// </summary>
-        [TestCase(0u, 0L, 0L, 0u)]
-        [TestCase(10u, 0L, 0L, 10u)]
-        [TestCase(0u, 1800L, 0L, 101u)]
-        [TestCase(50u, 1800L, 0L, 50u)]
-        [TestCase(500u, 1800L, 0L, 101u)]
-        [TestCase(0u, 1800L, 1800L, 1u)]
-        [TestCase(0u, 1800L, 5000L, 1u)]
+        [TestCase(0u, -1L, 0u)]
+        [TestCase(10u, -1L, 10u)]
+        [TestCase(0u, 1800L, 101u)]
+        [TestCase(50u, 1800L, 50u)]
+        [TestCase(500u, 1800L, 101u)]
+        [TestCase(0u, 0L, 1u)]
         public void ReferencesPerNodeAreLimitedByTheRestOfTheResponseBudget(
-            uint requested, long budget, long charged, uint expected)
+            uint requested, long remaining, uint expected)
         {
             Assert.That(
-                NodeManagerServiceDispatcher.LimitReferencesPerNode(requested, budget, charged),
+                NodeManagerServiceDispatcher.LimitReferencesPerNode(requested, remaining),
                 Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// The response byte budget refuses the charge that passes the limit and every
+        /// charge after it; a context without a budget accepts every charge.
+        /// </summary>
+        [Test]
+        public void ResponseBudgetRefusesChargesPastTheLimit()
+        {
+            using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+            Assert.That(context.TryChargeResponse(long.MaxValue), Is.True);
+            Assert.That(context.ResponseBytesRemaining, Is.EqualTo(-1));
+
+            context.StartResponseBudget(100);
+            Assert.That(context.TryChargeResponse(60), Is.True);
+            Assert.That(context.TryChargeResponse(40), Is.True);
+            Assert.That(context.ResponseBytesRemaining, Is.Zero);
+            Assert.That(context.ResponseBudgetExceeded, Is.False);
+            Assert.That(context.TryChargeResponse(1), Is.False);
+            Assert.That(context.ResponseBudgetExceeded, Is.True);
+            Assert.That(context.TryChargeResponse(0), Is.False);
+            Assert.That(context.ResponseBytesRemaining, Is.Zero);
         }
 
         private static BrowseDescription CreateBrowseDescription(NodeId nodeId)
