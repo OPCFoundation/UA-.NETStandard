@@ -1286,6 +1286,11 @@ namespace Opc.Ua.Server
             MonitoredItemModifyRequest request,
             ServerConfiguration configuration)
         {
+            // The publishing interval takes the subscription lock. Read it before the item
+            // lock: every other path takes the subscription lock first and the item lock
+            // second, so reading it under the item lock deadlocks against them.
+            double? publishingInterval = SubscriptionCallback is ISubscription owner
+                ? owner.PublishingInterval : null;
             lock (m_lock)
             {
                 if (m_isDisposed)
@@ -1302,8 +1307,7 @@ namespace Opc.Ua.Server
                 {
                     return (StatusCodes.BadMonitoredItemFilterUnsupported, null);
                 }
-                double defaultInterval = SubscriptionCallback is ISubscription subscription
-                    ? subscription.PublishingInterval : SamplingInterval;
+                double defaultInterval = publishingInterval ?? SamplingInterval;
                 double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                     parameters.SamplingInterval, defaultInterval, metadata, AttributeId,
                     configuration.MinSupportedSamplingInterval);

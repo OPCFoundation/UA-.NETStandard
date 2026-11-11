@@ -64,12 +64,9 @@ jobs:
       # branch tip could otherwise have been changed after the candidate was
       # built and would execute with those credentials. The step below
       # therefore uses only the GitHub API and an inline branch-shape check,
-      # and the first and only checkout is at the candidate SHA.
-      - name: Setup .NET 10.0
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-
+      # and the first and only checkout is at the candidate SHA. The .NET
+      # setup follows that checkout because it reads the candidate's
+      # global.json, which does not exist in an empty workspace.
       - name: Validate selected publish run
         id: source
         shell: pwsh
@@ -152,6 +149,11 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ steps.source.outputs.commit }}
+
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
 
       - name: Download signed promotion artifact
         uses: actions/download-artifact@v8
@@ -369,11 +371,15 @@ jobs:
                   throw "nuget.org push failed for '$($package.Name)'."
               }
           }
+          # nuget.org validates large packages slowly: the 2.0.2 Lens.linux-x64
+          # package was still not downloadable more than 18 minutes after its
+          # push, which outlasted the default 300 s wait and failed the job.
           ./.azurepipelines/assert-published-packages-match.ps1 `
             -PackageDirectory promotion `
             -ManifestPath 'promotion/current-package-set.json' `
             -Feed 'nuget.org' `
             -ExcludeDebugPackages `
+            -PublicationTimeoutSeconds 1800 `
             -RequirePresent
 
       - name: Push to GitHub Packages
