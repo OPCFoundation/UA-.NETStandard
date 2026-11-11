@@ -3128,6 +3128,7 @@ namespace Opc.Ua.Client
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
+            typeId = ToLocalTypeId(typeId);
             await FetchTypeTreeAsync(typeId, [typeId], ct)
                 .ConfigureAwait(false);
         }
@@ -3138,13 +3139,29 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
+            typeIds = typeIds.ConvertAll(ToLocalTypeId);
             var visited = new HashSet<ExpandedNodeId>();
             foreach (ExpandedNodeId typeId in typeIds)
             {
                 visited.Add(typeId);
             }
 
-            await FetchTypeTreeAsync(typeIds, visited, ct).ConfigureAwait(false);
+            await FetchTypeTreeAsync(typeIds, visited, 0, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The form of a type id that the node cache returns for the node: a
+        /// namespace URI of this server is replaced by its index, so the
+        /// visited set of a type tree walk recognizes the node again.
+        /// </summary>
+        private ExpandedNodeId ToLocalTypeId(ExpandedNodeId typeId)
+        {
+            if (typeId.NamespaceUri == null || typeId.ServerIndex != 0)
+            {
+                return typeId;
+            }
+            NodeId nodeId = ExpandedNodeId.ToNodeId(typeId, NamespaceUris);
+            return nodeId.IsNull ? typeId : nodeId;
         }
 
         private async Task FetchTypeTreeAsync(
@@ -3160,49 +3177,85 @@ namespace Opc.Ua.Client
             var subTypes = new List<ExpandedNodeId>();
             foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
             {
-                if (visited.Add(reference.TargetId))
+                ExpandedNodeId targetId = ToLocalTypeId(reference.TargetId);
+                if (visited.Add(targetId))
                 {
-                    subTypes.Add(reference.TargetId);
+                    subTypes.Add(targetId);
                 }
             }
 
             if (subTypes.Count > 0)
             {
-                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
+                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, 1, ct).ConfigureAwait(false);
             }
         }
 
+        /// <summary>
+        /// Fetches the subtypes below <paramref name="typeIds"/>, which are
+        /// <paramref name="depth"/> levels below the type the walk started at.
+        /// </summary>
         private async Task FetchTypeTreeAsync(
             ArrayOf<ExpandedNodeId> typeIds,
             HashSet<ExpandedNodeId> visited,
+            int depth,
             CancellationToken ct)
         {
-            ct.ThrowIfCancellationRequested();
+            // Two levels of subtypes per pass, iteratively: the depth of the
+            // type tree is chosen by the server.
             ArrayOf<NodeId> referenceTypeIds = [ReferenceTypeIds.HasSubtype];
-            ArrayOf<INode> nodes = await NodeCache
-                .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
-                .ConfigureAwait(false);
-            foreach (INode node in nodes)
+            for (; ; depth += 2)
             {
-                visited.Add(node.NodeId);
-            }
-            var subTypes = new List<ExpandedNodeId>();
-            foreach (INode inode in nodes)
-            {
-                if (inode is Node node)
+                ct.ThrowIfCancellationRequested();
+                ArrayOf<INode> nodes = await NodeCache
+                    .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
+                    .ConfigureAwait(false);
+                // Only types not visited before lie beyond the limit; a
+                // reference back to a visited type ends the walk there.
+                int newTypes = 0;
+                foreach (INode node in nodes)
                 {
-                    foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+                    if (visited.Add(ToLocalTypeId(node.NodeId)))
                     {
-                        if (visited.Add(reference.TargetId))
+                        newTypes++;
+                    }
+                }
+                ThrowIfDeeperThanTypeHierarchyLimit(newTypes, depth + 1);
+                var subTypes = new List<ExpandedNodeId>();
+                foreach (INode inode in nodes)
+                {
+                    if (inode is Node node)
+                    {
+                        foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                         {
-                            subTypes.Add(reference.TargetId);
+                            ExpandedNodeId targetId = ToLocalTypeId(reference.TargetId);
+                            if (visited.Add(targetId))
+                            {
+                                subTypes.Add(targetId);
+                            }
                         }
                     }
                 }
+                if (subTypes.Count == 0)
+                {
+                    return;
+                }
+                ThrowIfDeeperThanTypeHierarchyLimit(subTypes.Count, depth + 2);
+                typeIds = subTypes.ToArrayOf();
             }
-            if (subTypes.Count > 0)
+        }
+
+        /// <summary>
+        /// Fails when types were found at a level below the type hierarchy limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void ThrowIfDeeperThanTypeHierarchyLimit(int count, int level)
+        {
+            if (count > 0 && level > Client.NodeCache.MaxTypeHierarchyDepth)
             {
-                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadQueryTooComplex,
+                    "The type tree is deeper than {0} levels.",
+                    Client.NodeCache.MaxTypeHierarchyDepth);
             }
         }
 
