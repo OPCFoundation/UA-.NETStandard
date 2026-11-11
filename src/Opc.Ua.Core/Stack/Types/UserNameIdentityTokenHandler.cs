@@ -248,9 +248,14 @@ namespace Opc.Ua
                 Array.Clear(DecryptedPassword, 0, DecryptedPassword.Length);
             }
 
+            // a policy may be given by its short name; compare the canonical URI.
+            SecurityPolicyInfo? securityPolicy = string.IsNullOrEmpty(securityPolicyUri)
+                ? null
+                : m_securityPolicies.GetInfo(securityPolicyUri);
+
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
-                securityPolicyUri == SecurityPolicies.None)
+                securityPolicy?.Uri == SecurityPolicies.None)
             {
                 DecryptedPassword = new byte[m_token.Password.Length];
                 Array.Copy(m_token.Password.ToArray(), DecryptedPassword, m_token.Password.Length);
@@ -258,10 +263,13 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            // GetInfo returns null only for unknown URIs; bail/throw earlier handled None case.
-            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
-                ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected,
+            if (securityPolicy == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected,
                     "Unknown security policy: " + securityPolicyUri);
+            }
+
+            securityPolicyUri = securityPolicy.Uri;
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
