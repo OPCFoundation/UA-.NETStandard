@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Encoders;
@@ -170,6 +171,55 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(((Structure)values[count - 1])["Value"], Is.EqualTo(new Variant(count - 1)));
         }
 
+        [Test]
+        public void NestedStructuresBeyondTheBudgetFailOnAnEmptyForwardOnlyStream(
+            [Values(0, 2 * 1024 * 1024)] int maxMessageSize)
+        {
+            ServiceMessageContext context = CreateContext(17, out ExpandedNodeId top);
+            context.MaxMessageSize = maxMessageSize;
+            using var decoder = new BinaryDecoder(new ForwardOnlyStream(Array.Empty<byte>()), context);
+
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEncodeable<IEncodeable>(null, top));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void StructuresBackedByAForwardOnlyStreamDecodeBeyondTheAllowance()
+        {
+            // The credit of a forward-only stream grows with the bytes read.
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            int ns = context.NamespaceUris.GetIndexOrAppend(kNs);
+            var typeId = new NodeId("WithValue", (ushort)ns);
+            Structure prototype = CreateStructure(
+                context,
+                typeId,
+                [new StructureField { Name = "Value", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }],
+                new Dictionary<string, BuiltInType> { ["Value"] = BuiltInType.Int32 });
+            context.Factory.Builder.AddEncodeableType(prototype).Commit();
+            int count = (int)BinaryDecoder.kStructureWorkAllowance + 1000;
+            context.MaxArrayLength = count;
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteInt32(null, count);
+                for (int i = 0; i < count; i++)
+                {
+                    encoder.WriteInt32(null, i);
+                }
+                buffer = encoder.CloseAndReturnBuffer()!;
+            }
+            using var decoder = new BinaryDecoder(new ForwardOnlyStream(buffer), context);
+
+            ArrayOf<IEncodeable> values = decoder.ReadEncodeableArray<IEncodeable>(
+                null,
+                NodeId.ToExpandedNodeId(typeId, context.NamespaceUris));
+
+            Assert.That(values.Count, Is.EqualTo(count));
+            Assert.That(((Structure)values[count - 1])["Value"], Is.EqualTo(new Variant(count - 1)));
+        }
+
         private static int CountInstances(Structure structure)
         {
             int count = 1;
@@ -218,6 +268,45 @@ namespace Opc.Ua.Types.Tests.Encoders
             return context;
         }
 
+        /// <summary>
+        /// A stream that can only be read forward and has no known length.
+        /// </summary>
+        private sealed class ForwardOnlyStream(byte[] data) : Stream
+        {
+            public override bool CanRead => true;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                return m_inner.Read(buffer, offset, count);
+            }
+
+            public override void Flush()
+            {
+            }
+
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    m_inner.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            private readonly MemoryStream m_inner = new(data, false);
+        }
         private static ExpandedNodeId EncodingIdOf(int level)
         {
             return new ExpandedNodeId("T" + level + "_Binary", kNs);

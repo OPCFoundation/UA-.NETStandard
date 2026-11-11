@@ -190,6 +190,17 @@ namespace Opc.Ua.Client.Tests
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadQueryTooComplex));
         }
 
+        [Test]
+        public async Task FetchTypeTreeAtTheLimitWithACycleToTheRootSucceedsAsync([Values] bool arrayOverload)
+        {
+            using SessionMock session = SessionMock.Create();
+            var server = new SubtypeChainServer(
+                session, ObjectTypeIds.FileType, NodeClass.ObjectType, NodeCache.MaxTypeHierarchyDepth, cycleToRoot: true);
+
+            await FetchFileTypeTreeAsync(session, arrayOverload).ConfigureAwait(false);
+
+            Assert.That(server.MaxLevelBrowsed, Is.GreaterThanOrEqualTo(NodeCache.MaxTypeHierarchyDepth - 1));
+        }
         private static Task FetchFileTypeTreeAsync(SessionMock session, bool arrayOverload)
         {
             return arrayOverload
@@ -259,8 +270,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         private sealed class SubtypeChainServer : SubtypeTreeServer
         {
-            public SubtypeChainServer(SessionMock session, NodeId root, NodeClass nodeClass, int depth)
-                : base(session, BuildChain(root, depth), [], nodeClass)
+            public SubtypeChainServer(
+                SessionMock session, NodeId root, NodeClass nodeClass, int depth, bool cycleToRoot = false)
+                : base(session, BuildChain(root, depth, cycleToRoot), [], nodeClass)
             {
                 m_root = root;
                 for (int level = 1; level <= depth; level++)
@@ -281,7 +293,7 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            private static Dictionary<NodeId, NodeId[]> BuildChain(NodeId root, int depth)
+            private static Dictionary<NodeId, NodeId[]> BuildChain(NodeId root, int depth, bool cycleToRoot)
             {
                 var tree = new Dictionary<NodeId, NodeId[]>();
                 NodeId parent = root;
@@ -291,7 +303,7 @@ namespace Opc.Ua.Client.Tests
                     tree[parent] = [child];
                     parent = child;
                 }
-                tree[parent] = [];
+                tree[parent] = cycleToRoot ? [root] : [];
                 return tree;
             }
 

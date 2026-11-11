@@ -3248,10 +3248,13 @@ namespace Opc.Ua
         /// A decoder counts its work locally while it stays within its own input
         /// length, which is the common case. Only then does it move the count
         /// to the shared state, so decoding ordinary values allocates nothing.
+        /// On a forward-only stream the input length is the number of bytes
+        /// read so far, and the credit grows as the decoder reads further.
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
         internal void ChargeStructureWork(int units)
         {
+            PositionTrackingStream? forwardOnly;
             if (m_structureWork != kStructureWorkShared)
             {
                 int work = m_structureWork + units;
@@ -3260,10 +3263,27 @@ namespace Opc.Ua
                     m_structureWork = (ushort)work;
                     return;
                 }
+                forwardOnly = GetForwardOnlyStream();
                 DecoderRecoveries shared = m_recoveries ??= new DecoderRecoveries();
-                shared.AddStructureWorkCredit(GetInputLength());
+                if (forwardOnly == null)
+                {
+                    shared.AddStructureWorkCredit(GetInputLength());
+                }
                 m_structureWork = kStructureWorkShared;
                 units = work;
+            }
+            else
+            {
+                forwardOnly = GetForwardOnlyStream();
+            }
+            if (forwardOnly != null)
+            {
+                long read = forwardOnly.Position;
+                if (read > forwardOnly.StructureWorkCredit)
+                {
+                    m_recoveries!.AddStructureWorkCredit(read - forwardOnly.StructureWorkCredit);
+                    forwardOnly.StructureWorkCredit = read;
+                }
             }
             if (!m_recoveries!.TryChargeStructureWork(units, kStructureWorkAllowance))
             {
@@ -3275,8 +3295,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The length of the input, or the message size limit when the input is a
-        /// stream of unknown length.
+        /// The input stream when it is forward-only, otherwise <c>null</c>.
+        /// </summary>
+        private PositionTrackingStream? GetForwardOnlyStream()
+        {
+            return m_hasBuffer ? null : m_reader?.BaseStream as PositionTrackingStream;
+        }
+
+        /// <summary>
+        /// The length of the input, or the number of bytes read so far when the
+        /// input is a forward-only stream.
         /// </summary>
         private long GetInputLength()
         {
@@ -3285,11 +3313,11 @@ namespace Opc.Ua
                 return m_buffer.Length;
             }
             Stream? stream = m_reader?.BaseStream;
-            if (stream != null && stream.CanSeek)
+            if (stream == null)
             {
-                return stream.Length;
+                return 0;
             }
-            return Context.MaxMessageSize > 0 ? Context.MaxMessageSize : int.MaxValue;
+            return stream.CanSeek ? stream.Length : stream.Position;
         }
 
         /// <summary>
@@ -3333,6 +3361,12 @@ namespace Opc.Ua
                 get => m_position;
                 set => throw new NotSupportedException();
             }
+
+            /// <summary>
+            /// The bytes read so far that were already granted as structure
+            /// work credit (see <see cref="ChargeStructureWork"/>).
+            /// </summary>
+            public long StructureWorkCredit { get; set; }
 
             public override int Read(byte[] buffer, int offset, int count)
             {

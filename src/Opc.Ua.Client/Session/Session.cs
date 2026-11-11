@@ -3191,11 +3191,17 @@ namespace Opc.Ua.Client
                 ArrayOf<INode> nodes = await NodeCache
                     .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
                     .ConfigureAwait(false);
-                ThrowIfDeeperThanTypeHierarchyLimit(nodes.Count, depth + 1);
+                // Only types not visited before lie beyond the limit; a
+                // reference back to a visited type ends the walk there.
+                int newTypes = 0;
                 foreach (INode node in nodes)
                 {
-                    visited.Add(node.NodeId);
+                    if (visited.Add(node.NodeId))
+                    {
+                        newTypes++;
+                    }
                 }
+                ThrowIfDeeperThanTypeHierarchyLimit(newTypes, depth + 1);
                 var subTypes = new List<ExpandedNodeId>();
                 foreach (INode inode in nodes)
                 {
