@@ -1432,6 +1432,60 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A Browse whose references cannot fit the message size limit of the server
+        /// fails with BadResponseTooLarge, and a smaller one of the same node succeeds.
+        /// </summary>
+        [Test]
+        public async Task BrowseWhoseReferencesExceedTheMessageSizeLimitFailsAsync()
+        {
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            if (m_operationLimits == null)
+            {
+                await GetOperationLimitsAsync().ConfigureAwait(false);
+            }
+            var description = new BrowseDescription
+            {
+                NodeId = VariableIds.OpcUa_BinarySchema,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.References,
+                IncludeSubtypes = true,
+                NodeClassMask = 0,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+
+            // the smallest encoded size of the references of the node.
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse single = await services.BrowseAsync(
+                m_requestHeader, null!, 0, [description]).ConfigureAwait(false);
+            Assert.That(single.Results.Count, Is.EqualTo(1));
+            Assert.That(single.Results[0].ContinuationPoint.IsEmpty, Is.True);
+            long perNode = 12;
+            foreach (ReferenceDescription reference in single.Results[0].References)
+            {
+                perNode += 18 + (reference.BrowseName.Name?.Length ?? 0) +
+                    (reference.DisplayName.Text?.Length ?? 0);
+            }
+            int maxMessageSize = m_server.MessageContext.MaxMessageSize;
+            Assert.That(maxMessageSize, Is.GreaterThan(0));
+            long count = (maxMessageSize / perNode) + 1;
+            if (m_operationLimits!.MaxNodesPerBrowse > 0 && count > m_operationLimits.MaxNodesPerBrowse)
+            {
+                Assert.Ignore("MaxNodesPerBrowse is below the node count that exceeds the message size limit.");
+            }
+            var nodes = new BrowseDescription[count];
+            for (int ii = 0; ii < nodes.Length; ii++)
+            {
+                nodes[ii] = description;
+            }
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await services.BrowseAsync(m_requestHeader, null!, 0, nodes).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+        }
+
+        /// <summary>
         /// Translate references.
         /// </summary>
         [Test]

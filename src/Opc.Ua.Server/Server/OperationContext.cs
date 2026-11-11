@@ -317,6 +317,49 @@ namespace Opc.Ua.Server
         internal bool ClientCertificateErrorAccepted { get; set; }
 
         /// <summary>
+        /// Starts the response byte budget of the service call: the results the call
+        /// keeps for its response are charged against <paramref name="maxResponseBytes"/>
+        /// while they are built, so a response that cannot fit the message size limit
+        /// is refused before all of it is built. Zero or less disables the budget, which
+        /// is the default: the services that send their results start it, in-process
+        /// callers of the node managers do not.
+        /// </summary>
+        /// <param name="maxResponseBytes">The response size limit in bytes.</param>
+        internal void StartResponseBudget(int maxResponseBytes)
+        {
+            m_responseByteLimit = Math.Max(0, maxResponseBytes);
+            Volatile.Write(ref m_responseBytes, 0);
+        }
+
+        /// <summary>
+        /// Charges result bytes against the response byte budget.
+        /// </summary>
+        /// <param name="bytes">A lower bound of the encoded size of the result.</param>
+        /// <returns><c>false</c> once the charged bytes exceed the budget.</returns>
+        internal bool TryChargeResponse(long bytes)
+        {
+            int limit = m_responseByteLimit;
+            return limit == 0 || Interlocked.Add(ref m_responseBytes, bytes) <= limit;
+        }
+
+        /// <summary>
+        /// The response byte budget of the service call; zero means no budget.
+        /// </summary>
+        internal int ResponseByteLimit => m_responseByteLimit;
+
+        /// <summary>
+        /// Whether the results charged so far exceed the response byte budget.
+        /// </summary>
+        internal bool ResponseBudgetExceeded
+        {
+            get
+            {
+                int limit = m_responseByteLimit;
+                return limit != 0 && Volatile.Read(ref m_responseBytes) > limit;
+            }
+        }
+
+        /// <summary>
         /// Updates the status code (thread safe).
         /// </summary>
         /// <param name="statusCode">The status code.</param>
@@ -1128,6 +1171,8 @@ namespace Opc.Ua.Server
             private bool m_disposed;
         }
 
+        private long m_responseBytes;
+        private int m_responseByteLimit;
         private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
         private RequestManager? m_requestCompletion;

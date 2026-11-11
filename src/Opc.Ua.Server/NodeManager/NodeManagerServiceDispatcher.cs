@@ -916,22 +916,17 @@ namespace Opc.Ua.Server
 
             uint continuationPointsAssigned = 0;
 
+            // the references kept for the response are charged against the response byte
+            // budget of the service while they are fetched (zero: no budget).
+            long responseBudget = context.ResponseByteLimit;
+            long responseBytes = 0;
+
             for (int ii = 0; ii < nodesToBrowse.Count; ii++)
             {
                 // check if request has timed out or been cancelled.
                 if (StatusCode.IsBad(context.OperationStatus))
                 {
-                    // release all allocated continuation points.
-                    foreach (BrowseResult current in results)
-                    {
-                        if (current != null && !current.ContinuationPoint.IsEmpty)
-                        {
-                            ContinuationPoint? cp = context.Session?
-                                .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
-                            cp?.Dispose();
-                        }
-                    }
-
+                    ReleaseContinuationPoints(context, results);
                     throw new ServiceResultException(context.OperationStatus);
                 }
 
@@ -953,7 +948,7 @@ namespace Opc.Ua.Server
                     error = await BrowseAsync(
                         context,
                         view,
-                        maxReferencesPerNode,
+                        LimitReferencesPerNode(maxReferencesPerNode, responseBudget, responseBytes),
                         m_owner.MaxContinuationPointsPerBrowse == 0 ||
                         continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                         nodeToBrowse,
@@ -972,6 +967,19 @@ namespace Opc.Ua.Server
                 if (!result.ContinuationPoint.IsEmpty)
                 {
                     continuationPointsAssigned++;
+                }
+
+                // a response that exceeds the message size limit cannot be sent.
+                if (responseBudget != 0)
+                {
+                    responseBytes += ResponseSizeEstimator.Estimate(result.References);
+                    if (responseBytes > responseBudget)
+                    {
+                        ReleaseContinuationPoints(context, results);
+                        throw new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            "The references of the Browse exceed the response size limit.");
+                    }
                 }
 
                 // check for error.
@@ -995,6 +1003,43 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
+        }
+
+        /// <summary>
+        /// Limits the references fetched for one node to what the rest of the response
+        /// byte budget can still hold: one more reference than the budget fits at the
+        /// smallest reference size. A node with more references gets a continuation point
+        /// and its result exceeds the budget, so no node keeps more references than the
+        /// response could carry.
+        /// </summary>
+        /// <param name="requested">The limit of the client; zero means no limit.</param>
+        /// <param name="responseBudget">The response byte budget; zero means no limit.</param>
+        /// <param name="responseBytes">The bytes charged to the budget so far.</param>
+        internal static uint LimitReferencesPerNode(uint requested, long responseBudget, long responseBytes)
+        {
+            if (responseBudget == 0)
+            {
+                return requested;
+            }
+            long remaining = Math.Max(0, responseBudget - responseBytes);
+            long limit = Math.Min(uint.MaxValue, (remaining / ResponseSizeEstimator.MinReferenceDescriptionSize) + 1);
+            return requested == 0 || requested > limit ? (uint)limit : requested;
+        }
+
+        /// <summary>
+        /// Releases the continuation points assigned to the results of a Browse that fails.
+        /// </summary>
+        private static void ReleaseContinuationPoints(OperationContext context, List<BrowseResult> results)
+        {
+            foreach (BrowseResult current in results)
+            {
+                if (current != null && !current.ContinuationPoint.IsEmpty)
+                {
+                    ContinuationPoint? cp = context.Session?
+                        .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
+                    cp?.Dispose();
+                }
+            }
         }
 
         /// <summary>
@@ -1093,6 +1138,8 @@ namespace Opc.Ua.Server
             var diagnosticInfos = new List<DiagnosticInfo>(continuationPoints.Count);
 
             uint continuationPointsAssigned = 0;
+            long responseBudget = context.ResponseByteLimit;
+            long responseBytes = 0;
 
             try
             {
@@ -1163,6 +1210,18 @@ namespace Opc.Ua.Server
                     finally
                     {
                         cp?.Dispose();
+                    }
+
+                    // a response that exceeds the message size limit cannot be sent.
+                    if (responseBudget != 0)
+                    {
+                        responseBytes += ResponseSizeEstimator.Estimate(result.References);
+                        if (responseBytes > responseBudget)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadResponseTooLarge,
+                                "The references of the BrowseNext exceed the response size limit.");
+                        }
                     }
                     result.StatusCode = error.StatusCode;
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -2323,6 +2382,11 @@ namespace Opc.Ua.Server
             {
                 foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                 {
+                    if (context.ResponseBudgetExceeded)
+                    {
+                        break;
+                    }
+
                     await nodeManager.CallAsync(
                         context,
                         methodsToCall,
@@ -2330,6 +2394,14 @@ namespace Opc.Ua.Server
                         errors,
                         cancellationToken).ConfigureAwait(false);
                 }
+            }
+
+            // a response that exceeds the response byte budget cannot be sent.
+            if (context.ResponseBudgetExceeded)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadResponseTooLarge,
+                    "The results of the Call exceed the response size limit.");
             }
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)

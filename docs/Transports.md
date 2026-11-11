@@ -393,6 +393,26 @@ Wire handles never wrap: exhaustion closes the connection with
 admission, cancels queued sends and close operations, and drains admitted
 socket users before disposing connection resources.
 
+A UA-TCP channel encodes a message into pooled chunks of the send buffer size.
+It takes at most one chunk more than a message within the channel's message
+size and chunk count limits fills, and no more than the encoder's
+`MaxMessageSize` allows, so a message past a limit stops being encoded as soon
+as it passes it instead of being encoded in full first. A message past the
+channel's limits still ends with an abort chunk (`BadResponseTooLarge` for a
+response, `BadRequestTooLarge` for a request); a response past only the
+encoder's `MaxMessageSize` is answered with a `BadEncodingLimitsExceeded`
+ServiceFault, without encoding the response a second time.
+
+On the server, the Browse, BrowseNext and Call services also charge the
+results they keep for the response against the server's `MaxMessageSize`
+while the node managers build them, using a lower bound of the encoded size.
+A request whose results cannot fit fails with `BadResponseTooLarge` once the
+bound passes the limit, instead of after all results are built. Browse fetches
+at most one reference more per node than the rest of that budget holds at the
+smallest reference size, also when the client asks for no limit
+(`requestedMaxReferencesPerNode` 0). In-process callers of the node managers
+have no budget.
+
 HTTPS binary, JSON, and OpenAPI clients obtain response headers before
 buffering the body. A positive `MaxMessageSize` limits the actual body bytes, including
 chunked responses or misleading `Content-Length` values. An oversized

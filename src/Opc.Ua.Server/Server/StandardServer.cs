@@ -1740,6 +1740,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
+                context.StartResponseBudget(MessageContext.MaxMessageSize);
 
                 (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.BrowseAsync(
@@ -1787,6 +1788,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
+                context.StartResponseBudget(MessageContext.MaxMessageSize);
 
                 (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.BrowseNextAsync(
@@ -3027,6 +3029,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
+                context.StartResponseBudget(MessageContext.MaxMessageSize);
 
                 (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)

@@ -61,6 +61,12 @@ namespace Opc.Ua.Server.FileSystem
         public string ProviderPath { get; }
 
         /// <summary>
+        /// The quota of open files shared by the handles of a mount, or <c>null</c>
+        /// when the opens of this file are not bounded by one.
+        /// </summary>
+        public FileOpenQuota? OpenQuota { get; set; }
+
+        /// <summary>
         /// Gets the number of completed file opens, excluding reservations still waiting for provider streams.
         /// </summary>
         public ushort OpenCount
@@ -470,6 +476,10 @@ namespace Opc.Ua.Server.FileSystem
                             "File already open with incompatible access.");
                         return false;
                     }
+                    if (OpenQuota != null && !OpenQuota.TryAcquire(sessionId, out error))
+                    {
+                        return false;
+                    }
                     pending = new OpenFile(CreateFileHandle(), sessionId, mode, linkedOpenCancellation);
                     if (wantsWrite)
                     {
@@ -519,11 +529,13 @@ namespace Opc.Ua.Server.FileSystem
                 if (ReferenceEquals(m_write, pending))
                 {
                     m_write = null;
+                    OpenQuota?.Release(pending.SessionId);
                 }
                 else if (m_reads.TryGetValue(pending.Handle, out OpenFile? current) &&
                     ReferenceEquals(current, pending))
                 {
                     m_reads.Remove(pending.Handle);
+                    OpenQuota?.Release(pending.SessionId);
                 }
             }
         }
