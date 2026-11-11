@@ -1,30 +1,6 @@
 /* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- * 
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
+ * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+ * SPDX-License-Identifier: MIT
  * ======================================================================*/
 
 using System;
@@ -3893,13 +3869,763 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region ScalingConversionBaseDataType Class
+    #if (!OPCUA_EXCLUDE_ScalingConversionBaseDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ScalingConversionBaseDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        public ScalingConversionBaseDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ScalingConversionBaseDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ScalingConversionBaseDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ScalingConversionBaseDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ScalingConversionBaseDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ScalingConversionBaseDataType value = encodeable as ScalingConversionBaseDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (ScalingConversionBaseDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ScalingConversionBaseDataType clone = (ScalingConversionBaseDataType)base.MemberwiseClone();
+
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    #region ScalingConversionBaseDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfScalingConversionBaseDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ScalingConversionBaseDataType")]
+    public partial class ScalingConversionBaseDataTypeCollection : List<ScalingConversionBaseDataType>, ICloneable
+    {
+        #region Constructors
+        public ScalingConversionBaseDataTypeCollection() {}
+
+        public ScalingConversionBaseDataTypeCollection(int capacity) : base(capacity) {}
+
+        public ScalingConversionBaseDataTypeCollection(IEnumerable<ScalingConversionBaseDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator ScalingConversionBaseDataTypeCollection(ScalingConversionBaseDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ScalingConversionBaseDataTypeCollection(values);
+            }
+
+            return new ScalingConversionBaseDataTypeCollection();
+        }
+
+        public static explicit operator ScalingConversionBaseDataType[](ScalingConversionBaseDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (ScalingConversionBaseDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ScalingConversionBaseDataTypeCollection clone = new ScalingConversionBaseDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ScalingConversionBaseDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LinearConversionBaseDataType Class
+    #if (!OPCUA_EXCLUDE_LinearConversionBaseDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class LinearConversionBaseDataType : Opc.Ua.ScalingConversionBaseDataType
+    {
+        #region Constructors
+        public LinearConversionBaseDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.LinearConversionBaseDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.LinearConversionBaseDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.LinearConversionBaseDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.LinearConversionBaseDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            LinearConversionBaseDataType value = encodeable as LinearConversionBaseDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (LinearConversionBaseDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LinearConversionBaseDataType clone = (LinearConversionBaseDataType)base.MemberwiseClone();
+
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    #region LinearConversionBaseDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfLinearConversionBaseDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LinearConversionBaseDataType")]
+    public partial class LinearConversionBaseDataTypeCollection : List<LinearConversionBaseDataType>, ICloneable
+    {
+        #region Constructors
+        public LinearConversionBaseDataTypeCollection() {}
+
+        public LinearConversionBaseDataTypeCollection(int capacity) : base(capacity) {}
+
+        public LinearConversionBaseDataTypeCollection(IEnumerable<LinearConversionBaseDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator LinearConversionBaseDataTypeCollection(LinearConversionBaseDataType[] values)
+        {
+            if (values != null)
+            {
+                return new LinearConversionBaseDataTypeCollection(values);
+            }
+
+            return new LinearConversionBaseDataTypeCollection();
+        }
+
+        public static explicit operator LinearConversionBaseDataType[](LinearConversionBaseDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (LinearConversionBaseDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LinearConversionBaseDataTypeCollection clone = new LinearConversionBaseDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LinearConversionBaseDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LinearConversionInt32DataType Class
+    #if (!OPCUA_EXCLUDE_LinearConversionInt32DataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class LinearConversionInt32DataType : Opc.Ua.LinearConversionBaseDataType
+    {
+        #region Constructors
+        public LinearConversionInt32DataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_initialAddend = (int)0;
+            m_multiplicand = (int)0;
+            m_divisor = (int)0;
+            m_finalAddend = (int)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "InitialAddend", IsRequired = false, Order = 1)]
+        public int InitialAddend
+        {
+            get { return m_initialAddend;  }
+            set { m_initialAddend = value; }
+        }
+
+        [DataMember(Name = "Multiplicand", IsRequired = false, Order = 2)]
+        public int Multiplicand
+        {
+            get { return m_multiplicand;  }
+            set { m_multiplicand = value; }
+        }
+
+        [DataMember(Name = "Divisor", IsRequired = false, Order = 3)]
+        public int Divisor
+        {
+            get { return m_divisor;  }
+            set { m_divisor = value; }
+        }
+
+        [DataMember(Name = "FinalAddend", IsRequired = false, Order = 4)]
+        public int FinalAddend
+        {
+            get { return m_finalAddend;  }
+            set { m_finalAddend = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.LinearConversionInt32DataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.LinearConversionInt32DataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.LinearConversionInt32DataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.LinearConversionInt32DataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteInt32("InitialAddend", InitialAddend);
+            encoder.WriteInt32("Multiplicand", Multiplicand);
+            encoder.WriteInt32("Divisor", Divisor);
+            encoder.WriteInt32("FinalAddend", FinalAddend);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            InitialAddend = decoder.ReadInt32("InitialAddend");
+            Multiplicand = decoder.ReadInt32("Multiplicand");
+            Divisor = decoder.ReadInt32("Divisor");
+            FinalAddend = decoder.ReadInt32("FinalAddend");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            LinearConversionInt32DataType value = encodeable as LinearConversionInt32DataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_initialAddend, value.m_initialAddend)) return false;
+            if (!Utils.IsEqual(m_multiplicand, value.m_multiplicand)) return false;
+            if (!Utils.IsEqual(m_divisor, value.m_divisor)) return false;
+            if (!Utils.IsEqual(m_finalAddend, value.m_finalAddend)) return false;
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (LinearConversionInt32DataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LinearConversionInt32DataType clone = (LinearConversionInt32DataType)base.MemberwiseClone();
+
+            clone.m_initialAddend = (int)Utils.Clone(this.m_initialAddend);
+            clone.m_multiplicand = (int)Utils.Clone(this.m_multiplicand);
+            clone.m_divisor = (int)Utils.Clone(this.m_divisor);
+            clone.m_finalAddend = (int)Utils.Clone(this.m_finalAddend);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private int m_initialAddend;
+        private int m_multiplicand;
+        private int m_divisor;
+        private int m_finalAddend;
+        #endregion
+    }
+
+    #region LinearConversionInt32DataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfLinearConversionInt32DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LinearConversionInt32DataType")]
+    public partial class LinearConversionInt32DataTypeCollection : List<LinearConversionInt32DataType>, ICloneable
+    {
+        #region Constructors
+        public LinearConversionInt32DataTypeCollection() {}
+
+        public LinearConversionInt32DataTypeCollection(int capacity) : base(capacity) {}
+
+        public LinearConversionInt32DataTypeCollection(IEnumerable<LinearConversionInt32DataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator LinearConversionInt32DataTypeCollection(LinearConversionInt32DataType[] values)
+        {
+            if (values != null)
+            {
+                return new LinearConversionInt32DataTypeCollection(values);
+            }
+
+            return new LinearConversionInt32DataTypeCollection();
+        }
+
+        public static explicit operator LinearConversionInt32DataType[](LinearConversionInt32DataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (LinearConversionInt32DataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LinearConversionInt32DataTypeCollection clone = new LinearConversionInt32DataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LinearConversionInt32DataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LinearConversionInt64DataType Class
+    #if (!OPCUA_EXCLUDE_LinearConversionInt64DataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class LinearConversionInt64DataType : Opc.Ua.LinearConversionBaseDataType
+    {
+        #region Constructors
+        public LinearConversionInt64DataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_initialAddend = (long)0;
+            m_multiplicand = (long)0;
+            m_divisor = (long)0;
+            m_finalAddend = (long)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "InitialAddend", IsRequired = false, Order = 1)]
+        public long InitialAddend
+        {
+            get { return m_initialAddend;  }
+            set { m_initialAddend = value; }
+        }
+
+        [DataMember(Name = "Multiplicand", IsRequired = false, Order = 2)]
+        public long Multiplicand
+        {
+            get { return m_multiplicand;  }
+            set { m_multiplicand = value; }
+        }
+
+        [DataMember(Name = "Divisor", IsRequired = false, Order = 3)]
+        public long Divisor
+        {
+            get { return m_divisor;  }
+            set { m_divisor = value; }
+        }
+
+        [DataMember(Name = "FinalAddend", IsRequired = false, Order = 4)]
+        public long FinalAddend
+        {
+            get { return m_finalAddend;  }
+            set { m_finalAddend = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.LinearConversionInt64DataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.LinearConversionInt64DataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.LinearConversionInt64DataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.LinearConversionInt64DataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteInt64("InitialAddend", InitialAddend);
+            encoder.WriteInt64("Multiplicand", Multiplicand);
+            encoder.WriteInt64("Divisor", Divisor);
+            encoder.WriteInt64("FinalAddend", FinalAddend);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            InitialAddend = decoder.ReadInt64("InitialAddend");
+            Multiplicand = decoder.ReadInt64("Multiplicand");
+            Divisor = decoder.ReadInt64("Divisor");
+            FinalAddend = decoder.ReadInt64("FinalAddend");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            LinearConversionInt64DataType value = encodeable as LinearConversionInt64DataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_initialAddend, value.m_initialAddend)) return false;
+            if (!Utils.IsEqual(m_multiplicand, value.m_multiplicand)) return false;
+            if (!Utils.IsEqual(m_divisor, value.m_divisor)) return false;
+            if (!Utils.IsEqual(m_finalAddend, value.m_finalAddend)) return false;
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (LinearConversionInt64DataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LinearConversionInt64DataType clone = (LinearConversionInt64DataType)base.MemberwiseClone();
+
+            clone.m_initialAddend = (long)Utils.Clone(this.m_initialAddend);
+            clone.m_multiplicand = (long)Utils.Clone(this.m_multiplicand);
+            clone.m_divisor = (long)Utils.Clone(this.m_divisor);
+            clone.m_finalAddend = (long)Utils.Clone(this.m_finalAddend);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private long m_initialAddend;
+        private long m_multiplicand;
+        private long m_divisor;
+        private long m_finalAddend;
+        #endregion
+    }
+
+    #region LinearConversionInt64DataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfLinearConversionInt64DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LinearConversionInt64DataType")]
+    public partial class LinearConversionInt64DataTypeCollection : List<LinearConversionInt64DataType>, ICloneable
+    {
+        #region Constructors
+        public LinearConversionInt64DataTypeCollection() {}
+
+        public LinearConversionInt64DataTypeCollection(int capacity) : base(capacity) {}
+
+        public LinearConversionInt64DataTypeCollection(IEnumerable<LinearConversionInt64DataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator LinearConversionInt64DataTypeCollection(LinearConversionInt64DataType[] values)
+        {
+            if (values != null)
+            {
+                return new LinearConversionInt64DataTypeCollection(values);
+            }
+
+            return new LinearConversionInt64DataTypeCollection();
+        }
+
+        public static explicit operator LinearConversionInt64DataType[](LinearConversionInt64DataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (LinearConversionInt64DataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LinearConversionInt64DataTypeCollection clone = new LinearConversionInt64DataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LinearConversionInt64DataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region LinearConversionDataType Class
     #if (!OPCUA_EXCLUDE_LinearConversionDataType)
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class LinearConversionDataType : IEncodeable, IJsonEncodeable
+    public partial class LinearConversionDataType : Opc.Ua.LinearConversionBaseDataType
     {
         #region Constructors
         public LinearConversionDataType()
@@ -3954,20 +4680,22 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.LinearConversionDataType;
+        public override ExpandedNodeId TypeId => DataTypeIds.LinearConversionDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LinearConversionDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.LinearConversionDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LinearConversionDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.LinearConversionDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.LinearConversionDataType;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.LinearConversionDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public virtual void Encode(IEncoder encoder)
+        public override void Encode(IEncoder encoder)
         {
+            base.Encode(encoder);
+
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             encoder.WriteFloat("InitialAddend", InitialAddend);
@@ -3979,8 +4707,10 @@ namespace Opc.Ua
         }
 
         /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public virtual void Decode(IDecoder decoder)
+        public override void Decode(IDecoder decoder)
         {
+            base.Decode(decoder);
+
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             InitialAddend = decoder.ReadFloat("InitialAddend");
@@ -3992,7 +4722,7 @@ namespace Opc.Ua
         }
 
         /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
             {
@@ -4011,11 +4741,11 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_divisor, value.m_divisor)) return false;
             if (!Utils.IsEqual(m_finalAddend, value.m_finalAddend)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }
 
         /// <summary cref="ICloneable.Clone" />
-        public virtual object Clone()
+        public override object Clone()
         {
             return (LinearConversionDataType)this.MemberwiseClone();
         }
@@ -21260,6 +21990,745 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region TransmitQosBandwidthDataType Class
+    #if (!OPCUA_EXCLUDE_TransmitQosBandwidthDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TransmitQosBandwidthDataType : Opc.Ua.TransmitQosDataType
+    {
+        #region Constructors
+        public TransmitQosBandwidthDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_maxUadpPayloadSize = (uint)0;
+            m_maxNetworkMessagesPerPublishingInterval = (ushort)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "MaxUadpPayloadSize", IsRequired = false, Order = 1)]
+        public uint MaxUadpPayloadSize
+        {
+            get { return m_maxUadpPayloadSize;  }
+            set { m_maxUadpPayloadSize = value; }
+        }
+
+        [DataMember(Name = "MaxNetworkMessagesPerPublishingInterval", IsRequired = false, Order = 2)]
+        public ushort MaxNetworkMessagesPerPublishingInterval
+        {
+            get { return m_maxNetworkMessagesPerPublishingInterval;  }
+            set { m_maxNetworkMessagesPerPublishingInterval = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.TransmitQosBandwidthDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.TransmitQosBandwidthDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosBandwidthDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TransmitQosBandwidthDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("MaxUadpPayloadSize", MaxUadpPayloadSize);
+            encoder.WriteUInt16("MaxNetworkMessagesPerPublishingInterval", MaxNetworkMessagesPerPublishingInterval);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MaxUadpPayloadSize = decoder.ReadUInt32("MaxUadpPayloadSize");
+            MaxNetworkMessagesPerPublishingInterval = decoder.ReadUInt16("MaxNetworkMessagesPerPublishingInterval");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TransmitQosBandwidthDataType value = encodeable as TransmitQosBandwidthDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_maxUadpPayloadSize, value.m_maxUadpPayloadSize)) return false;
+            if (!Utils.IsEqual(m_maxNetworkMessagesPerPublishingInterval, value.m_maxNetworkMessagesPerPublishingInterval)) return false;
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (TransmitQosBandwidthDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosBandwidthDataType clone = (TransmitQosBandwidthDataType)base.MemberwiseClone();
+
+            clone.m_maxUadpPayloadSize = (uint)Utils.Clone(this.m_maxUadpPayloadSize);
+            clone.m_maxNetworkMessagesPerPublishingInterval = (ushort)Utils.Clone(this.m_maxNetworkMessagesPerPublishingInterval);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_maxUadpPayloadSize;
+        private ushort m_maxNetworkMessagesPerPublishingInterval;
+        #endregion
+    }
+
+    #region TransmitQosBandwidthDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfTransmitQosBandwidthDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosBandwidthDataType")]
+    public partial class TransmitQosBandwidthDataTypeCollection : List<TransmitQosBandwidthDataType>, ICloneable
+    {
+        #region Constructors
+        public TransmitQosBandwidthDataTypeCollection() {}
+
+        public TransmitQosBandwidthDataTypeCollection(int capacity) : base(capacity) {}
+
+        public TransmitQosBandwidthDataTypeCollection(IEnumerable<TransmitQosBandwidthDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator TransmitQosBandwidthDataTypeCollection(TransmitQosBandwidthDataType[] values)
+        {
+            if (values != null)
+            {
+                return new TransmitQosBandwidthDataTypeCollection(values);
+            }
+
+            return new TransmitQosBandwidthDataTypeCollection();
+        }
+
+        public static explicit operator TransmitQosBandwidthDataType[](TransmitQosBandwidthDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (TransmitQosBandwidthDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosBandwidthDataTypeCollection clone = new TransmitQosBandwidthDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TransmitQosBandwidthDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TransmitQosLatencyDataType Class
+    #if (!OPCUA_EXCLUDE_TransmitQosLatencyDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TransmitQosLatencyDataType : Opc.Ua.TransmitQosDataType
+    {
+        #region Constructors
+        public TransmitQosLatencyDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_maxSamplingToPublishingDelay = (double)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "MaxSamplingToPublishingDelay", IsRequired = false, Order = 1)]
+        public double MaxSamplingToPublishingDelay
+        {
+            get { return m_maxSamplingToPublishingDelay;  }
+            set { m_maxSamplingToPublishingDelay = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.TransmitQosLatencyDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.TransmitQosLatencyDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosLatencyDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TransmitQosLatencyDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteDouble("MaxSamplingToPublishingDelay", MaxSamplingToPublishingDelay);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MaxSamplingToPublishingDelay = decoder.ReadDouble("MaxSamplingToPublishingDelay");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TransmitQosLatencyDataType value = encodeable as TransmitQosLatencyDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_maxSamplingToPublishingDelay, value.m_maxSamplingToPublishingDelay)) return false;
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (TransmitQosLatencyDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosLatencyDataType clone = (TransmitQosLatencyDataType)base.MemberwiseClone();
+
+            clone.m_maxSamplingToPublishingDelay = (double)Utils.Clone(this.m_maxSamplingToPublishingDelay);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private double m_maxSamplingToPublishingDelay;
+        #endregion
+    }
+
+    #region TransmitQosLatencyDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfTransmitQosLatencyDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosLatencyDataType")]
+    public partial class TransmitQosLatencyDataTypeCollection : List<TransmitQosLatencyDataType>, ICloneable
+    {
+        #region Constructors
+        public TransmitQosLatencyDataTypeCollection() {}
+
+        public TransmitQosLatencyDataTypeCollection(int capacity) : base(capacity) {}
+
+        public TransmitQosLatencyDataTypeCollection(IEnumerable<TransmitQosLatencyDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator TransmitQosLatencyDataTypeCollection(TransmitQosLatencyDataType[] values)
+        {
+            if (values != null)
+            {
+                return new TransmitQosLatencyDataTypeCollection(values);
+            }
+
+            return new TransmitQosLatencyDataTypeCollection();
+        }
+
+        public static explicit operator TransmitQosLatencyDataType[](TransmitQosLatencyDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (TransmitQosLatencyDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosLatencyDataTypeCollection clone = new TransmitQosLatencyDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TransmitQosLatencyDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TransmitQosDeadlineDataType Class
+    #if (!OPCUA_EXCLUDE_TransmitQosDeadlineDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TransmitQosDeadlineDataType : Opc.Ua.TransmitQosDataType
+    {
+        #region Constructors
+        public TransmitQosDeadlineDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_maxSamplingJitter = (double)0;
+            m_maxPublishingJitter = (double)0;
+            m_maxSamplingToPublishingDelay = (double)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "MaxSamplingJitter", IsRequired = false, Order = 1)]
+        public double MaxSamplingJitter
+        {
+            get { return m_maxSamplingJitter;  }
+            set { m_maxSamplingJitter = value; }
+        }
+
+        [DataMember(Name = "MaxPublishingJitter", IsRequired = false, Order = 2)]
+        public double MaxPublishingJitter
+        {
+            get { return m_maxPublishingJitter;  }
+            set { m_maxPublishingJitter = value; }
+        }
+
+        [DataMember(Name = "MaxSamplingToPublishingDelay", IsRequired = false, Order = 3)]
+        public double MaxSamplingToPublishingDelay
+        {
+            get { return m_maxSamplingToPublishingDelay;  }
+            set { m_maxSamplingToPublishingDelay = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.TransmitQosDeadlineDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.TransmitQosDeadlineDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosDeadlineDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TransmitQosDeadlineDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteDouble("MaxSamplingJitter", MaxSamplingJitter);
+            encoder.WriteDouble("MaxPublishingJitter", MaxPublishingJitter);
+            encoder.WriteDouble("MaxSamplingToPublishingDelay", MaxSamplingToPublishingDelay);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MaxSamplingJitter = decoder.ReadDouble("MaxSamplingJitter");
+            MaxPublishingJitter = decoder.ReadDouble("MaxPublishingJitter");
+            MaxSamplingToPublishingDelay = decoder.ReadDouble("MaxSamplingToPublishingDelay");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TransmitQosDeadlineDataType value = encodeable as TransmitQosDeadlineDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_maxSamplingJitter, value.m_maxSamplingJitter)) return false;
+            if (!Utils.IsEqual(m_maxPublishingJitter, value.m_maxPublishingJitter)) return false;
+            if (!Utils.IsEqual(m_maxSamplingToPublishingDelay, value.m_maxSamplingToPublishingDelay)) return false;
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (TransmitQosDeadlineDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosDeadlineDataType clone = (TransmitQosDeadlineDataType)base.MemberwiseClone();
+
+            clone.m_maxSamplingJitter = (double)Utils.Clone(this.m_maxSamplingJitter);
+            clone.m_maxPublishingJitter = (double)Utils.Clone(this.m_maxPublishingJitter);
+            clone.m_maxSamplingToPublishingDelay = (double)Utils.Clone(this.m_maxSamplingToPublishingDelay);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private double m_maxSamplingJitter;
+        private double m_maxPublishingJitter;
+        private double m_maxSamplingToPublishingDelay;
+        #endregion
+    }
+
+    #region TransmitQosDeadlineDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfTransmitQosDeadlineDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosDeadlineDataType")]
+    public partial class TransmitQosDeadlineDataTypeCollection : List<TransmitQosDeadlineDataType>, ICloneable
+    {
+        #region Constructors
+        public TransmitQosDeadlineDataTypeCollection() {}
+
+        public TransmitQosDeadlineDataTypeCollection(int capacity) : base(capacity) {}
+
+        public TransmitQosDeadlineDataTypeCollection(IEnumerable<TransmitQosDeadlineDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator TransmitQosDeadlineDataTypeCollection(TransmitQosDeadlineDataType[] values)
+        {
+            if (values != null)
+            {
+                return new TransmitQosDeadlineDataTypeCollection(values);
+            }
+
+            return new TransmitQosDeadlineDataTypeCollection();
+        }
+
+        public static explicit operator TransmitQosDeadlineDataType[](TransmitQosDeadlineDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (TransmitQosDeadlineDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosDeadlineDataTypeCollection clone = new TransmitQosDeadlineDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TransmitQosDeadlineDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TransmitQosClockDataType Class
+    #if (!OPCUA_EXCLUDE_TransmitQosClockDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TransmitQosClockDataType : Opc.Ua.TransmitQosDataType
+    {
+        #region Constructors
+        public TransmitQosClockDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_clockObject = null;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "ClockObject", IsRequired = false, Order = 1)]
+        public string ClockObject
+        {
+            get { return m_clockObject;  }
+            set { m_clockObject = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.TransmitQosClockDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.TransmitQosClockDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosClockDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TransmitQosClockDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("ClockObject", ClockObject);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ClockObject = decoder.ReadString("ClockObject");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TransmitQosClockDataType value = encodeable as TransmitQosClockDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_clockObject, value.m_clockObject)) return false;
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (TransmitQosClockDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosClockDataType clone = (TransmitQosClockDataType)base.MemberwiseClone();
+
+            clone.m_clockObject = (string)Utils.Clone(this.m_clockObject);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_clockObject;
+        #endregion
+    }
+
+    #region TransmitQosClockDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfTransmitQosClockDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosClockDataType")]
+    public partial class TransmitQosClockDataTypeCollection : List<TransmitQosClockDataType>, ICloneable
+    {
+        #region Constructors
+        public TransmitQosClockDataTypeCollection() {}
+
+        public TransmitQosClockDataTypeCollection(int capacity) : base(capacity) {}
+
+        public TransmitQosClockDataTypeCollection(IEnumerable<TransmitQosClockDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator TransmitQosClockDataTypeCollection(TransmitQosClockDataType[] values)
+        {
+            if (values != null)
+            {
+                return new TransmitQosClockDataTypeCollection(values);
+            }
+
+            return new TransmitQosClockDataTypeCollection();
+        }
+
+        public static explicit operator TransmitQosClockDataType[](TransmitQosClockDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (TransmitQosClockDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosClockDataTypeCollection clone = new TransmitQosClockDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TransmitQosClockDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region ReceiveQosDataType Class
     #if (!OPCUA_EXCLUDE_ReceiveQosDataType)
     /// <exclude />
@@ -21589,6 +23058,557 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((ReceiveQosPriorityDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ReceiveQosLatencyDataType Class
+    #if (!OPCUA_EXCLUDE_ReceiveQosLatencyDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReceiveQosLatencyDataType : Opc.Ua.ReceiveQosDataType
+    {
+        #region Constructors
+        public ReceiveQosLatencyDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_maxProcessingJitter = (double)0;
+            m_maxReceiveToProcessingDelay = (double)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "MaxProcessingJitter", IsRequired = false, Order = 1)]
+        public double MaxProcessingJitter
+        {
+            get { return m_maxProcessingJitter;  }
+            set { m_maxProcessingJitter = value; }
+        }
+
+        [DataMember(Name = "MaxReceiveToProcessingDelay", IsRequired = false, Order = 2)]
+        public double MaxReceiveToProcessingDelay
+        {
+            get { return m_maxReceiveToProcessingDelay;  }
+            set { m_maxReceiveToProcessingDelay = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.ReceiveQosLatencyDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReceiveQosLatencyDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReceiveQosLatencyDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReceiveQosLatencyDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteDouble("MaxProcessingJitter", MaxProcessingJitter);
+            encoder.WriteDouble("MaxReceiveToProcessingDelay", MaxReceiveToProcessingDelay);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MaxProcessingJitter = decoder.ReadDouble("MaxProcessingJitter");
+            MaxReceiveToProcessingDelay = decoder.ReadDouble("MaxReceiveToProcessingDelay");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReceiveQosLatencyDataType value = encodeable as ReceiveQosLatencyDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_maxProcessingJitter, value.m_maxProcessingJitter)) return false;
+            if (!Utils.IsEqual(m_maxReceiveToProcessingDelay, value.m_maxReceiveToProcessingDelay)) return false;
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (ReceiveQosLatencyDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosLatencyDataType clone = (ReceiveQosLatencyDataType)base.MemberwiseClone();
+
+            clone.m_maxProcessingJitter = (double)Utils.Clone(this.m_maxProcessingJitter);
+            clone.m_maxReceiveToProcessingDelay = (double)Utils.Clone(this.m_maxReceiveToProcessingDelay);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private double m_maxProcessingJitter;
+        private double m_maxReceiveToProcessingDelay;
+        #endregion
+    }
+
+    #region ReceiveQosLatencyDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfReceiveQosLatencyDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReceiveQosLatencyDataType")]
+    public partial class ReceiveQosLatencyDataTypeCollection : List<ReceiveQosLatencyDataType>, ICloneable
+    {
+        #region Constructors
+        public ReceiveQosLatencyDataTypeCollection() {}
+
+        public ReceiveQosLatencyDataTypeCollection(int capacity) : base(capacity) {}
+
+        public ReceiveQosLatencyDataTypeCollection(IEnumerable<ReceiveQosLatencyDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator ReceiveQosLatencyDataTypeCollection(ReceiveQosLatencyDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ReceiveQosLatencyDataTypeCollection(values);
+            }
+
+            return new ReceiveQosLatencyDataTypeCollection();
+        }
+
+        public static explicit operator ReceiveQosLatencyDataType[](ReceiveQosLatencyDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (ReceiveQosLatencyDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosLatencyDataTypeCollection clone = new ReceiveQosLatencyDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ReceiveQosLatencyDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ReceiveQosDeadlineDataType Class
+    #if (!OPCUA_EXCLUDE_ReceiveQosDeadlineDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReceiveQosDeadlineDataType : Opc.Ua.ReceiveQosDataType
+    {
+        #region Constructors
+        public ReceiveQosDeadlineDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_maxProcessingJitter = (double)0;
+            m_maxReceiveToProcessingDelay = (double)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "MaxProcessingJitter", IsRequired = false, Order = 1)]
+        public double MaxProcessingJitter
+        {
+            get { return m_maxProcessingJitter;  }
+            set { m_maxProcessingJitter = value; }
+        }
+
+        [DataMember(Name = "MaxReceiveToProcessingDelay", IsRequired = false, Order = 2)]
+        public double MaxReceiveToProcessingDelay
+        {
+            get { return m_maxReceiveToProcessingDelay;  }
+            set { m_maxReceiveToProcessingDelay = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.ReceiveQosDeadlineDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReceiveQosDeadlineDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReceiveQosDeadlineDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReceiveQosDeadlineDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteDouble("MaxProcessingJitter", MaxProcessingJitter);
+            encoder.WriteDouble("MaxReceiveToProcessingDelay", MaxReceiveToProcessingDelay);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MaxProcessingJitter = decoder.ReadDouble("MaxProcessingJitter");
+            MaxReceiveToProcessingDelay = decoder.ReadDouble("MaxReceiveToProcessingDelay");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReceiveQosDeadlineDataType value = encodeable as ReceiveQosDeadlineDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_maxProcessingJitter, value.m_maxProcessingJitter)) return false;
+            if (!Utils.IsEqual(m_maxReceiveToProcessingDelay, value.m_maxReceiveToProcessingDelay)) return false;
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (ReceiveQosDeadlineDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosDeadlineDataType clone = (ReceiveQosDeadlineDataType)base.MemberwiseClone();
+
+            clone.m_maxProcessingJitter = (double)Utils.Clone(this.m_maxProcessingJitter);
+            clone.m_maxReceiveToProcessingDelay = (double)Utils.Clone(this.m_maxReceiveToProcessingDelay);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private double m_maxProcessingJitter;
+        private double m_maxReceiveToProcessingDelay;
+        #endregion
+    }
+
+    #region ReceiveQosDeadlineDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfReceiveQosDeadlineDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReceiveQosDeadlineDataType")]
+    public partial class ReceiveQosDeadlineDataTypeCollection : List<ReceiveQosDeadlineDataType>, ICloneable
+    {
+        #region Constructors
+        public ReceiveQosDeadlineDataTypeCollection() {}
+
+        public ReceiveQosDeadlineDataTypeCollection(int capacity) : base(capacity) {}
+
+        public ReceiveQosDeadlineDataTypeCollection(IEnumerable<ReceiveQosDeadlineDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator ReceiveQosDeadlineDataTypeCollection(ReceiveQosDeadlineDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ReceiveQosDeadlineDataTypeCollection(values);
+            }
+
+            return new ReceiveQosDeadlineDataTypeCollection();
+        }
+
+        public static explicit operator ReceiveQosDeadlineDataType[](ReceiveQosDeadlineDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (ReceiveQosDeadlineDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosDeadlineDataTypeCollection clone = new ReceiveQosDeadlineDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ReceiveQosDeadlineDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ReceiveQosClockDataType Class
+    #if (!OPCUA_EXCLUDE_ReceiveQosClockDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReceiveQosClockDataType : Opc.Ua.ReceiveQosDataType
+    {
+        #region Constructors
+        public ReceiveQosClockDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_clockObject = null;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "ClockObject", IsRequired = false, Order = 1)]
+        public string ClockObject
+        {
+            get { return m_clockObject;  }
+            set { m_clockObject = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.ReceiveQosClockDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReceiveQosClockDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReceiveQosClockDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReceiveQosClockDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("ClockObject", ClockObject);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ClockObject = decoder.ReadString("ClockObject");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReceiveQosClockDataType value = encodeable as ReceiveQosClockDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_clockObject, value.m_clockObject)) return false;
+
+            return base.IsEqual(encodeable);
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (ReceiveQosClockDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosClockDataType clone = (ReceiveQosClockDataType)base.MemberwiseClone();
+
+            clone.m_clockObject = (string)Utils.Clone(this.m_clockObject);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_clockObject;
+        #endregion
+    }
+
+    #region ReceiveQosClockDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfReceiveQosClockDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReceiveQosClockDataType")]
+    public partial class ReceiveQosClockDataTypeCollection : List<ReceiveQosClockDataType>, ICloneable
+    {
+        #region Constructors
+        public ReceiveQosClockDataTypeCollection() {}
+
+        public ReceiveQosClockDataTypeCollection(int capacity) : base(capacity) {}
+
+        public ReceiveQosClockDataTypeCollection(IEnumerable<ReceiveQosClockDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator ReceiveQosClockDataTypeCollection(ReceiveQosClockDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ReceiveQosClockDataTypeCollection(values);
+            }
+
+            return new ReceiveQosClockDataTypeCollection();
+        }
+
+        public static explicit operator ReceiveQosClockDataType[](ReceiveQosClockDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (ReceiveQosClockDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosClockDataTypeCollection clone = new ReceiveQosClockDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ReceiveQosClockDataType)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -28326,6 +30346,91 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region IpAddressOrigin Enumeration
+    #if (!OPCUA_EXCLUDE_IpAddressOrigin)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    
+    public enum IpAddressOrigin
+    {
+        [EnumMember(Value = "Other_0")]
+        Other = 0,
+
+        [EnumMember(Value = "Static_1")]
+        Static = 1,
+
+        [EnumMember(Value = "DHCP_2")]
+        DHCP = 2,
+
+        [EnumMember(Value = "LinkLayer_3")]
+        LinkLayer = 3,
+
+        [EnumMember(Value = "Random_4")]
+        Random = 4,
+    }
+
+    #region IpAddressOriginCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfIpAddressOrigin", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IpAddressOrigin")]
+    public partial class IpAddressOriginCollection : List<IpAddressOrigin>, ICloneable
+    {
+        #region Constructors
+        public IpAddressOriginCollection() {}
+
+        public IpAddressOriginCollection(int capacity) : base(capacity) {}
+
+        public IpAddressOriginCollection(IEnumerable<IpAddressOrigin> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator IpAddressOriginCollection(IpAddressOrigin[] values)
+        {
+            if (values != null)
+            {
+                return new IpAddressOriginCollection(values);
+            }
+
+            return new IpAddressOriginCollection();
+        }
+
+        public static explicit operator IpAddressOrigin[](IpAddressOriginCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (IpAddressOriginCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            IpAddressOriginCollection clone = new IpAddressOriginCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((IpAddressOrigin)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region Duplex Enumeration
     #if (!OPCUA_EXCLUDE_Duplex)
     /// <exclude />
@@ -30158,6 +32263,829 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region Ipv4AddressType Class
+    #if (!OPCUA_EXCLUDE_Ipv4AddressType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class Ipv4AddressType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        public Ipv4AddressType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_ip = null;
+            m_prefixLength = (byte)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "Ip", IsRequired = false, Order = 1)]
+        public byte[] Ip
+        {
+            get { return m_ip;  }
+            set { m_ip = value; }
+        }
+
+        [DataMember(Name = "PrefixLength", IsRequired = false, Order = 2)]
+        public byte PrefixLength
+        {
+            get { return m_prefixLength;  }
+            set { m_prefixLength = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Ipv4AddressType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Ipv4AddressType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Ipv4AddressType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Ipv4AddressType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteByteString("Ip", Ip);
+            encoder.WriteByte("PrefixLength", PrefixLength);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Ip = decoder.ReadByteString("Ip");
+            PrefixLength = decoder.ReadByte("PrefixLength");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            Ipv4AddressType value = encodeable as Ipv4AddressType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_ip, value.m_ip)) return false;
+            if (!Utils.IsEqual(m_prefixLength, value.m_prefixLength)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (Ipv4AddressType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            Ipv4AddressType clone = (Ipv4AddressType)base.MemberwiseClone();
+
+            clone.m_ip = (byte[])Utils.Clone(this.m_ip);
+            clone.m_prefixLength = (byte)Utils.Clone(this.m_prefixLength);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private byte[] m_ip;
+        private byte m_prefixLength;
+        #endregion
+    }
+
+    #region Ipv4AddressTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfIpv4AddressType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Ipv4AddressType")]
+    public partial class Ipv4AddressTypeCollection : List<Ipv4AddressType>, ICloneable
+    {
+        #region Constructors
+        public Ipv4AddressTypeCollection() {}
+
+        public Ipv4AddressTypeCollection(int capacity) : base(capacity) {}
+
+        public Ipv4AddressTypeCollection(IEnumerable<Ipv4AddressType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator Ipv4AddressTypeCollection(Ipv4AddressType[] values)
+        {
+            if (values != null)
+            {
+                return new Ipv4AddressTypeCollection(values);
+            }
+
+            return new Ipv4AddressTypeCollection();
+        }
+
+        public static explicit operator Ipv4AddressType[](Ipv4AddressTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (Ipv4AddressTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            Ipv4AddressTypeCollection clone = new Ipv4AddressTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((Ipv4AddressType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region Ipv6AddressType Class
+    #if (!OPCUA_EXCLUDE_Ipv6AddressType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class Ipv6AddressType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        public Ipv6AddressType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_ip = null;
+            m_prefixLength = (byte)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "Ip", IsRequired = false, Order = 1)]
+        public byte[] Ip
+        {
+            get { return m_ip;  }
+            set { m_ip = value; }
+        }
+
+        [DataMember(Name = "PrefixLength", IsRequired = false, Order = 2)]
+        public byte PrefixLength
+        {
+            get { return m_prefixLength;  }
+            set { m_prefixLength = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Ipv6AddressType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Ipv6AddressType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Ipv6AddressType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Ipv6AddressType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteByteString("Ip", Ip);
+            encoder.WriteByte("PrefixLength", PrefixLength);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Ip = decoder.ReadByteString("Ip");
+            PrefixLength = decoder.ReadByte("PrefixLength");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            Ipv6AddressType value = encodeable as Ipv6AddressType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_ip, value.m_ip)) return false;
+            if (!Utils.IsEqual(m_prefixLength, value.m_prefixLength)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (Ipv6AddressType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            Ipv6AddressType clone = (Ipv6AddressType)base.MemberwiseClone();
+
+            clone.m_ip = (byte[])Utils.Clone(this.m_ip);
+            clone.m_prefixLength = (byte)Utils.Clone(this.m_prefixLength);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private byte[] m_ip;
+        private byte m_prefixLength;
+        #endregion
+    }
+
+    #region Ipv6AddressTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfIpv6AddressType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Ipv6AddressType")]
+    public partial class Ipv6AddressTypeCollection : List<Ipv6AddressType>, ICloneable
+    {
+        #region Constructors
+        public Ipv6AddressTypeCollection() {}
+
+        public Ipv6AddressTypeCollection(int capacity) : base(capacity) {}
+
+        public Ipv6AddressTypeCollection(IEnumerable<Ipv6AddressType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator Ipv6AddressTypeCollection(Ipv6AddressType[] values)
+        {
+            if (values != null)
+            {
+                return new Ipv6AddressTypeCollection(values);
+            }
+
+            return new Ipv6AddressTypeCollection();
+        }
+
+        public static explicit operator Ipv6AddressType[](Ipv6AddressTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (Ipv6AddressTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            Ipv6AddressTypeCollection clone = new Ipv6AddressTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((Ipv6AddressType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region DnsServerType Class
+    #if (!OPCUA_EXCLUDE_DnsServerType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class DnsServerType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        public DnsServerType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_name = null;
+            m_address = null;
+            m_port = (ushort)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)]
+        public string Name
+        {
+            get { return m_name;  }
+            set { m_name = value; }
+        }
+
+        [DataMember(Name = "Address", IsRequired = false, Order = 2)]
+        public byte[] Address
+        {
+            get { return m_address;  }
+            set { m_address = value; }
+        }
+
+        [DataMember(Name = "Port", IsRequired = false, Order = 3)]
+        public ushort Port
+        {
+            get { return m_port;  }
+            set { m_port = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DnsServerType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DnsServerType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DnsServerType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DnsServerType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("Name", Name);
+            encoder.WriteByteString("Address", Address);
+            encoder.WriteUInt16("Port", Port);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Name = decoder.ReadString("Name");
+            Address = decoder.ReadByteString("Address");
+            Port = decoder.ReadUInt16("Port");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            DnsServerType value = encodeable as DnsServerType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_name, value.m_name)) return false;
+            if (!Utils.IsEqual(m_address, value.m_address)) return false;
+            if (!Utils.IsEqual(m_port, value.m_port)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (DnsServerType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DnsServerType clone = (DnsServerType)base.MemberwiseClone();
+
+            clone.m_name = (string)Utils.Clone(this.m_name);
+            clone.m_address = (byte[])Utils.Clone(this.m_address);
+            clone.m_port = (ushort)Utils.Clone(this.m_port);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_name;
+        private byte[] m_address;
+        private ushort m_port;
+        #endregion
+    }
+
+    #region DnsServerTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfDnsServerType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DnsServerType")]
+    public partial class DnsServerTypeCollection : List<DnsServerType>, ICloneable
+    {
+        #region Constructors
+        public DnsServerTypeCollection() {}
+
+        public DnsServerTypeCollection(int capacity) : base(capacity) {}
+
+        public DnsServerTypeCollection(IEnumerable<DnsServerType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator DnsServerTypeCollection(DnsServerType[] values)
+        {
+            if (values != null)
+            {
+                return new DnsServerTypeCollection(values);
+            }
+
+            return new DnsServerTypeCollection();
+        }
+
+        public static explicit operator DnsServerType[](DnsServerTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (DnsServerTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DnsServerTypeCollection clone = new DnsServerTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((DnsServerType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region DnsResolverType Class
+    #if (!OPCUA_EXCLUDE_DnsResolverType)
+    /// <exclude />
+    [Flags]
+    public enum DnsResolverFields : uint
+    {
+        None = 0,
+        Timeout = 0x1,
+        Attempts = 0x2,
+    }
+
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class DnsResolverType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        public DnsResolverType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            EncodingMask = (uint)DnsResolverFields.None;
+            m_search = new StringCollection();
+            m_server = new DnsServerTypeCollection();
+            m_timeout = (byte)0;
+            m_attempts = (byte)0;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "EncodingMask", IsRequired = true, Order = 0)]
+        public virtual uint EncodingMask { get; set; }
+
+        /// <remarks />
+        [DataMember(Name = "Search", IsRequired = false, Order = 1)]
+        public StringCollection Search
+        {
+            get
+            {
+                return m_search;
+            }
+
+            set
+            {
+                m_search = value;
+
+                if (value == null)
+                {
+                    m_search = new StringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Server", IsRequired = false, Order = 2)]
+        public DnsServerTypeCollection Server
+        {
+            get
+            {
+                return m_server;
+            }
+
+            set
+            {
+                m_server = value;
+
+                if (value == null)
+                {
+                    m_server = new DnsServerTypeCollection();
+                }
+            }
+        }
+
+        [DataMember(Name = "Timeout", IsRequired = false, Order = 3)]
+        public byte Timeout
+        {
+            get { return m_timeout;  }
+            set { m_timeout = value; }
+        }
+
+        [DataMember(Name = "Attempts", IsRequired = false, Order = 4)]
+        public byte Attempts
+        {
+            get { return m_attempts;  }
+            set { m_attempts = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DnsResolverType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DnsResolverType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DnsResolverType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DnsResolverType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            encoder.WriteEncodingMask((uint)EncodingMask);
+
+            encoder.WriteStringArray("Search", Search);
+            encoder.WriteEncodeableArray("Server", Server.ToArray(), typeof(DnsServerType));
+            if ((EncodingMask & (uint)DnsResolverFields.Timeout) != 0) encoder.WriteByte("Timeout", Timeout);
+            if ((EncodingMask & (uint)DnsResolverFields.Attempts) != 0) encoder.WriteByte("Attempts", Attempts);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            EncodingMask = decoder.ReadEncodingMask(m_FieldNames);
+
+            Search = decoder.ReadStringArray("Search");
+            Server = (DnsServerTypeCollection)decoder.ReadEncodeableArray("Server", typeof(DnsServerType));
+            if ((EncodingMask & (uint)DnsResolverFields.Timeout) != 0) Timeout = decoder.ReadByte("Timeout");
+            if ((EncodingMask & (uint)DnsResolverFields.Attempts) != 0) Attempts = decoder.ReadByte("Attempts");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            DnsResolverType value = encodeable as DnsResolverType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (value.EncodingMask != this.EncodingMask) return false;
+
+            if (!Utils.IsEqual(m_search, value.m_search)) return false;
+            if (!Utils.IsEqual(m_server, value.m_server)) return false;
+            if ((EncodingMask & (uint)DnsResolverFields.Timeout) != 0) if (!Utils.IsEqual(m_timeout, value.m_timeout)) return false;
+            if ((EncodingMask & (uint)DnsResolverFields.Attempts) != 0) if (!Utils.IsEqual(m_attempts, value.m_attempts)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (DnsResolverType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DnsResolverType clone = (DnsResolverType)base.MemberwiseClone();
+
+            clone.EncodingMask = this.EncodingMask;
+
+            clone.m_search = (StringCollection)Utils.Clone(this.m_search);
+            clone.m_server = (DnsServerTypeCollection)Utils.Clone(this.m_server);
+            if ((EncodingMask & (uint)DnsResolverFields.Timeout) != 0) clone.m_timeout = (byte)Utils.Clone(this.m_timeout);
+            if ((EncodingMask & (uint)DnsResolverFields.Attempts) != 0) clone.m_attempts = (byte)Utils.Clone(this.m_attempts);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private StringCollection m_search;
+        private DnsServerTypeCollection m_server;
+        private byte m_timeout;
+        private byte m_attempts;
+
+        private static readonly string[] m_FieldNames = Enum.GetNames(typeof(DnsResolverFields)).Where(x => x != nameof(DnsResolverFields.None)).ToArray();
+        #endregion
+    }
+
+    #region DnsResolverTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfDnsResolverType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DnsResolverType")]
+    public partial class DnsResolverTypeCollection : List<DnsResolverType>, ICloneable
+    {
+        #region Constructors
+        public DnsResolverTypeCollection() {}
+
+        public DnsResolverTypeCollection(int capacity) : base(capacity) {}
+
+        public DnsResolverTypeCollection(IEnumerable<DnsResolverType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator DnsResolverTypeCollection(DnsResolverType[] values)
+        {
+            if (values != null)
+            {
+                return new DnsResolverTypeCollection(values);
+            }
+
+            return new DnsResolverTypeCollection();
+        }
+
+        public static explicit operator DnsResolverType[](DnsResolverTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (DnsResolverTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DnsResolverTypeCollection clone = new DnsResolverTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((DnsResolverType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region LldpSystemCapabilitiesMap Enumeration
     #if (!OPCUA_EXCLUDE_LldpSystemCapabilitiesMap)
     /// <exclude />
@@ -31803,6 +34731,190 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((LogRecordMask)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ActiveLockHoldersDataType Class
+    #if (!OPCUA_EXCLUDE_ActiveLockHoldersDataType)
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ActiveLockHoldersDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        public ActiveLockHoldersDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_lockUser = null;
+            m_lockHolderDescription = null;
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Name = "LockUser", IsRequired = false, Order = 1)]
+        public NodeId LockUser
+        {
+            get { return m_lockUser;  }
+            set { m_lockUser = value; }
+        }
+
+        [DataMember(Name = "LockHolderDescription", IsRequired = false, Order = 2)]
+        public string LockHolderDescription
+        {
+            get { return m_lockHolderDescription;  }
+            set { m_lockHolderDescription = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ActiveLockHoldersDataType;
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActiveLockHoldersDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActiveLockHoldersDataType_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ActiveLockHoldersDataType;
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteNodeId("LockUser", LockUser);
+            encoder.WriteString("LockHolderDescription", LockHolderDescription);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            LockUser = decoder.ReadNodeId("LockUser");
+            LockHolderDescription = decoder.ReadString("LockHolderDescription");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ActiveLockHoldersDataType value = encodeable as ActiveLockHoldersDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_lockUser, value.m_lockUser)) return false;
+            if (!Utils.IsEqual(m_lockHolderDescription, value.m_lockHolderDescription)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (ActiveLockHoldersDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActiveLockHoldersDataType clone = (ActiveLockHoldersDataType)base.MemberwiseClone();
+
+            clone.m_lockUser = (NodeId)Utils.Clone(this.m_lockUser);
+            clone.m_lockHolderDescription = (string)Utils.Clone(this.m_lockHolderDescription);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private NodeId m_lockUser;
+        private string m_lockHolderDescription;
+        #endregion
+    }
+
+    #region ActiveLockHoldersDataTypeCollection Class
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+    [CollectionDataContract(Name = "ListOfActiveLockHoldersDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActiveLockHoldersDataType")]
+    public partial class ActiveLockHoldersDataTypeCollection : List<ActiveLockHoldersDataType>, ICloneable
+    {
+        #region Constructors
+        public ActiveLockHoldersDataTypeCollection() {}
+
+        public ActiveLockHoldersDataTypeCollection(int capacity) : base(capacity) {}
+
+        public ActiveLockHoldersDataTypeCollection(IEnumerable<ActiveLockHoldersDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        public static implicit operator ActiveLockHoldersDataTypeCollection(ActiveLockHoldersDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ActiveLockHoldersDataTypeCollection(values);
+            }
+
+            return new ActiveLockHoldersDataTypeCollection();
+        }
+
+        public static explicit operator ActiveLockHoldersDataType[](ActiveLockHoldersDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        public object Clone()
+        {
+            return (ActiveLockHoldersDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActiveLockHoldersDataTypeCollection clone = new ActiveLockHoldersDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ActiveLockHoldersDataType)Utils.Clone(this[ii]));
             }
 
             return clone;
