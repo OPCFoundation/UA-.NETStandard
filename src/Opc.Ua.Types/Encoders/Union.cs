@@ -178,6 +178,8 @@ namespace Opc.Ua.Encoders
                     PropertyList.Count);
             }
 
+            // A union encodes at most one member.
+            ChargeDecodeWork(decoder, unionSelector > 0 ? 1 : 0);
             SwitchField = unionSelector;
             if (unionSelector > 0)
             {

@@ -196,15 +196,24 @@ namespace Opc.Ua.Encoders
                 EncodingMask = decoder.ReadEncodingMask(masks);
             }
 
+            // Only the mandatory and the present optional fields are encoded.
             uint assignedBits = 0;
+            int encodedFields = 0;
             foreach (Field property in PropertyList)
             {
-                if (property.IsOptional)
+                if (!property.IsOptional)
                 {
-                    assignedBits |= property.OptionalFieldMask;
+                    encodedFields++;
+                    continue;
+                }
+                assignedBits |= property.OptionalFieldMask;
+                if ((property.OptionalFieldMask & EncodingMask) != 0)
+                {
+                    encodedFields++;
                 }
             }
             EncodingMask = ValidateEncodingMask(decoder, EncodingMask, assignedBits);
+            ChargeDecodeWork(decoder, encodedFields);
 
             foreach (Field property in PropertyList)
             {

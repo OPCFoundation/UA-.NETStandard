@@ -164,6 +164,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     fieldCount);
             }
 
+            // A union encodes at most one member.
+            ChargeDecodeWork(decoder, unionSelector > 0 ? 1 : 0);
             m_switchField = unionSelector;
             if (unionSelector > 0)
             {

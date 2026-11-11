@@ -127,12 +127,20 @@ namespace Opc.Ua.Client.ComplexTypes
             // Binary decoders shall report an error if bits not assigned to
             // an optional field are set (OPC 10000-6 5.2.7); XML decoders
             // shall ignore them (5.3.6), and so does the JSON decoder.
+            // Only the mandatory and the present optional fields are encoded.
             uint assignedBits = 0;
+            int encodedFields = 0;
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
-                if (property.IsOptional)
+                if (!property.IsOptional)
                 {
-                    assignedBits |= property.OptionalFieldMask;
+                    encodedFields++;
+                    continue;
+                }
+                assignedBits |= property.OptionalFieldMask;
+                if ((property.OptionalFieldMask & EncodingMask) != 0)
+                {
+                    encodedFields++;
                 }
             }
             if ((EncodingMask & ~assignedBits) != 0)
@@ -148,6 +156,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 EncodingMask &= assignedBits;
             }
+            ChargeDecodeWork(decoder, encodedFields);
 
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {

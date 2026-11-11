@@ -17,6 +17,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Core" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Types" />
     <InternalsVisibleTo Include="Opc.Ua.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes" />
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Server" />
