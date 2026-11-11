@@ -81,3 +81,23 @@ default value is omitted — the field is not written to the output at all.
       `SymbolicId`, `NamespaceUri`, `Locale`, `LocalizedText`,
       `AdditionalInfo`, `InnerStatusCode`, and `InnerDiagnosticInfo`.
 
+## Experimental Encodings (Avro, Arrow)
+
+In addition to the standard Binary/JSON/XML codecs, `Opc.Ua.Types` ships two **experimental** encodings behind the same `IEncoder`/`IDecoder` abstractions and the `EncodingType` enum. Both are annotated with `[Experimental("UA_NETStandard_1")]`, so consuming `AvroEncoder`/`AvroDecoder`, `ArrowEncoder`/`ArrowDecoder`, or the `EncodingType.Avro` / `EncodingType.Arrow` members requires acknowledging diagnostic `UA_NETStandard_1`; the API and wire format may change without a major-version bump.
+
+### Avro (`EncodingType.Avro`)
+
+- Available on **every** target framework. On the legacy targets (`net472`, `net48`, `netstandard2.0`, `netstandard2.1`) the codec relies on the span/stream/`Encoding` polyfills in `Opc.Ua.Types/Polyfills`; on `net8.0`+ it uses the BCL fast paths so the modern targets keep their performance.
+- Implements the complete built-in / `Variant` / `ExtensionObject` / `Enumeration` surface and runs in the shared Part 6 encoder round-trip test matrix alongside Binary/JSON/XML.
+- Also available as a PubSub network-message encoding and transcoder target (see [`../../PubSub.md`](../../PubSub.md)).
+
+### Arrow (`EncodingType.Arrow`)
+
+- Columnar [Apache Arrow](https://arrow.apache.org/) representation, available on **`net8.0`+ only** (the `Apache.Arrow` dependency is not offered for the legacy targets).
+- Implements the full round-trip surface used by the shared matrix, including:
+  - `IEncodeable` / `ExtensionObject` values — encodeable bodies are serialized as a nested OPC UA binary body and, on decode, reconstructed into the concrete `IEncodeable` via the message context's `EncodeableFactory`. When the type id is not registered the raw binary body is preserved (matching the Binary decoder behaviour).
+  - `Enumeration` `Variant`s (scalar / array / matrix), carried as `Int32` columns.
+- Known limitations: writing top-level struct arrays of `Variant`/`DataValue` is currently limited to a single element, and full message-envelope decode (`ArrowDecoder.DecodeMessage<T>()`) is not implemented.
+
+> **Protobuf:** An experimental Protobuf codec existed transiently during development and was removed before release. There is no `EncodingType.Protobuf` member or public Protobuf codec.
+

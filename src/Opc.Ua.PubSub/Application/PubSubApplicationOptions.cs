@@ -92,6 +92,12 @@ namespace Opc.Ua.PubSub.Application
         public bool RegisterAllStandardEncoders { get; set; } = true;
 
         /// <summary>
+        /// Selects whether JSON NetworkMessage encoders emit experimental schema
+        /// announcements and which JSON flavor to use.
+        /// </summary>
+        public JsonSchemaExchangeMode JsonSchemaExchange { get; set; } = JsonSchemaExchangeMode.Disabled;
+
+        /// <summary>
         /// When <see langword="true"/> the builder registers the
         /// default UDP transport factory. Has no effect unless
         /// <c>Opc.Ua.PubSub.Udp</c> has wired the underlying services.
