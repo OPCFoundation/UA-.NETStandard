@@ -94,8 +94,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             [Values] BuilderKind builder,
             [Values(StructureType.Union, StructureType.StructureWithOptionalFields)] StructureType structureType)
         {
-            // Each element encodes one of 16 members in 8 bytes. Charging all
-            // declared members would exceed the input length plus the allowance.
+            // A union element encodes one of 16 members in 8 bytes; an element
+            // with optional fields encodes the mandatory F1 and the optional F2
+            // in 12 bytes. Charging all declared members would exceed the input
+            // length plus the allowance.
+            bool optional = structureType == StructureType.StructureWithOptionalFields;
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var resolver = new MockResolver();
             ushort ns = resolver.NamespaceUris.GetIndexOrAppend(Namespaces.MockResolverUrl);
@@ -104,7 +107,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             for (int i = 0; i < fields.Length; i++)
             {
                 fields[i] = Field("F" + (i + 1), DataTypeIds.Int32);
-                fields[i].IsOptional = structureType == StructureType.StructureWithOptionalFields;
+                fields[i].IsOptional = optional && i > 0;
             }
             NodeId typeNodeId = AddStructure(resolver, "Sparse", ns, ref nodeId, new StructureDefinition
             {
@@ -121,7 +124,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 NamespaceUris = resolver.NamespaceUris
             };
-            const int count = 20000;
+            const int count = 30000;
             byte[] buffer;
             using (var encoder = new BinaryEncoder(context))
             {
@@ -130,6 +133,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     encoder.WriteUInt32(null, 1);
                     encoder.WriteInt32(null, i);
+                    if (optional)
+                    {
+                        encoder.WriteInt32(null, -i);
+                    }
                 }
                 buffer = encoder.CloseAndReturnBuffer()!;
             }
