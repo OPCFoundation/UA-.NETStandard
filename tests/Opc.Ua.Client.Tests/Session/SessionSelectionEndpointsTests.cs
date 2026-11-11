@@ -68,9 +68,11 @@ namespace Opc.Ua.Client.Tests
         /// An endpoint selected through discovery keeps the discovery
         /// endpoints, and they match the endpoints of CreateSession.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task SelectedEndpointKeepsItsDiscoveryEndpointsAsync(bool updateBeforeConnect)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task SelectedEndpointKeepsItsDiscoveryEndpointsAsync(bool updateBeforeConnect, bool clone)
         {
             ApplicationConfiguration config = ClientFixture.Config;
             ArrayOf<EndpointDescription> honest = await ClientFixture
@@ -80,8 +82,9 @@ namespace Opc.Ua.Client.Tests
                 config, ServerUrl.ToString(), useSecurity: true, Telemetry).ConfigureAwait(false);
             Assert.That(selected, Is.Not.Null);
 
+            // an application may copy the description before it connects.
             var configured = new ConfiguredEndpoint(
-                null, selected!, EndpointConfiguration.Create(config));
+                null, clone ? CoreUtils.Clone(selected)! : selected!, EndpointConfiguration.Create(config));
             Assert.That(configured.DiscoveryEndpoints.Count, Is.EqualTo(honest.Count));
 
             ISession session = await new DefaultSessionFactory(Telemetry).CreateAsync(
@@ -105,9 +108,11 @@ namespace Opc.Ua.Client.Tests
         /// discovery update before connect or CreateSession reports
         /// BadSecurityChecksFailed.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task EndpointsThatDifferFromTheSelectionAreRefusedAsync(bool updateBeforeConnect)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task EndpointsThatDifferFromTheSelectionAreRefusedAsync(bool updateBeforeConnect, bool clone)
         {
             ApplicationConfiguration config = ClientFixture.Config;
             ArrayOf<EndpointDescription> honest = await ClientFixture
@@ -131,7 +136,7 @@ namespace Opc.Ua.Client.Tests
             setSelection.Invoke(null, [selected, partial]);
 
             var configured = new ConfiguredEndpoint(
-                null, selected, EndpointConfiguration.Create(config));
+                null, clone ? CoreUtils.Clone(selected)! : selected, EndpointConfiguration.Create(config));
 
             ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {

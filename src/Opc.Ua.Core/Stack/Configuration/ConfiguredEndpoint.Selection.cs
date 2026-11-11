@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
 namespace Opc.Ua
 {
@@ -55,11 +54,8 @@ namespace Opc.Ua
                 return;
             }
 
-            lock (s_selectionEndpoints)
-            {
-                s_selectionEndpoints.Remove(selected);
-                s_selectionEndpoints.Add(selected, new SelectionEndpoints(endpoints));
-            }
+            // kept on the description, so a clone of it keeps the list too.
+            selected.SelectionEndpoints = endpoints;
         }
 
         /// <summary>
@@ -67,10 +63,11 @@ namespace Opc.Ua
         /// </summary>
         private void AdoptSelectionEndpoints(EndpointDescription description)
         {
-            if (s_selectionEndpoints.TryGetValue(description, out SelectionEndpoints? selection))
+            ArrayOf<EndpointDescription> selection = description.SelectionEndpoints;
+            if (!selection.IsEmpty)
             {
-                m_selectionEndpoints = selection.Endpoints;
-                DiscoveryEndpoints = selection.Endpoints;
+                m_selectionEndpoints = selection;
+                DiscoveryEndpoints = selection;
             }
         }
 
@@ -193,19 +190,6 @@ namespace Opc.Ua
         {
             return string.Equals(first ?? string.Empty, second ?? string.Empty, System.StringComparison.Ordinal);
         }
-
-        private sealed class SelectionEndpoints
-        {
-            public SelectionEndpoints(ArrayOf<EndpointDescription> endpoints)
-            {
-                Endpoints = endpoints;
-            }
-
-            public ArrayOf<EndpointDescription> Endpoints { get; }
-        }
-
-        private static readonly ConditionalWeakTable<EndpointDescription, SelectionEndpoints>
-            s_selectionEndpoints = new();
 
         private ArrayOf<EndpointDescription> m_selectionEndpoints;
     }
