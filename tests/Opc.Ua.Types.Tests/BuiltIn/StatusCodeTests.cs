@@ -1195,5 +1195,45 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value, Is.TypeOf<StatusCode>());
             Assert.That(((StatusCode)value).Code, Is.EqualTo(0x80010000));
         }
+
+        private const uint kBadTimeout = 0x800A0000;
+
+        [Test]
+        public void SymbolicIdOfUnknownSymbolIsNotInterned()
+        {
+            string symbol = "Symbol" + Guid.NewGuid().ToString("N");
+            Assert.That(string.IsInterned(new string(symbol.ToCharArray())), Is.Null);
+
+            var statusCode = new StatusCode(kBadTimeout, new string(symbol.ToCharArray()));
+            var fromException = new StatusCode(new InvalidOperationException(), kBadTimeout, new string(symbol.ToCharArray()));
+
+            Assert.That(statusCode.SymbolicId, Is.EqualTo(symbol));
+            Assert.That(fromException.SymbolicId, Is.EqualTo(symbol));
+            Assert.That(string.IsInterned(new string(symbol.ToCharArray())), Is.Null);
+        }
+
+        [Test]
+        public void SymbolicIdFromServiceDiagnosticsIsNotInterned()
+        {
+            string symbol = "Symbol" + Guid.NewGuid().ToString("N");
+            var diagnostics = new DiagnosticInfo(0, -1, -1, -1, null);
+
+            ArrayOf<string> stringTable = new[] { new string(symbol.ToCharArray()) };
+
+            var result = new ServiceResult(new StatusCode(kBadTimeout), diagnostics, stringTable);
+
+            Assert.That(result.SymbolicId, Is.EqualTo(symbol));
+            Assert.That(string.IsInterned(new string(symbol.ToCharArray())), Is.Null);
+        }
+
+        [Test]
+        public void SymbolicIdOfKnownSymbolSharesTheKnownString()
+        {
+            string symbol = new(StatusCodes.BadNodeIdUnknown.SymbolicId!.ToCharArray());
+
+            var statusCode = new StatusCode(StatusCodes.BadNodeIdUnknown.Code, symbol);
+
+            Assert.That(statusCode.SymbolicId, Is.SameAs(StatusCodes.BadNodeIdUnknown.SymbolicId));
+        }
     }
 }

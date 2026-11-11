@@ -1595,6 +1595,7 @@ namespace Opc.Ua
             {
                 return;
             }
+            using CancellationTokenSource cts = CreateCleanupTokenSource();
             try
             {
                 await HistoryReadAsync(
@@ -1603,13 +1604,35 @@ namespace Opc.Ua
                     timestampsToReturn,
                     true,
                     nodesToRelease.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                    cts.Token).ConfigureAwait(false);
             }
             catch (Exception)
             {
                 // Best effort, the original failure is what the caller sees.
             }
         }
+
+        /// <summary>
+        /// Creates the token that bounds a best effort cleanup call. The cleanup
+        /// runs after the caller's request failed, often because the channel is
+        /// down, so it must not wait for the channel without a bound: the
+        /// caller (for example a subscription update that session recovery
+        /// drains) would otherwise never complete.
+        /// </summary>
+        private CancellationTokenSource CreateCleanupTokenSource()
+        {
+            int timeout = OperationTimeout;
+            if (timeout <= 0 || timeout > kMaxCleanupTimeout)
+            {
+                timeout = kMaxCleanupTimeout;
+            }
+            return new CancellationTokenSource(timeout);
+        }
+
+        /// <summary>
+        /// Upper bound of a best effort cleanup call in milliseconds.
+        /// </summary>
+        private const int kMaxCleanupTimeout = 10_000;
 
         /// <summary>
         /// Best effort deletion of the monitored items created by the batches
@@ -1631,13 +1654,14 @@ namespace Opc.Ua
             {
                 return;
             }
+            using CancellationTokenSource cts = CreateCleanupTokenSource();
             try
             {
                 await DeleteMonitoredItemsAsync(
                     null,
                     subscriptionId,
                     monitoredItemIds.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                    cts.Token).ConfigureAwait(false);
             }
             catch (Exception)
             {

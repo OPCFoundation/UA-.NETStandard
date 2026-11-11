@@ -895,6 +895,7 @@ namespace Opc.Ua
             m_collection = collection;
             m_description = description ?? throw new ArgumentNullException(nameof(description));
             UpdateBeforeConnect = true;
+            AdoptSelectionEndpoints(description);
 
             // ensure a default configuration.
             if (configuration == null)
@@ -982,6 +983,7 @@ namespace Opc.Ua
             SelectedUserTokenPolicyIndex = endpoint.SelectedUserTokenPolicyIndex;
             BinaryEncodingSupport = endpoint.BinaryEncodingSupport;
             DiscoveryEndpoints = endpoint.DiscoveryEndpoints;
+            m_selectionEndpoints = endpoint.m_selectionEndpoints;
 
             if (endpoint.UserIdentity != null)
             {
@@ -1266,6 +1268,7 @@ namespace Opc.Ua
                 ArrayOf<EndpointDescription> collection = await client
                     .GetEndpointsAsync(default, ct)
                     .ConfigureAwait(false);
+                ValidateAgainstSelectionEndpoints(collection);
                 DiscoveryEndpoints = collection;
 
                 // find list of matching endpoints.
