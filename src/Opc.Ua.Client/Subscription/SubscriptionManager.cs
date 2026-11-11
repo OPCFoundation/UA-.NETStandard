@@ -2855,18 +2855,36 @@ namespace Opc.Ua.Client.Subscriptions
         /// session holds outside this manager's registry (the classic API). Those
         /// subscriptions have no processor that could own a tracked acknowledgement,
         /// so they are sent as they are with the next Publish request, as the classic
-        /// engine does. The acknowledgement keeps the lifetime of its subscription and
-        /// is dropped once that subscription is deleted or recreated.
+        /// engine does. The acknowledgement keeps the lifetime of the subscription the
+        /// message was delivered to, captured before the delivery, and is dropped once
+        /// that subscription is deleted or recreated. Without a lifetime it is not
+        /// queued at all.
         /// </summary>
-        internal void QueueSessionAcknowledgement(uint subscriptionId, uint sequenceNumber)
+        internal void QueueSessionAcknowledgement(
+            uint subscriptionId,
+            uint sequenceNumber,
+            AcknowledgementScope? scope)
         {
+            if (scope == null || scope.SubscriptionId != subscriptionId)
+            {
+                return;
+            }
             QueueSessionAcknowledgement(new SessionAcknowledgement(
                 new SubscriptionAcknowledgement
                 {
                     SubscriptionId = subscriptionId,
                     SequenceNumber = sequenceNumber
                 },
-                m_session.GetSessionSubscriptionScope(subscriptionId)));
+                scope));
+        }
+
+        /// <summary>
+        /// The lifetime of the session subscription with the identifier, or
+        /// <c>null</c> when the session holds none.
+        /// </summary>
+        internal AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+        {
+            return m_session.GetSessionSubscriptionScope(subscriptionId);
         }
 
         private void QueueSessionAcknowledgement(SessionAcknowledgement acknowledgement)
@@ -2936,7 +2954,7 @@ namespace Opc.Ua.Client.Subscriptions
             for (int i = 0; i < acknowledgements.Count; i++)
             {
                 SessionAcknowledgement acknowledgement = acknowledgements[i];
-                if (acknowledgement.Scope != null &&
+                if (acknowledgement.Scope == null ||
                     !acknowledgement.Scope.Equals(m_session.GetSessionSubscriptionScope(
                         acknowledgement.Scope.SubscriptionId)))
                 {
@@ -3799,12 +3817,13 @@ namespace Opc.Ua.Client.Subscriptions
                                 await DelayUnresolvedSubscriptionAsync(ct)
                                     .ConfigureAwait(false);
                             }
-                            else if (m_outer.m_session.TryDispatchToSessionSubscription(
+                            else if (TryDispatchToSessionSubscription(
                                 subscriptionId,
                                 notificationMessage,
                                 availableSequenceNumbers,
                                 response.ResponseHeader.StringTable,
-                                moreNotifications))
+                                moreNotifications,
+                                out AcknowledgementScope? sessionScope))
                             {
                                 // The session holds this subscription through the classic
                                 // API. It is live and owned by the application, so the
@@ -3815,7 +3834,9 @@ namespace Opc.Ua.Client.Subscriptions
                                 if (notificationMessage.NotificationData.Count != 0)
                                 {
                                     m_outer.QueueSessionAcknowledgement(
-                                        subscriptionId, notificationMessage.SequenceNumber);
+                                        subscriptionId,
+                                        notificationMessage.SequenceNumber,
+                                        sessionScope);
                                 }
                                 Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
                                 m_lastUnknownSubscriptionId = 0;
@@ -4031,6 +4052,29 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                 }
                 m_logger.PublishWorkerStopped(Index);
+            }
+
+            /// <summary>
+            /// Hands a message to a subscription the session holds through the
+            /// classic API. The lifetime of that subscription is captured before
+            /// the delivery, so the acknowledgement can never be attributed to a
+            /// subscription that replaced it meanwhile.
+            /// </summary>
+            private bool TryDispatchToSessionSubscription(
+                uint subscriptionId,
+                NotificationMessage notificationMessage,
+                ArrayOf<uint> availableSequenceNumbers,
+                ArrayOf<string> stringTable,
+                bool moreNotifications,
+                out AcknowledgementScope? scope)
+            {
+                scope = m_outer.m_session.GetSessionSubscriptionScope(subscriptionId);
+                return m_outer.m_session.TryDispatchToSessionSubscription(
+                    subscriptionId,
+                    notificationMessage,
+                    availableSequenceNumbers,
+                    stringTable,
+                    moreNotifications);
             }
 
             /// <summary>

@@ -265,9 +265,22 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         /// <summary>
         /// The acknowledgement scope of a session-owned subscription. Defaults to
-        /// <c>null</c> (no lifetime tracked).
+        /// one stable lifetime per session-owned identifier and <c>null</c> for
+        /// any other identifier.
         /// </summary>
-        public Func<uint, AcknowledgementScope?> SessionSubscriptionScopeHandler { get; set; } = _ => null;
+        public Func<uint, AcknowledgementScope?> SessionSubscriptionScopeHandler { get; set; }
+
+        /// <summary>
+        /// Creates the fake.
+        /// </summary>
+        public FakeSubscriptionManagerContext()
+        {
+            SessionSubscriptionScopeHandler = id => SessionOwnedSubscriptionIds.Contains(id)
+                ? new AcknowledgementScope(m_sessionScopeOwner, 1, id)
+                : null;
+        }
+
+        private readonly object m_sessionScopeOwner = new();
 
         /// <inheritdoc/>
         public AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)

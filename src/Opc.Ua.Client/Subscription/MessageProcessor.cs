@@ -193,9 +193,9 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Estimates the memory a queued message retains. A body kept as bytes to be
-        /// decoded on first use counts with its encoded length; a decoded body with a
-        /// fixed amount per notification.
+        /// Estimates the memory a queued message retains. A body kept as bytes, to be
+        /// decoded on first use or because its type is unknown, counts with its
+        /// encoded length; a decoded body with a fixed amount per notification.
         /// </summary>
         internal static int EstimateRetainedSize(NotificationMessage message)
         {
@@ -208,6 +208,15 @@ namespace Opc.Ua.Client.Subscriptions
                 if (deferred >= 0)
                 {
                     size += deferred;
+                }
+                else if (body.TryGetAsBinary(out ByteString binary))
+                {
+                    // A body of a type the decoder does not know stays encoded.
+                    size += binary.Length;
+                }
+                else if (body.TryGetAsJson(out string? json))
+                {
+                    size += (long)json.Length * sizeof(char);
                 }
                 else if (body.TryGetValue(out DataChangeNotification? dataChange))
                 {

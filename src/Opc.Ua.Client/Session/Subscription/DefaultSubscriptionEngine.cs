@@ -178,14 +178,27 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Queues the acknowledgement of a message delivered to a subscription the
         /// session holds through the classic API, for example one recovered with
-        /// Republish. It is sent with the next Publish request.
+        /// Republish. It is sent with the next Publish request, unless the
+        /// subscription of <paramref name="scope"/> was deleted or recreated.
         /// </summary>
-        internal void QueueSessionAcknowledgement(uint subscriptionId, uint sequenceNumber)
+        internal void QueueSessionAcknowledgement(
+            uint subscriptionId,
+            uint sequenceNumber,
+            AcknowledgementScope? scope)
         {
             if (!m_disposed)
             {
-                m_manager.QueueSessionAcknowledgement(subscriptionId, sequenceNumber);
+                m_manager.QueueSessionAcknowledgement(subscriptionId, sequenceNumber, scope);
             }
+        }
+
+        /// <summary>
+        /// The lifetime of the subscription the session holds through the classic
+        /// API with the identifier, or <c>null</c> when it holds none.
+        /// </summary>
+        internal AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+        {
+            return m_disposed ? null : m_manager.GetSessionSubscriptionScope(subscriptionId);
         }
 
         /// <inheritdoc/>

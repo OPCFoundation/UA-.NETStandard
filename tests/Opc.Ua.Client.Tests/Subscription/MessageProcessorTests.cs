@@ -3624,6 +3624,28 @@ namespace Opc.Ua.Client.Subscriptions
                 Is.GreaterThan(MessageProcessor.EstimateRetainedSize(data)));
         }
 
+        /// <summary>
+        /// A body that stays encoded because its type is unknown counts with its
+        /// length.
+        /// </summary>
+        [Test]
+        public void RetainedSizeEstimateCountsBodiesKeptEncoded()
+        {
+            const int kBodyLength = 1024 * 1024;
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData =
+                [
+                    new ExtensionObject(
+                        new ExpandedNodeId(4711u, 2),
+                        ByteString.From(new byte[kBodyLength]))
+                ]
+            };
+            Assert.That(MessageProcessor.EstimateRetainedSize(message),
+                Is.GreaterThanOrEqualTo(kBodyLength));
+        }
+
         private static NotificationMessage BuildDataChangeMessage(uint sequenceNumber)
         {
             return new NotificationMessage

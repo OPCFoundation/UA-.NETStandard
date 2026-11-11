@@ -3293,6 +3293,59 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// The acknowledgement of a message keeps the lifetime of the session
+        /// subscription the message was delivered to, even when that subscription
+        /// is replaced while the message is delivered.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerKeepsTheLifetimeOfTheDeliveryTargetForSessionAcknowledgementsAsync(
+            CancellationToken testCt)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(4242u);
+            object owner = new();
+            // Each delivery replaces the subscription with a new lifetime.
+            session.SessionSubscriptionScopeHandler = id =>
+                new AcknowledgementScope(owner, session.SessionDispatchCount, id);
+            var acknowledged = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            int publishCount = 0;
+            session.OnPublishAsync = (h, acks, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement ack in acks)
+                {
+                    acknowledged.Enqueue(ack);
+                }
+                uint seq = (uint)Interlocked.Increment(ref publishCount);
+                PublishResponse response = CreatePublishResponse(4242u, seq);
+                response.NotificationMessage.NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems = [new MonitoredItemNotification { ClientHandle = 1 }]
+                    })
+                ];
+                response.AvailableSequenceNumbers = [seq];
+                response.Results = acks.ConvertAll(_ => (StatusCode)StatusCodes.Good);
+                return new ValueTask<PublishResponse>(response);
+            };
+
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+                sut.Update();
+
+                await WaitUntilAsync(() => Volatile.Read(ref publishCount) >= 5, testCt)
+                    .ConfigureAwait(false);
+                Assert.That(acknowledged, Is.Empty);
+            }
+        }
+
+        /// <summary>
         /// The creation can complete between the worker's id lookup and its
         /// pending-creation check (the id is assigned before the in-progress
         /// flag clears). The freshly created subscription must receive the

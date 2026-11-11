@@ -4975,6 +4975,9 @@ namespace Opc.Ua.Client
                 RequestHandle = NewRequestHandle()
             };
             var context = new SessionEngineContext(this);
+            // Captured before the request, so the acknowledgement cannot be
+            // attributed to a subscription that replaces this one meanwhile.
+            AcknowledgementScope? scope = engine.GetSessionSubscriptionScope(subscriptionId);
             try
             {
                 m_logger.RequestingRepublishAsyncSubscriptionIdSequenceNumber(
@@ -5000,7 +5003,10 @@ namespace Opc.Ua.Client
                         responseHeader.StringTable) &&
                     notificationMessage.NotificationData.Count != 0)
                 {
-                    engine.QueueSessionAcknowledgement(subscriptionId, notificationMessage.SequenceNumber);
+                    engine.QueueSessionAcknowledgement(
+                        subscriptionId,
+                        notificationMessage.SequenceNumber,
+                        scope);
                 }
                 return (true, ServiceResult.Good);
             }
@@ -5011,7 +5017,7 @@ namespace Opc.Ua.Client
                 if (error.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
                 {
                     // The message cannot be received; release it on the server.
-                    engine.QueueSessionAcknowledgement(subscriptionId, sequenceNumber);
+                    engine.QueueSessionAcknowledgement(subscriptionId, sequenceNumber, scope);
                 }
                 else if (error.StatusCode != StatusCodes.BadSubscriptionIdInvalid &&
                     error.StatusCode != StatusCodes.BadMessageNotAvailable)
