@@ -3128,6 +3128,7 @@ namespace Opc.Ua.Client
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
+            typeId = ToLocalTypeId(typeId);
             await FetchTypeTreeAsync(typeId, [typeId], ct)
                 .ConfigureAwait(false);
         }
@@ -3138,6 +3139,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
+            typeIds = typeIds.ConvertAll(ToLocalTypeId);
             var visited = new HashSet<ExpandedNodeId>();
             foreach (ExpandedNodeId typeId in typeIds)
             {
@@ -3145,6 +3147,21 @@ namespace Opc.Ua.Client
             }
 
             await FetchTypeTreeAsync(typeIds, visited, 0, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The form of a type id that the node cache returns for the node: a
+        /// namespace URI of this server is replaced by its index, so the
+        /// visited set of a type tree walk recognizes the node again.
+        /// </summary>
+        private ExpandedNodeId ToLocalTypeId(ExpandedNodeId typeId)
+        {
+            if (typeId.NamespaceUri == null || typeId.ServerIndex != 0)
+            {
+                return typeId;
+            }
+            NodeId nodeId = ExpandedNodeId.ToNodeId(typeId, NamespaceUris);
+            return nodeId.IsNull ? typeId : nodeId;
         }
 
         private async Task FetchTypeTreeAsync(
@@ -3160,9 +3177,10 @@ namespace Opc.Ua.Client
             var subTypes = new List<ExpandedNodeId>();
             foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
             {
-                if (visited.Add(reference.TargetId))
+                ExpandedNodeId targetId = ToLocalTypeId(reference.TargetId);
+                if (visited.Add(targetId))
                 {
-                    subTypes.Add(reference.TargetId);
+                    subTypes.Add(targetId);
                 }
             }
 
@@ -3196,7 +3214,7 @@ namespace Opc.Ua.Client
                 int newTypes = 0;
                 foreach (INode node in nodes)
                 {
-                    if (visited.Add(node.NodeId))
+                    if (visited.Add(ToLocalTypeId(node.NodeId)))
                     {
                         newTypes++;
                     }
@@ -3209,9 +3227,10 @@ namespace Opc.Ua.Client
                     {
                         foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                         {
-                            if (visited.Add(reference.TargetId))
+                            ExpandedNodeId targetId = ToLocalTypeId(reference.TargetId);
+                            if (visited.Add(targetId))
                             {
-                                subTypes.Add(reference.TargetId);
+                                subTypes.Add(targetId);
                             }
                         }
                     }

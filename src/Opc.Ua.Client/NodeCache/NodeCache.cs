@@ -1329,30 +1329,36 @@ namespace Opc.Ua.Client
         /// </summary>
         private bool IsTypeHierarchyLoaded(ArrayOf<NodeId> typeIds)
         {
-            var types = new Queue<NodeId>(typeIds.Filter(nodeId => !nodeId.IsNull).ToList());
-            // Cyclic HasSubtype answers would otherwise keep this queue
-            // non-empty forever.
+            // One level per pass, so a cached hierarchy deeper than the limit
+            // is reported as not loaded and the loader applies the limit.
+            // Cyclic HasSubtype answers end at the visited set.
+            List<NodeId> level = typeIds.Filter(nodeId => !nodeId.IsNull).ToList();
             var visited = new HashSet<NodeId>();
-            while (types.Count > 0)
+            for (int depth = 0; level.Count > 0; depth++)
             {
-                NodeId typeId = types.Dequeue();
-                if (!visited.Add(typeId))
+                var next = new List<NodeId>();
+                foreach (NodeId typeId in level)
                 {
-                    continue;
-                }
-                if (!m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references))
-                {
-                    return false;
-                }
-                foreach (ReferenceDescription reference in references)
-                {
-                    if (reference.ReferenceTypeId == ReferenceTypeIds.HasSubtype &&
-                        reference.IsForward &&
-                        !reference.NodeId.IsAbsolute)
+                    if (!visited.Add(typeId))
                     {
-                        types.Enqueue(ToNodeId(reference.NodeId));
+                        continue;
+                    }
+                    if (depth > MaxTypeHierarchyDepth ||
+                        !m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references))
+                    {
+                        return false;
+                    }
+                    foreach (ReferenceDescription reference in references)
+                    {
+                        if (reference.ReferenceTypeId == ReferenceTypeIds.HasSubtype &&
+                            reference.IsForward &&
+                            !reference.NodeId.IsAbsolute)
+                        {
+                            next.Add(ToNodeId(reference.NodeId));
+                        }
                     }
                 }
+                level = next;
             }
             return true;
         }

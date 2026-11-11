@@ -191,21 +191,59 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public async Task FetchTypeTreeAtTheLimitWithACycleToTheRootSucceedsAsync([Values] bool arrayOverload)
+        public async Task FetchTypeTreeAtTheLimitWithACycleToTheRootSucceedsAsync(
+            [Values] bool arrayOverload,
+            [Values] bool rootWithNamespaceUri)
         {
             using SessionMock session = SessionMock.Create();
             var server = new SubtypeChainServer(
                 session, ObjectTypeIds.FileType, NodeClass.ObjectType, NodeCache.MaxTypeHierarchyDepth, cycleToRoot: true);
+            ExpandedNodeId root = rootWithNamespaceUri
+                ? new ExpandedNodeId(ObjectTypeIds.FileType, Namespaces.OpcUa)
+                : ObjectTypeIds.FileType;
 
-            await FetchFileTypeTreeAsync(session, arrayOverload).ConfigureAwait(false);
+            await FetchTypeTreeAsync(session, root, arrayOverload).ConfigureAwait(false);
 
             Assert.That(server.MaxLevelBrowsed, Is.GreaterThanOrEqualTo(NodeCache.MaxTypeHierarchyDepth - 1));
         }
+
+        [Test]
+        public async Task SubtypeQueryOverACachedHierarchyDeeperThanTheLimitFailsAsync()
+        {
+            // Every level is in the cache before the subtype-inclusive bulk
+            // query, which skips loading a hierarchy that is fully cached.
+            using SessionMock session = SessionMock.Create();
+            int depth = NodeCache.MaxTypeHierarchyDepth + 1;
+            _ = new SubtypeChainServer(
+                session, ReferenceTypeIds.HierarchicalReferences, NodeClass.ReferenceType, depth);
+            for (int level = 0; level <= depth; level++)
+            {
+                NodeId typeId = level == 0 ? ReferenceTypeIds.HierarchicalReferences : new NodeId("T" + level, 2);
+                await session.NodeCache.GetReferencesAsync(
+                    typeId, ReferenceTypeIds.HasSubtype, false, false, default).ConfigureAwait(false);
+            }
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.NodeCache.GetReferencesAsync(
+                    new NodeId[] { new NodeId("T1", 2) }.ToArrayOf(),
+                    new NodeId[] { ReferenceTypeIds.HierarchicalReferences }.ToArrayOf(),
+                    false,
+                    true,
+                    default).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadQueryTooComplex));
+        }
+
         private static Task FetchFileTypeTreeAsync(SessionMock session, bool arrayOverload)
         {
+            return FetchTypeTreeAsync(session, ObjectTypeIds.FileType, arrayOverload);
+        }
+
+        private static Task FetchTypeTreeAsync(SessionMock session, ExpandedNodeId root, bool arrayOverload)
+        {
             return arrayOverload
-                ? session.FetchTypeTreeAsync(new ExpandedNodeId[] { ObjectTypeIds.FileType }.ToArrayOf())
-                : session.FetchTypeTreeAsync(ObjectTypeIds.FileType);
+                ? session.FetchTypeTreeAsync(new ExpandedNodeId[] { root }.ToArrayOf())
+                : session.FetchTypeTreeAsync(root);
         }
 
         [Test]

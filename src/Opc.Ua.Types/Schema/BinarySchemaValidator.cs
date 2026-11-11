@@ -217,8 +217,10 @@ namespace Opc.Ua.Schema.Binary
             Justification = "XmlSerializer is used with known schema types at design time.")]
         private void Import(string? location, string? namespaceUri, int depth)
         {
-            // check if already loaded: a cycle or a shared import ends here.
-            if (LoadedFiles.ContainsKey(namespaceUri!))
+            // check if already loaded: a cycle or a shared import ends here,
+            // also one back to the dictionary being validated.
+            if (LoadedFiles.ContainsKey(namespaceUri!) ||
+                (namespaceUri != null && namespaceUri == Dictionary?.TargetNamespace))
             {
                 return;
             }
