@@ -107,12 +107,15 @@ namespace Opc.Ua.Bindings
         ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct);
 
         /// <summary>
-        /// Sends one complete UASC <c>MessageChunk</c> gathered from multiple
-        /// buffer segments (vectored / gather send). Concrete implementations
-        /// may copy into a single buffer if the underlying transport does not
-        /// support vectored writes.
+        /// Sends one or more complete UASC <c>MessageChunk</c>s gathered from
+        /// multiple buffer segments (vectored / gather send). A message larger
+        /// than the negotiated buffer size arrives here as all of its chunks, and
+        /// a chunk may span segments. Concrete implementations may copy into a
+        /// single buffer if the underlying transport does not support vectored
+        /// writes; transports that frame each chunk (a WebSocket message, for
+        /// instance) split the segments at the chunk headers.
         /// </summary>
-        /// <param name="buffers">The buffer segments that make up the chunk,
+        /// <param name="buffers">The buffer segments that make up the chunks,
         /// in order.</param>
         /// <param name="ct">Cancellation token.</param>
         ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct);
