@@ -118,6 +118,88 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void BinaryBodiesInOneJsonMessageCountTowardTheInputLength()
+        {
+            // Three bodies of 60,004 bytes and an empty T16 body, whose 262,141
+            // units of work fit the length of all bodies plus the allowance.
+            ServiceMessageContext context = CreateContext(16, out _);
+            int ns = context.NamespaceUris.GetIndexOrAppend(kNs);
+            context.Factory.Builder.AddEncodeableType(CreateStructure(
+                context,
+                new NodeId("Blob", (ushort)ns),
+                [new StructureField { Name = "Data", DataType = DataTypeIds.ByteString, ValueRank = ValueRanks.Scalar }],
+                new Dictionary<string, BuiltInType> { ["Data"] = BuiltInType.ByteString })).Commit();
+            byte[] blob;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteByteString(null, new byte[60000].ToByteString());
+                blob = encoder.CloseAndReturnBuffer()!;
+            }
+            string blobBody = "{\"UaTypeId\":\"nsu=" + kNs + ";s=Blob\",\"UaEncoding\":1,\"UaBody\":\"" +
+                Convert.ToBase64String(blob) + "\"}";
+            string emptyBody = "{\"UaTypeId\":\"nsu=" + kNs + ";s=T16\",\"UaEncoding\":1,\"UaBody\":\"\"}";
+            string json = "{\"F\":[" + blobBody + "," + blobBody + "," + blobBody + "," + emptyBody + "]}";
+            using var decoder = new JsonDecoder(json, context);
+
+            ArrayOf<IEncodeable> values = decoder.ReadEncodeableArrayAsExtensionObjects<IEncodeable>("F");
+
+            Assert.That(values.Count, Is.EqualTo(4));
+            Assert.That(CountInstances((Structure)values[3]), Is.EqualTo((1 << 17) - 1));
+        }
+
+        [Test]
+        public void DeferredNotificationBodiesCountTheInputLengthOfTheResponse([Values] bool defer)
+        {
+            // Three opaque bodies of 60,000 bytes and an event notification
+            // with an empty T16 body decode alike, eagerly or on first use.
+            ServiceMessageContext context = CreateContext(16, out _);
+            context.DeferNotificationBodies = defer;
+            context.Factory.AddEncodeableType(typeof(EventNotificationList));
+            context.Factory.AddEncodeableType(typeof(EventFieldList));
+            NodeId opaqueId = ExpandedNodeId.ToNodeId(
+                new ExpandedNodeId("Opaque_Binary", kNs),
+                context.NamespaceUris);
+            byte[] events;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteInt32(null, 1); // events
+                encoder.WriteUInt32(null, 1); // client handle
+                encoder.WriteInt32(null, 1); // event fields
+                encoder.WriteByte(null, (byte)BuiltInType.ExtensionObject);
+                encoder.WriteNodeId(null, ExpandedNodeId.ToNodeId(EncodingIdOf(16), context.NamespaceUris));
+                encoder.WriteByte(null, 1);
+                encoder.WriteInt32(null, 0);
+                events = encoder.CloseAndReturnBuffer()!;
+            }
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteInt32(null, 4);
+                for (int i = 0; i < 3; i++)
+                {
+                    encoder.WriteNodeId(null, opaqueId);
+                    encoder.WriteByte(null, 1);
+                    encoder.WriteByteString(null, new byte[60000].ToByteString());
+                }
+                encoder.WriteNodeId(null, new NodeId(916u)); // EventNotificationList_Encoding_DefaultBinary
+                encoder.WriteByte(null, 1);
+                encoder.WriteByteString(null, events.ToByteString());
+                buffer = encoder.CloseAndReturnBuffer()!;
+            }
+            ArrayOf<ExtensionObject> values;
+            using (var decoder = new BinaryDecoder(buffer, context))
+            {
+                values = decoder.ReadExtensionObjectArray(null);
+            }
+
+            Assert.That(values.Count, Is.EqualTo(4));
+            Assert.That(values[3].TryGetValue(out EventNotificationList? list), Is.True);
+            Assert.That(list!.Events[0].EventFields[0].TryGetValue(out ExtensionObject field), Is.True);
+            Assert.That(field.TryGetValue(out Structure? last), Is.True);
+            Assert.That(CountInstances(last!), Is.EqualTo((1 << 17) - 1));
+        }
+
+        [Test]
         public void LongArrayOfEmptyStructuresDecodes()
         {
             ServiceMessageContext context = CreateContext(0, out ExpandedNodeId empty);

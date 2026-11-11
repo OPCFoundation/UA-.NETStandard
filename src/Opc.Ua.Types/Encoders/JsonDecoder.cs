@@ -3049,6 +3049,7 @@ namespace Opc.Ua
                                                 typeId,
                                                 body.Length - decoder.Position);
                                         }
+                                        decoder.ShareStructureWork();
                                         return true;
                                     }
                                     break;

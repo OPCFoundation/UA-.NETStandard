@@ -1171,7 +1171,7 @@ namespace Opc.Ua
                     extension,
                     activator,
                     length);
-                bodyDecoder.CreditUnusedStructureWork();
+                bodyDecoder.ShareStructureWork();
                 return replayed;
             }
 
@@ -1200,6 +1200,9 @@ namespace Opc.Ua
                     Context.MaxMessageSize,
                     length);
             }
+            // the deferred body charges its work to the shared state, which this
+            // decoder credits with its whole input, the body included.
+            ShareStructureWork();
             byte[] buffer = DeferredExtensionObjectBody.Rent(length);
             try
             {
@@ -3332,22 +3335,36 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// After a replayed ExtensionObject body is decoded, credits the shared
-        /// state with the part of the body length that its local count left
-        /// unused. The body then counts toward the input length of the response
-        /// once, whether or not its decoder moved its count to the shared state.
+        /// Moves the local count to the shared state: credits the shared state
+        /// with the part of the input length that the local count left unused,
+        /// and charges any further work there. Called after an embedded body
+        /// is decoded by its own decoder, and before a body is deferred, so the
+        /// input counts toward the length of the response once, whether or not
+        /// the decoder had moved its count to the shared state.
         /// </summary>
-        private void CreditUnusedStructureWork()
+        internal void ShareStructureWork()
         {
-            if (m_structureWork == kStructureWorkShared || m_recoveries == null)
+            if (m_structureWork == kStructureWorkShared || GetForwardOnlyStream() != null)
             {
                 return;
             }
+            m_recoveries ??= new DecoderRecoveries();
             long unused = GetInputLength() - m_structureWork;
             if (unused > 0)
             {
                 m_recoveries.AddStructureWorkCredit(unused);
             }
+            m_structureWork = kStructureWorkShared;
+        }
+
+        /// <summary>
+        /// Charges all work of this decoder to the shared state without a credit
+        /// of its own, for a deferred body whose bytes the decoder that read them
+        /// already credited (see <see cref="ShareStructureWork"/>).
+        /// </summary>
+        internal void UseSharedStructureWork()
+        {
+            m_recoveries ??= new DecoderRecoveries();
             m_structureWork = kStructureWorkShared;
         }
 

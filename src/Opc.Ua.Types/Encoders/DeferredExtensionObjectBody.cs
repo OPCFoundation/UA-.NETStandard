@@ -152,6 +152,7 @@ namespace Opc.Ua
                 IEncodeable value = m_activator.CreateInstance();
                 using var decoder = new BinaryDecoder(buffer, 0, m_length, m_context);
                 decoder.InheritDecodingState(null, null, m_nestingLevel, m_length, m_recoveries);
+                decoder.UseSharedStructureWork();
                 value.Decode(decoder);
                 if (decoder.Position == m_length)
                 {
