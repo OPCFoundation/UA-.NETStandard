@@ -37,14 +37,14 @@
     <PackageVersion Include="MessagePack" Version="2.5.307" />
     <!-- Keep the legacy ASP.NET Core transport stack on the 2.3 band for net48/netstandard.
          Connections.Abstractions must stay aligned with Kestrel, not the modern 10.x API. -->
-    <PackageVersion Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.3.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.Hosting" Version="2.3.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.3.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.3.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.WebSockets" Version="2.3.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Hosting" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.WebSockets" Version="2.3.14" />
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="10.0.13" />
@@ -147,7 +147,9 @@
     <!-- Transitive vulnerability pins (consumed via Microsoft.AspNetCore.* 2.3.x on
          net8.0/net9.0 - default transitives are 4.3.0 with NU1903):
          - System.Net.Http 4.3.4 fixes GHSA-7jgj-8wvc-jh57
-         - System.Text.RegularExpressions 4.3.1 fixes GHSA-cmhx-cq75-c4mj -->
+         - System.Text.RegularExpressions 4.3.1 fixes GHSA-cmhx-cq75-c4mj
+         - Microsoft.AspNetCore.WebUtilities 2.3.14 fixes GHSA-6527-9fp8-r4x6 -->
+    <PackageVersion Include="Microsoft.AspNetCore.WebUtilities" Version="2.3.14" />
     <PackageVersion Include="System.Net.Http" Version="4.3.4" />
     <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
     <!-- Analyzer closures must stay on the host runtime band. Test and profiling hosts
