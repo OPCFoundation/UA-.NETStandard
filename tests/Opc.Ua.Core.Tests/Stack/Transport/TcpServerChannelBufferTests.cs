@@ -338,14 +338,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
             channel.SetTransport(transport);
 
-            channel.SendResponse(7, CreateLargeResponse(1024 * 1024));
+            channel.SendResponse(7, CreateLargeResponse(900 * 1024));
 
             ServiceFault fault = await ReadSentServiceFaultAsync(transport, 7).ConfigureAwait(false);
             Assert.That(
                 (uint)fault.ResponseHeader.ServiceResult,
                 Is.EqualTo((uint)StatusCodes.BadEncodingLimitsExceeded));
-            // five chunks reach the limit, plus the fault; the 1 MB body would take
-            // 17 chunks, twice.
+            // five chunks reach the limit, plus the fault; the 900 KiB body would
+            // take 15 chunks, twice.
             Assert.That(pool.RentCount, Is.LessThanOrEqualTo(7));
 
             Assert.That(
