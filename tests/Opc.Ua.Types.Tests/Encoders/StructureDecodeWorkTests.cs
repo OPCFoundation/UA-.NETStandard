@@ -228,6 +228,52 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ExtensionObjectArrayDecodesWithinItsInputLength([Values] bool forwardOnly)
+        {
+            // Each body holds a Boolean and three empty structures: 8 units of
+            // work from 1 body byte, within the length of the whole element.
+            ServiceMessageContext context = CreateContext(0, out _);
+            int ns = context.NamespaceUris.GetIndexOrAppend(kNs);
+            var empty = new NodeId("T0", (ushort)ns);
+            var typeId = new NodeId("Holder", (ushort)ns);
+            context.Factory.Builder.AddEncodeableType(CreateStructure(
+                context,
+                typeId,
+                [
+                    new StructureField { Name = "Flag", DataType = DataTypeIds.Boolean, ValueRank = ValueRanks.Scalar },
+                    new StructureField { Name = "A", DataType = empty, ValueRank = ValueRanks.Scalar },
+                    new StructureField { Name = "B", DataType = empty, ValueRank = ValueRanks.Scalar },
+                    new StructureField { Name = "C", DataType = empty, ValueRank = ValueRanks.Scalar }
+                ],
+                new Dictionary<string, BuiltInType> { ["Flag"] = BuiltInType.Boolean })).Commit();
+            const int count = 20000;
+            context.MaxArrayLength = count;
+            NodeId encodingId = ExpandedNodeId.ToNodeId(new ExpandedNodeId("Holder_Binary", kNs), context.NamespaceUris);
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteInt32(null, count);
+                for (int i = 0; i < count; i++)
+                {
+                    encoder.WriteNodeId(null, encodingId);
+                    encoder.WriteByte(null, 1);
+                    encoder.WriteInt32(null, 1);
+                    encoder.WriteBoolean(null, true);
+                }
+                buffer = encoder.CloseAndReturnBuffer()!;
+            }
+            using BinaryDecoder decoder = forwardOnly
+                ? new BinaryDecoder(new ForwardOnlyStream(buffer), context)
+                : new BinaryDecoder(buffer, context);
+
+            ArrayOf<ExtensionObject> values = decoder.ReadExtensionObjectArray(null);
+
+            Assert.That(values.Count, Is.EqualTo(count));
+            Assert.That(values[count - 1].TryGetValue(out Structure? last), Is.True);
+            Assert.That(last!["Flag"], Is.EqualTo(new Variant(true)));
+        }
+
+        [Test]
         public void NestedStructuresBeyondTheBudgetFailOnAnEmptyForwardOnlyStream(
             [Values(0, 2 * 1024 * 1024)] int maxMessageSize)
         {

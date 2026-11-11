@@ -1157,13 +1157,15 @@ namespace Opc.Ua
                 // buffer with bytes actually read. Known structures retain
                 // field limits; opaque and recovered bodies retain the ByteString limit.
                 byte[] body = SafeReadStreamBytes(length, nameof(ReadExtensionObject));
+                DecoderRecoveries recoveries = m_recoveries ??= new DecoderRecoveries();
+                CreditEnclosingInput(recoveries, body.Length);
                 using var bodyDecoder = new BinaryDecoder(body, Context);
                 bodyDecoder.InheritDecodingState(
                     m_namespaceMappings,
                     m_serverMappings,
                     m_nestingLevel,
                     body.Length,
-                    m_recoveries ??= new DecoderRecoveries());
+                    recoveries);
                 return bodyDecoder.ReadBinaryExtensionObject(typeId, extension, activator, length);
             }
 
@@ -3300,6 +3302,27 @@ namespace Opc.Ua
         private PositionTrackingStream? GetForwardOnlyStream()
         {
             return m_hasBuffer ? null : m_reader?.BaseStream as PositionTrackingStream;
+        }
+
+        /// <summary>
+        /// Before an ExtensionObject body read from a forward-only stream is
+        /// decoded by its own decoder, which is credited with the body length,
+        /// credits the shared state with the rest of the input read so far, so
+        /// the structure work of a response may reach its input length as it
+        /// does for buffered input.
+        /// </summary>
+        private void CreditEnclosingInput(DecoderRecoveries recoveries, int bodyLength)
+        {
+            if (GetForwardOnlyStream() is not PositionTrackingStream stream)
+            {
+                return;
+            }
+            long enclosing = stream.Position - bodyLength;
+            if (enclosing > stream.StructureWorkCredit)
+            {
+                recoveries.AddStructureWorkCredit(enclosing - stream.StructureWorkCredit);
+            }
+            stream.StructureWorkCredit = stream.Position;
         }
 
         /// <summary>
