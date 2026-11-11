@@ -371,11 +371,15 @@ jobs:
                   throw "nuget.org push failed for '$($package.Name)'."
               }
           }
+          # nuget.org validates large packages slowly: the 2.0.2 Lens.linux-x64
+          # package was still not downloadable more than 18 minutes after its
+          # push, which outlasted the default 300 s wait and failed the job.
           ./.azurepipelines/assert-published-packages-match.ps1 `
             -PackageDirectory promotion `
             -ManifestPath 'promotion/current-package-set.json' `
             -Feed 'nuget.org' `
             -ExcludeDebugPackages `
+            -PublicationTimeoutSeconds 1800 `
             -RequirePresent
 
       - name: Push to GitHub Packages
