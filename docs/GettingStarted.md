@@ -72,7 +72,7 @@ Route A uses two samples from `samples/MinimalApi`:
 ```bash
 git clone https://github.com/OPCFoundation/UA-.NETStandard.git
 cd UA-.NETStandard
-dotnet run --project samples/MinimalApi/MinimalBoilerServer
+dotnet run --project samples/MinimalApi/MinimalBoilerServer --framework net11.0
 ```
 
 The first build compiles the stack and can take a few minutes. The server is
@@ -94,7 +94,7 @@ Leave the server running.
 In the second terminal, at the repository root, run:
 
 ```bash
-dotnet run --project samples/MinimalApi/MinimalClient
+dotnet run --project samples/MinimalApi/MinimalClient --framework net11.0
 ```
 
 The client does not trust the new server certificate yet. It logs

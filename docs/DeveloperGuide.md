@@ -605,7 +605,7 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 | | Pull request (`buildandtest.yml`) | Full scope (`nightly.yml`) |
 | --- | --- | --- |
 | Test profiles | Windows net48, Windows/Linux/macOS net11.0 | Windows net48, Windows/macOS net10.0, net9.0, net8.0, the net10.0 Debug legs, and the tiers that lift the category filter (on net10.0) |
-| Solution builds | every `.slnx` on Windows for net48/net10.0/net11.0 × Debug/Release, `UA.slnx` on Linux for net8.0/net9.0/net10.0/net11.0 | every `.slnx` on Windows for all five TFMs in Release and net48/net11.0 in Debug, plus the Linux legs |
+| Solution builds | every `.slnx` on Windows for net48/net10.0/net11.0 × Debug/Release, `UA.slnx` on Linux for net8.0/net9.0/net10.0/net11.0 | every `.slnx` on Windows for net48/net10.0/net11.0 in Release and net48/net11.0 in Debug, plus the Linux legs (net8.0 to net11.0) |
 | Native AoT | linux-x64, osx-x64, osx-arm64, each on net10.0 and net11.0 | the above plus win-x64 |
 | Coverage | project floors and the graduated patch gate | project floors only |
 | Trigger | every push and pull request | weekly schedule and `workflow_dispatch` |

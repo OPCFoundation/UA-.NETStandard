@@ -507,7 +507,7 @@ jobs:
       run: ./.azurepipelines/set-version.ps1
 
     - name: Publish NativeAOT
-      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }} -p:CustomTestTarget=${{ matrix.tfm }}
+      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }} --framework ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }}
 
     - name: Run NativeAOT Tests
       run: >-
@@ -515,7 +515,7 @@ jobs:
         --results-directory ./TestResults/aot-main
 
     - name: Publish NativeAOT (Historian)
-      run: dotnet publish ${{ env.AOTPROJECT_HISTORIAN }} --configuration ${{ env.CONFIGURATION }} -p:CustomTestTarget=${{ matrix.tfm }}
+      run: dotnet publish ${{ env.AOTPROJECT_HISTORIAN }} --configuration ${{ env.CONFIGURATION }} --framework ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }}
 
     - name: Run NativeAOT Tests (Historian)
       run: >-
@@ -523,7 +523,7 @@ jobs:
         --results-directory ./TestResults/aot-historian
 
     - name: Publish NativeAOT (MCP)
-      run: dotnet publish ${{ env.AOTPROJECT_MCP }} --configuration ${{ env.CONFIGURATION }} -p:CustomTestTarget=${{ matrix.tfm }}
+      run: dotnet publish ${{ env.AOTPROJECT_MCP }} --configuration ${{ env.CONFIGURATION }} --framework ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }}
 
     - name: Run NativeAOT Tests (MCP)
       run: >-

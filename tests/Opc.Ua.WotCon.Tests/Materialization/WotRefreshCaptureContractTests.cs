@@ -306,7 +306,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(Environment.Version.Major, Is.EqualTo(8));
 #elif NET9_0
             Assert.That(Environment.Version.Major, Is.EqualTo(9));
-#elif NET10_0
+#elif NET10_0_OR_GREATER
             Assert.That(Environment.Version.Major, Is.EqualTo(10));
 #endif
         }

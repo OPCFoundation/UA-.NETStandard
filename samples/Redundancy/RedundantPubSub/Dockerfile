@@ -18,7 +18,7 @@ WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .
 RUN dotnet publish "samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj" \
-    -c Release -f net10.0 -p:PublishAot=false -p:NuGetAudit=false \
+    -c Release -f net11.0 -p:CustomTestTarget=net11.0 -p:PublishAot=false -p:NuGetAudit=false \
     -p:UseAppHost=false \
     -o /app/publish
 
@@ -28,7 +28,7 @@ COPY ${PUBLISH_DIR}/ /app/publish/
 
 FROM ${PUBLISH_SOURCE} AS publish
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0-distroless-extra AS final
+FROM mcr.microsoft.com/dotnet/runtime:11.0-azurelinux3.0-distroless-extra AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "RedundantPubSub.dll"]

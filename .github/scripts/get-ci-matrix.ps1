@@ -247,11 +247,10 @@ $Profiles = @(
 )
 
 # Solution builds. 'solutions' is either '*' for every discovered .slnx or an
-# explicit list. Every solution across every
-# supported target framework for the full scope (Debug for net48 and net11.0
-# only, see below), narrowed
-# for pull requests, plus the Linux leg that proves UA.slnx still compiles for
-# every Linux-capable target framework.
+# explicit list. The full scope builds every solution on Windows for net48,
+# net10.0 and net11.0, narrowed for pull requests, plus the Linux leg that
+# proves UA.slnx still compiles for every Linux-capable target framework
+# (which is where net8.0 and net9.0 are built).
 $BuildProfiles = @(
     @{ id = 'pr-windows'; os = 'windows'; scopes = @('pr'); solutions = '*'
         tfms = @('net48', 'net10.0', 'net11.0'); configurations = @('Debug', 'Release')
@@ -259,11 +258,11 @@ $BuildProfiles = @(
     @{ id = 'pr-linux'; os = 'linux'; scopes = @('pr'); solutions = @('UA.slnx')
         tfms = @('net8.0', 'net9.0', 'net10.0', 'net11.0'); configurations = @('Release')
     }
-    # Debug builds of the intermediate frameworks add little over their Release
-    # builds and the Debug test legs, and would push the full scope past the
-    # 256-job ceiling, so Debug covers the oldest and the newest framework only.
+    # net8.0 and net9.0 are built by the Linux leg; Debug covers the oldest and
+    # the newest framework only, which keeps the full scope under the 256-job
+    # ceiling.
     @{ id = 'full-windows'; os = 'windows'; scopes = @('full'); solutions = '*'
-        tfms = @('net48', 'net8.0', 'net9.0', 'net10.0', 'net11.0')
+        tfms = @('net48', 'net10.0', 'net11.0')
         configurations = @('Release')
     }
     @{ id = 'full-windows'; os = 'windows'; scopes = @('full'); solutions = '*'

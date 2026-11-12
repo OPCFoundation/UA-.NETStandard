@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -1313,7 +1313,7 @@ namespace Opc.Ua.Tools.Tests
             [
                 .. workflow[..checkout]
                     .Split('\n')
-                    .Where(l => !l.TrimStart().StartsWith('#'))
+                    .Where(l => !l.TrimStart().StartsWith('#', StringComparison.Ordinal))
             ];
 
             Assert.Multiple(
