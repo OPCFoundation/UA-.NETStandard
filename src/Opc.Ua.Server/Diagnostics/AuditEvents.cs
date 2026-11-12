@@ -160,6 +160,34 @@ namespace Opc.Ua.Server
             StatusCode statusCode,
             ILogger logger)
         {
+            server.ReportAuditWriteUpdateEvent(
+                systemContext,
+                writeValue,
+                oldValue,
+                statusCode,
+                DateTime.UtcNow,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an AuditWriteUpdate event with the time at which the write was performed.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="writeValue">The value to write.</param>
+        /// <param name="oldValue">The old value of the node.</param>
+        /// <param name="statusCode">The resulted status code.</param>
+        /// <param name="actionTimeStamp">The UTC time at which the write was performed.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditWriteUpdateEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            WriteValue writeValue,
+            Variant oldValue,
+            StatusCode statusCode,
+            DateTime actionTimeStamp,
+            ILogger logger)
+        {
             if (server?.Auditing != true)
             {
                 // current server does not support auditing
@@ -187,7 +215,7 @@ namespace Opc.Ua.Server
                     EventSeverity.Min,
                     new LocalizedText(message),
                     StatusCode.IsGood(statusCode),
-                    DateTime.UtcNow
+                    actionTimeStamp
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, writeValue.NodeId, false);

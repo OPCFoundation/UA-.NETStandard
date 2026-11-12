@@ -192,6 +192,53 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Modifications of an event item made while events are queued combine into one
+        /// transform per queued event, whatever their number: the published event has the
+        /// client handle and select clauses of the last modification.
+        /// </summary>
+        [Test]
+        public void ModificationsOfAnEventItemCombineIntoOneQueuedEventTransform()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var oneField = new EventFilter();
+            oneField.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            var twoFields = new EventFilter();
+            twoFields.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
+            twoFields.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, filter: oneField);
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
+
+            const uint modifications = 1000;
+            for (uint ii = 0; ii < modifications; ii++)
+            {
+                // alternate the select clauses, and change only the client handle in between.
+                EventFilter filter = ii % 4 < 2 ? twoFields : oneField;
+                ServiceResult result = monitoredItem.ModifyAttributes(
+                    DiagnosticsMasks.All,
+                    TimestampsToReturn.Both,
+                    100 + ii,
+                    filter,
+                    filter,
+                    null,
+                    1000,
+                    10,
+                    true)!;
+                Assert.That(ServiceResult.IsBad(result), Is.False);
+            }
+
+            Assert.That(monitoredItem.PendingQueuedEventTransformSteps, Is.EqualTo(1));
+
+            var published = new Queue<EventFieldList>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), published, 10);
+            EventFieldList fields = published.Single();
+            Assert.That(fields.ClientHandle, Is.EqualTo(100 + modifications - 1));
+            Assert.That(fields.EventFields.Count, Is.EqualTo(1));
+            Assert.That(fields.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
+        }
+
+        /// <summary>
         /// Verifies that a zero requested queue size becomes a single-value buffer.
         /// </summary>
         [Test]
@@ -1624,9 +1671,10 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry,
             bool events = false,
             uint queueSize = 10,
-            bool discardOldest = false)
+            bool discardOldest = false,
+            MonitoringFilter? filter = null)
         {
-            MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
+            filter ??= events ? new EventFilter() : new MonitoringFilter();
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Telemetry).Returns(telemetry);

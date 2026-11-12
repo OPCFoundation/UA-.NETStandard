@@ -152,17 +152,30 @@ expected to land on one after roughly 2^16 of them. Left alone that is
 silent damage, because the predefined-node index takes the last writer —
 one node would replace the other.
 
-So the factory records what it mints and raises
-`BadConfigurationError` when a second browse path lands on an identifier
-that a different one already has. The error names the path that was
-refused and the modes that do not have the problem.
+So in `Numeric` mode the factory always records what it mints, and a
+second browse path that lands on an identifier a different one already has
+never receives it:
+
+- By default (collision detection off, as in a Release build) the later
+  path moves to the next free identifier: the factory probes the following
+  numeric values and takes the first one that is free or that the same path
+  already holds. Every path that does not collide keeps the identifier it
+  always had, and re-minting a moved path returns the same moved
+  identifier. Which of two colliding paths moves follows the order they are
+  minted in.
+- With collision detection on (`DetectCollisionsByDefault`, which is on in a
+  Debug build, or `StandardServer.DetectNodeIdCollisions = true`) the factory
+  raises `BadConfigurationError` instead. The error names the path that was
+  refused and the modes that do not have the problem.
+
+`Guid` and `Opaque` keep a record only when collision detection is on.
 
 Minting the same path twice is normal — `AssignNodeIds` walks a subtree
 on every create pass — so the record keeps a witness of the path
 alongside the identifier, and only a *differing* witness is a collision.
 The witness is the tail of the same hash, so two paths would have to
-agree on the identifier and on a further 64 bits before a real collision
-could pass as a re-mint.
+agree on the identifier and on a further 32 bits (`Numeric`) or 64 bits
+(`Guid`, `Opaque`) before a real collision could pass as a re-mint.
 
 Three consequences worth knowing:
 
@@ -175,7 +188,19 @@ Three consequences worth knowing:
   records.
 - The factory never prunes the record. An identifier handed to a client
   remains reserved after its node is removed, so re-minting it for another
-  path is a collision. The record costs roughly 50 bytes per distinct path.
+  path is a collision. The `Numeric` record is one array of 8 byte slots
+  per namespace, kept at most half full: at most 16 bytes and roughly
+  30 ns per distinct path, with no allocation per entry. The `Guid` and
+  `Opaque` record, kept only while collisions are detected, costs roughly
+  50 bytes per distinct path.
+- Because it is never pruned, the `Numeric` record stops growing at
+  1,048,576 identifiers per namespace (a table of about 16 MB). This bounds
+  the memory of a dynamic address space that keeps minting new browse
+  paths, for example nodes added and deleted under fresh names. Past the
+  limit, a new path is handed the plain hash without being recorded, which
+  is how `Numeric` mode behaved before the record existed. Collisions with
+  identifiers recorded before the limit are still resolved or raised, but
+  two unrecorded paths that hash alike share an identifier.
 - It covers identifiers the factory mints, not identifiers a caller
   assigns. `String` identifiers cannot collide, so the factory keeps no
   record for them. `Counter` identifiers cannot collide with each other,
@@ -319,7 +344,7 @@ alone.
 
 The default is `NodeIdAssignmentMode.Numeric`, so a manager that overrides
 nothing gets compact deterministic browse-path identifiers, checked for
-collisions.
+collisions (resolved by probing, or raised when collision detection is on).
 
 When `AddNodes` receives no `RequestedNewNodeId`, the preferred identifier may
 already belong to a live node, for example after that node's BrowseName was
@@ -332,7 +357,13 @@ The existing node and its references are not replaced. Clients must use the
 browse-path identifier was available.
 
 A client-supplied `RequestedNewNodeId` is never substituted: an occupied or
-reserved identifier returns `BadNodeIdExists`. Duplicate BrowseNames and invalid
+reserved identifier returns `BadNodeIdExists`. The same holds for the
+identifiers minted for the Mandatory children copied from the type: they derive
+from the new node's identifier, which the client may choose, so each one must be
+free as well. If one of them is held by an existing node, by another in-flight
+`AddNodes` request or by another node of the same subtree, the request returns
+`BadNodeIdExists` and nothing is registered; a node added by `AddNodes` never
+replaces an existing node. Duplicate BrowseNames and invalid
 namespaces are still rejected. Factory errors remain visible; a counter factory
 that repeats an occupied identifier reports `BadConfigurationError` instead of
 causing an unbounded retry.

@@ -227,6 +227,35 @@ namespace Opc.Ua.Client.Tests.Identity
             Assert.That(selected.PolicyId, Is.EqualTo("basic256"));
         }
 
+        /// <summary>
+        /// The session keeps the normalized policy URI of the bound token
+        /// policy. An offered policy that names the same policy by its short
+        /// name is enabled and compatible with that binding.
+        /// </summary>
+        [Test]
+        public async Task ShortPolicyNameMatchesNormalizedBindingAndEnabledListAsync()
+        {
+            using Certificate cert = CreateRsaCertificate();
+            X509ClientIdentityProvider provider = CreateProvider(cert);
+
+            UserTokenPolicy shortName = CreatePolicy("short-name", "Basic256Sha256");
+            EndpointDescription endpoint = CreateEndpoint(SecurityPolicies.None, shortName);
+            var context = new IdentitySelectionContext(
+                endpoint,
+                endpoint.UserIdentityTokens,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()),
+                new[] { SecurityPolicies.Basic256Sha256 })
+            {
+                CurrentEphemeralKeyPolicyUri = SecurityPolicies.Basic256Sha256
+            };
+
+            UserTokenPolicy selected = await provider
+                .SelectUserTokenPolicyAsync(context)
+                .ConfigureAwait(false);
+
+            Assert.That(selected.PolicyId, Is.EqualTo("short-name"));
+        }
+
         [Test]
         public async Task CertificateLoadFailureSurfacesAsCertificateLoadFailedDiagnostic()
         {

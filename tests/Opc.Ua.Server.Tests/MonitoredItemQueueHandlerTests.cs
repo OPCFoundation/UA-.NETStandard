@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Moq;
@@ -664,6 +665,45 @@ namespace Opc.Ua.Server.Tests
             Assert.That(notifications.Select(n => n.EventFields[0].GetInt32()), Is.EqualTo(s_lastTransformedEventValue));
             Assert.That(overflowEventDue, Is.False);
             Assert.That(handler.Overflow, Is.False);
+        }
+
+        /// <summary>
+        /// The transforms of many modifications are applied one after the other when the
+        /// event is published: the stack depth at the first transform does not grow with
+        /// their number, and every transform is applied in order.
+        /// </summary>
+        [Test]
+        public void EventTransformsOfManyModificationsDoNotAddStackDepth()
+        {
+            Assert.That(MeasurePublishStackDepth(4000, out int value4000), Is.LessThanOrEqualTo(
+                MeasurePublishStackDepth(10, out int value10) + 4));
+            Assert.That(value10, Is.EqualTo(10));
+            Assert.That(value4000, Is.EqualTo(4000));
+
+            static int MeasurePublishStackDepth(int transforms, out int value)
+            {
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                using var queue = new EventMonitoredItemQueue(false, 1, telemetry);
+                queue.SetQueueSize(10, true);
+                using var handler = new EventQueueHandler(queue, true, telemetry);
+                handler.QueueEvent(NewEvent(0));
+
+                int frames = 0;
+                handler.TransformQueuedEvents(fields =>
+                {
+                    frames = new StackTrace(false).FrameCount;
+                    return NewEvent(fields.EventFields[0].GetInt32() + 1);
+                });
+                for (int ii = 1; ii < transforms; ii++)
+                {
+                    handler.TransformQueuedEvents(fields => NewEvent(fields.EventFields[0].GetInt32() + 1));
+                }
+
+                var notifications = new Queue<EventFieldList>();
+                handler.Publish(null!, notifications, 10);
+                value = notifications.Single().EventFields[0].GetInt32();
+                return frames;
+            }
         }
 
         /// <summary>

@@ -1523,6 +1523,16 @@ namespace Opc.Ua.Client
             Certificate? serverCertificate = null;
             ByteString certificateData = m_endpoint.Description.ServerCertificate;
 
+            if (certificateData.Length == 0 &&
+                requireEncryption &&
+                identity.TokenType is UserTokenType.UserName or UserTokenType.IssuedToken)
+            {
+                // an encrypted user token needs a validated server certificate.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The endpoint provides no server certificate to protect the user identity token.");
+            }
+
             if (certificateData.Length > 0)
             {
                 using CertificateCollection serverCertificateChain = Utils.ParseCertificateChainBlob(
@@ -3128,6 +3138,7 @@ namespace Opc.Ua.Client
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
+            typeId = ToLocalTypeId(typeId);
             await FetchTypeTreeAsync(typeId, [typeId], ct)
                 .ConfigureAwait(false);
         }
@@ -3138,13 +3149,29 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
+            typeIds = typeIds.ConvertAll(ToLocalTypeId);
             var visited = new HashSet<ExpandedNodeId>();
             foreach (ExpandedNodeId typeId in typeIds)
             {
                 visited.Add(typeId);
             }
 
-            await FetchTypeTreeAsync(typeIds, visited, ct).ConfigureAwait(false);
+            await FetchTypeTreeAsync(typeIds, visited, 0, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The form of a type id that the node cache returns for the node: a
+        /// namespace URI of this server is replaced by its index, so the
+        /// visited set of a type tree walk recognizes the node again.
+        /// </summary>
+        private ExpandedNodeId ToLocalTypeId(ExpandedNodeId typeId)
+        {
+            if (typeId.NamespaceUri == null || typeId.ServerIndex != 0)
+            {
+                return typeId;
+            }
+            NodeId nodeId = ExpandedNodeId.ToNodeId(typeId, NamespaceUris);
+            return nodeId.IsNull ? typeId : nodeId;
         }
 
         private async Task FetchTypeTreeAsync(
@@ -3160,49 +3187,85 @@ namespace Opc.Ua.Client
             var subTypes = new List<ExpandedNodeId>();
             foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
             {
-                if (visited.Add(reference.TargetId))
+                ExpandedNodeId targetId = ToLocalTypeId(reference.TargetId);
+                if (visited.Add(targetId))
                 {
-                    subTypes.Add(reference.TargetId);
+                    subTypes.Add(targetId);
                 }
             }
 
             if (subTypes.Count > 0)
             {
-                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
+                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, 1, ct).ConfigureAwait(false);
             }
         }
 
+        /// <summary>
+        /// Fetches the subtypes below <paramref name="typeIds"/>, which are
+        /// <paramref name="depth"/> levels below the type the walk started at.
+        /// </summary>
         private async Task FetchTypeTreeAsync(
             ArrayOf<ExpandedNodeId> typeIds,
             HashSet<ExpandedNodeId> visited,
+            int depth,
             CancellationToken ct)
         {
-            ct.ThrowIfCancellationRequested();
+            // Two levels of subtypes per pass, iteratively: the depth of the
+            // type tree is chosen by the server.
             ArrayOf<NodeId> referenceTypeIds = [ReferenceTypeIds.HasSubtype];
-            ArrayOf<INode> nodes = await NodeCache
-                .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
-                .ConfigureAwait(false);
-            foreach (INode node in nodes)
+            for (; ; depth += 2)
             {
-                visited.Add(node.NodeId);
-            }
-            var subTypes = new List<ExpandedNodeId>();
-            foreach (INode inode in nodes)
-            {
-                if (inode is Node node)
+                ct.ThrowIfCancellationRequested();
+                ArrayOf<INode> nodes = await NodeCache
+                    .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
+                    .ConfigureAwait(false);
+                // Only types not visited before lie beyond the limit; a
+                // reference back to a visited type ends the walk there.
+                int newTypes = 0;
+                foreach (INode node in nodes)
                 {
-                    foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+                    if (visited.Add(ToLocalTypeId(node.NodeId)))
                     {
-                        if (visited.Add(reference.TargetId))
+                        newTypes++;
+                    }
+                }
+                ThrowIfDeeperThanTypeHierarchyLimit(newTypes, depth + 1);
+                var subTypes = new List<ExpandedNodeId>();
+                foreach (INode inode in nodes)
+                {
+                    if (inode is Node node)
+                    {
+                        foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                         {
-                            subTypes.Add(reference.TargetId);
+                            ExpandedNodeId targetId = ToLocalTypeId(reference.TargetId);
+                            if (visited.Add(targetId))
+                            {
+                                subTypes.Add(targetId);
+                            }
                         }
                     }
                 }
+                if (subTypes.Count == 0)
+                {
+                    return;
+                }
+                ThrowIfDeeperThanTypeHierarchyLimit(subTypes.Count, depth + 2);
+                typeIds = subTypes.ToArrayOf();
             }
-            if (subTypes.Count > 0)
+        }
+
+        /// <summary>
+        /// Fails when types were found at a level below the type hierarchy limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void ThrowIfDeeperThanTypeHierarchyLimit(int count, int level)
+        {
+            if (count > 0 && level > Client.NodeCache.MaxTypeHierarchyDepth)
             {
-                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadQueryTooComplex,
+                    "The type tree is deeper than {0} levels.",
+                    Client.NodeCache.MaxTypeHierarchyDepth);
             }
         }
 
@@ -4585,11 +4648,20 @@ namespace Opc.Ua.Client
                 SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
                 EndpointDescription endpoint = m_endpoint.Description;
 
-                // check that the user identity is supported by the endpoint.
-                UserTokenPolicy? identityPolicy = endpoint.FindUserTokenPolicy(
-                    m_identity.TokenType,
-                    m_identity.IssuedTokenType,
-                    m_userTokenSecurityPolicyUri ?? endpoint.SecurityPolicyUri!);
+                // check that the user identity is supported by the endpoint. The
+                // stored token policy is the normalized URI, so prefer the policy
+                // that resolves to it over a lookup by the advertised string.
+                UserTokenPolicy? identityPolicy = (m_userTokenSecurityPolicyUri != null
+                    ? FindUserTokenPolicyByEffectivePolicy(
+                        endpoint,
+                        m_identity,
+                        m_userTokenSecurityPolicyUri,
+                        m_securityPolicies)
+                    : null) ??
+                    endpoint.FindUserTokenPolicy(
+                        m_identity.TokenType,
+                        m_identity.IssuedTokenType,
+                        m_userTokenSecurityPolicyUri ?? endpoint.SecurityPolicyUri!);
 
                 if (identityPolicy == null)
                 {
@@ -6169,7 +6241,25 @@ namespace Opc.Ua.Client
 
             if (identity.TokenType != UserTokenType.IssuedToken)
             {
-                return effectivePolicyUri;
+                // The server supplies the token policy string. Resolve names and
+                // aliases to the canonical policy URI so that every later compare
+                // (unencrypted token guard, certificate validation, encryption)
+                // sees the same value. An unknown policy cannot protect a token.
+                SecurityPolicyInfo? info = securityPolicies.GetInfo(effectivePolicyUri);
+                if (info != null)
+                {
+                    return info.Uri;
+                }
+
+                if (identity.TokenType == UserTokenType.Anonymous)
+                {
+                    return effectivePolicyUri;
+                }
+
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The user token security policy '{0}' is not supported.",
+                    effectivePolicyUri);
             }
 
             string? identityProfileUri = identity.IssuedTokenType?.Namespace;
@@ -6203,7 +6293,53 @@ namespace Opc.Ua.Client
                     "An IssuedToken without token encryption requires a SignAndEncrypt channel.");
             }
 
-            return effectivePolicyUri;
+            return tokenSecurityPolicy.Uri;
+        }
+
+        /// <summary>
+        /// Finds the user token policy for the identity whose security policy,
+        /// resolved like <see cref="ValidateIssuedTokenPolicy"/> resolves it,
+        /// is <paramref name="effectivePolicyUri"/>. A policy with the
+        /// identity's policy id is preferred.
+        /// </summary>
+        internal static UserTokenPolicy? FindUserTokenPolicyByEffectivePolicy(
+            EndpointDescription endpoint,
+            IUserIdentity identity,
+            string effectivePolicyUri,
+            ISecurityPolicyRegistry securityPolicies)
+        {
+            string channelPolicyUri = endpoint.SecurityPolicyUri ?? SecurityPolicies.None;
+            string? issuedTokenType = identity.IssuedTokenType?.Namespace;
+            string? policyId = identity.TokenHandler.Token.PolicyId;
+            UserTokenPolicy? match = null;
+            foreach (UserTokenPolicy policy in endpoint.UserIdentityTokens)
+            {
+                if (policy == null ||
+                    policy.TokenType != identity.TokenType ||
+                    (identity.TokenType == UserTokenType.IssuedToken &&
+                        !string.Equals(policy.IssuedTokenType, issuedTokenType, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                string policyUri = string.IsNullOrEmpty(policy.SecurityPolicyUri)
+                    ? channelPolicyUri
+                    : policy.SecurityPolicyUri!;
+                if (securityPolicies.GetInfo(policyUri)?.Uri != effectivePolicyUri)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(policyId) &&
+                    string.Equals(policy.PolicyId, policyId, StringComparison.Ordinal))
+                {
+                    return policy;
+                }
+
+                match ??= policy;
+            }
+
+            return match;
         }
 
         /// <summary>
@@ -6268,14 +6404,11 @@ namespace Opc.Ua.Client
 
             EnsureUnencryptedUserNameTokenAllowed(identity, effectiveTokenPolicyUri);
 
-            requireEncryption = securityPolicyUri != SecurityPolicies.None;
-
-            if (!requireEncryption)
-            {
-                requireEncryption =
-                    identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
-                    !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
-            }
+            // the effective token policy is the normalized token policy URI, or
+            // the channel policy when the token policy is empty.
+            requireEncryption =
+                securityPolicyUri != SecurityPolicies.None ||
+                effectiveTokenPolicyUri != SecurityPolicies.None;
         }
 
         /// <summary>

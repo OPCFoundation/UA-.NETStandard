@@ -161,8 +161,7 @@ namespace Opc.Ua
         {
             m_inner.NamespaceIdx = namespaceIndex;
             m_inner.Type = (byte)IdType.String;
-            m_inner.Numeric = string.IsNullOrEmpty(value) ? 0u :
-                (uint)value.GetHashCode(StringComparison.Ordinal);
+            m_inner.Numeric = HashStringIdentifier(value);
             m_identifier = value;
         }
 
@@ -174,8 +173,7 @@ namespace Opc.Ua
         {
             m_inner.NamespaceIdx = 0;
             m_inner.Type = (byte)IdType.Guid;
-            m_inner.Numeric =
-                value == Guid.Empty ? 0u : (uint)value.GetHashCode();
+            m_inner.Numeric = HashGuidIdentifier(value);
             m_identifier = value;
         }
 
@@ -189,8 +187,7 @@ namespace Opc.Ua
         {
             m_inner.NamespaceIdx = namespaceIndex;
             m_inner.Type = (byte)IdType.Guid;
-            m_inner.Numeric =
-                value == Guid.Empty ? 0u : (uint)value.GetHashCode();
+            m_inner.Numeric = HashGuidIdentifier(value);
             m_identifier = value;
         }
 
@@ -270,6 +267,53 @@ namespace Opc.Ua
         {
             m_identifier = identifier;
             m_inner = inner;
+        }
+
+        /// <summary>
+        /// Hashes a String identifier with a per-process random seed.
+        /// </summary>
+        /// <remarks>
+        /// Dictionaries keyed by NodeId bucket on this hash, and String
+        /// identifiers are chosen by clients. On .NET the ordinal string hash
+        /// is already randomized per process; on .NET Framework it is not, so
+        /// the seeded Marvin hash used for ByteStrings replaces it there.
+        /// </remarks>
+        private static uint HashStringIdentifier(string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return 0u;
+            }
+#if NET
+            return (uint)value.GetHashCode(StringComparison.Ordinal);
+#else
+            return (uint)ReadOnlySpan.ComputeHash32(
+                System.Runtime.InteropServices.MemoryMarshal.AsBytes(value.AsSpan()));
+#endif
+        }
+
+        /// <summary>
+        /// Hashes a Guid identifier with a per-process random seed.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Guid.GetHashCode"/> is an unseeded XOR of the Guid's
+        /// words, so a client can choose any number of distinct Guid NodeIds
+        /// with one hash code and turn every dictionary keyed by them into a
+        /// linear list. The seeded Marvin hash cannot be targeted that way.
+        /// </remarks>
+        private static uint HashGuidIdentifier(Guid value)
+        {
+            if (value == Guid.Empty)
+            {
+                return 0u;
+            }
+            Span<byte> bytes = stackalloc byte[16];
+#if NET8_0_OR_GREATER
+            System.Runtime.InteropServices.MemoryMarshal.Write(bytes, in value);
+#else
+            System.Runtime.InteropServices.MemoryMarshal.Write(bytes, ref value);
+#endif
+            return (uint)ReadOnlySpan.ComputeHash32(bytes);
         }
 
         /// <summary>
