@@ -58,9 +58,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
+        uses: ./.github/actions/setup-repository-dotnet
 
       # ---------------------------------------------------------------- node-opcua
       - name: Setup Node.js

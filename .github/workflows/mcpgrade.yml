@@ -36,9 +36,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET 10
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+      uses: ./.github/actions/setup-repository-dotnet
 
     - name: Setup Node.js
       uses: actions/setup-node@v7

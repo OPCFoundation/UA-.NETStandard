@@ -61,9 +61,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+    - uses: ./.github/actions/setup-repository-dotnet
     - name: Run artifact validation unit tests with NUnit
       if: matrix.tfm == 'net10.0'
       shell: pwsh
@@ -91,9 +89,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+    - uses: ./.github/actions/setup-repository-dotnet
     - name: Build the desktop regression harness
       shell: pwsh
       run: |
@@ -143,9 +139,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+    - uses: ./.github/actions/setup-repository-dotnet
     - name: Linux native compiler and desktop prerequisites
       if: runner.os == 'Linux'
       run: |
@@ -190,9 +184,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+    - uses: ./.github/actions/setup-repository-dotnet
     - name: Restore and pack managed tool (never reuse native output)
       shell: pwsh
       run: |
@@ -231,9 +223,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+    - uses: ./.github/actions/setup-repository-dotnet
     - uses: actions/download-artifact@v8
       with:
         name: ualens-managed-packages

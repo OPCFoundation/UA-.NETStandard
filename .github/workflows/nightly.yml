@@ -108,14 +108,23 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
+    - name: Setup repository .NET SDK
+      uses: ./.github/actions/setup-repository-dotnet
       with:
         dotnet-version: ${{ matrix.entry.dotnet }}
 
     - name: Set cloud version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
+
+    # Only UA.slnx contains the Aspire AppHost, which imports the Aspire SDK
+    # when CustomTestTarget is empty or net10.0.
+    - name: Install the Aspire CLI bundle
+      if: >-
+        ${{ matrix.entry.solution == 'UA.slnx' &&
+            (matrix.entry.customTestTarget == 'net10.0' || matrix.entry.customTestTarget == '') }}
+      shell: pwsh
+      run: ./.github/scripts/install-aspire-bundle.ps1
 
     - name: Build ${{ matrix.entry.solution }} (${{ matrix.entry.customTestTarget }})
       shell: pwsh
@@ -179,9 +188,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+      uses: ./.github/actions/setup-repository-dotnet
 
     - name: Set cloud version
       shell: pwsh
@@ -274,9 +281,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+      uses: ./.github/actions/setup-repository-dotnet
 
     - name: Download test results
       uses: actions/download-artifact@v8

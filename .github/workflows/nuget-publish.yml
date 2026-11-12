@@ -126,9 +126,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup .NET 10.0
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
+        uses: ./.github/actions/setup-repository-dotnet
 
       - name: Decode strong-name key
         shell: pwsh
@@ -477,9 +475,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup .NET 10.0
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
+        uses: ./.github/actions/setup-repository-dotnet
 
       - name: Download signed package sets
         uses: actions/download-artifact@v8

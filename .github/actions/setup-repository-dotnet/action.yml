@@ -1,0 +1,55 @@
+name: Setup repository .NET SDK
+description: >-
+  Installs the exact .NET SDK pinned in global.json, plus any additional SDKs
+  the job needs, into a job-private directory and verifies that the build
+  resolves the pinned version. global.json rolls forward to the latest major
+  SDK for contributors; runner images preinstall newer SDKs into the default
+  directory, which that policy would otherwise select on CI. See
+  .github/scripts/select-repository-sdk.ps1.
+
+inputs:
+  dotnet-version:
+    description: >-
+      Newline-separated additional .NET SDK versions, for example the 8.0.x and
+      9.0.x SDKs whose runtimes older target frameworks execute on. The
+      global.json SDK is always installed and always selected.
+    required: false
+    default: ''
+
+outputs:
+  sdk:
+    description: The exact .NET SDK version the job builds with.
+    value: ${{ steps.select.outputs.sdk }}
+
+runs:
+  using: composite
+  steps:
+  - name: Select the repository .NET SDK
+    id: select
+    shell: pwsh
+    env:
+      ADDITIONAL_SDKS: ${{ inputs.dotnet-version }}
+    run: ./.github/scripts/select-repository-sdk.ps1 -AdditionalSdks $env:ADDITIONAL_SDKS
+
+  - name: Install .NET SDKs
+    uses: actions/setup-dotnet@v6
+    with:
+      dotnet-version: ${{ steps.select.outputs.versions }}
+
+  - name: Verify the repository .NET SDK
+    shell: pwsh
+    env:
+      EXPECTED_SDK: ${{ steps.select.outputs.sdk }}
+    run: |
+      $dotnet = (Get-Command dotnet).Source
+      dotnet --list-sdks
+      $actual = (dotnet --version | Out-String).Trim()
+      if ($actual -cne $env:EXPECTED_SDK) {
+          Write-Host "::error::'$dotnet' selected .NET SDK '$actual' instead of the global.json SDK '$($env:EXPECTED_SDK)'."
+          exit 1
+      }
+      if (-not $dotnet.StartsWith($env:DOTNET_INSTALL_DIR, [StringComparison]::OrdinalIgnoreCase)) {
+          Write-Host "::error::'$dotnet' is not the job-private installation in '$($env:DOTNET_INSTALL_DIR)'."
+          exit 1
+      }
+      Write-Host "Using .NET SDK $actual from '$dotnet'."
