@@ -638,6 +638,10 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void UpdateChannelLastActiveTime(string globalChannelId)
         {
+            if (globalChannelId == null)
+            {
+                return;
+            }
             foreach (TcpListenerChannel channel in m_wssChannels.Values)
             {
                 if (channel.GlobalChannelId == globalChannelId)
@@ -2352,10 +2356,11 @@ namespace Opc.Ua.Bindings
                         channel.IdleCleanup();
                         break;
                     }
-                    if (!m_reverseConnectListener && channel.ElapsedSinceLastActiveTime > lifetime)
+                    if (!m_reverseConnectListener &&
+                        channel.ElapsedSinceLastActiveTime > lifetime &&
+                        channel.TryIdleCleanupForInactivity(lifetime))
                     {
                         m_logger.WssChannelInactive(channel.Id);
-                        channel.IdleCleanup();
                         break;
                     }
                 }
@@ -2475,6 +2480,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
+                using TcpListenerChannel.PendingRequestScope usage = channel.TrackPendingRequest();
                 var context = new SecureChannelContext(
                     channel.GlobalChannelId,
                     channel.EndpointDescription,

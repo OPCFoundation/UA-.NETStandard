@@ -39,6 +39,7 @@ using System.Net.WebSockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 
@@ -46,6 +47,86 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     public sealed partial class RealHttpsListenerIntegrationTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(20000)]
+        public async Task BinaryPendingRequestSurvivesInactivityAndAdmissionAsync(
+            bool testInactivity,
+            CancellationToken ct)
+        {
+            var clock = new ObservedTimeProvider();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var callback = new StubTransportListenerCallback
+            {
+                BeforeResponseAsync = async (_, token) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                }
+            };
+            Certificate certificate = CreateServerCertificate();
+            string thumbprint = certificate.Thumbprint;
+            using var registry = new InMemoryCertificateRegistry(certificate);
+            certificate.Dispose();
+            (HttpsTransportListener listener, int port) = await OpenListenerOnFreePortAsync(
+                () => new HttpsTransportListener(Utils.UriSchemeWss, m_telemetry!) { TimeProvider = clock },
+                p =>
+                {
+                    TransportListenerSettings settings = CreateListenerSettings(registry, p);
+                    settings.MaxChannelCount = 1;
+                    settings.Configuration!.ChannelLifetime = 1000;
+                    return settings;
+                },
+                callback).ConfigureAwait(false);
+            try
+            {
+                var endpoint = new Uri($"wss://127.0.0.1:{port}/");
+                using var socket = new ClientWebSocket();
+                socket.Options.RemoteCertificateValidationCallback =
+                    (_, remote, _, _) => remote?.GetCertHashString() == thumbprint;
+                socket.Options.AddSubProtocol(Profiles.OpcUaWsSubProtocolUacp);
+                await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
+                var peer = new UacpPeer(socket, endpoint, 65535, m_telemetry!);
+                await peer.OpenAsync(ct).ConfigureAwait(false);
+                await peer.SendReadRequestsAsync(1, ct).ConfigureAwait(false);
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+
+                if (testInactivity)
+                {
+                    clock.Advance(TimeSpan.FromMilliseconds(1500));
+                    await clock.SecondMonitorDelay.Task.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+                    Assert.That(GetWssChannels(listener), Has.Count.EqualTo(1));
+                }
+                else
+                {
+                    using var handler = new HttpClientHandler
+                    {
+                        ServerCertificateCustomValidationCallback =
+                            (_, remote, _, _) => remote?.Thumbprint == thumbprint
+                    };
+                    using var client = new HttpClient(handler);
+                    await Assert.ThrowsAsync<HttpRequestException>(async () =>
+                    {
+                        using HttpResponseMessage response = await client.GetAsync(
+                            new Uri($"https://127.0.0.1:{port}/"), ct).ConfigureAwait(false);
+                    });
+                    Assert.That(GetWssChannels(listener), Has.Count.EqualTo(1));
+                }
+                release.TrySetResult(true);
+                byte[] result = await peer.ReceiveAsync(ct).ConfigureAwait(false);
+                Assert.That(
+                    BinaryPrimitives.ReadUInt32LittleEndian(result) & TcpMessageType.MessageTypeMask,
+                    Is.EqualTo(TcpMessageType.Message));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await listener.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                await listener.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Silent WebSockets release physical capacity on admission pressure or after the channel lifetime, including
         /// binary channels whose secure-channel handshake has already completed.
@@ -229,6 +310,38 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             FieldInfo field = typeof(HttpsTransportListener).GetField(
                 "m_wssChannels", BindingFlags.NonPublic | BindingFlags.Instance)!;
             return (ConcurrentDictionary<uint, TcpListenerChannel>)field.GetValue(listener)!;
+        }
+
+        /// <summary>
+        /// Signals when the binary idle monitor schedules its next half-lifetime check.
+        /// </summary>
+        private sealed class ObservedTimeProvider : TimeProvider
+        {
+            public TaskCompletionSource<bool> SecondMonitorDelay { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public override long TimestampFrequency => m_clock.TimestampFrequency;
+
+            public override DateTimeOffset GetUtcNow() => m_clock.GetUtcNow();
+
+            public override long GetTimestamp() => m_clock.GetTimestamp();
+
+            public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+            {
+                ITimer timer = m_clock.CreateTimer(callback, state, dueTime, period);
+                if (dueTime == TimeSpan.FromMilliseconds(500) &&
+                    period == Timeout.InfiniteTimeSpan &&
+                    Interlocked.Increment(ref m_monitorDelays) == 2)
+                {
+                    SecondMonitorDelay.TrySetResult(true);
+                }
+                return timer;
+            }
+
+            public void Advance(TimeSpan amount) => m_clock.Advance(amount);
+
+            private readonly FakeTimeProvider m_clock = new(DateTimeOffset.UtcNow);
+            private int m_monitorDelays;
         }
 
         /// <summary>

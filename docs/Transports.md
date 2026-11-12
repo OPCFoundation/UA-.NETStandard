@@ -200,9 +200,10 @@ The HTTPS listener also applies this inactivity sweep to binary WebSocket
 channels. JSON WebSocket connections (`opcua+uajson` and `opcua+openapi`,
 including bearer-token variants) have the same idle limit when `ChannelLifetime`
 is positive. Partial messages and WebSocket control frames do not extend that
-deadline. In-flight JSON requests, including Publish long polls, are protected
-until their responses finish. Each JSON connection has a distinct channel
-identity, so session keepalives refresh only their own connection.
+deadline. In-flight binary and JSON requests, including Publish long polls, and
+queued binary writes are protected from inactivity until their responses are
+sent. Stalled writers still time out. Each JSON connection has a distinct
+channel identity, so session keepalives refresh only their own connection.
 
 When forward HTTPS/WSS admission reaches `MaxChannelCount` or aggregate
 connection capacity, it can reclaim an unused WebSocket without a committed
