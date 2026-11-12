@@ -47,6 +47,83 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     public sealed partial class RealHttpsListenerIntegrationTests
     {
         /// <summary>
+        /// Silent WebSockets release physical capacity on admission pressure or after the channel lifetime, including
+        /// binary channels whose secure-channel handshake has already completed.
+        /// </summary>
+        [TestCase(Profiles.OpcUaWsSubProtocolUacp, false)]
+        [TestCase(Profiles.OpcUaWsSubProtocolUaJson, false)]
+        [TestCase(Profiles.OpcUaWsSubProtocolOpenApi, false)]
+        [TestCase(Profiles.OpcUaWsSubProtocolUacp, true)]
+        [TestCase(Profiles.OpcUaWsSubProtocolUaJson, true)]
+        [TestCase(Profiles.OpcUaWsSubProtocolOpenApi, true)]
+        [CancelAfter(20000)]
+        public async Task SilentWebSocketReturnsConnectionCapacityAsync(
+            string subProtocol,
+            bool reclaimOnAdmission,
+            CancellationToken ct)
+        {
+            Certificate certificate = CreateServerCertificate();
+            string serverThumbprint = certificate.Thumbprint;
+            using var certificateRegistry = new InMemoryCertificateRegistry(certificate);
+            certificate.Dispose();
+            (HttpsTransportListener listener, int port) = await OpenListenerOnFreePortAsync(
+                () => (HttpsTransportListener)new HttpsTransportListenerFactory().Create(m_telemetry!),
+                p =>
+                {
+                    TransportListenerSettings settings = CreateListenerSettings(certificateRegistry, p);
+                    settings.MaxChannelCount = 1;
+                    settings.Configuration!.ChannelLifetime = reclaimOnAdmission ? 60000 : 1000;
+                    return settings;
+                },
+                m_callback!).ConfigureAwait(false);
+            try
+            {
+                var endpointUrl = new Uri($"wss://127.0.0.1:{port}/");
+                using var webSocket = new ClientWebSocket();
+                webSocket.Options.RemoteCertificateValidationCallback =
+                    (_, remote, _, _) => remote?.GetCertHashString() == serverThumbprint;
+                webSocket.Options.AddSubProtocol(subProtocol);
+                await webSocket.ConnectAsync(endpointUrl, ct).ConfigureAwait(false);
+                if (subProtocol == Profiles.OpcUaWsSubProtocolUacp)
+                {
+                    var peer = new UacpPeer(webSocket, endpointUrl, 65535, m_telemetry!);
+                    await peer.OpenAsync(ct).ConfigureAwait(false);
+                }
+
+                var upgrades = (System.Collections.IDictionary)
+                    typeof(HttpsTransportListener).GetField(
+                        "m_activeUpgrades", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(listener)!;
+                Assert.That(upgrades, Has.Count.EqualTo(1));
+                using var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback =
+                        (_, remote, _, _) => remote?.Thumbprint == serverThumbprint
+                };
+                using var client = new HttpClient(handler);
+                var httpsUrl = new Uri($"https://127.0.0.1:{port}/");
+                if (reclaimOnAdmission)
+                {
+                    using HttpResponseMessage admitted = await client.GetAsync(httpsUrl, ct).ConfigureAwait(false);
+                    Assert.That(admitted.StatusCode, Is.EqualTo(HttpStatusCode.MethodNotAllowed));
+                }
+                DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+                while (upgrades.Count != 0 && DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(25, ct).ConfigureAwait(false);
+                }
+                Assert.That(upgrades, Is.Empty, "the silent WebSocket retained the only connection slot");
+
+                using HttpResponseMessage response = await client.GetAsync(httpsUrl, ct).ConfigureAwait(false);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.MethodNotAllowed));
+            }
+            finally
+            {
+                await listener.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                await listener.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// A binary WebSocket peer that pipelines requests and stops reading keeps a send
         /// of the server waiting, and every queued response with it. Like the TCP
         /// listeners, the HTTPS listener closes such a channel once its send waited longer

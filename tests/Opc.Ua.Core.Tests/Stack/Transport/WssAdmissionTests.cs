@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Reflection;
@@ -53,6 +54,153 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [NonParallelizable]
     public sealed class WssAdmissionTests
     {
+        /// <summary>
+        /// Session membership prevents pressure-based JSON eviction, and server keepalives refresh
+        /// only that connection's idle deadline.
+        /// </summary>
+        [TestCase(Profiles.OpcUaWsSubProtocolUaJson)]
+        [TestCase(Profiles.OpcUaWsSubProtocolOpenApi)]
+        public async Task JsonSessionKeepaliveAndAdmissionProtectionUseConnectionIdentityAsync(string subProtocol)
+        {
+            var clock = new FakeTimeProvider();
+            var bindings = new Mock<IServerSessionBindingProvider>();
+            await using HttpsTransportListener listener = CreateListener(
+                clock: clock, channelLifetime: 1000, sessionBindings: bindings.Object);
+            using var request = new UpgradeRequest();
+            request.Context.Request.Headers["Sec-WebSocket-Protocol"] = subProtocol;
+            Task handler = listener.AcceptWebSocketAsync(request.Context);
+            try
+            {
+                await request.ReceiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                var activities = (System.Collections.IDictionary)typeof(HttpsTransportListener)
+                    .GetField("m_jsonWebSocketActivity", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(listener)!;
+                string channelId = activities.Keys.Cast<string>().Single();
+                Assert.That(channelId, Is.Not.EqualTo(listener.ListenerId));
+                bindings.Setup(value => value.HasSession(channelId)).Returns(true);
+
+                using var rejected = new UpgradeRequest();
+                await listener.AcceptWebSocketAsync(rejected.Context).ConfigureAwait(false);
+                Assert.That(rejected.UpgradeCalls, Is.Zero);
+                Assert.That(rejected.Context.Response.StatusCode, Is.EqualTo(503));
+                bindings.Verify(value => value.HasSession(channelId), Times.Once);
+
+                clock.Advance(TimeSpan.FromMilliseconds(1000));
+                listener.UpdateChannelLastActiveTime(channelId);
+                clock.Advance(TimeSpan.FromMilliseconds(500));
+                Assert.That(handler.IsCompleted, Is.False);
+                Assert.That(request.Context.RequestAborted.IsCancellationRequested, Is.False);
+
+                bindings.Setup(value => value.HasSession(channelId)).Returns(false);
+                using var replacement = new UpgradeRequest();
+                Task replacementHandler = listener.AcceptWebSocketAsync(replacement.Context);
+                try
+                {
+                    await replacement.ReceiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(replacement.UpgradeCalls, Is.EqualTo(1));
+                }
+                finally
+                {
+                    replacement.Context.Abort();
+                    await replacementHandler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                request.Context.Abort();
+                await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// JSON silence and unfinished frames have a fixed channel-lifetime deadline, not a
+        /// WebSocket keepalive or a completed-upgrade lifetime.
+        /// </summary>
+        [TestCase(Profiles.OpcUaWsSubProtocolUaJson, false)]
+        [TestCase(Profiles.OpcUaWsSubProtocolOpenApi, false)]
+        [TestCase(Profiles.OpcUaWsSubProtocolUaJson, true)]
+        [TestCase(Profiles.OpcUaWsSubProtocolOpenApi, true)]
+        public async Task JsonWebSocketIdleDeadlineIncludesPartialMessagesAsync(string subProtocol, bool partial)
+        {
+            var provider = new CountingIsolationProvider(connectionLimit: long.MaxValue, ownerLimit: long.MaxValue);
+            var clock = new FakeTimeProvider();
+            await using HttpsTransportListener listener = CreateListener(
+                provider: provider, clock: clock, channelLifetime: 1000);
+            using var request = new UpgradeRequest(partial ? [123] : null, frameCompleted: false);
+            request.Context.Request.Headers["Sec-WebSocket-Protocol"] = subProtocol;
+            Task handler = listener.AcceptWebSocketAsync(request.Context);
+            try
+            {
+                await request.ReceiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+                clock.Advance(TimeSpan.FromMilliseconds(1000));
+                Assert.That(handler.IsCompleted, Is.False);
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                clock.Advance(TimeSpan.FromMilliseconds(500));
+                await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+                request.Socket.Verify(value => value.Abort(), Times.Once);
+                await AssertHealthyUpgradeAsync(listener).ConfigureAwait(false);
+            }
+            finally
+            {
+                request.Context.Abort();
+                await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// In-flight JSON requests, including concurrent OpenAPI long polls, are not idle and
+        /// cannot be evicted to admit another physical connection.
+        /// </summary>
+        [TestCase(Profiles.OpcUaWsSubProtocolUaJson)]
+        [TestCase(Profiles.OpcUaWsSubProtocolOpenApi)]
+        public async Task JsonPendingRequestSurvivesIdleDeadlineAndAdmissionPressureAsync(string subProtocol)
+        {
+            var clock = new FakeTimeProvider();
+            await using HttpsTransportListener listener = CreateListener(clock: clock, channelLifetime: 1000);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<IServiceResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ProcessRequestAsync(
+                It.IsAny<SecureChannelContext>(), It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    entered.TrySetResult(true);
+                    return new ValueTask<IServiceResponse>(release.Task);
+                });
+            SetField(listener, "m_callback", callback.Object);
+            using var stream = new MemoryStream();
+            IServiceMessageContext messageContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            using (var encoder = new JsonEncoder(stream, messageContext, JsonEncoderOptions.Compact))
+            {
+                var discovery = new FindServersRequest();
+                encoder.EncodeMessage(discovery, discovery.TypeId);
+            }
+            using var request = new UpgradeRequest(stream.ToArray());
+            request.Context.Request.Headers["Sec-WebSocket-Protocol"] = subProtocol;
+            Task handler = listener.AcceptWebSocketAsync(request.Context);
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromSeconds(10));
+                Assert.That(handler.IsCompleted, Is.False);
+                using var rejected = new UpgradeRequest();
+                await listener.AcceptWebSocketAsync(rejected.Context).ConfigureAwait(false);
+                Assert.That(rejected.UpgradeCalls, Is.Zero);
+                Assert.That(rejected.Context.Response.StatusCode, Is.EqualTo(503));
+                Assert.That(request.Context.RequestAborted.IsCancellationRequested, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(new FindServersResponse());
+                request.Context.Abort();
+                await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task AcceptedReverseHelloAllowsPausedHandoffWithoutReleasingConnectionAsync(bool stopListener)
@@ -389,15 +537,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             IConnectionRateLimiter? limiter = null,
             bool reverse = false,
             IServerResourceIsolationProvider? provider = null,
-            TimeProvider? clock = null)
+            TimeProvider? clock = null,
+            int channelLifetime = TcpMessageLimits.DefaultChannelLifetime,
+            IServerSessionBindingProvider? sessionBindings = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var listener = new HttpsTransportListener(Utils.UriSchemeWss, telemetry);
+            var listener = new HttpsTransportListener(Utils.UriSchemeWss, telemetry)
+            {
+                TimeProvider = clock ?? TimeProvider.System
+            };
             SetField(listener, "m_admission", new UaScConnectionAdmission(
                 1, limiter, provider, timeProvider: clock, limitPendingHandshakesOnly: reverse));
             SetField(listener, "m_quotas", new ChannelQuotas(ServiceMessageContext.Create(telemetry))
             {
-                ResourceIsolationProvider = provider
+                ResourceIsolationProvider = provider,
+                ChannelLifetime = channelLifetime,
+                SessionBindingProvider = sessionBindings
             });
             SetField(listener, "m_bufferManager", new BufferManager(DefaultBufferManagerFactory.Instance
                 .Create("wss-admission", 65536, telemetry)));
@@ -430,9 +585,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private sealed class UpgradeRequest : IDisposable
         {
-            public UpgradeRequest(byte[]? frame = null)
+            public UpgradeRequest(byte[]? frame = null, bool frameCompleted = true)
             {
                 m_frame = frame;
+                m_frameCompleted = frameCompleted;
                 Context = new DefaultHttpContext();
                 Context.Response.Body = new MemoryStream();
                 Context.Request.Headers["Sec-WebSocket-Protocol"] = Profiles.OpcUaWsSubProtocolUacp;
@@ -448,6 +604,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     .Returns(AcceptAsync);
                 Context.Features.Set(feature.Object);
                 Socket.SetupGet(value => value.State).Returns(WebSocketState.Open);
+                Socket.Setup(value => value.Abort()).Callback(() =>
+                {
+                    if (Context.Request.Headers["Sec-WebSocket-Protocol"] != Profiles.OpcUaWsSubProtocolUacp)
+                    {
+                        Socket.SetupGet(value => value.State).Returns(WebSocketState.Aborted);
+                        if (!m_aborted.IsCancellationRequested)
+                        {
+                            m_aborted.Cancel();
+                        }
+                    }
+                });
                 Socket.Setup(value => value.ReceiveAsync(
                     It.IsAny<ArraySegment<byte>>(), It.IsAny<CancellationToken>())).Returns(ReceiveAsync);
                 Socket.Setup(value => value.SendAsync(
@@ -492,13 +659,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             private async Task<WebSocketReceiveResult> ReceiveAsync(
                 ArraySegment<byte> buffer, CancellationToken ct)
             {
-                ReceiveEntered.TrySetResult(true);
                 byte[]? frame = Interlocked.Exchange(ref m_frame, null);
                 if (frame != null)
                 {
                     frame.CopyTo(buffer.Array!, buffer.Offset);
-                    return new WebSocketReceiveResult(frame.Length, WebSocketMessageType.Binary, true);
+                    return new WebSocketReceiveResult(frame.Length, WebSocketMessageType.Binary, m_frameCompleted);
                 }
+                ReceiveEntered.TrySetResult(true);
                 var pending = new TaskCompletionSource<WebSocketReceiveResult>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 using (ct.Register(() => pending.TrySetCanceled()))
@@ -509,6 +676,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             private readonly CancellationTokenSource m_aborted = new();
             private byte[]? m_frame;
+
+            /// <summary>
+            /// Whether the supplied test frame completes its message.
+            /// </summary>
+            private readonly bool m_frameCompleted;
         }
     }
 }
