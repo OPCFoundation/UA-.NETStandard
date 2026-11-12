@@ -828,94 +828,39 @@ namespace Opc.Ua.Gds.Server
                 if (certificateGroup != null)
                 {
                     using var x509 = Certificate.FromRawData(certificate);
-                    X509CRL? crl;
                     try
                     {
-                        crl = await certificateGroup
+                        X509CRL crl = await certificateGroup
                             .RevokeCertificateAsync(x509, cancellationToken)
                             .ConfigureAwait(false);
+                        if (crl != null)
+                        {
+                            revoked = true;
+
+                            // The new CRL is in the server's issuer store. Notify the
+                            // certificate manager so that it revalidates the open
+                            // SecureChannels and closes those that use the revoked
+                            // certificate.
+                            try
+                            {
+                                m_configuration.CertificateManager?.NotifyTrustListChanged(
+                                    TrustListIdentifier.Peers,
+                                    trustChanged: false,
+                                    crlChanged: true);
+                            }
+                            catch (Exception ex)
+                            {
+                                m_logger.RevocationNotificationFailed(ex, certificateGroup.Id);
+                            }
+                        }
                     }
                     catch (Exception e)
                     {
                         m_logger.UnexpectedErrorRevokingCertificate(e, x509.Subject, certificateGroup.Id);
-                        return false;
-                    }
-
-                    if (crl != null)
-                    {
-                        revoked = true;
-                        NotifyRevocationListChanged(
-                            TrustListIdentifier.Peers,
-                            certificateGroup);
-
-                        TrustListIdentifier? scopedTrustList =
-                            GetScopedTrustListIdentifier(certificateGroup);
-                        if (scopedTrustList != null)
-                        {
-                            try
-                            {
-                                if (await UpdateScopedIssuerCertificatesStoreAsync(
-                                    certificateGroup,
-                                    cancellationToken).ConfigureAwait(false))
-                                {
-                                    NotifyRevocationListChanged(
-                                        scopedTrustList,
-                                        certificateGroup);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                m_logger.RevocationScopeStoreUpdateFailed(
-                                    ex,
-                                    scopedTrustList.ToString(),
-                                    certificateGroup.Id);
-                                if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)
-                                {
-                                    throw;
-                                }
-                                throw new ServiceResultException(
-                                    StatusCodes.BadUnexpectedError,
-                                    $"The certificate was revoked, but the {scopedTrustList} issuer store could not be updated.",
-                                    ex);
-                            }
-                        }
                     }
                 }
             }
             return revoked;
-        }
-
-        /// <summary>
-        /// Tells the server's certificate manager that a revocation wrote a
-        /// new CRL into the trust stores that the server itself validates
-        /// against. The manager drops its cached validation state and raises
-        /// <see cref="CertificateChangeKind.CrlUpdated"/>, which drives the
-        /// trust-material enforcement of the configuration node manager:
-        /// SecureChannels and Sessions that present the revoked certificate
-        /// are revalidated and closed, instead of staying usable until they
-        /// are renewed.
-        /// </summary>
-        private void NotifyRevocationListChanged(
-            TrustListIdentifier scope,
-            ICertificateGroup certificateGroup)
-        {
-            ICertificateManager? certificateManager = m_configuration.CertificateManager;
-            if (certificateManager == null)
-            {
-                return;
-            }
-
-            try
-            {
-                certificateManager.NotifyTrustListChanged(
-                    scope,
-                    trustChanged: false,
-                    crlChanged: true);
-            }
-            catch (Exception ex)
-            {
-                m_logger.RevocationNotificationFailed(ex, scope.ToString(), certificateGroup.Id);
-            }
         }
 
         /// <summary>
@@ -1038,12 +983,10 @@ namespace Opc.Ua.Gds.Server
                     "BaseStorePath not specified");
             }
 
-            CertificateStoreIdentifier peerIssuerStore =
-                m_configuration.SecurityConfiguration.TrustedIssuerCertificates;
             ICertificateGroup certificateGroup = m_certificateGroupFactory.Create(
                 m_globalDiscoveryServerConfiguration.AuthoritiesStorePath!,
                 certificateGroupConfiguration,
-                peerIssuerStore.StorePath);
+                m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
 
             // Take ownership before the first call that can throw: InitAsync
             // opens certificate stores, so a group that fails half way through
@@ -1051,147 +994,8 @@ namespace Opc.Ua.Gds.Server
             m_ownedCertificateGroups.Add(certificateGroup);
 
             await certificateGroup.InitAsync().ConfigureAwait(false);
-            await UpdateScopedIssuerCertificatesStoreAsync(certificateGroup)
-                .ConfigureAwait(false);
 
             return certificateGroup;
-        }
-
-        private CertificateTrustList? GetScopedIssuerCertificatesStore(
-            CertificateGroupConfiguration certificateGroupConfiguration)
-        {
-            SecurityConfiguration securityConfiguration = m_configuration.SecurityConfiguration;
-            if (string.Equals(
-                certificateGroupConfiguration.Id,
-                "DefaultHttpsGroup",
-                StringComparison.OrdinalIgnoreCase))
-            {
-                return securityConfiguration.HttpsIssuerCertificates;
-            }
-            if (string.Equals(
-                certificateGroupConfiguration.Id,
-                "DefaultUserTokenGroup",
-                StringComparison.OrdinalIgnoreCase))
-            {
-                return securityConfiguration.UserIssuerCertificates;
-            }
-
-            return null;
-        }
-
-        private TrustListIdentifier? GetScopedTrustListIdentifier(ICertificateGroup certificateGroup)
-        {
-            if (certificateGroup.Id == m_defaultHttpsGroupId)
-            {
-                return TrustListIdentifier.Https;
-            }
-            if (certificateGroup.Id == m_defaultUserTokenGroupId)
-            {
-                return TrustListIdentifier.Users;
-            }
-
-            return null;
-        }
-
-        private async Task<bool> UpdateScopedIssuerCertificatesStoreAsync(
-            ICertificateGroup certificateGroup,
-            CancellationToken cancellationToken = default)
-        {
-            CertificateStoreIdentifier? scopedIssuerStoreIdentifier =
-                GetScopedIssuerCertificatesStore(certificateGroup.Configuration);
-            if (scopedIssuerStoreIdentifier == null ||
-                string.IsNullOrEmpty(scopedIssuerStoreIdentifier.StorePath))
-            {
-                return false;
-            }
-
-            CertificateStoreIdentifier peerIssuerStoreIdentifier =
-                m_configuration.SecurityConfiguration.TrustedIssuerCertificates;
-            if (IsSameStore(scopedIssuerStoreIdentifier, peerIssuerStoreIdentifier))
-            {
-                return true;
-            }
-
-            using ICertificateStore authorityStore = certificateGroup.AuthoritiesStore.OpenStore(Server.Telemetry);
-            using ICertificateStore scopedIssuerStore = OpenCertificateStore(scopedIssuerStoreIdentifier);
-            using CertificateCollection authorities = await authorityStore
-                .EnumerateAsync(cancellationToken)
-                .ConfigureAwait(false);
-            string authoritySubject = certificateGroup.Certificates.Values
-                .FirstOrDefault(static certificate => certificate != null)?.Subject
-                ?? certificateGroup.Configuration.SubjectName!
-                    .Replace("localhost", Utils.GetHostName(), StringComparison.Ordinal);
-
-            foreach (Certificate certificate in authorities)
-            {
-                if (!X509Utils.CompareDistinguishedName(
-                    certificate.Subject,
-                    authoritySubject))
-                {
-                    continue;
-                }
-
-                using CertificateCollection storedCertificates = await scopedIssuerStore
-                    .FindByThumbprintAsync(certificate.Thumbprint, cancellationToken)
-                    .ConfigureAwait(false);
-                if (storedCertificates.Count == 0)
-                {
-                    using var publicCertificate = Certificate.FromRawData(certificate.RawData);
-                    await scopedIssuerStore.AddAsync(publicCertificate, ct: cancellationToken)
-                        .ConfigureAwait(false);
-                }
-
-                foreach (X509CRL crl in await scopedIssuerStore
-                    .EnumerateCRLsAsync(certificate, false, cancellationToken)
-                    .ConfigureAwait(false))
-                {
-                    if (crl.VerifySignature(certificate, false))
-                    {
-                        await scopedIssuerStore.DeleteCRLAsync(crl, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                }
-
-                foreach (X509CRL crl in await authorityStore
-                    .EnumerateCRLsAsync(certificate, true, cancellationToken)
-                    .ConfigureAwait(false))
-                {
-                    await scopedIssuerStore.AddCRLAsync(crl, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-            }
-
-            return true;
-        }
-
-        private ICertificateStore OpenCertificateStore(CertificateStoreIdentifier storeIdentifier)
-        {
-            if (m_configuration.CertificateManager is ICertificateStoreResolver storeResolver)
-            {
-                return storeResolver.OpenCertificateStore(
-                    storeIdentifier.StorePath!,
-                    storeIdentifier.StoreType);
-            }
-
-            return storeIdentifier.OpenStore(Server.Telemetry);
-        }
-
-        private static bool IsSameStore(
-            CertificateStoreIdentifier first,
-            CertificateStoreIdentifier second)
-        {
-            return string.Equals(first.StorePath, second.StorePath, StringComparison.Ordinal) &&
-                string.Equals(
-                    ResolveStoreType(first),
-                    ResolveStoreType(second),
-                    StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static string ResolveStoreType(CertificateStoreIdentifier storeIdentifier)
-        {
-            return string.IsNullOrEmpty(storeIdentifier.StoreType)
-                ? CertificateStoreIdentifier.DetermineStoreType(storeIdentifier.StorePath!)
-                : storeIdentifier.StoreType;
         }
 
         /// <summary>
@@ -3914,19 +3718,10 @@ namespace Opc.Ua.Gds.Server
             [ApplicationIdentity] string? applicationUri);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 22, Level = LogLevel.Error,
-            Message = "Failed to notify the {TrustList} trust list of the revocation in certificate group {CertificateGroupId}.")]
+            Message = "Failed to notify the server of the revocation in certificate group {CertificateGroupId}.")]
         public static partial void RevocationNotificationFailed(
             this ILogger logger,
             Exception exception,
-            string trustList,
-            NodeId certificateGroupId);
-
-        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 23, Level = LogLevel.Error,
-            Message = "Failed to persist the revocation CRL to the {TrustList} issuer store for certificate group {CertificateGroupId}.")]
-        public static partial void RevocationScopeStoreUpdateFailed(
-            this ILogger logger,
-            Exception exception,
-            string trustList,
             NodeId certificateGroupId);
     }
 }

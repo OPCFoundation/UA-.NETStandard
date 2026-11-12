@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
-using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -46,7 +45,6 @@ namespace Opc.Ua.Gds.Tests
     public class GlobalDiscoveryTestServer : IAsyncDisposable
     {
         public GlobalDiscoverySampleServer Server { get; private set; } = null!;
-        public IApplicationsDatabase ApplicationsDatabase { get; private set; } = null!;
         public IApplicationInstance Application { get; private set; } = null!;
         public ApplicationConfiguration Config { get; private set; } = null!;
         public int BasePort { get; private set; }
@@ -132,34 +130,10 @@ namespace Opc.Ua.Gds.Tests
                     .CleanupTrustListAsync(
                         Config.SecurityConfiguration.TrustedIssuerCertificates, m_telemetry)
                     .ConfigureAwait(false);
-                if (Config.SecurityConfiguration.UserIssuerCertificates != null)
-                {
-                    await TestUtils.CleanupTrustListAsync(
-                        Config.SecurityConfiguration.UserIssuerCertificates,
-                        m_telemetry).ConfigureAwait(false);
-                }
-                if (Config.SecurityConfiguration.HttpsIssuerCertificates != null)
-                {
-                    await TestUtils.CleanupTrustListAsync(
-                        Config.SecurityConfiguration.HttpsIssuerCertificates,
-                        m_telemetry).ConfigureAwait(false);
-                }
                 await TestUtils
                     .CleanupTrustListAsync(
                         Config.SecurityConfiguration.TrustedPeerCertificates, m_telemetry)
                     .ConfigureAwait(false);
-                if (Config.SecurityConfiguration.TrustedUserCertificates != null)
-                {
-                    await TestUtils.CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedUserCertificates,
-                        m_telemetry).ConfigureAwait(false);
-                }
-                if (Config.SecurityConfiguration.TrustedHttpsCertificates != null)
-                {
-                    await TestUtils.CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedHttpsCertificates,
-                        m_telemetry).ConfigureAwait(false);
-                }
                 await TestUtils
                     .CleanupTrustListAsync(
                         Config.SecurityConfiguration.RejectedCertificateStore!, m_telemetry)
@@ -224,7 +198,6 @@ namespace Opc.Ua.Gds.Tests
             }
 
             var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath!);
-            ApplicationsDatabase = applicationsDatabase;
             IUserDatabase userDatabase = JsonUserDatabase.Load(usersDatabaseStorePath!, m_telemetry);
 
             RegisterDefaultUsers(userDatabase);
