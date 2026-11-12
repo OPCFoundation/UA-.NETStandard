@@ -50,7 +50,7 @@ bash where they differ.
 
 | Requirement | Route A | Route B |
 | --- | --- | --- |
-| .NET SDK | Stable SDK 11.0.100 or later (the net11.0 target needs it). [`global.json`](../global.json) uses `latestMajor` roll-forward and excludes prerelease SDKs. | .NET 10 SDK. |
+| .NET SDK | Stable SDK 11.0.100 or later (the net11.0 target needs it). [`global.json`](../global.json) uses `latestFeature` roll-forward (any 11.0 SDK) and excludes prerelease SDKs. | .NET 10 SDK. |
 | Other requirements | Git, and internet access to restore NuGet packages on the first build | Internet access to nuget.org |
 | TCP port | 62541 | 62560 |
 
