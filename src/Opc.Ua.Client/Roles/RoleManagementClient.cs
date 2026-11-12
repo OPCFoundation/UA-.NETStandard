@@ -111,6 +111,8 @@ namespace Opc.Ua.Client.Roles
                     ResultMask = (uint)BrowseResultMask.All
                 }
             ];
+            // The duration limit counts from the Browse request.
+            BrowsePagingLimits limits = StartBrowseLimits();
             BrowseResponse browseResponse = await Session.BrowseAsync(
                 null,
                 null,
@@ -132,7 +134,6 @@ namespace Opc.Ua.Client.Roles
                 throw new ServiceResultException(result.StatusCode);
             }
             ByteString continuationPoint = result.ContinuationPoint;
-            BrowsePagingLimits limits = StartBrowseLimits();
             var counter = new BrowsePageCounter();
             try
             {

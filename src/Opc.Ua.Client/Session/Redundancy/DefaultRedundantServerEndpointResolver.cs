@@ -185,7 +185,9 @@ namespace Opc.Ua.Client
             server = CoreUtils.Clone(server)!;
             if (server.DiscoveryUrls.Count > MaxDiscoveryUrlsPerServer)
             {
-                server.DiscoveryUrls = server.DiscoveryUrls.Slice(0, MaxDiscoveryUrlsPerServer);
+                // Copy rather than slice: a slice keeps the whole array alive.
+                server.DiscoveryUrls = new ArrayOf<string>(
+                    server.DiscoveryUrls.Slice(0, MaxDiscoveryUrlsPerServer).Memory.ToArray());
             }
             CacheDiscoveredServer(serverUri, server);
             return await ResolveServerEndpointsAsync(server, currentEndpoint, failure, ct).ConfigureAwait(false);
@@ -198,25 +200,38 @@ namespace Opc.Ua.Client
         /// </summary>
         private void CacheDiscoveredServer(string serverUri, ApplicationDescription server)
         {
-            if (!m_discoveredServers.ContainsKey(serverUri) &&
-                m_discoveredServers.Count >= MaxDiscoveredServers)
+            // Concurrent discoveries insert under the lock, so the check and
+            // the insertion together keep the bound.
+            lock (m_discoveredServersLock)
             {
-                foreach (string cachedUri in m_discoveredServers.Keys)
+                if (!m_discoveredServers.ContainsKey(serverUri) &&
+                    m_discoveredServers.Count >= MaxDiscoveredServers)
                 {
-                    m_discoveredServers.TryRemove(cachedUri, out _);
-                    if (m_discoveredServers.Count < MaxDiscoveredServers)
+                    foreach (string cachedUri in m_discoveredServers.Keys)
                     {
-                        break;
+                        m_discoveredServers.TryRemove(cachedUri, out _);
+                        if (m_discoveredServers.Count < MaxDiscoveredServers)
+                        {
+                            break;
+                        }
                     }
                 }
+                m_discoveredServers[serverUri] = server;
             }
-            m_discoveredServers[serverUri] = server;
         }
 
         /// <summary>
         /// The number of Servers whose discovered description is cached.
         /// </summary>
         internal int DiscoveredServerCount => m_discoveredServers.Count;
+
+        /// <summary>
+        /// Gets the cached description of a discovered Server.
+        /// </summary>
+        internal bool TryGetDiscoveredServer(string serverUri, out ApplicationDescription? server)
+        {
+            return m_discoveredServers.TryGetValue(serverUri, out server);
+        }
 
         /// <summary>
         /// The maximum number of Servers whose discovered description is cached.
@@ -346,6 +361,7 @@ namespace Opc.Ua.Client
         private readonly ITelemetryContext m_telemetry;
         private readonly IRedundantServerDiscovery m_discovery;
         private readonly ILogger m_logger;
+        private readonly Lock m_discoveredServersLock = new();
 
         private readonly ConcurrentDictionary<string, ApplicationDescription> m_discoveredServers =
             new(StringComparer.Ordinal);

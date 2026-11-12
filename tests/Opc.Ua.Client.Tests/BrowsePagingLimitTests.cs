@@ -296,6 +296,30 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task ListRolesCountsTheDurationFromTheBrowseRequestAsync()
+        {
+            using var abort = new CancellationTokenSource();
+            var time = new FakeTimeProvider();
+            Mock<ISession> session = CreateRoleSession(
+                abort,
+                1,
+                out Func<int> pages,
+                out Func<int> released,
+                onBrowse: () => time.Advance(TimeSpan.FromMinutes(11)));
+            var client = new RoleManagementClient(session.Object)
+            {
+                StartBrowseLimits = () => new BrowsePagingLimits(0, 0, TimeSpan.FromMinutes(10), time)
+            };
+
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ListRolesAsync(abort.Token).ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(pages(), Is.EqualTo(1), "the slow Browse answer used up the budget");
+            Assert.That(released(), Is.EqualTo(1));
+        }
+
+        [Test]
         public void PageCounterAcceptsTheLastPageBeyondTheLimit()
         {
             var limits = new BrowsePagingLimits(10, 2, TimeSpan.Zero, null);
@@ -309,7 +333,8 @@ namespace Opc.Ua.Client.Tests
             CancellationTokenSource abort,
             int referencesPerPage,
             out Func<int> pages,
-            out Func<int> released)
+            out Func<int> released,
+            Action? onBrowse = null)
         {
             ArrayOf<ReferenceDescription> page = CreatePage(referencesPerPage);
             int pageCount = 0;
@@ -322,6 +347,7 @@ namespace Opc.Ua.Client.Tests
                     null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
                 {
+                    onBrowse?.Invoke();
                     Interlocked.Increment(ref pageCount);
                     return new BrowseResponse
                     {

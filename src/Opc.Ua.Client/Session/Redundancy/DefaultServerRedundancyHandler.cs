@@ -519,8 +519,24 @@ namespace Opc.Ua.Client
                 {
                     return cachedEndpoint;
                 }
-                var proposed = new Lazy<Task<ConfiguredEndpoint?>>(() =>
+                Lazy<Task<ConfiguredEndpoint?>>? proposed = null;
+                proposed = new Lazy<Task<ConfiguredEndpoint?>>(() =>
                 {
+                    if (!TryReserveDiscovery())
+                    {
+                        // A discovery keeps its slot until the resolver
+                        // returns, also after the caller stopped waiting for
+                        // it, so a resolver that does not observe cancellation
+                        // cannot raise the number of discoveries running at
+                        // once. Callers that joined this lookup see the same
+                        // failure; the next lookup tries again.
+                        ((ICollection<KeyValuePair<EndpointCacheKey, Lazy<Task<ConfiguredEndpoint?>>>>)
+                            m_pendingResolutions).Remove(
+                                new KeyValuePair<EndpointCacheKey, Lazy<Task<ConfiguredEndpoint?>>>(key, proposed!));
+                        return Task.FromException<ConfiguredEndpoint?>(new ServiceResultException(
+                            StatusCodes.BadTooManyOperations,
+                            "The maximum number of peer discoveries is still running."));
+                    }
                     Task<ConfiguredEndpoint?> resolution = DiscoverEndpointAsync(key, currentEndpoint, ct);
                     _ = ObserveEndpointResolutionAsync(resolution);
                     return resolution;
@@ -571,7 +587,22 @@ namespace Opc.Ua.Client
             finally
             {
                 m_pendingResolutions.TryRemove(key, out _);
+                Interlocked.Decrement(ref m_discoveriesInFlight);
             }
+        }
+
+        /// <summary>
+        /// Takes one of the <see cref="ServerRedundancyOptions.MaxConcurrentPeerDiscoveries"/>
+        /// discovery slots; <see cref="DiscoverEndpointAsync"/> returns it when the resolver returns.
+        /// </summary>
+        private bool TryReserveDiscovery()
+        {
+            if (Interlocked.Increment(ref m_discoveriesInFlight) <= m_maxConcurrentPeerDiscoveries)
+            {
+                return true;
+            }
+            Interlocked.Decrement(ref m_discoveriesInFlight);
+            return false;
         }
 
         private static EndpointCacheKey CreateCacheKey(string serverUri, ConfiguredEndpoint currentEndpoint)
@@ -811,6 +842,13 @@ namespace Opc.Ua.Client
         private readonly int m_maxRedundantServers;
 
         private readonly int m_maxConcurrentPeerDiscoveries;
+
+        private int m_discoveriesInFlight;
+
+        /// <summary>
+        /// The discoveries whose resolver has not returned yet.
+        /// </summary>
+        internal int DiscoveriesInFlight => Volatile.Read(ref m_discoveriesInFlight);
 
         /// <summary>
         /// Resolved endpoints are kept for this many sets of

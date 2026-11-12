@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -228,6 +229,108 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(getEndpointsCalls,
                 Is.EqualTo(servers * DefaultRedundantServerEndpointResolver.MaxDiscoveryUrlsPerServer),
                 "only the first discovery URLs of a Server are tried");
+
+            Assert.That(resolver.TryGetDiscoveredServer("urn:s" + (servers - 1), out ApplicationDescription? cached),
+                Is.True);
+            Assert.That(MemoryMarshal.TryGetArray(cached!.DiscoveryUrls.Memory, out ArraySegment<string> segment),
+                Is.True);
+            Assert.That(segment.Array!, Has.Length.EqualTo(DefaultRedundantServerEndpointResolver.MaxDiscoveryUrlsPerServer),
+                "the cached description keeps only the retained URLs, not the array they came from");
+        }
+
+        [Test]
+        public async Task DiscoveredServerCacheStaysBoundedUnderConcurrentDiscoveryAsync()
+        {
+            var discovery = new Discovery(
+                serverUri => [new ApplicationDescription
+                {
+                    ApplicationUri = serverUri,
+                    DiscoveryUrls = ["opc.tcp://host:4840"]
+                }],
+                () => []);
+            var resolver = new DefaultRedundantServerEndpointResolver(NUnitTelemetryContext.Create(), discovery);
+            ConfiguredEndpoint current = CreateEndpoint("urn:current", "opc.tcp://current:4840");
+
+            var tasks = new List<Task>();
+            for (int ii = 0; ii < 512; ii++)
+            {
+                string uri = "urn:c" + ii;
+                tasks.Add(Task.Run(async () => await resolver.ResolveAsync(uri, current).ConfigureAwait(false)));
+            }
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            Assert.That(resolver.DiscoveredServerCount,
+                Is.LessThanOrEqualTo(DefaultRedundantServerEndpointResolver.MaxDiscoveredServers));
+        }
+
+        [Test]
+        public async Task DiscoveriesThatOutliveTheirTimeoutKeepTheirSlotAsync()
+        {
+            var time = new FakeTimeProvider();
+            var release = new TaskCompletionSource<ConfiguredEndpoint?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int started = 0;
+            var resolver = new Mock<IRedundantServerEndpointResolver>();
+            resolver.Setup(r => r.ResolveAsync(
+                    It.IsAny<string>(), It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, ConfiguredEndpoint _, CancellationToken _) =>
+                {
+                    // Ignores cancellation and runs until the test releases it.
+                    Interlocked.Increment(ref started);
+                    return new ValueTask<ConfiguredEndpoint?>(release.Task);
+                });
+            var handler = new DefaultServerRedundancyHandler(resolver.Object, time);
+            Mock<ISession> session = CreateSession((int)RedundancySupport.Hot, null, CreateUris("urn:t", 20));
+            var cache = (IServerRedundancyEndpointCache)handler;
+            ServerRedundancyInfo basic = await cache
+                .ReadRedundancyInfoAsync(session.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            try
+            {
+                Task<ServerRedundancyInfo> resolving = cache.ResolveCachedEndpointsAsync(
+                    basic, session.Object.ConfiguredEndpoint, CancellationToken.None).AsTask();
+                Assert.That(Volatile.Read(ref started),
+                    Is.EqualTo(ServerRedundancyOptions.DefaultMaxConcurrentPeerDiscoveries));
+
+                // Every wait times out while the discoveries keep running.
+                time.Advance(ServerRedundancyOptions.DefaultTimeout);
+                ServerRedundancyInfo resolved = await resolving.WaitAsync(TimeSpan.FromSeconds(30))
+                    .ConfigureAwait(false);
+
+                Assert.That(Volatile.Read(ref started),
+                    Is.EqualTo(ServerRedundancyOptions.DefaultMaxConcurrentPeerDiscoveries),
+                    "no further discovery starts while the first ones still run");
+                int rejected = 0;
+                for (int ii = 0; ii < resolved.RedundantServers.Count; ii++)
+                {
+                    Assert.That(resolved.RedundantServers[ii].Endpoint, Is.Null);
+                    if (resolved.RedundantServers[ii].ResolutionError?.StatusCode == StatusCodes.BadTooManyOperations)
+                    {
+                        rejected++;
+                    }
+                }
+                Assert.That(rejected, Is.EqualTo(20 - ServerRedundancyOptions.DefaultMaxConcurrentPeerDiscoveries));
+            }
+            finally
+            {
+                release.TrySetResult(null);
+            }
+
+            // Once the discoveries returned, their slots are free again.
+            for (int wait = 0; handler.DiscoveriesInFlight != 0 && wait < 600; wait++)
+            {
+                await Task.Delay(50).ConfigureAwait(false);
+            }
+            Assert.That(handler.DiscoveriesInFlight, Is.Zero);
+            Mock<ISession> next = CreateSession((int)RedundancySupport.Hot, null, ["urn:after"]);
+            ServerRedundancyInfo again = await cache
+                .ReadRedundancyInfoAsync(next.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+            Task<ServerRedundancyInfo> retry = cache.ResolveCachedEndpointsAsync(
+                again, next.Object.ConfiguredEndpoint, CancellationToken.None).AsTask();
+            Assert.That(Volatile.Read(ref started),
+                Is.EqualTo(ServerRedundancyOptions.DefaultMaxConcurrentPeerDiscoveries + 1));
+            await retry.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
         }
 
         private static void InterlockedMax(ref int target, int value)
