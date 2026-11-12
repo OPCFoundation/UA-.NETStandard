@@ -5514,11 +5514,15 @@ namespace Opc.Ua.Client
                     // normally; if the deadline wins we log a warning and
                     // abandon the task — it runs on the thread pool (not a
                     // foreground thread) so it will not prevent process exit.
-                    try
+                    Task winner = await Task
+                        .WhenAny(keepAliveWorker, Task.Delay(s_keepAliveStopTimeout))
+                        .ConfigureAwait(false);
+
+                    if (winner == keepAliveWorker)
                     {
-                        await keepAliveWorker.WaitAsync(s_keepAliveStopTimeout).ConfigureAwait(false);
+                        await keepAliveWorker.ConfigureAwait(false);
                     }
-                    catch (TimeoutException) when (!keepAliveWorker.IsCompleted)
+                    else
                     {
                         m_logger.KeepAliveWorkerDidNotStopWithinTimeout(
                             (int)s_keepAliveStopTimeout.TotalSeconds);

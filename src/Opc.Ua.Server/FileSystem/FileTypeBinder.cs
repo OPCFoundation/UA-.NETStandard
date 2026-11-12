@@ -528,13 +528,9 @@ namespace Opc.Ua.Server.FileSystem
                     Task handleDisposal = m_handles.DisposeAsync().AsTask();
                     _ = CompleteDisposalAsync(completion, handleDisposal, lifetimeCancellation);
                 }
-                try
+                if (await Task.WhenAny(cleanup, Task.Delay(m_closeTimeout)).ConfigureAwait(false) == cleanup)
                 {
-                    await cleanup.WaitAsync(m_closeTimeout).ConfigureAwait(false);
-                }
-                catch (TimeoutException) when (!cleanup.IsCompleted)
-                {
-                    // cleanup goes on in the background; do not wait longer than the close timeout.
+                    await cleanup.ConfigureAwait(false);
                 }
             }
 

@@ -892,17 +892,16 @@ namespace Opc.Ua.Server.FileSystem
 
         private async ValueTask WaitForCleanupAsync(Task cleanup)
         {
-            try
+            if (await Task.WhenAny(cleanup, Task.Delay(CloseTimeout)).ConfigureAwait(false) == cleanup)
             {
-                await cleanup.WaitAsync(CloseTimeout).ConfigureAwait(false);
-            }
-            catch (TimeoutException) when (!cleanup.IsCompleted)
-            {
-                // cleanup goes on in the background; do not wait longer than the close timeout.
-            }
-            catch
-            {
-                throw cleanup.Exception ?? new AggregateException("File cleanup failed.");
+                try
+                {
+                    await cleanup.ConfigureAwait(false);
+                }
+                catch
+                {
+                    throw cleanup.Exception ?? new AggregateException("File cleanup failed.");
+                }
             }
         }
 

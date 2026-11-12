@@ -287,13 +287,9 @@ namespace Opc.Ua.Server.FileSystem
                     }
                     _ = CompleteDisposalAsync(completion);
                 }
-                try
+                if (await Task.WhenAny(cleanup, Task.Delay(m_options.CloseTimeout)).ConfigureAwait(false) == cleanup)
                 {
-                    await cleanup.WaitAsync(m_options.CloseTimeout).ConfigureAwait(false);
-                }
-                catch (TimeoutException) when (!cleanup.IsCompleted)
-                {
-                    // cleanup goes on in the background; do not wait longer than the close timeout.
+                    await cleanup.ConfigureAwait(false);
                 }
             }
 
