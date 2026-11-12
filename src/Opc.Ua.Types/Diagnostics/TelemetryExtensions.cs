@@ -239,7 +239,16 @@ namespace Opc.Ua
                     return;
                 }
 
-                string traceString = new StackTrace(true).ToString();
+                string traceString;
+                try
+                {
+                    traceString = new StackTrace(true).ToString();
+                }
+                catch (NotSupportedException)
+                {
+                    // Trimmed without stack trace support (.NET 11 throws).
+                    return;
+                }
 
                 if (m_reported.TryAdd(traceString, true))
                 {
