@@ -1469,29 +1469,51 @@ with `MonitoredItemOptions.Affinity` so per-subscription features like
 `SetTriggering` keep working across the group. Full
 developer guide: [Subscriptions § Unbounded monitored items](Subscriptions.md#unbounded-monitored-items).
 
-### V2 deferred notification decoding
+### Deferred notification decoding
 
-The V2 subscription engine decodes the `DataChangeNotification` and
+Both subscription engines decode the `DataChangeNotification` and
 `EventNotificationList` of a Publish response right before they are
 dispatched, not when the response arrives. Under load, responses
 wait for their subscription, and a garbage collection that finds them
 waiting as objects has to walk and promote them. As raw bytes in a
 pooled buffer they cost it nothing.
 
+After the dispatch, the V2 engine releases each body. A classic
+`Subscription` keeps its messages reachable (`Notifications`,
+`LastNotification`, the monitored item caches), so it drops only the
+decoded notifications and keeps the bytes: reading a cached message
+decodes it again, as new instances. Values that the subscription sets
+on the decoded instances during dispatch (`PublishTime`,
+`SequenceNumber`, `MoreNotifications` of a `DataChangeNotification` or
+`EventNotificationList`) are not set on these new instances; read them
+from the `NotificationMessage`. Kept decoded, the cached messages are
+promoted by every collection, and a client with Workstation GC falls
+behind at high notification rates (#5003).
+
+When a message leaves the cache (`MaxMessageCount`), its buffers go back
+to the pool, unless the application could still hold the message: once
+it read `Subscription.Notifications`, `Subscription.LastNotification` or
+`MonitoredItem.LastMessage`, or once a `Session.Notification` handler
+was attached, messages of that subscription keep their bytes until the
+garbage collector takes them. A message reached only through the
+`Message` property of a `MonitoredItemNotification` or `EventFieldList`
+has no notification data after it left the cache. At high notification
+rates, set `MaxMessageCount` to 1.
+
 This is enabled by default and does not change what a handler sees,
 with one exception: a notification body that cannot be decoded is
 logged and not delivered, instead of failing the whole Publish
-response. To decode on arrival, use
+response. To decode on arrival, set `Session.DeferNotificationDecoding`
+to `false`, or use
 `ManagedSessionBuilder.WithoutDeferredNotificationDecoding()` or the
-`ManagedSessionOptions.DeferNotificationDecoding` init property. The
-classic subscription engine decodes on arrival.
+`ManagedSessionOptions.DeferNotificationDecoding` init property.
 
 The decoding happens on the transport, so sessions that share one
 through an `IClientChannelManager` also share this: the bodies are kept
 as bytes as soon as one session on the transport wants that, including
-for a classic session or one that opted out. Those still see every
-notification; to decode on arrival for certain, do not share the
-transport with a session that defers.
+for a session that opted out. Those still see every notification; to
+decode on arrival for certain, do not share the transport with a
+session that defers.
 
 ### V2 notification pooling (opt-in)
 

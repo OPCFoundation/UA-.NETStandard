@@ -630,7 +630,21 @@ namespace Opc.Ua.Client
         /// The maximum number of messages to keep in the internal cache.
         /// The newest message is always kept, so a value below one keeps one
         /// message. A lowered value takes effect when the next message arrives.
+        /// Cached messages stay in memory with their notifications (as encoded
+        /// bytes when <see cref="Session.DeferNotificationDecoding"/> is on), so at
+        /// high notification rates keep this value small, such as 1.
         /// </summary>
+        /// <remarks>
+        /// With deferred decoding, a message that leaves the cache returns its buffers
+        /// to the pool. Not once the application could hold messages of this
+        /// subscription: after it read <see cref="Notifications"/>,
+        /// <see cref="LastNotification"/> or <see cref="MonitoredItem.LastMessage"/>,
+        /// or after a <see cref="ISession.Notification"/> handler was attached to the
+        /// session; those messages keep their bytes. A message reached only through the
+        /// <c>Message</c> property of a <see cref="MonitoredItemNotification"/> or
+        /// <see cref="EventFieldList"/> has no notification data after it left the
+        /// cache.
+        /// </remarks>
         public int MaxMessageCount
         {
             get => State.MaxMessageCount;
@@ -1055,6 +1069,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
+                        m_messagesHandedOut = true;
                         return m_messageCache.Last!.Value;
                     }
 
@@ -1073,6 +1088,7 @@ namespace Opc.Ua.Client
                 lock (m_cache)
                 {
                     // make a copy to ensure the state of the last cannot change during enumeration.
+                    m_messagesHandedOut = true;
                     return [.. m_messageCache];
                 }
             }
@@ -3432,6 +3448,9 @@ namespace Opc.Ua.Client
                 // list of new messages to republish.
                 List<IncomingMessage>? messagesToRepublish = null;
 
+                // messages that left the message cache, released after the dispatch below.
+                List<NotificationMessage>? evictedMessages = null;
+
                 PublishStateChangedMask publishStateChangedMask = PublishStateChangedMask.None;
 
                 lock (m_cache)
@@ -3462,6 +3481,7 @@ namespace Opc.Ua.Client
                             while (m_messageCache.Count > 1 &&
                                 m_messageCache.Count > MaxMessageCount)
                             {
+                                (evictedMessages ??= []).Add(m_messageCache.First!.Value);
                                 m_messageCache.RemoveFirst();
                             }
 
@@ -3691,6 +3711,17 @@ namespace Opc.Ua.Client
                                 Session?.SessionId);
                         }
 
+                        // The message stays reachable after its dispatch (message cache,
+                        // monitored item caches), so a body decoded on first use keeps
+                        // its bytes, not its value: kept decoded, the notifications of
+                        // every cached message would be promoted, and under Workstation
+                        // GC the client falls behind the server (#5003). A later read of
+                        // a cached message decodes it again.
+                        for (int jj = 0; jj < message.NotificationData.Count; jj++)
+                        {
+                            message.NotificationData[jj].RewindDeferredBody();
+                        }
+
                         if (MaxNotificationsPerPublish != 0 &&
                             noNotificationsReceived > MaxNotificationsPerPublish)
                         {
@@ -3706,6 +3737,11 @@ namespace Opc.Ua.Client
                     {
                         PublishingStateChanged(callback, publishStateChangedMask);
                     }
+                }
+
+                if (evictedMessages != null)
+                {
+                    ReleaseEvictedMessages(evictedMessages);
                 }
 
                 // do any re-publishes.
@@ -4063,6 +4099,39 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Returns the buffers of deferred bodies of messages that left the message
+        /// cache. Only while the application cannot hold one of them: it was never
+        /// handed messages of this subscription (<see cref="LastNotification"/>,
+        /// <see cref="Notifications"/>, <see cref="MonitoredItem.LastMessage"/>), and
+        /// no <see cref="ISession.Notification"/> handler was ever attached to the
+        /// session. Otherwise the messages keep their bytes, for the garbage collector.
+        /// </summary>
+        private void ReleaseEvictedMessages(List<NotificationMessage> evictedMessages)
+        {
+            if (Volatile.Read(ref m_messagesHandedOut) ||
+                Session is not Session { NotificationHandlerAttached: false })
+            {
+                return;
+            }
+            foreach (NotificationMessage message in evictedMessages)
+            {
+                for (int ii = 0; ii < message.NotificationData.Count; ii++)
+                {
+                    message.NotificationData[ii].ReleaseDeferredBody();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Records that the application was handed a message of this subscription,
+        /// which it can keep after the message left the message cache.
+        /// </summary>
+        internal void MarkMessagesHandedOut()
+        {
+            Volatile.Write(ref m_messagesHandedOut, true);
+        }
+
+        /// <summary>
         /// Saves a data change in the monitored item cache.
         /// </summary>
         private void SaveDataChange(
@@ -4280,6 +4349,7 @@ namespace Opc.Ua.Client
         private int m_transferGeneration;
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
+        private bool m_messagesHandedOut;
         private ArrayOf<uint> m_availableSequenceNumbers;
         private ConcurrentDictionary<uint, MonitoredItem> m_monitoredItems = new();
         private readonly AsyncAutoResetEvent m_messageWorkerEvent = new();

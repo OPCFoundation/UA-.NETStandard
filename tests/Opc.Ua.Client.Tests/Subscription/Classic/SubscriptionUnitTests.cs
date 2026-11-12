@@ -345,6 +345,150 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        /// <summary>
+        /// A body decoded on first use is dispatched decoded, then keeps only its bytes
+        /// while the message stays cached: reading the cached message decodes it again,
+        /// as a new instance with the same content (#5003).
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task CachedMessageKeepsDeferredBodyAsBytesAfterDispatchAsync(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var delivered = new ConcurrentDictionary<uint, TaskCompletionSource<EventNotificationList>>();
+            TaskCompletionSource<EventNotificationList> Delivered(uint sequenceNumber)
+            {
+                return delivered.GetOrAdd(sequenceNumber, _ => new TaskCompletionSource<EventNotificationList>(
+                    TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+            using var subscription = new Subscription(telemetry, new() { PublishingEnabled = true })
+            {
+                FastEventCallback = (_, events, _) => Delivered(events.SequenceNumber).TrySetResult(events),
+                Session = BuildSessionMock()
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            ExtensionObject body = DecodeDeferred(telemetry, new EventNotificationList
+            {
+                Events = [new EventFieldList { ClientHandle = 3, EventFields = [Variant.From("first")] }]
+            });
+            subscription.SaveMessageInCache([1u], new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [body]
+            });
+            EventNotificationList dispatched = await Delivered(1).Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(dispatched.Events[0].ClientHandle, Is.EqualTo(3u));
+
+            // Messages are dispatched in order, so the first one is done once the second arrives.
+            subscription.SaveMessageInCache([2u], new NotificationMessage
+            {
+                SequenceNumber = 2,
+                NotificationData = [new(new EventNotificationList())]
+            });
+            await Delivered(2).Task.WaitAsync(ct).ConfigureAwait(false);
+
+            NotificationMessage cached = subscription.Notifications.First();
+            Assert.That(cached.SequenceNumber, Is.EqualTo(1u));
+            Assert.That(cached.NotificationData[0].TryGetValue(out EventNotificationList? reread), Is.True);
+            Assert.That(reread, Is.Not.SameAs(dispatched));
+            Assert.That(reread!.Events[0].ClientHandle, Is.EqualTo(3u));
+            Assert.That(reread.Events[0].EventFields[0].TryGetValue(out string? field), Is.True);
+            Assert.That(field, Is.EqualTo("first"));
+
+            // The dispatched instance stays usable for the application that holds it.
+            Assert.That(dispatched.Events[0].EventFields[0].TryGetValue(out string? kept), Is.True);
+            Assert.That(kept, Is.EqualTo("first"));
+        }
+
+        /// <summary>
+        /// How the application could have been handed a message.
+        /// </summary>
+        public enum MessageHandOut
+        {
+            None,
+            SessionNotificationHandler,
+            LastNotification
+        }
+
+        /// <summary>
+        /// A message that leaves the message cache returns the buffer of its deferred body,
+        /// unless the application could hold the message: a session Notification handler
+        /// was attached, or it read the cached messages (#5003).
+        /// </summary>
+        [TestCase(MessageHandOut.None, false)]
+        [TestCase(MessageHandOut.SessionNotificationHandler, true)]
+        [TestCase(MessageHandOut.LastNotification, true)]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessageReleasesDeferredBodyUnlessHandedOutAsync(
+            MessageHandOut handOut, bool stillReadable, CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            var delivered = new ConcurrentDictionary<uint, TaskCompletionSource<bool>>();
+            TaskCompletionSource<bool> Delivered(uint sequenceNumber)
+            {
+                return delivered.GetOrAdd(sequenceNumber, _ => new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+            using var subscription = new Subscription(telemetry, new() { PublishingEnabled = true })
+            {
+                MaxMessageCount = 1,
+                FastEventCallback = (_, events, _) => Delivered(events.SequenceNumber).TrySetResult(true),
+                Session = BuildSessionMock()
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            subscription.Session = session;
+            if (handOut == MessageHandOut.SessionNotificationHandler)
+            {
+                session.Notification += (_, _) => { };
+            }
+
+            var first = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [DecodeDeferred(telemetry, new EventNotificationList
+                {
+                    Events = [new EventFieldList { ClientHandle = 3, EventFields = [Variant.From("first")] }]
+                })]
+            };
+            subscription.SaveMessageInCache([1u], first);
+            await Delivered(1).Task.WaitAsync(ct).ConfigureAwait(false);
+            if (handOut == MessageHandOut.LastNotification)
+            {
+                Assert.That(subscription.LastNotification, Is.SameAs(first));
+            }
+
+            // The second message evicts the first; the third one is dispatched after the
+            // round of the second, which releases what it evicted, has ended.
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber,
+                    NotificationData = [new(new EventNotificationList())]
+                });
+                await Delivered(sequenceNumber).Task.WaitAsync(ct).ConfigureAwait(false);
+            }
+
+            Assert.That(subscription.LastNotification?.SequenceNumber, Is.EqualTo(3u));
+            Assert.That(first.NotificationData[0].TryGetValue(out EventNotificationList? reread), Is.EqualTo(stillReadable));
+            if (stillReadable)
+            {
+                Assert.That(reread!.Events[0].ClientHandle, Is.EqualTo(3u));
+            }
+        }
+
+        private static ExtensionObject DecodeDeferred(ITelemetryContext telemetry, EventNotificationList notification)
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            context.DeferNotificationBodies = true;
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteExtensionObject(null, new ExtensionObject(notification));
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, context);
+            return decoder.ReadExtensionObject(null);
+        }
+
         private static NotificationMessage BuildDataMessage(uint sequenceNumber)
         {
             return new NotificationMessage

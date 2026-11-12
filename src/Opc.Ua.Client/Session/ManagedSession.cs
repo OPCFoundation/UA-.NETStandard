@@ -1898,12 +1898,9 @@ namespace Opc.Ua.Client
                     // session instead of creating a new one.
                     session.EnableTokenReuseFailover = m_enableTokenReuseFailover;
 
-                    // The V2 engine dispatches from its own queues and drops each body
-                    // afterwards, which is what deferred decoding needs to pay off.
-                    if (session.SubscriptionEngine is DefaultSubscriptionEngine)
-                    {
-                        session.DeferNotificationBodies = m_deferNotificationDecoding;
-                    }
+                    // Both engines drop each body after its dispatch: the V2 engine
+                    // releases it, a classic subscription keeps only its bytes.
+                    session.DeferNotificationDecoding = m_deferNotificationDecoding;
 
                     // Apply opt-in V2 transfer-on-recreate. The V2 engine
                     // and SubscriptionManager survive in-place re-creates

@@ -93,17 +93,27 @@ namespace Opc.Ua
         /// <summary>
         /// The decoded body. A body that cannot be decoded stays available as its
         /// bytes, like a known type the eager decoder recovered from, unless a limit
-        /// rejects it. Null then, and after <see cref="Release"/>.
+        /// rejects it. Null then, and after <see cref="Release"/>. After
+        /// <see cref="Rewind"/> the next read decodes the kept bytes again.
         /// </summary>
         public object? Value
         {
             get
             {
-                if (!Volatile.Read(ref m_resolved))
+                object? value = Volatile.Read(ref m_value);
+                if (value != null)
                 {
-                    Resolve();
+                    return value;
                 }
-                return m_value;
+                lock (m_lock)
+                {
+                    if (!m_resolved)
+                    {
+                        m_value = Decode(m_buffer!);
+                        m_resolved = true;
+                    }
+                    return m_value;
+                }
             }
         }
 
@@ -127,23 +137,28 @@ namespace Opc.Ua
                     m_buffer = null;
                 }
                 m_value = null;
-                Volatile.Write(ref m_resolved, true);
+                m_resolved = true;
             }
         }
 
-        private void Resolve()
+        /// <summary>
+        /// Drops the value once it was dispatched but keeps the bytes, so that a later
+        /// read decodes the body again. For messages that stay reachable after their
+        /// dispatch, such as the message cache of a classic subscription: like
+        /// <see cref="Release"/>, a promoted body no longer keeps the value alive, and
+        /// readers of the message still see its notifications, as new instances. The
+        /// pooled buffer stays with the body until <see cref="Release"/>; a body that is
+        /// never released leaves it to the garbage collector.
+        /// </summary>
+        public void Rewind()
         {
             lock (m_lock)
             {
-                if (m_resolved)
+                if (m_buffer != null)
                 {
-                    return;
+                    m_value = null;
+                    m_resolved = false;
                 }
-                byte[] buffer = m_buffer!;
-                m_value = Decode(buffer);
-                m_buffer = null;
-                Return(buffer);
-                Volatile.Write(ref m_resolved, true);
             }
         }
 

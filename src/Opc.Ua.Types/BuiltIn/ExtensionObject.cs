@@ -711,6 +711,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Drops the decoded value of a body decoded on first use after it was
+        /// dispatched, but keeps its bytes: the next read decodes it again, as a new
+        /// instance. Other bodies are not affected.
+        /// </summary>
+        internal void RewindDeferredBody()
+        {
+            (m_rawBody as DeferredExtensionObjectBody)?.Rewind();
+        }
+
+        /// <summary>
         /// Whether the body was kept as bytes to be decoded on first use.
         /// </summary>
         internal bool IsDeferred => m_rawBody is DeferredExtensionObjectBody;

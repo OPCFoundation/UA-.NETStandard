@@ -574,6 +574,7 @@ namespace Opc.Ua.Client
         {
             get
             {
+                Subscription?.MarkMessagesHandedOut();
                 lock (m_cache)
                 {
                     // The last notification is stored whatever its kind, so a

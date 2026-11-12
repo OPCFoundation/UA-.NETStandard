@@ -203,7 +203,7 @@ namespace Opc.Ua.Client
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
             EnableTokenReuseFailover = template.EnableTokenReuseFailover;
-            DeferNotificationBodies = template.DeferNotificationBodies;
+            DeferNotificationDecoding = template.DeferNotificationDecoding;
             PublishRequestCancelDelayOnCloseSession = template.PublishRequestCancelDelayOnCloseSession;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
@@ -231,6 +231,7 @@ namespace Opc.Ua.Client
             {
                 m_KeepAlive = template.m_KeepAlive;
                 m_Publish = template.m_Publish;
+                m_notificationHandlerAttached = template.m_notificationHandlerAttached;
                 m_PublishError = template.m_PublishError;
                 m_PublishSequenceNumbersToAcknowledge = template
                     .m_PublishSequenceNumbersToAcknowledge;
@@ -666,9 +667,22 @@ namespace Opc.Ua.Client
         /// </remarks>
         public event NotificationEventHandler Notification
         {
-            add => m_Publish += value;
+            add
+            {
+                // Set before the handler can be raised: a classic subscription returns
+                // the buffers of messages it no longer caches only while no handler
+                // could have been handed one of them.
+                Volatile.Write(ref m_notificationHandlerAttached, true);
+                m_Publish += value;
+            }
             remove => m_Publish -= value;
         }
+
+        /// <summary>
+        /// Whether a <see cref="Notification"/> handler was ever attached. Such a handler
+        /// can still hold any message it was handed.
+        /// </summary>
+        internal bool NotificationHandlerAttached => Volatile.Read(ref m_notificationHandlerAttached);
 
         /// <summary>
         /// Raised when an exception occurs while processing a publish response.
@@ -907,31 +921,50 @@ namespace Opc.Ua.Client
         public bool EnableTokenReuseFailover { get; set; }
 
         /// <summary>
-        /// Whether this session wants notification bodies decoded on first use.
+        /// Whether the notifications of a Publish response are decoded right before
+        /// they are dispatched instead of when the response arrives. Default:
+        /// <c>true</c>.
         /// </summary>
         /// <remarks>
+        /// <para>
+        /// Under load, responses wait for their subscription. As raw bytes they do not
+        /// cost the garbage collector anything while they wait. The classic
+        /// <see cref="Subscription"/> also drops the decoded notifications of a
+        /// message once it dispatched them and keeps its bytes, so the messages in its
+        /// cache (<see cref="Subscription.Notifications"/>,
+        /// <see cref="Subscription.LastNotification"/>) are decoded again when they are
+        /// read, as new instances. A message that leaves the cache returns its buffers to
+        /// the pool unless the application could still hold it (see
+        /// <see cref="Subscription.MaxMessageCount"/>).
+        /// </para>
+        /// <para>
+        /// A notification body that cannot be decoded is logged and not delivered,
+        /// instead of failing the whole Publish response.
+        /// </para>
+        /// <para>
         /// The decoder reads this from the message context of the transport, which
         /// sessions on one channel manager can share and which a replaced transport
         /// starts anew. So a session only ever turns it on, and does again before each
         /// Publish. A session that does not want it cannot turn it off for others: it
         /// reads deferred bodies like any other, because they decode on first read.
+        /// </para>
         /// </remarks>
-        internal bool DeferNotificationBodies
+        public bool DeferNotificationDecoding
         {
-            get => m_deferNotificationBodies;
+            get => m_deferNotificationDecoding;
             set
             {
-                m_deferNotificationBodies = value;
-                ApplyDeferNotificationBodies();
+                m_deferNotificationDecoding = value;
+                ApplyDeferNotificationDecoding();
             }
         }
 
         /// <summary>
-        /// Applies <see cref="DeferNotificationBodies"/> to the current transport.
+        /// Applies <see cref="DeferNotificationDecoding"/> to the current transport.
         /// </summary>
-        internal void ApplyDeferNotificationBodies()
+        internal void ApplyDeferNotificationDecoding()
         {
-            if (m_deferNotificationBodies &&
+            if (m_deferNotificationDecoding &&
                 NullableTransportChannel?.MessageContext is ServiceMessageContext { DeferNotificationBodies: false } context)
             {
                 context.DeferNotificationBodies = true;
@@ -7708,7 +7741,8 @@ namespace Opc.Ua.Client
 
         /// <summary>Namespace provenance of subscriptions loaded before the session reconnects.</summary>
         private ServiceMessageContext? m_restoredSubscriptionContext;
-        private bool m_deferNotificationBodies;
+        private bool m_deferNotificationDecoding = true;
+        private bool m_notificationHandlerAttached;
         private readonly SessionSystemContext m_systemContext;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly NodeCache m_nodeCache;
