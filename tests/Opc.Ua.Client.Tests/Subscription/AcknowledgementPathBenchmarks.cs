@@ -248,6 +248,18 @@ namespace Opc.Ua.Client.Subscriptions
 
             public int SessionSubscriptionCount => 0;
 
+            public int OperationTimeout => 0;
+
+            public bool MayDeleteUnknownSubscription(uint subscriptionId)
+            {
+                return true;
+            }
+
+            public AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+            {
+                return null;
+            }
+
             /// <summary>
             /// The benchmark context has no server session to abandon.
             /// </summary>
