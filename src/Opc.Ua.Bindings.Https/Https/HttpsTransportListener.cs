@@ -2697,7 +2697,11 @@ namespace Opc.Ua.Bindings
                     }
                     while (!completed);
 
-                    using WebSocketActivity.RequestActivity requestActivity = activity.TrackRequest();
+                    if (!activity.TryTrackRequest(out WebSocketActivity.RequestActivity requestActivity))
+                    {
+                        return;
+                    }
+                    using var usage = requestActivity;
                     IServiceResponse responseToSend;
                     byte[] messageBytes = new byte[totalRead];
                     Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
@@ -3124,9 +3128,18 @@ namespace Opc.Ua.Bindings
                     // The connection's existing body lease continues to cover its receive buffer.
                     byte[] messageBytes = new byte[totalRead];
                     Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
+                    IDisposable? requestActivity = null;
+                    if (activity != null)
+                    {
+                        if (!activity.TryTrackRequest(out WebSocketActivity.RequestActivity trackedActivity))
+                        {
+                            return;
+                        }
+                        requestActivity = trackedActivity;
+                    }
                     Task request = admission.RunAsync(async () => await ProcessAdmittedOpenApiWebSocketRequestAsync(
                             ws, sendGate, channelContext, messageBytes, requestCancellation).ConfigureAwait(false),
-                        activity?.TrackRequest());
+                        requestActivity);
                     requests.Add(request);
                 }
             }
@@ -3257,15 +3270,21 @@ namespace Opc.Ua.Bindings
             /// <summary>
             /// Keeps a decoded request and its response protected until processing finishes.
             /// </summary>
-            public RequestActivity TrackRequest()
+            public bool TryTrackRequest(out RequestActivity requestActivity)
             {
                 lock (m_lock)
                 {
+                    if (m_closed)
+                    {
+                        requestActivity = default;
+                        return false;
+                    }
                     m_pendingRequests++;
                     m_partialMessage = false;
                     Touch();
+                    requestActivity = new RequestActivity(this);
+                    return true;
                 }
-                return new RequestActivity(this);
             }
 
             /// <summary>

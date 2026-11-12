@@ -151,6 +151,54 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// Rejects a complete message received after inactivity cleanup closes the JSON connection.
+        /// </summary>
+        [TestCase(Profiles.OpcUaWsSubProtocolUaJson)]
+        [TestCase(Profiles.OpcUaWsSubProtocolOpenApi)]
+        public async Task ClosedJsonWebSocketDoesNotDispatchCompletedFrameAsync(string subProtocol)
+        {
+            var clock = new FakeTimeProvider();
+            await using HttpsTransportListener listener = CreateListener(clock: clock, channelLifetime: 1000);
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ProcessRequestAsync(
+                It.IsAny<SecureChannelContext>(), It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new FindServersResponse()));
+            SetField(listener, "m_callback", callback.Object);
+            using var stream = new MemoryStream();
+            IServiceMessageContext messageContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            using (var encoder = new JsonEncoder(stream, messageContext, JsonEncoderOptions.Compact))
+            {
+                var discovery = new FindServersRequest();
+                encoder.EncodeMessage(discovery, discovery.TypeId);
+            }
+            using var request = new UpgradeRequest(
+                stream.ToArray(),
+                deferFrame: true,
+                cancelRequestOnAbort: false);
+            request.Context.Request.Headers["Sec-WebSocket-Protocol"] = subProtocol;
+            Task handler = listener.AcceptWebSocketAsync(request.Context);
+            try
+            {
+                await request.ReceiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromMilliseconds(1500));
+                Assert.That(request.Socket.Object.State, Is.EqualTo(WebSocketState.Aborted));
+
+                request.ReleaseFrame();
+                await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                callback.Verify(value => value.ProcessRequestAsync(
+                    It.IsAny<SecureChannelContext>(), It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+            finally
+            {
+                request.ReleaseFrame();
+                request.Context.Abort();
+                await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// In-flight JSON requests, including concurrent OpenAPI long polls, are not idle and
         /// cannot be evicted to admit another physical connection.
         /// </summary>
@@ -585,10 +633,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private sealed class UpgradeRequest : IDisposable
         {
-            public UpgradeRequest(byte[]? frame = null, bool frameCompleted = true)
+            public UpgradeRequest(
+                byte[]? frame = null,
+                bool frameCompleted = true,
+                bool deferFrame = false,
+                bool cancelRequestOnAbort = true)
             {
                 m_frame = frame;
                 m_frameCompleted = frameCompleted;
+                m_deferFrame = deferFrame;
+                m_cancelRequestOnAbort = cancelRequestOnAbort;
                 Context = new DefaultHttpContext();
                 Context.Response.Body = new MemoryStream();
                 Context.Request.Headers["Sec-WebSocket-Protocol"] = Profiles.OpcUaWsSubProtocolUacp;
@@ -609,7 +663,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     if (Context.Request.Headers["Sec-WebSocket-Protocol"] != Profiles.OpcUaWsSubProtocolUacp)
                     {
                         Socket.SetupGet(value => value.State).Returns(WebSocketState.Aborted);
-                        if (!m_aborted.IsCancellationRequested)
+                        if (m_cancelRequestOnAbort && !m_aborted.IsCancellationRequested)
                         {
                             m_aborted.Cancel();
                         }
@@ -633,6 +687,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public int UpgradeCalls { get; private set; }
             public bool HoldUpgrade { get; set; }
             public Exception? UpgradeError { get; set; }
+
+            /// <summary>
+            /// Releases a test frame after the receive operation has begun.
+            /// </summary>
+            public void ReleaseFrame() => m_releaseFrame.TrySetResult(true);
 
             public void Dispose()
             {
@@ -662,6 +721,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 byte[]? frame = Interlocked.Exchange(ref m_frame, null);
                 if (frame != null)
                 {
+                    if (m_deferFrame)
+                    {
+                        ReceiveEntered.TrySetResult(true);
+                        await m_releaseFrame.Task.ConfigureAwait(false);
+                    }
                     frame.CopyTo(buffer.Array!, buffer.Offset);
                     return new WebSocketReceiveResult(frame.Length, WebSocketMessageType.Binary, m_frameCompleted);
                 }
@@ -676,6 +740,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             private readonly CancellationTokenSource m_aborted = new();
             private byte[]? m_frame;
+            private readonly bool m_deferFrame;
+            private readonly bool m_cancelRequestOnAbort;
+            private readonly TaskCompletionSource<bool> m_releaseFrame =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>
             /// Whether the supplied test frame completes its message.
