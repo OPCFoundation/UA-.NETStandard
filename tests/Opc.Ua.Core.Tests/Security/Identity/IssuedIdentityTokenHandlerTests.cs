@@ -108,6 +108,27 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             Assert.That(handler.DecryptedTokenData, Is.EqualTo(new byte[] { 0x10, 0x20, 0x30 }));
         }
 
+        [TestCase("None")]
+        [TestCase(SecurityPolicies.None)]
+        public async Task SecurityNoneByNameRoundTripsTokenDataWithServerNonceAsync(string policy)
+        {
+            byte[] tokenData = [0x10, 0x20, 0x30];
+            byte[] serverNonce = Nonce.CreateNonce(32).Data!;
+            var handler = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, tokenData);
+            IServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+
+            await handler.EncryptAsync(null!, serverNonce, policy, context).ConfigureAwait(false);
+            var token = (IssuedIdentityToken)handler.Token;
+            Assert.That(token.TokenData.ToArray(), Is.EqualTo(tokenData));
+
+            var received = new IssuedIdentityTokenHandler(token);
+            using Nonce receiverNonce = Nonce.CreateNonce(SecurityPolicies.Basic256Sha256, serverNonce);
+            await received.DecryptAsync(null!, receiverNonce, policy, context)
+                .ConfigureAwait(false);
+
+            Assert.That(received.DecryptedTokenData, Is.EqualTo(tokenData));
+        }
+
         [Test]
         public async Task EccEncryptionReleasesTemporaryNonceAndIssuerHandlesAsync(
             [Values] bool missingTokenData,

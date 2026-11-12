@@ -62,17 +62,123 @@ namespace Opc.Ua
     public sealed class RequestParkSink : IRequestParkSink
     {
         /// <summary>
+        /// Creates a sink that only signals.
+        /// </summary>
+        public RequestParkSink()
+        {
+        }
+
+        /// <summary>
+        /// Creates a sink for a decoded request. When the request is a
+        /// <see cref="PublishRequest"/>, parking also drops the parts of it that its
+        /// handler has consumed by then (see <see cref="ReleasesPayload"/>).
+        /// </summary>
+        internal RequestParkSink(IServiceRequest request)
+        {
+            m_publish = request as PublishRequest;
+        }
+
+        /// <summary>
         /// A task that completes the first time the request parks.
         /// </summary>
         public Task ParkedTask => m_tcs.Task;
 
+        /// <summary>
+        /// Whether parking drops the decoded payload of the request, so that a parked
+        /// request retains its request header but neither the
+        /// <see cref="RequestHeader.AdditionalHeader"/> nor the acknowledgements.
+        /// </summary>
+        /// <remarks>
+        /// A held Publish waits up to a keep-alive period, or with no timeout hint
+        /// until the next notification. Decoded, its additional header can be many times
+        /// its wire size (arrays of variants), and nothing reads it or the acknowledgements
+        /// after the handler parks: the acknowledgements are applied and the header was
+        /// validated before. Without the payload a parked Publish does not need the
+        /// decoded-request cost it was admitted with, only one for what it still retains
+        /// (<see cref="EstimateRetainedBytes"/>).
+        /// </remarks>
+        internal bool ReleasesPayload => m_publish != null;
+
+        /// <summary>
+        /// Estimates the bytes a Publish still retains once it parked, until it completes:
+        /// a fixed share for the header and the handler state, the result (and, when
+        /// diagnostics are requested, the diagnostic information) of each acknowledgement,
+        /// and the audit entry id. Zero when the request does not drop its payload.
+        /// </summary>
+        /// <remarks>
+        /// Called at admission, before the request runs, so the estimate is fixed for the
+        /// whole life of the request.
+        /// </remarks>
+        internal long EstimateRetainedBytes()
+        {
+            PublishRequest? publish = m_publish;
+            if (publish == null)
+            {
+                return 0;
+            }
+            RequestHeader? header = publish.RequestHeader;
+            bool diagnostics = header != null && (header.ReturnDiagnostics & kOperationDiagnostics) != 0;
+            long retained = kRetainedBaseBytes +
+                ((long)publish.SubscriptionAcknowledgements.Count *
+                    (diagnostics ? kRetainedBytesPerDiagnosedResult : kRetainedBytesPerResult));
+            if (header?.AuditEntryId != null)
+            {
+                retained += 2L * header.AuditEntryId.Length;
+            }
+            return retained;
+        }
+
         /// <inheritdoc/>
         public void NotifyParked()
         {
+            PublishRequest? publish = m_publish;
+            if (publish != null)
+            {
+                // runs on the handler, at its waiting point, before the worker sees the park
+                publish.SubscriptionAcknowledgements = default;
+                if (publish.RequestHeader != null)
+                {
+                    publish.RequestHeader.AdditionalHeader = ExtensionObject.Null;
+                }
+            }
             m_tcs.TrySetResult(true);
         }
 
+        /// <summary>
+        /// The request header, response header, contexts and handler state of a parked Publish.
+        /// </summary>
+        private const long kRetainedBaseBytes = 2048;
+
+        /// <summary>
+        /// The status code of an acknowledgement in the result array.
+        /// </summary>
+        private const long kRetainedBytesPerResult = 8;
+
+        /// <summary>
+        /// The status code and a diagnostic information object of an acknowledgement.
+        /// </summary>
+        private const long kRetainedBytesPerDiagnosedResult = 256;
+
+        /// <summary>
+        /// The operation-level bits of <see cref="RequestHeader.ReturnDiagnostics"/>.
+        /// </summary>
+        private const uint kOperationDiagnostics = (uint)DiagnosticsMasks.OperationAll;
+
         private readonly TaskCompletionSource<bool> m_tcs = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly PublishRequest? m_publish;
+
+        /// <summary>
+        /// The bytes the request still retains once it parked without its payload, or 0 when
+        /// it keeps its full decoded-request cost. Set at admission, before the request is
+        /// queued, and not changed afterwards.
+        /// </summary>
+        internal long RetainedCost;
+
+        /// <summary>
+        /// The decoded-request charge for <see cref="RetainedCost"/>, held by the queue entry
+        /// of the request instead of its full cost once it parked.
+        /// </summary>
+        internal FairRequestQueue.StageHold RetainedCostHold;
     }
 }

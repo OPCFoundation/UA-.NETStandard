@@ -104,7 +104,8 @@ namespace Opc.Ua.Client.Tests
                 MessageSecurityMode.SignAndEncrypt,
                 SecurityPolicies.Default);
 
-            Assert.That(effectivePolicyUri, Is.EqualTo(tokenSecurityPolicy));
+            // short names resolve to the canonical policy URI.
+            Assert.That(effectivePolicyUri, Is.EqualTo(SecurityPolicies.None));
         }
 
         [Test]
