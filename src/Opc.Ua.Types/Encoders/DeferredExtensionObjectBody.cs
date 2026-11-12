@@ -108,6 +108,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The encoded length of the body in bytes.
+        /// </summary>
+        public int Length => m_length;
+
+        /// <summary>
         /// Drops the value once it was dispatched. The body can have been promoted
         /// while it waited, and would keep the value alive until that generation is
         /// collected although nothing else references the message any more.
