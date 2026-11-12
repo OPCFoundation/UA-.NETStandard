@@ -27,13 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+using Ua = Opc.Ua;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -47,6 +52,8 @@ namespace Opc.Ua.Gds.Tests
     {
         private const string kCustomGroupId = "MyCustomGroup";
         private const string kCustomGroupSubjectName = "CN=GDS Custom CA, O=OPC Foundation";
+        private const string kHttpsGroupSubjectName = "CN=GDS HTTPS CA, O=OPC Foundation";
+        private const string kUserGroupSubjectName = "CN=GDS User CA, O=OPC Foundation";
 
         private GlobalDiscoveryTestServer m_server;
         private GlobalDiscoveryTestClient m_gdsClient;
@@ -71,10 +78,36 @@ namespace Opc.Ua.Gds.Tests
                 CACertificateKeySize = 4096,
                 CACertificateHashSize = 512
             };
+            var httpsGroup = new CertificateGroupConfiguration
+            {
+                Id = "DefaultHttpsGroup",
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.HttpsCertificateType)],
+                SubjectName = kHttpsGroupSubjectName,
+                BaseStorePath = Path.Combine(Path.GetTempPath(), "OPC", "GDS", "CA", "https"),
+                DefaultCertificateLifetime = 12,
+                DefaultCertificateKeySize = 2048,
+                DefaultCertificateHashSize = 256,
+                CACertificateLifetime = 60,
+                CACertificateKeySize = 4096,
+                CACertificateHashSize = 512
+            };
+            var userGroup = new CertificateGroupConfiguration
+            {
+                Id = "DefaultUserTokenGroup",
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.UserCertificateType)],
+                SubjectName = kUserGroupSubjectName,
+                BaseStorePath = Path.Combine(Path.GetTempPath(), "OPC", "GDS", "CA", "users"),
+                DefaultCertificateLifetime = 12,
+                DefaultCertificateKeySize = 2048,
+                DefaultCertificateHashSize = 256,
+                CACertificateLifetime = 60,
+                CACertificateKeySize = 4096,
+                CACertificateHashSize = 512
+            };
 
             m_server = await TestUtils.StartGDSAsync(
                 clean: true,
-                additionalCertGroups: [customGroup]).ConfigureAwait(false);
+                additionalCertGroups: [customGroup, httpsGroup, userGroup]).ConfigureAwait(false);
 
             m_gdsClient = new GlobalDiscoveryTestClient(true, m_telemetry);
             await m_gdsClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
@@ -120,14 +153,14 @@ namespace Opc.Ua.Gds.Tests
 
                 Assert.That(appId.IsNull, Is.False);
 
-                // GetCertificateGroups should return both the default group and the custom group
+                // GetCertificateGroups should return the default groups and the custom group.
                 ArrayOf<NodeId> groups = await m_gdsClient.GDSClient
                     .GetCertificateGroupsAsync(appId)
                     .ConfigureAwait(false);
 
                 Assert.That(groups.IsNull, Is.False);
-                Assert.That(groups.Count, Is.EqualTo(2),
-                    "Expected 2 certificate groups: default + custom");
+                Assert.That(groups.Count, Is.EqualTo(4),
+                    "Expected 4 certificate groups: default, HTTPS, user-token, and custom");
 
                 // Verify that each group's TrustList is accessible
                 foreach (NodeId groupId in groups.ToList())
@@ -254,6 +287,161 @@ namespace Opc.Ua.Gds.Tests
             {
                 await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
             }
+        }
+
+        [Test]
+        public async Task RevokingHttpsAndUserCertificatesUpdatesTheirIssuerStoresAndNotifiesScopesAsync()
+        {
+            m_gdsClient.GDSClient.AdminCredentials = m_gdsClient.AdminUser;
+            await m_gdsClient.GDSClient.ConnectAsync().ConfigureAwait(false);
+
+            var issuerStores = new[]
+            {
+                m_server.Config.SecurityConfiguration.TrustedIssuerCertificates,
+                m_server.Config.SecurityConfiguration.HttpsIssuerCertificates!,
+                m_server.Config.SecurityConfiguration.UserIssuerCertificates!
+            };
+            Assert.That(
+                issuerStores.Select(store => Path.GetFullPath(store.StorePath!)).Distinct().Count(),
+                Is.EqualTo(issuerStores.Length),
+                "Peer, HTTPS, and user-token issuer stores must be distinct.");
+
+            try
+            {
+                var appTestDataGenerator = new ApplicationTestDataGenerator(3, m_telemetry);
+                ApplicationTestData appData = appTestDataGenerator.ApplicationTestSet(1, false)[0];
+                appData.ApplicationRecord.ApplicationType = ApplicationType.Server;
+                appData.ApplicationRecord.DiscoveryUrls = ["https://localhost:4843"];
+                NodeId appId = await m_gdsClient.GDSClient
+                    .RegisterApplicationAsync(appData.ApplicationRecord)
+                    .ConfigureAwait(false);
+
+                var revocationCases = new[]
+                {
+                    (
+                        GroupId: "DefaultHttpsGroup",
+                        CertificateType: Ua.ObjectTypeIds.HttpsCertificateType,
+                        Scope: TrustListIdentifier.Https),
+                    (
+                        GroupId: "DefaultUserTokenGroup",
+                        CertificateType: Ua.ObjectTypeIds.UserCertificateType,
+                        Scope: TrustListIdentifier.Users)
+                };
+
+                foreach ((string groupId, NodeId certificateType, TrustListIdentifier scope) in revocationCases)
+                {
+                    NodeId certificateGroupId = GetCertificateGroupId(groupId);
+                    NodeId requestId = await m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
+                        appId,
+                        certificateGroupId,
+                        certificateType,
+                        appData.Subject,
+                        appData.DomainNames,
+                        appData.PrivateKeyFormat,
+                        appData.PrivateKeyPassword).ConfigureAwait(false);
+
+                    (Certificate certificate, Certificate issuer) =
+                        await FinishRequestAsync(appId, requestId).ConfigureAwait(false);
+                    try
+                    {
+                        var observer = new Mock<IObserver<CertificateChangeEvent>>();
+                        using IDisposable subscription = m_server.Config.CertificateManager.CertificateChanges
+                            .Subscribe(observer.Object);
+
+                        await m_gdsClient.GDSClient
+                            .RevokeCertificateAsync(appId, ByteString.From(certificate.RawData))
+                            .ConfigureAwait(false);
+
+                        observer.Verify(
+                            item => item.OnNext(It.Is<CertificateChangeEvent>(
+                                change => change.Kind == CertificateChangeKind.CrlUpdated &&
+                                    change.TrustList == TrustListIdentifier.Peers)),
+                            Times.Once);
+                        observer.Verify(
+                            item => item.OnNext(It.Is<CertificateChangeEvent>(
+                                change => change.Kind == CertificateChangeKind.CrlUpdated &&
+                                    change.TrustList == scope)),
+                            Times.Once);
+
+                        await AssertRevocationCrlExistsAsync(
+                            TrustListIdentifier.Peers,
+                            issuer,
+                            certificate)
+                            .ConfigureAwait(false);
+                        await AssertRevocationCrlExistsAsync(scope, issuer, certificate).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        certificate.Dispose();
+                        issuer.Dispose();
+                    }
+                }
+
+                await m_gdsClient.GDSClient.UnregisterApplicationAsync(appId).ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Resolves a predefined certificate group using the active GDS session namespace table.
+        /// </summary>
+        private NodeId GetCertificateGroupId(string groupId)
+        {
+            return groupId switch
+            {
+                "DefaultHttpsGroup" => ExpandedNodeId.ToNodeId(
+                    ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup,
+                    m_gdsClient.GDSClient.Session!.NamespaceUris),
+                "DefaultUserTokenGroup" => ExpandedNodeId.ToNodeId(
+                    ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup,
+                    m_gdsClient.GDSClient.Session!.NamespaceUris),
+                _ => throw new ArgumentOutOfRangeException(nameof(groupId))
+            };
+        }
+
+        /// <summary>
+        /// Waits for the GDS to finish issuing a certificate for the request.
+        /// </summary>
+        private async Task<(Certificate certificate, Certificate issuer)> FinishRequestAsync(
+            NodeId appId,
+            NodeId requestId)
+        {
+            DateTime deadline = DateTime.UtcNow.AddMinutes(5);
+            while (DateTime.UtcNow < deadline)
+            {
+                (ByteString certificate, _, ArrayOf<ByteString> issuerCertificates) = await m_gdsClient.GDSClient
+                    .FinishRequestAsync(appId, requestId).ConfigureAwait(false);
+                if (!certificate.IsEmpty)
+                {
+                    return (
+                        Certificate.FromRawData(certificate),
+                        Certificate.FromRawData(issuerCertificates[0]));
+                }
+                await Task.Delay(1000).ConfigureAwait(false);
+            }
+
+            throw new TimeoutException("Timed out waiting for the GDS certificate request to finish.");
+        }
+
+        /// <summary>
+        /// Verifies that an issuer store contains the CRL for a revoked certificate.
+        /// </summary>
+        private async Task AssertRevocationCrlExistsAsync(
+            TrustListIdentifier scope,
+            Certificate issuer,
+            Certificate certificate)
+        {
+            using ICertificateStore issuerStore = m_server.Config.CertificateManager.OpenIssuerStore(scope)!;
+            X509CRLCollection crls = await issuerStore
+                .EnumerateCRLsAsync(issuer).ConfigureAwait(false);
+            Assert.That(crls, Has.Count.EqualTo(1), $"Expected a CRL in the {scope} issuer store.");
+            Assert.That(crls[0].RevokedCertificates, Has.Count.EqualTo(1));
+            Assert.That(
+                crls[0].RevokedCertificates[0].UserCertificate,
+                Is.EqualTo(certificate.GetSerialNumber()));
         }
     }
 }

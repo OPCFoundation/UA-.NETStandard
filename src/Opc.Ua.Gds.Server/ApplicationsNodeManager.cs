@@ -789,12 +789,11 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private ICertificateGroup? GetGroupForCertificate(ByteString certificate)
+        private ICertificateGroup? GetGroupForCertificate(ByteString certificate, NodeId certificateType)
         {
             if (certificate.Length > 0)
             {
                 using var x509 = Certificate.FromRawData(certificate);
-                NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
                     KeyValuePair<NodeId, Certificate?> matchingCert = certificateGroup
@@ -818,12 +817,13 @@ namespace Opc.Ua.Gds.Server
 
         private async Task<bool> RevokeCertificateAsync(
             ByteString certificate,
+            NodeId certificateType,
             CancellationToken cancellationToken = default)
         {
             bool revoked = false;
             if (certificate.Length > 0)
             {
-                ICertificateGroup? certificateGroup = GetGroupForCertificate(certificate);
+                ICertificateGroup? certificateGroup = GetGroupForCertificate(certificate, certificateType);
 
                 if (certificateGroup != null)
                 {
@@ -835,6 +835,9 @@ namespace Opc.Ua.Gds.Server
                             .ConfigureAwait(false);
                         if (crl != null)
                         {
+                            await UpdateScopedIssuerCertificatesStoreAsync(
+                                certificateGroup,
+                                cancellationToken).ConfigureAwait(false);
                             revoked = true;
                         }
                     }
@@ -1030,8 +1033,89 @@ namespace Opc.Ua.Gds.Server
             m_ownedCertificateGroups.Add(certificateGroup);
 
             await certificateGroup.InitAsync().ConfigureAwait(false);
+            await UpdateScopedIssuerCertificatesStoreAsync(certificateGroup)
+                .ConfigureAwait(false);
 
             return certificateGroup;
+        }
+
+        private string? GetScopedIssuerCertificatesStorePath(
+            CertificateGroupConfiguration certificateGroupConfiguration)
+        {
+            SecurityConfiguration securityConfiguration = m_configuration.SecurityConfiguration;
+            if (string.Equals(
+                certificateGroupConfiguration.Id,
+                "DefaultHttpsGroup",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return securityConfiguration.HttpsIssuerCertificates?.StorePath;
+            }
+            if (string.Equals(
+                certificateGroupConfiguration.Id,
+                "DefaultUserTokenGroup",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return securityConfiguration.UserIssuerCertificates?.StorePath;
+            }
+
+            return null;
+        }
+
+        private async Task UpdateScopedIssuerCertificatesStoreAsync(
+            ICertificateGroup certificateGroup,
+            CancellationToken cancellationToken = default)
+        {
+            string? scopedIssuerStorePath =
+                GetScopedIssuerCertificatesStorePath(certificateGroup.Configuration);
+            if (string.IsNullOrEmpty(scopedIssuerStorePath) ||
+                string.Equals(
+                    scopedIssuerStorePath,
+                    m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath,
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            using ICertificateStore authorityStore = certificateGroup.AuthoritiesStore.OpenStore(Server.Telemetry);
+            using ICertificateStore scopedIssuerStore =
+                new CertificateStoreIdentifier(scopedIssuerStorePath).OpenStore(Server.Telemetry);
+
+            foreach (Certificate? certificate in certificateGroup.Certificates.Values)
+            {
+                if (certificate == null)
+                {
+                    continue;
+                }
+
+                using CertificateCollection storedCertificates = await scopedIssuerStore
+                    .FindByThumbprintAsync(certificate.Thumbprint, cancellationToken)
+                    .ConfigureAwait(false);
+                if (storedCertificates.Count == 0)
+                {
+                    using var publicCertificate = Certificate.FromRawData(certificate.RawData);
+                    await scopedIssuerStore.AddAsync(publicCertificate, ct: cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                foreach (X509CRL crl in await scopedIssuerStore
+                    .EnumerateCRLsAsync(certificate, false, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    if (crl.VerifySignature(certificate, false))
+                    {
+                        await scopedIssuerStore.DeleteCRLAsync(crl, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                foreach (X509CRL crl in await authorityStore
+                    .EnumerateCRLsAsync(certificate, true, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    await scopedIssuerStore.AddCRLAsync(crl, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
         }
 
         /// <summary>
@@ -1377,7 +1461,7 @@ namespace Opc.Ua.Gds.Server
                             out ByteString certificate) &&
                         !certificate.IsEmpty)
                     {
-                        await RevokeCertificateAsync(certificate, cancellationToken)
+                        await RevokeCertificateAsync(certificate, certType.Key, cancellationToken)
                             .ConfigureAwait(false);
                     }
                 }
@@ -1459,6 +1543,7 @@ namespace Opc.Ua.Gds.Server
 
                     revoked = await RevokeCertificateAsync(
                         certificate,
+                        certType.Key,
                         cancellationToken).ConfigureAwait(false);
                     if (revoked)
                     {

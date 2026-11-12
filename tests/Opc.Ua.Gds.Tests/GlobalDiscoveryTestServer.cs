@@ -130,10 +130,34 @@ namespace Opc.Ua.Gds.Tests
                     .CleanupTrustListAsync(
                         Config.SecurityConfiguration.TrustedIssuerCertificates, m_telemetry)
                     .ConfigureAwait(false);
+                if (Config.SecurityConfiguration.UserIssuerCertificates != null)
+                {
+                    await TestUtils.CleanupTrustListAsync(
+                        Config.SecurityConfiguration.UserIssuerCertificates,
+                        m_telemetry).ConfigureAwait(false);
+                }
+                if (Config.SecurityConfiguration.HttpsIssuerCertificates != null)
+                {
+                    await TestUtils.CleanupTrustListAsync(
+                        Config.SecurityConfiguration.HttpsIssuerCertificates,
+                        m_telemetry).ConfigureAwait(false);
+                }
                 await TestUtils
                     .CleanupTrustListAsync(
                         Config.SecurityConfiguration.TrustedPeerCertificates, m_telemetry)
                     .ConfigureAwait(false);
+                if (Config.SecurityConfiguration.TrustedUserCertificates != null)
+                {
+                    await TestUtils.CleanupTrustListAsync(
+                        Config.SecurityConfiguration.TrustedUserCertificates,
+                        m_telemetry).ConfigureAwait(false);
+                }
+                if (Config.SecurityConfiguration.TrustedHttpsCertificates != null)
+                {
+                    await TestUtils.CleanupTrustListAsync(
+                        Config.SecurityConfiguration.TrustedHttpsCertificates,
+                        m_telemetry).ConfigureAwait(false);
+                }
                 await TestUtils
                     .CleanupTrustListAsync(
                         Config.SecurityConfiguration.RejectedCertificateStore!, m_telemetry)

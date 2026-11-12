@@ -49,6 +49,22 @@
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC/GDS/trusted</StorePath>
     </TrustedPeerCertificates>
+    <TrustedUserCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/GDS/trustedUsers</StorePath>
+    </TrustedUserCertificates>
+    <UserIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/GDS/userIssuers</StorePath>
+    </UserIssuerCertificates>
+    <TrustedHttpsCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/GDS/trustedHttps</StorePath>
+    </TrustedHttpsCertificates>
+    <HttpsIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/GDS/httpsIssuers</StorePath>
+    </HttpsIssuerCertificates>
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC/GDS/rejected</StorePath>
