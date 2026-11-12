@@ -1556,6 +1556,18 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
+                    // OPC 10000-4 7.40.6: the request was validated when it arrived, but it
+                    // may have waited past the expiration of the session's identity token.
+                    // Nothing is delivered then: the subscription keeps its notifications
+                    // for the next request after the client has activated the session again.
+                    if (context.Session is Session session && session.HaveCredentialsExpired())
+                    {
+                        queue.Requeue(subscription);
+                        throw new ServiceResultException(
+                            StatusCodes.BadIdentityTokenInvalid,
+                            "The user identity token has expired. Activate the session with a new token.");
+                    }
+
                     bool moreNotifications = false;
 
                     // publish notifications.

@@ -913,10 +913,9 @@ namespace Opc.Ua.Server
             // expiration are invalid once it has expired. The Session stays open, and
             // requests fail until the Client activates it with a new token. Identities
             // without an expiration skip the clock read.
-            long credentialsExpiryUtcTicks = Volatile.Read(ref m_credentialsExpiryUtcTicks);
-            if (credentialsExpiryUtcTicks != long.MaxValue &&
-                requestType != RequestType.CloseSession &&
-                m_timeProvider.GetUtcNow().UtcDateTime.Ticks > credentialsExpiryUtcTicks)
+            // A Publish request that parks re-checks before it delivers notifications
+            // (SubscriptionManager.PublishAsync).
+            if (requestType != RequestType.CloseSession && HaveCredentialsExpired())
             {
                 UpdateDiagnosticCounters(requestType, true, false);
                 throw new ServiceResultException(
@@ -1874,17 +1873,43 @@ namespace Opc.Ua.Server
         /// The UTC ticks after which the credentials of the identity are invalid, or
         /// <see cref="long.MaxValue"/> when the identity has no expiration.
         /// </summary>
-        private static long GetCredentialsExpiryUtcTicks(IUserIdentity identity)
+        /// <remarks>
+        /// Role wrappers (<see cref="RoleBasedIdentity"/> and subclasses such as the GDS
+        /// role identity) are unwrapped, so an expiration of the authenticated identity
+        /// behind them is not lost. When several layers report one, the earliest applies.
+        /// </remarks>
+        internal static long GetCredentialsExpiryUtcTicks(IUserIdentity identity)
         {
-            if (identity is not IIdentityExpiration { ExpiresAt: DateTime expiresAt })
+            long earliest = long.MaxValue;
+            IUserIdentity? current = identity;
+            while (current != null)
             {
-                return long.MaxValue;
+                if (current is IIdentityExpiration { ExpiresAt: DateTime expiresAt })
+                {
+                    long ticks = expiresAt.Kind == DateTimeKind.Local
+                        ? expiresAt.ToUniversalTime().Ticks
+                        : expiresAt.Ticks;
+                    // DateTime.MaxValue means no practical expiration.
+                    if (ticks < DateTime.MaxValue.Ticks && ticks < earliest)
+                    {
+                        earliest = ticks;
+                    }
+                }
+                current = (current as RoleBasedIdentity)?.InnerIdentity;
             }
-            long ticks = expiresAt.Kind == DateTimeKind.Local
-                ? expiresAt.ToUniversalTime().Ticks
-                : expiresAt.Ticks;
-            // DateTime.MaxValue means no practical expiration.
-            return ticks >= DateTime.MaxValue.Ticks ? long.MaxValue : ticks;
+            return earliest;
+        }
+
+        /// <summary>
+        /// Whether the credentials of the current identity have expired (OPC 10000-4
+        /// 7.40.6). One volatile read when the identity has no expiration; otherwise
+        /// one clock read and a comparison. Does not allocate.
+        /// </summary>
+        internal bool HaveCredentialsExpired()
+        {
+            long credentialsExpiryUtcTicks = Volatile.Read(ref m_credentialsExpiryUtcTicks);
+            return credentialsExpiryUtcTicks != long.MaxValue &&
+                m_timeProvider.GetUtcNow().UtcDateTime.Ticks > credentialsExpiryUtcTicks;
         }
 
         /// <summary>

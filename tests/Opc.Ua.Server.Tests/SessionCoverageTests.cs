@@ -871,6 +871,47 @@ namespace Opc.Ua.Server.Tests
                 Throws.Nothing);
         }
 
+        /// <summary>
+        /// A role wrapper (such as the GDS role identity) around an identity with an
+        /// expiration keeps the expiration; when the wrapper reports its own, the
+        /// earliest applies.
+        /// </summary>
+        [Test]
+        public void CredentialsExpiryIsFoundBehindRoleWrappers()
+        {
+            var namespaces = new NamespaceTable();
+            var expiresAt = new DateTime(2026, 1, 1, 0, 0, 10, DateTimeKind.Utc);
+            var inner = new ExpiringIdentity(expiresAt);
+
+            var wrapped = new RoleBasedIdentity(inner, [Role.AuthenticatedUser], namespaces);
+            var wrappedTwice = new RoleBasedIdentity(wrapped, [Role.Observer], namespaces);
+            var earlierWrapper = new ExpiringRoleIdentity(wrapped, expiresAt.AddSeconds(-5), namespaces);
+            var laterWrapper = new ExpiringRoleIdentity(wrapped, expiresAt.AddSeconds(5), namespaces);
+
+            Assert.That(ServerSession.GetCredentialsExpiryUtcTicks(inner), Is.EqualTo(expiresAt.Ticks));
+            Assert.That(ServerSession.GetCredentialsExpiryUtcTicks(wrapped), Is.EqualTo(expiresAt.Ticks));
+            Assert.That(ServerSession.GetCredentialsExpiryUtcTicks(wrappedTwice), Is.EqualTo(expiresAt.Ticks));
+            Assert.That(
+                ServerSession.GetCredentialsExpiryUtcTicks(earlierWrapper),
+                Is.EqualTo(expiresAt.AddSeconds(-5).Ticks));
+            Assert.That(ServerSession.GetCredentialsExpiryUtcTicks(laterWrapper), Is.EqualTo(expiresAt.Ticks));
+            Assert.That(
+                ServerSession.GetCredentialsExpiryUtcTicks(
+                    new RoleBasedIdentity(new UserIdentity(), [Role.Anonymous], namespaces)),
+                Is.EqualTo(long.MaxValue));
+        }
+
+        private sealed class ExpiringRoleIdentity : RoleBasedIdentity, Opc.Ua.Identity.IIdentityExpiration
+        {
+            public ExpiringRoleIdentity(IUserIdentity identity, DateTime expiresAt, NamespaceTable namespaces)
+                : base(identity, [], namespaces)
+            {
+                ExpiresAt = expiresAt;
+            }
+
+            public DateTime? ExpiresAt { get; }
+        }
+
         private sealed class ExpiringIdentity : UserIdentity, Opc.Ua.Identity.IIdentityExpiration
         {
             public ExpiringIdentity(DateTime expiresAt)
