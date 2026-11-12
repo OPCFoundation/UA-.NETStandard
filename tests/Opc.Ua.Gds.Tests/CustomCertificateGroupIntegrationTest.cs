@@ -51,6 +51,7 @@ namespace Opc.Ua.Gds.Tests
     public class CustomCertificateGroupIntegrationTest
     {
         private const string kCustomGroupId = "MyCustomGroup";
+        private const string kTestDirectoryStoreType = "GdsTestDirectory";
         private const string kCustomGroupSubjectName = "CN=GDS Custom CA, O=OPC Foundation";
         private const string kHttpsGroupSubjectName = "CN=GDS HTTPS CA, O=OPC Foundation";
         private const string kUserGroupSubjectName = "CN=GDS User CA, O=OPC Foundation";
@@ -292,13 +293,15 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task RevokingHttpsAndUserCertificatesUpdatesTheirIssuerStoresAndNotifiesScopesAsync()
         {
-            m_gdsClient.GDSClient.AdminCredentials = m_gdsClient.AdminUser;
-            await m_gdsClient.GDSClient.ConnectAsync().ConfigureAwait(false);
-
+            ICertificateManager originalCertificateManager = m_server.Config.CertificateManager;
+            CertificateTrustList httpsIssuerStore =
+                m_server.Config.SecurityConfiguration.HttpsIssuerCertificates!;
+            string? originalHttpsStorePath = httpsIssuerStore.StorePath;
+            string? originalHttpsStoreType = httpsIssuerStore.StoreType;
             var issuerStores = new[]
             {
                 m_server.Config.SecurityConfiguration.TrustedIssuerCertificates,
-                m_server.Config.SecurityConfiguration.HttpsIssuerCertificates!,
+                httpsIssuerStore,
                 m_server.Config.SecurityConfiguration.UserIssuerCertificates!
             };
             Assert.That(
@@ -308,6 +311,17 @@ namespace Opc.Ua.Gds.Tests
 
             try
             {
+                httpsIssuerStore.StoreType = kTestDirectoryStoreType;
+                var storeProvider = new TestDirectoryCertificateStoreProvider();
+                using CertificateManager testCertificateManager = CertificateManagerFactory.Create(
+                    m_server.Config.SecurityConfiguration,
+                    m_telemetry,
+                    options => options.AddStoreProvider(storeProvider));
+                m_server.Config.CertificateManager = testCertificateManager;
+
+                m_gdsClient.GDSClient.AdminCredentials = m_gdsClient.AdminUser;
+                await m_gdsClient.GDSClient.ConnectAsync().ConfigureAwait(false);
+
                 var appTestDataGenerator = new ApplicationTestDataGenerator(3, m_telemetry);
                 ApplicationTestData appData = appTestDataGenerator.ApplicationTestSet(1, false)[0];
                 appData.ApplicationRecord.ApplicationType = ApplicationType.Server;
@@ -377,6 +391,246 @@ namespace Opc.Ua.Gds.Tests
                     }
                 }
 
+                int storeCreationsBeforeCancellation = storeProvider.CreateStoreCount;
+                httpsIssuerStore.StorePath =
+                    m_server.Config.SecurityConfiguration.TrustedIssuerCertificates.StorePath;
+                NodeId cancelledRequestId = await m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
+                    appId,
+                    GetCertificateGroupId("DefaultHttpsGroup"),
+                    Ua.ObjectTypeIds.HttpsCertificateType,
+                    appData.Subject,
+                    appData.DomainNames,
+                    appData.PrivateKeyFormat,
+                    appData.PrivateKeyPassword).ConfigureAwait(false);
+                (Certificate cancelledCertificate, Certificate cancelledIssuer) =
+                    await FinishRequestAsync(appId, cancelledRequestId).ConfigureAwait(false);
+                try
+                {
+                    storeProvider.CancelNextStoreCreation = true;
+                    var observer = new Mock<IObserver<CertificateChangeEvent>>();
+                    using IDisposable subscription = m_server.Config.CertificateManager.CertificateChanges
+                        .Subscribe(observer.Object);
+
+                    ServiceResultException scopedStoreCancellation = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await m_gdsClient.GDSClient
+                            .RevokeCertificateAsync(appId, ByteString.From(cancelledCertificate.RawData))
+                            .ConfigureAwait(false));
+                    Assert.That(
+                        scopedStoreCancellation.StatusCode,
+                        Is.EqualTo(StatusCodes.BadUnexpectedError));
+
+                    observer.Verify(
+                        item => item.OnNext(It.Is<CertificateChangeEvent>(
+                            change => change.Kind == CertificateChangeKind.CrlUpdated &&
+                                change.TrustList == TrustListIdentifier.Peers)),
+                        Times.Once);
+                    observer.Verify(
+                        item => item.OnNext(It.Is<CertificateChangeEvent>(
+                            change => change.Kind == CertificateChangeKind.CrlUpdated &&
+                                change.TrustList == TrustListIdentifier.Https)),
+                        Times.Never);
+                    await AssertRevocationCrlExistsAsync(
+                        TrustListIdentifier.Peers,
+                        cancelledIssuer,
+                        cancelledCertificate).ConfigureAwait(false);
+                }
+                finally
+                {
+                    cancelledCertificate.Dispose();
+                    cancelledIssuer.Dispose();
+                    httpsIssuerStore.StorePath = originalHttpsStorePath;
+                }
+
+                Assert.That(
+                    storeProvider.CreateStoreCount,
+                    Is.GreaterThan(storeCreationsBeforeCancellation),
+                    "The distinct HTTPS store and the same-path, different-type store must use the injected provider.");
+                Assert.That(
+                    storeProvider.CancelNextStoreCreation,
+                    Is.False,
+                    "The configured provider must be invoked when the scoped store is updated.");
+
+                await m_gdsClient.GDSClient.UnregisterApplicationAsync(appId).ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
+                m_server.Config.CertificateManager = originalCertificateManager;
+                httpsIssuerStore.StorePath = originalHttpsStorePath;
+                httpsIssuerStore.StoreType = originalHttpsStoreType;
+            }
+        }
+
+        [Test]
+        public async Task FailedScopedStoreUpdateStillNotifiesPeersAndDoesNotReportInvalidArgumentAsync()
+        {
+            m_gdsClient.GDSClient.AdminCredentials = m_gdsClient.AdminUser;
+            await m_gdsClient.GDSClient.ConnectAsync().ConfigureAwait(false);
+
+            string originalStorePath =
+                m_server.Config.SecurityConfiguration.HttpsIssuerCertificates!.StorePath!;
+            string failingStorePath = typeof(CustomCertificateGroupIntegrationTest).Assembly.Location;
+
+            try
+            {
+                var appTestDataGenerator = new ApplicationTestDataGenerator(1, m_telemetry);
+                ApplicationTestData appData = appTestDataGenerator.ApplicationTestSet(1, false)[0];
+                appData.ApplicationRecord.ApplicationType = ApplicationType.Server;
+                appData.ApplicationRecord.DiscoveryUrls = ["https://localhost:4843"];
+                NodeId appId = await m_gdsClient.GDSClient
+                    .RegisterApplicationAsync(appData.ApplicationRecord)
+                    .ConfigureAwait(false);
+
+                NodeId requestId = await m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
+                    appId,
+                    GetCertificateGroupId("DefaultHttpsGroup"),
+                    Ua.ObjectTypeIds.HttpsCertificateType,
+                    appData.Subject,
+                    appData.DomainNames,
+                    appData.PrivateKeyFormat,
+                    appData.PrivateKeyPassword).ConfigureAwait(false);
+                (Certificate certificate, Certificate issuer) =
+                    await FinishRequestAsync(appId, requestId).ConfigureAwait(false);
+
+                try
+                {
+                    m_server.Config.SecurityConfiguration.HttpsIssuerCertificates!.StorePath =
+                        failingStorePath;
+                    var observer = new Mock<IObserver<CertificateChangeEvent>>();
+                    using IDisposable subscription = m_server.Config.CertificateManager.CertificateChanges
+                        .Subscribe(observer.Object);
+
+                    ServiceResultException scopedStoreFailure = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await m_gdsClient.GDSClient
+                            .RevokeCertificateAsync(appId, ByteString.From(certificate.RawData))
+                            .ConfigureAwait(false));
+                    Assert.That(
+                        scopedStoreFailure.StatusCode,
+                        Is.EqualTo(StatusCodes.BadUnexpectedError));
+
+                    observer.Verify(
+                        item => item.OnNext(It.Is<CertificateChangeEvent>(
+                            change => change.Kind == CertificateChangeKind.CrlUpdated &&
+                                change.TrustList == TrustListIdentifier.Peers)),
+                        Times.Once);
+                    observer.Verify(
+                        item => item.OnNext(It.Is<CertificateChangeEvent>(
+                            change => change.Kind == CertificateChangeKind.CrlUpdated &&
+                                change.TrustList == TrustListIdentifier.Https)),
+                        Times.Never);
+                    await AssertRevocationCrlExistsAsync(
+                        TrustListIdentifier.Peers,
+                        issuer,
+                        certificate).ConfigureAwait(false);
+                }
+                finally
+                {
+                    certificate.Dispose();
+                    issuer.Dispose();
+                    m_server.Config.SecurityConfiguration.HttpsIssuerCertificates!.StorePath =
+                        originalStorePath;
+                }
+
+                await m_gdsClient.GDSClient.UnregisterApplicationAsync(appId).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_server.Config.SecurityConfiguration.HttpsIssuerCertificates!.StorePath = originalStorePath;
+                await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task RevokingHttpsAndUserCertificatesMirrorsHistoricalIssuerCrlsAsync()
+        {
+            m_gdsClient.GDSClient.AdminCredentials = m_gdsClient.AdminUser;
+            await m_gdsClient.GDSClient.ConnectAsync().ConfigureAwait(false);
+
+            try
+            {
+                var appTestDataGenerator = new ApplicationTestDataGenerator(2, m_telemetry);
+                ApplicationTestData appData = appTestDataGenerator.ApplicationTestSet(1, false)[0];
+                appData.ApplicationRecord.ApplicationType = ApplicationType.Server;
+                appData.ApplicationRecord.DiscoveryUrls = ["https://localhost:4843"];
+                NodeId appId = await m_gdsClient.GDSClient
+                    .RegisterApplicationAsync(appData.ApplicationRecord)
+                    .ConfigureAwait(false);
+
+                GlobalDiscoveryServerConfiguration gdsConfiguration =
+                    m_server.Config.ParseExtension<GlobalDiscoveryServerConfiguration>()!;
+                foreach ((TrustListIdentifier scope, string subjectName, string certificateTypeName) in
+                    new[]
+                    {
+                        (
+                            TrustListIdentifier.Https,
+                            kHttpsGroupSubjectName,
+                            "HttpsCertificateType"),
+                        (
+                            TrustListIdentifier.Users,
+                            kUserGroupSubjectName,
+                            "UserCertificateType")
+                    })
+                {
+                    using Certificate historicalIssuer = CertificateBuilder.Create(subjectName)
+                        .SetCAConstraint()
+                        .CreateForRSA();
+                    using Certificate revokedByHistoricalIssuer = CertificateBuilder.Create("CN=Historical Issuer Test")
+                        .SetIssuer(historicalIssuer)
+                        .CreateForRSA();
+                    using Certificate previouslyRevokedByHistoricalIssuer =
+                        CertificateBuilder.Create("CN=Previously Revoked Test")
+                            .SetIssuer(historicalIssuer)
+                            .CreateForRSA();
+                    var authoritiesStoreIdentifier = new CertificateStoreIdentifier(
+                        gdsConfiguration!.AuthoritiesStorePath!,
+                        noPrivateKeys: false);
+                    using ICertificateStore authoritiesStore =
+                        authoritiesStoreIdentifier.OpenStore(m_telemetry);
+                    await authoritiesStore.AddAsync(historicalIssuer).ConfigureAwait(false);
+                    X509CRL staleCrl = await CertificateGroup.RevokeCertificateAsync(
+                        authoritiesStoreIdentifier,
+                        previouslyRevokedByHistoricalIssuer,
+                        issuerKeyFilePassword: null,
+                        telemetry: m_telemetry).ConfigureAwait(false);
+
+                    using ICertificateStore scopedIssuerStore =
+                        m_server.Config.CertificateManager.OpenIssuerStore(scope)!;
+                    using Certificate publicHistoricalIssuer =
+                        Certificate.FromRawData(historicalIssuer.RawData);
+                    await scopedIssuerStore.AddAsync(publicHistoricalIssuer).ConfigureAwait(false);
+                    await scopedIssuerStore.AddCRLAsync(staleCrl).ConfigureAwait(false);
+
+                    Assert.That(
+                        m_server.ApplicationsDatabase.SetApplicationCertificate(
+                            appId,
+                            certificateTypeName,
+                            ByteString.From(revokedByHistoricalIssuer.RawData)),
+                        Is.True);
+
+                    await m_gdsClient.GDSClient
+                        .RevokeCertificateAsync(
+                            appId,
+                            ByteString.From(revokedByHistoricalIssuer.RawData))
+                        .ConfigureAwait(false);
+
+                    using CertificateCollection copiedIssuer = await scopedIssuerStore
+                        .FindByThumbprintAsync(historicalIssuer.Thumbprint).ConfigureAwait(false);
+                    Assert.That(copiedIssuer, Is.Not.Empty);
+                    X509CRLCollection historicalCrls = await scopedIssuerStore
+                        .EnumerateCRLsAsync(historicalIssuer).ConfigureAwait(false);
+                    Assert.That(historicalCrls, Has.Count.EqualTo(1));
+                    Assert.That(
+                        historicalCrls[0].RevokedCertificates.Any(
+                            entry => entry.UserCertificate.SequenceEqual(
+                                previouslyRevokedByHistoricalIssuer.GetSerialNumber())),
+                        Is.True);
+                    Assert.That(
+                        historicalCrls[0].RevokedCertificates.Any(
+                            entry => entry.UserCertificate.SequenceEqual(
+                                revokedByHistoricalIssuer.GetSerialNumber())),
+                        Is.True);
+                }
+
                 await m_gdsClient.GDSClient.UnregisterApplicationAsync(appId).ConfigureAwait(false);
             }
             finally
@@ -437,11 +691,38 @@ namespace Opc.Ua.Gds.Tests
             using ICertificateStore issuerStore = m_server.Config.CertificateManager.OpenIssuerStore(scope)!;
             X509CRLCollection crls = await issuerStore
                 .EnumerateCRLsAsync(issuer).ConfigureAwait(false);
-            Assert.That(crls, Has.Count.EqualTo(1), $"Expected a CRL in the {scope} issuer store.");
-            Assert.That(crls[0].RevokedCertificates, Has.Count.EqualTo(1));
             Assert.That(
-                crls[0].RevokedCertificates[0].UserCertificate,
-                Is.EqualTo(certificate.GetSerialNumber()));
+                crls.Any(crl => crl.RevokedCertificates.Any(
+                    revoked => revoked.UserCertificate.SequenceEqual(certificate.GetSerialNumber()))),
+                Is.True,
+                $"Expected a CRL revoking the certificate in the {scope} issuer store.");
+        }
+
+        private sealed class TestDirectoryCertificateStoreProvider : ICertificateStoreProvider
+        {
+            private readonly DirectoryStoreProvider m_directoryStoreProvider = new();
+
+            public string StoreTypeName => kTestDirectoryStoreType;
+
+            public int CreateStoreCount { get; private set; }
+
+            public bool CancelNextStoreCreation { get; set; }
+
+            public bool SupportsStorePath(string storePath)
+            {
+                return false;
+            }
+
+            public ICertificateStore CreateStore(ITelemetryContext telemetry)
+            {
+                CreateStoreCount++;
+                if (CancelNextStoreCreation)
+                {
+                    CancelNextStoreCreation = false;
+                    throw new OperationCanceledException("Cancelled test store open.");
+                }
+                return m_directoryStoreProvider.CreateStore(telemetry);
+            }
         }
     }
 }

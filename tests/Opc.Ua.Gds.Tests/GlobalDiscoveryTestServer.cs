@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -45,6 +46,7 @@ namespace Opc.Ua.Gds.Tests
     public class GlobalDiscoveryTestServer : IAsyncDisposable
     {
         public GlobalDiscoverySampleServer Server { get; private set; } = null!;
+        public IApplicationsDatabase ApplicationsDatabase { get; private set; } = null!;
         public IApplicationInstance Application { get; private set; } = null!;
         public ApplicationConfiguration Config { get; private set; } = null!;
         public int BasePort { get; private set; }
@@ -222,6 +224,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath!);
+            ApplicationsDatabase = applicationsDatabase;
             IUserDatabase userDatabase = JsonUserDatabase.Load(usersDatabaseStorePath!, m_telemetry);
 
             RegisterDefaultUsers(userDatabase);
