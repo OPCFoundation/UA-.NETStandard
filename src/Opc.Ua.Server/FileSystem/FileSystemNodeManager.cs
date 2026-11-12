@@ -358,7 +358,7 @@ namespace Opc.Ua.Server.FileSystem
         public override async ValueTask DisposeAsync()
         {
             Task cleanup = base.DisposeAsync().AsTask();
-            if (await Task.WhenAny(cleanup, Task.Delay(CloseTimeout)).ConfigureAwait(false) == cleanup)
+            if (await FileHandle.CompletesWithinAsync(cleanup, CloseTimeout).ConfigureAwait(false))
             {
                 await cleanup.ConfigureAwait(false);
             }

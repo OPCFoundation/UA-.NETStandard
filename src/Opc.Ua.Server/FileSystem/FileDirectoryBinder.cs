@@ -306,7 +306,7 @@ namespace Opc.Ua.Server.FileSystem
                     }
                     _ = CompleteDisposalAsync(completion);
                 }
-                if (await Task.WhenAny(cleanup, Task.Delay(m_options.CloseTimeout)).ConfigureAwait(false) == cleanup)
+                if (await FileHandle.CompletesWithinAsync(cleanup, m_options.CloseTimeout).ConfigureAwait(false))
                 {
                     await cleanup.ConfigureAwait(false);
                 }

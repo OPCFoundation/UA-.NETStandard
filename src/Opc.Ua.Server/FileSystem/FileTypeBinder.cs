@@ -528,7 +528,7 @@ namespace Opc.Ua.Server.FileSystem
                     Task handleDisposal = m_handles.DisposeAsync().AsTask();
                     _ = CompleteDisposalAsync(completion, handleDisposal, lifetimeCancellation);
                 }
-                if (await Task.WhenAny(cleanup, Task.Delay(m_closeTimeout)).ConfigureAwait(false) == cleanup)
+                if (await FileHandle.CompletesWithinAsync(cleanup, m_closeTimeout).ConfigureAwait(false))
                 {
                     await cleanup.ConfigureAwait(false);
                 }
