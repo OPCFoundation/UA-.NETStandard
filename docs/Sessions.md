@@ -1482,11 +1482,11 @@ After the dispatch, the V2 engine releases each body. A classic
 `Subscription` keeps its messages reachable (`Notifications`,
 `LastNotification`, the monitored item caches), so it drops only the
 decoded notifications and keeps the bytes: reading a cached message
-decodes it again, as new instances. Values that the subscription sets
-on the decoded instances during dispatch (`PublishTime`,
-`SequenceNumber`, `MoreNotifications` of a `DataChangeNotification` or
-`EventNotificationList`) are not set on these new instances; read them
-from the `NotificationMessage`. Kept decoded, the cached messages are
+decodes it again, as new instances. The values that the subscription
+sets during dispatch (`PublishTime`, `SequenceNumber` and
+`MoreNotifications` of a `DataChangeNotification` or
+`EventNotificationList`, and the `Message` and `DiagnosticInfo` of each
+notification) are set on these new instances too. Kept decoded, the cached messages are
 promoted by every collection, and a client with Workstation GC falls
 behind at high notification rates (#5003).
 

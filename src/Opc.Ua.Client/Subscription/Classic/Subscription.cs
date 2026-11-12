@@ -3725,10 +3725,10 @@ namespace Opc.Ua.Client
                         // its bytes, not its value: kept decoded, the notifications of
                         // every cached message would be promoted, and under Workstation
                         // GC the client falls behind the server (#5003). A later read of
-                        // a cached message decodes it again.
+                        // a cached message decodes it again, with what the dispatch set.
                         for (int jj = 0; jj < message.NotificationData.Count; jj++)
                         {
-                            message.NotificationData[jj].RewindDeferredBody();
+                            message.NotificationData[jj].RewindDeferredBody(s_restoreDispatchState, message);
                         }
 
                         if (MaxNotificationsPerPublish != 0 &&
@@ -4154,6 +4154,43 @@ namespace Opc.Ua.Client
         {
             Volatile.Write(ref m_messagesHandedOut, true);
         }
+
+        /// <summary>
+        /// Sets on a body of a cached message, decoded again after its dispatch, what the
+        /// dispatch set on the first decoded instance: the message fields of the
+        /// notification list and the message and diagnostic info of each notification.
+        /// </summary>
+        private static void RestoreDispatchState(IEncodeable value, object? state)
+        {
+            var message = (NotificationMessage)state!;
+            if (value is DataChangeNotification datachange)
+            {
+                datachange.PublishTime = message.PublishTime;
+                datachange.SequenceNumber = message.SequenceNumber;
+                datachange.MoreNotifications = message.MoreNotifications;
+                for (int ii = 0; ii < datachange.MonitoredItems.Count; ii++)
+                {
+                    MonitoredItemNotification notification = datachange.MonitoredItems[ii];
+                    notification.Message = message;
+                    if (datachange.DiagnosticInfos.Count > ii)
+                    {
+                        notification.DiagnosticInfo = datachange.DiagnosticInfos[ii];
+                    }
+                }
+            }
+            else if (value is EventNotificationList events)
+            {
+                events.PublishTime = message.PublishTime;
+                events.SequenceNumber = message.SequenceNumber;
+                events.MoreNotifications = message.MoreNotifications;
+                for (int ii = 0; ii < events.Events.Count; ii++)
+                {
+                    events.Events[ii].Message = message;
+                }
+            }
+        }
+
+        private static readonly Action<IEncodeable, object?> s_restoreDispatchState = RestoreDispatchState;
 
         /// <summary>
         /// Compares messages by reference.

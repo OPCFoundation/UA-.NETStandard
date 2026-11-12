@@ -190,6 +190,41 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void RewindCallbackRestoresStateOnEachLaterDecode()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? first), Is.True);
+            first!.SequenceNumber = 7;
+            int calls = 0;
+
+            decoded.RewindDeferredBody(
+                (value, state) =>
+                {
+                    calls++;
+                    ((EventNotificationList)value).SequenceNumber = (uint)state!;
+                },
+                7u);
+
+            Assert.That(calls, Is.Zero);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? second), Is.True);
+            Assert.That(second!.SequenceNumber, Is.EqualTo(7u));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.True);
+            Assert.That(calls, Is.EqualTo(1));
+
+            decoded.RewindDeferredBody(
+                (value, state) =>
+                {
+                    calls++;
+                    ((EventNotificationList)value).SequenceNumber = (uint)state!;
+                },
+                7u);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? third), Is.True);
+            Assert.That(third!.SequenceNumber, Is.EqualTo(7u));
+            Assert.That(calls, Is.EqualTo(2));
+        }
+
+        [Test]
         public void RewindBeforeFirstReadIsSafe()
         {
             ServiceMessageContext context = CreateContext(defer: true);

@@ -713,11 +713,14 @@ namespace Opc.Ua
         /// <summary>
         /// Drops the decoded value of a body decoded on first use after it was
         /// dispatched, but keeps its bytes: the next read decodes it again, as a new
-        /// instance. Other bodies are not affected.
+        /// instance, and <paramref name="onDecodedAgain"/> restores on it what the
+        /// dispatch set on the first one. Other bodies are not affected.
         /// </summary>
-        internal void RewindDeferredBody()
+        internal void RewindDeferredBody(
+            Action<IEncodeable, object?>? onDecodedAgain = null,
+            object? state = null)
         {
-            (m_rawBody as DeferredExtensionObjectBody)?.Rewind();
+            (m_rawBody as DeferredExtensionObjectBody)?.Rewind(onDecodedAgain, state);
         }
 
         /// <summary>

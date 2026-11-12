@@ -111,6 +111,10 @@ namespace Opc.Ua
                     {
                         m_value = Decode(m_buffer!);
                         m_resolved = true;
+                        if (m_value is IEncodeable decoded)
+                        {
+                            m_onDecodedAgain?.Invoke(decoded, m_onDecodedAgainState);
+                        }
                     }
                     return m_value;
                 }
@@ -150,12 +154,18 @@ namespace Opc.Ua
         /// pooled buffer stays with the body until <see cref="Release"/>; a body that is
         /// never released leaves it to the garbage collector.
         /// </summary>
-        public void Rewind()
+        /// <param name="onDecodedAgain">Called with each later decoded value and
+        /// <paramref name="state"/>, under the lock of the body, to restore what the
+        /// dispatch set on the first one.</param>
+        /// <param name="state">The state passed to <paramref name="onDecodedAgain"/>.</param>
+        public void Rewind(Action<IEncodeable, object?>? onDecodedAgain = null, object? state = null)
         {
             lock (m_lock)
             {
                 if (m_buffer != null)
                 {
+                    m_onDecodedAgain = onDecodedAgain;
+                    m_onDecodedAgainState = state;
                     m_value = null;
                     m_resolved = false;
                 }
@@ -217,6 +227,8 @@ namespace Opc.Ua
         private readonly DecoderRecoveries m_recoveries;
         private byte[]? m_buffer;
         private object? m_value;
+        private Action<IEncodeable, object?>? m_onDecodedAgain;
+        private object? m_onDecodedAgainState;
         private bool m_resolved;
     }
 

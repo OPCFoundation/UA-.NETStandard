@@ -393,6 +393,10 @@ namespace Opc.Ua.Client.Tests
             Assert.That(cached.NotificationData[0].TryGetValue(out EventNotificationList? reread), Is.True);
             Assert.That(reread, Is.Not.SameAs(dispatched));
             Assert.That(reread!.Events[0].ClientHandle, Is.EqualTo(3u));
+
+            // What the dispatch set on the first instance is set on the new one too.
+            Assert.That(reread.SequenceNumber, Is.EqualTo(1u));
+            Assert.That(reread.Events[0].Message, Is.SameAs(cached));
             Assert.That(reread.Events[0].EventFields[0].TryGetValue(out string? field), Is.True);
             Assert.That(field, Is.EqualTo("first"));
 
