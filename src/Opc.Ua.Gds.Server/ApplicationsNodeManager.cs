@@ -842,9 +842,61 @@ namespace Opc.Ua.Gds.Server
                     {
                         m_logger.UnexpectedErrorRevokingCertificate(e, x509.Subject, certificateGroup.Id);
                     }
+
+                    if (revoked)
+                    {
+                        NotifyRevocationListChanged(certificateGroup);
+                    }
                 }
             }
             return revoked;
+        }
+
+        /// <summary>
+        /// Tells the server's certificate manager that a revocation wrote a
+        /// new CRL into the trust stores that the server itself validates
+        /// against. The manager drops its cached validation state and raises
+        /// <see cref="CertificateChangeKind.CrlUpdated"/>, which drives the
+        /// trust-material enforcement of the configuration node manager:
+        /// SecureChannels and Sessions that present the revoked certificate
+        /// are revalidated and closed, instead of staying usable until they
+        /// are renewed.
+        /// </summary>
+        private void NotifyRevocationListChanged(ICertificateGroup certificateGroup)
+        {
+            ICertificateManager? certificateManager = m_configuration.CertificateManager;
+            if (certificateManager == null)
+            {
+                return;
+            }
+
+            // The CRL always lands in the server's TrustedIssuerCertificates
+            // store, which backs the peer trust list. The HTTPS and user
+            // token groups additionally map to their own validation scopes.
+            var scopes = new List<TrustListIdentifier> { TrustListIdentifier.Peers };
+            if (certificateGroup.Id == m_defaultHttpsGroupId)
+            {
+                scopes.Add(TrustListIdentifier.Https);
+            }
+            else if (certificateGroup.Id == m_defaultUserTokenGroupId)
+            {
+                scopes.Add(TrustListIdentifier.Users);
+            }
+
+            foreach (TrustListIdentifier scope in scopes)
+            {
+                try
+                {
+                    certificateManager.NotifyTrustListChanged(
+                        scope,
+                        trustChanged: false,
+                        crlChanged: true);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.RevocationNotificationFailed(ex, scope.ToString(), certificateGroup.Id);
+                }
+            }
         }
 
         /// <summary>
@@ -3699,5 +3751,13 @@ namespace Opc.Ua.Gds.Server
             Exception exception,
             NodeId requestId,
             [ApplicationIdentity] string? applicationUri);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 22, Level = LogLevel.Error,
+            Message = "Failed to notify the {TrustList} trust list of the revocation in certificate group {CertificateGroupId}.")]
+        public static partial void RevocationNotificationFailed(
+            this ILogger logger,
+            Exception exception,
+            string trustList,
+            NodeId certificateGroupId);
     }
 }
