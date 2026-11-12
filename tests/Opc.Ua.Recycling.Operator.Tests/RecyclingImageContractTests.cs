@@ -85,8 +85,8 @@ namespace Opc.Ua.Recycling.Operator.Tests
 
             Assert.That(
                 global.RootElement.GetProperty("sdk").GetProperty("rollForward").GetString(),
-                Is.EqualTo("latestMajor"),
-                "The image version check uses the repository's minimum-SDK roll-forward policy.");
+                Is.EqualTo("latestFeature"),
+                "The image version check uses the repository's .NET 10 feature-band roll-forward policy.");
             Assert.That(global.RootElement.GetProperty("sdk").GetProperty("allowPrerelease").GetBoolean(), Is.False);
             Assert.That(UsesCompatibleSdkImage(dockerfile, Version.Parse(sdk)), Is.True,
                 "The source stage must pin a stable Azure Linux SDK at or above the repository minimum.");
