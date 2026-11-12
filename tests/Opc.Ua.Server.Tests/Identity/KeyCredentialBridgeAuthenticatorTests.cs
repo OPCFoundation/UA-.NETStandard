@@ -84,7 +84,7 @@ namespace Opc.Ua.Server.Tests.Identity
             byte[] tokenData = Encoding.UTF8.GetBytes(
                 "{\"credentialId\":\"credential-1\",\"nonce\":\"nonce\",\"issuedAt\":" +
                 DateTimeOffset.UtcNow.ToUnixTimeSeconds() +
-                ",\"proof\":\"bad\"}");
+                ",\"proof\":\"YmFk\"}");
             AuthenticationResult result = await authenticator.AuthenticateAsync(CreateContext(tokenData))
                 .ConfigureAwait(false);
 
