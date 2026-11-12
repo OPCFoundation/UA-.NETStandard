@@ -442,7 +442,7 @@ namespace Opc.Ua.Pcap.Capture
                 return allowBaseFolder;
             }
 
-            if (!normalizedBaseFolder.EndsWith(Path.DirectorySeparatorChar))
+            if (!normalizedBaseFolder.EndsWith(Path.DirectorySeparatorChar, StringComparison.Ordinal))
             {
                 normalizedBaseFolder += Path.DirectorySeparatorChar;
             }

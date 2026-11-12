@@ -22,7 +22,7 @@
     <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == 'net9.0'">true</_StressTestSupportedTarget>
     <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == 'net10.0'">true</_StressTestSupportedTarget>
     <RestrictForLegacyTfm Condition="'$(_StressTestSupportedTarget)' != 'true'">true</RestrictForLegacyTfm>
-    <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' == 'true' AND '$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' == 'true' AND '$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' == 'true' AND '$(CustomTestTarget)' != ''">$(TestsTargetFrameworks)</TargetFrameworks>
     <!--
       For incompatible matrix entries (net48) the

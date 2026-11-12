@@ -175,7 +175,7 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
             {
                 return string.Empty;
             }
-            int end = block.IndexOf(']', at);
+            int end = block.IndexOf(']', at, StringComparison.Ordinal);
             return end < 0 ? block[at..] : block[at..end];
         }
 

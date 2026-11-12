@@ -14,7 +14,7 @@
 # The final image runs as a non-root user and listens on 0.0.0.0:62640
 # (override host/port via the `host` / `port` environment variables).
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:11.0-azurelinux3.0 AS build
 WORKDIR /src
 
 # JIT is disabled for the source generators unless W^X is turned off on

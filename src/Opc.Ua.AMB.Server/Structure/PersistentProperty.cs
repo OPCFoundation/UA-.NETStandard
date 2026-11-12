@@ -122,7 +122,7 @@ namespace Opc.Ua.AMB.Server.Structure
                 return Variant.From(LocalizedText.Null);
             }
             int delimiter = text.IndexOf(':', StringComparison.Ordinal);
-            int second = delimiter < 0 ? -1 : text.IndexOf(':', delimiter + 1);
+            int second = delimiter < 0 ? -1 : text.IndexOf(':', delimiter + 1, StringComparison.Ordinal);
             if (delimiter < 1 || second < 0 ||
                 !TryParseLength(text, 0, delimiter, out int localeLength) ||
                 !TryParseLength(text, delimiter + 1, second - delimiter - 1, out int textLength) ||

@@ -307,7 +307,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Value = new TypedValueDto
                     {
                         DataType = "Boolean",
-                        Value = JsonDocument.Parse("true").RootElement
+                        Value = JsonElement.Parse("true")
                     }
                 },
                 MakeScope());

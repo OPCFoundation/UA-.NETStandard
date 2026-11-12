@@ -1545,7 +1545,7 @@ namespace Opc.Ua.Tools.Tests
                     Is.Zero,
                     $"package-version-policy.ps1 script failed:\n{output}\n{error}");
 
-                return JsonDocument.Parse(output).RootElement;
+                return JsonElement.Parse(output);
             }
             finally
             {

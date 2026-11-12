@@ -97,7 +97,7 @@ namespace Opc.Ua.Interop.Tests
         {
             foreach (string policy in s_legacyPolicies.Concat(s_declaredPolicies))
             {
-                string name = policy.Substring(policy.LastIndexOf('#') + 1);
+                string name = policy.Substring(policy.LastIndexOf('#', StringComparison.Ordinal) + 1);
                 yield return new TestCaseData(policy, MessageSecurityMode.SignAndEncrypt, false)
                     .SetArgDisplayNames(name, "SignAndEncrypt", "Anonymous");
                 yield return new TestCaseData(policy, MessageSecurityMode.SignAndEncrypt, true)
@@ -301,7 +301,7 @@ namespace Opc.Ua.Interop.Tests
                 SecurityPolicies.ECC_nistP256_ChaChaPoly
             })
             {
-                yield return new TestCaseData(policy).SetArgDisplayNames(policy.Substring(policy.LastIndexOf('#') + 1));
+                yield return new TestCaseData(policy).SetArgDisplayNames(policy.Substring(policy.LastIndexOf('#', StringComparison.Ordinal) + 1));
             }
         }
 

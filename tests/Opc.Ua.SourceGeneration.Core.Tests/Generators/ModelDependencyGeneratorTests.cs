@@ -568,7 +568,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string output = ReadOutput();
             int payloadEnd = output.IndexOf("\")]", StringComparison.Ordinal);
             Assert.That(payloadEnd, Is.GreaterThanOrEqualTo(0));
-            int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
+            int payloadStart = output.LastIndexOf('"', payloadEnd - 1, StringComparison.Ordinal);
             Assert.That(payloadStart, Is.GreaterThanOrEqualTo(0));
             string encodedPayload = output[(payloadStart + 1)..payloadEnd];
             return ModelDependencyV1.FromBase64Payload(encodedPayload)!;

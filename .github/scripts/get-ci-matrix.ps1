@@ -56,8 +56,9 @@
     Exceeding it is an error, never a truncation.
 
  .PARAMETER ReservedEntries
-    Entries reserved for the other full-scope jobs: discovery, four NativeAOT
-    legs, eight crash-corpus replays, coverage, the summary, and one spare.
+    Entries reserved for the other full-scope jobs: discovery, eight NativeAOT
+    legs (four RIDs on net10.0 and net11.0), eight crash-corpus replays,
+    coverage, the summary, and one spare.
 
  .PARAMETER MaxJobTimeoutMinutes
     Upper bound on a batch job's 'timeout-minutes', below the 360-minute ceiling
@@ -96,7 +97,7 @@ Param(
     [switch] $ExcludeMacOS,
     [string] $OnlyProject = '',
     [int]    $MaxEntries = 256,
-    [int]    $ReservedEntries = 16,
+    [int]    $ReservedEntries = 20,
     [int]    $MaxJobTimeoutMinutes = 350,
     [int]    $BatchTargetMinutes = 30,
     [string] $DurationsPath = '',
@@ -204,6 +205,7 @@ function Get-SdkVersions([string] $framework)
     switch ($framework) {
         'net8.0' { return @('8.0.x', $LatestSdk) }
         'net9.0' { return @('9.0.x', $LatestSdk) }
+        'net10.0' { return @('10.0.x', $LatestSdk) }
         default { return @($LatestSdk) }
     }
 }
@@ -214,14 +216,19 @@ function Get-SdkVersions([string] $framework)
 #   framework        - the target framework the tests actually execute on
 #   scopes           - which CI scopes include the profile
 #
-# The Linux net10.0 Release mainline profile is pull-request only on purpose: in
-# the full scope the long-running tier runs the identical tuple with the category
+# Pull requests run the newest framework (net11.0); the full scope (nightly)
+# runs the net10.0 LTS release in its place, plus the older frameworks.
+#
+# The Linux net10.0 Release mainline profile is not part of the full scope on
+# purpose: the long-running tier runs the identical tuple with the category
 # filter lifted, so keeping both would run the same tests twice.
 $Profiles = @(
     @{ id = 'windows-net48'; os = 'windows'; customTestTarget = 'net48'; framework = 'net48'; configuration = 'Release'; scopes = @('pr', 'full') }
-    @{ id = 'windows-net10.0'; os = 'windows'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('pr', 'full') }
-    @{ id = 'linux-net10.0'; os = 'linux'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('pr') }
-    @{ id = 'macos-net10.0'; os = 'macos'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('pr', 'full') }
+    @{ id = 'windows-net11.0'; os = 'windows'; customTestTarget = 'net11.0'; framework = 'net11.0'; configuration = 'Release'; scopes = @('pr') }
+    @{ id = 'linux-net11.0'; os = 'linux'; customTestTarget = 'net11.0'; framework = 'net11.0'; configuration = 'Release'; scopes = @('pr') }
+    @{ id = 'macos-net11.0'; os = 'macos'; customTestTarget = 'net11.0'; framework = 'net11.0'; configuration = 'Release'; scopes = @('pr') }
+    @{ id = 'windows-net10.0'; os = 'windows'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('full') }
+    @{ id = 'macos-net10.0'; os = 'macos'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'windows-net10.0-debug'; os = 'windows'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Debug'; scopes = @('full') }
     @{ id = 'linux-net10.0-debug'; os = 'linux'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Debug'; scopes = @('full') }
     @{ id = 'windows-net9.0'; os = 'windows'; customTestTarget = 'net9.0'; framework = 'net9.0'; configuration = 'Release'; scopes = @('full') }
@@ -241,22 +248,30 @@ $Profiles = @(
 
 # Solution builds. 'solutions' is either '*' for every discovered .slnx or an
 # explicit list. Every solution across every
-# supported target framework in both configurations for the full scope, narrowed
+# supported target framework for the full scope (Debug for net48 and net11.0
+# only, see below), narrowed
 # for pull requests, plus the Linux leg that proves UA.slnx still compiles for
 # every Linux-capable target framework.
 $BuildProfiles = @(
     @{ id = 'pr-windows'; os = 'windows'; scopes = @('pr'); solutions = '*'
-        tfms = @('net48', 'net10.0'); configurations = @('Debug', 'Release')
+        tfms = @('net48', 'net10.0', 'net11.0'); configurations = @('Debug', 'Release')
     }
     @{ id = 'pr-linux'; os = 'linux'; scopes = @('pr'); solutions = @('UA.slnx')
-        tfms = @('net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
+        tfms = @('net8.0', 'net9.0', 'net10.0', 'net11.0'); configurations = @('Release')
+    }
+    # Debug builds of the intermediate frameworks add little over their Release
+    # builds and the Debug test legs, and would push the full scope past the
+    # 256-job ceiling, so Debug covers the oldest and the newest framework only.
+    @{ id = 'full-windows'; os = 'windows'; scopes = @('full'); solutions = '*'
+        tfms = @('net48', 'net8.0', 'net9.0', 'net10.0', 'net11.0')
+        configurations = @('Release')
     }
     @{ id = 'full-windows'; os = 'windows'; scopes = @('full'); solutions = '*'
-        tfms = @('net48', 'net8.0', 'net9.0', 'net10.0')
-        configurations = @('Debug', 'Release')
+        tfms = @('net48', 'net11.0')
+        configurations = @('Debug')
     }
     @{ id = 'full-linux'; os = 'linux'; scopes = @('full'); solutions = @('UA.slnx')
-        tfms = @('net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
+        tfms = @('net8.0', 'net9.0', 'net10.0', 'net11.0'); configurations = @('Release')
     }
 )
 

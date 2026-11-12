@@ -679,7 +679,7 @@ namespace Opc.Ua.Tools.Tests
                 if (File.Exists(manifestPath))
                 {
                     string manifestJson = await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false);
-                    manifest = JsonDocument.Parse(manifestJson).RootElement;
+                    manifest = JsonElement.Parse(manifestJson);
                 }
 
                 return new ValidationResult(process.ExitCode, combined, manifest);

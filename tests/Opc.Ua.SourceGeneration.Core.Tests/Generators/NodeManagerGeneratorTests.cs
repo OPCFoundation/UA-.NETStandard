@@ -637,7 +637,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 index = source.IndexOf(signature, index + signature.Length, StringComparison.Ordinal))
             {
                 int start = index + signature.Length;
-                int end = source.IndexOf(')', start);
+                int end = source.IndexOf(')', start, StringComparison.Ordinal);
                 parameterLists.Add(source.Substring(start, end - start));
             }
 
@@ -877,7 +877,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 // Skip XML doc comments and block-comment continuations —
                 // they reference type names cosmetically, not as code.
                 if (trimmed.StartsWith("///", StringComparison.Ordinal) ||
-                    trimmed.StartsWith('*') ||
+                    trimmed.StartsWith('*', StringComparison.Ordinal) ||
                     trimmed.StartsWith("//", StringComparison.Ordinal))
                 {
                     continue;
