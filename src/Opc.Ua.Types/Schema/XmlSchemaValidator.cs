@@ -94,7 +94,10 @@ namespace Opc.Ua.Schema.Xml
                 import.Schema = Load(import.SchemaLocation, import.Namespace, handler);
             }
 
-            SchemaSet = new XmlSchemaSet();
+            // Imports are resolved above from the import table only. Includes and
+            // redefines are not resolved: on .NET Framework the default resolver
+            // of a schema set would open any location the schema names.
+            SchemaSet = new XmlSchemaSet { XmlResolver = null };
             SchemaSet.Add(TargetSchema);
             SchemaSet.Compile();
         }

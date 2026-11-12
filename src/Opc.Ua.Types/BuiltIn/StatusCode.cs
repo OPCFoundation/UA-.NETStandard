@@ -184,9 +184,7 @@ namespace Opc.Ua
             }
             else
             {
-                SymbolicId = symbolicId != null ?
-                    string.Intern(symbolicId) :
-                    null;
+                SymbolicId = ShareSymbolicId(code, symbolicId);
             }
             // Set code again which could be containing more than code bits
             Code = code;
@@ -213,7 +211,7 @@ namespace Opc.Ua
             else
             {
                 Code = defaultCode;
-                SymbolicId = symbolicId != null ? string.Intern(symbolicId) : null;
+                SymbolicId = ShareSymbolicId(defaultCode, symbolicId);
             }
         }
 
@@ -238,6 +236,27 @@ namespace Opc.Ua
             {
                 this = defaultCode;
             }
+        }
+
+        /// <summary>
+        /// Returns the symbol of the known status code with the same code bits when
+        /// it equals <paramref name="symbolicId"/>, so that equal symbols share one
+        /// string. Any other symbol is kept as given: the symbol can come from a peer,
+        /// and an interned string is never collected.
+        /// </summary>
+        private static string? ShareSymbolicId(uint code, string? symbolicId)
+        {
+            // The status code constants are created while the table itself is
+            // initialized, when it can still be null on .NET Framework.
+            var statusCodes = s_statusCodes;
+            if (symbolicId != null &&
+                statusCodes != null &&
+                statusCodes.TryGetValue(code & 0xFFFF0000, out StatusCode known) &&
+                string.Equals(known.SymbolicId, symbolicId, StringComparison.Ordinal))
+            {
+                return known.SymbolicId;
+            }
+            return symbolicId;
         }
 
         /// <summary>

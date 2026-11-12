@@ -175,6 +175,32 @@ namespace Opc.Ua.Client
                 previousSessionId, ct));
         }
 
+        /// <summary>
+        /// Queues the acknowledgement of a message delivered to a subscription the
+        /// session holds through the classic API, for example one recovered with
+        /// Republish. It is sent with the next Publish request, unless the
+        /// subscription of <paramref name="scope"/> was deleted or recreated.
+        /// </summary>
+        internal void QueueSessionAcknowledgement(
+            uint subscriptionId,
+            uint sequenceNumber,
+            AcknowledgementScope? scope)
+        {
+            if (!m_disposed)
+            {
+                m_manager.QueueSessionAcknowledgement(subscriptionId, sequenceNumber, scope);
+            }
+        }
+
+        /// <summary>
+        /// The lifetime of the subscription the session holds through the classic
+        /// API with the identifier, or <c>null</c> when it holds none.
+        /// </summary>
+        internal AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+        {
+            return m_disposed ? null : m_manager.GetSessionSubscriptionScope(subscriptionId);
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -262,6 +288,50 @@ namespace Opc.Ua.Client
                     return 0;
 #endif
                 }
+            }
+
+            /// <inheritdoc/>
+            public int OperationTimeout => m_context.OperationTimeout;
+
+            /// <inheritdoc/>
+            public bool MayDeleteUnknownSubscription(uint subscriptionId)
+            {
+                // The guards of the classic engine: a transfer or restore sets
+                // Reconnecting while subscriptions are bound to their identifiers,
+                // and a subscription without an identifier is being created.
+                if (m_context.Reconnecting ||
+                    !m_context.DeleteSubscriptionsOnClose)
+                {
+                    return false;
+                }
+#if OPCUA_V1_CLIENT
+                foreach (Subscription subscription in m_context.Subscriptions)
+                {
+                    if (subscription.Id == default)
+                    {
+                        return false;
+                    }
+                }
+#endif
+                return true;
+            }
+
+            /// <inheritdoc/>
+            public AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+            {
+#if OPCUA_V1_CLIENT
+                if (subscriptionId != default)
+                {
+                    foreach (Subscription subscription in m_context.Subscriptions)
+                    {
+                        if (subscription.Id == subscriptionId)
+                        {
+                            return subscription.GetAcknowledgementScope();
+                        }
+                    }
+                }
+#endif
+                return null;
             }
 
             /// <inheritdoc/>
