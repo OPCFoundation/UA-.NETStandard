@@ -145,27 +145,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WotRefreshResult result;
                 try
                 {
-                    for (int attempt = 0; ; attempt++)
-                    {
-                        bool decisionStarted = false;
-                        try
-                        {
-                            result = await RefreshPreparedUnitAsync(
-                                unitCapture, snapshot, start, unit, includeSkipped,
-                                publication, registryPublication, preview, cancellationToken, mutation,
-                                () => decisionStarted = true)
-                                .ConfigureAwait(false);
-                            break;
-                        }
-                        catch (InvalidOperationException failure) when (
-                            !decisionStarted && attempt < 2 &&
-                            failure.Message is
-                                "Serving references changed during batch preparation." or
-                                "Serving references changed during preparation.")
-                        {
-                            await Task.Yield();
-                        }
-                    }
+                    result = await RefreshPreparedUnitWithRetryAsync(
+                        unitCapture, snapshot, start, unit, includeSkipped,
+                        publication, registryPublication, preview, mutation, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (WotRegistryCommitNotCommittedException failure) when (
                     rows.Any(row => row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning))
@@ -198,9 +181,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             if (plan.Units.IsEmpty)
             {
-                WotRefreshResult empty = await RefreshPreparedUnitAsync(
-                    refresh, snapshot, start, [], true, publication, registryPublication, preview, cancellationToken,
-                    mutation)
+                WotRefreshResult empty = await RefreshPreparedUnitWithRetryAsync(
+                    refresh, snapshot, start, [], true, publication, registryPublication, preview, mutation,
+                    cancellationToken)
                     .ConfigureAwait(false);
                 rows.AddRange(empty.Results);
                 retired = empty.Summary.Retired;
@@ -279,6 +262,52 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 RefreshStateChanged?.Invoke(this, EventArgs.Empty);
             }
             return completed;
+        }
+
+        /// <summary>
+        /// Publishes one prepared unit and rebuilds it when a concurrent serving-reference write
+        /// invalidates the prepared candidate before the durable decision starts.
+        /// </summary>
+        /// <remarks>
+        /// Other server components, such as the registry projection, can write references of a node
+        /// that the publication prepared. The server then rejects the reservation before the decision,
+        /// so nothing was published and the unit is rebuilt from the live serving state. Unload and
+        /// retire-only publications without activation units use the same budget as activations.
+        /// </remarks>
+        private async ValueTask<WotRefreshResult> RefreshPreparedUnitWithRetryAsync(
+            WotRefreshCapture refresh,
+            WotRegistrySnapshot snapshot,
+            DateTime start,
+            ArrayOf<WotDependencyClosure> unit,
+            bool includeSkipped,
+            IWotProjectionPublication? publication,
+            IWotRegistryPublication? registryPublication,
+            PublicationCapture? preview,
+            WotRegistryMutationImage? mutation,
+            CancellationToken cancellationToken)
+        {
+            for (int attempt = 1; ; attempt++)
+            {
+                bool decisionStarted = false;
+                try
+                {
+                    return await RefreshPreparedUnitAsync(
+                        refresh, snapshot, start, unit, includeSkipped,
+                        publication, registryPublication, preview, cancellationToken, mutation,
+                        () => decisionStarted = true)
+                        .ConfigureAwait(false);
+                }
+                catch (InvalidOperationException failure) when (
+                    !decisionStarted && attempt < kMaxPreparedPublicationAttempts &&
+                    failure.Message is
+                        "Serving references changed during batch preparation." or
+                        "Serving references changed during preparation.")
+                {
+                    // Let the concurrent writer finish before the unit is prepared again.
+                    await Task.Delay(TimeSpan.FromMilliseconds(10 * attempt), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
         }
 
         private async ValueTask<WotRefreshResult> RefreshPreparedUnitAsync(
@@ -1526,6 +1555,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        private const int kMaxPreparedPublicationAttempts = 3;
         private readonly IWotProjectionHost m_sourceHost;
         private readonly IWotViewProjectionHost m_sourceViewHost;
         private readonly IWotBinderRegistry m_sourceBinders;
