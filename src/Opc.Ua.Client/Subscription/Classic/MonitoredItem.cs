@@ -568,6 +568,26 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// The message of the last notification saved in the cache, without marking the
+        /// messages of the subscription as handed out.
+        /// </summary>
+        internal NotificationMessage? LastMessageInCache
+        {
+            get
+            {
+                lock (m_cache)
+                {
+                    return m_lastNotification switch
+                    {
+                        MonitoredItemNotification datachange => datachange.Message,
+                        EventFieldList eventFields => eventFields.Message,
+                        _ => null
+                    };
+                }
+            }
+        }
+
+        /// <summary>
         /// The last message containing a notification for the item.
         /// </summary>
         public NotificationMessage? LastMessage

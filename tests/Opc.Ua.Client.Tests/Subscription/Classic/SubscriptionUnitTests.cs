@@ -479,6 +479,128 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        /// <summary>
+        /// A message that left the cache keeps its deferred body while it is still the
+        /// last message of a monitored item that got nothing newer, also when the
+        /// application reads that item's LastMessage only after the eviction.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessageStaysReadableAsLastMessageOfAQuietItemAsync(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            var quiet = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            var busy = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            subscription.AddItems([quiet, busy]);
+            subscription.Session = session;
+
+            NotificationMessage first = DeferredEventMessage(telemetry, 1, quiet.ClientHandle);
+            subscription.SaveMessageInCache([1u], first);
+            await delivered(1).ConfigureAwait(false);
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], EventMessage(sequenceNumber, busy.ClientHandle));
+                await delivered(sequenceNumber).ConfigureAwait(false);
+            }
+
+            NotificationMessage? last = quiet.LastMessage;
+            Assert.That(last, Is.SameAs(first));
+            Assert.That(last!.NotificationData[0].TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events[0].ClientHandle, Is.EqualTo(quiet.ClientHandle));
+        }
+
+        /// <summary>
+        /// Messages handed to a Notification handler of one session stay readable after the
+        /// subscription moved to a session without handlers.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task MessagesHandedOutBeforeASessionChangeStayReadableAsync(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var withHandler = SessionMock.Create();
+            using var withoutHandler = SessionMock.Create();
+            withHandler.Notification += (_, _) => { };
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            subscription.Session = withHandler;
+
+            NotificationMessage first = DeferredEventMessage(telemetry, 1, 3);
+            subscription.SaveMessageInCache([1u], first);
+            await delivered(1).ConfigureAwait(false);
+
+            subscription.Session = withoutHandler;
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], EventMessage(sequenceNumber, 4));
+                await delivered(sequenceNumber).ConfigureAwait(false);
+            }
+
+            Assert.That(first.NotificationData[0].TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events[0].ClientHandle, Is.EqualTo(3u));
+        }
+
+        /// <summary>
+        /// A created subscription that caches one message and reports each dispatched
+        /// event message by sequence number.
+        /// </summary>
+        private static async Task<(Subscription Subscription, Func<uint, Task> Delivered)>
+            CreateEvictingSubscriptionAsync(ITelemetryContext telemetry, CancellationToken ct)
+        {
+            var delivered = new ConcurrentDictionary<uint, TaskCompletionSource<bool>>();
+            TaskCompletionSource<bool> Delivered(uint sequenceNumber)
+            {
+                return delivered.GetOrAdd(sequenceNumber, _ => new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+            var subscription = new Subscription(telemetry, new() { PublishingEnabled = true })
+            {
+                MaxMessageCount = 1,
+                FastEventCallback = (_, events, _) => Delivered(events.SequenceNumber).TrySetResult(true),
+                Session = BuildSessionMock()
+            };
+            try
+            {
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                subscription.Dispose();
+                throw;
+            }
+            return (subscription, sequenceNumber => Delivered(sequenceNumber).Task.WaitAsync(ct));
+        }
+
+        private static NotificationMessage DeferredEventMessage(
+            ITelemetryContext telemetry, uint sequenceNumber, uint clientHandle)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = [DecodeDeferred(telemetry, new EventNotificationList
+                {
+                    Events = [new EventFieldList { ClientHandle = clientHandle, EventFields = [Variant.From("first")] }]
+                })]
+            };
+        }
+
+        private static NotificationMessage EventMessage(uint sequenceNumber, uint clientHandle)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = [new(new EventNotificationList
+                {
+                    Events = [new EventFieldList { ClientHandle = clientHandle }]
+                })]
+            };
+        }
+
         private static ExtensionObject DecodeDeferred(ITelemetryContext telemetry, EventNotificationList notification)
         {
             ServiceMessageContext context = ServiceMessageContext.Create(telemetry);

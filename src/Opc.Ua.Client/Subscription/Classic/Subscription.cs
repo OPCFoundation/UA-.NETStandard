@@ -636,11 +636,13 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <remarks>
         /// With deferred decoding, a message that leaves the cache returns its buffers
-        /// to the pool. Not once the application could hold messages of this
-        /// subscription: after it read <see cref="Notifications"/>,
+        /// to the pool. Not while it is still the <see cref="MonitoredItem.LastMessage"/>
+        /// of a monitored item, and not once the application could hold messages of
+        /// this subscription: after it read <see cref="Notifications"/>,
         /// <see cref="LastNotification"/> or <see cref="MonitoredItem.LastMessage"/>,
-        /// or after a <see cref="ISession.Notification"/> handler was attached to the
-        /// session; those messages keep their bytes. A message reached only through the
+        /// or after a message was saved while the session had a
+        /// <see cref="ISession.Notification"/> handler (also on an earlier session of
+        /// this subscription); those messages keep their bytes. A message reached only through the
         /// <c>Message</c> property of a <see cref="MonitoredItemNotification"/> or
         /// <see cref="EventFieldList"/> has no notification data after it left the
         /// cache.
@@ -2359,6 +2361,13 @@ namespace Opc.Ua.Client
                 if (message == null)
                 {
                     return true;
+                }
+
+                // The session raises Notification with this message after it is saved. The
+                // mark stays with the subscription, also when it moves to another session.
+                if (Session is not Session { NotificationHandlerAttached: false })
+                {
+                    m_messagesHandedOut = true;
                 }
 
                 // check if a publish error was previously reported.
@@ -4113,8 +4122,23 @@ namespace Opc.Ua.Client
             {
                 return;
             }
+
+            // A monitored item that got nothing newer still returns the message as its
+            // LastMessage, which the application can read at any time.
+            HashSet<NotificationMessage>? lastMessages = null;
+            foreach (MonitoredItem monitoredItem in MonitoredItems)
+            {
+                if (monitoredItem.LastMessageInCache is NotificationMessage last)
+                {
+                    (lastMessages ??= new HashSet<NotificationMessage>(ReferenceComparer.Instance)).Add(last);
+                }
+            }
             foreach (NotificationMessage message in evictedMessages)
             {
+                if (lastMessages != null && lastMessages.Contains(message))
+                {
+                    continue;
+                }
                 for (int ii = 0; ii < message.NotificationData.Count; ii++)
                 {
                     message.NotificationData[ii].ReleaseDeferredBody();
@@ -4129,6 +4153,24 @@ namespace Opc.Ua.Client
         internal void MarkMessagesHandedOut()
         {
             Volatile.Write(ref m_messagesHandedOut, true);
+        }
+
+        /// <summary>
+        /// Compares messages by reference.
+        /// </summary>
+        private sealed class ReferenceComparer : IEqualityComparer<NotificationMessage>
+        {
+            public static readonly ReferenceComparer Instance = new();
+
+            public bool Equals(NotificationMessage? x, NotificationMessage? y)
+            {
+                return ReferenceEquals(x, y);
+            }
+
+            public int GetHashCode(NotificationMessage obj)
+            {
+                return RuntimeHelpers.GetHashCode(obj);
+            }
         }
 
         /// <summary>
