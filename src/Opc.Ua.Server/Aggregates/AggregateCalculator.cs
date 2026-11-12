@@ -413,11 +413,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RemoveValuesBeforeSlice(TimeSlice slice)
         {
-            // find the latest value before the start of the slice. The scan runs forward over
-            // the values before the slice only, most of which are removed below, so callers that
-            // queue many later values before draining do not pay for them on every slice.
+            // find the latest value before the start of the slice. The scan runs forward from the
+            // early bound (a value before the slice; everything before it goes anyway) and stops
+            // at the slice, so callers that queue many later values before draining do not pay
+            // for them on every slice.
             LinkedListNode<DataValue>? latestBefore = null;
-            for (LinkedListNode<DataValue>? ii = m_values.First;
+            for (LinkedListNode<DataValue>? ii = slice.EarlyBound ?? m_values.First;
                 ii != null && CompareTimestamps(slice.StartTime, ii) > 0;
                 ii = ii.Next)
             {
