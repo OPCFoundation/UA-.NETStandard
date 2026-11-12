@@ -34,14 +34,14 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 
 ## Prerequisites
 
-- **.NET SDK 10.0.400 or later** — `global.json` sets this minimum and selects the highest installed stable SDK through `rollForward: latestMajor`; prerelease SDKs are excluded. CI selects its SDK version explicitly. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)); those target frameworks do not determine the SDK used to build the repository.
+- **.NET 10 SDK 10.0.403 or later** — `global.json` selects the highest installed stable 10.0 SDK through `rollForward: latestFeature`; prerelease and newer major SDKs are excluded. CI installs the SDKs configured by its workflows, and `global.json` selects among them. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)); those target frameworks do not determine the SDK used to build the repository.
 - **An IDE (optional but recommended)** — Visual Studio 2026, Visual Studio Code with the C# Dev Kit, or JetBrains Rider. Everything can also be done from the command line with `dotnet`.
 - **git** — to clone and to create feature branches.
 - **Docker Desktop (optional)** — only needed to run the containerized reference server; see [ContainerReferenceServer.md](ContainerReferenceServer.md).
 
 The C# language version is pinned (`LangVersion` 14) and analyzer/style rules are enforced by the build.
-A newer SDK can introduce diagnostics that CI's pinned SDK does not report.
-To reproduce CI diagnostics, use the SDK version selected by the relevant CI workflow.
+A newer .NET 10 SDK can introduce diagnostics that CI's SDK does not report.
+To reproduce CI diagnostics, use the SDK version selected in the relevant CI job.
 
 ## Repository layout
 

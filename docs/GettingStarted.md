@@ -50,7 +50,7 @@ bash where they differ.
 
 | Requirement | Route A | Route B |
 | --- | --- | --- |
-| .NET SDK | Stable SDK 10.0.400 or later. [`global.json`](../global.json) uses `latestMajor` roll-forward and excludes prerelease SDKs. | .NET 10 SDK. |
+| .NET SDK | Stable .NET 10 SDK 10.0.403 or later. [`global.json`](../global.json) uses `latestFeature` roll-forward and excludes prerelease and newer major SDKs. | .NET 10 SDK. |
 | Other requirements | Git, and internet access to restore NuGet packages on the first build | Internet access to nuget.org |
 | TCP port | 62541 | 62560 |
 
@@ -475,7 +475,7 @@ persistent, access-controlled location; see the
 | `BadNotConnected` with `Could not connect to the remote endpoint` | No server is listening at the URL. | Start the server, then check the host, port, and path in the URL. |
 | `No discovered endpoint matched the configured security policy and mode.` | The server does not offer the requested security mode and policy. | Choose a mode and policy that the server offers. See [Profiles](Profiles.md#security-profiles). |
 | The server does not start, and the port is in use | Another application uses the port. | Stop that application, or change the port in both the server endpoint URL and the client discovery URL. |
-| `A compatible .NET SDK was not found` (Route A) | No stable SDK satisfying `global.json` is installed. | Install a stable .NET SDK version 10.0.400 or later. |
+| `A compatible .NET SDK was not found` (Route A) | No stable SDK satisfying `global.json` is installed. | Install a stable .NET 10 SDK version 10.0.403 or later. |
 
 See [Certificates](Certificates.md) for certificate stores and chains, and
 [Diagnostics](Diagnostics.md) for logging and packet capture.
