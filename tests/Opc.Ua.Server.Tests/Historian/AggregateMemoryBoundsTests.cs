@@ -110,6 +110,105 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// While an interval waits for its late bound, Bad values after its end stay within the
+        /// per-item limit, also when no Publish completes the intervals in between (priming).
+        /// </summary>
+        [Test]
+        public async Task MonitoredItemAggregateBoundsBadValuesAfterIntervalEndAsync()
+        {
+            using var harness = new Harness();
+            harness.AggregateManager.MaxMonitoredItemRawValues = 100;
+            var processed = new List<DataValue>();
+            AggregationFilterHandler handler = await harness.CreateHandlerAsync(
+                ObjectIds.AggregateFunction_Average,
+                processingInterval: 1000,
+                processed,
+                primed: true).ConfigureAwait(false);
+
+            handler.TryQueueValue(CreateValue(1, 0), true, out _);
+            for (int ii = 1; ii <= 5000; ii++)
+            {
+                DateTimeUtc timestamp = s_baseTime.AddMilliseconds(ii * 10);
+                handler.TryQueueValue(
+                    new DataValue(Variant.Null, StatusCodes.BadSensorFailure, timestamp, timestamp),
+                    true,
+                    out _);
+            }
+
+            // the limit, plus the value at the end of the interval and one value after it.
+            Assert.That(processed, Is.Empty);
+            Assert.That(GetRawValueCount(handler), Is.LessThanOrEqualTo(102));
+
+            // a Good value completes the waiting intervals.
+            handler.TryQueueValue(CreateValue(2, 60_000), true, out _);
+            Assert.That(processed, Has.Count.GreaterThanOrEqualTo(50));
+            Assert.That(GetRawValueCount(handler), Is.LessThan(10));
+        }
+
+        /// <summary>
+        /// Values at the end of an interval do not grow beyond the per-item limit while the
+        /// interval waits for a later value, and the interval that lost values is Uncertain.
+        /// </summary>
+        [Test]
+        public async Task MonitoredItemAggregateBoundsValuesAtIntervalEndAsync()
+        {
+            using var harness = new Harness();
+            harness.AggregateManager.MaxMonitoredItemRawValues = 100;
+            var processed = new List<DataValue>();
+            AggregationFilterHandler handler = await harness.CreateHandlerAsync(
+                ObjectIds.AggregateFunction_Average,
+                processingInterval: 1000,
+                processed).ConfigureAwait(false);
+
+            handler.TryQueueValue(CreateValue(1, 0), false, out _);
+            for (int ii = 0; ii < 500; ii++)
+            {
+                handler.TryQueueValue(CreateValue(5, 1000), false, out _);
+            }
+            Assert.That(GetRawValueCount(handler), Is.LessThanOrEqualTo(101));
+
+            handler.TryQueueValue(CreateValue(5, 1500), false, out _);
+            handler.TryQueueValue(CreateValue(5, 2500), false, out _);
+            handler.TryQueueValue(CreateValue(5, 3500), false, out _);
+
+            DataValue second = processed.Find(value => value.SourceTimestamp == s_baseTime.AddMilliseconds(1000));
+            Assert.That(second.IsNull, Is.False);
+            Assert.That(second.StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+            DataValue third = processed.Find(value => value.SourceTimestamp == s_baseTime.AddMilliseconds(2000));
+            Assert.That(StatusCode.IsGood(third.StatusCode), Is.True);
+        }
+
+        /// <summary>
+        /// Queuing many intervals of raw values before draining them stays linear.
+        /// </summary>
+        [Test]
+        public void CalculatorDrainsQueuedArchiveInLinearTime()
+        {
+            const int count = 100_000;
+            IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
+                ObjectIds.AggregateFunction_Average,
+                s_baseTime,
+                s_baseTime.AddMilliseconds(count * 10.0),
+                10,
+                false,
+                new AggregateConfiguration { PercentDataBad = 100, PercentDataGood = 100 },
+                NUnitTelemetryContext.Create())!;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            for (int ii = 0; ii < count; ii++)
+            {
+                calculator.QueueRawValue(CreateValue(ii, ii * 10.0));
+            }
+            int outputs = 0;
+            while (calculator.TryGetProcessedValue(true, out DataValue _))
+            {
+                outputs++;
+            }
+
+            Assert.That(outputs, Is.EqualTo(count));
+            Assert.That(stopwatch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(10)));
+        }
+
+        /// <summary>
         /// Bad raw values of completed intervals are not kept, with or without an earlier Good value.
         /// </summary>
         [TestCase(false)]
@@ -251,6 +350,63 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(resumedSecond.ContinuationPoint.IsEmpty, Is.False);
             Assert.That(resumedSecond.HistoryData.TryGetValue(out HistoryData? data), Is.True);
             Assert.That(data!.DataValues, Has.Count.EqualTo(1000));
+        }
+
+        /// <summary>
+        /// A slot reserved for a continued operation that completes without a successor does not
+        /// let another operation of the same request skip the value limit.
+        /// </summary>
+        [Test]
+        public async Task ProcessedContinuationPointValueLimitAppliesWithReservedSlotAsync()
+        {
+            using var harness = new Harness();
+            harness.ContinuationPoints.MaxHistoryValues = 5000;
+            var first = new HistoryReadResult();
+            await harness.ReadProcessedAsync(0, s_baseTime, s_baseTime.AddMilliseconds(2_000_000), 1000, first)
+                .ConfigureAwait(false);
+            Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
+
+            var resumed = new HistoryReadResult();
+            var large = new HistoryReadResult();
+            using (harness.ContinuationPoints.BeginHistoryRequest(
+                [new HistoryReadValueId { ContinuationPoint = first.ContinuationPoint }, new HistoryReadValueId()]))
+            {
+                await harness.ReadProcessedAsync(
+                    0, s_baseTime, s_baseTime.AddMilliseconds(2_000_000), 1000, resumed, first.ContinuationPoint)
+                    .ConfigureAwait(false);
+                await harness.ReadProcessedAsync(
+                    0, s_baseTime, s_baseTime.AddMilliseconds(6_000_000), 1000, large).ConfigureAwait(false);
+            }
+
+            Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(resumed.ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(large.StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            Assert.That(large.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// The buffer of a continuation point that a running read has checked out still counts
+        /// towards the value limit of the session.
+        /// </summary>
+        [Test]
+        public async Task ProcessedContinuationPointValueLimitCountsCheckedOutPointsAsync()
+        {
+            using var harness = new Harness();
+            harness.ContinuationPoints.MaxHistoryValues = 5000;
+            var first = new HistoryReadResult();
+            await harness.ReadProcessedAsync(0, s_baseTime, s_baseTime.AddMilliseconds(3_000_000), 1000, first)
+                .ConfigureAwait(false);
+            Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
+
+            // a read continuing the first operation has checked it out.
+            Assert.That(harness.ContinuationPoints.RestoreHistory(first.ContinuationPoint), Is.Not.Null);
+
+            var second = new HistoryReadResult();
+            await harness.ReadProcessedAsync(0, s_baseTime, s_baseTime.AddMilliseconds(3_000_000), 1000, second)
+                .ConfigureAwait(false);
+
+            Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            Assert.That(second.ContinuationPoint.IsEmpty, Is.True);
         }
 
         /// <summary>

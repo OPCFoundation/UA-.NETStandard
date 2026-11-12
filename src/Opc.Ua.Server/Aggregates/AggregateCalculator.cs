@@ -308,12 +308,12 @@ namespace Opc.Ua.Server
                 m_values.Count >= MaxRawValues &&
                 CanReplaceNewestValue(value))
             {
-                // keep the number of values held for the current interval bounded: the
-                // newest value in the interval is replaced, so the interval keeps its
-                // earliest values and its latest value. The node stays in place, so the
-                // references of the current slice remain valid.
-                m_values.Last!.Value = value;
-                m_rawValuesDiscarded = true;
+                // keep the number of values held bounded: the newest held value is replaced,
+                // so an interval keeps its earliest values and its latest value. The node
+                // stays in place, so the references of the current slice remain valid.
+                LinkedListNode<DataValue> last = m_values.Last!;
+                RecordDiscardedValue(GetTimestamp(last.Value));
+                last.Value = value;
             }
             else
             {
@@ -325,9 +325,10 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// The maximum number of raw values held by the calculator, or zero or less for no
-        /// limit. Only applies when time flows forward. When the limit is reached, a value
-        /// inside the current interval replaces the newest held value of that interval and
-        /// the processed value of the interval is reported Uncertain_DataSubNormal instead of Good.
+        /// limit. Only applies when time flows forward. When the limit is reached, a new value
+        /// replaces the newest held value of the same interval, or the newest value held while
+        /// the current interval waits for its late bound, and every interval that lost a value
+        /// is reported Uncertain_DataSubNormal instead of Good.
         /// </summary>
         internal int MaxRawValues { get; set; }
 
@@ -337,7 +338,11 @@ namespace Opc.Ua.Server
         internal int RawValueCount => m_values.Count;
 
         /// <summary>
-        /// Returns true if the newest held value and the new value both lie in the current slice.
+        /// Returns true if the newest held value can be replaced by the new value: both lie in
+        /// the current slice, have the same timestamp, or are both after its end while the slice
+        /// waits for its late bound and the held one is Bad. The value at the end of the slice is
+        /// kept when a later value arrives, and so is a non-Bad value after the end, which
+        /// completes the slice.
         /// </summary>
         private bool CanReplaceNewestValue(DataValue value)
         {
@@ -348,10 +353,54 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            DateTimeUtc valueTime = UseServerTimestamp ? value.ServerTimestamp : value.SourceTimestamp;
-            // a value at the end of the slice starts the next one and is kept.
-            return CompareTimestamps(slice.StartTime, last) <= 0 &&
-                valueTime < slice.EndTime;
+            DateTimeUtc valueTime = GetTimestamp(value);
+            DateTimeUtc lastTime = GetTimestamp(last.Value);
+            if (valueTime < slice.EndTime)
+            {
+                return lastTime >= slice.StartTime;
+            }
+
+            // a value at the end itself belongs to the slice and the slice scan has passed it,
+            // so only a value with the same timestamp may take its place.
+            if (lastTime == slice.EndTime)
+            {
+                return valueTime == lastTime;
+            }
+
+            return lastTime > slice.EndTime && !IsBoundCandidate(last.Value);
+        }
+
+        /// <summary>
+        /// Returns the timestamp of a value according to the current UseServerTimestamp setting.
+        /// </summary>
+        private DateTimeUtc GetTimestamp(DataValue value)
+        {
+            return UseServerTimestamp ? value.ServerTimestamp : value.SourceTimestamp;
+        }
+
+        /// <summary>
+        /// Remembers the timestamp of a raw value that was not kept, so the intervals it belongs
+        /// to are reported Uncertain_DataSubNormal.
+        /// </summary>
+        private void RecordDiscardedValue(DateTimeUtc timestamp)
+        {
+            if (!m_hasDiscardedValues)
+            {
+                m_hasDiscardedValues = true;
+                m_discardedFrom = timestamp;
+                m_discardedTo = timestamp;
+                return;
+            }
+
+            if (timestamp < m_discardedFrom)
+            {
+                m_discardedFrom = timestamp;
+            }
+
+            if (timestamp > m_discardedTo)
+            {
+                m_discardedTo = timestamp;
+            }
         }
 
         /// <summary>
@@ -364,11 +413,15 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RemoveValuesBeforeSlice(TimeSlice slice)
         {
-            // find the latest value before the start of the slice.
-            LinkedListNode<DataValue>? latestBefore = m_values.Last;
-            while (latestBefore != null && CompareTimestamps(slice.StartTime, latestBefore) <= 0)
+            // find the latest value before the start of the slice. The scan runs forward over
+            // the values before the slice only, most of which are removed below, so callers that
+            // queue many later values before draining do not pay for them on every slice.
+            LinkedListNode<DataValue>? latestBefore = null;
+            for (LinkedListNode<DataValue>? ii = m_values.First;
+                ii != null && CompareTimestamps(slice.StartTime, ii) > 0;
+                ii = ii.Next)
             {
-                latestBefore = latestBefore.Previous;
+                latestBefore = ii;
             }
 
             if (latestBefore == null)
@@ -491,13 +544,19 @@ namespace Opc.Ua.Server
             }
 
             // the interval was calculated from a subset of its raw values.
-            if (m_rawValuesDiscarded)
+            if (m_hasDiscardedValues)
             {
-                m_rawValuesDiscarded = false;
-                if (StatusCode.IsGood(computed.StatusCode))
+                if (m_discardedFrom <= lateTime &&
+                    m_discardedTo >= earlyTime &&
+                    StatusCode.IsGood(computed.StatusCode))
                 {
                     computed = computed.WithStatus(computed.StatusCode
                         .WithCodeBits(StatusCodes.UncertainDataSubNormal));
+                }
+
+                if (m_discardedTo < lateTime)
+                {
+                    m_hasDiscardedValues = false;
                 }
             }
 
@@ -1986,7 +2045,9 @@ namespace Opc.Ua.Server
 
         private readonly ILogger m_logger;
         private readonly LinkedList<DataValue> m_values;
-        private bool m_rawValuesDiscarded;
+        private bool m_hasDiscardedValues;
+        private DateTimeUtc m_discardedFrom;
+        private DateTimeUtc m_discardedTo;
         private readonly bool m_stepped;
         private bool m_nonNumericData;
         private DateTimeUtc m_startOfData;
