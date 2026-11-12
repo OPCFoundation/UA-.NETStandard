@@ -181,7 +181,7 @@ namespace Opc.Ua.Recycling.Operator.Tests
             Assert.That(dockerfile, Does.Contain("ARG PUBLISH_DIR=artifacts/docker/publish"));
             Assert.That(dockerfile, Does.Contain("COPY ${PUBLISH_DIR}/ /app/publish/"));
             Assert.That(dockerfile, Does.Contain("FROM ${PUBLISH_SOURCE} AS publish"));
-            Assert.That(dockerfile, Does.Contain($"FROM mcr.microsoft.com/dotnet/{runtime}:10.0"));
+            Assert.That(dockerfile, Does.Contain($"FROM mcr.microsoft.com/dotnet/{runtime}:11.0"));
             Assert.That(dockerfile, Does.Contain("COPY --from=publish --chown=app:app /app/publish/ ./"));
             Assert.That(dockerfile, Does.Contain("USER $APP_UID"));
             Assert.That(dockerfile, Does.Contain($"EXPOSE {port}"));
