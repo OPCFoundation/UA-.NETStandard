@@ -62,19 +62,78 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         private const string Scheme = "opc.fake";
 
         /// <summary>
-        /// The tests that drain a held connection callback and then gate the
-        /// listener close hang on Linux .NET 11 CI runners (they pass on
-        /// Windows .NET 11). Skipped there until the hang is diagnosed on Linux.
+        /// Waits for a gated listener close that a Stop/Reload/Dispose drives
+        /// after draining a held connection callback. Fails fast, with the
+        /// manager's drain state, instead of hanging the test host when the
+        /// operation faults, completes without reaching the close, or stalls.
         /// </summary>
-        private static void IgnoreHeldCallbackDrainOnLinuxNet11()
+        private static async Task AwaitCloseGateAsync(
+            Task closeGateEntered,
+            Task operation,
+            Task heldCallback,
+            ReverseConnectManager manager,
+            string operationName)
         {
-#if NET11_0_OR_GREATER
-            if (OperatingSystem.IsLinux())
+            Task timeout = Task.Delay(TimeSpan.FromSeconds(30));
+            Task first = await Task.WhenAny(closeGateEntered, operation, timeout)
+                .ConfigureAwait(false);
+            if (first == closeGateEntered)
             {
-                Assert.Ignore("Held-callback drain hangs on Linux with .NET 11; under investigation.");
+                return;
             }
-#endif
+            if (first == operation)
+            {
+                // The operation may complete right after it entered the gate
+                // only if the gate was released, which the test has not done.
+                await Task.WhenAny(closeGateEntered, Task.Delay(100)).ConfigureAwait(false);
+                if (closeGateEntered.IsCompleted)
+                {
+                    return;
+                }
+            }
+            string state = DescribeDrainState(manager, operation, heldCallback);
+            TestContext.Progress.WriteLine(
+                operationName + " did not reach the gated listener close: " + state);
+            Assert.Fail(operationName + " did not reach the gated listener close: " + state);
         }
+
+        private static string DescribeDrainState(
+            ReverseConnectManager manager,
+            Task operation,
+            Task heldCallback)
+        {
+            static object? Field(object target, string name)
+            {
+                return typeof(ReverseConnectManager)
+                    .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)?
+                    .GetValue(target);
+            }
+            var signal = Field(manager, "m_callbacksDrainedSignal") as TaskCompletionSource<bool>;
+            var cts = Field(manager, "m_cts") as CancellationTokenSource;
+            var gate = Field(manager, "m_gate") as SemaphoreSlim;
+            bool? ctsCancelled = null;
+            try
+            {
+                ctsCancelled = cts?.IsCancellationRequested;
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "operation={0} ({1}), heldCallback={2} ({3}), state={4}, " +
+                "activeCallbacks={5}, drainSignal={6}, holdTokenCancelled={7}, gateCount={8}",
+                operation.Status,
+                operation.Exception?.GetBaseException().ToString() ?? "-",
+                heldCallback.Status,
+                heldCallback.Exception?.GetBaseException().ToString() ?? "-",
+                manager.CurrentStateForTest,
+                manager.ActiveConnectionCallbackCountForTest,
+                signal == null ? "null" : signal.Task.Status.ToString(),
+                ctsCancelled?.ToString() ?? "?",
+                gate?.CurrentCount.ToString(CultureInfo.InvariantCulture) ?? "?");
+        }
+
         private static ITelemetryContext CreateTelemetry()
         {
             return NUnitTelemetryContext.Create();
@@ -2679,7 +2738,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public async Task DisposeDrainsHeldConnectionCallbackBeforeListenerDisposal()
         {
-            IgnoreHeldCallbackDrainOnLinuxNet11();
             ITelemetryContext telemetry = CreateTelemetry();
             var harness = new FakeListenerHarness(Scheme);
             Uri url = Url(20595);
@@ -2717,7 +2775,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // before the terminal listener dispose drives the gated close.
             Task dispose = manager.DisposeAsync().AsTask();
 
-            await closeGateEntered.Task.ConfigureAwait(false);
+            await AwaitCloseGateAsync(closeGateEntered.Task, dispose, callback, manager, "Dispose")
+                .ConfigureAwait(false);
             try
             {
                 Assert.That(
@@ -2843,7 +2902,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public async Task StopDrainsHeldConnectionCallbackBeforeListenerClose()
         {
-            IgnoreHeldCallbackDrainOnLinuxNet11();
             ITelemetryContext telemetry = CreateTelemetry();
             var harness = new FakeListenerHarness(Scheme);
             Uri url = Url(20600);
@@ -2876,7 +2934,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // before the terminal listener close tears the channels down.
             Task stop = manager.StopServiceAsync();
 
-            await closeGateEntered.Task.ConfigureAwait(false);
+            await AwaitCloseGateAsync(closeGateEntered.Task, stop, callback, manager, "Stop")
+                .ConfigureAwait(false);
             Assert.That(
                 callback.IsCompleted,
                 Is.True,
@@ -2894,7 +2953,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public async Task ReloadDrainsHeldConnectionCallbackBeforeReplacingListeners()
         {
-            IgnoreHeldCallbackDrainOnLinuxNet11();
             ITelemetryContext telemetry = CreateTelemetry();
             var harness = new FakeListenerHarness(Scheme);
             Uri original = Url(20900);
@@ -2941,7 +2999,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 BuildAppConfig(telemetry, replacement),
                 manager.CurrentWatcherGeneration);
 
-            await closeGateEntered.Task.ConfigureAwait(false);
+            await AwaitCloseGateAsync(closeGateEntered.Task, reload, heldCallback, manager, "Reload")
+                .ConfigureAwait(false);
             Assert.That(
                 heldCallback.IsCompleted,
                 Is.True,
@@ -2988,7 +3047,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public async Task FailedReloadDrainsHeldConnectionCallbackBeforeRestoringPrevious()
         {
-            IgnoreHeldCallbackDrainOnLinuxNet11();
             ITelemetryContext telemetry = CreateTelemetry();
             var harness = new FakeListenerHarness(Scheme);
             Uri original = Url(20905);
@@ -3033,7 +3091,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 BuildAppConfig(telemetry, replacement),
                 manager.CurrentWatcherGeneration);
 
-            await closeGateEntered.Task.ConfigureAwait(false);
+            await AwaitCloseGateAsync(closeGateEntered.Task, reload, heldCallback, manager, "Failed reload")
+                .ConfigureAwait(false);
             Assert.That(
                 heldCallback.IsCompleted,
                 Is.True,
