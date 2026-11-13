@@ -1175,38 +1175,6 @@ namespace Opc.Ua.Server
             }
             m_readyCandidates.Clear();
             m_signalingItemCount = 0;
-            CountPooledItems(-m_pooledItemCount);
-        }
-
-        /// <summary>
-        /// Adds the monitored items of this subscription to the process-wide count that sizes
-        /// the event field list pool, and raises the pool bound when the count grew.
-        /// </summary>
-        /// <remarks>
-        /// The activator pool is process-wide and retains 1024 instances by default. An
-        /// event field list is recycled after its message was sent and acknowledged, so about
-        /// two publishing cycles of event field lists are in flight; with more items than the
-        /// bound most of them would be allocated again. The bound follows twice the number of
-        /// monitored items of all subscriptions in the process, capped at
-        /// <see cref="kMaxPooledNotifications"/>, and is never lowered. Data change
-        /// notifications are not pooled (see <see cref="MonitoredItem"/>).
-        /// </remarks>
-        private void CountPooledItems(int delta)
-        {
-            if (delta == 0)
-            {
-                return;
-            }
-
-            m_pooledItemCount += delta;
-            long total = Interlocked.Add(ref s_pooledItemCount, delta);
-            if (delta > 0)
-            {
-                int bound = (int)Math.Min(
-                    kMaxPooledNotifications,
-                    Math.Max(PooledEncodeableType<MonitoredItemNotification>.DefaultMaximumRetained, total * 2));
-                EventFieldListActivator.Instance.EnsureMaximumRetained(bound);
-            }
         }
 
         /// <summary>
@@ -1232,7 +1200,6 @@ namespace Opc.Ua.Server
                     generation.MonitoredItems[monitoredItem] = this;
                 }
             }
-            CountPooledItems(1);
             if (monitoredItem is IReadySignalingMonitoredItem)
             {
                 m_signalingItemCount++;
@@ -2587,9 +2554,7 @@ namespace Opc.Ua.Server
                     eventList[ii] = fields;
                 }
                 notificationCount += eventCount;
-                var notification = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();
-                notification.Events = eventList;
-                notificationData[dataIndex++] = new ExtensionObject(notification);
+                notificationData[dataIndex++] = new ExtensionObject(new EventNotificationList { Events = eventList });
             }
 
             // add datachanges (space permitting).
@@ -3579,10 +3544,6 @@ namespace Opc.Ua.Server
                     {
                         m_signalingItemCount--;
                     }
-                    if (m_pooledItemCount > 0)
-                    {
-                        CountPooledItems(-1);
-                    }
                     countChange?.Decrement();
                     RemoveTriggeringLinksOfDeletedItem(monitoredItemIds[ii], ref deletedTriggeredTargets);
 
@@ -4472,9 +4433,6 @@ namespace Opc.Ua.Server
         private List<IMonitoredItem> m_readyIntakeSpare = [];
         private readonly List<IMonitoredItem> m_readyCandidates = [];
         private int m_signalingItemCount;
-        private int m_pooledItemCount;
-        private static long s_pooledItemCount;
-        private const int kMaxPooledNotifications = 65536;
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;
         private bool m_expired;
