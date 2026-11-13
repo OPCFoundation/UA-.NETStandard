@@ -530,7 +530,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    return m_lastNotification;
+                    return LastNotification;
                 }
             }
         }
@@ -581,7 +581,7 @@ namespace Opc.Ua.Client
                     // client handle clash) must not throw here.
                     if (m_dataCache != null)
                     {
-                        return (m_lastNotification as MonitoredItemNotification)?.Message;
+                        return m_hasLastDataChange ? m_lastMessage : null;
                     }
 
                     if (m_eventCache != null)
@@ -629,7 +629,59 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Saves a data change or event in the cache.
         /// </summary>
-        public void SaveValueInCache(IEncodeable newValue)
+        /// <param name="newValue">The data change or event.</param>
+        /// <param name="message">The message that contained a data change.</param>
+        /// <param name="diagnosticInfo">The diagnostic info sent with a data change.</param>
+        public void SaveValueInCache(
+            IEncodeable newValue,
+            NotificationMessage? message = null,
+            DiagnosticInfo? diagnosticInfo = null)
+        {
+            if (newValue is MonitoredItemNotification datachange)
+            {
+                SaveValueInCache(datachange, message, diagnosticInfo);
+                return;
+            }
+
+            MonitoredItemNotificationEventHandler? notification;
+            lock (m_cache)
+            {
+                EnsureCacheIsInitialized();
+
+                m_lastNotification = newValue;
+                m_lastDataChange = default;
+                m_hasLastDataChange = false;
+                m_lastMessage = message;
+                m_lastDiagnosticInfo = diagnosticInfo;
+
+                if (m_eventCache != null && newValue is EventFieldList eventchange)
+                {
+                    m_eventCache.OnNotification(eventchange);
+                }
+                notification = m_Notification;
+            }
+
+            try
+            {
+                notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+            }
+            catch (Exception ex)
+            {
+                m_logger.ErrorWhileProcessingIncomingMessages(ex);
+            }
+        }
+
+        /// <summary>
+        /// Saves a data change in the cache. The value is only boxed for a
+        /// <see cref="Notification"/> handler or when <see cref="LastValue"/> is read.
+        /// </summary>
+        /// <param name="newValue">The data change.</param>
+        /// <param name="message">The message that contained the data change.</param>
+        /// <param name="diagnosticInfo">The diagnostic info sent with the data change.</param>
+        public void SaveValueInCache(
+            in MonitoredItemNotification newValue,
+            NotificationMessage? message = null,
+            DiagnosticInfo? diagnosticInfo = null)
         {
             MonitoredItemNotificationEventHandler? notification;
             lock (m_cache)
@@ -637,57 +689,57 @@ namespace Opc.Ua.Client
                 EnsureCacheIsInitialized();
 
                 // only validate timestamp on first sample
-                bool validateTimestamp = m_lastNotification == null;
+                bool validateTimestamp = !m_hasLastDataChange && m_lastNotification == null;
 
-                m_lastNotification = newValue;
+                m_lastDataChange = newValue;
+                m_hasLastDataChange = true;
+                m_lastNotification = null;
+                m_lastMessage = message;
+                m_lastDiagnosticInfo = diagnosticInfo;
 
-                if (m_dataCache != null && newValue is MonitoredItemNotification datachange)
+                if (m_dataCache != null)
                 {
-                    if (!datachange.Value.IsNull)
+                    if (!newValue.Value.IsNull)
                     {
                         if (validateTimestamp)
                         {
                             DateTime now = DateTime.UtcNow.Add(s_time_epsilon);
 
                             // validate the ServerTimestamp of the notification.
-                            if (datachange.Value.ServerTimestamp > now)
+                            if (newValue.Value.ServerTimestamp > now)
                             {
                                 m_logger.ReceivedServerTimestampServerTimestampFutureMonitoredItemIdMonitoredItemId(
-                                    datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
+                                    newValue.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
                                     ClientHandle,
                                     Subscription?.Id ?? 0,
                                     Subscription?.Session?.SessionId);
                             }
 
                             // validate SourceTimestamp of the notification.
-                            if (datachange.Value.SourceTimestamp > now)
+                            if (newValue.Value.SourceTimestamp > now)
                             {
                                 m_logger.ReceivedSourceTimestampSourceTimestampFutureMonitoredItemIdMonitoredItemId(
-                                    datachange.Value.SourceTimestamp.ToDateTime().ToLocalTime(),
+                                    newValue.Value.SourceTimestamp.ToDateTime().ToLocalTime(),
                                     ClientHandle,
                                     Subscription?.Id ?? 0,
                                     Subscription?.Session?.SessionId);
                             }
                         }
 
-                        if (datachange.Value.StatusCode.Overflow)
+                        if (newValue.Value.StatusCode.Overflow)
                         {
                             m_logger.OverflowBitSetDataChangeServerTimestamp(
-                                datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
-                                datachange.Value.WrappedValue,
+                                newValue.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
+                                newValue.Value.WrappedValue,
                                 ClientHandle,
                                 Subscription?.Id ?? 0,
                                 Subscription?.Session?.SessionId);
                         }
                     }
 
-                    m_dataCache.OnNotification(datachange);
+                    m_dataCache.OnNotification(newValue);
                 }
 
-                if (m_eventCache != null && newValue is EventFieldList eventchange)
-                {
-                    m_eventCache.OnNotification(eventchange);
-                }
                 notification = m_Notification;
             }
 
@@ -1099,26 +1151,37 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The service result for a data change notification.
+        /// The service result for a data change notification, resolved against the
+        /// string table of the message that contained it.
         /// </summary>
-        public static ServiceResult? GetServiceResult(IEncodeable notification)
+        public static ServiceResult? GetServiceResult(
+            IEncodeable notification,
+            NotificationMessage? message,
+            DiagnosticInfo? diagnosticInfo = null)
         {
-            if (notification is not MonitoredItemNotification datachange)
-            {
-                return null;
-            }
-
-            NotificationMessage message = datachange.Message;
-
-            if (message == null)
+            if (notification is not MonitoredItemNotification datachange || message == null)
             {
                 return null;
             }
 
             return new ServiceResult(
                 datachange.Value.StatusCode,
-                datachange.DiagnosticInfo,
+                diagnosticInfo,
                 message.StringTable);
+        }
+
+        /// <summary>
+        /// The service result for the last data change notification received.
+        /// </summary>
+        public ServiceResult? GetLastServiceResult()
+        {
+            lock (m_cache)
+            {
+                IEncodeable? last = LastNotification;
+                return last == null
+                    ? null
+                    : GetServiceResult(last, m_lastMessage, m_lastDiagnosticInfo);
+            }
         }
 
         /// <summary>
@@ -1155,7 +1218,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// To save memory the cache is by default not initialized
-        /// until <see cref="SaveValueInCache(IEncodeable)"/> is called.
+        /// until a notification is saved in the cache.
         /// </summary>
         private void EnsureCacheIsInitialized()
         {
@@ -1280,7 +1343,13 @@ namespace Opc.Ua.Client
         private readonly Lock m_cache = new();
         private MonitoredItemDataCache? m_dataCache;
         private MonitoredItemEventCache? m_eventCache;
+        private IEncodeable? LastNotification => m_hasLastDataChange ? m_lastDataChange : m_lastNotification;
+
         private IEncodeable? m_lastNotification;
+        private MonitoredItemNotification m_lastDataChange;
+        private bool m_hasLastDataChange;
+        private NotificationMessage? m_lastMessage;
+        private DiagnosticInfo? m_lastDiagnosticInfo;
         private event MonitoredItemNotificationEventHandler? m_Notification;
 
         /// <summary>

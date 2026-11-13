@@ -286,7 +286,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void EncodeMessage<T>(T message) where T : IEncodeable, new()
         {
-            if (EqualityComparer<T>.Default.Equals(message, default!))
+            if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -303,7 +303,7 @@ namespace Opc.Ua
         public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(message, default!))
+            if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -1035,7 +1035,8 @@ namespace Opc.Ua
             CheckAndIncrementNestingLevel();
             try
             {
-                if (BeginField(fieldName, EqualityComparer<T>.Default.Equals(value, default!), true))
+                // a value type is never null, also when it equals its default.
+                if (BeginField(fieldName, value is null, true))
                 {
                     value?.Encode(this);
 
