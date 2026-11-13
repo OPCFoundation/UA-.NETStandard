@@ -38,9 +38,10 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>
-    /// The binary decoder bounds the work of decoding structures whose layout
-    /// comes from a DataTypeDefinition by the length of its input. Such
-    /// structures can be empty, so a nesting of them can decode from no bytes.
+    /// The binary decoder limits the encodeables one message decodes to the
+    /// larger of the maximum message size and the input length, plus a fixed
+    /// allowance. Structures whose layout comes from a DataTypeDefinition can
+    /// be empty, so a nesting of them can decode from no bytes.
     /// </summary>
     [TestFixture]
     [Category("Encoder")]
@@ -51,21 +52,24 @@ namespace Opc.Ua.Types.Tests.Encoders
     {
         private const string kNs = "urn:test:structure-work";
 
+        // With this maximum message size a message without input may decode
+        // 4096 + 131072 = 135168 encodeables: T16 (131071) but not T17 (262143).
+        private const int kMaxMessageSize = 4096;
+
         [Test]
-        public void NestedStructuresWithinTheBudgetDecodeFromEmptyInput()
+        public void NestedStructuresWithinTheLimitDecodeFromEmptyInput()
         {
-            ServiceMessageContext context = CreateContext(10, out ExpandedNodeId top);
+            ServiceMessageContext context = CreateContext(16, out ExpandedNodeId top);
             using var decoder = new BinaryDecoder(Array.Empty<byte>(), context);
 
             IEncodeable value = decoder.ReadEncodeable<IEncodeable>(null, top);
 
-            Assert.That(CountInstances((Structure)value), Is.EqualTo((1 << 11) - 1));
+            Assert.That(CountInstances((Structure)value), Is.EqualTo((1 << 17) - 1));
         }
 
         [Test]
-        public void NestedStructuresBeyondTheBudgetFailWithEncodingLimitsExceeded()
+        public void NestedStructuresBeyondTheLimitFailWithEncodingLimitsExceeded()
         {
-            // 2^18 - 1 instances, several times the allowance, from zero bytes.
             ServiceMessageContext context = CreateContext(17, out ExpandedNodeId top);
             using var decoder = new BinaryDecoder(Array.Empty<byte>(), context);
 
@@ -76,7 +80,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void NestedStructuresBeyondTheBudgetFailInsideAnExtensionObject()
+        public void NestedStructuresBeyondTheLimitFailInsideAnExtensionObject([Values] bool forwardOnly)
         {
             ServiceMessageContext context = CreateContext(17, out _);
             byte[] buffer;
@@ -87,7 +91,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.WriteInt32(null, 0);
                 buffer = encoder.CloseAndReturnBuffer()!;
             }
-            using var decoder = new BinaryDecoder(buffer, context);
+            using BinaryDecoder decoder = CreateDecoder(buffer, context, forwardOnly);
 
             ServiceResultException? error = Assert.Throws<ServiceResultException>(
                 () => decoder.ReadExtensionObject(null));
@@ -96,12 +100,26 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void BinaryBodiesInOneJsonMessageShareTheAllowance()
+        public void NestedStructuresDecodeUpToTheDefaultLimitWithoutAMaximumMessageSize()
         {
-            // T15 decodes 131069 units of work from an empty body: one body is
-            // within the allowance, two bodies of one message are not.
-            ServiceMessageContext context = CreateContext(15, out _);
-            string body = "{\"UaTypeId\":\"nsu=" + kNs + ";s=T15\",\"UaEncoding\":1,\"UaBody\":\"\"}";
+            // Without a maximum message size the default one applies: 2,228,224
+            // encodeables, enough for T17.
+            ServiceMessageContext context = CreateContext(17, out ExpandedNodeId top);
+            context.MaxMessageSize = 0;
+            using var decoder = new BinaryDecoder(Array.Empty<byte>(), context);
+
+            IEncodeable value = decoder.ReadEncodeable<IEncodeable>(null, top);
+
+            Assert.That(CountInstances((Structure)value), Is.EqualTo((1 << 18) - 1));
+        }
+
+        [Test]
+        public void BinaryBodiesInOneJsonMessageShareTheLimit()
+        {
+            // One empty T16 body is within the limit, two bodies of one message
+            // are not.
+            ServiceMessageContext context = CreateContext(16, out _);
+            string body = "{\"UaTypeId\":\"nsu=" + kNs + ";s=T16\",\"UaEncoding\":1,\"UaBody\":\"\"}";
 
             using (var decoder = new JsonDecoder("{\"F\":[" + body + "]}", context))
             {
@@ -118,47 +136,49 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void BinaryBodiesInOneJsonMessageCountTowardTheInputLength()
+        public void ExtensionObjectBodiesOfOneMessageShareTheLimit([Values] bool forwardOnly)
         {
-            // Three bodies of 60,004 bytes and an empty T16 body, whose 262,141
-            // units of work fit the length of all bodies plus the allowance.
+            // Two empty T16 bodies exceed the limit of one message, whether the
+            // decoder reads them from its buffer or replays them from a stream.
             ServiceMessageContext context = CreateContext(16, out _);
-            int ns = context.NamespaceUris.GetIndexOrAppend(kNs);
-            context.Factory.Builder.AddEncodeableType(CreateStructure(
-                context,
-                new NodeId("Blob", (ushort)ns),
-                [new StructureField { Name = "Data", DataType = DataTypeIds.ByteString, ValueRank = ValueRanks.Scalar }],
-                new Dictionary<string, BuiltInType> { ["Data"] = BuiltInType.ByteString })).Commit();
-            byte[] blob;
-            using (var encoder = new BinaryEncoder(context))
+            byte[] buffer = EncodeBodies(context, 16, 0, 2);
+
+            using (BinaryDecoder decoder = CreateDecoder(EncodeBodies(context, 16, 0, 1), context, forwardOnly))
             {
-                encoder.WriteByteString(null, new byte[60000].ToByteString());
-                blob = encoder.CloseAndReturnBuffer()!;
+                Assert.That(decoder.ReadExtensionObjectArray(null).Count, Is.EqualTo(1));
             }
-            string blobBody = "{\"UaTypeId\":\"nsu=" + kNs + ";s=Blob\",\"UaEncoding\":1,\"UaBody\":\"" +
-                Convert.ToBase64String(blob) + "\"}";
-            string emptyBody = "{\"UaTypeId\":\"nsu=" + kNs + ";s=T16\",\"UaEncoding\":1,\"UaBody\":\"\"}";
-            string json = "{\"F\":[" + blobBody + "," + blobBody + "," + blobBody + "," + emptyBody + "]}";
-            using var decoder = new JsonDecoder(json, context);
-
-            ArrayOf<IEncodeable> values = decoder.ReadEncodeableArrayAsExtensionObjects<IEncodeable>("F");
-
-            Assert.That(values.Count, Is.EqualTo(4));
-            Assert.That(CountInstances((Structure)values[3]), Is.EqualTo((1 << 17) - 1));
+            using (BinaryDecoder decoder = CreateDecoder(buffer, context, forwardOnly))
+            {
+                ServiceResultException? error = Assert.Throws<ServiceResultException>(
+                    () => decoder.ReadExtensionObjectArray(null));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            }
         }
 
         [Test]
-        public void DeferredNotificationBodiesCountTheInputLengthOfTheResponse([Values] bool defer)
+        public void MessagesLongerThanTheMaximumSizeDecodeOneEncodeablePerByte([Values] bool forwardOnly)
         {
-            // Three opaque bodies of 60,000 bytes and an event notification
-            // with an empty T16 body decode alike, eagerly or on first use.
-            ServiceMessageContext context = CreateContext(16, out _);
+            // Three opaque bodies of 60,000 bytes raise the limit to the input
+            // length, so an empty T17 body after them decodes.
+            ServiceMessageContext context = CreateContext(17, out _);
+            using BinaryDecoder decoder = CreateDecoder(EncodeBodies(context, 17, 3, 1), context, forwardOnly);
+
+            ArrayOf<ExtensionObject> values = decoder.ReadExtensionObjectArray(null);
+
+            Assert.That(values.Count, Is.EqualTo(4));
+            Assert.That(values[3].TryGetValue(out Structure? last), Is.True);
+            Assert.That(CountInstances(last!), Is.EqualTo((1 << 18) - 1));
+        }
+
+        [Test]
+        public void DeferredNotificationBodiesShareTheLimitOfTheResponse([Values] bool defer)
+        {
+            // Three opaque bodies of 60,000 bytes and an event notification with
+            // an empty T17 body decode alike, eagerly or on first use.
+            ServiceMessageContext context = CreateContext(17, out _);
             context.DeferNotificationBodies = defer;
             context.Factory.AddEncodeableType(typeof(EventNotificationList));
             context.Factory.AddEncodeableType(typeof(EventFieldList));
-            NodeId opaqueId = ExpandedNodeId.ToNodeId(
-                new ExpandedNodeId("Opaque_Binary", kNs),
-                context.NamespaceUris);
             byte[] events;
             using (var encoder = new BinaryEncoder(context))
             {
@@ -166,7 +186,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.WriteUInt32(null, 1); // client handle
                 encoder.WriteInt32(null, 1); // event fields
                 encoder.WriteByte(null, (byte)BuiltInType.ExtensionObject);
-                encoder.WriteNodeId(null, ExpandedNodeId.ToNodeId(EncodingIdOf(16), context.NamespaceUris));
+                encoder.WriteNodeId(null, ExpandedNodeId.ToNodeId(EncodingIdOf(17), context.NamespaceUris));
                 encoder.WriteByte(null, 1);
                 encoder.WriteInt32(null, 0);
                 events = encoder.CloseAndReturnBuffer()!;
@@ -175,12 +195,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(context))
             {
                 encoder.WriteInt32(null, 4);
-                for (int i = 0; i < 3; i++)
-                {
-                    encoder.WriteNodeId(null, opaqueId);
-                    encoder.WriteByte(null, 1);
-                    encoder.WriteByteString(null, new byte[60000].ToByteString());
-                }
+                WriteOpaqueBodies(encoder, context, 3);
                 encoder.WriteNodeId(null, new NodeId(916u)); // EventNotificationList_Encoding_DefaultBinary
                 encoder.WriteByte(null, 1);
                 encoder.WriteByteString(null, events.ToByteString());
@@ -196,7 +211,52 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(values[3].TryGetValue(out EventNotificationList? list), Is.True);
             Assert.That(list!.Events[0].EventFields[0].TryGetValue(out ExtensionObject field), Is.True);
             Assert.That(field.TryGetValue(out Structure? last), Is.True);
-            Assert.That(CountInstances(last!), Is.EqualTo((1 << 17) - 1));
+            Assert.That(CountInstances(last!), Is.EqualTo((1 << 18) - 1));
+        }
+
+        [Test]
+        public void DeferredNotificationBodiesBeyondTheLimitAreNotDecoded()
+        {
+            // The event notification decodes on first use, after the decoder of
+            // the response counted an empty T16 body.
+            ServiceMessageContext context = CreateContext(16, out _);
+            context.DeferNotificationBodies = true;
+            context.Factory.AddEncodeableType(typeof(EventNotificationList));
+            context.Factory.AddEncodeableType(typeof(EventFieldList));
+            byte[] events;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteInt32(null, 1); // events
+                encoder.WriteUInt32(null, 1); // client handle
+                encoder.WriteInt32(null, 1); // event fields
+                encoder.WriteByte(null, (byte)BuiltInType.ExtensionObject);
+                encoder.WriteNodeId(null, ExpandedNodeId.ToNodeId(EncodingIdOf(16), context.NamespaceUris));
+                encoder.WriteByte(null, 1);
+                encoder.WriteInt32(null, 0);
+                events = encoder.CloseAndReturnBuffer()!;
+            }
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteInt32(null, 2);
+                encoder.WriteNodeId(null, ExpandedNodeId.ToNodeId(EncodingIdOf(16), context.NamespaceUris));
+                encoder.WriteByte(null, 1);
+                encoder.WriteInt32(null, 0);
+                encoder.WriteNodeId(null, new NodeId(916u)); // EventNotificationList_Encoding_DefaultBinary
+                encoder.WriteByte(null, 1);
+                encoder.WriteByteString(null, events.ToByteString());
+                buffer = encoder.CloseAndReturnBuffer()!;
+            }
+            ArrayOf<ExtensionObject> values;
+            using (var decoder = new BinaryDecoder(buffer, context))
+            {
+                values = decoder.ReadExtensionObjectArray(null);
+            }
+
+            Assert.That(values.Count, Is.EqualTo(2));
+            Assert.That(values[0].TryGetValue(out Structure? first), Is.True);
+            Assert.That(CountInstances(first!), Is.EqualTo((1 << 17) - 1));
+            Assert.That(values[1].TryGetValue(out EventNotificationList? _), Is.False);
         }
 
         [Test]
@@ -218,11 +278,11 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void StructuresBackedByInputDecodeBeyondTheAllowance()
+        public void StructuresBackedByInputDecodeBeyondTheAllowance([Values] bool forwardOnly)
         {
-            // An array of structures with an Int32 field: the work grows with
-            // the input, so the allowance does not limit it.
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            // An array of structures with an Int32 field: the limit grows with
+            // the input, also as it is read from a stream.
+            ServiceMessageContext context = CreateContext(0, out _);
             int ns = context.NamespaceUris.GetIndexOrAppend(kNs);
             var typeId = new NodeId("WithValue", (ushort)ns);
             Structure prototype = CreateStructure(
@@ -231,7 +291,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 [new StructureField { Name = "Value", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }],
                 new Dictionary<string, BuiltInType> { ["Value"] = BuiltInType.Int32 });
             context.Factory.Builder.AddEncodeableType(prototype).Commit();
-            int count = (int)BinaryDecoder.kStructureWorkAllowance + 1000;
+            int count = (int)BinaryDecoder.kEncodeableAllowance + 10000;
             context.MaxArrayLength = count;
             byte[] buffer;
             using (var encoder = new BinaryEncoder(context))
@@ -243,7 +303,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 }
                 buffer = encoder.CloseAndReturnBuffer()!;
             }
-            using var decoder = new BinaryDecoder(buffer, context);
+            using BinaryDecoder decoder = CreateDecoder(buffer, context, forwardOnly);
 
             ArrayOf<IEncodeable> values = decoder.ReadEncodeableArray<IEncodeable>(
                 null,
@@ -254,81 +314,30 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ArraysOfUnionsAndOptionalFieldStructuresChargeOnlyEncodedFields(
-            [Values(StructureType.Union, StructureType.StructureWithOptionalFields)] StructureType structureType)
+        public void ManySmallExtensionObjectBodiesDecode([Values] bool forwardOnly)
         {
-            // Each element encodes one of 16 members in 8 bytes. Charging all
-            // declared members would exceed the input length plus the allowance.
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
-            int ns = context.NamespaceUris.GetIndexOrAppend(kNs);
-            var typeId = new NodeId("Sparse", (ushort)ns);
-            var fields = new List<StructureField>();
-            var fieldTypes = new Dictionary<string, BuiltInType>();
-            for (int i = 1; i <= 16; i++)
-            {
-                fields.Add(new StructureField
-                {
-                    Name = "F" + i,
-                    DataType = DataTypeIds.Int32,
-                    ValueRank = ValueRanks.Scalar,
-                    IsOptional = structureType == StructureType.StructureWithOptionalFields
-                });
-                fieldTypes["F" + i] = BuiltInType.Int32;
-            }
-            var definition = new StructureDefinition
-            {
-                BaseDataType = DataTypeIds.Structure,
-                StructureType = structureType,
-                Fields = fields.ToArrayOf()
-            };
-            var xmlName = new XmlQualifiedName("Sparse", kNs);
-            ExpandedNodeId expandedTypeId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
-            var binaryId = new ExpandedNodeId("Sparse_Binary", kNs);
-            var xmlId = new ExpandedNodeId("Sparse_Xml", kNs);
-            Structure prototype = structureType == StructureType.Union
-                ? new Opc.Ua.Encoders.Union(xmlName, expandedTypeId, binaryId, xmlId, definition, fieldTypes)
-                : new StructureWithOptionalFields(xmlName, expandedTypeId, binaryId, xmlId, definition, fieldTypes);
-            context.Factory.Builder.AddEncodeableType(prototype).Commit();
-            const int count = 20000;
-            byte[] buffer;
-            using (var encoder = new BinaryEncoder(context))
-            {
-                encoder.WriteInt32(null, count);
-                for (int i = 0; i < count; i++)
-                {
-                    encoder.WriteUInt32(null, 1);
-                    encoder.WriteInt32(null, i);
-                }
-                buffer = encoder.CloseAndReturnBuffer()!;
-            }
-            using var decoder = new BinaryDecoder(buffer, context);
-
-            ArrayOf<IEncodeable> values = decoder.ReadEncodeableArray<IEncodeable>(null, expandedTypeId);
-
-            Assert.That(values.Count, Is.EqualTo(count));
-            Assert.That(((Structure)values[count - 1])["F1"], Is.EqualTo(new Variant(count - 1)));
-        }
-
-        [Test]
-        public void ExtensionObjectArrayDecodesWithinItsInputLength([Values] bool forwardOnly)
-        {
-            // Each body holds a Boolean and three empty structures: 8 units of
-            // work from 1 body byte, within the length of the whole element.
+            // Each body holds a Boolean and 32 empty structures, 33 encodeables
+            // in 27 bytes. A stream replays each body with its own decoder,
+            // which reserves 64 units for them and returns the 31 it did not
+            // use; keeping them would exceed the limit of the message.
             ServiceMessageContext context = CreateContext(0, out _);
             int ns = context.NamespaceUris.GetIndexOrAppend(kNs);
             var empty = new NodeId("T0", (ushort)ns);
             var typeId = new NodeId("Holder", (ushort)ns);
+            var fields = new List<StructureField>
+            {
+                new() { Name = "Flag", DataType = DataTypeIds.Boolean, ValueRank = ValueRanks.Scalar }
+            };
+            for (int i = 0; i < 32; i++)
+            {
+                fields.Add(new StructureField { Name = "E" + i, DataType = empty, ValueRank = ValueRanks.Scalar });
+            }
             context.Factory.Builder.AddEncodeableType(CreateStructure(
                 context,
                 typeId,
-                [
-                    new StructureField { Name = "Flag", DataType = DataTypeIds.Boolean, ValueRank = ValueRanks.Scalar },
-                    new StructureField { Name = "A", DataType = empty, ValueRank = ValueRanks.Scalar },
-                    new StructureField { Name = "B", DataType = empty, ValueRank = ValueRanks.Scalar },
-                    new StructureField { Name = "C", DataType = empty, ValueRank = ValueRanks.Scalar }
-                ],
+                fields.ToArrayOf(),
                 new Dictionary<string, BuiltInType> { ["Flag"] = BuiltInType.Boolean })).Commit();
-            const int count = 20000;
+            const int count = 15000;
             context.MaxArrayLength = count;
             NodeId encodingId = ExpandedNodeId.ToNodeId(new ExpandedNodeId("Holder_Binary", kNs), context.NamespaceUris);
             byte[] buffer;
@@ -344,9 +353,10 @@ namespace Opc.Ua.Types.Tests.Encoders
                 }
                 buffer = encoder.CloseAndReturnBuffer()!;
             }
-            using BinaryDecoder decoder = forwardOnly
-                ? new BinaryDecoder(new ForwardOnlyStream(buffer), context)
-                : new BinaryDecoder(buffer, context);
+            long limit = buffer.Length + BinaryDecoder.kEncodeableAllowance;
+            Assert.That(limit, Is.GreaterThan(33L * count));
+            Assert.That(limit, Is.LessThan(64L * count));
+            using BinaryDecoder decoder = CreateDecoder(buffer, context, forwardOnly);
 
             ArrayOf<ExtensionObject> values = decoder.ReadExtensionObjectArray(null);
 
@@ -355,90 +365,45 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(last!["Flag"], Is.EqualTo(new Variant(true)));
         }
 
-        [Test]
-        public void OpaqueBodiesCountTowardTheInputLength([Values] bool forwardOnly)
+        private static BinaryDecoder CreateDecoder(byte[] buffer, ServiceMessageContext context, bool forwardOnly)
         {
-            // Three opaque bodies of 60,000 bytes and an empty T16 body, whose
-            // 262,141 units of work fit the input length plus the allowance.
-            ServiceMessageContext context = CreateContext(16, out _);
-            const int opaqueLength = 60000;
-            NodeId opaqueId = ExpandedNodeId.ToNodeId(
-                new ExpandedNodeId("Opaque_Binary", kNs),
+            return forwardOnly
+                ? new BinaryDecoder(new ForwardOnlyStream(buffer), context)
+                : new BinaryDecoder(buffer, context);
+        }
+
+        /// <summary>
+        /// An array of opaque bodies of 60,000 bytes followed by empty bodies
+        /// of type T<paramref name="level"/>.
+        /// </summary>
+        private static byte[] EncodeBodies(ServiceMessageContext context, int level, int opaque, int empty)
+        {
+            NodeId encodingId = ExpandedNodeId.ToNodeId(
+                EncodingIdOf(level),
                 context.NamespaceUris);
-            NodeId encodingId = ExpandedNodeId.ToNodeId(EncodingIdOf(16), context.NamespaceUris);
-            byte[] buffer;
-            using (var encoder = new BinaryEncoder(context))
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteInt32(null, opaque + empty);
+            WriteOpaqueBodies(encoder, context, opaque);
+            for (int i = 0; i < empty; i++)
             {
-                encoder.WriteInt32(null, 4);
-                for (int i = 0; i < 3; i++)
-                {
-                    encoder.WriteNodeId(null, opaqueId);
-                    encoder.WriteByte(null, 1);
-                    encoder.WriteByteString(null, new byte[opaqueLength].ToByteString());
-                }
                 encoder.WriteNodeId(null, encodingId);
                 encoder.WriteByte(null, 1);
                 encoder.WriteInt32(null, 0);
-                buffer = encoder.CloseAndReturnBuffer()!;
             }
-            using BinaryDecoder decoder = forwardOnly
-                ? new BinaryDecoder(new ForwardOnlyStream(buffer), context)
-                : new BinaryDecoder(buffer, context);
-
-            ArrayOf<ExtensionObject> values = decoder.ReadExtensionObjectArray(null);
-
-            Assert.That(values.Count, Is.EqualTo(4));
-            Assert.That(values[3].TryGetValue(out Structure? last), Is.True);
-            Assert.That(CountInstances(last!), Is.EqualTo((1 << 17) - 1));
+            return encoder.CloseAndReturnBuffer()!;
         }
 
-        [Test]
-        public void NestedStructuresBeyondTheBudgetFailOnAnEmptyForwardOnlyStream(
-            [Values(0, 2 * 1024 * 1024)] int maxMessageSize)
+        private static void WriteOpaqueBodies(BinaryEncoder encoder, ServiceMessageContext context, int count)
         {
-            ServiceMessageContext context = CreateContext(17, out ExpandedNodeId top);
-            context.MaxMessageSize = maxMessageSize;
-            using var decoder = new BinaryDecoder(new ForwardOnlyStream(Array.Empty<byte>()), context);
-
-            ServiceResultException? error = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadEncodeable<IEncodeable>(null, top));
-
-            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        [Test]
-        public void StructuresBackedByAForwardOnlyStreamDecodeBeyondTheAllowance()
-        {
-            // The credit of a forward-only stream grows with the bytes read.
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
-            int ns = context.NamespaceUris.GetIndexOrAppend(kNs);
-            var typeId = new NodeId("WithValue", (ushort)ns);
-            Structure prototype = CreateStructure(
-                context,
-                typeId,
-                [new StructureField { Name = "Value", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }],
-                new Dictionary<string, BuiltInType> { ["Value"] = BuiltInType.Int32 });
-            context.Factory.Builder.AddEncodeableType(prototype).Commit();
-            int count = (int)BinaryDecoder.kStructureWorkAllowance + 1000;
-            context.MaxArrayLength = count;
-            byte[] buffer;
-            using (var encoder = new BinaryEncoder(context))
+            NodeId opaqueId = ExpandedNodeId.ToNodeId(
+                new ExpandedNodeId("Opaque_Binary", kNs),
+                context.NamespaceUris);
+            for (int i = 0; i < count; i++)
             {
-                encoder.WriteInt32(null, count);
-                for (int i = 0; i < count; i++)
-                {
-                    encoder.WriteInt32(null, i);
-                }
-                buffer = encoder.CloseAndReturnBuffer()!;
+                encoder.WriteNodeId(null, opaqueId);
+                encoder.WriteByte(null, 1);
+                encoder.WriteByteString(null, new byte[60000].ToByteString());
             }
-            using var decoder = new BinaryDecoder(new ForwardOnlyStream(buffer), context);
-
-            ArrayOf<IEncodeable> values = decoder.ReadEncodeableArray<IEncodeable>(
-                null,
-                NodeId.ToExpandedNodeId(typeId, context.NamespaceUris));
-
-            Assert.That(values.Count, Is.EqualTo(count));
-            Assert.That(((Structure)values[count - 1])["Value"], Is.EqualTo(new Variant(count - 1)));
         }
 
         private static int CountInstances(Structure structure)
@@ -467,6 +432,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static ServiceMessageContext CreateContext(int levels, out ExpandedNodeId top)
         {
             ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            context.MaxMessageSize = kMaxMessageSize;
             int ns = context.NamespaceUris.GetIndexOrAppend(kNs);
             IEncodeableFactoryBuilder builder = context.Factory.Builder;
             for (int level = 0; level <= levels; level++)

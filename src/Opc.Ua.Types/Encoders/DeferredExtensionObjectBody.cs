@@ -157,7 +157,6 @@ namespace Opc.Ua
                 IEncodeable value = m_activator.CreateInstance();
                 using var decoder = new BinaryDecoder(buffer, 0, m_length, m_context);
                 decoder.InheritDecodingState(null, null, m_nestingLevel, m_length, m_recoveries);
-                decoder.UseSharedStructureWork();
                 value.Decode(decoder);
                 if (decoder.Position == m_length)
                 {
@@ -208,8 +207,8 @@ namespace Opc.Ua
 
     /// <summary>
     /// What the decoders of one response share: the budget of bodies recovered as raw
-    /// bytes, whether the first failure was logged, and the work of structures decoded
-    /// from a DataTypeDefinition. Bodies decoded on first use can
+    /// bytes, whether the first failure was logged, and the count of the encodeables
+    /// they decode. Bodies decoded on first use can
     /// run on any thread, after the decoder of the response is gone.
     /// </summary>
     internal sealed class DecoderRecoveries
@@ -242,27 +241,55 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds the input length of a decoder of the response to the structure
-        /// work it may do, see BinaryDecoder.ChargeStructureWork.
+        /// Raises the encodeable limit of the response to the limit of a decoder
+        /// that shares its count, see BinaryDecoder.CountEncodeable.
         /// </summary>
-        public void AddStructureWorkCredit(long bytes)
+        public void RaiseEncodeableLimit(long limit)
         {
-            Interlocked.Add(ref m_structureWorkCredit, bytes);
+            long current = Volatile.Read(ref m_encodeableLimit);
+            while (current < limit)
+            {
+                long seen = Interlocked.CompareExchange(ref m_encodeableLimit, limit, current);
+                if (seen == current)
+                {
+                    return;
+                }
+                current = seen;
+            }
         }
 
         /// <summary>
-        /// Charges structure work to the response, false when its total exceeds
-        /// the credit plus <paramref name="allowance"/>.
+        /// Counts encodeables of the response; false, with nothing counted, when
+        /// the count would exceed the larger of <paramref name="limit"/> and the
+        /// limit of the response.
         /// </summary>
-        public bool TryChargeStructureWork(int units, long allowance)
+        public bool TryCountEncodeables(long count, long limit)
         {
-            long work = Interlocked.Add(ref m_structureWork, units);
-            return work <= Volatile.Read(ref m_structureWorkCredit) + allowance;
+            limit = Math.Max(limit, Volatile.Read(ref m_encodeableLimit));
+            long current = Volatile.Read(ref m_encodeableCount);
+            while (current + count <= limit)
+            {
+                long seen = Interlocked.CompareExchange(ref m_encodeableCount, current + count, current);
+                if (seen == current)
+                {
+                    return true;
+                }
+                current = seen;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Returns encodeables a decoder counted ahead but did not decode.
+        /// </summary>
+        public void ReleaseEncodeables(long count)
+        {
+            Interlocked.Add(ref m_encodeableCount, -count);
         }
 
         private int m_count;
         private int m_failureLogged;
-        private long m_structureWork;
-        private long m_structureWorkCredit;
+        private long m_encodeableCount;
+        private long m_encodeableLimit;
     }
 }

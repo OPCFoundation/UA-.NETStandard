@@ -3033,7 +3033,7 @@ namespace Opc.Ua
                                         // nesting budget (approximated by the JSON
                                         // element depth) and spans the whole buffer.
                                         // The bodies of one message share the
-                                        // work limit of their structures.
+                                        // limit of the encodeables they decode.
                                         decoder.InheritDecodingState(
                                             m_namespaceMappings,
                                             m_serverMappings,
@@ -3049,7 +3049,6 @@ namespace Opc.Ua
                                                 typeId,
                                                 body.Length - decoder.Position);
                                         }
-                                        decoder.ShareStructureWork();
                                         return true;
                                     }
                                     break;
