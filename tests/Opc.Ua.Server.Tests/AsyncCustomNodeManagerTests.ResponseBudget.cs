@@ -152,6 +152,64 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A BrowseNext whose later page passes the message size limit fails with
+        /// BadResponseTooLarge and releases both the continuation points it restored and
+        /// the ones it saved for the pages it had already built, so their session slots
+        /// can be used again.
+        /// </summary>
+        [Test]
+        public async Task BrowseNextOfALaterPagePastTheResponseSizeLimitFailsAndReleasesItsPointsAsync()
+        {
+            (MasterNodeManager dispatcher, BaseObjectState parent) =
+                await CreateBrowseDispatcherAsync(childCount: 300, maxBrowseContinuationPoints: 3).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                (ArrayOf<ByteString> points, long pageSize) =
+                    await BrowseFirstPagesAsync(dispatcher, parent).ConfigureAwait(false);
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                // the first two pages fit, the third does not.
+                context.StartResponseBudget((int)((2 * pageSize) + (pageSize / 2)));
+
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await dispatcher.BrowseNextAsync(context, false, points).ConfigureAwait(false));
+
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+                // every slot is free again: a new Browse gets all three points.
+                (ArrayOf<ByteString> again, _) = await BrowseFirstPagesAsync(dispatcher, parent).ConfigureAwait(false);
+                Assert.That(again.Count, Is.EqualTo(3));
+            }
+        }
+
+        /// <summary>
+        /// A BrowseNext whose pages fit the message size limit returns each of them with
+        /// a continuation point for the rest of the references.
+        /// </summary>
+        [Test]
+        public async Task BrowseNextWithinTheResponseSizeLimitReturnsEveryPageAsync()
+        {
+            (MasterNodeManager dispatcher, BaseObjectState parent) =
+                await CreateBrowseDispatcherAsync(childCount: 300, maxBrowseContinuationPoints: 3).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                (ArrayOf<ByteString> points, long pageSize) =
+                    await BrowseFirstPagesAsync(dispatcher, parent).ConfigureAwait(false);
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget((int)((3 * pageSize) + (pageSize / 2)));
+
+                (ArrayOf<BrowseResult> results, _) =
+                    await dispatcher.BrowseNextAsync(context, false, points).ConfigureAwait(false);
+
+                Assert.That(results.Count, Is.EqualTo(3));
+                for (int ii = 0; ii < results.Count; ii++)
+                {
+                    Assert.That(results[ii].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(results[ii].References.Count, Is.EqualTo(10));
+                    Assert.That(results[ii].ContinuationPoint.IsEmpty, Is.False);
+                }
+            }
+        }
+
+        /// <summary>
         /// The references fetched for one node are limited to one more than the rest
         /// of the response byte budget can hold at the smallest reference size.
         /// </summary>
@@ -189,6 +247,29 @@ namespace Opc.Ua.Server.Tests
             Assert.That(context.ResponseBudgetExceeded, Is.True);
             Assert.That(context.TryChargeResponse(0), Is.False);
             Assert.That(context.ResponseBytesRemaining, Is.Zero);
+        }
+
+        /// <summary>
+        /// Browses the parent three times with ten references per node, without a response
+        /// budget, and returns the three continuation points and the largest page estimate.
+        /// </summary>
+        private async Task<(ArrayOf<ByteString>, long)> BrowseFirstPagesAsync(
+            MasterNodeManager dispatcher, BaseObjectState parent)
+        {
+            using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+            BrowseDescription node = CreateBrowseDescription(parent.NodeId);
+            (ArrayOf<BrowseResult> results, _) = await dispatcher.BrowseAsync(
+                context, new ViewDescription(), 10, [node, node, node]).ConfigureAwait(false);
+            var points = new ByteString[results.Count];
+            long pageSize = 0;
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                Assert.That(results[ii].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(results[ii].ContinuationPoint.IsEmpty, Is.False);
+                points[ii] = results[ii].ContinuationPoint;
+                pageSize = System.Math.Max(pageSize, ResponseSizeEstimator.Estimate(results[ii].References));
+            }
+            return (points, pageSize);
         }
 
         private static BrowseDescription CreateBrowseDescription(NodeId nodeId)
@@ -262,7 +343,8 @@ namespace Opc.Ua.Server.Tests
             return (dispatcher, owner, method, calls);
         }
 
-        private async Task<(MasterNodeManager, BaseObjectState)> CreateBrowseDispatcherAsync(int childCount)
+        private async Task<(MasterNodeManager, BaseObjectState)> CreateBrowseDispatcherAsync(
+            int childCount, int maxBrowseContinuationPoints = 10)
         {
             // the system contexts share the type table of the server.
             TypeTable typeTree = m_mockServer.Object.TypeTree;
@@ -273,7 +355,7 @@ namespace Opc.Ua.Server.Tests
             typeTree.AddSubtype(ReferenceTypeIds.HasChild, ReferenceTypeIds.HierarchicalReferences);
             typeTree.AddSubtype(ReferenceTypeIds.Aggregates, ReferenceTypeIds.HasChild);
             typeTree.AddSubtype(ReferenceTypeIds.HasComponent, ReferenceTypeIds.Aggregates);
-            var points = new SessionContinuationPoints(() => new NodeId(99, 1), 10, 10, null);
+            var points = new SessionContinuationPoints(() => new NodeId(99, 1), maxBrowseContinuationPoints, 10, null);
             m_mockSession.SetupGet(s => s.ContinuationPoints).Returns(points);
             ITestNodeManager manager = CreateManager();
             MasterNodeManager dispatcher = CreateDispatcher(manager);

@@ -1189,6 +1189,10 @@ namespace Opc.Ua.Server
 
                         if (ServiceResult.IsGood(error) && !releaseContinuationPoints && cp is not null)
                         {
+                            // the restored page keeps the limit of its Browse: an earlier page of
+                            // this response can have used most of the budget.
+                            cp.MaxResultsToReturn = LimitReferencesPerNode(
+                                cp.MaxResultsToReturn, context.ResponseBytesRemaining);
                             ContinuationPoint fetching = cp;
                             cp = null;
                             try
