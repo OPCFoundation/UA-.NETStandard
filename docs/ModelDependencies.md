@@ -47,9 +47,12 @@ attributes on referenced assemblies and uses them to:
 4. **Resolve ownership** by preferring the payload-bearing producer over
    payloadless transitive dependency entries. A dependency with the same prefix,
    version, publication date, and name describes that producer; it is not a
-   competing provider and does not produce `MODELGEN012`. Distinct producers or
-   conflicting metadata still produce that info diagnostic. Among competing
-   entries, the generator applies the
+   competing provider and does not produce `MODELGEN012`. Likewise, when one
+   assembly both produces a model and re-exports it as a payloadless dependency
+   of another model it compiles (for example GDS in `Opc.Ua.Gds`, which the
+   Onboarding model depends on), the producer entry is selected silently.
+   Distinct producers or conflicting metadata still produce that info
+   diagnostic. Among competing entries, the generator applies the
    OPC 10000-6 version/publication-date ordering, then the ordinal assembly name
    (smallest first) to make equal-version producer selection deterministic.
 5. **Import the type-table payload** on self-declaration entries so the
@@ -163,7 +166,7 @@ decoded.
 | ID            | Severity | Meaning                                                            |
 | ------------- | -------- | ------------------------------------------------------------------ |
 | `MODELGEN010` | Warning  | A `[NodeManager]` attribute could not be bound to a model (unmatched selector, or ambiguous when the project has multiple models). |
-| `MODELGEN012` | Info     | Distinct model producers or conflicting dependency metadata claim the same URI; matching payloadless transitive declarations are not additional producers. |
+| `MODELGEN012` | Info     | Distinct model producers or conflicting dependency metadata claim the same URI; matching payloadless transitive declarations and payloadless re-exports from the producing assembly itself are not additional producers. |
 | `MODELGEN013` | Info     | Local model skipped because a referenced assembly provides it.     |
 
 ## Implementation
