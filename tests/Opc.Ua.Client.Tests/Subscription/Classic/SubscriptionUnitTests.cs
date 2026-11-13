@@ -561,6 +561,101 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// An item removed after the dispatch looked it up but before it saved the value
+        /// still returns the new message as its last message, which keeps its deferred
+        /// body when it leaves the cache.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessageStaysReadableAsLastMessageOfAnItemRemovedDuringItsSaveAsync(
+            CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            var trigger = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            var removed = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            var busy = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            subscription.AddItems([trigger, removed, busy]);
+            subscription.Session = session;
+
+            // The dispatch saves the event of the trigger, then looks up and saves the
+            // event of the removed item. The trigger removes that item, and puts it back
+            // in the lookup only, so the dispatch finds it although it was removed; once
+            // its value is saved, it leaves the lookup again.
+            // The later messages go to the trigger, so that no item in the lookup holds
+            // the first message.
+            var items = (System.Collections.Concurrent.ConcurrentDictionary<uint, MonitoredItem>)
+                typeof(Subscription).GetField(
+                    "m_monitoredItems",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(subscription)!;
+            int triggered = 0;
+            trigger.Notification += (_, _) =>
+            {
+                if (Interlocked.Increment(ref triggered) != 1)
+                {
+                    return;
+                }
+                subscription.RemoveItem(removed);
+                items[removed.ClientHandle] = removed;
+            };
+            removed.Notification += (_, _) => items.TryRemove(removed.ClientHandle, out _);
+
+            var first = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [DecodeDeferred(telemetry, new EventNotificationList
+                {
+                    Events =
+                    [
+                        new EventFieldList { ClientHandle = trigger.ClientHandle },
+                        new EventFieldList { ClientHandle = removed.ClientHandle }
+                    ]
+                })]
+            };
+            subscription.SaveMessageInCache([1u], first);
+            await delivered(1).ConfigureAwait(false);
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], EventMessage(sequenceNumber, trigger.ClientHandle));
+                await delivered(sequenceNumber).ConfigureAwait(false);
+            }
+
+            NotificationMessage? last = removed.LastMessage;
+            Assert.That(last, Is.SameAs(first));
+            Assert.That(last!.NotificationData[0].TryGetValue(out EventNotificationList? events), Is.True);
+        }
+
+        /// <summary>
+        /// Whether the session raises Notification with a message is decided when the
+        /// message is saved: a handler attached later does not get messages saved before,
+        /// whose buffers the subscription can already have returned.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task SessionNotificationIsRaisedForMessagesSavedWithAHandlerAttachedAsync(
+            CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            subscription.Session = session;
+
+            bool raiseFirst = subscription.SaveMessageInCache([1u], DeferredEventMessage(telemetry, 1, 3), null);
+            session.Notification += (_, _) => { };
+            bool raiseSecond = subscription.SaveMessageInCache([2u], EventMessage(2, 3), null);
+            await delivered(2).ConfigureAwait(false);
+
+            Assert.That(raiseFirst, Is.False);
+            Assert.That(raiseSecond, Is.True);
+        }
+
+        /// <summary>
         /// In a large subscription the messages that left the cache are released in
         /// batches, so that each check of the last messages of all items covers several.
         /// </summary>
@@ -1164,14 +1259,16 @@ namespace Opc.Ua.Client.Tests
                     SequenceNumber = 1,
                     NotificationData = [new ExtensionObject(new DataChangeNotification())]
                 },
-                firstLifetime), Is.False);
+                firstLifetime,
+                out _), Is.False);
             Assert.That(subscription.TrySaveRepublishedMessageInCache(
                 new NotificationMessage
                 {
                     SequenceNumber = 1,
                     NotificationData = [new ExtensionObject(new DataChangeNotification())]
                 },
-                subscription.GetAcknowledgementScope()), Is.True);
+                subscription.GetAcknowledgementScope(),
+                out _), Is.True);
             while (received.IsEmpty)
             {
                 await Task.Delay(10, ct).ConfigureAwait(false);

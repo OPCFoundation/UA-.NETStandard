@@ -281,36 +281,11 @@ namespace Opc.Ua.Client.Tests
                 receivedArgs = e;
                 received.Set();
             };
-            // as saving the message with a handler attached does.
-            subscription.MarkMessagesHandedOut();
 
             scope.Context.OnPublishNotification(subscription, args);
 
             Assert.That(received.Wait(TimeSpan.FromSeconds(5)), Is.True);
             Assert.That(receivedArgs, Is.SameAs(args));
-        }
-
-        /// <summary>
-        /// A handler attached after the subscription saved a message is not raised with
-        /// it: the subscription can already have returned the buffers of the message.
-        /// </summary>
-        [Test]
-        public async Task PublishNotificationSavedBeforeTheHandlerWasAttachedIsNotRaisedAsync()
-        {
-            using TestSessionScope scope = CreateSessionScope();
-            int raised = 0;
-            var subscription = new Subscription(scope.Telemetry);
-            SetSubscriptionId(subscription, 42);
-            var args = new NotificationEventArgs(
-                subscription,
-                new NotificationMessage(),
-                new ArrayOf<string>());
-
-            scope.Session.Notification += (_, _) => Interlocked.Increment(ref raised);
-            scope.Context.OnPublishNotification(subscription, args);
-            await Task.Delay(200).ConfigureAwait(false);
-
-            Assert.That(Volatile.Read(ref raised), Is.Zero);
         }
 
         [Test]
@@ -325,7 +300,6 @@ namespace Opc.Ua.Client.Tests
                 new ArrayOf<string>());
 
             scope.Session.Notification += (_, _) => throw new InvalidOperationException();
-            subscription.MarkMessagesHandedOut();
 
             Assert.That(
                 () => scope.Context.OnPublishNotification(subscription, args),

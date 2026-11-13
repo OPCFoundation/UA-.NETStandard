@@ -1501,8 +1501,8 @@ a message was saved while the session had a `Session.Notification`
 handler (also before the subscription moved to another session),
 messages of that subscription keep their bytes until the garbage
 collector takes them. A `Session.Notification` handler is raised with
-the messages saved after it was attached; one saved just before can be
-skipped. A message reached only through the
+the messages a classic subscription saved after it was attached, not
+with messages saved before that are raised later. A message reached only through the
 `Message` property of a `MonitoredItemNotification` or `EventFieldList`
 has no notification data after it left the cache. At high notification
 rates, set `MaxMessageCount` to 1.

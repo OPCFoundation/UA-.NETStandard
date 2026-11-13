@@ -228,13 +228,7 @@ namespace Opc.Ua.Client
                 NotificationEventHandler? publishEventHandler =
                     m_session.m_Publish;
 
-                // A handler attached after the subscription saved the message did not
-                // count when it was saved, and the subscription can already have
-                // returned the buffers of the message. The subscription returns none
-                // once its messages are marked handed out, which saving a message with
-                // a handler attached does and which stays set; otherwise this message
-                // arrived before the handler and is not raised.
-                if (publishEventHandler != null && subscription.MessagesHandedOut)
+                if (publishEventHandler != null)
                 {
                     m_session.RunBackgroundWork(
                         nameof(RaisePublishNotification),
@@ -358,11 +352,13 @@ namespace Opc.Ua.Client
 
                 message.MoreNotifications = moreNotifications;
                 message.StringTable = stringTable;
-                target.SaveMessageInCache(availableSequenceNumbers, message);
-
-                OnPublishNotification(
-                    target,
-                    new NotificationEventArgs(target, message, stringTable));
+                // raised only when a handler was attached when the message was saved.
+                if (target.SaveMessageInCache(availableSequenceNumbers, message, null))
+                {
+                    OnPublishNotification(
+                        target,
+                        new NotificationEventArgs(target, message, stringTable));
+                }
                 return true;
             }
 
@@ -390,13 +386,17 @@ namespace Opc.Ua.Client
                     if (subscription.Id == subscriptionId)
                     {
                         message.StringTable = stringTable;
-                        if (!subscription.TrySaveRepublishedMessageInCache(message, requiredScope))
+                        if (!subscription.TrySaveRepublishedMessageInCache(
+                            message, requiredScope, out bool raiseNotification))
                         {
                             return false;
                         }
-                        OnPublishNotification(
-                            subscription,
-                            new NotificationEventArgs(subscription, message, stringTable));
+                        if (raiseNotification)
+                        {
+                            OnPublishNotification(
+                                subscription,
+                                new NotificationEventArgs(subscription, message, stringTable));
+                        }
                         return true;
                     }
                 }

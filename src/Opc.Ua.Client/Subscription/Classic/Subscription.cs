@@ -2282,19 +2282,23 @@ namespace Opc.Ua.Client
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message)
         {
-            SaveMessageInCache(availableSequenceNumbers, message, true, null);
+            SaveMessageInCache(availableSequenceNumbers, message, true, null, out _);
         }
 
         /// <summary>
         /// Adds the notification message to internal cache, with the acknowledgement scope the
         /// engine tracked when the message was received.
         /// </summary>
-        internal void SaveMessageInCache(
+        /// <returns>Whether the session raises <see cref="ISession.Notification"/> with
+        /// the message: only when a handler was attached when it was saved.</returns>
+        internal bool SaveMessageInCache(
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message,
             AcknowledgementScope? acknowledgementScope)
         {
-            SaveMessageInCache(availableSequenceNumbers, message, true, acknowledgementScope);
+            SaveMessageInCache(
+                availableSequenceNumbers, message, true, acknowledgementScope, out bool raiseNotification);
+            return raiseNotification;
         }
 
         /// <summary>
@@ -2304,11 +2308,14 @@ namespace Opc.Ua.Client
         /// kept: otherwise every other missing message would be given up
         /// while the server still holds it.
         /// </summary>
-        internal void SaveRepublishedMessageInCache(
+        /// <returns>Whether the session raises <see cref="ISession.Notification"/> with
+        /// the message: only when a handler was attached when it was saved.</returns>
+        internal bool SaveRepublishedMessageInCache(
             NotificationMessage message,
             AcknowledgementScope? acknowledgementScope = null)
         {
-            SaveMessageInCache(default, message, false, acknowledgementScope);
+            SaveMessageInCache(default, message, false, acknowledgementScope, out bool raiseNotification);
+            return raiseNotification;
         }
 
         /// <summary>
@@ -2317,12 +2324,18 @@ namespace Opc.Ua.Client
         /// Republish was requested for. A subscription deleted or recreated
         /// meanwhile does not take a message of its former lifetime.
         /// </summary>
+        /// <param name="message">The message.</param>
+        /// <param name="requiredScope">The lifetime the Republish was requested for.</param>
+        /// <param name="raiseNotification">Whether the session raises
+        /// <see cref="ISession.Notification"/> with the message: only when a handler was
+        /// attached when it was saved.</param>
         /// <returns><c>true</c> when the message was taken.</returns>
         internal bool TrySaveRepublishedMessageInCache(
             NotificationMessage message,
-            AcknowledgementScope requiredScope)
+            AcknowledgementScope requiredScope,
+            out bool raiseNotification)
         {
-            return SaveMessageInCache(default, message, false, requiredScope, requiredScope);
+            return SaveMessageInCache(default, message, false, requiredScope, out raiseNotification, requiredScope);
         }
 
         /// <summary>
@@ -2335,6 +2348,10 @@ namespace Opc.Ua.Client
         /// <param name="acknowledgementScope">The scope the engine tracked the acknowledgement
         /// with, or <c>null</c> to capture the current one. Delivered notifications carry the
         /// same handle.</param>
+        /// <param name="raiseNotification">Whether the session raises
+        /// <see cref="ISession.Notification"/> with the message. Decided here, per
+        /// message: a handler attached later must not get a message whose buffers the
+        /// subscription can already have returned.</param>
         /// <param name="requiredScope">The lifetime the subscription must still be in
         /// for the message to be taken, or <c>null</c> to take it in any lifetime.</param>
         /// <returns><c>false</c> when the subscription left the required lifetime.</returns>
@@ -2343,9 +2360,11 @@ namespace Opc.Ua.Client
             NotificationMessage message,
             bool updateAvailableSequenceNumbers,
             AcknowledgementScope? acknowledgementScope,
+            out bool raiseNotification,
             AcknowledgementScope? requiredScope = null)
         {
             PublishStateChangedEventHandler? callback = null;
+            raiseNotification = false;
 
             lock (m_cache)
             {
@@ -2363,11 +2382,13 @@ namespace Opc.Ua.Client
                     return true;
                 }
 
-                // The session raises Notification with this message after it is saved. The
-                // mark stays with the subscription, also when it moves to another session.
+                // The session raises Notification with this message after it is saved,
+                // when a handler is attached now. The mark stays with the subscription,
+                // also when it moves to another session.
                 if (Session is not Session { NotificationHandlerAttached: false })
                 {
                     m_messagesHandedOut = true;
+                    raiseNotification = true;
                 }
 
                 // check if a publish error was previously reported.
@@ -2664,8 +2685,10 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                KeepLastMessageOfDetachedItem(monitoredItem);
+                // cleared first: a dispatch that saves a value in the item after the
+                // last message is read here sees it (KeepLastMessageIfDetached).
                 monitoredItem.Subscription = null;
+                KeepLastMessageOfDetachedItem(monitoredItem);
                 if (monitoredItem.Status.Created)
                 {
                     m_deletedItems.Add(monitoredItem);
@@ -2695,8 +2718,9 @@ namespace Opc.Ua.Client
                 {
                     if (m_monitoredItems.TryRemove(monitoredItem.ClientHandle, out _))
                     {
-                        KeepLastMessageOfDetachedItem(monitoredItem);
+                        // cleared first, see RemoveItem.
                         monitoredItem.Subscription = null;
+                        KeepLastMessageOfDetachedItem(monitoredItem);
 
                         if (monitoredItem.Status.Created)
                         {
@@ -4256,10 +4280,21 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Whether the application could have been handed a message of this
-        /// subscription, after which no buffer of a message is returned any more.
+        /// Keeps the message just saved as the last message of a monitored item that
+        /// was removed between its lookup and the save. A removal before the save has
+        /// already cleared <see cref="MonitoredItem.Subscription"/>, and one after it
+        /// finds the message itself (<see cref="KeepLastMessageOfDetachedItem"/>).
         /// </summary>
-        internal bool MessagesHandedOut => Volatile.Read(ref m_messagesHandedOut);
+        private void KeepLastMessageIfDetached(MonitoredItem monitoredItem)
+        {
+            if (!ReferenceEquals(monitoredItem.Subscription, this))
+            {
+                lock (m_cache)
+                {
+                    KeepLastMessageOfDetachedItem(monitoredItem);
+                }
+            }
+        }
 
         /// <summary>
         /// Sets on a body of a cached message, decoded again after its dispatch, what the
@@ -4354,6 +4389,7 @@ namespace Opc.Ua.Client
 
                 // save in cache.
                 monitoredItem.SaveValueInCache(notification);
+                KeepLastMessageIfDetached(monitoredItem);
             }
         }
 
@@ -4386,6 +4422,7 @@ namespace Opc.Ua.Client
 
                 // save in cache.
                 monitoredItem.SaveValueInCache(eventFields);
+                KeepLastMessageIfDetached(monitoredItem);
             }
         }
 
