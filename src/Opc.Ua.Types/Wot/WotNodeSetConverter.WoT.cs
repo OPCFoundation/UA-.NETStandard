@@ -1232,7 +1232,7 @@ namespace Opc.Ua.Wot
                 {
                     return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
                 }
-                WotJsonResidue.Replace(restored, document, options, diagnostics);
+                WotJsonResidue.Replace(restored, document, options, diagnostics, schemaContext: archiveContext);
                 return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
             }
 
@@ -1256,7 +1256,7 @@ namespace Opc.Ua.Wot
                     ApplyIdentifierLeniency(diagnostics, options);
                     if (!HasErrors(diagnostics))
                     {
-                        WotJsonResidue.Replace(restored, document, options, diagnostics);
+                        WotJsonResidue.Replace(restored, document, options, diagnostics, schemaContext: archiveContext);
                     }
                 }
                 return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);

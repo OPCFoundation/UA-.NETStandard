@@ -31,6 +31,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
@@ -94,11 +95,13 @@ namespace Opc.Ua.Wot
             WriteFieldArrayDimensions(writer, arrayDimensions);
         }
 
-        private static void WriteRankedJsonType(Utf8JsonWriter writer, string? dataType, int valueRank)
+        private static void WriteRankedJsonType(
+            Utf8JsonWriter writer, string? dataType, int valueRank, UANodeSet? nodeSet = null)
         {
+            dataType = ResolveReadableScalarDataType(dataType, nodeSet);
             if (valueRank is -3 or -2)
             {
-                if (MapDataTypeToJson(dataType) is null)
+                if (MapReadableScalarType(dataType) is null)
                 {
                     return;
                 }
@@ -132,6 +135,14 @@ namespace Opc.Ua.Wot
             for (int dimension = 0; dimension < dimensions; dimension++)
             {
                 writer.WriteString("type", "array");
+                if (dimension == dimensions - 1 && MapReadableScalarType(dataType) is null)
+                {
+                    for (int outer = 0; outer < dimension; outer++)
+                    {
+                        writer.WriteEndObject();
+                    }
+                    return;
+                }
                 writer.WritePropertyName("items");
                 writer.WriteStartObject();
             }
@@ -147,7 +158,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="schema">The JSON element.</param>
         /// <param name="member">The schema member whose JSON type is checked against the value rank.</param>
-        internal static bool MapsRankedJsonType(JsonElement schema, string member)
+        /// <param name="nodeSet">The native model holding local scalar subtype declarations.</param>
+        internal static bool MapsRankedJsonType(JsonElement schema, string member, UANodeSet nodeSet)
         {
             if (!schema.TryGetProperty(member, out JsonElement actual))
             {
@@ -165,12 +177,17 @@ namespace Opc.Ua.Wot
                     dimensions++;
                     nested = items;
                 }
-                if (dimensions != rank)
+                bool untypedLeaf = dimensions == rank - 1 &&
+                    GetElementString(nested, "type") == "array" &&
+                    !nested.TryGetProperty("items", out _) &&
+                    MapReadableScalarType(ResolveReadableScalarDataType(
+                        GetElementString(schema, "uav:mapToType"), nodeSet)) is null;
+                if (dimensions != rank && !untypedLeaf)
                 {
                     return false;
                 }
             }
-            using JsonDocument? generated = CreateRankedJsonType(schema);
+            using JsonDocument? generated = CreateRankedJsonType(schema, nodeSet);
             return generated is not null &&
                 generated.RootElement.TryGetProperty(member, out JsonElement expected) &&
                 JsonElement.DeepEquals(actual, expected);
@@ -180,7 +197,8 @@ namespace Opc.Ua.Wot
         /// Regenerates the ranked JSON type only when the schema states its definitive DataType.
         /// </summary>
         /// <param name="schema">The JSON element.</param>
-        internal static JsonDocument? CreateRankedJsonType(JsonElement schema)
+        /// <param name="nodeSet">The native model holding local scalar subtype declarations.</param>
+        internal static JsonDocument? CreateRankedJsonType(JsonElement schema, UANodeSet nodeSet)
         {
             string? dataType = GetElementString(schema, "uav:mapToType");
             if (dataType is null)
@@ -191,7 +209,7 @@ namespace Opc.Ua.Wot
             using (var writer = new Utf8JsonWriter(output))
             {
                 writer.WriteStartObject();
-                WriteRankedJsonType(writer, NormalizeExpandedNodeId(dataType), ReadValueRank(schema));
+                WriteRankedJsonType(writer, NormalizeExpandedNodeId(dataType), ReadValueRank(schema), nodeSet);
                 writer.WriteEndObject();
             }
             return JsonDocument.Parse(output.ToArray());

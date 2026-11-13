@@ -1632,7 +1632,7 @@ namespace Opc.Ua.Wot
         {
             writer.WriteStartObject();
             WriteLocalizedTextContext(writer, field.DisplayName, field.Description, defaultLocale);
-            WriteRankedJsonType(writer, field.DataType, field.ValueRank);
+            WriteRankedJsonType(writer, field.DataType, field.ValueRank, nodeSet);
             WriteLocalizedTitle(writer, field.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, field.Description, defaultLocale);
             WriteOptional(

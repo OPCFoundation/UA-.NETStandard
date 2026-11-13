@@ -42,7 +42,8 @@ namespace Opc.Ua.Wot.Exporter
     /// <summary>
     /// Reads local NodeSet2 files and writes the linked WoT export.
     /// </summary>
-    internal sealed class ExportCommand(TextWriter output, TextWriter error)
+    internal sealed class ExportCommand(
+        TextWriter output, TextWriter error, IWotUnitMappingProvider? unitMappingProvider = null)
     {
         /// <summary>
         /// Runs the command. Returns 0 on success, 1 on an export error,
@@ -150,6 +151,7 @@ namespace Opc.Ua.Wot.Exporter
         {
             var options = new WotNodeSetConverterOptions
             {
+                UnitMappingProvider = unitMappingProvider,
                 MaxDocumentSetDocuments = 100_000,
                 MaxDocumentSetDepth = 128,
                 MaxDocumentSetBytes = 512L * 1024 * 1024,

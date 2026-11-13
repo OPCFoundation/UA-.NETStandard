@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using Opc.Ua.Export;
 
@@ -285,7 +286,8 @@ namespace Opc.Ua.Wot
         private static void WriteAnalogFacets(
             Utf8JsonWriter writer,
             WotAnalogFacets? facets,
-            string defaultLocale)
+            string defaultLocale,
+            IWotUnitMappingProvider? unitMappingProvider = null)
         {
             if (facets is null)
             {
@@ -293,6 +295,15 @@ namespace Opc.Ua.Wot
             }
             if (facets.Units is { } units)
             {
+                IWotUnitMappingProvider mapping = unitMappingProvider ?? s_unitMappingProvider;
+                if (mapping.TryGetMapping(units.NamespaceUri, units.UnitId, out string unitIri, out string? quantityKind))
+                {
+                    writer.WritePropertyName("qudt:hasUnit");
+                    writer.WriteStartObject();
+                    writer.WriteString("@id", unitIri);
+                    writer.WriteEndObject();
+                    WriteOptional(writer, WotUnitMigration.QuantityKindTerm, quantityKind);
+                }
                 string? display = SelectLocalizedValue(units.DisplayName, defaultLocale);
                 if (!string.IsNullOrEmpty(display))
                 {
@@ -724,6 +735,36 @@ namespace Opc.Ua.Wot
             return unit is not null &&
                 string.Equals(
                     GetElementString(units, "displayName"), unit, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Determines whether a QUDT annotation is regenerated from the unit identity by the configured provider.
+        /// </summary>
+        internal static bool MapsQudtAnnotation(
+            WotDocument document,
+            JsonElement affordance,
+            string member,
+            IWotUnitMappingProvider? provider)
+        {
+            if (!TryGetContextNamespace(document, "qudt", out string authority) ||
+                authority != "http://qudt.org/schema/qudt/" ||
+                !MapsUnitProperty(document.RootElement, affordance) ||
+                !TryGetUnitTarget(document.RootElement, affordance, out JsonElement target) ||
+                !target.TryGetProperty(EngineeringUnitsTerm, out JsonElement declared) ||
+                !TryReadEngineeringUnits(declared, out WotEngineeringUnits? units) ||
+                !(provider ?? s_unitMappingProvider).TryGetMapping(
+                    units!.NamespaceUri, units.UnitId, out string unitIri, out string? quantityKind))
+            {
+                return false;
+            }
+            if (member == WotUnitMigration.QuantityKindTerm)
+            {
+                return quantityKind is not null && GetElementString(affordance, member) == quantityKind;
+            }
+            return affordance.TryGetProperty(member, out JsonElement unit) &&
+                unit.ValueKind == JsonValueKind.Object &&
+                unit.EnumerateObject().Count() == 1 &&
+                GetElementString(unit, "@id") == unitIri;
         }
 
         /// <summary>

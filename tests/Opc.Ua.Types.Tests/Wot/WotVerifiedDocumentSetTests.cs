@@ -207,7 +207,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase(ValueRanks.ScalarOrOneDimension)]
         public async Task FlexibleValueRankPreservesScalarValuesWithoutResidueAsync(int valueRank)
         {
-            using WotDocument scalar = ScalarDocument("i=6", "const", "42");
+            using WotDocument scalar = ScalarDocument("i=6", "default", "42");
             JsonObject root = JsonNode.Parse(scalar.Utf8Json.Span)!.AsObject();
             root["properties"]!["Value"]!["uav:valueRank"] = valueRank;
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
@@ -867,8 +867,9 @@ namespace Opc.Ua.Types.Tests.Wot
 
             using WotDocument regenerated = WotNodeSetConverter.FromNodeSet(result.Value);
             Assert.That(
-                regenerated.Properties["Value"].GetProperty("const").ValueKind,
+                regenerated.Properties["Value"].GetProperty("default").ValueKind,
                 Is.EqualTo(JsonValueKind.Number));
+            Assert.That(regenerated.Properties["Value"].TryGetProperty("const", out _), Is.False);
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(regenerated);
             NodeSetComparisonResult comparison = NodeSetComparer.CompareEquivalent(result.Value, restored);
             Assert.That(comparison.AreEquivalent, Is.True, string.Join("; ", comparison.Differences));
@@ -894,7 +895,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("473.15")]
         [TestCase("0.1")]
         [TestCase("-17.23")]
-        public async Task GeneratedDoubleConstantsUseCanonicalRoundTripSpelling(string literal)
+        public async Task GeneratedDoubleDefaultsUseCanonicalRoundTripSpelling(string literal)
         {
             using WotDocument input = ScalarDocument("i=11", "default", literal);
             WotConversionResult<UANodeSet> result =
@@ -904,7 +905,36 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument generated = WotNodeSetConverter.FromNodeSet(result.Value!);
             using WotDocument canonical = WotDocument.Parse(generated.ToCanonicalUtf8());
 
-            Assert.That(canonical.Properties["Value"].GetProperty("const").GetRawText(), Is.EqualTo(literal));
+            Assert.That(canonical.Properties["Value"].GetProperty("default").GetRawText(), Is.EqualTo(literal));
+        }
+
+        /// <summary>
+        /// Keeps an initial Boolean value as a default without imposing a constant-value constraint.
+        /// </summary>
+        [Test]
+        public void BooleanInitialValueDoesNotBecomeAConstant()
+        {
+            using WotDocument input = ScalarDocument("i=1", "default", "true");
+            UANodeSet source = WotNodeSetConverter.ToNodeSet(input);
+
+            using WotDocument generated = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(generated.Properties["Value"].GetProperty("default").GetBoolean(), Is.True);
+            Assert.That(generated.Properties["Value"].TryGetProperty("const", out _), Is.False);
+        }
+
+        /// <summary>
+        /// Preserves an authored constraint even though native initial values only regenerate defaults.
+        /// </summary>
+        [Test]
+        public void AuthoredConstantConstraintSurvivesNodeSetRoundTrip()
+        {
+            using WotDocument input = ScalarDocument("i=6", "const", "42");
+            UANodeSet source = WotNodeSetConverter.ToNodeSet(input);
+
+            using WotDocument generated = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(generated.Properties["Value"].GetProperty("const").GetInt32(), Is.EqualTo(42));
         }
 
         private static WotDocument ScalarDocument(string dataType, string member, string value)

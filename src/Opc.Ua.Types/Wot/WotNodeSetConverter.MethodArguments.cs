@@ -568,7 +568,7 @@ namespace Opc.Ua.Wot
             string defaultLocale)
         {
             writer.WriteStartObject();
-            WriteRankedJsonType(writer, argument.DataType, argument.ValueRank);
+            WriteRankedJsonType(writer, argument.DataType, argument.ValueRank, nodeSet);
             WriteLocalizedTextContext(writer, null, argument.Description, defaultLocale);
             WriteLocalizedDescription(writer, argument.Description, defaultLocale);
             WriteOptional(
@@ -593,28 +593,97 @@ namespace Opc.Ua.Wot
         private static void WriteArgumentJsonType(Utf8JsonWriter writer, string? dataType)
         {
             WriteOptional(writer, "type", MapReadableScalarType(dataType));
-            switch (dataType)
+            if (dataType == WotVocabulary.UriString)
             {
-                case WotVocabulary.ByteString:
+                writer.WriteString("format", "uri");
+                return;
+            }
+            switch (GetValidationBuiltInType(dataType ?? string.Empty))
+            {
+                case BuiltInType.ByteString:
                     writer.WriteString("contentEncoding", WotVocabulary.Base64Encoding);
                     return;
-                case "i=13":
+                case BuiltInType.DateTime:
                     writer.WriteString("format", "date-time");
                     return;
-                case "i=14":
+                case BuiltInType.Guid:
                     writer.WriteString("format", "uuid");
-                    return;
-                case WotVocabulary.UriString:
-                    writer.WriteString("format", "uri");
                     return;
             }
         }
 
+        /// <summary>
+        /// Resolves standard scalar subtypes to their readable JSON representation.
+        /// </summary>
         private static string? MapReadableScalarType(string? dataType)
         {
-            return dataType is WotVocabulary.ByteString or "i=13" or "i=14" or WotVocabulary.UriString
-                ? "string"
-                : MapDataTypeToJson(dataType);
+            return MapDataTypeToJson(dataType) ?? GetValidationBuiltInType(dataType ?? string.Empty) switch
+            {
+                BuiltInType.String or BuiltInType.DateTime or BuiltInType.Guid or BuiltInType.ByteString or
+                BuiltInType.XmlElement or BuiltInType.NodeId or BuiltInType.ExpandedNodeId or
+                BuiltInType.QualifiedName or BuiltInType.LocalizedText => "string",
+                >= BuiltInType.SByte and <= BuiltInType.UInt64 => "integer",
+                BuiltInType.Float or BuiltInType.Double or BuiltInType.Number => "number",
+                BuiltInType.Integer or BuiltInType.UInteger or BuiltInType.Enumeration => "integer",
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Follows an unambiguous local scalar subtype chain without changing the definitive DataType identity.
+        /// </summary>
+        private static string? ResolveReadableScalarDataType(string? dataType, UANodeSet? nodeSet)
+        {
+            if (nodeSet is null || dataType is null || MapReadableScalarType(dataType) is not null)
+            {
+                return dataType;
+            }
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            string current = ResolveArchivedAlias(dataType, aliases);
+            if (current.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                if (!ExpandedNodeId.TryParse(current, out ExpandedNodeId portable) ||
+                    Array.IndexOf(nodeSet.NamespaceUris ?? [], portable.NamespaceUri) < 0)
+                {
+                    return dataType;
+                }
+                current = ToNodeSetNodeId(current, nodeSet, []);
+            }
+            Dictionary<string, UANode> index = BuildIndex(nodeSet);
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            while (visited.Add(current))
+            {
+                if (MapReadableScalarType(current) is not null)
+                {
+                    return current;
+                }
+                if (!index.TryGetValue(current, out UANode? node) ||
+                    node is not UADataType type ||
+                    (type.Definition is { } definition && !HasEnumFields(definition)))
+                {
+                    break;
+                }
+                string? parent = null;
+                foreach (Reference reference in type.References ?? [])
+                {
+                    if (reference.IsForward || ResolveArchivedAlias(reference.ReferenceType, aliases) != "i=45")
+                    {
+                        continue;
+                    }
+                    string candidate = ResolveArchivedAlias(reference.Value, aliases);
+                    if (parent is not null && parent != candidate)
+                    {
+                        return dataType;
+                    }
+                    parent = candidate;
+                }
+                if (parent is null)
+                {
+                    break;
+                }
+                current = parent;
+            }
+            return dataType;
         }
 
         /// <summary>

@@ -31,6 +31,7 @@
 using System;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Export;
@@ -48,6 +49,107 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotValueRankTests
     {
+        /// <summary>
+        /// Checks that readable scalar type refinements are retained inside arrays and matrices.
+        /// </summary>
+        [TestCase("i=20", null, -1)]
+        [TestCase("i=21", null, -1)]
+        [TestCase("i=13", "date-time", 1)]
+        [TestCase("i=294", "date-time", -1)]
+        [TestCase("i=294", "date-time", 2)]
+        [TestCase("i=14", "uuid", -1)]
+        public void StandardStringTypesKeepReadableSchemas(string dataType, string? format, int rank)
+        {
+            UANodeSet source = CreateNodeSet(rank, null);
+            source.Items!.OfType<UAVariable>().Single().DataType = dataType;
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+            JsonElement schema = document.Properties["Samples"];
+            for (int dimension = 0; dimension < rank; dimension++)
+            {
+                Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("array"));
+                schema = schema.GetProperty("items");
+            }
+            Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("string"));
+            if (format is not null)
+            {
+                Assert.That(schema.GetProperty("format").GetString(), Is.EqualTo(format));
+            }
+            Assert.That(document.Properties["Samples"].GetProperty("uav:mapToType").GetString(), Is.EqualTo(dataType));
+        }
+
+        /// <summary>
+        /// Checks that an unknown element type does not produce an empty items schema.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        public void UnknownArrayElementTypesOmitEmptyItems(int rank)
+        {
+            UANodeSet source = CreateNodeSet(rank, null);
+            source.Items!.OfType<UAVariable>().Single().DataType = "ns=1;i=9001";
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+            JsonElement schema = document.Properties["Samples"];
+            for (int dimension = 1; dimension < rank; dimension++)
+            {
+                schema = schema.GetProperty("items");
+            }
+            Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("array"));
+            Assert.That(schema.TryGetProperty("items", out _), Is.False);
+            Assert.That(document.Properties["Samples"].GetProperty("uav:valueRank").GetInt32(), Is.EqualTo(rank));
+        }
+
+        /// <summary>
+        /// Resolves local scalar inheritance for scalar, array and matrix schemas without losing native identities.
+        /// </summary>
+        [TestCase(-1, "i=12", null)]
+        [TestCase(1, "i=12", null)]
+        [TestCase(2, "i=13", "date-time")]
+        public async Task LocalScalarSubtypesKeepTheirReadableSchemasAsync(int rank, string terminal, string? format)
+        {
+            UANodeSet source = CreateNodeSet(rank, null);
+            source.Items!.OfType<UAVariable>().Single().DataType = "ns=1;i=2000";
+            source.Items =
+            [
+                .. source.Items!,
+                new UADataType
+                {
+                    NodeId = "ns=1;i=2000",
+                    BrowseName = "1:MeasurementType",
+                    References =
+                    [
+                        new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "ns=1;i=2001" }
+                    ]
+                },
+                new UADataType
+                {
+                    NodeId = "ns=1;i=2001",
+                    BrowseName = "1:ScalarBase",
+                    References = [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = terminal }]
+                }
+            ];
+            using (WotDocument document = WotNodeSetConverter.FromNodeSet(source))
+            {
+                JsonElement schema = document.Properties["Samples"];
+                string? nativeIdentity = schema.GetProperty("uav:mapToType").GetString();
+                for (int dimension = 0; dimension < rank; dimension++)
+                {
+                    schema = schema.GetProperty("items");
+                }
+                Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("string"));
+                Assert.That(nativeIdentity, Does.EndWith(";i=2000"));
+                if (format is not null)
+                {
+                    Assert.That(schema.GetProperty("format").GetString(), Is.EqualTo(format));
+                }
+            }
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
+                .FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+            using WotDocumentSet? documents = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+        }
+
         /// <summary>
         /// Verifies that arrays and matrices export ordinary nested array schemas.
         /// </summary>

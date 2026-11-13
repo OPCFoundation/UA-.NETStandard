@@ -184,7 +184,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void QuantityKindIsNeverWrittenIntoTheUnitMember()
+        public void QudtMappingKeepsUnitAndQuantityKindDistinct()
         {
             UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
 
@@ -199,10 +199,45 @@ namespace Opc.Ua.Types.Tests.Wot
                     "Section 6.4: unit carries an engineering unit, never a " +
                     "quantity kind.");
                 Assert.That(
-                    measurement.TryGetProperty("qudt:hasQuantityKind", out _),
-                    Is.False,
-                    "A NodeSet states no quantity kind, so none is invented.");
+                    measurement.GetProperty("qudt:hasUnit").GetProperty("@id").GetString(),
+                    Is.EqualTo("http://qudt.org/vocab/unit/DEG_C"));
+                Assert.That(
+                    measurement.GetProperty("qudt:hasQuantityKind").GetString(),
+                    Is.EqualTo("http://qudt.org/vocab/quantitykind/Temperature"));
             });
+        }
+
+        /// <summary>
+        /// Checks that generated unit annotations do not introduce residue into a verified document set.
+        /// </summary>
+        [Test]
+        public async Task QudtMappingPreservesTheOriginalNodeSetAsync()
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
+                .FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+            using WotDocumentSet? documents = result.Value;
+
+            Assert.That(result.Success, Is.True, WotAnalogTestData.Describe(result.Diagnostics));
+        }
+
+        /// <summary>
+        /// Checks that a foreign authority or unknown code never acquires an inferred quantity kind.
+        /// </summary>
+        [TestCase("urn:vendor:units", 4408652)]
+        [TestCase(WotAnalogTestData.UnitAuthority, 0)]
+        [TestCase(WotAnalogTestData.UnitAuthority, 5921370)]
+        public void UnmappedUnitsDoNotAcquireQudtAnnotations(string authority, int unitId)
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            UAVariable units = source.Items!.OfType<UAVariable>()
+                .Single(variable => variable.NodeId == WotAnalogTestData.EngineeringUnitsNodeId);
+            units.Value = WotAnalogTestData.EngineeringUnitsValue(authority, unitId, "C", null, null, null);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Properties["Measurement"].TryGetProperty("qudt:hasUnit", out _), Is.False);
+            Assert.That(document.Properties["Measurement"].TryGetProperty("qudt:hasQuantityKind", out _), Is.False);
         }
 
         [Test]
@@ -232,6 +267,84 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.EqualTo("qudt-quantitykind:AngularVelocity"),
                     "The quantity kind is a separate fact and survives unchanged.");
             });
+        }
+
+        /// <summary>
+        /// Keeps process-specific annotations instead of replacing them with the conventional mapping.
+        /// </summary>
+        [Test]
+        public void AuthoredQudtAnnotationsOverrideTheDefaultMapping()
+        {
+            using WotDocument initial = WotNodeSetConverter.FromNodeSet(WotAnalogTestData.CreateAnalogNodeSet());
+            JsonNode root = JsonNode.Parse(initial.RootElement.GetRawText())!;
+            JsonNode measurement = root["properties"]!["Measurement"]!;
+            measurement["qudt:hasUnit"] = new JsonObject { ["@id"] = "urn:test:authored-unit" };
+            measurement["qudt:hasQuantityKind"] = "urn:test:authored-kind";
+            using WotDocument authored = WotDocument.Parse(
+                System.Text.Encoding.UTF8.GetBytes(root.ToJsonString()));
+            UANodeSet source = WotNodeSetConverter.ToNodeSet(authored);
+
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(restored.Properties["Measurement"].GetProperty("qudt:hasUnit")
+                .GetProperty("@id").GetString(), Is.EqualTo("urn:test:authored-unit"));
+            Assert.That(restored.Properties["Measurement"].GetProperty("qudt:hasQuantityKind")
+                .GetString(), Is.EqualTo("urn:test:authored-kind"));
+        }
+
+        /// <summary>
+        /// Verifies the connector mappings, without assigning percent a unique physical quantity.
+        /// </summary>
+        [TestCase(4408652, "DEG_C", "Temperature")]
+        [TestCase(5059638, "REV-PER-MIN", "AngularVelocity")]
+        [TestCase(20529, "PERCENT", null)]
+        public void ExplicitUnitMappingsKeepAmbiguousQuantityKindsUnset(int unitId, string unit, string? kind)
+        {
+            var provider = new WotQudtUnitMappingProvider();
+
+            Assert.That(provider.TryGetMapping(WotAnalogTestData.UnitAuthority, unitId,
+                out string unitIri, out string? kindIri), Is.True);
+            Assert.That(unitIri, Is.EqualTo("http://qudt.org/vocab/unit/" + unit));
+            Assert.That(kindIri, Is.EqualTo(kind is null ? null : "http://qudt.org/vocab/quantitykind/" + kind));
+        }
+
+        /// <summary>
+        /// Verifies that an injected mapping survives verified reconstruction without introducing residue.
+        /// </summary>
+        [Test]
+        public async Task CustomUnitMappingIsUsedDuringVerifiedReconstructionAsync()
+        {
+            var options = new WotNodeSetConverterOptions
+            {
+                UnitMappingProvider = new TestUnitMappingProvider()
+            };
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            using (WotDocument document = WotNodeSetConverter.FromNodeSet(source, options: options))
+            {
+                Assert.That(document.Properties["Measurement"].GetProperty("qudt:hasUnit")
+                    .GetProperty("@id").GetString(), Is.EqualTo("urn:test:unit"));
+                Assert.That(document.Properties["Measurement"].GetProperty("qudt:hasQuantityKind")
+                    .GetString(), Is.EqualTo("urn:test:quantity"));
+            }
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
+                .FromNodeSetDocumentsAsync(source, "model", options: options).ConfigureAwait(false);
+            using WotDocumentSet? documents = result.Value;
+
+            Assert.That(result.Success, Is.True, WotAnalogTestData.Describe(result.Diagnostics));
+        }
+
+        /// <summary>
+        /// Supplies a process-specific unit mapping.
+        /// </summary>
+        private sealed class TestUnitMappingProvider : IWotUnitMappingProvider
+        {
+            /// <inheritdoc/>
+            public bool TryGetMapping(string namespaceUri, int unitId, out string unitIri, out string? quantityKindIri)
+            {
+                unitIri = "urn:test:unit";
+                quantityKindIri = "urn:test:quantity";
+                return true;
+            }
         }
 
         [Test]

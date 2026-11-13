@@ -862,6 +862,28 @@ namespace Opc.Ua.Types.Tests.Wot
                 item.Code == WotDiagnosticCode.ResidueInvalid), Is.True, string.Join("; ", result.Diagnostics));
         }
 
+        /// <summary>
+        /// Projects the standard UtcTime subtype in method inputs as an ISO date-time.
+        /// </summary>
+        [Test]
+        public void UtcTimeMethodArgumentsHaveDateTimeFormat()
+        {
+            UANodeSet source = CreateMethodNodeSet();
+            UAVariable arguments = source.Items!.OfType<UAVariable>()
+                .Single(variable => variable.BrowseName == "InputArguments");
+            System.Xml.XmlElement dataType = arguments.Value!.GetElementsByTagName("DataType", UaXsd)
+                .OfType<System.Xml.XmlElement>().First();
+            Child(dataType, "Identifier").InnerText = "i=294";
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            JsonElement reason = document.Actions["Reset"].GetProperty("input")
+                .GetProperty("properties").GetProperty("Reason");
+            Assert.That(reason.GetProperty("type").GetString(), Is.EqualTo("string"));
+            Assert.That(reason.GetProperty("format").GetString(), Is.EqualTo("date-time"));
+            Assert.That(reason.GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=294"));
+        }
+
         private static IReadOnlyList<string> Order(JsonElement schema)
         {
             return [.. schema.GetProperty("uav:fieldOrder").EnumerateArray()

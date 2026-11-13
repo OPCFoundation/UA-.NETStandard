@@ -47,6 +47,11 @@ namespace Opc.Ua.Wot
         private const uint AccessLevelCurrentRead = 1;
         private const uint AccessLevelCurrentWrite = 2;
 
+        /// <summary>
+        /// The default explicit unit mapping for callers without an injected provider.
+        /// </summary>
+        private static readonly IWotUnitMappingProvider s_unitMappingProvider = new WotQudtUnitMappingProvider();
+
         private static readonly Dictionary<string, string> s_dataTypeToJsonType =
             new(StringComparer.Ordinal)
             {
@@ -542,6 +547,7 @@ namespace Opc.Ua.Wot
             writer.WriteStartObject();
             writer.WriteString("uav", WotVocabulary.VocabularyNamespace);
             writer.WriteString("ua", WotVocabulary.OpcUaNamespace);
+            writer.WriteString("qudt", "http://qudt.org/schema/qudt/");
             if (nodeSet.NamespaceUris is not null)
             {
                 for (int ii = 0; ii < nodeSet.NamespaceUris.Length; ii++)
@@ -1053,7 +1059,7 @@ namespace Opc.Ua.Wot
                         variable.NodeId ?? string.Empty, out WotAnalogFacets? facets);
                     WriteVariableAffordance(
                         writer, variable, namespaceUris, nodeSet, defaultLocale,
-                        facets, owner, referenceTypeNames, documentLocale);
+                        facets, owner, referenceTypeNames, documentLocale, options.UnitMappingProvider);
                 }
                 writer.WriteEndObject();
             }
@@ -1121,7 +1127,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Writes a Variable's <c>Value</c> as the property's <c>const</c>.
+        /// Writes a Variable's initial <c>Value</c> as the property's <c>default</c>.
         /// </summary>
         /// <remarks>
         /// A NodeSet <c>Value</c> is a UA-XML fragment. Only the scalar shapes
@@ -1132,7 +1138,8 @@ namespace Opc.Ua.Wot
         private static void WriteVariableValue(
             Utf8JsonWriter writer,
             UAVariable variable,
-            UANodeSet? nodeSet = null)
+            UANodeSet? nodeSet = null,
+            string member = "default")
         {
             System.Xml.XmlElement? value = variable.Value;
             if (value is null || value.NamespaceURI != UaXmlNamespace)
@@ -1151,11 +1158,11 @@ namespace Opc.Ua.Wot
                 case "Boolean":
                     if (bool.TryParse(value.InnerText, out bool flag))
                     {
-                        writer.WriteBoolean("const", flag);
+                        writer.WriteBoolean(member, flag);
                     }
                     return;
                 case "String":
-                    writer.WriteString("const", value.InnerText);
+                    writer.WriteString(member, value.InnerText);
                     return;
                 case "SByte":
                 case "Int16":
@@ -1167,7 +1174,7 @@ namespace Opc.Ua.Wot
                         CultureInfo.InvariantCulture,
                         out long signed))
                     {
-                        writer.WriteNumber("const", signed);
+                        writer.WriteNumber(member, signed);
                     }
                     return;
                 case "Byte":
@@ -1180,7 +1187,7 @@ namespace Opc.Ua.Wot
                         CultureInfo.InvariantCulture,
                         out ulong unsigned))
                     {
-                        writer.WriteNumber("const", unsigned);
+                        writer.WriteNumber(member, unsigned);
                     }
                     return;
                 case "Float":
@@ -1192,7 +1199,7 @@ namespace Opc.Ua.Wot
                         !float.IsNaN(single) &&
                         !float.IsInfinity(single))
                     {
-                        writer.WriteNumber("const", single);
+                        writer.WriteNumber(member, single);
                     }
                     return;
                 case "Double":
@@ -1204,7 +1211,7 @@ namespace Opc.Ua.Wot
                         !double.IsNaN(number) &&
                         !double.IsInfinity(number))
                     {
-                        WotJsonCanonicalizer.WriteNumber(writer, "const", number);
+                        WotJsonCanonicalizer.WriteNumber(writer, member, number);
                     }
                     return;
                 case "LocalizedText":
@@ -1215,7 +1222,7 @@ namespace Opc.Ua.Wot
                         string.Equals(
                             value.FirstChild?.LocalName, "Text", StringComparison.Ordinal))
                     {
-                        writer.WriteString("const", value.FirstChild!.InnerText);
+                        writer.WriteString(member, value.FirstChild!.InnerText);
                     }
                     return;
                 default:
@@ -1541,7 +1548,8 @@ namespace Opc.Ua.Wot
             WotAnalogFacets? analogFacets = null,
             string? componentOf = null,
             WotReferenceTypeNames? referenceTypeNames = null,
-            string? documentLocale = null)
+            string? documentLocale = null,
+            IWotUnitMappingProvider? unitMappingProvider = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:variable");
@@ -1578,7 +1586,7 @@ namespace Opc.Ua.Wot
                 : ResolveArchivedAlias(
                     variable.DataType,
                     NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance));
-            WriteRankedJsonType(writer, dataType, variable.ValueRank);
+            WriteRankedJsonType(writer, dataType, variable.ValueRank, nodeSet);
 
             // §9.1 gives a DataType one readable channel, the DataSchema's json
             // type, and that channel carries six types — so a LocalizedText and
@@ -1604,7 +1612,7 @@ namespace Opc.Ua.Wot
 
             // Sections 6.4 and 6.4.1: the engineering unit, its authority and
             // identity, and the two ranges that say what the value means.
-            WriteAnalogFacets(writer, analogFacets, defaultLocale);
+            WriteAnalogFacets(writer, analogFacets, defaultLocale, unitMappingProvider);
             WriteEngineeringUnits(writer, variable, defaultLocale, documentLocale);
 
             bool readable = (variable.AccessLevel & AccessLevelCurrentRead) != 0;

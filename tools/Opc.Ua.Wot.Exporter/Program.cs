@@ -55,7 +55,9 @@ namespace Opc.Ua.Wot.Exporter
             try
             {
                 var services = new ServiceCollection();
-                services.AddSingleton(_ => new ExportCommand(Console.Out, Console.Error));
+                services.AddSingleton<IWotUnitMappingProvider, WotQudtUnitMappingProvider>();
+                services.AddSingleton(sp =>
+                    new ExportCommand(Console.Out, Console.Error, sp.GetRequiredService<IWotUnitMappingProvider>()));
                 using ServiceProvider provider = services.BuildServiceProvider();
                 return await provider.GetRequiredService<ExportCommand>()
                     .RunAsync(args, cancellation.Token).ConfigureAwait(false);

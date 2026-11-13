@@ -1073,7 +1073,7 @@ namespace Opc.Ua.Wot
             using (var writer = new Utf8JsonWriter(output))
             {
                 writer.WriteStartObject();
-                WriteVariableValue(writer, node);
+                WriteVariableValue(writer, node, member: "const");
                 writer.WriteEndObject();
             }
             using var expected = JsonDocument.Parse(output.ToArray());

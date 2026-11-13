@@ -246,8 +246,24 @@ the same model. Shared model ownership joins their activation closure; unrelated
 readable documents do not become one atomic closure merely because their NodeIds
 use the same namespace.
 
-Generated Double constants, ranges, and sampling intervals use the shortest
+Generated Double defaults, ranges, and sampling intervals use the shortest
 round-trip spelling. Received numeric literals retain their validation rules.
+
+An initial NodeSet Variable value becomes `default`, not `const`: an initial
+value does not make the Variable immutable. Authored `const` constraints remain
+preserved when converting a WoT document through a NodeSet.
+
+Readable schemas include standard scalar subtypes such as QualifiedName,
+LocalizedText and UtcTime. DateTime and UtcTime use `format: "date-time"`,
+including method arguments and array elements. Unknown element types omit an
+empty `items` schema; `uav:mapToType` and `uav:valueRank` retain the native type
+and rank independently.
+
+Locally declared scalar subtypes follow their unambiguous `HasSubtype` chain
+to a known scalar representation, including inside arrays, matrices and method
+arguments. The definitive `uav:mapToType` remains the declared subtype. Missing,
+cyclic, conflicting or structured bases do not receive a guessed scalar type;
+external model dependencies are not fetched implicitly.
 
 ```csharp
 WotConversionResult<WotDocumentSet> exported =
@@ -683,6 +699,19 @@ either, and permissive conversion preserves either unknown member as ordinary
 residue. Strict authoring reports either as an unknown term.
 
 ## Engineering units, ranges and scaling (Sections 6.4 and 6.4.1)
+
+The default `WotQudtUnitMappingProvider` maps an explicit allowlist of UN/CEFACT
+Recommendation 20 codes to `qudt:hasUnit` IRIs and conventional
+`qudt:hasQuantityKind` IRIs. The unit identities follow the connector's verified
+QUDT 3.1 table. Quantity kinds are explicitly selected defaults, not deductions
+from display text; percent has no default quantity kind. Unknown codes and
+other unit authorities receive neither annotation. Existing authored quantity
+kinds remain authoritative and survive round trips.
+
+Set `WotNodeSetConverterOptions.UnitMappingProvider` to an
+`IWotUnitMappingProvider` for process-specific semantics or additional unit
+authorities. Registry hosting and the export command register the default
+provider in DI; direct converter calls use the same default without a container.
 
 `unit`, `uav:unitProperty`, `uav:engineeringUnits`, `minimum`/`maximum` and
 `uav:instrumentRange` are **mapped**, not carried: each names a Property Node
