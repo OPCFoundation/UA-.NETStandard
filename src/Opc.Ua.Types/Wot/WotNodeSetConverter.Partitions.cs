@@ -578,6 +578,7 @@ namespace Opc.Ua.Wot
                 resolver.ArchiveContext.Items = [.. archived];
             }
             using WotDocument? nativeTypes = CreateDocumentSetNativeDataTypes(resolver.ArchiveContext, options);
+            resolver.NativeDataTypeDocument = nativeTypes;
             if (nativeTypes is not null)
             {
                 resolver.DataTypeDefinitions = ReadDataTypeDefinitions(nativeTypes).ToArrayOf(source =>

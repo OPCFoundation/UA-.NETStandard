@@ -265,7 +265,8 @@ namespace Opc.Ua.Wot
                 {
                     dataTypeSources = await PreresolveDataTypeDefinitionsAsync(
                         document, dataTypeOwners, nodeResolver, options ?? new WotNodeSetConverterOptions(),
-                        diagnostics, dataTypeSources, cancellationToken).ConfigureAwait(false);
+                        diagnostics, dataTypeSources, documentSet?.NativeDataTypeDocument, cancellationToken)
+                        .ConfigureAwait(false);
                     dataTypeNames = await PreresolveDataTypeNamesAsync(
                         document, dataTypeSources, dataTypeOwners, nodeResolver,
                         diagnostics, cancellationToken).ConfigureAwait(false);
@@ -452,6 +453,7 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
             ArrayOf<WotDataTypeDefinitionSource> captured,
+            WotDocument? internalDefinitionOwner,
             CancellationToken cancellationToken)
         {
             options.Validate();
@@ -464,7 +466,10 @@ namespace Opc.Ua.Wot
             var localOwners = new List<WotDocument>(documents);
             foreach (WotDataTypeDefinitionSource source in captured)
             {
-                documents.Add(source.Document);
+                if (source.Document != internalDefinitionOwner)
+                {
+                    documents.Add(source.Document);
+                }
             }
             long capturedBytes = 0;
             foreach (WotDocument owner in documents)
@@ -589,7 +594,10 @@ namespace Opc.Ua.Wot
                         Report(graphId, "The provider did not return the requested complete DataType definition.");
                         continue;
                     }
-                    documents.Add(source.Document);
+                    if (source.Document != internalDefinitionOwner)
+                    {
+                        documents.Add(source.Document);
+                    }
                     if (documents.Count > options.MaxResolverDocuments)
                     {
                         Report(graphId, "The DataType definition closure exceeds the configured document limit.");

@@ -362,6 +362,97 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Budgets mixed partitions by their original inputs rather than charging the internal definition carrier.
+        /// </summary>
+        [TestCase("documents", -1, false)]
+        [TestCase("documents", 0, false)]
+        [TestCase("documents", 1, false)]
+        [TestCase("bytes", -1, false)]
+        [TestCase("bytes", 0, false)]
+        [TestCase("bytes", 1, false)]
+        [TestCase("documents", -1, true)]
+        [TestCase("documents", 0, true)]
+        [TestCase("documents", 1, true)]
+        [TestCase("bytes", -1, true)]
+        [TestCase("bytes", 0, true)]
+        [TestCase("bytes", 1, true)]
+        public async Task MixedPartitionsRetainExactResolverInputBudgetsAsync(
+            string budget, int delta, bool usesDefinition)
+        {
+            UANodeSet source = CreateReadableRoots();
+            source.Items =
+            [
+                new UADataType
+                {
+                    NodeId = "ns=1;i=3001",
+                    BrowseName = "1:NativeRecord",
+                    DisplayName = [new Export.LocalizedText { Value = "NativeRecord" }],
+                    SymbolicName = "RetainedRecord",
+                    References = [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "i=22" }],
+                    Definition = new Export.DataTypeDefinition
+                    {
+                        Name = "1:NativeRecord",
+                        Field = [new DataTypeField { Name = "Label", DataType = "i=12" }]
+                    }
+                },
+                usesDefinition
+                    ? new UADataType
+                    {
+                        NodeId = "ns=1;i=3002",
+                        BrowseName = "1:DerivedRecord",
+                        DisplayName = [new Export.LocalizedText { Value = "DerivedRecord" }],
+                        References =
+                        [
+                            new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "ns=1;i=3001" }
+                        ],
+                        Definition = new Export.DataTypeDefinition
+                        {
+                            Name = "1:DerivedRecord",
+                            Field =
+                            [
+                                new DataTypeField { Name = "Label", DataType = "i=12" },
+                                new DataTypeField { Name = "Count", DataType = "i=6" }
+                            ]
+                        }
+                    }
+                    : source.Items![0]
+            ];
+            WotConversionResult<WotDocumentSet> exported =
+                await WotNodeSetConverter.FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+            Assert.That(exported.Success, Is.True, Describe(exported));
+            using WotDocumentSet documents = exported.Value!;
+            Assert.That(documents.Entries, Has.Count.EqualTo(2));
+            Assert.That(documents.Entries.ToList().Count(entry => entry.Document.TryGetNativeProjection(out _)),
+                Is.EqualTo(1));
+            var options = new WotNodeSetConverterOptions();
+            if (budget == "documents")
+            {
+                options.MaxResolverDocuments = documents.Entries.Count + delta;
+            }
+            else
+            {
+                options.MaxResolverTotalBytes =
+                    documents.Entries.ToList().Sum(entry => (long)entry.Document.Utf8Json.Length) + delta;
+            }
+
+            WotConversionResult<UANodeSet> result =
+                await WotNodeSetConverter.ToNodeSetAsync(documents, options).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.EqualTo(delta >= 0), Describe(result));
+            if (delta >= 0)
+            {
+                NodeSetComparisonResult comparison =
+                    WotNodeSetConverter.CompareDocumentSet(source, result.Value!, options);
+                Assert.That(comparison.AreEquivalent, Is.True, string.Join("; ", comparison.Differences));
+            }
+            else
+            {
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid), Is.True, Describe(result));
+            }
+        }
+
+        /// <summary>
         /// Checks that generated inherited event data does not become an extra source extension.
         /// </summary>
         [Test]

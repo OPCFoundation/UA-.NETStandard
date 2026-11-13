@@ -981,6 +981,11 @@ namespace Opc.Ua.Wot
 
             public UANodeSet? ArchiveContext { get; set; }
 
+            /// <summary>
+            /// Gets or sets the synthesized definition carrier whose original inputs are already budgeted.
+            /// </summary>
+            public WotDocument? NativeDataTypeDocument { get; set; }
+
             /// <inheritdoc/>
             public ArrayOf<WotDataTypeDefinitionSource> DataTypeDefinitions { get; set; } = [];
 

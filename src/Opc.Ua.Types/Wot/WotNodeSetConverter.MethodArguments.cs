@@ -644,6 +644,35 @@ namespace Opc.Ua.Wot
                 m_nodeSet = nodeSet;
                 m_aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
                 m_index = index ?? BuildIndex(nodeSet);
+                foreach (UANode node in m_index.Values)
+                {
+                    if (node is not UADataType)
+                    {
+                        continue;
+                    }
+                    string identity = Normalize(node.NodeId);
+                    foreach (Reference reference in node.References ?? [])
+                    {
+                        if (ResolveArchivedAlias(reference.ReferenceType, m_aliases) != "i=45")
+                        {
+                            continue;
+                        }
+                        string target = Normalize(reference.Value);
+                        string child = reference.IsForward ? target : identity;
+                        string parent = reference.IsForward ? identity : target;
+                        if (m_supertypes.TryGetValue(child, out string? existing))
+                        {
+                            if (existing != parent)
+                            {
+                                m_supertypes[child] = null;
+                            }
+                        }
+                        else
+                        {
+                            m_supertypes.Add(child, parent);
+                        }
+                    }
+                }
             }
 
             /// <summary>
@@ -655,7 +684,8 @@ namespace Opc.Ua.Wot
                 {
                     return null;
                 }
-                string current = Normalize(dataType);
+                dataType = Normalize(dataType);
+                string current = dataType;
                 if (MapReadableScalarType(current) is not null)
                 {
                     return current;
@@ -683,24 +713,7 @@ namespace Opc.Ua.Wot
                     {
                         break;
                     }
-                    string? parent = null;
-                    bool ambiguous = false;
-                    foreach (Reference reference in type.References ?? [])
-                    {
-                        if (reference.IsForward ||
-                            ResolveArchivedAlias(reference.ReferenceType, m_aliases) != "i=45")
-                        {
-                            continue;
-                        }
-                        string candidate = Normalize(reference.Value);
-                        if (parent is not null && parent != candidate)
-                        {
-                            ambiguous = true;
-                            break;
-                        }
-                        parent = candidate;
-                    }
-                    if (parent is null || ambiguous)
+                    if (!m_supertypes.TryGetValue(current, out string? parent) || parent is null)
                     {
                         break;
                     }
@@ -734,6 +747,9 @@ namespace Opc.Ua.Wot
 
             /// <summary>Indexes the conversion's nodes once.</summary>
             private readonly Dictionary<string, UANode> m_index;
+
+            /// <summary>Indexes both directions of subtype edges; null marks conflicting parents.</summary>
+            private readonly Dictionary<string, string?> m_supertypes = new(StringComparer.Ordinal);
 
             /// <summary>Caches terminals, including unresolved chains.</summary>
             private readonly Dictionary<string, string?> m_terminals = new(StringComparer.Ordinal);

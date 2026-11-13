@@ -102,10 +102,14 @@ namespace Opc.Ua.Types.Tests.Wot
         /// <summary>
         /// Resolves local scalar inheritance for scalar, array and matrix schemas without losing native identities.
         /// </summary>
-        [TestCase(-1, "i=12", null)]
-        [TestCase(1, "i=12", null)]
-        [TestCase(2, "i=13", "date-time")]
-        public async Task LocalScalarSubtypesKeepTheirReadableSchemasAsync(int rank, string terminal, string? format)
+        [TestCase(-1, "i=12", null, false)]
+        [TestCase(1, "i=12", null, false)]
+        [TestCase(2, "i=13", "date-time", false)]
+        [TestCase(-1, "i=12", null, true)]
+        [TestCase(1, "i=12", null, true)]
+        [TestCase(2, "i=13", "date-time", true)]
+        public async Task LocalScalarSubtypesKeepTheirReadableSchemasAsync(
+            int rank, string terminal, string? format, bool forwardOnly)
         {
             UANodeSet source = CreateNodeSet(rank, null);
             source.Items!.OfType<UAVariable>().Single().DataType = "ns=1;i=2000";
@@ -116,18 +120,23 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     NodeId = "ns=1;i=2000",
                     BrowseName = "1:MeasurementType",
-                    References =
-                    [
-                        new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "ns=1;i=2001" }
-                    ]
+                    References = forwardOnly
+                        ? []
+                        : [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "ns=1;i=2001" }]
                 },
                 new UADataType
                 {
                     NodeId = "ns=1;i=2001",
                     BrowseName = "1:ScalarBase",
-                    References = [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = terminal }]
+                    References = forwardOnly
+                        ? [
+                            new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = terminal },
+                            new Reference { ReferenceType = "HasSubtype", Value = "ns=1;i=2000" }
+                        ]
+                        : [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = terminal }]
                 }
             ];
+            byte[] original = WotTestData.Serialize(source);
             using (WotDocument document = WotNodeSetConverter.FromNodeSet(source))
             {
                 JsonElement schema = document.Properties["Samples"];
@@ -148,6 +157,126 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocumentSet? documents = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(WotTestData.Serialize(source), Is.EqualTo(original));
+        }
+
+        /// <summary>
+        /// Keeps declared datatype aliases from becoming built-ins when fresh or cached resolution fails.
+        /// </summary>
+        [TestCase(-1, false)]
+        [TestCase(1, false)]
+        [TestCase(-1, true)]
+        [TestCase(1, true)]
+        public void UnresolvedScalarAliasesDoNotFallBackToBuiltInSpellings(int rank, bool structure)
+        {
+            UANodeSet source = CreateNodeSet(rank, null);
+            source.Aliases = [.. source.Aliases!, new NodeIdAlias { Alias = "String", Value = "ns=1;i=2000" }];
+            UAVariable variable = source.Items!.OfType<UAVariable>().Single();
+            variable.DataType = "String";
+            source.Items![0].References =
+            [
+                .. source.Items[0].References!,
+                new Reference { ReferenceType = "HasComponent", Value = "ns=1;i=1002" }
+            ];
+            source.Items =
+            [
+                .. source.Items,
+                new UAVariable
+                {
+                    NodeId = "ns=1;i=1002",
+                    BrowseName = "1:RepeatedSamples",
+                    ParentNodeId = variable.ParentNodeId,
+                    DataType = variable.DataType,
+                    ValueRank = rank,
+                    References = variable.References
+                },
+                new UADataType
+                {
+                    NodeId = "ns=1;i=2000",
+                    BrowseName = "1:DeclaredString",
+                    References =
+                    [
+                        new Reference
+                        {
+                            ReferenceType = "HasSubtype",
+                            IsForward = false,
+                            Value = structure ? "i=22" : "ns=1;i=9999"
+                        }
+                    ],
+                    Definition = structure
+                        ? new Export.DataTypeDefinition
+                        {
+                            Name = "1:DeclaredString",
+                            Field = [new DataTypeField { Name = "Label", DataType = "i=12" }]
+                        }
+                        : null
+                }
+            ];
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            foreach (string key in new[] { "Samples", "RepeatedSamples" })
+            {
+                JsonElement schema = document.Properties[key];
+                Assert.That(schema.GetProperty("uav:mapToType").GetString(), Does.EndWith(";i=2000"));
+                if (rank == ValueRanks.Scalar)
+                {
+                    Assert.That(schema.TryGetProperty("type", out _), Is.False);
+                }
+                else
+                {
+                    Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("array"));
+                    Assert.That(schema.TryGetProperty("items", out _), Is.False);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Deduplicates equivalent forward and inverse parents without hiding conflicting subtype edges.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ForwardSubtypeEdgesRetainParentAmbiguity(bool conflicting)
+        {
+            UANodeSet source = CreateNodeSet(1, null);
+            source.Items!.OfType<UAVariable>().Single().DataType = "ns=1;i=2000";
+            source.Items =
+            [
+                .. source.Items!,
+                new UADataType
+                {
+                    NodeId = "ns=1;i=2000",
+                    BrowseName = "1:Label",
+                    References =
+                    [
+                        new Reference
+                        {
+                            ReferenceType = "HasSubtype",
+                            IsForward = false,
+                            Value = conflicting ? "i=6" : "nsu=urn:test:rank;i=2001"
+                        }
+                    ]
+                },
+                new UADataType
+                {
+                    NodeId = "ns=1;i=2001",
+                    BrowseName = "1:LabelBase",
+                    References =
+                    [
+                        new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "i=12" },
+                        new Reference { ReferenceType = "HasSubtype", Value = "ns=1;i=2000" }
+                    ]
+                }
+            ];
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            JsonElement schema = document.Properties["Samples"];
+            Assert.That(schema.TryGetProperty("items", out JsonElement items), Is.EqualTo(!conflicting));
+            if (!conflicting)
+            {
+                Assert.That(items.GetProperty("type").GetString(), Is.EqualTo("string"));
+            }
         }
 
         /// <summary>
@@ -568,8 +697,12 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
-        [Test]
-        public void MethodArgumentsCarryTheirOwnRankAndDimensions()
+        /// <summary>
+        /// Retains ranked method argument schemas, including scalar types declared by forward-only subtype edges.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void MethodArgumentsCarryTheirOwnRankAndDimensions(bool forwardSubtype)
         {
             using WotDocument original = WotUnitsAndRangesTests.ParseThingModel(
                 "\"actions\":{\"load\":{\"@type\":\"uav:method\",\"title\":\"Load\"," +
@@ -579,6 +712,17 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav:valueRank\":2,\"uav:arrayDimensions\":[3,4]}}}}}");
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+            if (forwardSubtype)
+            {
+                UAVariable arguments = nodeSet.Items!.OfType<UAVariable>()
+                    .Single(variable => variable.BrowseName == "InputArguments");
+                arguments.Value!.GetElementsByTagName(
+                    "DataType", "http://opcfoundation.org/UA/2008/02/Types.xsd")
+                    .OfType<System.Xml.XmlElement>().Single()
+                    .GetElementsByTagName("Identifier", "http://opcfoundation.org/UA/2008/02/Types.xsd")
+                    .OfType<System.Xml.XmlElement>().Single().InnerText = "ns=1;i=2000";
+                AddForwardStringSubtype(nodeSet);
+            }
             using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
 
             JsonElement samples = restored.Actions["load"]
@@ -591,11 +735,17 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(
                     samples.GetProperty("uav:arrayDimensions")[1].GetInt32(),
                     Is.EqualTo(4));
+                Assert.That(samples.GetProperty("items").GetProperty("items").GetProperty("type").GetString(),
+                    Is.EqualTo(forwardSubtype ? "string" : "number"));
             });
         }
 
-        [Test]
-        public void EventFieldsCarryTheirOwnRankAndDimensions()
+        /// <summary>
+        /// Retains ranked event field schemas, including scalar types declared by forward-only subtype edges.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EventFieldsCarryTheirOwnRankAndDimensions(bool forwardSubtype)
         {
             using WotDocument original = WotUnitsAndRangesTests.ParseThingModel(
                 "\"events\":{\"trace\":{\"@type\":\"uav:eventType\"," +
@@ -615,6 +765,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(field.ValueRank, Is.EqualTo(1));
                 Assert.That(field.ArrayDimensions, Is.EqualTo("8"));
             });
+            if (forwardSubtype)
+            {
+                field.DataType = "ns=1;i=2000";
+                AddForwardStringSubtype(nodeSet);
+            }
 
             using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
             JsonElement samples = restored.Events["TraceEventType"]
@@ -627,6 +782,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(
                     samples.GetProperty("uav:arrayDimensions")[0].GetInt32(),
                     Is.EqualTo(8));
+                Assert.That(samples.GetProperty("items").GetProperty("type").GetString(),
+                    Is.EqualTo(forwardSubtype ? "string" : "number"));
             });
         }
 
@@ -682,6 +839,28 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.True,
                     "The scalar rank stays distinct from the array ranks.");
             });
+        }
+
+        /// <summary>
+        /// Adds a local String subtype whose immediate base alone records their subtype relationship.
+        /// </summary>
+        private static void AddForwardStringSubtype(UANodeSet nodeSet)
+        {
+            nodeSet.Items =
+            [
+                .. nodeSet.Items!,
+                new UADataType { NodeId = "ns=1;i=2000", BrowseName = "1:Label" },
+                new UADataType
+                {
+                    NodeId = "ns=1;i=2001",
+                    BrowseName = "1:LabelBase",
+                    References =
+                    [
+                        new Reference { ReferenceType = "i=45", IsForward = false, Value = "i=12" },
+                        new Reference { ReferenceType = "i=45", Value = "ns=1;i=2000" }
+                    ]
+                }
+            ];
         }
 
         private static JsonObject RankedItemsDocument(int rank, JsonNode items)
