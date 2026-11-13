@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -46,7 +47,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured ambient humidity",
       "links": [
         {
@@ -55,6 +56,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "AmbientHumidity",
       "type": "number",
@@ -77,7 +81,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured ambient temperature",
       "links": [
         {
@@ -86,6 +90,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Temperature"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/K"
+      },
       "readOnly": true,
       "title": "AmbientTemperature",
       "type": "number",
@@ -108,7 +118,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured residual thrust acting through the shaft derived from hydraulic or mechanical forces",
       "links": [
         {
@@ -117,6 +127,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Force"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/N"
+      },
       "readOnly": true,
       "title": "AxialLoadOfPumpRotor",
       "type": "number",
@@ -139,7 +155,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured position of the axial rotor in bearing.",
       "links": [
         {
@@ -168,7 +184,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured back pressure of the pump",
       "links": [
         {
@@ -177,6 +193,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "BackPressure",
       "type": "number",
@@ -199,7 +221,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured temperature of the bearing",
       "links": [
         {
@@ -208,6 +230,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Temperature"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/K"
+      },
       "readOnly": true,
       "title": "BearingTemperature",
       "type": "number",
@@ -230,7 +258,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured clearance flow between the housing and the impeller",
       "links": [
         {
@@ -239,6 +267,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/VolumeFlowRate"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M3-PER-SEC"
+      },
       "readOnly": true,
       "title": "ClearanceFlow",
       "type": "number",
@@ -261,7 +295,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured temperature of the coolant.",
       "links": [
         {
@@ -270,6 +304,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Temperature"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/K"
+      },
       "readOnly": true,
       "title": "CoolantTemperature",
       "type": "number",
@@ -1842,7 +1882,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured density of the fluid",
       "links": [
         {
@@ -1851,6 +1891,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/MassDensity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/KiloGM-PER-M3"
+      },
       "readOnly": true,
       "title": "Density",
       "type": "number",
@@ -1873,7 +1919,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined (actual) gain in total pressure between the pump inlet and pump outlet",
       "links": [
         {
@@ -1882,6 +1928,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "DifferentialPressure",
       "type": "number",
@@ -1904,7 +1956,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured kinematic viscosity of the fluid",
       "links": [
         {
@@ -3435,7 +3487,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured temperature of the electronic",
       "links": [
         {
@@ -3444,6 +3496,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Temperature"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/K"
+      },
       "readOnly": true,
       "title": "ElectronicTemperature",
       "type": "number",
@@ -5302,7 +5360,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured internal temperature of pump fluid.",
       "links": [
         {
@@ -5311,6 +5369,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Temperature"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/K"
+      },
       "readOnly": true,
       "title": "FluidTemperature",
       "type": "number",
@@ -5333,7 +5397,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured temperature of the housing",
       "links": [
         {
@@ -5342,6 +5406,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Temperature"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/K"
+      },
       "readOnly": true,
       "title": "HousingTemperature",
       "type": "number",
@@ -5364,7 +5434,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined proportion of pump available power input, Pa, which is delivered as pump power output, Pu, after satisfying the losses resulting from friction due to the relative motion of internal surfaces and internal leakage",
       "links": [
         {
@@ -5373,6 +5443,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "HydraulicEfficiency",
       "type": "number",
@@ -5395,7 +5468,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured pressure at the inlet area of the installation.",
       "links": [
         {
@@ -5404,6 +5477,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "InletPressureOfTheInstallation",
       "type": "number",
@@ -5426,7 +5505,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined difference between the total head at the outlet side of the installation and the total head at the inlet side of the installation",
       "links": [
         {
@@ -5435,6 +5514,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M"
+      },
       "readOnly": true,
       "title": "InstallationTotalHead",
       "type": "number",
@@ -5457,7 +5542,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "relative humidity",
+      "default": "relative humidity",
       "description": "Quotient of partial pressure of water vapor and partial pressure at its saturation",
       "links": [
         {
@@ -5494,7 +5579,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "pressure",
+      "default": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
@@ -5531,7 +5616,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "dynamic viscosity",
+      "default": "dynamic viscosity",
       "description": "For laminar flows, proportionality constant between shear stress in a fluid moving with a velocity and gradient perpendicular to the plane of shear",
       "links": [
         {
@@ -5568,7 +5653,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "temperature",
+      "default": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
@@ -5605,7 +5690,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "temperature",
+      "default": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
@@ -5642,7 +5727,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "temperature",
+      "default": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
@@ -5679,7 +5764,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "ratio",
+      "default": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
       "links": [
         {
@@ -5716,7 +5801,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "pressure",
+      "default": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
@@ -5753,7 +5838,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "length",
+      "default": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
@@ -5790,7 +5875,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "kinematic viscosity",
+      "default": "kinematic viscosity",
       "description": "Quotient of dynamic viscosity and mass density of a fluid",
       "links": [
         {
@@ -5827,7 +5912,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "volume flow rate",
+      "default": "volume flow rate",
       "description": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral",
       "links": [
         {
@@ -5864,7 +5949,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "temperature",
+      "default": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
@@ -5901,7 +5986,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "length",
+      "default": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
@@ -5938,7 +6023,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "volume",
+      "default": "volume",
       "description": "Extent of a three dimensional geometrical shape",
       "links": [
         {
@@ -5975,7 +6060,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "pressure",
+      "default": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
@@ -6012,7 +6097,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "mass flow",
+      "default": "mass flow",
       "description": "Vector quantity characterizing a flowing fluid by the product of its local mass density and local velocity",
       "links": [
         {
@@ -6049,7 +6134,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "velocity",
+      "default": "velocity",
       "description": "Vector quantity giving the rate of change of a position vector",
       "links": [
         {
@@ -6086,7 +6171,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "ratio",
+      "default": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
       "links": [
         {
@@ -6123,7 +6208,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "pressure",
+      "default": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
@@ -6160,7 +6245,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "length",
+      "default": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
@@ -6197,7 +6282,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "rational number",
+      "default": "rational number",
       "description": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor",
       "links": [
         {
@@ -6234,7 +6319,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "pressure",
+      "default": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
@@ -6271,7 +6356,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "force",
+      "default": "force",
       "description": "Vector quantity describing interaction between bodies or particles",
       "links": [
         {
@@ -6308,7 +6393,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "ratio",
+      "default": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
       "links": [
         {
@@ -6345,7 +6430,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "power",
+      "default": "power",
       "description": "Derivative with respect to time t of energy E being transferred or transformed",
       "links": [
         {
@@ -6382,7 +6467,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "pressure",
+      "default": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
@@ -6419,7 +6504,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "ratio",
+      "default": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
       "links": [
         {
@@ -6456,7 +6541,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "relative humidity",
+      "default": "relative humidity",
       "description": "Quotient of partial pressure of water vapor and partial pressure at its saturation",
       "links": [
         {
@@ -6493,7 +6578,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "mechanical power",
+      "default": "mechanical power",
       "description": "Scalar product of force acting to a body and its velocity",
       "links": [
         {
@@ -6530,7 +6615,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "mechanical power",
+      "default": "mechanical power",
       "description": "Scalar product of force acting to a body and its velocity",
       "links": [
         {
@@ -6567,7 +6652,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "temperature",
+      "default": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
@@ -6604,7 +6689,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "length",
+      "default": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
@@ -6641,7 +6726,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "force",
+      "default": "force",
       "description": "Vector quantity describing interaction between bodies or particles",
       "links": [
         {
@@ -6678,7 +6763,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "rational number",
+      "default": "rational number",
       "description": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor",
       "links": [
         {
@@ -6715,7 +6800,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "energy",
+      "default": "energy",
       "description": "Ability of a system to do work",
       "links": [
         {
@@ -6752,7 +6837,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "sound level",
+      "default": "sound level",
       "description": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio",
       "links": [
         {
@@ -6789,7 +6874,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "power",
+      "default": "power",
       "description": "Derivative with respect to time t of energy E being transferred or transformed",
       "links": [
         {
@@ -6826,7 +6911,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "sound level",
+      "default": "sound level",
       "description": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio",
       "links": [
         {
@@ -6863,7 +6948,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "pressure",
+      "default": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
@@ -6900,7 +6985,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "sound level",
+      "default": "sound level",
       "description": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio",
       "links": [
         {
@@ -6937,7 +7022,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "frequency",
+      "default": "frequency",
       "description": "Inverse of one cycle of a periodic event",
       "links": [
         {
@@ -6974,7 +7059,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "volume flow rate",
+      "default": "volume flow rate",
       "description": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral",
       "links": [
         {
@@ -7011,7 +7096,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "length",
+      "default": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
@@ -7048,7 +7133,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "length",
+      "default": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
@@ -7085,7 +7170,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "pressure",
+      "default": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
@@ -7122,7 +7207,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "ratio",
+      "default": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind.",
       "links": [
         {
@@ -7159,7 +7244,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "temperature",
+      "default": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
@@ -7196,7 +7281,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "volume flow rate",
+      "default": "volume flow rate",
       "description": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral",
       "links": [
         {
@@ -7233,7 +7318,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "temperature",
+      "default": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
@@ -7270,7 +7355,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "density",
+      "default": "density",
       "description": "Quantity representing the spatial distribution of mass of a continuous material",
       "links": [
         {
@@ -7307,7 +7392,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured dynamic viscosity of the fluid",
       "links": [
         {
@@ -7338,7 +7423,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured rate of flow leaking from shaft seals",
       "links": [
         {
@@ -7347,6 +7432,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/VolumeFlowRate"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M3-PER-SEC"
+      },
       "readOnly": true,
       "title": "LeakageRateOfFlow",
       "type": "number",
@@ -7369,7 +7460,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured level",
       "links": [
         {
@@ -7378,6 +7469,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M"
+      },
       "readOnly": true,
       "title": "Level",
       "type": "number",
@@ -7400,7 +7497,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured oil consumption of the lubricating system",
       "links": [
         {
@@ -7409,6 +7506,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Volume"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M3"
+      },
       "readOnly": true,
       "title": "LubricatingOilConsumption",
       "type": "number",
@@ -7431,7 +7534,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured oil pressure of the lubrication system",
       "links": [
         {
@@ -7440,6 +7543,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "LubricatingOilPressure",
       "type": "number",
@@ -7462,7 +7571,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measure mass flow from the outlet area of the pump",
       "links": [
         {
@@ -7493,7 +7602,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured rate of flow passing through the exit from the volute divided by the throat area",
       "links": [
         {
@@ -7502,6 +7611,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Velocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC"
+      },
       "readOnly": true,
       "title": "MeanVelocityAtThroat",
       "type": "number",
@@ -7524,7 +7639,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined proportion of the pump power input, P, available after satisfying the mechanical power losses, PJ, ab, at given operating conditions",
       "links": [
         {
@@ -7533,6 +7648,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "MechanicalEfficiency",
       "type": "number",
@@ -7555,7 +7673,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Total pressure (including velocity pressure) at the pump inlet connection less the liquid vapor pressure at the present temperature of the liquid",
       "links": [
         {
@@ -7564,6 +7682,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "NetPositiveInletPressure",
       "type": "number",
@@ -7586,7 +7710,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Amount of the absolute value of the total head above the head, equivalent to the vapor pressure of the liquid at the particular temperature, with reference to the NPSH datum plane",
       "links": [
         {
@@ -7595,6 +7719,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M"
+      },
       "readOnly": true,
       "title": "NetPositiveSuctionHead",
       "type": "number",
@@ -7617,7 +7747,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Total number of starts",
       "links": [
         {
@@ -7646,7 +7776,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured pressure at the outlet area of the installation.",
       "links": [
         {
@@ -7655,6 +7785,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "OutletPressureOfTheInstallation",
       "type": "number",
@@ -7677,7 +7813,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined proportion of the driver power input, Pmot, delivered as pump power output, Pu",
       "links": [
         {
@@ -7686,6 +7822,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "OverallEfficiency",
       "type": "number",
@@ -7708,7 +7847,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined power loss due clearance flows",
       "links": [
         {
@@ -7717,6 +7856,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Power"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/W"
+      },
       "readOnly": true,
       "title": "PowerLossDueToInternalLeakage",
       "type": "number",
@@ -7739,7 +7884,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured process pressure of the pump",
       "links": [
         {
@@ -7748,6 +7893,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "ProcessPressure",
       "type": "number",
@@ -7770,7 +7921,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined proportion of the pump power input, P, delivered as pump power output, Pu, at given operating conditions",
       "links": [
         {
@@ -7779,6 +7930,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "PumpEfficiency",
       "type": "number",
@@ -7801,7 +7955,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured humidity inside the pump",
       "links": [
         {
@@ -7810,6 +7964,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "PumpHumidity",
       "type": "number",
@@ -7832,7 +7989,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured power transmitted to the pump by its driver",
       "links": [
         {
@@ -7841,6 +7998,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Power"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/W"
+      },
       "readOnly": true,
       "title": "PumpPowerInput",
       "type": "number",
@@ -7863,7 +8026,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured useful mechanical power transferred to the fluid during its passage through the pump",
       "links": [
         {
@@ -7872,6 +8035,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Power"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/W"
+      },
       "readOnly": true,
       "title": "PumpPowerOutput",
       "type": "number",
@@ -7894,7 +8063,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured temperature of the pump",
       "links": [
         {
@@ -7903,6 +8072,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Temperature"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/K"
+      },
       "readOnly": true,
       "title": "PumpTemperature",
       "type": "number",
@@ -7925,7 +8100,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined difference between the total head at the outlet side of the pump and the total head at the inlet side of the pump",
       "links": [
         {
@@ -7934,6 +8109,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M"
+      },
       "readOnly": true,
       "title": "PumpTotalHead",
       "type": "number",
@@ -7956,7 +8137,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured residual force acting at right angles to the line of the shaft and derived from hydraulic forces",
       "links": [
         {
@@ -7965,6 +8146,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Force"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/N"
+      },
       "readOnly": true,
       "title": "RadialLoadOfPumpRotor",
       "type": "number",
@@ -7987,7 +8174,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined integral of the sound power, P, over a stated time interval of duration T (starting at t1 and ending at t2)",
       "links": [
         {
@@ -7996,6 +8183,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Energy"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/J"
+      },
       "readOnly": true,
       "title": "SoundEnergy",
       "type": "number",
@@ -8018,7 +8211,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined ten times the logarithm to the base 10 of the ratio of the sound energy, J, to a reference value, J0, expressed in decibels",
       "links": [
         {
@@ -8049,7 +8242,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined through a surface, product of the sound pressure, p, and the component of the particle velocity, un, at a point on the surface in the direction normal to the surface, integrated over that surface",
       "links": [
         {
@@ -8058,6 +8251,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Power"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/W"
+      },
       "readOnly": true,
       "title": "SoundPower",
       "type": "number",
@@ -8080,7 +8279,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined ten times the logarithm to the base 10 of the ratio of the sound power of a source, P, to a reference value, P0, expressed in decibels",
       "links": [
         {
@@ -8111,7 +8310,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured difference between instantaneous pressure and static pressure",
       "links": [
         {
@@ -8120,6 +8319,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "SoundPressure",
       "type": "number",
@@ -8142,7 +8347,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined ten times logarithm to the base 10 of the ratio of the square of the sound pressure, p, to the square of a reference value, p0, expressed in decibels",
       "links": [
         {
@@ -8173,7 +8378,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured number of rotations or movements made by the shaft, coupling or impeller in a given time",
       "links": [
         {
@@ -8204,7 +8409,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured throughput of the vacuum pump",
       "links": [
         {
@@ -8235,7 +8440,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined total head at the inlet area of the installation, which corresponds to the sum of geodetic head, pressure head and velocity head",
       "links": [
         {
@@ -8244,6 +8449,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M"
+      },
       "readOnly": true,
       "title": "TotalHeadAtInletAreaOfTheInstallation",
       "type": "number",
@@ -8266,7 +8477,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined total head at the outlet area of the installation, which corresponds to the sum of geodetic head, pressure head and velocity head",
       "links": [
         {
@@ -8275,6 +8486,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M"
+      },
       "readOnly": true,
       "title": "TotalHeadAtOutletAreaOfTheInstallation",
       "type": "number",
@@ -8297,7 +8514,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined ratio of the actual delivered volume at maximum pressure to the geometric displacement volume",
       "links": [
         {
@@ -8306,6 +8523,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "VolumetricEfficiency",
       "type": "number",
@@ -8545,11 +8765,13 @@
         "browseName": "1:Measurements",
         "description": [
           {
+            "locale": "",
             "value": "Measurements at a pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Measurements"
           }
         ],
@@ -8779,15 +9001,18 @@
         "typeDefinition": "ns=1;i=1054"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:AmbientHumidity",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured ambient humidity"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "AmbientHumidity"
           }
         ],
@@ -8830,10 +9055,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -8859,10 +9086,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -8889,10 +9118,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -8918,15 +9149,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of partial pressure of water vapor and partial pressure at its saturation"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -8953,15 +9187,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">relative humidity</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:AmbientTemperature",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured ambient temperature"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "AmbientTemperature"
           }
         ],
@@ -9004,10 +9241,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9033,10 +9272,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9063,10 +9304,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9092,15 +9335,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing a temperature value"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -9127,15 +9373,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">temperature</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:AxialLoadOfPumpRotor",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured residual thrust acting through the shaft derived from hydraulic or mechanical forces"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "AxialLoadOfPumpRotor"
           }
         ],
@@ -9178,10 +9427,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9207,10 +9458,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9237,10 +9490,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5129559</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>N</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>newton</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9266,15 +9521,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Vector quantity describing interaction between bodies or particles"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -9301,15 +9559,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">force</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:AxialRotorPosition",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured position of the axial rotor in bearing."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "AxialRotorPosition"
           }
         ],
@@ -9352,10 +9613,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9381,10 +9644,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9410,10 +9675,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9439,15 +9706,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -9474,15 +9744,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">rational number</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:BackPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured back pressure of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BackPressure"
           }
         ],
@@ -9525,10 +9798,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9554,10 +9829,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9584,10 +9861,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9613,15 +9892,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of the component of a force normal to a surface and its area"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -9648,15 +9930,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">pressure</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:BearingTemperature",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured temperature of the bearing"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BearingTemperature"
           }
         ],
@@ -9699,10 +9984,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9728,10 +10015,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9758,10 +10047,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9787,15 +10078,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing a temperature value"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -9822,15 +10116,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">temperature</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ClearanceFlow",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured clearance flow between the housing and the impeller"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ClearanceFlow"
           }
         ],
@@ -9873,10 +10170,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9902,10 +10201,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9932,10 +10233,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067091</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m³/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>cubic metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9961,15 +10264,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -9996,15 +10302,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">volume flow rate</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:CoolantTemperature",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured temperature of the coolant."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CoolantTemperature"
           }
         ],
@@ -10047,10 +10356,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -10076,10 +10387,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -10106,10 +10419,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -10135,15 +10450,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing a temperature value"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -10170,15 +10488,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">temperature</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Density",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured density of the fluid"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Density"
           }
         ],
@@ -10221,10 +10542,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -10250,10 +10573,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -10280,10 +10605,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4934993</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>kg/m³</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kilogram per cubic metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -10309,15 +10636,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing the spatial distribution of mass of a continuous material"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -10344,15 +10674,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">density</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DifferentialPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined (actual) gain in total pressure between the pump inlet and pump outlet"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DifferentialPressure"
           }
         ],
@@ -10395,10 +10728,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -10424,10 +10759,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -10454,10 +10791,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -10483,15 +10822,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of the component of a force normal to a surface and its area"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -10518,15 +10860,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">pressure</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DynamicViscosity",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured kinematic viscosity of the fluid"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DynamicViscosity"
           }
         ],
@@ -10569,10 +10914,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -10598,10 +10945,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -10628,10 +10977,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4665393</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa·m³/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal cubic metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -10657,15 +11008,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "For laminar flows, proportionality constant between shear stress in a fluid moving with a velocity and gradient perpendicular to the plane of shear"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -10692,15 +11046,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">dynamic viscosity</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ElectronicTemperature",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured temperature of the electronic"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ElectronicTemperature"
           }
         ],
@@ -10743,10 +11100,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -10772,10 +11131,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -10802,10 +11163,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -10831,15 +11194,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing a temperature value"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -10866,15 +11232,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">temperature</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:FluidTemperature",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured internal temperature of pump fluid."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FluidTemperature"
           }
         ],
@@ -10917,10 +11286,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -10946,10 +11317,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -10976,10 +11349,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -11005,15 +11380,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing a temperature value"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -11040,15 +11418,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">temperature</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:HousingTemperature",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured temperature of the housing"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "HousingTemperature"
           }
         ],
@@ -11091,10 +11472,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -11120,10 +11503,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -11150,10 +11535,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -11179,15 +11566,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing a temperature value"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -11214,15 +11604,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">temperature</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:HydraulicEfficiency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined proportion of pump available power input, Pa, which is delivered as pump power output, Pu, after satisfying the losses resulting from friction due to the relative motion of internal surfaces and internal leakage"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "HydraulicEfficiency"
           }
         ],
@@ -11265,10 +11658,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -11294,10 +11689,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -11324,10 +11721,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -11353,15 +11752,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of two numbers or two quantities of the same kind"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -11388,15 +11790,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">ratio</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:InletPressureOfTheInstallation",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured pressure at the inlet area of the installation."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InletPressureOfTheInstallation"
           }
         ],
@@ -11439,10 +11844,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -11468,10 +11875,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -11498,10 +11907,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -11527,15 +11938,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of the component of a force normal to a surface and its area"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -11562,15 +11976,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">pressure</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:InstallationTotalHead",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined difference between the total head at the outlet side of the installation and the total head at the inlet side of the installation"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InstallationTotalHead"
           }
         ],
@@ -11613,10 +12030,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -11642,10 +12061,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -11672,10 +12093,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -11701,15 +12124,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Linear extent in space between any two points"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -11736,15 +12162,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">length</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KinematicViscosity",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured dynamic viscosity of the fluid"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KinematicViscosity"
           }
         ],
@@ -11787,10 +12216,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -11816,10 +12247,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -11846,10 +12279,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>21300</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m²/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>square metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -11875,15 +12310,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of dynamic viscosity and mass density of a fluid"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -11910,15 +12348,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">kinematic viscosity</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LeakageRateOfFlow",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured rate of flow leaking from shaft seals"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LeakageRateOfFlow"
           }
         ],
@@ -11961,10 +12402,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -11990,10 +12433,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -12020,10 +12465,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067091</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m³/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>cubic metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -12049,15 +12496,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -12084,15 +12534,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">volume flow rate</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Level",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured level"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Level"
           }
         ],
@@ -12135,10 +12588,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -12164,10 +12619,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -12194,10 +12651,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -12223,15 +12682,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Linear extent in space between any two points"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -12258,15 +12720,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">length</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LubricatingOilConsumption",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured oil consumption of the lubricating system"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LubricatingOilConsumption"
           }
         ],
@@ -12309,10 +12774,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -12338,10 +12805,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -12368,10 +12837,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067857</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m³</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>cubic metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -12397,15 +12868,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Extent of a three dimensional geometrical shape"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -12432,15 +12906,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">volume</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LubricatingOilPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured oil pressure of the lubrication system"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LubricatingOilPressure"
           }
         ],
@@ -12483,10 +12960,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -12512,10 +12991,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -12542,10 +13023,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -12571,15 +13054,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of the component of a force normal to a surface and its area"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -12606,15 +13092,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">pressure</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MassFlow",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measure mass flow from the outlet area of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MassFlow"
           }
         ],
@@ -12657,10 +13146,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -12686,10 +13177,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -12716,10 +13209,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4933459</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>kg/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kilogram per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -12745,15 +13240,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Vector quantity characterizing a flowing fluid by the product of its local mass density and local velocity"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -12780,15 +13278,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">mass flow</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MeanVelocityAtThroat",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured rate of flow passing through the exit from the volute divided by the throat area"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MeanVelocityAtThroat"
           }
         ],
@@ -12831,10 +13332,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -12860,10 +13363,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -12890,10 +13395,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067859</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -12919,15 +13426,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Vector quantity giving the rate of change of a position vector"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -12954,15 +13464,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">velocity</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MechanicalEfficiency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined proportion of the pump power input, P, available after satisfying the mechanical power losses, PJ, ab, at given operating conditions"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MechanicalEfficiency"
           }
         ],
@@ -13005,10 +13518,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -13034,10 +13549,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -13064,10 +13581,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -13093,15 +13612,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of two numbers or two quantities of the same kind"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -13128,15 +13650,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">ratio</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NetPositiveInletPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Total pressure (including velocity pressure) at the pump inlet connection less the liquid vapor pressure at the present temperature of the liquid"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NetPositiveInletPressure"
           }
         ],
@@ -13179,10 +13704,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -13208,10 +13735,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -13238,10 +13767,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -13267,15 +13798,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of the component of a force normal to a surface and its area"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -13302,15 +13836,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">pressure</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NetPositiveSuctionHead",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Amount of the absolute value of the total head above the head, equivalent to the vapor pressure of the liquid at the particular temperature, with reference to the NPSH datum plane"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NetPositiveSuctionHead"
           }
         ],
@@ -13353,10 +13890,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -13382,10 +13921,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -13412,10 +13953,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -13441,15 +13984,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Linear extent in space between any two points"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -13476,15 +14022,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">length</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NumberOfStarts",
         "dataType": "UInt32",
         "description": [
           {
+            "locale": "",
             "value": "Total number of starts"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NumberOfStarts"
           }
         ],
@@ -13527,10 +14076,12 @@
         "valueXml": "<uax:UInt32 xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:UInt32>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -13556,10 +14107,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -13585,10 +14138,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -13614,15 +14169,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -13649,15 +14207,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">rational number</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OutletPressureOfTheInstallation",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured pressure at the outlet area of the installation."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OutletPressureOfTheInstallation"
           }
         ],
@@ -13700,10 +14261,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -13729,10 +14292,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -13759,10 +14324,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -13788,15 +14355,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of the component of a force normal to a surface and its area"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -13823,15 +14393,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">pressure</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OverallEfficiency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined proportion of the driver power input, Pmot, delivered as pump power output, Pu"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallEfficiency"
           }
         ],
@@ -13874,10 +14447,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -13903,10 +14478,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -13933,10 +14510,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -13962,15 +14541,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of two numbers or two quantities of the same kind"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -13997,15 +14579,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">ratio</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PowerLossDueToInternalLeakage",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined power loss due clearance flows"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PowerLossDueToInternalLeakage"
           }
         ],
@@ -14048,10 +14633,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -14077,10 +14664,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -14107,10 +14696,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5723220</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>W</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>watt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -14136,15 +14727,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Derivative with respect to time t of energy E being transferred or transformed"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -14171,15 +14765,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">power</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProcessPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured process pressure of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ProcessPressure"
           }
         ],
@@ -14222,10 +14819,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -14251,10 +14850,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -14281,10 +14882,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -14310,15 +14913,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of the component of a force normal to a surface and its area"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -14345,15 +14951,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">pressure</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PumpEfficiency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined proportion of the pump power input, P, delivered as pump power output, Pu, at given operating conditions"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpEfficiency"
           }
         ],
@@ -14396,10 +15005,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -14425,10 +15036,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -14455,10 +15068,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -14484,15 +15099,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of two numbers or two quantities of the same kind"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -14519,15 +15137,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">ratio</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PumpHumidity",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured humidity inside the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpHumidity"
           }
         ],
@@ -14570,10 +15191,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -14599,10 +15222,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -14629,10 +15254,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -14658,15 +15285,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of partial pressure of water vapor and partial pressure at its saturation"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -14693,15 +15323,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">relative humidity</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PumpPowerInput",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured power transmitted to the pump by its driver"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpPowerInput"
           }
         ],
@@ -14744,10 +15377,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -14773,10 +15408,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -14803,10 +15440,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5723220</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>W</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>watt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -14832,15 +15471,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar product of force acting to a body and its velocity"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -14867,15 +15509,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">mechanical power</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PumpPowerOutput",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured useful mechanical power transferred to the fluid during its passage through the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpPowerOutput"
           }
         ],
@@ -14918,10 +15563,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -14947,10 +15594,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -14977,10 +15626,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5723220</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>W</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>watt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -15006,15 +15657,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar product of force acting to a body and its velocity"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -15041,15 +15695,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">mechanical power</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PumpTemperature",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured temperature of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpTemperature"
           }
         ],
@@ -15092,10 +15749,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -15121,10 +15780,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -15151,10 +15812,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -15180,15 +15843,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing a temperature value"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -15215,15 +15881,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">temperature</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PumpTotalHead",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined difference between the total head at the outlet side of the pump and the total head at the inlet side of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpTotalHead"
           }
         ],
@@ -15266,10 +15935,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -15295,10 +15966,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -15325,10 +15998,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -15354,15 +16029,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Linear extent in space between any two points"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -15389,15 +16067,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">length</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RadialLoadOfPumpRotor",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured residual force acting at right angles to the line of the shaft and derived from hydraulic forces"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RadialLoadOfPumpRotor"
           }
         ],
@@ -15440,10 +16121,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -15469,10 +16152,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -15499,10 +16184,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5129559</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>N</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>newton</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -15528,15 +16215,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Vector quantity describing interaction between bodies or particles"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -15563,15 +16253,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">force</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoundEnergy",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined integral of the sound power, P, over a stated time interval of duration T (starting at t1 and ending at t2)"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoundEnergy"
           }
         ],
@@ -15614,10 +16307,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -15643,10 +16338,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -15673,10 +16370,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4869973</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>J</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>joule</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -15702,15 +16401,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Ability of a system to do work"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -15737,15 +16439,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">energy</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoundEnergyLevel",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined ten times the logarithm to the base 10 of the ratio of the sound energy, J, to a reference value, J0, expressed in decibels"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoundEnergyLevel"
           }
         ],
@@ -15788,10 +16493,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -15817,10 +16524,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -15847,10 +16556,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>12878</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>dB</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>decibel</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -15876,15 +16587,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -15911,15 +16625,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">sound level</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoundPower",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined through a surface, product of the sound pressure, p, and the component of the particle velocity, un, at a point on the surface in the direction normal to the surface, integrated over that surface"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoundPower"
           }
         ],
@@ -15962,10 +16679,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -15991,10 +16710,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -16021,10 +16742,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5723220</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>W</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>watt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -16050,15 +16773,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Derivative with respect to time t of energy E being transferred or transformed"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -16085,15 +16811,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">power</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoundPowerLevel",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined ten times the logarithm to the base 10 of the ratio of the sound power of a source, P, to a reference value, P0, expressed in decibels"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoundPowerLevel"
           }
         ],
@@ -16136,10 +16865,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -16165,10 +16896,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -16195,10 +16928,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>12878</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>dB</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>decibel</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -16224,15 +16959,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -16259,15 +16997,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">sound level</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoundPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured difference between instantaneous pressure and static pressure"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoundPressure"
           }
         ],
@@ -16310,10 +17051,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -16339,10 +17082,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -16369,10 +17114,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -16398,15 +17145,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of the component of a force normal to a surface and its area"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -16433,15 +17183,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">pressure</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoundPressureLevel",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined ten times logarithm to the base 10 of the ratio of the square of the sound pressure, p, to the square of a reference value, p0, expressed in decibels"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoundPressureLevel"
           }
         ],
@@ -16484,10 +17237,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -16513,10 +17268,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -16543,10 +17300,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>12878</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>dB</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>decibel</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -16572,15 +17331,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -16607,15 +17369,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">sound level</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Speed",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured number of rotations or movements made by the shaft, coupling or impeller in a given time"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Speed"
           }
         ],
@@ -16658,10 +17423,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -16687,10 +17454,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -16717,10 +17486,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4405559</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>s⁻¹</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>reciprocal second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -16746,15 +17517,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Inverse of one cycle of a periodic event"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -16781,15 +17555,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">frequency</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Throughput",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured throughput of the vacuum pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Throughput"
           }
         ],
@@ -16832,10 +17609,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -16861,10 +17640,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -16891,10 +17672,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4665393</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa·m³/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal cubic metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -16920,15 +17703,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -16955,15 +17741,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">volume flow rate</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TotalHeadAtInletAreaOfTheInstallation",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined total head at the inlet area of the installation, which corresponds to the sum of geodetic head, pressure head and velocity head"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TotalHeadAtInletAreaOfTheInstallation"
           }
         ],
@@ -17006,10 +17795,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -17035,10 +17826,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -17065,10 +17858,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -17094,15 +17889,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Linear extent in space between any two points"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -17129,15 +17927,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">length</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TotalHeadAtOutletAreaOfTheInstallation",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined total head at the outlet area of the installation, which corresponds to the sum of geodetic head, pressure head and velocity head"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TotalHeadAtOutletAreaOfTheInstallation"
           }
         ],
@@ -17180,10 +17981,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -17209,10 +18012,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -17239,10 +18044,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -17268,15 +18075,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Linear extent in space between any two points"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -17303,15 +18113,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">length</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:VolumetricEfficiency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined ratio of the actual delivered volume at maximum pressure to the geometric displacement volume"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VolumetricEfficiency"
           }
         ],
@@ -17354,10 +18167,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -17383,10 +18198,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -17413,10 +18230,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -17442,15 +18261,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of two numbers or two quantities of the same kind."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],

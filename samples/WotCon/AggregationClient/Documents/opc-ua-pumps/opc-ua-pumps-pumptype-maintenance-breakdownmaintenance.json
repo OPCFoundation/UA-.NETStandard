@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -54,6 +55,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "CorrectiveMaintenanceTime",
       "type": "number",
@@ -424,6 +431,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=10921"
@@ -510,6 +518,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=10921"
@@ -744,11 +753,13 @@
         "browseName": "1:BreakdownMaintenance",
         "description": [
           {
+            "locale": "",
             "value": "Properties for breakdown maintenance."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BreakdownMaintenance"
           }
         ],
@@ -794,15 +805,18 @@
         "typeDefinition": "ns=1;i=1010"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:CorrectiveMaintenanceTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Part of the maintenance time when active corrective maintenance is carried out on an item, including technical, logistic and internal administrative delays"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CorrectiveMaintenanceTime"
           }
         ],
@@ -840,10 +854,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -869,10 +885,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -899,10 +917,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -928,15 +948,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Criticality",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Index of the severity of an effect combined with the probability of expected frequency of its occurrence"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Criticality"
           }
         ],
@@ -970,10 +993,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -999,10 +1024,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1028,15 +1055,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Failure",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "Termination of the ability of an item to perform a required function. A \"True\" status means that the pump has a failure and a \"False\" status means that the pump has no failure."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Failure"
           }
         ],
@@ -1074,10 +1104,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1103,10 +1135,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -1132,10 +1166,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -1161,15 +1197,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NumberOfFailures",
         "dataType": "Int32",
         "description": [
           {
+            "locale": "",
             "value": "Number of failures of an object"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NumberOfFailures"
           }
         ],
@@ -1203,10 +1242,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1232,10 +1273,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1261,15 +1304,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Severity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Extent of loss, damage or harm caused by a fault or failure"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Severity"
           }
         ],
@@ -1299,10 +1345,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],

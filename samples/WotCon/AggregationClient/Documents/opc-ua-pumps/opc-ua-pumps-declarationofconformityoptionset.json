@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -413,11 +416,14 @@
       {
         "browseName": "1:DeclarationOfConformityOptionSet",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Directives of the EU Declaration of Conformity - 2006/ 42/ EG, concerning machinery and amending Directive 95/16/EG"
                 }
               ],
@@ -426,9 +432,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Directives of the EU Declaration of Conformity - 2009/ 125/ EC, establishing a framework for the setting of ecodesign requirements for energy-related products"
                 }
               ],
@@ -437,9 +445,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Directives of the EU Declaration of Conformity - 2011/ 65/ EU, restriction of the use of certain hazardous substances in electrical and electronic equipment"
                 }
               ],
@@ -448,9 +458,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Directives of the EU Declaration of Conformity - 2014/ 35/ EU, harmonisation of the laws of the Member States on the provision of electrical equipment for use within certain voltage limits on the market"
                 }
               ],
@@ -459,9 +471,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Directives of the EU Declaration of Conformity - 2014/ 34/ EU, harmonisation of the laws of the Member States concerning equipment and protective systems intended for use in potentially explosive atmospheres"
                 }
               ],
@@ -470,9 +484,11 @@
               "value": 4
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Directives of the EU Declaration of Conformity - 2014/ 30/ EU, harmonisation of the laws of the Member States on electromagnetic compatibility"
                 }
               ],
@@ -481,9 +497,11 @@
               "value": 5
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Directives of the EU Declaration of Conformity - 2014/ 68/ EU, harmonisation of Member States' legislation on the provision of pressure equipment on the market"
                 }
               ],
@@ -492,9 +510,11 @@
               "value": 6
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Directives of the EU Declaration of Conformity - 2014/ 29/ EU, harmonisation of the laws of the Member States relating to the making available on the market of simple pressure vessels"
                 }
               ],
@@ -508,11 +528,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "defines flags for directives on the basis of which conformity was determined"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeclarationOfConformityOptionSet"
           }
         ],
@@ -550,6 +572,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "OptionSetValues"
           }
         ],

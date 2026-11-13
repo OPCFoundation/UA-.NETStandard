@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -59,6 +60,7 @@
       "observable": true,
       "readOnly": true,
       "title": "CurrentState",
+      "type": "string",
       "uav:browseName": "CurrentState",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=41",
       "uav:mapToType": "i=21",
@@ -86,6 +88,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Id",
+      "type": "string",
       "uav:browseName": "Id",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/DI/;i=41"
@@ -341,6 +344,7 @@
         "browseName": "1:Installation",
         "displayName": [
           {
+            "locale": "",
             "value": "Installation"
           }
         ],
@@ -374,10 +378,12 @@
         "typeDefinition": "ns=1;i=249"
       },
       {
+        "arrayDimensions": "",
         "browseName": "CurrentState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "CurrentState"
           }
         ],
@@ -407,10 +413,12 @@
         "typeDefinition": "i=2760"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Id",
         "dataType": "NodeId",
         "displayName": [
           {
+            "locale": "",
             "value": "Id"
           }
         ],
@@ -439,6 +447,7 @@
         "browseName": "1:Resume",
         "displayName": [
           {
+            "locale": "",
             "value": "Resume"
           }
         ],

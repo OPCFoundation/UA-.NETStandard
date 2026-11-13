@@ -5,6 +5,7 @@
       "@language": "en",
       "ns1": "http://opcfoundation.org/UA/Machinery/",
       "ns2": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -65,6 +66,7 @@
       "observable": true,
       "readOnly": true,
       "title": "DefaultInstanceBrowseName",
+      "type": "string",
       "uav:browseName": "DefaultInstanceBrowseName",
       "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=6030",
       "uav:mapToType": "i=20"
@@ -231,6 +233,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MachineIdentificationType"
           }
         ],
@@ -267,6 +270,7 @@
         "superType": "ns=1;i=1004"
       },
       {
+        "arrayDimensions": "",
         "browseName": "DefaultInstanceBrowseName",
         "dataType": "QualifiedName",
         "description": [
@@ -277,6 +281,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultInstanceBrowseName"
           }
         ],
@@ -299,6 +304,7 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:Location",
         "dataType": "String",
         "description": [
@@ -309,6 +315,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Location"
           }
         ],
@@ -334,6 +341,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:ProductInstanceUri",
         "dataType": "String",
         "description": [
