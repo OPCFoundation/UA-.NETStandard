@@ -11,7 +11,7 @@
 #   --build-arg PUBLISH_SOURCE=prebuilt --build-arg PUBLISH_DIR=<folder>
 ARG PUBLISH_SOURCE=build
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS restore
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:11.0-azurelinux3.0 AS restore
 WORKDIR /src
 
 # copy csproj and restore as distinct layers
@@ -39,14 +39,14 @@ COPY ["samples/Quickstarts.Servers/Quickstarts.Servers.csproj", "samples/Quickst
 COPY ["src/Opc.Ua.Gds/Opc.Ua.Gds.csproj", "src/Opc.Ua.Gds/"]
 COPY ["src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj", "src/Opc.Ua.Gds.Server/"]
 ENV DOTNET_EnableWriteXorExecute=0
-RUN dotnet restore "samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj" --force -p:CustomTestTarget=net10.0
+RUN dotnet restore "samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj" --force -p:CustomTestTarget=net11.0
 COPY . .
 
 WORKDIR "/src/samples/Reference/ConsoleReferenceServer"
 ARG Version
 ARG SimpleVersion
 ARG InformationalVersion
-ENV OPTIONS="-c Release -f net10.0 -p:PublishAot=false -p:Dockerbuild=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${Version} -p:InformationalVersion=${InformationalVersion} -p:CustomTestTarget=net10.0"
+ENV OPTIONS="-c Release -f net11.0 -p:PublishAot=false -p:Dockerbuild=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${Version} -p:InformationalVersion=${InformationalVersion} -p:CustomTestTarget=net11.0"
 
 FROM restore AS build
 ENV DOTNET_EnableWriteXorExecute=0
@@ -58,7 +58,7 @@ COPY ${PUBLISH_DIR}/ /app/publish/
 
 FROM ${PUBLISH_SOURCE} AS publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-azurelinux3.0-distroless-extra AS final
+FROM mcr.microsoft.com/dotnet/aspnet:11.0-azurelinux3.0-distroless-extra AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 EXPOSE 62541

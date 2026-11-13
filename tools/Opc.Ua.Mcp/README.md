@@ -98,7 +98,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "opcua": {
       "command": "dotnet",
-      "args": ["run", "--project", "/path/to/tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj"]
+      "args": ["run", "--project", "/path/to/tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj", "--framework", "net11.0"]
     }
   }
 }
@@ -113,7 +113,7 @@ Add to `.vscode/mcp.json`:
   "servers": {
     "opcua": {
       "command": "dotnet",
-      "args": ["run", "--project", "/path/to/tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj"]
+      "args": ["run", "--project", "/path/to/tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj", "--framework", "net11.0"]
     }
   }
 }

@@ -192,7 +192,7 @@ namespace Opc.Ua.PubSub.Pcap
                 return false;
             }
             string host = endpoint;
-            int colon = endpoint.LastIndexOf(':');
+            int colon = endpoint.LastIndexOf(':', StringComparison.Ordinal);
             if (colon > 0 &&
                 colon + 1 < endpoint.Length &&
                 ushort.TryParse(endpoint[(colon + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out port))

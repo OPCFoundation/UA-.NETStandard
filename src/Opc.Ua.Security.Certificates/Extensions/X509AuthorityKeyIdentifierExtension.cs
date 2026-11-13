@@ -84,7 +84,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentNullException(nameof(subjectKeyIdentifier));
             Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
             Critical = false;
-            RawData = Encode();
+            SetRawData(Encode());
         }
 
         /// <summary>
@@ -107,7 +107,7 @@ namespace Opc.Ua.Security.Certificates
             m_serialNumber = serialNumber;
             Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
             Critical = false;
-            RawData = Encode();
+            SetRawData(Encode());
         }
 
         /// <summary>
@@ -176,6 +176,16 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Replaces the encoded value while keeping the current Oid and
+        /// Critical flag. The RawData setter is obsolete (SYSLIB0065) on
+        /// .NET 11; the base CopyFrom is the supported way on every target.
+        /// </summary>
+        private void SetRawData(byte[] rawData)
+        {
+            base.CopyFrom(new X509Extension(Oid!, rawData, Critical));
+        }
+
+        /// <summary>
         /// Initializes the extension from ASN.1 encoded data.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="asnEncodedData"/> is <c>null</c>.</exception>
@@ -187,7 +197,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             Oid = asnEncodedData.Oid;
-            RawData = asnEncodedData.RawData;
+            SetRawData(asnEncodedData.RawData);
             Decode(asnEncodedData.RawData);
         }
 

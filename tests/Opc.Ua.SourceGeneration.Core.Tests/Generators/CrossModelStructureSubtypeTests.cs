@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -480,7 +481,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Value;
             int payloadEnd = output.IndexOf("\")]", System.StringComparison.Ordinal);
             Assert.That(payloadEnd, Is.GreaterThanOrEqualTo(0));
-            int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
+            int payloadStart = output.LastIndexOf('"', payloadEnd - 1, StringComparison.Ordinal);
             ModelDependencyV1 payload = ModelDependencyV1.FromBase64Payload(
                 output[(payloadStart + 1)..payloadEnd])!;
             Assert.That(payload, Is.Not.Null);

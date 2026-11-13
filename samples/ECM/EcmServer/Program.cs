@@ -228,7 +228,7 @@ internal sealed class SamplePower : BackgroundService
         m_sleepStarted = null;
         await binding.RefreshAsync(cancellationToken).ConfigureAwait(false);
         await Console.Out.WriteLineAsync(
-            $"Simulated wake accepted; recovery estimate: {result.CurrentTimeToOperate} ms.").ConfigureAwait(false);
+            $"Simulated wake accepted; recovery estimate: {result.CurrentTimeToOperate} ms.".AsMemory(), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The borrowed in-memory device provider.</summary>

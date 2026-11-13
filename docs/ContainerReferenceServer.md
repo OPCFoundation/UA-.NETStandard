@@ -49,7 +49,7 @@ downloads that output and builds its Dockerfile with
 build only copies files onto the platform's .NET runtime base image, so QEMU
 is not needed.
 
-All sample Dockerfiles use the .NET 10 Azure Linux 3 SDK image for building and
+All sample Dockerfiles use the .NET 11 Azure Linux 3 SDK image to build the net11.0 app, and
 an Azure Linux 3 distroless-extra runtime or ASP.NET image for the final image.
 The `distroless-extra` variant retains ICU and time-zone data for globalization.
 Pump and ModelManagementServer prepare writable directories and the OpenSSL

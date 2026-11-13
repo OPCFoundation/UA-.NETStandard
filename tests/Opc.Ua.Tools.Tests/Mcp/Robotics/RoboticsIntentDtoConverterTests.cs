@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Text.Json;
 using NUnit.Framework;
@@ -371,7 +371,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Value = new TypedValueDto
                 {
                     DataType = "Boolean",
-                    Value = JsonDocument.Parse("true").RootElement
+                    Value = JsonElement.Parse("true")
                 }
             };
 
@@ -392,7 +392,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     {
                         Name = "Count",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("3").RootElement
+                        Value = JsonElement.Parse("3")
                     }
                 ]
             };
@@ -1030,7 +1030,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             var dto = new SetOutputIntentInput
             {
                 Output = "ns=2;s=Do1",
-                Value = new TypedValueDto { Value = JsonDocument.Parse("true").RootElement }
+                Value = new TypedValueDto { Value = JsonElement.Parse("true") }
             };
 
             Assert.That(
@@ -1049,7 +1049,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     new NamedTypedValueDto
                     {
                         Name = "Count",
-                        Value = JsonDocument.Parse("3").RootElement
+                        Value = JsonElement.Parse("3")
                     }
                 ]
             };
@@ -1071,13 +1071,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     {
                         Name = "Count",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("3").RootElement
+                        Value = JsonElement.Parse("3")
                     },
                     new NamedTypedValueDto
                     {
                         Name = "Count",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("4").RootElement
+                        Value = JsonElement.Parse("4")
                     }
                 ]
             };
@@ -1099,7 +1099,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     {
                         Name = "Nozzle",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("7").RootElement
+                        Value = JsonElement.Parse("7")
                     }
                 ]
             };
@@ -1124,7 +1124,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     {
                         Name = "Count",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("3").RootElement
+                        Value = JsonElement.Parse("3")
                     }
                 ]
             };

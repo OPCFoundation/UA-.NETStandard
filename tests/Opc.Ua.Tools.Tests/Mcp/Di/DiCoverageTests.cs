@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -511,7 +511,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                     return new DataValue(value);
                 }
                 if (!item.NodeId.TryGetValue(out string id) ||
-                    !Values.TryGetValue(id[(id.LastIndexOf('/') + 1)..], out DataValue result))
+                    !Values.TryGetValue(id[(id.LastIndexOf('/', StringComparison.Ordinal) + 1)..], out DataValue result))
                 {
                     throw new InvalidOperationException("Unexpected value read: " + item.NodeId);
                 }
