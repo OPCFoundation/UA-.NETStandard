@@ -59,6 +59,8 @@ jobs:
 
       - name: Setup .NET
         uses: ./.github/actions/setup-repository-dotnet
+        with:
+          dotnet-version: 10.0.x
 
       # ---------------------------------------------------------------- node-opcua
       - name: Setup Node.js

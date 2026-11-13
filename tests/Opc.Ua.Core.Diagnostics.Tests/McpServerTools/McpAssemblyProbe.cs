@@ -99,8 +99,8 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
             if (assemblies.Count == 0)
             {
                 Assert.Ignore(
-                    "The net10.0 MCP assemblies are not built for this CI leg " +
-                    "(the MCP server only targets net10.0); skipping the reflective MCP server test.");
+                    "The MCP assemblies are not built for this CI leg " +
+                    "(the MCP server targets net10.0 and net11.0 only); skipping the reflective MCP server test.");
             }
 
             return assemblies;
@@ -111,7 +111,8 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
             string repoRoot = FindRepositoryRoot();
             string configuration = GetBuildConfiguration();
             string directory = Path.Combine(
-                repoRoot, "tools", "Opc.Ua.Mcp", "bin", configuration, "net10.0");
+                repoRoot, "tools", "Opc.Ua.Mcp", "bin", configuration,
+                FormattableString.Invariant($"net{Environment.Version.Major}.0"));
 
             if (Directory.Exists(directory))
             {
@@ -128,8 +129,8 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
             if (found is null)
             {
                 Assert.Ignore(
-                    "The net10.0 MCP assemblies are not built for this CI leg " +
-                    "(the MCP server only targets net10.0); skipping the reflective MCP server test.");
+                    "The MCP assemblies are not built for this CI leg " +
+                    "(the MCP server targets net10.0 and net11.0 only); skipping the reflective MCP server test.");
             }
 
             return found!;

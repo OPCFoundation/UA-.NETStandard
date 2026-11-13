@@ -753,7 +753,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string? StripNullable(string typeName)
         {
-            if (typeName != null && typeName.EndsWith('?'))
+            if (typeName != null && typeName.EndsWith('?', StringComparison.Ordinal))
             {
                 return typeName[..^1];
             }

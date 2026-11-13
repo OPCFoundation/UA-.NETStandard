@@ -58,6 +58,8 @@ jobs:
 
     - name: Setup .NET from global.json
       uses: ./.github/actions/setup-repository-dotnet
+      with:
+        dotnet-version: 10.0.x
 
     - name: Set Cloud Version
       shell: pwsh
@@ -124,6 +126,8 @@ jobs:
 
     - name: Setup .NET from global.json
       uses: ./.github/actions/setup-repository-dotnet
+      with:
+        dotnet-version: 10.0.x
 
     - name: Set Cloud Version
       shell: pwsh

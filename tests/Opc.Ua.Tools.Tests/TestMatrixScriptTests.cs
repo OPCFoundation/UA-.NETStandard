@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -44,7 +44,8 @@ namespace Opc.Ua.Tools.Tests
     public sealed class TestMatrixScriptTests
     {
         /// <summary>
-        /// Artifact qualification installs only the exact repository SDK through the shared action.
+        /// Artifact qualification installs the exact repository SDK through the shared action,
+        /// plus only the .NET 10 runtime that the net10.0 artifact jobs execute on.
         /// </summary>
         [Test]
         public async Task ArtifactJobsInstallTheRepositorySdkAsync()
@@ -58,7 +59,13 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(steps, Is.Not.Empty);
             foreach (string step in steps)
             {
-                Assert.That(step, Does.Not.Contain("dotnet-version:"));
+                string[] lines = step.Split('\n');
+                // The shared action always builds with the global.json SDK. The only extra
+                // install allowed is the 10.0 SDK whose runtime the net10.0 artifact jobs need;
+                // it never selects the SDK because global.json pins it.
+                Assert.That(
+                    lines.Where(line => line.Contains("dotnet-version:", StringComparison.Ordinal)),
+                    Is.All.EqualTo("        dotnet-version: 10.0.x"));
             }
         }
 

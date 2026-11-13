@@ -3,13 +3,13 @@
     Selects the exact repository .NET SDK and a job-private install directory.
 
  .DESCRIPTION
-    global.json pins the SDK version with rollForward 'latestMajor' so that
-    contributors can build with any newer SDK they have installed. The dotnet
-    host applies that policy to every SDK in its own installation directory, and
-    GitHub-hosted runner images preinstall newer SDKs (including new major
-    versions) into the default directory. A job that installs the repository SDK
-    there therefore builds with whatever newer SDK the image happens to carry,
-    and that SDK's new analyzers can break the build.
+    global.json pins the minimum SDK version with rollForward 'latestFeature' so
+    that contributors can build with any newer feature band or patch of that
+    major version they have installed. The dotnet host applies that policy to
+    every SDK in its own installation directory, and GitHub-hosted runner images
+    preinstall newer SDKs into the default directory. A job that installs the
+    repository SDK there therefore builds with whatever newer SDK the image
+    happens to carry, and that SDK's new analyzers can break the build.
 
     This script points actions/setup-dotnet at a directory under RUNNER_TEMP
     that contains only the SDKs the job installs, so the host can resolve
