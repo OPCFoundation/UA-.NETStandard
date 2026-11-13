@@ -109,12 +109,15 @@ namespace Opc.Ua
                 {
                     if (!m_resolved)
                     {
-                        m_value = Decode(m_buffer!);
-                        m_resolved = true;
-                        if (m_value is IEncodeable decoded)
+                        // Restored before it is published: a reader on the lock-free
+                        // path above must not see a value the callback did not finish.
+                        object? decoded = Decode(m_buffer!);
+                        if (decoded is IEncodeable encodeable)
                         {
-                            m_onDecodedAgain?.Invoke(decoded, m_onDecodedAgainState);
+                            m_onDecodedAgain?.Invoke(encodeable, m_onDecodedAgainState);
                         }
+                        Volatile.Write(ref m_value, decoded);
+                        m_resolved = true;
                     }
                     return m_value;
                 }

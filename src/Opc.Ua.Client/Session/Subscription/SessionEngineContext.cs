@@ -228,7 +228,13 @@ namespace Opc.Ua.Client
                 NotificationEventHandler? publishEventHandler =
                     m_session.m_Publish;
 
-                if (publishEventHandler != null)
+                // A handler attached after the subscription saved the message did not
+                // count when it was saved, and the subscription can already have
+                // returned the buffers of the message. The subscription returns none
+                // once its messages are marked handed out, which saving a message with
+                // a handler attached does and which stays set; otherwise this message
+                // arrived before the handler and is not raised.
+                if (publishEventHandler != null && subscription.MessagesHandedOut)
                 {
                     m_session.RunBackgroundWork(
                         nameof(RaisePublishNotification),

@@ -225,6 +225,36 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public async Task ConcurrentReaderDoesNotSeeAValueBeforeItIsRestoredAsync()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.True);
+            using var entered = new ManualResetEventSlim();
+            using var gate = new ManualResetEventSlim();
+
+            decoded.RewindDeferredBody(
+                (value, state) =>
+                {
+                    entered.Set();
+                    gate.Wait(TimeSpan.FromSeconds(10));
+                    ((EventNotificationList)value).SequenceNumber = (uint)state!;
+                },
+                7u);
+
+            Task<uint> restoring = Task.Run(() =>
+                decoded.TryGetValue(out EventNotificationList? value) ? value!.SequenceNumber : 0u);
+            Assert.That(entered.Wait(TimeSpan.FromSeconds(10)), Is.True);
+            Task<uint> concurrent = Task.Run(() =>
+                decoded.TryGetValue(out EventNotificationList? value) ? value!.SequenceNumber : 0u);
+            await Task.Delay(100).ConfigureAwait(false);
+            gate.Set();
+
+            Assert.That(await restoring.ConfigureAwait(false), Is.EqualTo(7u));
+            Assert.That(await concurrent.ConfigureAwait(false), Is.EqualTo(7u));
+        }
+
+        [Test]
         public void RewindBeforeFirstReadIsSafe()
         {
             ServiceMessageContext context = CreateContext(defer: true);

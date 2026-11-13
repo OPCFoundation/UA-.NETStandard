@@ -518,6 +518,88 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A monitored item removed from the subscription still returns its last message,
+        /// which keeps its deferred body when it leaves the cache afterwards.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessageStaysReadableAsLastMessageOfARemovedItemAsync(
+            bool removeItems, CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            var removed = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            var busy = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            subscription.AddItems([removed, busy]);
+            subscription.Session = session;
+
+            NotificationMessage first = DeferredEventMessage(telemetry, 1, removed.ClientHandle);
+            subscription.SaveMessageInCache([1u], first);
+            await delivered(1).ConfigureAwait(false);
+            if (removeItems)
+            {
+                subscription.RemoveItems([removed]);
+            }
+            else
+            {
+                subscription.RemoveItem(removed);
+            }
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], EventMessage(sequenceNumber, busy.ClientHandle));
+                await delivered(sequenceNumber).ConfigureAwait(false);
+            }
+
+            NotificationMessage? last = removed.LastMessage;
+            Assert.That(last, Is.SameAs(first));
+            Assert.That(last!.NotificationData[0].TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events[0].ClientHandle, Is.EqualTo(removed.ClientHandle));
+        }
+
+        /// <summary>
+        /// In a large subscription the messages that left the cache are released in
+        /// batches, so that each check of the last messages of all items covers several.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessagesOfALargeSubscriptionAreReleasedInBatchesAsync(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            var items = new MonitoredItem[100];
+            for (int ii = 0; ii < items.Length; ii++)
+            {
+                items[ii] = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            }
+            subscription.AddItems(items);
+            subscription.Session = session;
+
+            // two messages for an unknown handle evict two messages: one per 64 items.
+            var messages = new NotificationMessage[4];
+            for (uint sequenceNumber = 1; sequenceNumber <= 4; sequenceNumber++)
+            {
+                messages[sequenceNumber - 1] = DeferredEventMessage(telemetry, sequenceNumber, 9999);
+                subscription.SaveMessageInCache([sequenceNumber], messages[sequenceNumber - 1]);
+                await delivered(sequenceNumber).ConfigureAwait(false);
+                if (sequenceNumber == 2)
+                {
+                    Assert.That(messages[0].NotificationData[0].TryGetValue(out EventNotificationList? _), Is.True);
+                }
+            }
+
+            Assert.That(messages[0].NotificationData[0].TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(messages[1].NotificationData[0].TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(messages[3].NotificationData[0].TryGetValue(out EventNotificationList? _), Is.True);
+        }
+
+        /// <summary>
         /// Messages handed to a Notification handler of one session stay readable after the
         /// subscription moved to a session without handlers.
         /// </summary>

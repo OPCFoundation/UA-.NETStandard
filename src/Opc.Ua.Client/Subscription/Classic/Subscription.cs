@@ -2664,6 +2664,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                KeepLastMessageOfDetachedItem(monitoredItem);
                 monitoredItem.Subscription = null;
                 if (monitoredItem.Status.Created)
                 {
@@ -2694,6 +2695,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_monitoredItems.TryRemove(monitoredItem.ClientHandle, out _))
                     {
+                        KeepLastMessageOfDetachedItem(monitoredItem);
                         monitoredItem.Subscription = null;
 
                         if (monitoredItem.Status.Created)
@@ -3457,8 +3459,8 @@ namespace Opc.Ua.Client
                 // list of new messages to republish.
                 List<IncomingMessage>? messagesToRepublish = null;
 
-                // messages that left the message cache, released after the dispatch below.
-                List<NotificationMessage>? evictedMessages = null;
+                // whether messages left the message cache, released after the dispatch below.
+                bool messagesEvicted = false;
 
                 PublishStateChangedMask publishStateChangedMask = PublishStateChangedMask.None;
 
@@ -3490,7 +3492,8 @@ namespace Opc.Ua.Client
                             while (m_messageCache.Count > 1 &&
                                 m_messageCache.Count > MaxMessageCount)
                             {
-                                (evictedMessages ??= []).Add(m_messageCache.First!.Value);
+                                EvictMessage(m_messageCache.First!.Value);
+                                messagesEvicted = true;
                                 m_messageCache.RemoveFirst();
                             }
 
@@ -3748,9 +3751,9 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                if (evictedMessages != null)
+                if (messagesEvicted)
                 {
-                    ReleaseEvictedMessages(evictedMessages);
+                    ReleaseEvictedMessages();
                 }
 
                 // do any re-publishes.
@@ -4115,27 +4118,69 @@ namespace Opc.Ua.Client
         /// no <see cref="ISession.Notification"/> handler was ever attached to the
         /// session. Otherwise the messages keep their bytes, for the garbage collector.
         /// </summary>
-        private void ReleaseEvictedMessages(List<NotificationMessage> evictedMessages)
+        /// <remarks>
+        /// Runs after the dispatch of the messages that left the cache. They wait
+        /// until about one per <see cref="kMonitoredItemsPerReleasedMessage"/> monitored
+        /// items left the cache, so that the check of the last message of every item
+        /// costs a bounded share per message also in a large subscription.
+        /// </remarks>
+        private void ReleaseEvictedMessages()
         {
-            if (Volatile.Read(ref m_messagesHandedOut) ||
-                Session is not Session { NotificationHandlerAttached: false })
+            List<NotificationMessage> pending;
+            MonitoredItem[] monitoredItems;
+            var keep = new HashSet<NotificationMessage>(ReferenceComparer.Instance);
+            lock (m_cache)
             {
-                return;
+                if (m_messagesHandedOut ||
+                    Session is not Session { NotificationHandlerAttached: false })
+                {
+                    m_releasePending = null;
+                    m_detachedLastMessages = null;
+                    return;
+                }
+                if (m_releasePending == null ||
+                    (long)m_releasePending.Count * kMonitoredItemsPerReleasedMessage < m_monitoredItems.Count)
+                {
+                    return;
+                }
+                pending = m_releasePending;
+                m_releasePending = null;
+                if (m_detachedLastMessages != null)
+                {
+                    // the messages detached items hold leave the set with this check.
+                    foreach (NotificationMessage message in pending)
+                    {
+                        if (m_detachedLastMessages.Remove(message))
+                        {
+                            keep.Add(message);
+                        }
+                    }
+                    if (m_detachedLastMessages.Count == 0)
+                    {
+                        m_detachedLastMessages = null;
+                    }
+                }
+
+                // taken under the same lock: an item removed after this point is
+                // still in the snapshot, one removed before it is in the detached set.
+                monitoredItems = [.. m_monitoredItems.Values];
             }
 
             // A monitored item that got nothing newer still returns the message as its
-            // LastMessage, which the application can read at any time.
-            HashSet<NotificationMessage>? lastMessages = null;
-            foreach (MonitoredItem monitoredItem in MonitoredItems)
+            // LastMessage, which the application can read at any time; so does one that
+            // was removed from the subscription since (detached).
+            var candidates = new HashSet<NotificationMessage>(pending, ReferenceComparer.Instance);
+            foreach (MonitoredItem monitoredItem in monitoredItems)
             {
-                if (monitoredItem.LastMessageInCache is NotificationMessage last)
+                if (monitoredItem.LastMessageInCache is NotificationMessage last &&
+                    candidates.Contains(last))
                 {
-                    (lastMessages ??= new HashSet<NotificationMessage>(ReferenceComparer.Instance)).Add(last);
+                    keep.Add(last);
                 }
             }
-            foreach (NotificationMessage message in evictedMessages)
+            foreach (NotificationMessage message in pending)
             {
-                if (lastMessages != null && lastMessages.Contains(message))
+                if (keep.Contains(message))
                 {
                     continue;
                 }
@@ -4147,6 +4192,61 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Queues a message that left the message cache for <see cref="ReleaseEvictedMessages"/>
+        /// when a body of it is decoded on first use and its buffers can still be
+        /// returned. Called under the cache lock, so that a monitored item removed
+        /// before the release finds the message (<see cref="KeepLastMessageOfDetachedItem"/>).
+        /// </summary>
+        private void EvictMessage(NotificationMessage message)
+        {
+            if (!m_messagesHandedOut && HasDeferredBody(message))
+            {
+                (m_releasePending ??= []).Add(message);
+            }
+        }
+
+        /// <summary>
+        /// Whether a body of the message is decoded on first use.
+        /// </summary>
+        private static bool HasDeferredBody(NotificationMessage message)
+        {
+            for (int ii = 0; ii < message.NotificationData.Count; ii++)
+            {
+                if (message.NotificationData[ii].IsDeferred)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Keeps the last message of a monitored item that leaves the subscription,
+        /// which the application can still read as <see cref="MonitoredItem.LastMessage"/>,
+        /// when the message can still be released: it is cached or waits for release.
+        /// Called under the cache lock.
+        /// </summary>
+        private void KeepLastMessageOfDetachedItem(MonitoredItem monitoredItem)
+        {
+            if (m_messagesHandedOut ||
+                monitoredItem.LastMessageInCache is not NotificationMessage last)
+            {
+                return;
+            }
+            bool releasable = m_releasePending != null && m_releasePending.Contains(last);
+            for (LinkedListNode<NotificationMessage>? node = m_messageCache.First;
+                !releasable && node != null;
+                node = node.Next)
+            {
+                releasable = ReferenceEquals(node.Value, last);
+            }
+            if (releasable)
+            {
+                (m_detachedLastMessages ??= new(ReferenceComparer.Instance)).Add(last);
+            }
+        }
+
+        /// <summary>
         /// Records that the application was handed a message of this subscription,
         /// which it can keep after the message left the message cache.
         /// </summary>
@@ -4154,6 +4254,12 @@ namespace Opc.Ua.Client
         {
             Volatile.Write(ref m_messagesHandedOut, true);
         }
+
+        /// <summary>
+        /// Whether the application could have been handed a message of this
+        /// subscription, after which no buffer of a message is returned any more.
+        /// </summary>
+        internal bool MessagesHandedOut => Volatile.Read(ref m_messagesHandedOut);
 
         /// <summary>
         /// Sets on a body of a cached message, decoded again after its dispatch, what the
@@ -4429,6 +4535,9 @@ namespace Opc.Ua.Client
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
         private bool m_messagesHandedOut;
+        private List<NotificationMessage>? m_releasePending;
+        private HashSet<NotificationMessage>? m_detachedLastMessages;
+        private const int kMonitoredItemsPerReleasedMessage = 64;
         private ArrayOf<uint> m_availableSequenceNumbers;
         private ConcurrentDictionary<uint, MonitoredItem> m_monitoredItems = new();
         private readonly AsyncAutoResetEvent m_messageWorkerEvent = new();
