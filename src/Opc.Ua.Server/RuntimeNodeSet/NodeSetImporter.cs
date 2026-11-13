@@ -213,20 +213,31 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                         m_factoryRegistry.IsFactoryCreated(child) &&
                         (m_factoryRegistry.IsFactoryCreated(parent) ||
                             isFactoryAuthored?.Invoke(parent) == true),
-                    OnTypedReplacement = onTypedReplacement
+                    OnTypedReplacement = onTypedReplacement,
+                    OnImportedNodeConverted = OnImportedNodeConverted
                 });
-
-            // Linking substitutes a typed child for an imported node which a
-            // typed slot cannot hold directly; resolve the NodeId to it.
-            for (int i = 0; i < m_importedNodes.Count; i++)
-            {
-                NodeState node = m_importedNodes[i];
-                if (!node.NodeId.IsNull)
-                {
-                    m_nodesById[node.NodeId] = node;
-                }
-            }
             m_completed = true;
+        }
+
+        /// <summary>
+        /// Lets a typed child, which linking copied from an imported child that
+        /// its slot could not hold directly, take over the identity of the
+        /// imported child. Grandchildren are linked afterwards and must see
+        /// the factory provenance of their converted parent.
+        /// </summary>
+        private void OnImportedNodeConverted(
+            BaseInstanceState original,
+            BaseInstanceState converted)
+        {
+            m_factoryRegistry.RegisterConversion(original, converted);
+            if (m_parentNodeIds.TryGetValue(original, out NodeId parentNodeId))
+            {
+                m_parentNodeIds[converted] = parentNodeId;
+            }
+            if (!converted.NodeId.IsNull)
+            {
+                m_nodesById[converted.NodeId] = converted;
+            }
         }
 
         /// <summary>
@@ -556,6 +567,18 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         public bool IsFactoryCreated(NodeState state)
         {
             return m_factoryCreatedStates.Contains(state);
+        }
+
+        /// <summary>
+        /// Carries the factory provenance of an imported state over to the
+        /// typed state which replaced it while linking.
+        /// </summary>
+        public void RegisterConversion(NodeState original, NodeState converted)
+        {
+            if (m_factoryCreatedStates.Contains(original))
+            {
+                m_factoryCreatedStates.Add(converted);
+            }
         }
 
         private static bool SetFactoryNotFound(

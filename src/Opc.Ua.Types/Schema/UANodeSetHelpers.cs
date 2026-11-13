@@ -791,6 +791,10 @@ namespace Opc.Ua.Export
                     {
                         nodeTable[linkedChild.NodeId] = linkedChild;
                     }
+                    if (!ReferenceEquals(linkedChild, instance))
+                    {
+                        options?.OnImportedNodeConverted?.Invoke(instance, linkedChild);
+                    }
                 }
                 else
                 {

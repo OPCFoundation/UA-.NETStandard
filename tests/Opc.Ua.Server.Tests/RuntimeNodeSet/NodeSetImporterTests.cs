@@ -758,6 +758,76 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             });
         }
 
+        [Test]
+        public void FactoryChildFillsTypedSlotOfConvertedParent()
+        {
+            SystemContext context = CreateContext();
+            var factoryProvider = new ManualFactoryProvider(
+                new ManualImportFactory(
+                    NodeClass.Object,
+                    new ExpandedNodeId(ObjectTypeIds.NamespaceMetadataType),
+                    static () => new NamespaceMetadataState(null)),
+                new ManualImportFactory(
+                    NodeClass.Object,
+                    new ExpandedNodeId(ObjectTypeIds.AddressSpaceFileType),
+                    static () => new BaseObjectState(null)),
+                new ManualImportFactory(
+                    NodeClass.Variable,
+                    new ExpandedNodeId(3u, kNamespaceUri),
+                    static () => PropertyState<ulong>.With<VariantBuilder>(null!),
+                    NodeSetImportDiscriminator.NodeId));
+            var importer = new NodeSetImporter(context, factoryProvider);
+            UANodeSet nodeSet = ReadNodeSet(
+                """
+                  <UAObject NodeId="ns=1;i=1" BrowseName="1:Metadata">
+                    <DisplayName>Metadata</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=11616</Reference>
+                    </References>
+                  </UAObject>
+                  <UAVariable NodeId="ns=1;i=3" BrowseName="Size" ParentNodeId="ns=1;i=2"
+                              DataType="i=9">
+                    <DisplayName>Size</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=2</Reference>
+                    </References>
+                  </UAVariable>
+                  <UAObject NodeId="ns=1;i=2" BrowseName="NamespaceFile" ParentNodeId="ns=1;i=1">
+                    <DisplayName>NamespaceFile</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=11595</Reference>
+                      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAObject>
+                """);
+
+            importer.Import(nodeSet);
+            NodeState genericFile = Find(importer, 2);
+            importer.Complete();
+
+            var metadata = (NamespaceMetadataState)Find(importer, 1);
+            NodeState file = Find(importer, 2);
+            var size = (BaseInstanceState)Find(importer, 3);
+            var fileChildren = new List<BaseInstanceState>();
+            file.GetChildren(context, fileChildren);
+
+            Assert.Multiple(() =>
+            {
+                // The generic NamespaceFile is converted into the typed slot,
+                // and the factory-created Size below it fills the typed slot of
+                // the converted parent instead of becoming an ordinary child.
+                Assert.That(genericFile, Is.Not.InstanceOf<AddressSpaceFileState>());
+                Assert.That(file, Is.InstanceOf<AddressSpaceFileState>());
+                Assert.That(metadata.NamespaceFile, Is.SameAs(file));
+                Assert.That(((AddressSpaceFileState)file).Size, Is.SameAs(size));
+                Assert.That(size.Parent, Is.SameAs(file));
+                Assert.That(fileChildren, Is.EqualTo(new[] { size }));
+                Assert.That(importer.TryGetNode(file.NodeId, out NodeState? resolved), Is.True);
+                Assert.That(resolved, Is.SameAs(file));
+            });
+        }
+
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]

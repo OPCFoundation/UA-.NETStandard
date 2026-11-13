@@ -108,5 +108,19 @@ namespace Opc.Ua.Export
         /// placeholder is detached and left unchanged.
         /// </remarks>
         public Action<BaseInstanceState, BaseInstanceState>? OnTypedReplacement { get; set; }
+
+        /// <summary>
+        /// Gets or sets the callback which receives every imported child that
+        /// linking replaced with a typed child copied from it, together with
+        /// that typed child.
+        /// </summary>
+        /// <remarks>
+        /// It is invoked before any child of the converted node is linked, so a
+        /// caller which tracks imported nodes by reference can let the typed
+        /// child inherit the provenance of the imported one. Unlike
+        /// <see cref="OnTypedReplacement"/> it is also invoked when the slot
+        /// was empty.
+        /// </remarks>
+        internal Action<BaseInstanceState, BaseInstanceState>? OnImportedNodeConverted { get; set; }
     }
 }
