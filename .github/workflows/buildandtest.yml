@@ -324,9 +324,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+      uses: ./.github/actions/setup-repository-dotnet
 
     - name: Download test results
       uses: actions/download-artifact@v8
@@ -498,9 +496,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET from global.json
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+      uses: ./.github/actions/setup-repository-dotnet
 
     - name: Set Cloud Version
       shell: pwsh
@@ -568,19 +564,24 @@ jobs:
         # a shallow clone.
         fetch-depth: 0
 
-    - name: Setup .NET SDKs for build matrix
-      uses: actions/setup-dotnet@v6
+    - name: Setup repository .NET SDK
+      uses: ./.github/actions/setup-repository-dotnet
       with:
         dotnet-version: ${{ matrix.entry.dotnet }}
-
-    - name: Setup repository .NET SDK
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
 
     - name: Set cloud version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
+
+    # Only UA.slnx contains the Aspire AppHost, which imports the Aspire SDK
+    # when CustomTestTarget is empty, net10.0 or net11.0.
+    - name: Install the Aspire CLI bundle
+      if: >-
+        ${{ matrix.entry.solution == 'UA.slnx' &&
+            (matrix.entry.customTestTarget == 'net10.0' || matrix.entry.customTestTarget == 'net11.0' ||
+             matrix.entry.customTestTarget == '') }}
+      shell: pwsh
+      run: ./.github/scripts/install-aspire-bundle.ps1
 
     - name: Build ${{ matrix.entry.solution }} (${{ matrix.entry.customTestTarget }})
       shell: pwsh
@@ -610,10 +611,9 @@ jobs:
         # Full history: Nerdbank.GitVersioning refuses to compute a version from
         # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
+    - uses: ./.github/actions/setup-repository-dotnet
       with:
         dotnet-version: 10.0.x
-        global-json-file: global.json
     - name: Validate manifest and negative controls
       shell: pwsh
       run: ./fuzzing/Scripts/validate-fuzz-manifest.ps1 -SelfTest
@@ -664,17 +664,13 @@ jobs:
         # Full history: Nerdbank.GitVersioning refuses to compute a version from
         # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
-    - name: Setup .NET 8, 9 and 10 runtimes
-      uses: actions/setup-dotnet@v6
+    - name: Setup repository .NET SDK with .NET 8, 9 and 10 runtimes
+      uses: ./.github/actions/setup-repository-dotnet
       with:
         dotnet-version: |
           8.0.x
           9.0.x
           10.0.x
-    - name: Setup repository .NET SDK
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
     - name: Run fuzz regressions
       shell: pwsh
       run: ./fuzzing/Scripts/test-fuzzing.ps1 -Framework '${{ matrix.framework }}' -ResultsDirectory '${{ runner.temp }}/fuzz-results'
