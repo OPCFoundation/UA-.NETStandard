@@ -1868,9 +1868,15 @@ a duplicate, and leaves its values untouched. Its
 `DefaultAccessRestrictions` properties, whether linked as children or
 only through `HasProperty` references, provide the namespace default
 permissions, and changes to their values invalidate the permission
-caches. Because no `NamespaceMetadataState` exists for such a namespace,
+caches. A default property that the NodeSet declares without a value
+(as the DI NodeSet does) was never initialized and counts as not
+configured, so the namespace keeps the server defaults; a configured
+value that cannot be read or decoded still denies access. Because no
+`NamespaceMetadataState` exists for such a namespace,
 `IConfigurationNodeManager.GetNamespaceMetadataStateAsync` and
-`CreateNamespaceMetadataStateAsync` return `null` for it.
+`CreateNamespaceMetadataStateAsync` return `null` for it; callers of
+`CreateNamespaceMetadataStateAsync` must treat `null` as "metadata is
+provided by another object" and leave that object as is.
 
 #### Node-manager authoring note
 

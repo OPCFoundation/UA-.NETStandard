@@ -178,6 +178,13 @@ namespace Opc.Ua.Server
                 return null;
             }
 
+            // untyped metadata retired by an invalidation is resolved again, so that
+            // synchronous lookups can answer from the refreshed views.
+            if (Interlocked.CompareExchange(ref m_primeRequired, 0, 1) == 1)
+            {
+                await PrimeReferencesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             NamespaceMetadataNode? namespaceMetadataState = await FindAsync(
                 namespaceUri, cancellationToken).ConfigureAwait(false);
 
@@ -303,6 +310,11 @@ namespace Opc.Ua.Server
             {
                 if (!TryResolve(context, child, out NamespaceMetadataNode? metadata))
                 {
+                    if (IsOtherNamespace(context, child, namespaceUri))
+                    {
+                        continue;
+                    }
+
                     // the properties of an untyped metadata node are resolved asynchronously.
                     state = null;
                     return false;
@@ -327,9 +339,21 @@ namespace Opc.Ua.Server
                     }
 
                     var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.Server.NamespaceUris);
-                    if (targetId.IsNull ||
-                        !m_referenceTargets.TryGetValue(targetId, out NamespaceMetadataNode? target))
+                    if (targetId.IsNull)
                     {
+                        return false;
+                    }
+
+                    if (!m_referenceTargets.TryGetValue(targetId, out NamespaceMetadataNode? target))
+                    {
+                        if (m_stale.TryGetValue(targetId, out NamespaceMetadataNode? retired) &&
+                            retired.NamespaceUri is string retiredUri &&
+                            retiredUri != namespaceUri)
+                        {
+                            // retired metadata of another namespace.
+                            continue;
+                        }
+
                         // an unresolved link can only be followed asynchronously.
                         return false;
                     }
@@ -366,17 +390,48 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Resolves every forward reference of <c>Server/Namespaces</c> into
-        /// another node manager so <see cref="TryGetSnapshot"/> can answer
-        /// synchronous lookups, and tracks the metadata nodes found.
+        /// another node manager, and the properties of every untyped metadata
+        /// child, so <see cref="TryGetSnapshot"/> can answer synchronous
+        /// lookups, and tracks the metadata nodes found. The next asynchronous
+        /// lookup after <see cref="Invalidate"/> primes again.
         /// </summary>
         public async ValueTask PrimeReferencesAsync(CancellationToken cancellationToken = default)
         {
+            Volatile.Write(ref m_primeRequired, 0);
             if (m_host.FindServerNamespacesNode() is not NamespacesState serverNamespacesNode)
             {
                 return;
             }
 
             ServerSystemContext context = m_host.SystemContext;
+            IList<BaseInstanceState> children = [];
+            serverNamespacesNode.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is NamespaceMetadataState || TryResolve(context, child, out _))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    NamespaceMetadataNode? metadata = await ResolveAsync(context, child, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (metadata != null)
+                    {
+                        SubscribeToDefaultPermissions(metadata);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    m_logger.ErrorSearchingNamespaceMetadata(ex, child.NodeId.ToString());
+                }
+            }
+
             IList<IReference> references = [];
             serverNamespacesNode.GetReferences(context, references);
             foreach (IReference reference in references)
@@ -459,7 +514,7 @@ namespace Opc.Ua.Server
         /// cannot be created or when the namespace is already described by an
         /// untyped metadata Object, which is kept and never duplicated.
         /// </returns>
-        public async ValueTask<NamespaceMetadataState> CreateAsync(
+        public async ValueTask<NamespaceMetadataState?> CreateAsync(
             string namespaceUri,
             CancellationToken cancellationToken = default)
         {
@@ -470,7 +525,7 @@ namespace Opc.Ua.Server
                 m_logger.UntypedNamespaceMetadataKept(namespaceUri, metadata.Node.NodeId);
             }
 
-            return metadata?.TypedState!;
+            return metadata?.TypedState;
         }
 
         /// <summary>
@@ -585,6 +640,7 @@ namespace Opc.Ua.Server
                 m_missingByIndex.Clear();
                 m_referenceTargets.Clear();
                 m_untyped.Clear();
+                m_stale.Clear();
             }
 
             foreach (BaseObjectState metadataNode in tracked)
@@ -674,7 +730,10 @@ namespace Opc.Ua.Server
         /// Drops every cached lookup result. The host calls it when it
         /// changes the references of <c>Server/Namespaces</c> without a
         /// <c>StateChanged</c> notification, e.g. when another node manager
-        /// links its <see cref="NamespaceMetadataState"/>.
+        /// links its <see cref="NamespaceMetadataState"/>. The captured views
+        /// of untyped metadata nodes are retired as well: synchronous lookups
+        /// that could match them answer only after the next asynchronous lookup
+        /// or <see cref="PrimeReferencesAsync"/> resolved their properties again.
         /// </summary>
         public void Invalidate()
         {
@@ -687,7 +746,25 @@ namespace Opc.Ua.Server
                 m_statesByIndex.Clear();
                 m_missingByUri.Clear();
                 m_missingByIndex.Clear();
+
+                // The properties of an untyped node are captured when it is resolved, so its
+                // view is retired until an asynchronous lookup resolves it again.
+                foreach (KeyValuePair<BaseObjectState, NamespaceMetadataNode> entry in m_untyped.ToArray())
+                {
+                    m_stale[entry.Key.NodeId] = entry.Value;
+                }
+
                 m_untyped.Clear();
+                foreach (KeyValuePair<NodeId, NamespaceMetadataNode?> entry in m_referenceTargets.ToArray())
+                {
+                    if (entry.Value is NamespaceMetadataNode { TypedState: null } untyped &&
+                        ((ICollection<KeyValuePair<NodeId, NamespaceMetadataNode?>>)m_referenceTargets).Remove(entry))
+                    {
+                        m_stale[entry.Key] = untyped;
+                    }
+                }
+
+                Volatile.Write(ref m_primeRequired, 1);
             }
 
             // a linked, relinked or removed metadata node changes the defaults of its namespace.
@@ -845,7 +922,6 @@ namespace Opc.Ua.Server
             {
                 // The properties of an untyped node are resolved when it is discovered,
                 // so every lookup that resolved it is dropped and it is resolved again.
-                m_referenceTargets.TryRemove(metadataNode.NodeId, out _);
                 Invalidate();
                 if (TryResolve(context, metadataNode, out NamespaceMetadataNode? metadata) && metadata != null)
                 {
@@ -911,13 +987,14 @@ namespace Opc.Ua.Server
             }
 
             BaseVariableState?[] properties = FindPropertyChildren(context, objectNode);
-            if (Array.IndexOf(properties, null) >= 0 && HasPropertyReferences(context, objectNode))
+            if (Array.IndexOf(properties, null) >= 0 && HasUnlinkedPropertyReferences(context, objectNode))
             {
                 return false;
             }
 
             metadata = CreateUntyped(objectNode, properties);
             m_untyped[objectNode] = metadata;
+            m_stale.TryRemove(objectNode.NodeId, out _);
             return true;
         }
 
@@ -980,7 +1057,32 @@ namespace Opc.Ua.Server
 
             NamespaceMetadataNode metadata = CreateUntyped(objectNode, properties);
             m_untyped[objectNode] = metadata;
+            m_stale.TryRemove(objectNode.NodeId, out _);
             return metadata;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="node"/>, an untyped metadata
+        /// Object that is not resolved yet, is known to describe another namespace
+        /// than <paramref name="namespaceUri"/>: from its <c>NamespaceUri</c> child
+        /// or the view retired by the last invalidation.
+        /// </summary>
+        private bool IsOtherNamespace(ISystemContext context, NodeState node, string namespaceUri)
+        {
+            string? candidateUri = null;
+            if (node.FindChildWithQualifiedName(context, s_propertyNames[0]) is BaseVariableState property)
+            {
+                if (property.Value.TryGetValue(out string? value))
+                {
+                    candidateUri = value;
+                }
+            }
+            else if (m_stale.TryGetValue(node.NodeId, out NamespaceMetadataNode? retired))
+            {
+                candidateUri = retired.NamespaceUri;
+            }
+
+            return candidateUri != null && candidateUri != namespaceUri;
         }
 
         /// <summary>
@@ -1000,15 +1102,34 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Returns <c>true</c> when the node has forward <c>HasProperty</c>
-        /// references, whose targets can only be resolved asynchronously.
+        /// references to nodes that are not its children, whose targets can
+        /// only be resolved asynchronously.
         /// </summary>
-        private static bool HasPropertyReferences(ISystemContext context, BaseObjectState node)
+        private static bool HasUnlinkedPropertyReferences(ISystemContext context, BaseObjectState node)
         {
             IList<IReference> references = [];
             node.GetReferences(context, references);
+            HashSet<NodeId>? children = null;
             foreach (IReference reference in references)
             {
-                if (!reference.IsInverse && reference.ReferenceTypeId == ReferenceTypeIds.HasProperty)
+                if (reference.IsInverse || reference.ReferenceTypeId != ReferenceTypeIds.HasProperty)
+                {
+                    continue;
+                }
+
+                if (children == null)
+                {
+                    IList<BaseInstanceState> childNodes = [];
+                    node.GetChildren(context, childNodes);
+                    children = [];
+                    foreach (BaseInstanceState child in childNodes)
+                    {
+                        children.Add(child.NodeId);
+                    }
+                }
+
+                var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+                if (targetId.IsNull || !children.Contains(targetId))
                 {
                     return true;
                 }
@@ -1023,13 +1144,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static NamespaceMetadataNode CreateUntyped(BaseObjectState node, BaseVariableState?[] properties)
         {
-            string? namespaceUri = null;
-            if (properties[0] != null && properties[0]!.Value.TryGetValue(out string? value))
-            {
-                namespaceUri = value;
-            }
-
-            return new NamespaceMetadataNode(node, namespaceUri, properties[1], properties[2], properties[3]);
+            return new NamespaceMetadataNode(node, properties[0], properties[1], properties[2], properties[3]);
         }
 
         private readonly INamespaceMetadataHost m_host;
@@ -1042,6 +1157,10 @@ namespace Opc.Ua.Server
         private long m_generation;
         private readonly ConcurrentDictionary<NodeId, NamespaceMetadataNode?> m_referenceTargets = new();
         private readonly ConcurrentDictionary<BaseObjectState, NamespaceMetadataNode> m_untyped = new();
+        // Untyped views retired by Invalidate, keyed by node id; their live NamespaceUri lets a
+        // synchronous lookup skip metadata of other namespaces until they are resolved again.
+        private readonly ConcurrentDictionary<NodeId, NamespaceMetadataNode> m_stale = new();
+        private int m_primeRequired;
         private readonly HashSet<BaseObjectState> m_tracked = [];
         private readonly Dictionary<BaseObjectState, BaseVariableState?[]> m_trackedProperties = [];
         private readonly Lock m_lock = new();

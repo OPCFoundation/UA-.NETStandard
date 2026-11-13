@@ -51,8 +51,10 @@ namespace Opc.Ua.Server
     /// The single reader of the namespace defaults (<c>DefaultAccessRestrictions</c>,
     /// <c>DefaultRolePermissions</c> and <c>DefaultUserRolePermissions</c>, OPC 10000-5 6.3.13)
     /// used by permission checks. Values are read with the caller's system context, so
-    /// <c>OnReadValue</c>/<c>OnSimpleReadValue</c> callbacks see the caller. A missing property
-    /// or a null value is reported as absent, a configured zero/empty value as present. A failed
+    /// <c>OnReadValue</c>/<c>OnSimpleReadValue</c> callbacks see the caller. A missing property,
+    /// a null value or a stored property that was never initialized (declared without a value,
+    /// reporting <c>BadWaitingForInitialData</c>) is reported as absent, a configured zero/empty
+    /// value as present. A failed
     /// read, a callback exception, a wrong type or unknown restriction bits produce a Bad
     /// <see cref="NamespaceDefaultPermissions.Status"/>, which callers must treat as a denial and
     /// which is never cached.
@@ -392,13 +394,22 @@ namespace Opc.Ua.Server
         private static bool IsStatic(BaseVariableState? property)
         {
             return property == null ||
-                (property.OnReadValue == null &&
-                    property.OnSimpleReadValue == null &&
-                    property.OnReadValueAsync == null &&
-                    property.OnSimpleReadValueAsync == null &&
+                (IsWithoutReadCallbacks(property) &&
                     property.OnReadUserAccessLevel == null &&
                     (property.AccessLevel & AccessLevels.CurrentRead) != 0 &&
                     (property.UserAccessLevel & AccessLevels.CurrentRead) != 0);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when the value of the property is its stored value, read without a
+        /// value read callback.
+        /// </summary>
+        private static bool IsWithoutReadCallbacks(BaseVariableState property)
+        {
+            return property.OnReadValue == null &&
+                property.OnSimpleReadValue == null &&
+                property.OnReadValueAsync == null &&
+                property.OnSimpleReadValueAsync == null;
         }
 
         /// <summary>
@@ -426,6 +437,16 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(result))
                 {
                     value = default;
+                    // A property declared without a value (e.g. by a NodeSet that only
+                    // declares the optional default) was never initialized: not configured.
+                    // A configured value, or any callback outcome, still fails closed.
+                    if (result.StatusCode == StatusCodes.BadWaitingForInitialData &&
+                        property.Value.IsNull &&
+                        IsWithoutReadCallbacks(property))
+                    {
+                        return StatusCodes.Good;
+                    }
+
                     return result.StatusCode;
                 }
 

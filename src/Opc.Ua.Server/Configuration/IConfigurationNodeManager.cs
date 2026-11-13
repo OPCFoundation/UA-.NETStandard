@@ -53,7 +53,11 @@ namespace Opc.Ua.Server
         /// that Object is not a <see cref="NamespaceMetadataState"/>, e.g. one created by an untyped
         /// NodeSet import, it is kept and <c>null</c> is returned.
         /// </remarks>
-        ValueTask<NamespaceMetadataState> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default);
+        /// <returns>
+        /// The metadata node, or <c>null</c> when the namespace is described by an Object that is not
+        /// a <see cref="NamespaceMetadataState"/> or when the node cannot be created.
+        /// </returns>
+        ValueTask<NamespaceMetadataState?> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Creates the configuration node for the server.

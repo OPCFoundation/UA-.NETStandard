@@ -128,8 +128,8 @@ namespace Opc.Ua.Server.Tests
                 }).ConfigureAwait(false);
 
                 const string namespaceUri = "http://test.org/UA/NamespaceMetadataTest";
-                NamespaceMetadataState metadata = await configManager
-                    .CreateNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false);
+                NamespaceMetadataState metadata = (await configManager
+                    .CreateNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false))!;
                 Assert.That(metadata, Is.Not.Null);
                 Assert.That(metadata.NamespaceUri!.Value, Is.EqualTo(namespaceUri));
 

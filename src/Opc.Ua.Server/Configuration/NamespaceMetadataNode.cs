@@ -46,13 +46,13 @@ namespace Opc.Ua.Server
         /// Creates the view of an untyped metadata node with its resolved properties.
         /// </summary>
         /// <param name="node">The metadata Object.</param>
-        /// <param name="namespaceUri">The value of its <c>NamespaceUri</c> property.</param>
+        /// <param name="namespaceUri">The <c>NamespaceUri</c> property.</param>
         /// <param name="defaultAccessRestrictions">The <c>DefaultAccessRestrictions</c> property.</param>
         /// <param name="defaultRolePermissions">The <c>DefaultRolePermissions</c> property.</param>
         /// <param name="defaultUserRolePermissions">The <c>DefaultUserRolePermissions</c> property.</param>
         public NamespaceMetadataNode(
             BaseObjectState node,
-            string? namespaceUri,
+            BaseVariableState? namespaceUri,
             BaseVariableState? defaultAccessRestrictions,
             BaseVariableState? defaultRolePermissions,
             BaseVariableState? defaultUserRolePermissions)
@@ -85,9 +85,22 @@ namespace Opc.Ua.Server
         public NamespaceMetadataState? TypedState { get; }
 
         /// <summary>
-        /// The namespace the Object describes.
+        /// The namespace the Object describes, read from its <c>NamespaceUri</c> property.
         /// </summary>
-        public string? NamespaceUri => TypedState != null ? TypedState.NamespaceUri?.Value : m_namespaceUri;
+        public string? NamespaceUri
+        {
+            get
+            {
+                if (TypedState != null)
+                {
+                    return TypedState.NamespaceUri?.Value;
+                }
+
+                return m_namespaceUri != null && m_namespaceUri.Value.TryGetValue(out string? namespaceUri)
+                    ? namespaceUri
+                    : null;
+            }
+        }
 
         /// <summary>
         /// The <c>DefaultAccessRestrictions</c> property, if present.
@@ -131,7 +144,7 @@ namespace Opc.Ua.Server
                 (context.TypeTable?.IsTypeOf(typeDefinitionId, ObjectTypeIds.NamespaceMetadataType) ?? false);
         }
 
-        private readonly string? m_namespaceUri;
+        private readonly BaseVariableState? m_namespaceUri;
         private readonly BaseVariableState? m_defaultAccessRestrictions;
         private readonly BaseVariableState? m_defaultRolePermissions;
         private readonly BaseVariableState? m_defaultUserRolePermissions;

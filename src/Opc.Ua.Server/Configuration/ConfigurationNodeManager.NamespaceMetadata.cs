@@ -83,7 +83,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<NamespaceMetadataState> CreateNamespaceMetadataStateAsync(
+        public ValueTask<NamespaceMetadataState?> CreateNamespaceMetadataStateAsync(
             string namespaceUri,
             CancellationToken cancellationToken = default)
         {
