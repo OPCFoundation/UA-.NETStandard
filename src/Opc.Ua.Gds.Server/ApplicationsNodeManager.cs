@@ -789,12 +789,11 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private ICertificateGroup? GetGroupForCertificate(ByteString certificate)
+        private ICertificateGroup? GetGroupForCertificate(ByteString certificate, NodeId certificateType)
         {
             if (certificate.Length > 0)
             {
                 using var x509 = Certificate.FromRawData(certificate);
-                NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
                     KeyValuePair<NodeId, Certificate?> matchingCert = certificateGroup
@@ -818,12 +817,13 @@ namespace Opc.Ua.Gds.Server
 
         private async Task<bool> RevokeCertificateAsync(
             ByteString certificate,
+            NodeId certificateType,
             CancellationToken cancellationToken = default)
         {
             bool revoked = false;
             if (certificate.Length > 0)
             {
-                ICertificateGroup? certificateGroup = GetGroupForCertificate(certificate);
+                ICertificateGroup? certificateGroup = GetGroupForCertificate(certificate, certificateType);
 
                 if (certificateGroup != null)
                 {
@@ -836,6 +836,22 @@ namespace Opc.Ua.Gds.Server
                         if (crl != null)
                         {
                             revoked = true;
+
+                            // The new CRL is in the server's issuer store. Notify the
+                            // certificate manager so that it revalidates the open
+                            // SecureChannels and closes those that use the revoked
+                            // certificate.
+                            try
+                            {
+                                m_configuration.CertificateManager?.NotifyTrustListChanged(
+                                    TrustListIdentifier.Peers,
+                                    trustChanged: false,
+                                    crlChanged: true);
+                            }
+                            catch (Exception ex)
+                            {
+                                m_logger.RevocationNotificationFailed(ex, certificateGroup.Id);
+                            }
                         }
                     }
                     catch (Exception e)
@@ -1325,7 +1341,7 @@ namespace Opc.Ua.Gds.Server
                             out ByteString certificate) &&
                         !certificate.IsEmpty)
                     {
-                        await RevokeCertificateAsync(certificate, cancellationToken)
+                        await RevokeCertificateAsync(certificate, certType.Key, cancellationToken)
                             .ConfigureAwait(false);
                     }
                 }
@@ -1407,6 +1423,7 @@ namespace Opc.Ua.Gds.Server
 
                     revoked = await RevokeCertificateAsync(
                         certificate,
+                        certType.Key,
                         cancellationToken).ConfigureAwait(false);
                     if (revoked)
                     {
@@ -3699,5 +3716,12 @@ namespace Opc.Ua.Gds.Server
             Exception exception,
             NodeId requestId,
             [ApplicationIdentity] string? applicationUri);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 22, Level = LogLevel.Error,
+            Message = "Failed to notify the server of the revocation in certificate group {CertificateGroupId}.")]
+        public static partial void RevocationNotificationFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId certificateGroupId);
     }
 }

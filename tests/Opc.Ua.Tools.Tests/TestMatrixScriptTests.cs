@@ -44,7 +44,8 @@ namespace Opc.Ua.Tools.Tests
     public sealed class TestMatrixScriptTests
     {
         /// <summary>
-        /// Artifact qualification installs the exact repository SDK instead of a floating patch.
+        /// Artifact qualification installs the exact repository SDK through the shared action,
+        /// plus only the .NET 10 runtime that the net10.0 artifact jobs execute on.
         /// </summary>
         [Test]
         public async Task ArtifactJobsInstallTheRepositorySdkAsync()
@@ -53,19 +54,101 @@ namespace Opc.Ua.Tools.Tests
             string source = await File.ReadAllTextAsync(path).ConfigureAwait(false);
             string[] steps = [.. source.ReplaceLineEndings("\n")
                 .Split("\n    - ", StringSplitOptions.None)
-                .Where(step => step.StartsWith("uses: actions/setup-dotnet@", StringComparison.Ordinal))];
+                .Where(step => step.StartsWith(RepositorySdkAction, StringComparison.Ordinal))];
 
             Assert.That(steps, Is.Not.Empty);
             foreach (string step in steps)
             {
                 string[] lines = step.Split('\n');
-                Assert.That(lines, Does.Contain("        global-json-file: global.json"));
-                // The SDK comes from global.json. The only extra install allowed is the
-                // net10.0 runtime the net10.0 artifact jobs need, which the newer SDK
-                // does not carry; it never selects the SDK because global.json pins it.
+                // The shared action always builds with the global.json SDK. The only extra
+                // install allowed is the 10.0 SDK whose runtime the net10.0 artifact jobs need;
+                // it never selects the SDK because global.json pins it.
                 Assert.That(
                     lines.Where(line => line.Contains("dotnet-version:", StringComparison.Ordinal)),
                     Is.All.EqualTo("        dotnet-version: 10.0.x"));
+            }
+        }
+
+        /// <summary>
+        /// Runner images preinstall newer SDKs that the global.json roll-forward policy would
+        /// select, so every workflow installs .NET through the action that isolates the SDK.
+        /// </summary>
+        [Test]
+        public async Task WorkflowsInstallDotnetOnlyThroughTheRepositorySdkActionAsync()
+        {
+            string github = Path.Combine(FindRepositoryRoot(), ".github");
+            string sharedAction = Path.Combine(github, "actions", "setup-repository-dotnet", "action.yml");
+            // The release job checks out the candidate commit, which can predate the shared
+            // action, and only pushes packages that were already built.
+            string release = Path.Combine(github, "workflows", "release.yml");
+            string[] files = [.. Directory.GetFiles(Path.Combine(github, "workflows"), "*.yml")
+                .Concat(Directory.GetFiles(Path.Combine(github, "actions"), "action.yml", SearchOption.AllDirectories))
+                .Where(file => file != sharedAction && file != release)];
+
+            int uses = 0;
+            foreach (string file in files)
+            {
+                string source = await File.ReadAllTextAsync(file).ConfigureAwait(false);
+                Assert.That(source, Does.Not.Contain("actions/setup-dotnet@"), file);
+                uses += source.Split(RepositorySdkAction, StringSplitOptions.None).Length - 1;
+            }
+            Assert.That(uses, Is.GreaterThan(0));
+        }
+
+        /// <summary>
+        /// The SDK selection installs extra SDKs first, the global.json SDK last, into the
+        /// job-private directory.
+        /// </summary>
+        [Test]
+        public async Task RepositorySdkSelectionPinsTheGlobalJsonSdkLastAsync()
+        {
+            string directory = CreateSdkSelectionDirectory();
+            try
+            {
+                string install = Path.Combine(directory, "dotnet");
+                ScriptResult result = await RunSdkSelectionAsync(
+                    directory, "8.0.x\n10.0.403\n 9.0.x \n8.0.x\n", install).ConfigureAwait(false);
+
+                Assert.That(result.ExitCode, Is.Zero, result.Output);
+                string[] environment = await File.ReadAllLinesAsync(
+                    Path.Combine(directory, "env")).ConfigureAwait(false);
+                Assert.That(environment, Is.EqualTo(new[] { "DOTNET_INSTALL_DIR=" + install }));
+                string[] output = await File.ReadAllLinesAsync(
+                    Path.Combine(directory, "output")).ConfigureAwait(false);
+                Assert.That(output, Has.Length.EqualTo(6));
+                Assert.That(output[0], Is.EqualTo("sdk=10.0.403"));
+                Assert.That(output[1], Does.StartWith("versions<<"));
+                Assert.That(string.Join(',', output[2..5]), Is.EqualTo("8.0.x,9.0.x,10.0.403"));
+                Assert.That(output[5], Is.EqualTo(output[1]["versions<<".Length..]));
+            }
+            finally
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+
+        /// <summary>
+        /// The SDK selection rejects a malformed extra version before anything is installed.
+        /// </summary>
+        [TestCase("latest")]
+        [TestCase("10")]
+        [TestCase("8.0.x; rm -rf /")]
+        public async Task RepositorySdkSelectionRejectsInvalidVersionsAsync(string version)
+        {
+            string directory = CreateSdkSelectionDirectory();
+            try
+            {
+                ScriptResult result = await RunSdkSelectionAsync(
+                    directory, version, Path.Combine(directory, "dotnet")).ConfigureAwait(false);
+
+                Assert.That(result.ExitCode, Is.EqualTo(1), result.Output);
+                Assert.That(result.Output, Does.Contain("::error::"));
+                Assert.That(File.Exists(Path.Combine(directory, "env")), Is.False);
+                Assert.That(File.Exists(Path.Combine(directory, "output")), Is.False);
+            }
+            finally
+            {
+                Directory.Delete(directory, recursive: true);
             }
         }
 
@@ -265,6 +348,35 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(document.RootElement.GetProperty("parent").GetString(), Is.EqualTo(inherited));
         }
 
+        private static string CreateSdkSelectionDirectory()
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "sdk-selection-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(
+                Path.Combine(directory, "global.json"),
+                """{"sdk":{"version":"10.0.403","rollForward":"latestMajor"}}""");
+            return directory;
+        }
+
+        private static Task<ScriptResult> RunSdkSelectionAsync(
+            string directory,
+            string additionalSdks,
+            string installDirectory)
+        {
+            string root = FindRepositoryRoot();
+            string script = Path.Combine(root, ".github", "scripts", "select-repository-sdk.ps1");
+            string command = $$"""
+                $env:GITHUB_ENV = {{QuotePowerShell(Path.Combine(directory, "env"))}}
+                $env:GITHUB_OUTPUT = {{QuotePowerShell(Path.Combine(directory, "output"))}}
+                & {{QuotePowerShell(script)}} `
+                    -AdditionalSdks {{QuotePowerShell(additionalSdks)}} `
+                    -GlobalJsonPath {{QuotePowerShell(Path.Combine(directory, "global.json"))}} `
+                    -InstallDirectory {{QuotePowerShell(installDirectory)}}
+                exit $LASTEXITCODE
+                """;
+            return RunPowerShellAsync(root, command);
+        }
+
         private static Task<ScriptResult> RunGitHubFunctionAsync(
             string discovery,
             string invocation,
@@ -349,6 +461,8 @@ namespace Opc.Ua.Tools.Tests
 
         private const string LensProjectFile =
             "tests/Opc.Ua.Lens.Workflow.Tests/Opc.Ua.Lens.Workflow.Tests.csproj";
+
+        private const string RepositorySdkAction = "uses: ./.github/actions/setup-repository-dotnet";
 
         private sealed record ScriptResult(int ExitCode, string Output);
     }

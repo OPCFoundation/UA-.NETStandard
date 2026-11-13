@@ -110,6 +110,7 @@
         <xs:attribute name="BinaryEncodingId" type="xs:int" use="optional" default="0" />
         <xs:attribute name="IsAbstract" type="xs:boolean" use="optional" default="false" />
         <xs:attribute name="IsUnion" type="xs:boolean" default="false" />
+        <xs:attribute name="IsValueType" type="xs:boolean" default="false" />
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
