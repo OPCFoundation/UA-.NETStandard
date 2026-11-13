@@ -2775,10 +2775,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // before the terminal listener dispose drives the gated close.
             Task dispose = manager.DisposeAsync().AsTask();
 
-            await AwaitCloseGateAsync(closeGateEntered.Task, dispose, callback, manager, "Dispose")
-                .ConfigureAwait(false);
             try
             {
+                await AwaitCloseGateAsync(closeGateEntered.Task, dispose, callback, manager, "Dispose")
+                    .ConfigureAwait(false);
                 Assert.That(
                     manager.ActiveConnectionCallbackCountForTest,
                     Is.Zero,
@@ -2934,15 +2934,25 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // before the terminal listener close tears the channels down.
             Task stop = manager.StopServiceAsync();
 
-            await AwaitCloseGateAsync(closeGateEntered.Task, stop, callback, manager, "Stop")
-                .ConfigureAwait(false);
-            Assert.That(
-                callback.IsCompleted,
-                Is.True,
-                "the held callback must drain before the listener close");
-            Assert.That(e.Accepted, Is.False);
-
-            releaseClose.TrySetResult(true);
+            try
+            {
+                await AwaitCloseGateAsync(closeGateEntered.Task, stop, callback, manager, "Stop")
+                    .ConfigureAwait(false);
+                // The drain completes when the callback leaves its tracking
+                // region, which is before its task completes: assert the
+                // tracked count, not callback.IsCompleted.
+                Assert.That(
+                    manager.ActiveConnectionCallbackCountForTest,
+                    Is.Zero,
+                    "the held callback must drain before the listener close");
+                Assert.That(e.Accepted, Is.False);
+            }
+            finally
+            {
+                // Always release the gated close: a failed assertion must not
+                // leave the stop blocked, or the manager disposal hangs.
+                releaseClose.TrySetResult(true);
+            }
             await stop.ConfigureAwait(false);
             await callback.ConfigureAwait(false);
 
@@ -2999,32 +3009,41 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 BuildAppConfig(telemetry, replacement),
                 manager.CurrentWatcherGeneration);
 
-            await AwaitCloseGateAsync(closeGateEntered.Task, reload, heldCallback, manager, "Reload")
-                .ConfigureAwait(false);
-            Assert.That(
-                heldCallback.IsCompleted,
-                Is.True,
-                "the held callback must drain before the previous listener close");
-            Assert.That(
-                held.Accepted,
-                Is.False,
-                "the drained callback must leave the transport unaccepted");
-            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+            try
+            {
+                await AwaitCloseGateAsync(closeGateEntered.Task, reload, heldCallback, manager, "Reload")
+                    .ConfigureAwait(false);
+                // The drain completes when the callback leaves its tracking
+                // region, which is before its task completes: assert the
+                // tracked count, not heldCallback.IsCompleted.
+                Assert.That(
+                    manager.ActiveConnectionCallbackCountForTest,
+                    Is.Zero,
+                    "the held callback must drain before the previous listener close");
+                Assert.That(
+                    held.Accepted,
+                    Is.False,
+                    "the drained callback must leave the transport unaccepted");
 
-            // A candidate callback raised during the uncommitted activation window
-            // must be rejected (unaccepted, never tracked) so it can never outlive
-            // the reload and leak a transport if the activation rolls back.
-            var candidate = new FakeConnectionWaitingEventArgs(
-                "urn:test:reverse:candidate",
-                replacement);
-            await manager.InvokeConnectionWaitingForTest(candidate).ConfigureAwait(false);
-            Assert.That(
-                candidate.Accepted,
-                Is.False,
-                "a candidate callback must be rejected during the uncommitted activation");
-            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
-
-            releaseClose.TrySetResult(true);
+                // A candidate callback raised during the uncommitted activation window
+                // must be rejected (unaccepted, never tracked) so it can never outlive
+                // the reload and leak a transport if the activation rolls back.
+                var candidate = new FakeConnectionWaitingEventArgs(
+                    "urn:test:reverse:candidate",
+                    replacement);
+                await manager.InvokeConnectionWaitingForTest(candidate).ConfigureAwait(false);
+                Assert.That(
+                    candidate.Accepted,
+                    Is.False,
+                    "a candidate callback must be rejected during the uncommitted activation");
+                Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+            }
+            finally
+            {
+                // Always release the gated close: a failed assertion must not
+                // leave the reload blocked, or the manager disposal hangs.
+                releaseClose.TrySetResult(true);
+            }
             await reload.ConfigureAwait(false);
             await heldCallback.ConfigureAwait(false);
 
@@ -3091,16 +3110,25 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 BuildAppConfig(telemetry, replacement),
                 manager.CurrentWatcherGeneration);
 
-            await AwaitCloseGateAsync(closeGateEntered.Task, reload, heldCallback, manager, "Failed reload")
-                .ConfigureAwait(false);
-            Assert.That(
-                heldCallback.IsCompleted,
-                Is.True,
-                "the held callback must drain before the previous listener close");
-            Assert.That(held.Accepted, Is.False);
-            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
-
-            releaseClose.TrySetResult(true);
+            try
+            {
+                await AwaitCloseGateAsync(closeGateEntered.Task, reload, heldCallback, manager, "Failed reload")
+                    .ConfigureAwait(false);
+                // The drain completes when the callback leaves its tracking
+                // region, which is before its task completes: assert the
+                // tracked count, not heldCallback.IsCompleted.
+                Assert.That(
+                    manager.ActiveConnectionCallbackCountForTest,
+                    Is.Zero,
+                    "the held callback must drain before the previous listener close");
+                Assert.That(held.Accepted, Is.False);
+            }
+            finally
+            {
+                // Always release the gated close: a failed assertion must not
+                // leave the reload blocked, or the manager disposal hangs.
+                releaseClose.TrySetResult(true);
+            }
             // ReloadConfigurationAsync logs and swallows the failed reload.
             await reload.ConfigureAwait(false);
             await heldCallback.ConfigureAwait(false);
