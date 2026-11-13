@@ -708,6 +708,9 @@ from display text; percent has no default quantity kind. Unknown codes and
 other unit authorities receive neither annotation. Existing authored quantity
 kinds remain authoritative and survive round trips.
 
+Both generated QUDT annotations use an `{"@id": "<IRI>"}` object so they
+remain JSON-LD links, including in documents with a default `@language`.
+
 Set `WotNodeSetConverterOptions.UnitMappingProvider` to an
 `IWotUnitMappingProvider` for process-specific semantics or additional unit
 authorities. Registry hosting and the export command register the default

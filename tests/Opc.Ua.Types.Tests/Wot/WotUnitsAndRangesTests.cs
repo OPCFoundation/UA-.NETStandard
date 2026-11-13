@@ -202,7 +202,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     measurement.GetProperty("qudt:hasUnit").GetProperty("@id").GetString(),
                     Is.EqualTo("http://qudt.org/vocab/unit/DEG_C"));
                 Assert.That(
-                    measurement.GetProperty("qudt:hasQuantityKind").GetString(),
+                    measurement.GetProperty("qudt:hasQuantityKind").GetProperty("@id").GetString(),
                     Is.EqualTo("http://qudt.org/vocab/quantitykind/Temperature"));
             });
         }
@@ -210,10 +210,12 @@ namespace Opc.Ua.Types.Tests.Wot
         /// <summary>
         /// Checks that generated unit annotations do not introduce residue into a verified document set.
         /// </summary>
-        [Test]
-        public async Task QudtMappingPreservesTheOriginalNodeSetAsync()
+        [TestCase(null)]
+        [TestCase("en")]
+        public async Task QudtMappingPreservesTheOriginalNodeSetAsync(string? locale)
         {
             UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            source.Items![0].DisplayName![0].Locale = locale;
             WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
                 .FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
             using WotDocumentSet? documents = result.Value;
@@ -324,7 +326,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(document.Properties["Measurement"].GetProperty("qudt:hasUnit")
                     .GetProperty("@id").GetString(), Is.EqualTo("urn:test:unit"));
                 Assert.That(document.Properties["Measurement"].GetProperty("qudt:hasQuantityKind")
-                    .GetString(), Is.EqualTo("urn:test:quantity"));
+                    .GetProperty("@id").GetString(), Is.EqualTo("urn:test:quantity"));
             }
             WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
                 .FromNodeSetDocumentsAsync(source, "model", options: options).ConfigureAwait(false);

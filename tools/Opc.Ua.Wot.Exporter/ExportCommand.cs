@@ -94,7 +94,8 @@ namespace Opc.Ua.Wot.Exporter
                 }
                 string[] files = singleFile
                     ? [source]
-                    : [.. FindNodeSets(sourceFolder, destination).Order(StringComparer.Ordinal)];
+                    : [.. FindNodeSets(sourceFolder, destination, cancellationToken).Order(StringComparer.Ordinal)];
+                cancellationToken.ThrowIfCancellationRequested();
                 if (files.Length == 0)
                 {
                     await m_error.WriteLineAsync("ERROR: No *NodeSet2.xml files were found.").ConfigureAwait(false);
@@ -235,10 +236,13 @@ namespace Opc.Ua.Wot.Exporter
         /// <summary>
         /// Finds input files without entering output folders or directory links.
         /// </summary>
-        private static IEnumerable<string> FindNodeSets(string source, string destination)
+        internal static IEnumerable<string> FindNodeSets(
+            string source, string destination, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (string file in Directory.EnumerateFiles(source))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (IsNodeSet(file))
                 {
                     yield return file;
@@ -246,9 +250,10 @@ namespace Opc.Ua.Wot.Exporter
             }
             foreach (string folder in Directory.EnumerateDirectories(source))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!IsWithin(folder, destination) && (File.GetAttributes(folder) & FileAttributes.ReparsePoint) == 0)
                 {
-                    foreach (string file in FindNodeSets(folder, destination))
+                    foreach (string file in FindNodeSets(folder, destination, cancellationToken))
                     {
                         yield return file;
                     }

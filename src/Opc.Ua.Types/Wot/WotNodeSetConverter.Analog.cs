@@ -302,7 +302,13 @@ namespace Opc.Ua.Wot
                     writer.WriteStartObject();
                     writer.WriteString("@id", unitIri);
                     writer.WriteEndObject();
-                    WriteOptional(writer, WotUnitMigration.QuantityKindTerm, quantityKind);
+                    if (quantityKind is not null)
+                    {
+                        writer.WritePropertyName(WotUnitMigration.QuantityKindTerm);
+                        writer.WriteStartObject();
+                        writer.WriteString("@id", quantityKind);
+                        writer.WriteEndObject();
+                    }
                 }
                 string? display = SelectLocalizedValue(units.DisplayName, defaultLocale);
                 if (!string.IsNullOrEmpty(display))
@@ -757,14 +763,12 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
-            if (member == WotUnitMigration.QuantityKindTerm)
-            {
-                return quantityKind is not null && GetElementString(affordance, member) == quantityKind;
-            }
+            string? expected = member == WotUnitMigration.QuantityKindTerm ? quantityKind : unitIri;
             return affordance.TryGetProperty(member, out JsonElement unit) &&
                 unit.ValueKind == JsonValueKind.Object &&
                 unit.EnumerateObject().Count() == 1 &&
-                GetElementString(unit, "@id") == unitIri;
+                expected is not null &&
+                GetElementString(unit, "@id") == expected;
         }
 
         /// <summary>

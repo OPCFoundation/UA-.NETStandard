@@ -796,6 +796,7 @@ namespace Opc.Ua.Wot
             }
 
             Dictionary<string, UANode> index = BuildIndex(nodeSet);
+            var scalarContext = new ReadableScalarContext(nodeSet, index);
             string[]? namespaceUris = nodeSet.NamespaceUris;
             var properties = new List<UAVariable>();
             var actions = new List<UAMethod>();
@@ -1059,7 +1060,7 @@ namespace Opc.Ua.Wot
                         variable.NodeId ?? string.Empty, out WotAnalogFacets? facets);
                     WriteVariableAffordance(
                         writer, variable, namespaceUris, nodeSet, defaultLocale,
-                        facets, owner, referenceTypeNames, documentLocale, options.UnitMappingProvider);
+                        facets, owner, referenceTypeNames, documentLocale, options.UnitMappingProvider, scalarContext);
                 }
                 writer.WriteEndObject();
             }
@@ -1093,7 +1094,7 @@ namespace Opc.Ua.Wot
                         : null;
                     WriteMethodAffordance(
                         writer, method, namespaceUris, nodeSet, defaultLocale, arguments,
-                        condition, referenceTypeNames);
+                        condition, referenceTypeNames, scalarContext);
                 }
                 writer.WriteEndObject();
             }
@@ -1117,7 +1118,7 @@ namespace Opc.Ua.Wot
                     WriteEventAffordance(
                         writer, events[ii], namespaceUris, nodeSet, index, defaultLocale,
                         eventProjections[ii],
-                        ResolveEventTypeHref(events[ii], eventTypeHrefs, documentHref));
+                        ResolveEventTypeHref(events[ii], eventTypeHrefs, documentHref), scalarContext);
                 }
                 writer.WriteEndObject();
             }
@@ -1549,7 +1550,8 @@ namespace Opc.Ua.Wot
             string? componentOf = null,
             WotReferenceTypeNames? referenceTypeNames = null,
             string? documentLocale = null,
-            IWotUnitMappingProvider? unitMappingProvider = null)
+            IWotUnitMappingProvider? unitMappingProvider = null,
+            ReadableScalarContext? scalarContext = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:variable");
@@ -1583,10 +1585,8 @@ namespace Opc.Ua.Wot
             bool isUnitAffordance = IsUnitAffordance(variable);
             string? dataType = isUnitAffordance
                 ? WotVocabulary.String
-                : ResolveArchivedAlias(
-                    variable.DataType,
-                    NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance));
-            WriteRankedJsonType(writer, dataType, variable.ValueRank, nodeSet);
+                : variable.DataType;
+            WriteRankedJsonType(writer, dataType, variable.ValueRank, scalarContext);
 
             // §9.1 gives a DataType one readable channel, the DataSchema's json
             // type, and that channel carries six types — so a LocalizedText and
@@ -1645,7 +1645,8 @@ namespace Opc.Ua.Wot
             string defaultLocale,
             WotMethodArguments arguments,
             (string Action, string ActsOn)? condition,
-            WotReferenceTypeNames? referenceTypeNames = null)
+            WotReferenceTypeNames? referenceTypeNames = null,
+            ReadableScalarContext? scalarContext = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:method");
@@ -1671,8 +1672,9 @@ namespace Opc.Ua.Wot
 
             // §9.1: the Method's input and output arguments are the action's
             // input and output DataSchemas.
-            WriteArgumentSchema(writer, InputMember, arguments.Input, nodeSet, defaultLocale);
-            WriteArgumentSchema(writer, OutputMember, arguments.Output, nodeSet, defaultLocale);
+            scalarContext ??= new ReadableScalarContext(nodeSet);
+            WriteArgumentSchema(writer, InputMember, arguments.Input, nodeSet, defaultLocale, scalarContext);
+            WriteArgumentSchema(writer, OutputMember, arguments.Output, nodeSet, defaultLocale, scalarContext);
             WriteModellingRule(writer, method, nodeSet);
             writer.WriteEndObject();
         }
@@ -1685,7 +1687,8 @@ namespace Opc.Ua.Wot
             Dictionary<string, UANode> index,
             string defaultLocale,
             WotConditionProjection projection,
-            string? eventTypeHref = null)
+            string? eventTypeHref = null,
+            ReadableScalarContext? scalarContext = null)
         {
             writer.WriteStartObject();
             // Section 5.2: @type uav:eventType is the sole annotation that
@@ -1717,7 +1720,8 @@ namespace Opc.Ua.Wot
             // Sections 13.2 and 13.3: the ConditionType the event projects and
             // the notification schema its fields fill.
             WriteEventConditionAndData(
-                writer, eventType, projection, namespaceUris, nodeSet, index, defaultLocale);
+                writer, eventType, projection, namespaceUris, nodeSet, index, defaultLocale,
+                scalarContext ?? new ReadableScalarContext(nodeSet, index));
             WriteModellingRule(writer, eventType, nodeSet);
             writer.WriteEndObject();
         }

@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -183,6 +184,28 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Assert.That(code, Is.EqualTo(130));
             Assert.That(m_error.ToString(), Does.Contain("stopped"));
             Assert.That(Directory.EnumerateFileSystemEntries(m_folder), Is.Empty);
+        }
+
+        /// <summary>
+        /// Stops discovery when cancellation arrives after enumeration has begun.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CancellationInterruptsDiscoveryAsync(bool nested)
+        {
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "A.NodeSet2.xml"), k_nodeSet).ConfigureAwait(false);
+            string remaining = nested ? Path.Combine(m_folder, "child") : m_folder;
+            Directory.CreateDirectory(remaining);
+            await File.WriteAllTextAsync(Path.Combine(remaining, "B.NodeSet2.xml"), k_nodeSet).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            using IEnumerator<string> files = ExportCommand.FindNodeSets(
+                m_folder, Path.Combine(m_folder, "out"), cancellation.Token).GetEnumerator();
+            Assert.That(files.MoveNext(), Is.True);
+
+            await cancellation.CancelAsync().ConfigureAwait(false);
+
+            Assert.That(() => files.MoveNext(), Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(Directory.Exists(Path.Combine(m_folder, "out")), Is.False);
         }
 
         /// <summary>Contains two independent type roots.</summary>

@@ -96,9 +96,9 @@ namespace Opc.Ua.Wot
         }
 
         private static void WriteRankedJsonType(
-            Utf8JsonWriter writer, string? dataType, int valueRank, UANodeSet? nodeSet = null)
+            Utf8JsonWriter writer, string? dataType, int valueRank, ReadableScalarContext? scalarContext = null)
         {
-            dataType = ResolveReadableScalarDataType(dataType, nodeSet);
+            dataType = scalarContext?.Resolve(dataType) ?? dataType;
             if (valueRank is -3 or -2)
             {
                 if (MapReadableScalarType(dataType) is null)
@@ -158,8 +158,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="schema">The JSON element.</param>
         /// <param name="member">The schema member whose JSON type is checked against the value rank.</param>
-        /// <param name="nodeSet">The native model holding local scalar subtype declarations.</param>
-        internal static bool MapsRankedJsonType(JsonElement schema, string member, UANodeSet nodeSet)
+        /// <param name="scalarContext">The shared scalar subtype lookup state.</param>
+        internal static bool MapsRankedJsonType(JsonElement schema, string member, ReadableScalarContext scalarContext)
         {
             if (!schema.TryGetProperty(member, out JsonElement actual))
             {
@@ -180,14 +180,14 @@ namespace Opc.Ua.Wot
                 bool untypedLeaf = dimensions == rank - 1 &&
                     GetElementString(nested, "type") == "array" &&
                     !nested.TryGetProperty("items", out _) &&
-                    MapReadableScalarType(ResolveReadableScalarDataType(
-                        GetElementString(schema, "uav:mapToType"), nodeSet)) is null;
+                    MapReadableScalarType(scalarContext.Resolve(
+                        GetElementString(schema, "uav:mapToType"))) is null;
                 if (dimensions != rank && !untypedLeaf)
                 {
                     return false;
                 }
             }
-            using JsonDocument? generated = CreateRankedJsonType(schema, nodeSet);
+            using JsonDocument? generated = CreateRankedJsonType(schema, scalarContext);
             return generated is not null &&
                 generated.RootElement.TryGetProperty(member, out JsonElement expected) &&
                 JsonElement.DeepEquals(actual, expected);
@@ -197,8 +197,8 @@ namespace Opc.Ua.Wot
         /// Regenerates the ranked JSON type only when the schema states its definitive DataType.
         /// </summary>
         /// <param name="schema">The JSON element.</param>
-        /// <param name="nodeSet">The native model holding local scalar subtype declarations.</param>
-        internal static JsonDocument? CreateRankedJsonType(JsonElement schema, UANodeSet nodeSet)
+        /// <param name="scalarContext">The shared scalar subtype lookup state.</param>
+        internal static JsonDocument? CreateRankedJsonType(JsonElement schema, ReadableScalarContext scalarContext)
         {
             string? dataType = GetElementString(schema, "uav:mapToType");
             if (dataType is null)
@@ -209,7 +209,7 @@ namespace Opc.Ua.Wot
             using (var writer = new Utf8JsonWriter(output))
             {
                 writer.WriteStartObject();
-                WriteRankedJsonType(writer, NormalizeExpandedNodeId(dataType), ReadValueRank(schema), nodeSet);
+                WriteRankedJsonType(writer, NormalizeExpandedNodeId(dataType), ReadValueRank(schema), scalarContext);
                 writer.WriteEndObject();
             }
             return JsonDocument.Parse(output.ToArray());

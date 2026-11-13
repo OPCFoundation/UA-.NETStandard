@@ -151,6 +151,35 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Shares scalar resolution within one export without retaining stale terminals across conversions.
+        /// </summary>
+        [Test]
+        public void ScalarSubtypeLookupIsScopedToEachConversion()
+        {
+            UANodeSet source = CreateNodeSet(1, null);
+            UAVariable variable = source.Items!.OfType<UAVariable>().Single();
+            variable.DataType = "ns=1;i=2000";
+            var type = new UADataType
+            {
+                NodeId = "ns=1;i=2000",
+                BrowseName = "1:Scalar",
+                References = [new Reference { ReferenceType = "i=45", IsForward = false, Value = "i=12" }]
+            };
+            source.Items = [.. source.Items!, type];
+            using (WotDocument first = WotNodeSetConverter.FromNodeSet(source))
+            {
+                Assert.That(first.Properties["Samples"].GetProperty("items").GetProperty("type").GetString(),
+                    Is.EqualTo("string"));
+            }
+
+            type.References![0].Value = "i=6";
+            using WotDocument second = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(second.Properties["Samples"].GetProperty("items").GetProperty("type").GetString(),
+                Is.EqualTo("integer"));
+        }
+
+        /// <summary>
         /// Verifies that arrays and matrices export ordinary nested array schemas.
         /// </summary>
         [TestCase(1, "4")]

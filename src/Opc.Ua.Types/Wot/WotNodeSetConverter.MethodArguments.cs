@@ -512,7 +512,8 @@ namespace Opc.Ua.Wot
             string member,
             List<WotMethodArgument>? arguments,
             UANodeSet nodeSet,
-            string defaultLocale)
+            string defaultLocale,
+            ReadableScalarContext scalarContext)
         {
             if (arguments is not { Count: > 0 })
             {
@@ -536,7 +537,7 @@ namespace Opc.Ua.Wot
             foreach (WotMethodArgument argument in arguments)
             {
                 writer.WritePropertyName(argument.Name);
-                WriteArgument(writer, argument, nodeSet, defaultLocale);
+                WriteArgument(writer, argument, nodeSet, defaultLocale, scalarContext);
             }
             writer.WriteEndObject();
 
@@ -565,10 +566,11 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             WotMethodArgument argument,
             UANodeSet nodeSet,
-            string defaultLocale)
+            string defaultLocale,
+            ReadableScalarContext scalarContext)
         {
             writer.WriteStartObject();
-            WriteRankedJsonType(writer, argument.DataType, argument.ValueRank, nodeSet);
+            WriteRankedJsonType(writer, argument.DataType, argument.ValueRank, scalarContext);
             WriteLocalizedTextContext(writer, null, argument.Description, defaultLocale);
             WriteLocalizedDescription(writer, argument.Description, defaultLocale);
             WriteOptional(
@@ -632,58 +634,109 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Follows an unambiguous local scalar subtype chain without changing the definitive DataType identity.
         /// </summary>
-        private static string? ResolveReadableScalarDataType(string? dataType, UANodeSet? nodeSet)
+        internal sealed class ReadableScalarContext
         {
-            if (nodeSet is null || dataType is null || MapReadableScalarType(dataType) is not null)
+            /// <summary>
+            /// Builds the lookup state once for a conversion or residue capture.
+            /// </summary>
+            internal ReadableScalarContext(UANodeSet nodeSet, Dictionary<string, UANode>? index = null)
             {
-                return dataType;
+                m_nodeSet = nodeSet;
+                m_aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+                m_index = index ?? BuildIndex(nodeSet);
             }
-            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
-            string current = ResolveArchivedAlias(dataType, aliases);
-            if (current.StartsWith("nsu=", StringComparison.Ordinal))
+
+            /// <summary>
+            /// Resolves a scalar terminal while retaining unresolved or ambiguous datatype identities.
+            /// </summary>
+            internal string? Resolve(string? dataType)
             {
-                if (!ExpandedNodeId.TryParse(current, out ExpandedNodeId portable) ||
-                    Array.IndexOf(nodeSet.NamespaceUris ?? [], portable.NamespaceUri) < 0)
+                if (dataType is null)
                 {
-                    return dataType;
+                    return null;
                 }
-                current = ToNodeSetNodeId(current, nodeSet, []);
-            }
-            Dictionary<string, UANode> index = BuildIndex(nodeSet);
-            var visited = new HashSet<string>(StringComparer.Ordinal);
-            while (visited.Add(current))
-            {
+                string current = Normalize(dataType);
                 if (MapReadableScalarType(current) is not null)
                 {
                     return current;
                 }
-                if (!index.TryGetValue(current, out UANode? node) ||
-                    node is not UADataType type ||
-                    (type.Definition is { } definition && !HasEnumFields(definition)))
+                if (m_terminals.TryGetValue(current, out string? cached))
                 {
-                    break;
+                    return cached ?? dataType;
                 }
-                string? parent = null;
-                foreach (Reference reference in type.References ?? [])
+                string? terminal = null;
+                var visited = new HashSet<string>(StringComparer.Ordinal);
+                while (visited.Add(current))
                 {
-                    if (reference.IsForward || ResolveArchivedAlias(reference.ReferenceType, aliases) != "i=45")
+                    if (m_terminals.TryGetValue(current, out terminal))
                     {
-                        continue;
+                        break;
                     }
-                    string candidate = ResolveArchivedAlias(reference.Value, aliases);
-                    if (parent is not null && parent != candidate)
+                    if (MapReadableScalarType(current) is not null)
                     {
-                        return dataType;
+                        terminal = current;
+                        break;
                     }
-                    parent = candidate;
+                    if (!m_index.TryGetValue(current, out UANode? node) ||
+                        node is not UADataType type ||
+                        (type.Definition is { } definition && !HasEnumFields(definition)))
+                    {
+                        break;
+                    }
+                    string? parent = null;
+                    bool ambiguous = false;
+                    foreach (Reference reference in type.References ?? [])
+                    {
+                        if (reference.IsForward ||
+                            ResolveArchivedAlias(reference.ReferenceType, m_aliases) != "i=45")
+                        {
+                            continue;
+                        }
+                        string candidate = Normalize(reference.Value);
+                        if (parent is not null && parent != candidate)
+                        {
+                            ambiguous = true;
+                            break;
+                        }
+                        parent = candidate;
+                    }
+                    if (parent is null || ambiguous)
+                    {
+                        break;
+                    }
+                    current = parent;
                 }
-                if (parent is null)
+                foreach (string identity in visited)
                 {
-                    break;
+                    m_terminals[identity] = terminal;
                 }
-                current = parent;
+                return terminal ?? dataType;
             }
-            return dataType;
+
+            /// <summary>
+            /// Resolves aliases and known portable namespaces without extending the source namespace table.
+            /// </summary>
+            private string Normalize(string? identity)
+            {
+                string resolved = ResolveArchivedAlias(identity, m_aliases);
+                return resolved.StartsWith("nsu=", StringComparison.Ordinal) &&
+                    ExpandedNodeId.TryParse(resolved, out ExpandedNodeId portable) &&
+                    Array.IndexOf(m_nodeSet.NamespaceUris ?? [], portable.NamespaceUri) >= 0
+                    ? ToNodeSetNodeId(resolved, m_nodeSet, [])
+                    : resolved;
+            }
+
+            /// <summary>Holds the conversion's native namespace table.</summary>
+            private readonly UANodeSet m_nodeSet;
+
+            /// <summary>Resolves declared and standard aliases.</summary>
+            private readonly INodeSetAliasResolver m_aliases;
+
+            /// <summary>Indexes the conversion's nodes once.</summary>
+            private readonly Dictionary<string, UANode> m_index;
+
+            /// <summary>Caches terminals, including unresolved chains.</summary>
+            private readonly Dictionary<string, string?> m_terminals = new(StringComparer.Ordinal);
         }
 
         /// <summary>

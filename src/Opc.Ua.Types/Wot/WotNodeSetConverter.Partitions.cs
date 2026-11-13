@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -558,6 +559,7 @@ namespace Opc.Ua.Wot
             IWotNodeResolver context = ComposeSetLocalContext(documents, nodeResolver);
             var results = new List<WotConversionResult<UANodeSet>>();
             var archived = new List<UANode>();
+            var archiveExtensions = new Dictionary<WotDocument, System.Xml.XmlElement[]?>();
             UANodeSet? archiveHeader = null;
             foreach (WotDocumentSetEntry entry in documents.Entries)
             {
@@ -567,6 +569,7 @@ namespace Opc.Ua.Wot
                 {
                     archiveHeader ??= part;
                     archived.AddRange(part.Items ?? []);
+                    archiveExtensions.Add(entry.Document, part.Extensions);
                 }
             }
             if (archiveHeader is not null)
@@ -587,7 +590,70 @@ namespace Opc.Ua.Wot
                     documents.Entries[index].Document, options, resolver, resolution, context,
                     schemaResolver, cancellationToken).ConfigureAwait(false));
             }
+            if (resolver.ArchiveContext is not null)
+            {
+                UANodeSet scalarContext = CreateDocumentSetScalarContext(results, resolver.ArchiveContext);
+                for (int index = 0; index < results.Count; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WotConversionResult<UANodeSet> result = results[index];
+                    if (result.Success && result.Value is { } part &&
+                        archiveExtensions.TryGetValue(
+                            documents.Entries[index].Document, out System.Xml.XmlElement[]? extensions))
+                    {
+                        var diagnostics = result.Diagnostics.ToList();
+                        part.Extensions = extensions;
+                        WotJsonResidue.Replace(
+                            part, documents.Entries[index].Document, options, diagnostics, schemaContext: scalarContext);
+                        results[index] = new WotConversionResult<UANodeSet>(part, diagnostics);
+                    }
+                }
+            }
             return results;
+        }
+
+        /// <summary>
+        /// Combines reconstructed scalar declarations across readable and native partitions for residue checks.
+        /// </summary>
+        private static UANodeSet CreateDocumentSetScalarContext(
+            List<WotConversionResult<UANodeSet>> results,
+            UANodeSet archive)
+        {
+            UANodeSet context = CopyDocumentSetHeader(archive, extensions: false);
+            var types = new List<UANode>();
+            foreach (WotConversionResult<UANodeSet> result in results)
+            {
+                if (result.Value is not { } part)
+                {
+                    continue;
+                }
+                INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(part, WotNodeSetAliases.Instance);
+                foreach (UANode node in part.Items ?? [])
+                {
+                    if (node is UADataType type)
+                    {
+                        types.Add(new UADataType
+                        {
+                            NodeId = ConvertIdentity(type.NodeId),
+                            Definition = type.Definition,
+                            References = (type.References ?? []).Select(reference => new Reference
+                            {
+                                ReferenceType = ConvertIdentity(reference.ReferenceType),
+                                IsForward = reference.IsForward,
+                                Value = ConvertIdentity(reference.Value)
+                            }).ToArray()
+                        });
+                    }
+                }
+
+                string ConvertIdentity(string? identity)
+                {
+                    string resolved = ResolveArchivedAlias(identity, aliases);
+                    return ToNodeSetNodeId(ToPortableNodeId(resolved, part.NamespaceUris) ?? resolved, context, []);
+                }
+            }
+            context.Items = [.. types];
+            return context;
         }
 
         /// <summary>

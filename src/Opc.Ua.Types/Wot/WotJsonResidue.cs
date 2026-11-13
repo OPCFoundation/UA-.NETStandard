@@ -541,6 +541,7 @@ namespace Opc.Ua.Wot
             {
                 return entries;
             }
+            var scalarContext = new WotNodeSetConverter.ReadableScalarContext(schemaContext ?? nodeSet);
             var schemas = new HashSet<JsonElement>(document.ElementComparer);
             foreach (JsonElement schema in WotNodeSetConverter.ReadDataSchemaOccurrences(document))
             {
@@ -578,7 +579,7 @@ namespace Opc.Ua.Wot
                         CaptureAffordanceMap(
                             document, root, property.Value, pointer, property.Name, entries,
                             resolvedDefinitionBinding ?? ResolveDefinitionBinding, ResolveLocalizedContext,
-                            options.UnitMappingProvider, schemaContext ?? nodeSet);
+                            options.UnitMappingProvider, scalarContext);
                         break;
                     case "links":
                         CaptureLinks(property.Value, pointer, entries);
@@ -866,7 +867,7 @@ namespace Opc.Ua.Wot
             Func<JsonElement, string?> resolveDefinitionBinding,
             Func<JsonElement, string?> resolveLocalizedContext,
             IWotUnitMappingProvider? unitMappingProvider,
-            UANodeSet nodeSet)
+            WotNodeSetConverter.ReadableScalarContext scalarContext)
         {
             if (map.ValueKind != JsonValueKind.Object)
             {
@@ -951,12 +952,12 @@ namespace Opc.Ua.Wot
                         case "format":
                         case "contentEncoding":
                             if (!isProperty ||
-                                !WotNodeSetConverter.MapsRankedJsonType(affordance.Value, property.Name, nodeSet))
+                                !WotNodeSetConverter.MapsRankedJsonType(affordance.Value, property.Name, scalarContext))
                             {
                                 string location = affordancePointer + "/" + Escape(property.Name);
                                 if (!isProperty ||
                                     property.Name != "items" ||
-                                    !CaptureRankedItems(affordance.Value, property.Value, location, entries, nodeSet))
+                                    !CaptureRankedItems(affordance.Value, property.Value, location, entries, scalarContext))
                                 {
                                     Add(entries, location, property.Value);
                                 }
@@ -1356,14 +1357,14 @@ namespace Opc.Ua.Wot
             JsonElement items,
             string pointer,
             List<Entry> entries,
-            UANodeSet nodeSet)
+            WotNodeSetConverter.ReadableScalarContext scalarContext)
         {
             int rank = WotNodeSetConverter.ReadValueRank(schema);
             if (rank < 1 || GetString(schema, "type") != "array" || items.ValueKind != JsonValueKind.Object)
             {
                 return false;
             }
-            using JsonDocument? generated = WotNodeSetConverter.CreateRankedJsonType(schema, nodeSet);
+            using JsonDocument? generated = WotNodeSetConverter.CreateRankedJsonType(schema, scalarContext);
             CaptureItemSchema(items, ItemsOf((generated?.RootElement) ?? default), rank - 1, pointer);
             return true;
 
