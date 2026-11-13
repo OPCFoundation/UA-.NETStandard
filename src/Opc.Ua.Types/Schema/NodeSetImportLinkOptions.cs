@@ -90,6 +90,11 @@ namespace Opc.Ua.Export
         /// imported child which belongs in such a slot has to replace the
         /// generated placeholder, or the typed accessor would keep returning
         /// the placeholder while the address space exposes the imported node.
+        /// An imported child which is not of the slot's generated class, for
+        /// example a generic <see cref="PropertyState"/> for a slot declared as
+        /// <see cref="PropertyState{T}"/>, is converted: the slot materializes a
+        /// typed child copied from it, and that typed child replaces the
+        /// imported child in the parent and in the imported node collection.
         /// </remarks>
         public Func<NodeState, BaseInstanceState, bool>? UseTypedReplacement { get; set; }
 
@@ -97,6 +102,11 @@ namespace Opc.Ua.Export
         /// Gets or sets the callback which receives every generated placeholder
         /// displaced by an imported child, together with its replacement.
         /// </summary>
+        /// <remarks>
+        /// The replacement is the node which now occupies the slot: the
+        /// imported child, or the typed child converted from it. The displaced
+        /// placeholder is detached and left unchanged.
+        /// </remarks>
         public Action<BaseInstanceState, BaseInstanceState>? OnTypedReplacement { get; set; }
     }
 }

@@ -215,6 +215,17 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                             isFactoryAuthored?.Invoke(parent) == true),
                     OnTypedReplacement = onTypedReplacement
                 });
+
+            // Linking substitutes a typed child for an imported node which a
+            // typed slot cannot hold directly; resolve the NodeId to it.
+            for (int i = 0; i < m_importedNodes.Count; i++)
+            {
+                NodeState node = m_importedNodes[i];
+                if (!node.NodeId.IsNull)
+                {
+                    m_nodesById[node.NodeId] = node;
+                }
+            }
             m_completed = true;
         }
 

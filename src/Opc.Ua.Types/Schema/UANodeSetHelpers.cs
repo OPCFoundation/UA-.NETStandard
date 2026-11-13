@@ -756,7 +756,7 @@ namespace Opc.Ua.Export
                             : null;
                     if (options?.UseTypedReplacement?.Invoke(parent, instance) == true)
                     {
-                        AttachTypedChild(context, nodes, parent, instance, options);
+                        linkedChild = AttachTypedChild(context, nodes, parent, instance, options);
                     }
                     else if (bindDeclaredChild && TryAttachMethodArguments(parent, instance))
                     {
@@ -947,7 +947,16 @@ namespace Opc.Ua.Export
         /// Attaches an imported child to a parent which declares typed,
         /// explicitly defined children.
         /// </summary>
-        private static void AttachTypedChild(
+        /// <remarks>
+        /// A slot which cannot hold the imported child directly materializes a
+        /// typed child copied from it. That typed child then represents the
+        /// imported node, so the parent never exposes both under one NodeId.
+        /// </remarks>
+        /// <returns>
+        /// The node which represents the imported child in the parent: the
+        /// imported child itself or the typed child copied from it.
+        /// </returns>
+        private static BaseInstanceState AttachTypedChild(
             ISystemContext context,
             NodeStateCollection nodes,
             NodeState parent,
@@ -957,6 +966,7 @@ namespace Opc.Ua.Export
             bool explicitSlotFound = false;
             bool replaced = false;
             bool attached = false;
+            BaseInstanceState linkedChild = instance;
 
             BaseInstanceState? existingChild = parent.FindChild(context, instance.BrowseName);
             if (existingChild is not null && ContainsReference(nodes, existingChild))
@@ -973,13 +983,22 @@ namespace Opc.Ua.Export
                     context,
                     instance,
                     out BaseInstanceState? replacedChild,
+                    out BaseInstanceState? adoptedChild,
                     out explicitSlotFound);
                 if (replaced)
                 {
+                    if (adoptedChild is not null && !ReferenceEquals(adoptedChild, instance))
+                    {
+                        // The slot copied the imported child into a typed
+                        // child, which takes its place from now on.
+                        PreserveImportedMetadata(instance, adoptedChild);
+                        instance.Parent = null;
+                        linkedChild = adoptedChild;
+                    }
                     if (replacedChild is not null)
                     {
                         // An empty slot displaces nothing.
-                        options.OnTypedReplacement?.Invoke(replacedChild, instance);
+                        options.OnTypedReplacement?.Invoke(replacedChild, linkedChild);
                     }
                     attached = true;
                 }
@@ -1001,8 +1020,10 @@ namespace Opc.Ua.Export
             }
 
             if (replaced &&
-                !ReferenceEquals(parent.FindChild(context, instance.BrowseName), instance))
+                !ReferenceEquals(parent.FindChild(context, instance.BrowseName), linkedChild))
             {
+                // The slot holds neither the imported child nor a typed child
+                // copied from it.
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeMismatch,
                     "Typed parent '{0}' did not retain imported child '{1}'. " +
@@ -1010,6 +1031,7 @@ namespace Opc.Ua.Export
                     parent.NodeId,
                     instance.NodeId);
             }
+            return linkedChild;
         }
 
         private static bool ContainsReference(NodeStateCollection nodes, NodeState candidate)
