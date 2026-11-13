@@ -1022,7 +1022,7 @@ Participant deadlines use the manager's injected `TimeProvider`, including on
 
 ### HTTPS resilience vs channel-mgr reconnect
 
-On .NET 8 and later, HTTPS endpoints have two independent resilience layers:
+On .NET 10 and later, HTTPS endpoints have two independent resilience layers:
 
 - **HTTP resilience pipeline** — the named `HttpClient` created through
   [`IOpcUaHttpClientFactory`](../src/Opc.Ua.Core/Stack/Https/OpcUaHttpClientFactory.cs)
@@ -1082,7 +1082,7 @@ services.AddHttpClient("Opc.Ua.Client")
     });
 ```
 
-For direct builder usage on .NET 8 and later, call
+For direct builder usage on .NET 10 and later, call
 [`ManagedSessionBuilder.WithHttpsResilience(...)`](../src/Opc.Ua.Client/Fluent/ManagedSessionBuilder.cs):
 
 ```csharp

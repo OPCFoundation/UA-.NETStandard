@@ -22,8 +22,8 @@
 
  .PARAMETER AdditionalSdks
     Newline-separated SDK versions the job needs besides the global.json SDK,
-    for example the 8.0.x and 9.0.x SDKs whose runtimes the older target
-    frameworks' tests execute on.
+    for example the 10.0.x SDK whose runtime the net10.0 target framework's
+    tests execute on.
 
  .PARAMETER GlobalJsonPath
     Path to the repository global.json.

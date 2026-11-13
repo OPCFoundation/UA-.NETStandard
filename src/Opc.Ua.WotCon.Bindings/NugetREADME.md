@@ -12,7 +12,7 @@ It defines the stable, replaceable protocol-binder contracts used by the materia
 * read / write / observe / action / event operations;
 * structured diagnostics with RFC 6901 JSON Pointers.
 
-Planner/validator binders for HTTP, CoAP, MQTT, Modbus TCP, BACnet, PROFINET, LoRaWAN and OPC UA ship on every supported target framework. HTTP, Modbus TCP, and OPC UA executors are included when targeting net8.0 or later. MQTT remains in the optional `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt` package because it carries the external MQTT transport dependency.
+Planner/validator binders for HTTP, CoAP, MQTT, Modbus TCP, BACnet, PROFINET, LoRaWAN and OPC UA ship on every supported target framework. HTTP, Modbus TCP, and OPC UA executors are included when targeting net10.0 or later. MQTT remains in the optional `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt` package because it carries the external MQTT transport dependency.
 
 The HTTP JSON executor supports complete ordered action inputs and outputs,
 single typed Structures, and typed selected/default event payloads through
@@ -29,7 +29,7 @@ or the runtime is disposed.
 
 ## Target frameworks
 
-The base package targets `net48`, `net8.0`, `net9.0`, and `net10.0`. The planner, plan, codec, credential, diagnostics, and registry APIs are available on all targets. The concrete `Opc.Ua.WotCon.Bindings.Http`, `Opc.Ua.WotCon.Bindings.Modbus`, and `Opc.Ua.WotCon.Bindings.OpcUa` namespaces are available only on `net8.0`, `net9.0`, and `net10.0`.
+The base package targets `net48`, `net10.0`, and `net11.0`. The planner, plan, codec, credential, diagnostics, and registry APIs are available on all targets. The concrete `Opc.Ua.WotCon.Bindings.Http`, `Opc.Ua.WotCon.Bindings.Modbus`, and `Opc.Ua.WotCon.Bindings.OpcUa` namespaces are available only on `net10.0` and `net11.0`.
 
 OPC 10101 target mapping is protocol-neutral and authored on property affordances: `uav:mapToNodeId`, `uav:mapToType`, and `uav:mapByFieldPath` are validated centrally before protocol planning.
 

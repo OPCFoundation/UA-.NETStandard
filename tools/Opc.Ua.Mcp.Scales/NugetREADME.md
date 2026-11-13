@@ -1,7 +1,7 @@
 # OPC UA Scales MCP tools
 
 Embeddable OPC 40200 discovery, weight monitoring, products, recipes and
-explicit scale/PackML commands for .NET 8, 9 and 10. The package follows the
+explicit scale/PackML commands for .NET 10 and 11. The package follows the
 stack's root release channel and is not preview-only.
 
 ```csharp

@@ -553,7 +553,7 @@ Three store types are supported out of the box. Custom store types can be regist
 
 On Windows, private-key directories grant inheritable access to the application
 account, SYSTEM, and Administrators, preserving access to existing keys during
-upgrades. The .NET 8+ Unix implementation uses owner-only directory/file modes
+upgrades. The .NET 10+ Unix implementation uses owner-only directory/file modes
 (`0700`/`0600`). A permission-update failure aborts the write unless the path
 already existed and its current permissions are verified to restrict key access
 to the trusted Windows identities or the Unix owner. That exception is logged;

@@ -25,22 +25,6 @@
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$" />
       </group>
-      <group targetFramework="net8.0">
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Types" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Types" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$" />
-      </group>
-      <group targetFramework="net9.0">
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Types" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Types" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$" />
-      </group>
       <group targetFramework="net10.0">
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Types" version="$version$" />
@@ -59,8 +43,6 @@
     <file src="$codeFixesDllVS2022$" target="analyzers\dotnet\$roslynFolderVS2022$\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll" />
     <file src="$generatorDllVS2022$" target="analyzers\dotnet\$roslynFolderVS2022$\cs\Opc.Ua.MigrationAnalyzer.Generator.dll" />
     <file src="$shimBin$\net48\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net48\Opc.Ua.MigrationAnalyzer.Core.dll" />
-    <file src="$shimBin$\net8.0\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net8.0\Opc.Ua.MigrationAnalyzer.Core.dll" />
-    <file src="$shimBin$\net9.0\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net9.0\Opc.Ua.MigrationAnalyzer.Core.dll" />
     <file src="$shimBin$\net10.0\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net10.0\Opc.Ua.MigrationAnalyzer.Core.dll" />
     <file src="$propsFile$" target="build\OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props" />
     <file src="$repoRoot$\LICENSE.txt" target="LICENSE.txt" />
