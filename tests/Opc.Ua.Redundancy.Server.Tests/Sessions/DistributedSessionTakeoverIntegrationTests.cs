@@ -313,6 +313,140 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
+        /// The ownership write of a restore either finds the entry removed meanwhile (for
+        /// example by the sweep) and writes it again, or keeps conflicting and gives up.
+        /// Either way the activation is valid and the session stays open; only a
+        /// recorded ownership names the backup as the owner.
+        /// </summary>
+        /// <param name="outcome">"removed" or "conflicted".</param>
+        /// <param name="cancellationToken">Test cancellation token.</param>
+        [TestCase("removed")]
+        [TestCase("conflicted")]
+        [CancelAfter(60_000)]
+        public async Task RestoreOwnershipWriteOutcomeKeepsTheSessionAsync(
+            string outcome,
+            CancellationToken cancellationToken)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var backupKv = new GatedSessionWriteStore(kv);
+            var activeFactory = new DistributedSessionManagerFactory(
+                kv,
+                options: new DistributedSessionOptions { EnableFastReconnect = true });
+            var backupFactory = new DistributedSessionManagerFactory(
+                backupKv,
+                NullRecordProtector.Instance,
+                new DistributedSessionOptions { EnableFastReconnect = true });
+            var activeFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
+            {
+                SessionManagerFactory = activeFactory
+            })
+            {
+                SecurityNone = true
+            };
+            var backupFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
+            {
+                SessionManagerFactory = backupFactory
+            })
+            {
+                SecurityNone = true
+            };
+
+            StandardServer? active = null;
+            StandardServer? backup = null;
+            try
+            {
+                active = await activeFixture.StartAsync().ConfigureAwait(false);
+                backup = await backupFixture.StartAsync().ConfigureAwait(false);
+                (RequestHeader activeHeader, _) = await active.CreateAndActivateSessionAsync(
+                    nameof(RestoreOwnershipWriteOutcomeKeepsTheSessionAsync) + outcome).ConfigureAwait(false);
+
+                EndpointDescription backupEndpoint = backup.GetEndpoints()
+                    .Find(e => e.SecurityMode == MessageSecurityMode.None)!;
+                var backupChannelContext = new SecureChannelContext(
+                    "backup-channel",
+                    backupEndpoint,
+                    RequestEncoding.Binary,
+                    null,
+                    null,
+                    null);
+                var takeoverHeader = new RequestHeader
+                {
+                    AuthenticationToken = activeHeader.AuthenticationToken
+                };
+                var backupManager = (DistributedSessionManager)backup.CurrentInstance.SessionManager;
+                var mirror = new SharedKeyValueSessionStore(kv, backup.CurrentInstance.MessageContext);
+                SharedSessionEntry? before = await mirror.TryGetAsync(
+                    activeHeader.AuthenticationToken,
+                    cancellationToken).ConfigureAwait(false);
+                Assert.That(before, Is.Not.Null);
+
+                Task<ActivateSessionResponse> activation;
+                if (outcome == "removed")
+                {
+                    backupKv.HoldSessionWrites = true;
+                    activation = backup.ActivateSessionAsync(
+                        backupChannelContext,
+                        takeoverHeader,
+                        null,
+                        [],
+                        [],
+                        default,
+                        null,
+                        RequestLifetime.None).AsTask();
+                    await backupKv.SessionWriteHeld.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    Assert.That(
+                        await mirror.RemoveAsync(activeHeader.AuthenticationToken, cancellationToken)
+                            .ConfigureAwait(false),
+                        Is.True);
+                    backupKv.ReleaseSessionWrites();
+                }
+                else
+                {
+                    backupKv.FailSessionWrites = true;
+                    activation = backup.ActivateSessionAsync(
+                        backupChannelContext,
+                        takeoverHeader,
+                        null,
+                        [],
+                        [],
+                        default,
+                        null,
+                        RequestLifetime.None).AsTask();
+                }
+                ActivateSessionResponse response = await activation.WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(response.ResponseHeader);
+                Assert.That(
+                    backupManager.GetSessions().Count(s => s.Activated),
+                    Is.EqualTo(1),
+                    "The restored session must stay open on the backup.");
+                SharedSessionEntry? entry = await mirror.TryGetAsync(
+                    activeHeader.AuthenticationToken,
+                    cancellationToken).ConfigureAwait(false);
+                Assert.That(entry, Is.Not.Null);
+                Assert.That(
+                    entry!.OwnerId,
+                    outcome == "removed"
+                        ? Is.EqualTo(backupManager.ReplicaId)
+                        : Is.EqualTo(before!.OwnerId));
+            }
+            finally
+            {
+                backupKv.FailSessionWrites = false;
+                backupKv.ReleaseSessionWrites();
+                if (backup != null)
+                {
+                    await backupFixture.StopAsync().ConfigureAwait(false);
+                }
+                if (active != null)
+                {
+                    await activeFixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Delegates to a shared store and, while <see cref="HoldSessionWrites"/> is set,
         /// holds conditional writes of session entries until they are released.
         /// </summary>
@@ -324,6 +458,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             public bool HoldSessionWrites { get; set; }
+
+            /// <summary>
+            /// Conditional writes of session entries report a conflict without
+            /// writing, as if another replica changed the entry every time.
+            /// </summary>
+            public bool FailSessionWrites { get; set; }
 
             public TaskCompletionSource<bool> SessionWriteHeld { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -350,6 +490,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ByteString value,
                 CancellationToken ct = default)
             {
+                if (FailSessionWrites && key.StartsWith("session/", StringComparison.Ordinal))
+                {
+                    return false;
+                }
                 if (HoldSessionWrites && key.StartsWith("session/", StringComparison.Ordinal))
                 {
                     SessionWriteHeld.TrySetResult(true);
