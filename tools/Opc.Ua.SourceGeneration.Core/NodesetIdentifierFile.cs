@@ -180,7 +180,7 @@ namespace Opc.Ua.SourceGeneration
             string suffix = NormalizePath(relativePath);
             while (suffix.StartsWith("../", StringComparison.Ordinal) ||
                 suffix.StartsWith("./", StringComparison.Ordinal) ||
-                suffix.StartsWith('/'))
+                suffix.StartsWith('/', StringComparison.Ordinal))
             {
                 suffix = suffix[(suffix.IndexOf('/', StringComparison.Ordinal) + 1)..];
             }
@@ -234,7 +234,7 @@ namespace Opc.Ua.SourceGeneration
                     result[^1].Length > 0 &&
                     result[^1] != ".." &&
                     result[^1] != "." &&
-                    !result[^1].EndsWith(':'))
+                    !result[^1].EndsWith(':', StringComparison.Ordinal))
                 {
                     result.RemoveAt(result.Count - 1);
                     continue;
@@ -356,7 +356,7 @@ namespace Opc.Ua.SourceGeneration
                 lineNumber++;
                 line = line.TrimStart('\uFEFF').Trim();
                 if (string.IsNullOrEmpty(line) ||
-                    line.StartsWith('#'))
+                    line.StartsWith('#', StringComparison.Ordinal))
                 {
                     continue;
                 }

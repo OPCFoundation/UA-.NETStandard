@@ -210,8 +210,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 var reports = new List<JsonElement>();
                 foreach (Worker worker in workers)
                 {
-                    string line = worker.WaitFor(l => l.StartsWith('{'), TimeSpan.FromSeconds(600));
-                    reports.Add(JsonDocument.Parse(line).RootElement);
+                    string line = worker.WaitFor(l => l.StartsWith('{', StringComparison.Ordinal), TimeSpan.FromSeconds(600));
+                    reports.Add(JsonElement.Parse(line));
                 }
                 clientCpu = workers.Aggregate(TimeSpan.Zero, (sum, w) => sum + w.Cpu) - clientCpu;
                 string serverReport = await server.ReportAsync().ConfigureAwait(false);
@@ -293,7 +293,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 await tracer.WaitForExitAsync().ConfigureAwait(false);
             }
 
-            JsonElement root = JsonDocument.Parse(line).RootElement;
+            JsonElement root = JsonElement.Parse(line);
             // counts: how far each counter advanced, i.e. the samples the server took
             ulong[] counts = root.GetProperty("counts").EnumerateArray().Select(e => e.GetUInt64()).ToArray();
             double expected = (measuredEnd - measuredStart) / 1e6 / sampling;

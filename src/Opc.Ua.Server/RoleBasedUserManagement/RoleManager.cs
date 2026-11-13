@@ -850,7 +850,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            int separator = criteria.LastIndexOf('/');
+            int separator = criteria.LastIndexOf('/', StringComparison.Ordinal);
             if (separator < 0)
             {
                 return claims.Roles.Contains(criteria, StringComparer.Ordinal);

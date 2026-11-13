@@ -722,8 +722,8 @@ namespace Opc.Ua.Wot
             string origin,
             string reference)
         {
-            if (reference.StartsWith('#') ||
-                (!reference.StartsWith('/') && Uri.TryCreate(reference, UriKind.Absolute, out _)))
+            if (reference.StartsWith('#', StringComparison.Ordinal) ||
+                (!reference.StartsWith('/', StringComparison.Ordinal) && Uri.TryCreate(reference, UriKind.Absolute, out _)))
             {
                 return reference;
             }
@@ -764,7 +764,7 @@ namespace Opc.Ua.Wot
 
         private static string ResolveLocation(string basis, string reference)
         {
-            if (!reference.StartsWith('/') && Uri.TryCreate(reference, UriKind.Absolute, out Uri? absolute))
+            if (!reference.StartsWith('/', StringComparison.Ordinal) && Uri.TryCreate(reference, UriKind.Absolute, out Uri? absolute))
             {
                 return absolute.AbsoluteUri;
             }
@@ -784,18 +784,18 @@ namespace Opc.Ua.Wot
             {
                 int baseFragment = basis.IndexOf('#', StringComparison.Ordinal);
                 string inherited = baseFragment < 0 ? basis : basis[..baseFragment];
-                return (reference.StartsWith('?') ? basePath : inherited) + suffix;
+                return (reference.StartsWith('?', StringComparison.Ordinal) ? basePath : inherited) + suffix;
             }
-            int directoryEnd = basePath.LastIndexOf('/');
-            if (!reference.StartsWith('/') && directoryEnd < 0)
+            int directoryEnd = basePath.LastIndexOf('/', StringComparison.Ordinal);
+            if (!reference.StartsWith('/', StringComparison.Ordinal) && directoryEnd < 0)
             {
                 return reference;
             }
-            path = path.StartsWith('/') ? path : basePath[..(directoryEnd + 1)] + path;
+            path = path.StartsWith('/', StringComparison.Ordinal) ? path : basePath[..(directoryEnd + 1)] + path;
 
             // Relative document-set locations have no absolute URI to borrow.
             // Preserve unresolved leading parents instead of inventing an absolute base.
-            bool rooted = path.StartsWith('/');
+            bool rooted = path.StartsWith('/', StringComparison.Ordinal);
             bool dotPrefix = path.StartsWith("./", StringComparison.Ordinal);
             var segments = new List<string>();
             foreach (string segment in path.Split('/'))

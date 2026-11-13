@@ -1184,7 +1184,7 @@ namespace Opc.Ua.Redundancy.Server
         private static bool TryParseSequence(string key, out ulong sequence)
         {
             sequence = 0;
-            int slash = key.LastIndexOf('/');
+            int slash = key.LastIndexOf('/', StringComparison.Ordinal);
             if (slash < 0 || slash == key.Length - 1)
             {
                 return false;

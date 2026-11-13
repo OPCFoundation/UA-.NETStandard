@@ -259,7 +259,7 @@ namespace Opc.Ua.Mcp.Tools
             }
 
             string trimmed = fieldText.Trim();
-            return trimmed.StartsWith('{')
+            return trimmed.StartsWith('{', StringComparison.Ordinal)
                 ? ParseJsonFields(trimmed)
                 : ParseNameValueFields(trimmed);
         }

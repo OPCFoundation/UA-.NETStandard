@@ -151,8 +151,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 if (!TryParsePublisherProfile(profileArg, out PublisherProfile profile))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --profile value '{profileArg}'. " +
-                        "Expected one of: udp-uadp, eth-uadp, mqtt-uadp, mqtt-json, kafka-uadp, kafka-json.")
+                        ($"Unknown --profile value '{profileArg}'. " +
+                        "Expected one of: udp-uadp, eth-uadp, mqtt-uadp, mqtt-json, kafka-uadp, kafka-json.").AsMemory(), cancellationToken)
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -229,8 +229,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 if (!TryParseSubscriberProfile(profileArg, out SubscriberProfile profile))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --profile value '{profileArg}'. " +
-                        "Expected one of: udp-uadp, eth-uadp, mqtt-uadp, mqtt-json, kafka-uadp, kafka-json.")
+                        ($"Unknown --profile value '{profileArg}'. " +
+                        "Expected one of: udp-uadp, eth-uadp, mqtt-uadp, mqtt-json, kafka-uadp, kafka-json.").AsMemory(), cancellationToken)
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -311,8 +311,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 if (!TryParseBridgeMode(parseResult.GetValue(directionOption), out BridgeMode mode))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --mode value '{parseResult.GetValue(directionOption)}'. " +
-                        "Expected one or more of: publisher, subscriber, responder.")
+                        ($"Unknown --mode value '{parseResult.GetValue(directionOption)}'. " +
+                        "Expected one or more of: publisher, subscriber, responder.").AsMemory(), cancellationToken)
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -320,8 +320,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 if (!TryParseReadMode(parseResult.GetValue(readModeOption), out ReadMode readMode))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --read-mode value '{parseResult.GetValue(readModeOption)}'. " +
-                        "Expected one of: cyclic, subscription.")
+                        ($"Unknown --read-mode value '{parseResult.GetValue(readModeOption)}'. " +
+                        "Expected one of: cyclic, subscription.").AsMemory(), cancellationToken)
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -330,8 +330,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     parseResult.GetValue(affinityOption), out SubscriptionAffinity affinity))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Unknown --affinity value '{parseResult.GetValue(affinityOption)}'. " +
-                        "Expected one of: writergroup, datasetwriter.")
+                        ($"Unknown --affinity value '{parseResult.GetValue(affinityOption)}'. " +
+                        "Expected one of: writergroup, datasetwriter.").AsMemory(), cancellationToken)
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;

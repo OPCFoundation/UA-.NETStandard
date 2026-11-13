@@ -537,17 +537,26 @@ namespace Opc.Ua.Server
 
         private static BigInteger ExtendedGcd(BigInteger a, BigInteger b, out BigInteger x, out BigInteger y)
         {
-            if (b == BigInteger.Zero)
+            // Iterative: the recursive form needs one frame per Euclid step,
+            // which for RSA-sized operands overflowed the test host stack.
+            BigInteger oldR = a;
+            BigInteger r = b;
+            BigInteger oldS = BigInteger.One;
+            BigInteger s = BigInteger.Zero;
+            BigInteger oldT = BigInteger.Zero;
+            BigInteger t = BigInteger.One;
+            while (r != BigInteger.Zero)
             {
-                x = BigInteger.One;
-                y = BigInteger.Zero;
-                return a;
+                BigInteger quotient = BigInteger.DivRem(oldR, r, out BigInteger remainder);
+                oldR = r;
+                r = remainder;
+                (oldS, s) = (s, oldS - (quotient * s));
+                (oldT, t) = (t, oldT - (quotient * t));
             }
 
-            BigInteger gcd = ExtendedGcd(b, a % b, out BigInteger x1, out BigInteger y1);
-            x = y1;
-            y = x1 - (a / b) * y1;
-            return gcd;
+            x = oldS;
+            y = oldT;
+            return oldR;
         }
 
         private static int BitLength(BigInteger value)

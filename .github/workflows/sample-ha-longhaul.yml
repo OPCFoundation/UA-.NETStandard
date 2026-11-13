@@ -68,6 +68,7 @@ jobs:
     - name: Setup .NET from global.json
       uses: actions/setup-dotnet@v6
       with:
+        dotnet-version: 10.0.x
         global-json-file: global.json
 
     - name: Set Cloud Version
