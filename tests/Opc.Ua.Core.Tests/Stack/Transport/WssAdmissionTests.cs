@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         .GetValue(remaining)!;
                     Assert.That(
                         activities.GetType().GetMethod("TryAdd")!.Invoke(activities, [channelId, activity]),
-                        Is.EqualTo(true));
+                        Is.True);
 
                     Assert.That(HttpsTransportListener.TryReclaimSharedCapacity(accessor), Is.True);
                     Assert.That(admission.TryAcquire(null, out UaScConnectionAdmission.Lease? replacement), Is.True);
