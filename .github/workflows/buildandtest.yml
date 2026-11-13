@@ -156,6 +156,13 @@ jobs:
             $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64'  }
             $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
         }
+        # Every RID publishes and runs the NativeAOT tests for the LTS and the
+        # newest target framework.
+        $aotMatrix = @(foreach ($entry in $aotMatrix) {
+            foreach ($tfm in @('net10.0', 'net11.0')) {
+                @{ os = $entry.os; rid = $entry.rid; tfm = $tfm }
+            }
+        })
         Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
         "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "include_macos=$($includeMac.ToString().ToLowerInvariant())"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append
@@ -240,10 +247,10 @@ jobs:
     - uses: ./.github/actions/run-dotnet-tests
       with:
         projects: ./tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj
-        custom-test-target: net10.0
-        framework: net10.0
+        custom-test-target: net11.0
+        framework: net11.0
         configuration: Release
-        dotnet: '10.0.403'
+        dotnet: '11.0.100'
         filter: ''
         hang-timeout: 10m
         per-project-timeout: '30'
@@ -253,7 +260,7 @@ jobs:
 
   # The isolated run above does not reproduce the shard-11 host crash. This one
   # keeps the conditions that differ: the projects, order, category filter and
-  # coverage collection of the macos-net10.0 (11/19) entry from get-ci-matrix.ps1.
+  # coverage collection of the macos-net11.0 (11/19) entry from get-ci-matrix.ps1.
   # Each project still runs in its own test host; only PKCS#11 is traced.
   macos-pkcs11-full-shard-diagnostics:
     needs: discover
@@ -277,10 +284,10 @@ jobs:
       with:
         projects: >-
           tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj;tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj;tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj;tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj
-        custom-test-target: net10.0
-        framework: net10.0
+        custom-test-target: net11.0
+        framework: net11.0
         configuration: Release
-        dotnet: '10.0.403'
+        dotnet: '11.0.100'
         filter: 'TestCategory!=LongRunning&TestCategory!=Stress'
         hang-timeout: 10m
         per-project-timeout: '45'
@@ -464,14 +471,15 @@ jobs:
 
   aot-test:
     needs: discover
-    name: aot-${{ matrix.os }}
+    name: aot-${{ matrix.os }}-${{ matrix.tfm }}
     runs-on: ${{ matrix.os }}
     if: ${{ needs.discover.outputs.aot_matrix != '[]' }}
     strategy:
       fail-fast: false
       matrix:
-        # OS + RID pairs computed by `discover`. Windows AoT is covered by the
-        # full-scope workflow, which publishes and runs all four RIDs.
+        # OS + RID + target framework entries computed by `discover`. Windows
+        # AoT is covered by the full-scope workflow, which publishes and runs all
+        # four RIDs.
         include: ${{ fromJSON(needs.discover.outputs.aot_matrix) }}
 
     env:
@@ -499,40 +507,40 @@ jobs:
       run: ./.azurepipelines/set-version.ps1
 
     - name: Publish NativeAOT
-      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }}
+      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }} --framework ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }}
 
     - name: Run NativeAOT Tests
       run: >-
-        ./tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
+        ./tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/${{ matrix.tfm }}/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
         --results-directory ./TestResults/aot-main
 
     - name: Publish NativeAOT (Historian)
-      run: dotnet publish ${{ env.AOTPROJECT_HISTORIAN }} --configuration ${{ env.CONFIGURATION }}
+      run: dotnet publish ${{ env.AOTPROJECT_HISTORIAN }} --configuration ${{ env.CONFIGURATION }} --framework ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }}
 
     - name: Run NativeAOT Tests (Historian)
       run: >-
-        ./tests/Opc.Ua.Aot.Tests.Historian/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Historian
+        ./tests/Opc.Ua.Aot.Tests.Historian/bin/${{ env.CONFIGURATION }}/${{ matrix.tfm }}/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Historian
         --results-directory ./TestResults/aot-historian
 
     - name: Publish NativeAOT (MCP)
-      run: dotnet publish ${{ env.AOTPROJECT_MCP }} --configuration ${{ env.CONFIGURATION }}
+      run: dotnet publish ${{ env.AOTPROJECT_MCP }} --configuration ${{ env.CONFIGURATION }} --framework ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }}
 
     - name: Run NativeAOT Tests (MCP)
       run: >-
-        ./tests/Opc.Ua.Aot.Tests.Mcp/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Mcp
+        ./tests/Opc.Ua.Aot.Tests.Mcp/bin/${{ env.CONFIGURATION }}/${{ matrix.tfm }}/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Mcp
         --results-directory ./TestResults/aot-mcp
 
     - name: Upload test results
       uses: actions/upload-artifact@v7
       with:
-        name: aot-results-${{ matrix.os }}
+        name: aot-results-${{ matrix.os }}-${{ matrix.tfm }}
         path: '**/TestResults/**'
       if: ${{ always() }}
 
     - name: Upload HTML Test Report
       uses: actions/upload-artifact@v7
       with:
-        name: TestReport-aot-${{ matrix.os }}
+        name: TestReport-aot-${{ matrix.os }}-${{ matrix.tfm }}
         path: '**/*-report.html'
       if: ${{ always() }}
 
@@ -604,6 +612,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
+        dotnet-version: 10.0.x
         global-json-file: global.json
     - name: Validate manifest and negative controls
       shell: pwsh
@@ -655,12 +664,13 @@ jobs:
         # Full history: Nerdbank.GitVersioning refuses to compute a version from
         # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
-    - name: Setup .NET 8 and 9 runtimes
+    - name: Setup .NET 8, 9 and 10 runtimes
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: |
           8.0.x
           9.0.x
+          10.0.x
     - name: Setup repository .NET SDK
       uses: actions/setup-dotnet@v6
       with:

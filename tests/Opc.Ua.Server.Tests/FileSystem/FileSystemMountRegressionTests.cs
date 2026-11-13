@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
             // Delete and MoveOrCopy are called on the directory that organizes the source.
-            string parentPath = providerPath[..providerPath.LastIndexOf('/')];
+            string parentPath = providerPath[..providerPath.LastIndexOf('/', StringComparison.Ordinal)];
             var parent = new DirectoryObjectState(manager.SystemContext,
                 FileSystemNodeId.BuildDirectory(parentPath, manager.NamespaceIndex), parentPath, parentPath,
                 isRoot: false);

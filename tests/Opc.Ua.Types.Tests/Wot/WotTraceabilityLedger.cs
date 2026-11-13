@@ -138,7 +138,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 return "is a type that is not a TestFixture";
             }
 
-            int lastDot = name.LastIndexOf('.');
+            int lastDot = name.LastIndexOf('.', StringComparison.Ordinal);
             if (lastDot <= 0)
             {
                 return "is neither a fixture nor a method";

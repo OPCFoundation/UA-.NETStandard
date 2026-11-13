@@ -1,7 +1,7 @@
 # Performance tooling
 
 Tools for measuring server and client latency, throughput and GC cost under load. They are not
-part of the product build (not in `UA.slnx`) and target `net10.0` only.
+part of the product build (not in `UA.slnx`) and target `net10.0` and `net11.0` (build one with `CustomTestTarget`). The server child runs on the same runtime as the harness, so the two builds compare the runtimes.
 
 | Path | Purpose |
 |---|---|
@@ -37,6 +37,7 @@ are described in [docs/ServerScalability.md](../docs/ServerScalability.md#runtim
 
 ```bash
 CustomTestTarget=net10.0 dotnet build perf/ServerLoadHarness -c Release
+CustomTestTarget=net11.0 dotnet build perf/ServerLoadHarness -c Release
 dotnet build perf/TraceAnalyzer -c Release
 dotnet tool install -g dotnet-trace
 ```

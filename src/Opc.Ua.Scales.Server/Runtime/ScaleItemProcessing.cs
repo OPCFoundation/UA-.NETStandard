@@ -166,10 +166,23 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             cancellationToken.ThrowIfCancellationRequested();
             decimal amount = decimal.Round(
-                checked((decimal)request.Item.Weight.Net * request.UnitPrice),
+                checked(ToDecimal(request.Item.Weight.Net) * request.UnitPrice),
                 m_decimalPlaces,
                 m_rounding);
             return new ValueTask<ScaleItemPrice?>(new ScaleItemPrice(amount, request.Currency));
+        }
+
+        /// <summary>
+        /// Converts a measured weight with 15 significant digits, as the double
+        /// to decimal conversion did before .NET 11. .NET 11 converts exactly,
+        /// so 1.005 would become 1.00499999... and round down.
+        /// </summary>
+        internal static decimal ToDecimal(double value)
+        {
+            return decimal.Parse(
+                value.ToString("G15", System.Globalization.CultureInfo.InvariantCulture),
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture);
         }
 
         /// <summary>The selected monetary precision.</summary>

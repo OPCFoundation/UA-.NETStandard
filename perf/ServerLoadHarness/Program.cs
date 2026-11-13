@@ -1065,7 +1065,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     null, 1000, 600, 10, 0, true, 0, CancellationToken.None).ConfigureAwait(false);
                 m_churnSubscriptions[session] = response.SubscriptionId;
             }
-            m_churnItems = m_read.ToArray().Select((r, i) => new MonitoredItemCreateRequest
+            m_churnItems = (m_read.ToArray() ?? []).Select((r, i) => new MonitoredItemCreateRequest
             {
                 ItemToMonitor = r,
                 MonitoringMode = MonitoringMode.Reporting,
@@ -1084,7 +1084,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             uint subscriptionId = m_churnSubscriptions[session];
             CreateMonitoredItemsResponse created = await session.CreateMonitoredItemsAsync(
                 null, subscriptionId, TimestampsToReturn.Both, m_churnItems, ct).ConfigureAwait(false);
-            MonitoredItemCreateResult[] createResults = created.Results.ToArray();
+            MonitoredItemCreateResult[] createResults = created.Results.ToArray() ?? [];
             // delete what was created even when part of the batch failed, then count the pair
             // only when every create and every delete succeeded.
             uint[] ids = createResults
@@ -1098,7 +1098,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 DeleteMonitoredItemsResponse deleted = await session.DeleteMonitoredItemsAsync(
                     null, subscriptionId, ids, ct).ConfigureAwait(false);
-                StatusCode[] deleteResults = deleted.Results.ToArray();
+                StatusCode[] deleteResults = deleted.Results.ToArray() ?? [];
                 if (StatusCode.IsGood(failure))
                 {
                     failure = deleteResults.Length != ids.Length

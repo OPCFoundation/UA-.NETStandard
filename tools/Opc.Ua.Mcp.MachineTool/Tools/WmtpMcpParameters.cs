@@ -90,7 +90,9 @@ namespace Opc.Ua.Mcp.Tools
                     ArgumentOutOfRangeException.ThrowIfGreaterThan(from, to);
                     return new WmtpRecordQuery
                     {
-                        Selection = WmtpRecordSelection.Index, FromIndex = from, ToIndex = to
+                        Selection = WmtpRecordSelection.Index,
+                        FromIndex = from,
+                        ToIndex = to
                     };
                 case "time":
                     Shape(value, ["selection", "fromTime", "toTime"]);
@@ -102,7 +104,9 @@ namespace Opc.Ua.Mcp.Tools
                     }
                     return new WmtpRecordQuery
                     {
-                        Selection = WmtpRecordSelection.Time, FromTime = start, ToTime = end
+                        Selection = WmtpRecordSelection.Time,
+                        FromTime = start,
+                        ToTime = end
                     };
                 default:
                     throw new ArgumentException("The selection is not supported by this operation.", nameof(value));
@@ -277,7 +281,7 @@ namespace Opc.Ua.Mcp.Tools
         private static DateTimeUtc Utc(JsonElement value)
         {
             string text = Text(value, 32);
-            if (!text.EndsWith('Z') || !value.TryGetDateTimeOffset(out DateTimeOffset time))
+            if (!text.EndsWith('Z', StringComparison.Ordinal) || !value.TryGetDateTimeOffset(out DateTimeOffset time))
             {
                 throw new ArgumentException("An ISO 8601 UTC timestamp ending in Z is required.");
             }
