@@ -282,6 +282,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             closing.Dispose();
             await Assert.CatchAsync(async () => await abandoned.ConfigureAwait(false));
 
+            // the client does not wait for the server to process the close: the response
+            // is dropped only once the listener has closed its side of the channel
+            Assert.That(await WaitForAsync(() => loopback.Logs.Any(l =>
+                l.EventId == CoreEventIds.TcpTransportListener + 4))
+                .ConfigureAwait(false), Is.True, "The server did not close the channel.");
+
             source.SetResult(Respond(CreateReadRequest(1)));
 
             Assert.That(await WaitForAsync(() => loopback.Logs.Any(l =>
