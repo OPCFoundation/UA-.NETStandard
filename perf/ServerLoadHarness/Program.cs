@@ -809,7 +809,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         long Timestamp,
         int Threads,
         long WorkingSet,
-        long Heap)
+        long Heap,
+        TimeSpan UserCpu,
+        long WorkItems)
     {
         public static ProcessStats Capture()
         {
@@ -825,7 +827,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 Stopwatch.GetTimestamp(),
                 ThreadPool.ThreadCount,
                 process.WorkingSet64,
-                GC.GetGCMemoryInfo().HeapSizeBytes);
+                GC.GetGCMemoryInfo().HeapSizeBytes,
+                process.UserProcessorTime,
+                ThreadPool.CompletedWorkItemCount);
         }
 
         public string Delta(ProcessStats mark)
@@ -839,7 +843,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                 $"cpuMs={cpu.TotalMilliseconds:F0} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
                 FormattableString.Invariant(
-                $"contention={Contention - mark.Contention} threads={Threads} wsMB={WorkingSet / 1048576} heapMB={Heap / 1048576}");
+                $"contention={Contention - mark.Contention} threads={Threads} wsMB={WorkingSet / 1048576} heapMB={Heap / 1048576} ") +
+                FormattableString.Invariant(
+                $"userMs={(UserCpu - mark.UserCpu).TotalMilliseconds:F0} workItems={WorkItems - mark.WorkItems}");
         }
     }
 
