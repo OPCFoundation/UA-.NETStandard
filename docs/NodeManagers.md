@@ -1857,6 +1857,21 @@ For source-generated models, the publisher fills
 `ModelDependencyAttribute` stamped on model assemblies. Existing
 metadata objects and already-populated values are preserved.
 
+An existing metadata object is recognized by its type definition
+(`NamespaceMetadataType` or a subtype) and its `NamespaceUri` property,
+not by its CLR state type. A companion NodeSet imported with
+`UANodeSet.Import(context, nodes)` and no state factory carries its own
+metadata object as a plain `BaseObjectState`; the publisher keeps that
+object as the only metadata object of its namespace instead of creating
+a duplicate, and leaves its values untouched. Its
+`DefaultRolePermissions`, `DefaultUserRolePermissions` and
+`DefaultAccessRestrictions` properties, whether linked as children or
+only through `HasProperty` references, provide the namespace default
+permissions, and changes to their values invalidate the permission
+caches. Because no `NamespaceMetadataState` exists for such a namespace,
+`IConfigurationNodeManager.GetNamespaceMetadataStateAsync` and
+`CreateNamespaceMetadataStateAsync` return `null` for it.
+
 #### Node-manager authoring note
 
 Attaching a child to an object owned by another node manager is not

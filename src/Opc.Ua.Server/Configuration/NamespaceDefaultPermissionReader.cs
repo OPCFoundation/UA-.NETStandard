@@ -34,8 +34,8 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Resolves a <see cref="NamespaceMetadataState"/> without awaiting, so synchronous node
-    /// managers can read namespace defaults without blocking on asynchronous lookups.
+    /// Resolves the namespace metadata Object, typed or untyped, without awaiting, so synchronous
+    /// node managers can read namespace defaults without blocking on asynchronous lookups.
     /// </summary>
     internal interface INamespaceMetadataSnapshot
     {
@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
         /// definitive absence (<paramref name="state"/> is <c>null</c>), is known without awaiting.
         /// Returns <c>false</c> when the answer requires an asynchronous lookup.
         /// </summary>
-        bool TryGetNamespaceMetadataState(ushort namespaceIndex, out NamespaceMetadataState? state);
+        bool TryGetNamespaceMetadataState(ushort namespaceIndex, out NamespaceMetadataNode? state);
     }
 
     /// <summary>
@@ -111,14 +111,19 @@ namespace Opc.Ua.Server
             }
 
             long generation = Generation;
-            NamespaceMetadataState? state = null;
+            NamespaceMetadataNode? state = null;
             IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
             if (configuration != null)
             {
                 try
                 {
-                    state = await configuration.GetNamespaceMetadataStateAsync(namespaceIndex, cancellationToken)
-                        .ConfigureAwait(false);
+                    // the configuration node manager also resolves untyped metadata Objects.
+                    state = configuration is ConfigurationNodeManager manager
+                        ? await manager.GetNamespaceMetadataNodeAsync(namespaceIndex, cancellationToken)
+                            .ConfigureAwait(false)
+                        : NamespaceMetadataNode.From(await configuration
+                            .GetNamespaceMetadataStateAsync(namespaceIndex, cancellationToken)
+                            .ConfigureAwait(false));
                 }
                 catch (OperationCanceledException)
                 {
@@ -163,7 +168,7 @@ namespace Opc.Ua.Server
             }
 
             long generation = Generation;
-            NamespaceMetadataState? state = null;
+            NamespaceMetadataNode? state = null;
             IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
             if (configuration != null)
             {
@@ -204,7 +209,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(callerContext));
             }
 
-            return Decode(callerContext, state, namespaceIndex, Generation);
+            return Decode(callerContext, NamespaceMetadataNode.From(state), namespaceIndex, Generation);
         }
 
         /// <summary>
@@ -212,7 +217,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static NamespaceDefaultPermissions Decode(
             ServerSystemContext callerContext,
-            NamespaceMetadataState? state,
+            NamespaceMetadataNode? state,
             ushort namespaceIndex,
             long generation)
         {
@@ -348,7 +353,7 @@ namespace Opc.Ua.Server
         internal static bool TryGetStaticDefaults(
             IServerInternal server,
             ushort namespaceIndex,
-            out NamespaceMetadataState? state)
+            out NamespaceMetadataNode? state)
         {
             state = null;
             IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
@@ -376,7 +381,7 @@ namespace Opc.Ua.Server
         /// default value, which is all <see cref="Generation"/> observes.
         /// </summary>
         /// <param name="state">The metadata node, or <c>null</c>.</param>
-        internal static bool AreDefaultsStatic(NamespaceMetadataState? state)
+        internal static bool AreDefaultsStatic(NamespaceMetadataNode? state)
         {
             return state == null ||
                 (IsStatic(state.DefaultAccessRestrictions) &&

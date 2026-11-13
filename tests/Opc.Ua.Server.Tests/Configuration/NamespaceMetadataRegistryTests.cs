@@ -404,9 +404,127 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [Test]
+        public async Task UntypedMetadataChildIsFoundAndNeverDuplicatedAsync()
+        {
+            // A NamespaceMetadataType object imported without a state factory
+            // is a plain BaseObjectState, here of a NamespaceMetadataType subtype.
+            var host = new FakeHost(withNamespacesNode: true);
+            var subtypeId = new NodeId("NamespaceMetadataSubtype", host.NamespaceIndex);
+            host.SystemContext.Server.TypeTree.AddSubtype(ObjectTypeIds.NamespaceMetadataType, NodeId.Null);
+            host.SystemContext.Server.TypeTree.AddSubtype(subtypeId, ObjectTypeIds.NamespaceMetadataType);
+            (BaseObjectState untyped, PropertyState roles) = host.AddUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri, subtypeId);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+
+            NamespaceMetadataNode? found = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceMetadataState? typed = await registry.GetAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceMetadataState created = await registry.CreateAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceMetadataNode? existing = await registry.GetOrCreateNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            bool known = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found, Is.Not.Null);
+                Assert.That(found!.Node, Is.SameAs(untyped));
+                Assert.That(found.TypedState, Is.Null);
+                Assert.That(found.NamespaceUri, Is.EqualTo(DeterministicServerMock.TestNamespaceUri));
+                Assert.That(found.DefaultRolePermissions, Is.SameAs(roles));
+                Assert.That(typed, Is.Null, "the untyped object has no typed state");
+                Assert.That(created, Is.Null, "the untyped object is kept instead of a typed duplicate");
+                Assert.That(existing?.Node, Is.SameAs(untyped));
+                Assert.That(known, Is.True);
+                Assert.That(snapshot?.Node, Is.SameAs(untyped));
+                Assert.That(host.RegisteredNodes, Is.Empty, "no duplicate metadata node is created");
+            });
+        }
+
+        [Test]
+        public async Task UntypedForeignMetadataDefaultPermissionsAreHonouredAsync()
+        {
+            // The NodeSet object is owned by another manager and linked through a
+            // reference; its properties are separate nodes linked by HasProperty.
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, PropertyState roles) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            registry.Attach(host.SystemContext);
+            int raised = 0;
+            registry.DefaultPermissionsChanged += (_, _) => raised++;
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager.ConfigurationNodeManager!).As<INamespaceMetadataSnapshot>()
+                .Setup(value => value.TryGetNamespaceMetadataState(index, out It.Ref<NamespaceMetadataNode?>.IsAny))
+                .Returns(new TryGetSnapshotCallback(registry.TryGetSnapshot));
+
+            Assert.That(registry.TryGetSnapshot(index, out _), Is.False, "the reference is not resolved yet");
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+
+            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+            NamespaceMetadataNode? existing = await registry.GetOrCreateNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(defaults.DefaultRolePermissions, Is.EqualTo(GetRolePermissions(roles)));
+                Assert.That(existing?.Node, Is.SameAs(untyped));
+                Assert.That(host.RegisteredNodes, Is.Empty, "no duplicate metadata node is created");
+            });
+
+            long generation = NamespaceDefaultPermissionReader.Generation;
+            roles.Value = Variant.FromStructure(NextPermissions());
+            roles.ClearChangeMasks(host.SystemContext, false);
+            NamespaceDefaultPermissions changed = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+            Assert.Multiple(() =>
+            {
+                Assert.That(raised, Is.EqualTo(1), "a changed default of the untyped object is observed");
+                Assert.That(NamespaceDefaultPermissionReader.Generation, Is.Not.EqualTo(generation));
+                Assert.That(changed.DefaultRolePermissions, Is.EqualTo(GetRolePermissions(roles)));
+            });
+
+            registry.Detach();
+            roles.Value = Variant.FromStructure(NextPermissions());
+            roles.ClearChangeMasks(host.SystemContext, false);
+            Assert.That(raised, Is.EqualTo(1), "Detach releases the untyped object's properties");
+        }
+
+        [Test]
+        public async Task UntypedObjectWithOtherTypeOrNamespaceUriIsIgnoredAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            host.AddUntypedMetadataNode("urn:plain", ObjectTypeIds.BaseObjectType);
+            host.AddUntypedMetadataNode("urn:other", ObjectTypeIds.NamespaceMetadataType);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+
+            NamespaceMetadataNode? plain = await registry.GetNodeAsync("urn:plain").ConfigureAwait(false);
+            NamespaceMetadataNode? missing = await registry.GetNodeAsync("urn:missing").ConfigureAwait(false);
+            NamespaceMetadataState created = await registry.CreateAsync("urn:plain").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(plain, Is.Null, "an object of another type is not namespace metadata");
+                Assert.That(missing, Is.Null, "metadata of another namespace does not match");
+                Assert.That(created, Is.Not.Null);
+                Assert.That(host.RegisteredNodes, Is.EqualTo(new[] { created }));
+            });
+        }
+
         private static NamespaceMetadataRegistry CreateRegistry(FakeHost host)
         {
             return new NamespaceMetadataRegistry(host, s_telemetry.CreateLogger<NamespaceMetadataRegistry>());
+        }
+
+        private static ArrayOf<RolePermissionType> GetRolePermissions(PropertyState property)
+        {
+            Assert.That(property.Value.TryGetStructure(out ArrayOf<RolePermissionType> permissions), Is.True);
+            return permissions;
         }
 
         /// <summary>
@@ -588,6 +706,11 @@ namespace Opc.Ua.Server.Tests
             in DataValue value, ServiceResult? error, bool ignoreFilters);
 
         /// <summary>
+        /// Answers synchronous metadata lookups from the registry under test.
+        /// </summary>
+        private delegate bool TryGetSnapshotCallback(ushort namespaceIndex, out NamespaceMetadataNode? state);
+
+        /// <summary>
         /// Writes a new, distinct permission set so a <c>Value</c> change mask
         /// is raised on every call, then flushes the masks to fire
         /// <c>StateChanged</c>.
@@ -695,6 +818,80 @@ namespace Opc.Ua.Server.Tests
                     .Setup(m => m.FindNodeInAddressSpaceAsync(metadata.NodeId, It.IsAny<CancellationToken>()))
                     .ReturnsAsync(metadata);
                 return metadata;
+            }
+
+            /// <summary>
+            /// Adds an untyped metadata Object with linked property children as a
+            /// child of <c>Server/Namespaces</c>, the way a NodeSet imported
+            /// without a state factory but with linked children provides it.
+            /// </summary>
+            public (BaseObjectState Node, PropertyState DefaultRolePermissions) AddUntypedMetadataNode(
+                string namespaceUri,
+                NodeId typeDefinitionId)
+            {
+                (BaseObjectState node, PropertyState namespaceUriProperty, PropertyState roles) =
+                    CreateUntypedMetadataNode(namespaceUri, typeDefinitionId);
+                node.AddChild(namespaceUriProperty);
+                node.AddChild(roles);
+                NamespacesNode!.AddChild(node);
+                return (node, roles);
+            }
+
+            /// <summary>
+            /// Adds an untyped metadata Object owned by "another manager", the way
+            /// <c>UANodeSet.Import</c> without a state factory and without linking
+            /// creates it: it is only reachable through a forward reference of
+            /// <c>Server/Namespaces</c> and its properties are separate nodes
+            /// linked through <c>HasProperty</c> references.
+            /// </summary>
+            public (BaseObjectState Node, PropertyState DefaultRolePermissions) AddForeignUntypedMetadataNode(
+                string namespaceUri)
+            {
+                (BaseObjectState node, PropertyState namespaceUriProperty, PropertyState roles) =
+                    CreateUntypedMetadataNode(namespaceUri, ObjectTypeIds.NamespaceMetadataType);
+                Mock<IMasterNodeManager> nodeManager = Mock.Get(SystemContext.Server.NodeManager);
+                foreach (NodeState target in new NodeState[] { node, namespaceUriProperty, roles })
+                {
+                    nodeManager
+                        .Setup(m => m.FindNodeInAddressSpaceAsync(target.NodeId, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(target);
+                }
+
+                node.AddReference(ReferenceTypeIds.HasProperty, false, namespaceUriProperty.NodeId);
+                node.AddReference(ReferenceTypeIds.HasProperty, false, roles.NodeId);
+                NamespacesNode!.AddReference(ReferenceTypeIds.HasComponent, false, node.NodeId);
+                return (node, roles);
+            }
+
+            private (BaseObjectState Node, PropertyState NamespaceUri, PropertyState Roles) CreateUntypedMetadataNode(
+                string namespaceUri,
+                NodeId typeDefinitionId)
+            {
+                var node = new BaseObjectState(null)
+                {
+                    BrowseName = new QualifiedName(namespaceUri, NamespaceIndex),
+                    TypeDefinitionId = typeDefinitionId
+                };
+                node.NodeId = New(SystemContext, node);
+                var namespaceUriProperty = new PropertyState(null)
+                {
+                    BrowseName = new QualifiedName(BrowseNames.NamespaceUri),
+                    DataType = DataTypeIds.String,
+                    ValueRank = ValueRanks.Scalar,
+                    Value = new Variant(namespaceUri)
+                };
+                namespaceUriProperty.NodeId = New(SystemContext, namespaceUriProperty);
+                var roles = new PropertyState(null)
+                {
+                    BrowseName = new QualifiedName(BrowseNames.DefaultRolePermissions),
+                    DataType = DataTypeIds.RolePermissionType,
+                    ValueRank = ValueRanks.OneDimension,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    Value = Variant.FromStructure(NextPermissions())
+                };
+                roles.NodeId = New(SystemContext, roles);
+                return (node, namespaceUriProperty, roles);
             }
 
             private NamespaceMetadataState CreateMetadataNode(string namespaceUri)

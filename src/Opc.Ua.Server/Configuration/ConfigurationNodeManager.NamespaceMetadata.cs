@@ -55,6 +55,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns <c>null</c> when the namespace is described by a
+        /// <c>NamespaceMetadataType</c> Object that is not a
+        /// <see cref="NamespaceMetadataState"/>, e.g. one created by an untyped
+        /// NodeSet import.
+        /// </remarks>
         public ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(
             string namespaceUri,
             CancellationToken cancellationToken = default)
@@ -63,6 +69,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns <c>null</c> when the namespace is described by a
+        /// <c>NamespaceMetadataType</c> Object that is not a
+        /// <see cref="NamespaceMetadataState"/>, e.g. one created by an untyped
+        /// NodeSet import.
+        /// </remarks>
         public ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(
             ushort namespaceIndex,
             CancellationToken cancellationToken = default)
@@ -123,10 +135,44 @@ namespace Opc.Ua.Server
             return result;
         }
 
+        /// <summary>
+        /// Gets the metadata Object of <paramref name="namespaceUri"/>, typed
+        /// or untyped, or <c>null</c> when the namespace has none.
+        /// </summary>
+        internal ValueTask<NamespaceMetadataNode?> GetNamespaceMetadataNodeAsync(
+            string namespaceUri,
+            CancellationToken cancellationToken = default)
+        {
+            return m_namespaceMetadata.GetNodeAsync(namespaceUri, cancellationToken);
+        }
+
+        /// <summary>
+        /// Gets the metadata Object of <paramref name="namespaceIndex"/>, typed
+        /// or untyped, or <c>null</c> when the namespace has none.
+        /// </summary>
+        internal ValueTask<NamespaceMetadataNode?> GetNamespaceMetadataNodeAsync(
+            ushort namespaceIndex,
+            CancellationToken cancellationToken = default)
+        {
+            return m_namespaceMetadata.GetNodeAsync(namespaceIndex, cancellationToken);
+        }
+
+        /// <summary>
+        /// Gets the metadata Object of <paramref name="namespaceUri"/>, typed or
+        /// untyped, and creates a <see cref="NamespaceMetadataState"/> only when
+        /// the namespace has none; <c>null</c> when it cannot be created.
+        /// </summary>
+        internal ValueTask<NamespaceMetadataNode?> GetOrCreateNamespaceMetadataNodeAsync(
+            string namespaceUri,
+            CancellationToken cancellationToken = default)
+        {
+            return m_namespaceMetadata.GetOrCreateNodeAsync(namespaceUri, cancellationToken);
+        }
+
         /// <inheritdoc/>
         bool INamespaceMetadataSnapshot.TryGetNamespaceMetadataState(
             ushort namespaceIndex,
-            out NamespaceMetadataState? state)
+            out NamespaceMetadataNode? state)
         {
             return m_namespaceMetadata.TryGetSnapshot(namespaceIndex, out state);
         }

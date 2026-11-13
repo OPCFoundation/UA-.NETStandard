@@ -182,7 +182,7 @@ namespace Opc.Ua.Server.Tests
             core.Setup(value => value.SyncNodeManager).Returns(Mock.Of<INodeManager>());
             var factory = new Mock<IMainNodeManagerFactory>();
             var configuration = new Mock<IConfigurationNodeManager>();
-            NamespaceMetadataState? noMetadata = null;
+            NamespaceMetadataNode? noMetadata = null;
             configuration.As<INamespaceMetadataSnapshot>()
                 .Setup(value => value.TryGetNamespaceMetadataState(It.IsAny<ushort>(), out noMetadata))
                 .Returns(true);
