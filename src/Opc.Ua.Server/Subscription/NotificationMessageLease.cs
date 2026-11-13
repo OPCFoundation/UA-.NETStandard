@@ -140,8 +140,7 @@ namespace Opc.Ua.Server
             {
                 if (data[i].TryGetValue(out DataChangeNotification? dcn))
                 {
-                    // the MonitoredItemNotification entries are not pooled (see
-                    // MonitoredItem.Publish) and are left to the garbage collector.
+                    // the MonitoredItemNotification entries are values in the rented array.
                     (dcn as IPooledEncodeable)?.Reuse();
                 }
                 else if (data[i].TryGetValue(out EventNotificationList? enl))

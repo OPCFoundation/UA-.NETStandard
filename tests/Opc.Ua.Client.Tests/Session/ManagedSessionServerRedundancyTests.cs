@@ -395,10 +395,16 @@ namespace Opc.Ua.Client.Tests
             session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
 
             await session.FailoverAsync(set.Backup.Endpoint, timeout.Token).ConfigureAwait(false);
-            await WaitUntilAsync(() => states.Contains(ConnectionState.Connected), timeout.Token).ConfigureAwait(false);
+            await WaitUntilAsync(
+                () => states.SkipWhile(s => s != ConnectionState.Failover).Contains(ConnectionState.Connected),
+                timeout.Token).ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
-            Assert.That(states.ToArray(), Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
+            // the Connected change of the initial connect can be raised after the handler is
+            // attached; only the transitions from the failover on belong to this call.
+            Assert.That(
+                states.SkipWhile(s => s != ConnectionState.Failover).ToArray(),
+                Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
             DataValue level = await session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(level.GetValue<byte>(0), Is.EqualTo(230));
