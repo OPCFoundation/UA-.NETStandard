@@ -909,7 +909,7 @@ namespace Alarms
                 if (name.EndsWith(AlarmDefines.TRIGGER_EXTENSION, StringComparison.Ordinal) ||
                     name.EndsWith(AlarmDefines.ALARM_EXTENSION, StringComparison.Ordinal))
                 {
-                    int lastDot = name.LastIndexOf('.');
+                    int lastDot = name.LastIndexOf('.', StringComparison.Ordinal);
                     mapName = name[..lastDot];
                 }
 

@@ -400,9 +400,9 @@ namespace Opc.Ua.Mcp
             string text = Text(value.GetString(), 64);
             int separator = text.IndexOf('T', StringComparison.Ordinal);
             if (separator < 0 ||
-                (!text.EndsWith('Z') &&
-                    text.IndexOf('+', separator) < 0 &&
-                    text.IndexOf('-', separator) < 0))
+                (!text.EndsWith('Z', StringComparison.Ordinal) &&
+                    text.IndexOf('+', separator, StringComparison.Ordinal) < 0 &&
+                    text.IndexOf('-', separator, StringComparison.Ordinal) < 0))
             {
                 throw new ArgumentException("DateTime values require Z or an explicit UTC offset.");
             }

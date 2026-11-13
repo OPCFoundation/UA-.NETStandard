@@ -25,7 +25,7 @@
 #   --build-arg PUBLISH_SOURCE=prebuilt --build-arg PUBLISH_DIR=<folder>
 ARG PUBLISH_SOURCE=build
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:11.0-azurelinux3.0 AS build
 WORKDIR /src
 
 # JIT is disabled for the source generators unless W^X is turned off on
@@ -60,7 +60,7 @@ RUN dotnet restore "samples/Di/PumpDeviceIntegrationServer/PumpDeviceIntegration
 RUN dotnet publish "samples/Di/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
         --no-restore \
         -c Release \
-        -f net10.0 \
+        -f net11.0 \
         -p:PublishAot=false \
         -p:Dockerbuild=true \
         -p:Version=${Version} \
@@ -78,7 +78,7 @@ FROM ${PUBLISH_SOURCE} AS publish
 
 # Lay out the final file system natively; the final stage below only copies
 # it, which needs no emulation for a foreign target platform.
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS layout
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/runtime:11.0-azurelinux3.0 AS layout
 
 # AzureLinux forces the SymCrypt OpenSSL provider as the default for all
 # EVP operations (default_properties = "?provider=symcryptprovider" in
@@ -100,7 +100,7 @@ RUN mkdir -p /openssl /layout/app/pki /layout/diag \
     && chown -R $APP_UID:0 /layout/app /layout/diag \
     && chmod -R g=u /layout/app /layout/diag
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0-distroless-extra AS final
+FROM mcr.microsoft.com/dotnet/runtime:11.0-azurelinux3.0-distroless-extra AS final
 COPY --from=layout /openssl/openssl.cnf /etc/pki/tls/openssl.cnf
 # Copy the parent so /app and /diag keep their owner and mode, not only
 # their contents.

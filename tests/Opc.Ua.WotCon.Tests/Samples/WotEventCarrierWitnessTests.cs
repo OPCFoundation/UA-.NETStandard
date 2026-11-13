@@ -286,7 +286,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string href = fragment < 0 ? reference : reference[..fragment];
             href = href.StartsWith("./", StringComparison.Ordinal) ? href[2..] : href;
             href = href.EndsWith(".json", StringComparison.Ordinal) ? href[..^5] : href;
-            return href[(href.LastIndexOf('/') + 1)..];
+            return href[(href.LastIndexOf('/', StringComparison.Ordinal) + 1)..];
         }
 
         private static Dictionary<string, byte[]> ReadCorpus()

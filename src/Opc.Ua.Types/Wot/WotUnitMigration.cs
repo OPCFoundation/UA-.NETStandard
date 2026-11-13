@@ -112,7 +112,7 @@ namespace Opc.Ua.Wot
             {
                 return true;
             }
-            int separator = unit!.IndexOf(':', 0);
+            int separator = unit!.IndexOf(':', 0, StringComparison.Ordinal);
             if (separator <= 0 ||
                 separator + 1 >= unit.Length ||
                 unit.Contains("//", StringComparison.Ordinal))
@@ -176,7 +176,7 @@ namespace Opc.Ua.Wot
             {
                 return value;
             }
-            int separator = value.IndexOf(':', 0);
+            int separator = value.IndexOf(':', 0, StringComparison.Ordinal);
             if (separator <= 0 ||
                 separator + 1 >= value.Length ||
                 value.Contains("//", StringComparison.Ordinal))

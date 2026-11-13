@@ -1278,11 +1278,11 @@ namespace Opc.Ua.Wot
             {
                 string element = clause.PathElements[index];
                 elements[index] = element;
-                if (element.StartsWith("nsu=", StringComparison.Ordinal) || element.StartsWith('{'))
+                if (element.StartsWith("nsu=", StringComparison.Ordinal) || element.StartsWith('{', StringComparison.Ordinal))
                 {
                     continue;
                 }
-                int separator = element.IndexOf(':', 0);
+                int separator = element.IndexOf(':', 0, StringComparison.Ordinal);
                 if (separator <= 0 || separator + 1 >= element.Length)
                 {
                     continue;

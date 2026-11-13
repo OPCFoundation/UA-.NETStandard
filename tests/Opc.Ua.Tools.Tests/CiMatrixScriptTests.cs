@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -348,9 +348,9 @@ namespace Opc.Ua.Tools.Tests
             string[] profiles = pr.Tests.Select(entry => entry.Profile).Distinct(StringComparer.Ordinal).ToArray();
 
             Assert.That(profiles, Does.Contain("windows-net48"));
-            Assert.That(profiles, Does.Contain("windows-net10.0"));
-            Assert.That(profiles, Does.Contain("linux-net10.0"));
-            Assert.That(profiles, Does.Contain("macos-net10.0"));
+            Assert.That(profiles, Does.Contain("windows-net11.0"));
+            Assert.That(profiles, Does.Contain("linux-net11.0"));
+            Assert.That(profiles, Does.Contain("macos-net11.0"));
         }
 
         /// <summary>

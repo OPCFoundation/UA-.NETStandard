@@ -486,7 +486,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 // the OPC 10000-4 spelling.
                 return true;
             }
-            int separator = element.IndexOf(':', 0);
+            int separator = element.IndexOf(':', 0, StringComparison.Ordinal);
             if (separator <= 0 || separator + 1 >= element.Length)
             {
                 // A bare name is a namespace 0 BrowseName.

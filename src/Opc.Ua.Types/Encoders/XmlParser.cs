@@ -1088,7 +1088,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int index = xml!.LastIndexOf('_');
+                    int index = xml!.LastIndexOf('_', StringComparison.Ordinal);
 
                     try
                     {
@@ -1134,7 +1134,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int index = xml!.LastIndexOf('_');
+                    int index = xml!.LastIndexOf('_', StringComparison.Ordinal);
 
                     try
                     {

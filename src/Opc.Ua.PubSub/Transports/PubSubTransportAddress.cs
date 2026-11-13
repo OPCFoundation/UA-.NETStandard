@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Transports
             }
             string host;
             int port = 0;
-            if (remainder.StartsWith('['))
+            if (remainder.StartsWith('[', StringComparison.Ordinal))
             {
                 int hostEnd = remainder.IndexOf(']', StringComparison.Ordinal);
                 if (hostEnd < 0)
@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Transports
             }
             else
             {
-                int colon = remainder.LastIndexOf(':');
+                int colon = remainder.LastIndexOf(':', StringComparison.Ordinal);
                 if (colon >= 0)
                 {
                     host = remainder[..colon];
@@ -192,7 +192,7 @@ namespace Opc.Ua.PubSub.Transports
         /// <inheritdoc/>
         public override string ToString()
         {
-            string host = Host.Contains(':', StringComparison.Ordinal) && !Host.StartsWith('[')
+            string host = Host.Contains(':', StringComparison.Ordinal) && !Host.StartsWith('[', StringComparison.Ordinal)
                 ? $"[{Host}]"
                 : Host;
             string portText = Port > 0
