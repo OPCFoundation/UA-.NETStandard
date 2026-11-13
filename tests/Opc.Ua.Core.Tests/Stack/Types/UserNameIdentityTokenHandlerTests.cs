@@ -199,6 +199,31 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                     .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expected));
         }
 
+        [TestCase("None")]
+        [TestCase(SecurityPolicies.None)]
+        public async Task SecurityNoneByNameRoundTripsPasswordWithServerNonceAsync(string policy)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
+            byte[] serverNonce = Nonce.CreateNonce(32).Data!;
+            byte[] password = GetRandomBytes(TestLegacyPasswordLength);
+
+            var tokenHandler = new UserNameIdentityTokenHandler("noneUser", password);
+            await tokenHandler.EncryptAsync(null!, serverNonce, policy, context).ConfigureAwait(false);
+            var token = (UserNameIdentityToken)tokenHandler.Token;
+            Assert.That(token.Password.ToArray(), Is.EqualTo(password));
+
+            var decryptHandler = new UserNameIdentityTokenHandler(token);
+            using Nonce receiverNonce = Nonce.CreateNonce(SecurityPolicies.Basic256Sha256, serverNonce);
+            await decryptHandler.DecryptAsync(
+                null!,
+                receiverNonce,
+                policy,
+                context).ConfigureAwait(false);
+
+            Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
+        }
+
         [Test]
         public async Task EncryptUsesLegacyRsaFormatForShortPasswordAsync()
         {

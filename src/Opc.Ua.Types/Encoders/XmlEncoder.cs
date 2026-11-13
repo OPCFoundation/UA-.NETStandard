@@ -465,7 +465,7 @@ namespace Opc.Ua
         {
             int start = 0;
             int index;
-            while ((index = value.IndexOf('\r', start)) >= 0)
+            while ((index = value.IndexOf('\r', start, StringComparison.Ordinal)) >= 0)
             {
                 if (index > start)
                 {

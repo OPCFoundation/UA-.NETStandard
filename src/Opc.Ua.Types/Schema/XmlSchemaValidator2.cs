@@ -99,7 +99,9 @@ namespace Opc.Ua.Schema.Xml
                 import.Schema = Load(import.SchemaLocation, import.Namespace, handler);
             }
 
-            SchemaSet = new XmlSchemaSet();
+            // As in XmlSchemaValidator: includes and redefines are not resolved,
+            // on every target framework.
+            SchemaSet = new XmlSchemaSet { XmlResolver = null };
             SchemaSet.Add(TargetSchema);
             SchemaSet.Compile();
         }

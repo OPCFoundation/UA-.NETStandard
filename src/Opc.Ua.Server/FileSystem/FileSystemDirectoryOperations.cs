@@ -695,7 +695,7 @@ namespace Opc.Ua.Server.FileSystem
 
         private static string GetParentPath(string providerPath)
         {
-            int slash = providerPath.LastIndexOf('/');
+            int slash = providerPath.LastIndexOf('/', StringComparison.Ordinal);
             return slash < 0 ? string.Empty : providerPath[..slash];
         }
 
@@ -770,7 +770,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return string.Empty;
             }
-            int slash = providerPath.LastIndexOf('/');
+            int slash = providerPath.LastIndexOf('/', StringComparison.Ordinal);
             return slash < 0 ? providerPath : providerPath[(slash + 1)..];
         }
     }

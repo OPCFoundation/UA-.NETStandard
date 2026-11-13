@@ -256,7 +256,7 @@ namespace Opc.Ua.Wot
         private static string ResolveContextLocation(string origin, string reference)
         {
             return TrySplitBase(origin, out _, out string? authority, out string path, out _) &&
-                (authority is not null || path.StartsWith('/'))
+                (authority is not null || path.StartsWith('/', StringComparison.Ordinal))
                 ? ResolveHref(origin, reference)
                 : reference;
         }

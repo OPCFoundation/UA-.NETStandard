@@ -257,13 +257,13 @@ namespace Opc.Ua.XRegistry
                 string pathPart = slash < 0 ? string.Empty : rest[slash..];
                 pathPart = StripQueryAndFragment(pathPart);
 
-                int at = hostPart.LastIndexOf('@');
+                int at = hostPart.LastIndexOf('@', StringComparison.Ordinal);
                 if (at >= 0)
                 {
                     hostPart = hostPart[(at + 1)..];
                 }
-                int colon = hostPart.LastIndexOf(':');
-                int bracket = hostPart.LastIndexOf(']');
+                int colon = hostPart.LastIndexOf(':', StringComparison.Ordinal);
+                int bracket = hostPart.LastIndexOf(']', StringComparison.Ordinal);
                 if (colon >= 0 && colon > bracket)
                 {
                     port = hostPart[(colon + 1)..];

@@ -287,7 +287,7 @@ namespace Opc.Ua.Server.FileSystem
                     }
                     _ = CompleteDisposalAsync(completion);
                 }
-                if (await Task.WhenAny(cleanup, Task.Delay(m_options.CloseTimeout)).ConfigureAwait(false) == cleanup)
+                if (await FileHandle.CompletesWithinAsync(cleanup, m_options.CloseTimeout).ConfigureAwait(false))
                 {
                     await cleanup.ConfigureAwait(false);
                 }
@@ -395,7 +395,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return NodeId.Null;
                 }
-                int slash = providerPath.LastIndexOf('/');
+                int slash = providerPath.LastIndexOf('/', StringComparison.Ordinal);
                 string parent = slash < 0 ? string.Empty : providerPath[..slash];
                 return string.IsNullOrEmpty(parent) ? Directory.NodeId : BuildDirectoryNodeId(parent);
             }
@@ -777,7 +777,7 @@ namespace Opc.Ua.Server.FileSystem
 
             private static string GetParentPath(string path)
             {
-                int slash = path.LastIndexOf('/');
+                int slash = path.LastIndexOf('/', StringComparison.Ordinal);
                 return slash < 0 ? string.Empty : path[..slash];
             }
 
