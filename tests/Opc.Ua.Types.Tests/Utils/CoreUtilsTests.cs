@@ -356,8 +356,9 @@ namespace Opc.Ua.Types.Tests.Utils
                     MatrixOf<ExtensionObject> copy = CoreUtils.Clone(matrix);
                     Variant variant = Variant.From(matrix);
                     Assert.That(variant.TryGetValue(out MatrixOf<ExtensionObject> wrapped), Is.True);
-                    Assert.That(copy.Dimensions, Is.EqualTo(new[] { 1, 2 }));
-                    Assert.That(wrapped.Dimensions, Is.EqualTo(new[] { 1, 2 }));
+                    Assert.That(matrix.Dimensions, Is.EqualTo(s_expectedEnvelopeMatrixDimensions));
+                    Assert.That(copy.Dimensions, Is.EqualTo(s_expectedEnvelopeMatrixDimensions));
+                    Assert.That(wrapped.Dimensions, Is.EqualTo(s_expectedEnvelopeMatrixDimensions));
                     Assert.That(copy.Span[1].IsNull, Is.True);
                     Assert.That(wrapped.Span[0].TypeId, Is.EqualTo(typeId));
                     Assert.That(wrapped.Span[1].IsNull, Is.True);
@@ -681,5 +682,8 @@ namespace Opc.Ua.Types.Tests.Utils
                 Is.True);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
+
+        /// <summary>The independent expected shape of cloned extension object matrices.</summary>
+        private static readonly int[] s_expectedEnvelopeMatrixDimensions = [1, 2];
     }
 }
