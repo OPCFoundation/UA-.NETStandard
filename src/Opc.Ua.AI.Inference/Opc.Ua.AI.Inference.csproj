@@ -6,8 +6,8 @@
          $(CustomTestTarget), because a CI leg that pins the libraries to one
          framework would otherwise leave this asking for frameworks they no
          longer build. -->
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net11.0;net10.0;net9.0;net8.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0' OR '$(CustomTestTarget)' == 'net11.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net11.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net10.0' OR '$(CustomTestTarget)' == 'net11.0'">$(CustomTestTarget)</TargetFrameworks>
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(ModernTargetFramework)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <PackageId>$(PackagePrefix).Opc.Ua.AI.Inference</PackageId>

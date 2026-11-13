@@ -73,8 +73,8 @@ These are assembly/project names. NuGet package IDs prepend
 | `Opc.Ua.CranesHoists.Client` | Bounded discovery, native topology/quality reads, observations and standard configuration requests |
 | `Opc.Ua.Mcp.CranesHoists` | Six bounded MCP workflows using host-owned named sessions |
 
-Model/server/client target .NET Framework 4.8 and .NET 8, 9 and 10.
-MCP targets .NET 8, 9 and 10. All four package families and their `.Debug`
+Model/server/client target .NET Framework 4.8 and .NET 10 and 11.
+MCP targets .NET 10 and 11. All four package families and their `.Debug`
 variants are forced preview; this does not change the repository's root version
 or Robotics' independent package policy.
 The typed client has no server-runtime dependency. NativeAOT sample applications

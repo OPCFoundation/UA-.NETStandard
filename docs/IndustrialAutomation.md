@@ -312,7 +312,7 @@ representation, including context-free `TryGetStructure`, without calling
 `Opc.Ua.IA.Server` depends directly on the `Opc.Ua.ECM` model package for these
 closed copy paths. ECM model depends on the IA and DI models, so this does not
 introduce an IA.Server/ECM.Server dependency cycle or load an ECM server runtime.
-Both libraries use the same net48/net8.0/net9.0/net10.0 target selection. The
+Both libraries use the same net48/net10.0/net11.0 target selection. The
 generated copies use direct constructors and field assignments, with no
 reflection or dynamic activation required by NativeAOT.
 

@@ -74,8 +74,8 @@ is `OPCFoundation.NetStandard.` followed by that name; for example,
 | `Opc.Ua.MachineTool.Client` | Subtype-aware discovery, bounded reads/observations, generated service navigation and WMTP workflows; no server-runtime dependency |
 | `Opc.Ua.Mcp.MachineTool` | The combined MachineTool/WMTP MCP catalog over host-owned named sessions |
 
-The first three libraries target .NET Framework 4.8 and .NET 8, 9 and 10.
-The MCP library targets .NET 8, 9 and 10. They follow the repository's normal
+The first three libraries target .NET Framework 4.8 and .NET 10 and 11.
+The MCP library targets .NET 10 and 11. They follow the repository's normal
 root package-version policy, including `.Debug` variants; they are not
 independently forced to preview. The released specification version is distinct
 from the NuGet version. NativeAOT application examples use the same APIs.

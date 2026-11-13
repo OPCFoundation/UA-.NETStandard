@@ -16,14 +16,13 @@ correctly.
 ## Supported consumer target frameworks
 
 The migration package's runtime shim DLL (`Opc.Ua.MigrationAnalyzer.Core.dll`)
-ships in 4 TFMs:
+ships in 3 TFMs:
 
 | TFM | Shipped? | OPC UA 2.0 main packages? |
 |---|---|---|
 | `net48` | ✅ | ✅ |
-| `net8.0` | ✅ | ✅ (LTS) |
-| `net9.0` | ✅ | ✅ (STS) |
-| `net10.0` | ✅ | ✅ (LTS, current) |
+| `net10.0` | ✅ | ✅ (LTS) |
+| `net11.0` | ✅ | ✅ (STS, current) |
 
 `net6.0` and `net7.0` are not supported targets for the bundled migration
 package. Retarget the project to a supported framework before using it.
@@ -114,7 +113,7 @@ safe in Workspaces-aware hosts; csc.exe gets the smaller analyzer DLL.
 |---|---|---|
 | .NET SDK | 10.0.x | 10.0.x |
 | Version stream | `1.5.378-preview` | `2.0-preview` → `2.0` |
-| Target frameworks | `net8.0; net9.0; net10.0; net48` | `net8.0; net9.0; net10.0; net48` (unchanged) |
+| Target frameworks | `net8.0; net9.0; net10.0; net48` | `net10.0; net11.0; net48` (drops `net8.0` and `net9.0`) |
 | NUnit | `4.4.0` | `4.5.1` |
 | `coverlet.collector` | `6.0.4` | `8.0.0` |
 | `DotNext` | — | `5.26.3` (new dependency) |

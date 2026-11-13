@@ -653,9 +653,7 @@ jobs:
         - os: ubuntu-latest
           framework: net10.0
         - os: ubuntu-latest
-          framework: net8.0
-        - os: ubuntu-latest
-          framework: net9.0
+          framework: net11.0
         - os: windows-latest
           framework: net48
     steps:
@@ -664,12 +662,10 @@ jobs:
         # Full history: Nerdbank.GitVersioning refuses to compute a version from
         # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
-    - name: Setup .NET 8, 9 and 10 runtimes
+    - name: Setup .NET 10 runtime
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: |
-          8.0.x
-          9.0.x
           10.0.x
     - name: Setup repository .NET SDK
       uses: actions/setup-dotnet@v6

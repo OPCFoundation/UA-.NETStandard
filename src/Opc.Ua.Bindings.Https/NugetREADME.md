@@ -4,7 +4,7 @@
 `https://` / `opc.https://` (HTTPS-binary + HTTPS-JSON) and
 `wss://` / `opc.wss://` (WSS-binary + WSS-JSON) listeners and
 channels on top of `OPCFoundation.NetStandard.Opc.Ua.Core`. The
-listeners are hosted by Kestrel. On `net8.0`+ it also provides an
+listeners are hosted by Kestrel. On `net10.0`+ it also provides an
 opt-in Kestrel-hosted `opc.tcp://` listener so a single `IHost` can
 serve every OPC UA transport, and the **OPC UA REST binding** (Part 6
 §G.3 OpenAPI Mapping) as ASP.NET Core Minimal-API endpoints mounted
@@ -28,14 +28,14 @@ The package contains:
   into the `ITransportBindingRegistry`.
 - An `IHttpsListenerStartupContributor` extension hook for companion
   middleware that wants to mount on the shared Kestrel host.
-- `KestrelTcpTransportListener` (`net8.0`+, opt-in) — hosts the
+- `KestrelTcpTransportListener` (`net10.0`+, opt-in) — hosts the
   `opc.tcp://` listener on Kestrel via
   `Microsoft.AspNetCore.Connections.ConnectionHandler` instead of the
   raw-socket `TcpTransportListener` (which ships in `Opc.Ua.Core` and
   stays the default). Registered with `AddKestrelOpcTcpTransport()`; it
   has full feature parity with the raw-socket listener (forward
   endpoints, reverse-connect, TLS certificate hot-update, discovery).
-- `WebApiHttpsStartupContributor` + `MapWebApiEndpoints()` (`net8.0`+,
+- `WebApiHttpsStartupContributor` + `MapWebApiEndpoints()` (`net10.0`+,
   opt-in) — Minimal-API endpoints implementing the **OPC UA REST
   binding** (Part 6 §G.3 OpenAPI Mapping). Registered with
   `AddWebApiTransport()`; NativeAOT-compatible, no MVC reflection.
@@ -56,7 +56,7 @@ services
     .AddHttpsTransport()   // https:// + opc.https://
     .AddWssTransport();    // wss://   + opc.wss://
 
-// Optional (net8.0+): host opc.tcp:// on Kestrel too, so a single
+// Optional (net10.0+): host opc.tcp:// on Kestrel too, so a single
 // IHost serves opc.tcp, opc.https, and opc.wss. Call AFTER
 // AddOpcTcpTransport(); last-writer-wins per URI scheme.
 services
@@ -67,7 +67,7 @@ services
 
 ## OPC UA REST binding (Part 6 §G.3 OpenAPI Mapping)
 
-On `net8.0`+ the package also exposes every OPC UA service as a
+On `net10.0`+ the package also exposes every OPC UA service as a
 `POST /<service>` Minimal-API endpoint, implementing the [OPC UA
 OpenAPI Mapping](https://reference.opcfoundation.org/Core/Part6/v105/docs/G.3)
 (profile/2338). Bodies use the standard OPC UA JSON encoding from
@@ -113,10 +113,10 @@ generic instantiation at compile time. No
 
 ## Target frameworks
 
-`net48`, `net8.0`, `net9.0`, `net10.0`.
+`net48`, `net10.0`, `net11.0`.
 The opt-in Kestrel-hosted `opc.tcp://` listener
 (`AddKestrelOpcTcpTransport()`) and the REST binding
-(`AddWebApiTransport()`) are available on `net8.0`+ only — the
+(`AddWebApiTransport()`) are available on `net10.0`+ only — the
 ASP.NET Core `ConnectionContext` and Minimal-API surfaces they rely
 on are not available on the .NET Framework targets,
 where the default raw-socket `opc.tcp` listener remains the right

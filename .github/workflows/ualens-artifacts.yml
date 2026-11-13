@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tfm: [net8.0, net9.0, net10.0]
+        tfm: [net10.0, net11.0]
     steps:
     - uses: actions/checkout@v7
       with:

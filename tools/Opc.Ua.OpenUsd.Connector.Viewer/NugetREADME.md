@@ -73,7 +73,7 @@ qualify Linux or macOS. The reflective `IUsdViewHost` shell has no assembly-wide
 
 ## Requirements
 
-- .NET 8 or later.
+- .NET 10 or later.
 - A supported OpenUSD native runtime payload: `win-x64`, `linux-x64`, or `osx-arm64`. A RID-less build or publish on a
   supported host uses that host's payload; use an explicit RID when publishing for another platform.
 - The OpenUSD packages `OpenUsd`, `OpenUsd.Viewer`, and `OpenUsd.Runtime.Imaging`.

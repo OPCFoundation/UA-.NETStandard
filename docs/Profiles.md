@@ -455,7 +455,7 @@ The stack implements the following transport profiles:
   - Restricted to `MessageSecurityMode.None`
   - Authentication via Anonymous, Bearer JWT, HTTP Basic, or Mutual TLS (see [WebApi.md](WebApi.md))
   - Server-side discovery emission: `HttpsServiceHost` emits this sub-profile as a discovery-only twin alongside each `SecurityMode.None` HTTPS-binary endpoint, so discovery-driven clients can find the OpenAPI endpoint without hard-coding the URL.
-  - Shipped as part of the `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` package (net8+ only)
+  - Shipped as part of the `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` package (net10+ only)
   - Surfaced via `Profiles.HttpsOpenApiTransport`
 
 - **[WSS OpenAPI](https://profiles.opcfoundation.org/profile/2339)** (`opc.wss://` and `wss://`) - OPC UA OpenAPI Mapping over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+openapi` / `opcua+openapi+<accesstoken>`) — official OPC Foundation profile/2339, URI `http://opcfoundation.org/UA-Profile/Transport/wss-uajson-openapi`
@@ -570,11 +570,11 @@ Modern AEAD cipher alternatives for traditional ECC curves:
 - **RSA_DH_ChaChaPoly** — RSA Diffie-Hellman key agreement with ChaCha20-Poly1305
 
 **Platform requirements for ECC.** Certificate creation, storage, and validation
-are distinct from ECC SecureChannel and user-token security policies. On .NET 8.0 or
+are distinct from ECC SecureChannel and user-token security policies. On .NET 10.0 or
 later those policies use the platform's raw ECDH agreement and authenticated ciphers;
 on .NET Framework the agreement and the AES-GCM and ChaCha20-Poly1305 ciphers run in
 the managed BouncyCastle implementation. Curve and cipher availability also depends on
-the OS and, on .NET 8+, the runtime probes
+the OS and, on .NET 10+, the runtime probes
 (`AesGcm.IsSupported` / `ChaCha20Poly1305.IsSupported`). See the
 [ECC platform limitations](EccProfiles.md#known-limitations) for the certificate-operation
 and channel-policy boundaries. PubSub has its own

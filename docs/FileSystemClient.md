@@ -555,7 +555,7 @@ whose targets are inside the mount, dangling links, and the configured root
 and every existing ancestor of that root. Use a physical root path without
 linked ancestors (for example, avoid the `/var` alias on systems where it is
 a symlink). The checks run before root creation and again on operations.
-On .NET 8 and later, the ReferenceServer resolves system temporary-directory
+On .NET 10 and later, the ReferenceServer resolves system temporary-directory
 aliases before selecting its default mount; provider-relative links remain rejected.
 Enumeration fails on a linked entry rather than exposing its target metadata.
 Recursive copy, move, and delete validate the source tree one directory level
