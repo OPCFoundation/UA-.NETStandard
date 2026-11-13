@@ -1485,8 +1485,8 @@ decoded notifications and keeps the bytes: reading a cached message
 decodes it again, as new instances. The values that the subscription
 sets during dispatch (`PublishTime`, `SequenceNumber` and
 `MoreNotifications` of a `DataChangeNotification` or
-`EventNotificationList`, and the `Message` and `DiagnosticInfo` of each
-notification) are set on these new instances too. Kept decoded, the cached messages are
+`EventNotificationList`, and the `Message` of each event) are set on
+these new instances too. Kept decoded, the cached messages are
 promoted by every collection, and a client with Workstation GC falls
 behind at high notification rates (#5003).
 

@@ -419,19 +419,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             AcknowledgementHandle acknowledgement = default,
             bool pooled = false)
         {
-            int count = notification.MonitoredItems.Count;
+            ReadOnlySpan<MonitoredItemNotification> items = notification.MonitoredItems.Span;
+            ReadOnlySpan<DiagnosticInfo> diagnosticInfos = notification.DiagnosticInfos.Span;
+            int count = items.Length;
             DataValueChange[] memory = pooled && count > 0
                 ? ArrayPool<DataValueChange>.Shared.Rent(count)
                 : new DataValueChange[count];
             uint partitionId = m_context.Id;
             lock (m_monitoredItemsLock)
             {
-                for (int i = 0; i < notification.MonitoredItems.Count; i++)
+                for (int i = 0; i < items.Length; i++)
                 {
-                    MonitoredItemNotification item = notification.MonitoredItems[i];
+                    ref readonly MonitoredItemNotification item = ref items[i];
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
                     memory[i] = new DataValueChange(monitored,
-                        item.Value, i < notification.DiagnosticInfos.Count ? notification.DiagnosticInfos[i] : null)
+                        item.Value, i < diagnosticInfos.Length ? diagnosticInfos[i] : null)
                     {
                         ClientHandle = item.ClientHandle,
                         PartitionServerId = partitionId,

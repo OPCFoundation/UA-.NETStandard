@@ -1843,6 +1843,7 @@ namespace Opc.Ua.Schema.Model
                 NoArraysAllowed == other.NoArraysAllowed &&
                 ForceEnumValues == other.ForceEnumValues &&
                 NoEncodings == other.NoEncodings &&
+                IsValueType == other.IsValueType &&
                 IsServiceResponse == other.IsServiceResponse &&
                 Service == other.Service;
         }
@@ -1859,6 +1860,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(NoArraysAllowed);
             hash.Add(ForceEnumValues);
             hash.Add(NoEncodings);
+            hash.Add(IsValueType);
             hash.Add(Service);
             hash.Add(IsServiceResponse);
             return hash.ToHashCode();

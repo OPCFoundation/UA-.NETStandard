@@ -106,10 +106,10 @@ namespace Opc.Ua
         public DataValue()
         {
             WrappedValue = Variant.Null;
-            StatusCode = StatusCodes.Good;
+            m_statusCode = 0;
             SourceTimestamp = DateTimeUtc.MinValue;
             ServerTimestamp = DateTimeUtc.MinValue;
-            m_set = true;
+            m_flags = kSetFlag;
         }
 
         /// <summary>
@@ -122,10 +122,10 @@ namespace Opc.Ua
         public DataValue(Variant value)
         {
             WrappedValue = value;
-            StatusCode = StatusCodes.Good;
+            m_statusCode = 0;
             SourceTimestamp = DateTimeUtc.MinValue;
             ServerTimestamp = DateTimeUtc.MinValue;
-            m_set = true;
+            m_flags = kSetFlag;
         }
 
         /// <summary>
@@ -194,10 +194,10 @@ namespace Opc.Ua
         public DataValue(StatusCode statusCode)
         {
             WrappedValue = Variant.Null;
-            StatusCode = statusCode;
+            m_statusCode = statusCode.Code;
             SourceTimestamp = DateTimeUtc.MinValue;
             ServerTimestamp = DateTimeUtc.MinValue;
-            m_set = true;
+            m_flags = kSetFlag;
         }
 
         /// <summary>
@@ -209,10 +209,10 @@ namespace Opc.Ua
         public DataValue(StatusCode statusCode, DateTimeUtc serverTimestamp)
         {
             WrappedValue = Variant.Null;
-            StatusCode = statusCode;
+            m_statusCode = statusCode.Code;
             ServerTimestamp = serverTimestamp;
             SourceTimestamp = DateTimeUtc.MinValue;
-            m_set = true;
+            m_flags = kSetFlag;
         }
 
         /// <summary>
@@ -223,10 +223,10 @@ namespace Opc.Ua
         public DataValue(Variant value, StatusCode statusCode)
         {
             WrappedValue = value;
-            StatusCode = statusCode;
+            m_statusCode = statusCode.Code;
             SourceTimestamp = DateTimeUtc.MinValue;
             ServerTimestamp = DateTimeUtc.MinValue;
-            m_set = true;
+            m_flags = kSetFlag;
         }
 
         /// <summary>
@@ -238,10 +238,10 @@ namespace Opc.Ua
         public DataValue(Variant value, StatusCode statusCode, DateTimeUtc sourceTimestamp)
         {
             WrappedValue = value;
-            StatusCode = statusCode;
+            m_statusCode = statusCode.Code;
             SourceTimestamp = sourceTimestamp;
             ServerTimestamp = DateTimeUtc.MinValue;
-            m_set = true;
+            m_flags = kSetFlag;
         }
 
         /// <summary>
@@ -259,10 +259,10 @@ namespace Opc.Ua
             DateTimeUtc serverTimestamp)
         {
             WrappedValue = value;
-            StatusCode = statusCode;
+            m_statusCode = statusCode.Code;
             SourceTimestamp = sourceTimestamp;
             ServerTimestamp = serverTimestamp;
-            m_set = true;
+            m_flags = kSetFlag;
         }
 
         /// <summary>
@@ -283,12 +283,10 @@ namespace Opc.Ua
             ushort serverPicoseconds)
         {
             WrappedValue = value;
-            StatusCode = statusCode;
+            m_statusCode = statusCode.Code;
             SourceTimestamp = sourceTimestamp;
             ServerTimestamp = serverTimestamp;
-            SourcePicoseconds = sourcePicoseconds;
-            ServerPicoseconds = serverPicoseconds;
-            m_set = true;
+            m_flags = Pack(sourcePicoseconds, serverPicoseconds);
         }
 
         /// <summary>
@@ -330,7 +328,7 @@ namespace Opc.Ua
         /// field) is null. The distinction is preserved by a small sentinel
         /// flag inside the struct.
         /// </remarks>
-        public bool IsNull => !m_set;
+        public bool IsNull => (m_flags & kSetFlag) == 0;
 
         /// <summary>
         /// The value of data value.
@@ -346,7 +344,20 @@ namespace Opc.Ua
         /// <summary>
         /// The status code associated with the value.
         /// </summary>
-        public StatusCode StatusCode { get; }
+        /// <remarks>
+        /// Only the 32-bit code is stored. The <see cref="StatusCode.SymbolicId"/>
+        /// comes from the interned status code table (see
+        /// <see cref="StatusCode.Intern(System.Collections.Generic.IReadOnlyList{StatusCode})"/>),
+        /// so a symbolic id that was passed in but never interned is not kept.
+        /// Good, the common case, skips the lookup.
+        /// </remarks>
+        public StatusCode StatusCode => m_statusCode == 0 ? StatusCodes.Good : new(m_statusCode);
+
+        /// <summary>
+        /// The raw 32-bit status code, without the symbolic id lookup that
+        /// <see cref="StatusCode"/> performs.
+        /// </summary>
+        public uint StatusCodeValue => m_statusCode;
 
         /// <summary>
         /// The source timestamp associated with the value.
@@ -354,9 +365,9 @@ namespace Opc.Ua
         public DateTimeUtc SourceTimestamp { get; }
 
         /// <summary>
-        /// Additional resolution for the source timestamp.
+        /// Additional resolution for the source timestamp, 0 to 9999.
         /// </summary>
-        public ushort SourcePicoseconds { get; }
+        public ushort SourcePicoseconds => (ushort)(m_flags & kPicosecondsMask);
 
         /// <summary>
         /// The server timestamp associated with the value.
@@ -364,39 +375,39 @@ namespace Opc.Ua
         public DateTimeUtc ServerTimestamp { get; }
 
         /// <summary>
-        /// Additional resolution for the server timestamp.
+        /// Additional resolution for the server timestamp, 0 to 9999.
         /// </summary>
-        public ushort ServerPicoseconds { get; }
+        public ushort ServerPicoseconds => (ushort)((m_flags >> kServerPicosecondsShift) & kPicosecondsMask);
 
         /// <summary>
         /// Returns true if the status code is good.
         /// </summary>
-        public bool IsGood => StatusCode.IsGood(StatusCode);
+        public bool IsGood => (m_statusCode & 0xC0000000) == 0;
 
         /// <summary>
         /// Returns true if the status is bad or uncertain.
         /// </summary>
-        public bool IsNotGood => StatusCode.IsNotGood(StatusCode);
+        public bool IsNotGood => (m_statusCode & 0xC0000000) != 0;
 
         /// <summary>
         /// Returns true if the status code is uncertain.
         /// </summary>
-        public bool IsUncertain => StatusCode.IsUncertain(StatusCode);
+        public bool IsUncertain => (m_statusCode & 0x40000000) == 0x40000000;
 
         /// <summary>
         /// Returns true if the status is good or bad.
         /// </summary>
-        public bool IsNotUncertain => StatusCode.IsNotUncertain(StatusCode);
+        public bool IsNotUncertain => (m_statusCode & 0x40000000) != 0x40000000;
 
         /// <summary>
         /// Returns true if the status code is bad.
         /// </summary>
-        public bool IsBad => StatusCode.IsBad(StatusCode);
+        public bool IsBad => (m_statusCode & 0x80000000) != 0;
 
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
-        public bool IsNotBad => StatusCode.IsNotBad(StatusCode);
+        public bool IsNotBad => (m_statusCode & 0x80000000) == 0;
 
         /// <summary>
         /// Returns a copy of this <see cref="DataValue"/> with
@@ -404,13 +415,7 @@ namespace Opc.Ua
         /// </summary>
         public DataValue WithWrappedValue(Variant value)
         {
-            return new DataValue(
-                value,
-                StatusCode,
-                SourceTimestamp,
-                ServerTimestamp,
-                SourcePicoseconds,
-                ServerPicoseconds);
+            return new DataValue(value, m_statusCode, SourceTimestamp, ServerTimestamp, m_flags | kSetFlag);
         }
 
         /// <summary>
@@ -419,13 +424,7 @@ namespace Opc.Ua
         /// </summary>
         public DataValue WithStatus(StatusCode statusCode)
         {
-            return new DataValue(
-                WrappedValue,
-                statusCode,
-                SourceTimestamp,
-                ServerTimestamp,
-                SourcePicoseconds,
-                ServerPicoseconds);
+            return new DataValue(WrappedValue, statusCode.Code, SourceTimestamp, ServerTimestamp, m_flags | kSetFlag);
         }
 
         /// <summary>
@@ -434,13 +433,7 @@ namespace Opc.Ua
         /// </summary>
         public DataValue WithSourceTimestamp(DateTimeUtc sourceTimestamp)
         {
-            return new DataValue(
-                WrappedValue,
-                StatusCode,
-                sourceTimestamp,
-                ServerTimestamp,
-                SourcePicoseconds,
-                ServerPicoseconds);
+            return new DataValue(WrappedValue, m_statusCode, sourceTimestamp, ServerTimestamp, m_flags | kSetFlag);
         }
 
         /// <summary>
@@ -451,11 +444,10 @@ namespace Opc.Ua
         {
             return new DataValue(
                 WrappedValue,
-                StatusCode,
+                m_statusCode,
                 SourceTimestamp,
                 ServerTimestamp,
-                sourcePicoseconds,
-                ServerPicoseconds);
+                Pack(sourcePicoseconds, ServerPicoseconds));
         }
 
         /// <summary>
@@ -464,13 +456,7 @@ namespace Opc.Ua
         /// </summary>
         public DataValue WithServerTimestamp(DateTimeUtc serverTimestamp)
         {
-            return new DataValue(
-                WrappedValue,
-                StatusCode,
-                SourceTimestamp,
-                serverTimestamp,
-                SourcePicoseconds,
-                ServerPicoseconds);
+            return new DataValue(WrappedValue, m_statusCode, SourceTimestamp, serverTimestamp, m_flags | kSetFlag);
         }
 
         /// <summary>
@@ -481,11 +467,10 @@ namespace Opc.Ua
         {
             return new DataValue(
                 WrappedValue,
-                StatusCode,
+                m_statusCode,
                 SourceTimestamp,
                 ServerTimestamp,
-                SourcePicoseconds,
-                serverPicoseconds);
+                Pack(SourcePicoseconds, serverPicoseconds));
         }
 
         /// <inheritdoc/>
@@ -497,11 +482,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(DataValue other)
         {
-            return StatusCode.Equals(other.StatusCode, StatusCodeComparison.AllBits) &&
+            return m_statusCode == other.m_statusCode &&
                 ServerTimestamp == other.ServerTimestamp &&
                 SourceTimestamp == other.SourceTimestamp &&
-                ServerPicoseconds == other.ServerPicoseconds &&
-                SourcePicoseconds == other.SourcePicoseconds &&
+                (m_flags & ~kSetFlag) == (other.m_flags & ~kSetFlag) &&
                 WrappedValue == other.WrappedValue;
         }
 
@@ -525,7 +509,7 @@ namespace Opc.Ua
                 return WrappedValue.GetHashCode();
             }
 
-            return StatusCode.GetHashCode();
+            return (m_statusCode & 0xFFFF0000).GetHashCode();
         }
 
         /// <inheritdoc/>
@@ -555,11 +539,10 @@ namespace Opc.Ua
         {
             return new DataValue(
                 WrappedValue.Copy(),
-                StatusCode,
+                m_statusCode,
                 SourceTimestamp,
                 ServerTimestamp,
-                SourcePicoseconds,
-                ServerPicoseconds);
+                m_flags | kSetFlag);
         }
 
         /// <summary>
@@ -684,12 +667,75 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sentinel: true iff the struct was constructed via a public ctor or
-        /// factory. default(DataValue) leaves it false, which is what IsNull
-        /// reports. Adds ~4 bytes after alignment; this is intentional —
-        /// distinguishing "absent" from "explicitly empty" is required to
-        /// round-trip the spec-defined wire encoding faithfully.
+        /// Creates a value from a raw 32-bit status code, without the
+        /// symbolic id lookup a <see cref="Opc.Ua.StatusCode"/> conversion does.
+        /// Used by the decoders.
         /// </summary>
-        private readonly bool m_set;
+        internal static DataValue FromStored(
+            Variant value,
+            uint statusCode,
+            DateTimeUtc sourceTimestamp,
+            DateTimeUtc serverTimestamp,
+            ushort sourcePicoseconds,
+            ushort serverPicoseconds)
+        {
+            return new DataValue(
+                value,
+                statusCode,
+                sourceTimestamp,
+                serverTimestamp,
+                Pack(sourcePicoseconds, serverPicoseconds));
+        }
+
+        /// <summary>
+        /// Builds a value from the stored representation.
+        /// </summary>
+        private DataValue(
+            Variant value,
+            uint statusCode,
+            DateTimeUtc sourceTimestamp,
+            DateTimeUtc serverTimestamp,
+            uint flags)
+        {
+            WrappedValue = value;
+            m_statusCode = statusCode;
+            SourceTimestamp = sourceTimestamp;
+            ServerTimestamp = serverTimestamp;
+            m_flags = flags;
+        }
+
+        /// <summary>
+        /// Packs both picosecond fields and the set flag. Values above the
+        /// 9999 maximum (OPC 10000-6 5.2.2.17) are stored as 9999, which is
+        /// also what the binary decoder does with them.
+        /// </summary>
+        private static uint Pack(ushort sourcePicoseconds, ushort serverPicoseconds)
+        {
+            return kSetFlag |
+                Math.Min(sourcePicoseconds, kMaxPicoseconds) |
+                ((uint)Math.Min(serverPicoseconds, kMaxPicoseconds) << kServerPicosecondsShift);
+        }
+
+        private const ushort kMaxPicoseconds = 9999;
+        private const uint kPicosecondsMask = 0x7FFF;
+        private const int kServerPicosecondsShift = 15;
+        private const uint kSetFlag = 0x80000000;
+
+        /// <summary>
+        /// The 32-bit status code. The symbolic id is looked up on read, so
+        /// the struct does not carry the 8-byte string reference that a
+        /// <see cref="Opc.Ua.StatusCode"/> field would add.
+        /// </summary>
+        private readonly uint m_statusCode;
+
+        /// <summary>
+        /// Bits 0-14: source picoseconds; bits 15-29: server picoseconds;
+        /// bit 31: set by every constructor and factory. default(DataValue)
+        /// leaves it clear, which is what <see cref="IsNull"/> reports:
+        /// distinguishing "absent" from "explicitly empty" is required to
+        /// round-trip the spec-defined wire encoding faithfully. Packing the
+        /// flag with the picoseconds keeps the struct at 48 bytes.
+        /// </summary>
+        private readonly uint m_flags;
     }
 }

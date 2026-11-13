@@ -4299,7 +4299,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sets on a body of a cached message, decoded again after its dispatch, what the
         /// dispatch set on the first decoded instance: the message fields of the
-        /// notification list and the message and diagnostic info of each notification.
+        /// notification list and the message of each event. A data change, a value,
+        /// carries neither its message nor its diagnostic info.
         /// </summary>
         private static void RestoreDispatchState(IEncodeable value, object? state)
         {
@@ -4309,15 +4310,6 @@ namespace Opc.Ua.Client
                 datachange.PublishTime = message.PublishTime;
                 datachange.SequenceNumber = message.SequenceNumber;
                 datachange.MoreNotifications = message.MoreNotifications;
-                for (int ii = 0; ii < datachange.MonitoredItems.Count; ii++)
-                {
-                    MonitoredItemNotification notification = datachange.MonitoredItems[ii];
-                    notification.Message = message;
-                    if (datachange.DiagnosticInfos.Count > ii)
-                    {
-                        notification.DiagnosticInfo = datachange.DiagnosticInfos[ii];
-                    }
-                }
             }
             else if (value is EventNotificationList events)
             {
@@ -4378,17 +4370,11 @@ namespace Opc.Ua.Client
                     continue;
                 }
 
-                // save the message.
-                notification.Message = message;
-
-                // get diagnostic info.
-                if (notifications.DiagnosticInfos.Count > ii)
-                {
-                    notification.DiagnosticInfo = notifications.DiagnosticInfos[ii];
-                }
-
-                // save in cache.
-                monitoredItem.SaveValueInCache(notification);
+                // save in cache with the message and diagnostic info.
+                monitoredItem.SaveValueInCache(
+                    notification,
+                    message,
+                    notifications.DiagnosticInfos.Count > ii ? notifications.DiagnosticInfos[ii] : null);
                 KeepLastMessageIfDetached(monitoredItem);
             }
         }
