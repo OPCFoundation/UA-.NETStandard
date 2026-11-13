@@ -1797,7 +1797,11 @@ namespace Opc.Ua.Bindings
                 webHostBuilder.UseKestrel(options =>
                     options.ListenAnyIP(
                         EndpointUrl.Port,
-                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
+                        listenOptions => ConfigureHttpsAdmission(
+                            listenOptions,
+                            httpsOptions,
+                            physicalAdmission,
+                            () => TryReclaimSharedCapacity(accessor))));
             }
             else
             {
@@ -1806,7 +1810,11 @@ namespace Opc.Ua.Bindings
                     options.Listen(
                         ipAddress,
                         EndpointUrl.Port,
-                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
+                        listenOptions => ConfigureHttpsAdmission(
+                            listenOptions,
+                            httpsOptions,
+                            physicalAdmission,
+                            () => TryReclaimSharedCapacity(accessor))));
             }
 
             webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory())
@@ -2000,12 +2008,38 @@ namespace Opc.Ua.Bindings
         private void ConfigureHttpsAdmission(
             ListenOptions options,
             HttpsConnectionAdapterOptions httpsOptions,
-            UaScConnectionAdmission? physicalAdmission = null)
+            UaScConnectionAdmission? physicalAdmission = null,
+            Func<bool>? sharedReclaimCapacity = null)
         {
             UaScConnectionAdmission? admission = physicalAdmission ?? m_admission;
             options.Use(next => connection =>
-                RunHttpsConnectionAsync(connection, next, admission, GetReclaimCallback()));
+                RunHttpsConnectionAsync(
+                    connection,
+                    next,
+                    admission,
+                    sharedReclaimCapacity ?? GetReclaimCallback()));
             options.UseHttps(httpsOptions);
+        }
+
+        /// <summary>
+        /// Reclaims an idle WebSocket from any listener currently registered on the shared host.
+        /// </summary>
+        internal static bool TryReclaimSharedCapacity(SharedHostAccessor accessor)
+        {
+            SharedKestrelHost? sharedHost = accessor.Instance;
+            if (sharedHost == null)
+            {
+                return false;
+            }
+            foreach (KeyValuePair<string, HttpsTransportListener> entry in sharedHost.GetListeners())
+            {
+                Func<bool>? tryReclaim = entry.Value.GetReclaimCallback();
+                if (tryReclaim?.Invoke() == true)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

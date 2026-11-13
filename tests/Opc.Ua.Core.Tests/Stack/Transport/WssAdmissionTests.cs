@@ -54,6 +54,54 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [NonParallelizable]
     public sealed class WssAdmissionTests
     {
+        [Test]
+        public async Task SharedHostReclaimsWebSocketFromRemainingListenerAsync()
+        {
+            await using HttpsTransportListener removed = CreateListener();
+            await using HttpsTransportListener remaining = CreateListener();
+            var sharedHost = new SharedKestrelHost(
+                new SharedHostKey("localhost", 48443),
+                "test-certificate");
+            sharedHost.AddListener("/removed", removed);
+            sharedHost.AddListener("/remaining", remaining);
+            Assert.That(sharedHost.RemoveListener(removed), Is.False);
+
+            var accessor = new SharedHostAccessor { Instance = sharedHost };
+            var admission = new UaScConnectionAdmission(1, null);
+            Assert.That(admission.TryAcquire(null, out UaScConnectionAdmission.Lease? lease), Is.True);
+            using (lease)
+            {
+                Type activityType = typeof(HttpsTransportListener).GetNestedType(
+                    "WebSocketActivity",
+                    BindingFlags.NonPublic)!;
+                object? activity = null;
+                try
+                {
+                    activity = Activator.CreateInstance(
+                        activityType,
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        binder: null,
+                        args: [remaining, lease],
+                        culture: null)!;
+                    string channelId = (string)activityType.GetProperty("ChannelId")!.GetValue(activity)!;
+                    object activities = typeof(HttpsTransportListener)
+                        .GetField("m_jsonWebSocketActivity", BindingFlags.Instance | BindingFlags.NonPublic)!
+                        .GetValue(remaining)!;
+                    Assert.That(
+                        activities.GetType().GetMethod("TryAdd")!.Invoke(activities, [channelId, activity]),
+                        Is.EqualTo(true));
+
+                    Assert.That(HttpsTransportListener.TryReclaimSharedCapacity(accessor), Is.True);
+                    Assert.That(admission.TryAcquire(null, out UaScConnectionAdmission.Lease? replacement), Is.True);
+                    replacement!.Dispose();
+                }
+                finally
+                {
+                    (activity as IDisposable)?.Dispose();
+                }
+            }
+        }
+
         /// <summary>
         /// Session membership prevents pressure-based JSON eviction, and server keepalives refresh
         /// only that connection's idle deadline.
