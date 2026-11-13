@@ -169,8 +169,11 @@ namespace Opc.Ua.Server.Tests
                     Is.True);
                 Assert.That(value!.Events[0].ClientHandle, Is.EqualTo(77u));
                 Assert.That(value.Events[0].EventFields[0].GetInt32(), Is.EqualTo(42));
-                Assert.That(eventItem.ClientHandle, Is.Zero);
+
+                // event field lists are not pooled by the server; they are left to the GC.
+                Assert.That(eventItem.ClientHandle, Is.EqualTo(77u));
                 item.Reuse();
+                eventItem.Reuse();
             }
             else
             {
