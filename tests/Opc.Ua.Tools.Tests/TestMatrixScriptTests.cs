@@ -58,8 +58,14 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(steps, Is.Not.Empty);
             foreach (string step in steps)
             {
-                Assert.That(step.Split('\n'), Does.Contain("        global-json-file: global.json"));
-                Assert.That(step, Does.Not.Contain("dotnet-version:"));
+                string[] lines = step.Split('\n');
+                Assert.That(lines, Does.Contain("        global-json-file: global.json"));
+                // The SDK comes from global.json. The only extra install allowed is the
+                // net10.0 runtime the net10.0 artifact jobs need, which the newer SDK
+                // does not carry; it never selects the SDK because global.json pins it.
+                Assert.That(
+                    lines.Where(line => line.Contains("dotnet-version:", StringComparison.Ordinal)),
+                    Is.All.EqualTo("        dotnet-version: 10.0.x"));
             }
         }
 
