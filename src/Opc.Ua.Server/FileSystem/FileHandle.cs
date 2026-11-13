@@ -931,24 +931,6 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <summary>
-        /// Waits until the task completes or the timeout expires, without observing
-        /// the outcome of the task and without leaving a timer behind.
-        /// </summary>
-        /// <param name="task">The task to wait for.</param>
-        /// <param name="timeout">The longest time to wait.</param>
-        /// <returns><c>true</c> if the task completed within the timeout.</returns>
-        internal static async Task<bool> CompletesWithinAsync(Task task, TimeSpan timeout)
-        {
-            if (!task.IsCompleted)
-            {
-                // WhenAny of the single wait completes without throwing on a
-                // fault, a cancellation or the timeout of the wait.
-                await Task.WhenAny(task.WaitAsync(timeout)).ConfigureAwait(false);
-            }
-            return task.IsCompleted;
-        }
-
-        /// <summary>
         /// Retires an idle bag atomically with open reservation admission.
         /// A caller that obtained this bag just before retirement must reacquire it from its host.
         /// </summary>
