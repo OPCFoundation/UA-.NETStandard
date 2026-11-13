@@ -48,6 +48,19 @@ namespace Opc.Ua.Client
         private const int kRepublishMessageExpiredTimeout = 10000;
 
         /// <summary>
+        /// The largest gap between sequence numbers that is filled with
+        /// placeholders for a Republish. A larger gap resynchronises the
+        /// last processed sequence number instead.
+        /// </summary>
+        private const uint kMaxSequenceNumberGap = 1024;
+
+        /// <summary>
+        /// The most entries the incoming message queue keeps: a full sequence gap
+        /// of placeholders plus as many received messages.
+        /// </summary>
+        internal const int kMaxIncomingMessages = 2 * (int)kMaxSequenceNumberGap;
+
+        /// <summary>
         /// Duration to wait before republishing missed notification
         /// </summary>
         public const int RepublishMessageTimeout = 2500;
@@ -1630,8 +1643,20 @@ namespace Opc.Ua.Client
                 if (node is not null)
                 {
                     //gaps between m_lastSequenceNumberProcessed and starting node
+                    uint firstSequenceNumber = node.Value.SequenceNumber;
+                    if (firstSequenceNumber > m_lastSequenceNumberProcessed + 1 &&
+                        firstSequenceNumber - (m_lastSequenceNumberProcessed + 1) > kMaxSequenceNumberGap)
+                    {
+                        // too many messages are missing to recover them with Republish.
+                        m_lastSequenceNumberProcessed = firstSequenceNumber - 1;
+                        m_logger.LogWarning(
+                            "SubscriptionId {SubscriptionId}: Resynced last sequence number processed to {SequenceNumber}.",
+                            Id,
+                            m_lastSequenceNumberProcessed);
+                    }
+
                     LinkedListNode<IncomingMessage> currentNode = node;
-                    for (uint i = node.Value.SequenceNumber; i > (m_lastSequenceNumberProcessed + 1); i--)
+                    for (uint i = firstSequenceNumber; i > (m_lastSequenceNumberProcessed + 1); i--)
                     {
                         var placeholder = new IncomingMessage
                         {
@@ -1659,14 +1684,30 @@ namespace Opc.Ua.Client
 
                     if (next != null && next.Value.SequenceNumber > entry.SequenceNumber + 1)
                     {
-                        var placeholder = new IncomingMessage
+                        if (next.Value.SequenceNumber - (entry.SequenceNumber + 1) > kMaxSequenceNumberGap)
                         {
-                            SequenceNumber = entry.SequenceNumber + 1,
-                            Timestamp = now,
-                            TickCount = tickCount
-                        };
-                        node = m_incomingMessages.AddAfter(node, placeholder);
-                        continue;
+                            // too many messages are missing to recover them with Republish.
+                            uint predecessor = next.Value.SequenceNumber - 1;
+                            if (predecessor > m_lastSequenceNumberProcessed)
+                            {
+                                m_lastSequenceNumberProcessed = predecessor;
+                                m_logger.LogWarning(
+                                    "SubscriptionId {SubscriptionId}: Resynced last sequence number processed to {SequenceNumber}.",
+                                    Id,
+                                    m_lastSequenceNumberProcessed);
+                            }
+                        }
+                        else
+                        {
+                            var placeholder = new IncomingMessage
+                            {
+                                SequenceNumber = entry.SequenceNumber + 1,
+                                Timestamp = now,
+                                TickCount = tickCount
+                            };
+                            node = m_incomingMessages.AddAfter(node, placeholder);
+                            continue;
+                        }
                     }
 
                     node = next;
@@ -1711,6 +1752,27 @@ namespace Opc.Ua.Client
                     }
 
                     node = next;
+                }
+
+                // Bound the queue. Entries stay queued behind the oldest one that is
+                // neither processed nor given up, for example a message the server
+                // keeps listing as available while its Republish fails. Past the limit
+                // the oldest entries are given up, as if their recovery had expired.
+                while (m_incomingMessages.Count > kMaxIncomingMessages)
+                {
+                    entry = m_incomingMessages.First!.Value;
+                    if (!entry.Processed)
+                    {
+                        m_logger.LogWarning(
+                            "SubscriptionId {SubscriptionId} skipping PublishResponse Sequence Number {SequenceNumber}",
+                            Id,
+                            entry.SequenceNumber);
+                    }
+                    if (entry.SequenceNumber > m_lastSequenceNumberProcessed)
+                    {
+                        m_lastSequenceNumberProcessed = entry.SequenceNumber;
+                    }
+                    m_incomingMessages.RemoveFirst();
                 }
             }
 
@@ -2008,6 +2070,11 @@ namespace Opc.Ua.Client
                     int republishMessages = 0;
                     for (int i = 0; i < availableNumbers; i++)
                     {
+                        if (m_incomingMessages.Count >= kMaxIncomingMessages)
+                        {
+                            // the queue keeps its bound, older messages are not republished.
+                            break;
+                        }
                         bool found = false;
                         foreach (uint sequenceNumber in availableSequenceNumbers)
                         {
@@ -2507,6 +2574,11 @@ namespace Opc.Ua.Client
 
                             m_messageCache.AddLast(ii.Value.Message);
                             ii.Value.Processed = true;
+
+                            // The entry stays queued until the messages before it
+                            // are resolved. It only needs its sequence number for
+                            // that; the message is cached above.
+                            ii.Value.Message = null;
 
                             // Keep the last sequence number processed going up
                             if (ii.Value.SequenceNumber > m_lastSequenceNumberProcessed ||
