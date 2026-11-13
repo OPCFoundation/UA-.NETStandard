@@ -4964,9 +4964,14 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = CachedActivitySource.StartActivity();
 
-            // Republish is part of the classic publish flow. With the V2
-            // subscription engine, the SubscriptionManager handles republish
-            // internally and this method is not used.
+            // Republish is part of the classic publish flow. The V2 subscription
+            // engine republishes for its own subscriptions internally; a classic
+            // subscription the V2 engine delivers to still recovers through here.
+            if (m_engine is DefaultSubscriptionEngine defaultEngine)
+            {
+                return await RepublishToSessionSubscriptionAsync(
+                    defaultEngine, subscriptionId, sequenceNumber, ct).ConfigureAwait(false);
+            }
             if (m_engine is not ClassicSubscriptionEngine classicEngine)
             {
                 throw new InvalidOperationException(
@@ -5019,6 +5024,86 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 return classicEngine.ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
+            }
+        }
+
+        /// <summary>
+        /// Republishes a message for a classic subscription the V2 engine delivers
+        /// to, and hands the copy to the subscription like a Publish response. The
+        /// recovered message is acknowledged with the engine's next Publish request.
+        /// The result follows the classic engine: a message the server no longer
+        /// holds is handled, any other failure is not.
+        /// </summary>
+        private async Task<(bool, ServiceResult)> RepublishToSessionSubscriptionAsync(
+            DefaultSubscriptionEngine engine,
+            uint subscriptionId,
+            uint sequenceNumber,
+            CancellationToken ct)
+        {
+            var requestHeader = new RequestHeader
+            {
+                TimeoutHint = (uint)OperationTimeout,
+                ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
+                RequestHandle = NewRequestHandle()
+            };
+            var context = new SessionEngineContext(this);
+            // Captured before the request, so the acknowledgement cannot be
+            // attributed to a subscription that replaces this one meanwhile.
+            AcknowledgementScope? scope = engine.GetSessionSubscriptionScope(subscriptionId);
+            try
+            {
+                m_logger.RequestingRepublishAsyncSubscriptionIdSequenceNumber(
+                    subscriptionId,
+                    sequenceNumber,
+                    SessionId);
+                RepublishResponse response = await RepublishAsync(
+                    requestHeader,
+                    subscriptionId,
+                    sequenceNumber,
+                    ct)
+                    .ConfigureAwait(false);
+                ResponseHeader responseHeader = response.ResponseHeader;
+                NotificationMessage notificationMessage = response.NotificationMessage;
+                m_logger.ReceivedRepublishAsyncSubscriptionIdSequenceNumberServiceResult(
+                    subscriptionId,
+                    sequenceNumber,
+                    responseHeader.ServiceResult,
+                    SessionId);
+                if (context.TryDispatchRepublishedToSessionSubscription(
+                        subscriptionId,
+                        notificationMessage,
+                        responseHeader.StringTable,
+                        scope) &&
+                    notificationMessage.NotificationData.Count != 0)
+                {
+                    engine.QueueSessionAcknowledgement(
+                        subscriptionId,
+                        notificationMessage.SequenceNumber,
+                        scope);
+                }
+                return (true, ServiceResult.Good);
+            }
+            catch (Exception e)
+            {
+                var error = new ServiceResult(e);
+                bool handled = true;
+                if (error.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                {
+                    // The message cannot be received; release it on the server.
+                    engine.QueueSessionAcknowledgement(subscriptionId, sequenceNumber, scope);
+                }
+                else if (error.StatusCode != StatusCodes.BadSubscriptionIdInvalid &&
+                    error.StatusCode != StatusCodes.BadMessageNotAvailable)
+                {
+                    handled = false;
+                }
+                m_logger.ReceivedRepublishAsyncSubscriptionIdSequenceNumberServiceResult(
+                    subscriptionId,
+                    sequenceNumber,
+                    error.StatusCode,
+                    SessionId);
+                context.OnPublishError(error, subscriptionId, sequenceNumber);
+                return (handled, error);
             }
         }
 #endif
@@ -5514,9 +5599,12 @@ namespace Opc.Ua.Client
                     // normally; if the deadline wins we log a warning and
                     // abandon the task — it runs on the thread pool (not a
                     // foreground thread) so it will not prevent process exit.
+                    using var deadlineCts = new CancellationTokenSource();
                     Task winner = await Task
-                        .WhenAny(keepAliveWorker, Task.Delay(s_keepAliveStopTimeout))
+                        .WhenAny(keepAliveWorker, Task.Delay(s_keepAliveStopTimeout, deadlineCts.Token))
                         .ConfigureAwait(false);
+                    // Stop the deadline timer once the worker won.
+                    deadlineCts.Cancel();
 
                     if (winner == keepAliveWorker)
                     {

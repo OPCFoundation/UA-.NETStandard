@@ -862,7 +862,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             private void EnsureParentDirectory(string path)
             {
-                int slash = path.LastIndexOf('/');
+                int slash = path.LastIndexOf('/', StringComparison.Ordinal);
                 if (slash < 0)
                 {
                     return;
@@ -894,7 +894,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             private static string NameOf(string path)
             {
-                int slash = path.LastIndexOf('/');
+                int slash = path.LastIndexOf('/', StringComparison.Ordinal);
                 return slash < 0 ? path : path[(slash + 1)..];
             }
 

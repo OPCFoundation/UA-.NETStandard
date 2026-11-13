@@ -12,9 +12,9 @@
          $(RestrictForLegacyTfm), so under a legacy $(CustomTestTarget) they build as empty
          reference-free shells that this sample must neither reference nor compile against. -->
     <BinPickingClientMcpSupported>false</BinPickingClientMcpSupported>
-    <BinPickingClientMcpSupported Condition="'$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">true</BinPickingClientMcpSupported>
+    <BinPickingClientMcpSupported Condition="'$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0' OR '$(CustomTestTarget)' == 'net11.0'">true</BinPickingClientMcpSupported>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(BinPickingClientMcpSupported)' == 'true' AND ('$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0' OR '$(TargetFramework)' == 'net10.0')">
+  <PropertyGroup Condition="'$(BinPickingClientMcpSupported)' == 'true' AND ('$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0' OR '$(TargetFramework)' == 'net10.0' OR '$(TargetFramework)' == 'net11.0')">
     <DefineConstants>$(DefineConstants);BINPICKING_CLIENT_MCP</DefineConstants>
     <BinPickingClientMcpEnabled>true</BinPickingClientMcpEnabled>
   </PropertyGroup>

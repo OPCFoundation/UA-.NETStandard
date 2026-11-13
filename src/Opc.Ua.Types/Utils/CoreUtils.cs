@@ -872,7 +872,7 @@ namespace Opc.Ua
                         // leaves the switch as though the set had matched, so
                         // "[a" matched "a" while the empty "[" was already
                         // rejected as a syntax error.
-                        if (pattern.IndexOf(']', pIndex) < 0)
+                        if (pattern.IndexOf(']', pIndex, StringComparison.Ordinal) < 0)
                         {
                             return false; // syntax
                         }

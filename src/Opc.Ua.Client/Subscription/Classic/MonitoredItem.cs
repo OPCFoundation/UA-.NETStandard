@@ -94,7 +94,7 @@ namespace Opc.Ua.Client
             string displayName = template.DisplayName;
             if (displayName != null)
             {
-                int index = displayName.LastIndexOf(' ');
+                int index = displayName.LastIndexOf(' ', StringComparison.Ordinal);
                 if (index != -1)
                 {
                     displayName = displayName[..index];

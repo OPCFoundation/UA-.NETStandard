@@ -716,6 +716,13 @@ namespace Opc.Ua
         internal bool IsDeferred => m_rawBody is DeferredExtensionObjectBody;
 
         /// <summary>
+        /// The encoded length of a body kept as bytes to be decoded on first use,
+        /// or -1 when the body is not deferred.
+        /// </summary>
+        internal int DeferredBodyLength =>
+            m_rawBody is DeferredExtensionObjectBody deferred ? deferred.Length : -1;
+
+        /// <summary>
         /// The body, decoding a deferred one on first use.
         /// </summary>
         private object? ResolvedBody =>

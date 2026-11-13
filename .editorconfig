@@ -1133,10 +1133,13 @@ dotnet_analyzer.severity = none
 # SynchronizationContext, so ConfigureAwait(false) is unnecessary. CA2000
 # disposable lifetimes in tests are managed by fixture setup/teardown. This
 # matches the <NoWarn>CA2007;CA2000</NoWarn> convention already used by
-# Opc.Ua.Di.Tests and Opc.Ua.MigrationAnalyzer.Tests.
+# Opc.Ua.Di.Tests and Opc.Ua.MigrationAnalyzer.Tests. CA2027 (.NET 11 SDK:
+# Task.WhenAny with Task.Delay leaves the delay timer running) only costs a
+# short-lived timer in a test timeout race; production code cancels the delay.
 [tests/**/*.cs]
 dotnet_diagnostic.CA2007.severity = none
 dotnet_diagnostic.CA2000.severity = none
+dotnet_diagnostic.CA2027.severity = none
 
 # Fuzzing test projects (Opc.Ua.*.Fuzz.Tests) are test projects; same rationale.
 [fuzzing/**/*.Fuzz.Tests/**/*.cs]

@@ -30,7 +30,7 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **A full-stack OPC UA implementation** — Core / Client / Server /
   PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
-- **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
+- **Cross-platform** — runs on .NET 11, .NET 10 (LTS), .NET 9, .NET 8 (LTS),
   .NET Framework 4.8; ships
   Native-AOT-friendly assemblies.
 - **Conformance regression testing** — the reference server is tested with the
@@ -83,9 +83,9 @@ The [recycling operator console](samples/Recycling/README.md#operator-console-wa
 live browser monitoring, native companion-specification inspection, material genealogy,
 and authorized controls over the [synthetic recycling line](samples/Recycling/README.md).
 
-You need a stable [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-version **10.0.403 or later** to build the repo. `global.json` selects the
-highest installed stable 10.0 SDK and excludes newer major versions. From the repository root:
+You need a stable [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0)
+version **11.0.100 or later** to build the repo. `global.json` selects the
+highest installed stable 11.0 SDK and excludes newer major versions. From the repository root:
 
 ```bash
 dotnet restore UA.slnx
