@@ -134,6 +134,52 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 gate?.CurrentCount.ToString(CultureInfo.InvariantCulture) ?? "?");
         }
 
+        /// <summary>
+        /// Upper bound for the cleanup awaits of the held-callback drain tests,
+        /// so a stalled drain fails the test instead of hanging the test host.
+        /// </summary>
+        private static readonly TimeSpan s_drainCleanupTimeout = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Awaits a cleanup step of a held-callback drain test within
+        /// <see cref="s_drainCleanupTimeout"/>.
+        /// </summary>
+        private static async Task BoundedAsync(Task task, string what)
+        {
+            try
+            {
+                await task.WaitAsync(s_drainCleanupTimeout).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                throw new TimeoutException(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} did not complete within {1} s.",
+                    what,
+                    s_drainCleanupTimeout.TotalSeconds));
+            }
+        }
+
+        /// <summary>
+        /// Disposes a manager within <see cref="s_drainCleanupTimeout"/> at the
+        /// end of an <c>await using</c> scope.
+        /// </summary>
+        private sealed class BoundedManagerDisposal : IAsyncDisposable
+        {
+            public BoundedManagerDisposal(ReverseConnectManager manager)
+            {
+                m_manager = manager;
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                await BoundedAsync(m_manager.DisposeAsync().AsTask(), "Manager disposal")
+                    .ConfigureAwait(false);
+            }
+
+            private readonly ReverseConnectManager m_manager;
+        }
+
         private static ITelemetryContext CreateTelemetry()
         {
             return NUnitTelemetryContext.Create();
@@ -2791,8 +2837,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             finally
             {
                 releaseClose.TrySetResult(true);
-                await dispose.ConfigureAwait(false);
-                await callback.ConfigureAwait(false);
+                await BoundedAsync(dispose, "Dispose").ConfigureAwait(false);
+                await BoundedAsync(callback, "Held callback").ConfigureAwait(false);
             }
 
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
@@ -2915,10 +2961,11 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 closeGateEntered.TrySetResult(true);
                 await releaseClose.Task.ConfigureAwait(false);
             });
-            await using var manager = new ReverseConnectManager(telemetry)
+            var manager = new ReverseConnectManager(telemetry)
             {
                 TransportBindings = harness.Registry
             };
+            await using var managerDisposal = new BoundedManagerDisposal(manager);
 
             await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
             FakeReverseListener listener = harness.Listeners.Single(l => l.OpenedUrl == url);
@@ -2953,8 +3000,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 // leave the stop blocked, or the manager disposal hangs.
                 releaseClose.TrySetResult(true);
             }
-            await stop.ConfigureAwait(false);
-            await callback.ConfigureAwait(false);
+            await BoundedAsync(stop, "Stop").ConfigureAwait(false);
+            await BoundedAsync(callback, "Held callback").ConfigureAwait(false);
 
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
             Assert.That(listener.IsOpen, Is.False);
@@ -2986,10 +3033,11 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 }
             });
 
-            await using var manager = new ReverseConnectManager(telemetry)
+            var manager = new ReverseConnectManager(telemetry)
             {
                 TransportBindings = harness.Registry
             };
+            await using var managerDisposal = new BoundedManagerDisposal(manager);
             await manager.StartServiceAsync(BuildAppConfig(telemetry, original))
                 .ConfigureAwait(false);
             FakeReverseListener originalListener = harness.Listeners.Single(
@@ -3044,8 +3092,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 // leave the reload blocked, or the manager disposal hangs.
                 releaseClose.TrySetResult(true);
             }
-            await reload.ConfigureAwait(false);
-            await heldCallback.ConfigureAwait(false);
+            await BoundedAsync(reload, "Reload").ConfigureAwait(false);
+            await BoundedAsync(heldCallback, "Held callback").ConfigureAwait(false);
 
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
             Assert.That(
@@ -3091,10 +3139,11 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 replacement,
                 new ServiceResultException(StatusCodes.BadNoCommunication));
 
-            await using var manager = new ReverseConnectManager(telemetry)
+            var manager = new ReverseConnectManager(telemetry)
             {
                 TransportBindings = harness.Registry
             };
+            await using var managerDisposal = new BoundedManagerDisposal(manager);
             await manager.StartServiceAsync(BuildAppConfig(telemetry, original))
                 .ConfigureAwait(false);
             FakeReverseListener originalListener = harness.Listeners.Single(
@@ -3130,8 +3179,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 releaseClose.TrySetResult(true);
             }
             // ReloadConfigurationAsync logs and swallows the failed reload.
-            await reload.ConfigureAwait(false);
-            await heldCallback.ConfigureAwait(false);
+            await BoundedAsync(reload, "Failed reload").ConfigureAwait(false);
+            await BoundedAsync(heldCallback, "Held callback").ConfigureAwait(false);
 
             // The rollback restored the previous listener; the replacement never
             // bound and no candidate callback leaked.
