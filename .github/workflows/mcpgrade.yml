@@ -37,6 +37,8 @@ jobs:
 
     - name: Setup .NET 10
       uses: ./.github/actions/setup-repository-dotnet
+      with:
+        dotnet-version: 10.0.x
 
     - name: Setup Node.js
       uses: actions/setup-node@v7
