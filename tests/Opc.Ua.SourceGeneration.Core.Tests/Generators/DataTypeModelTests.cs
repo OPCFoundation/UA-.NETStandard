@@ -259,7 +259,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     int field = dataTypes.IndexOf($"Name = \"{name}\"", StringComparison.Ordinal);
                     Assert.That(field, Is.GreaterThanOrEqualTo(0), name);
                     int value = dataTypes.IndexOf("Value = ", field, StringComparison.Ordinal) + 8;
-                    int end = dataTypes.IndexOf(',', value);
+                    int end = dataTypes.IndexOf(',', value, StringComparison.Ordinal);
                     return name + "=" + dataTypes[value..end];
                 })
             ];
@@ -297,7 +297,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     int field = dataTypes.IndexOf($"Name = \"{name}\"", StringComparison.Ordinal);
                     Assert.That(field, Is.GreaterThanOrEqualTo(0), name);
                     int value = dataTypes.IndexOf("Value = ", field, StringComparison.Ordinal) + 8;
-                    int end = dataTypes.IndexOf(',', value);
+                    int end = dataTypes.IndexOf(',', value, StringComparison.Ordinal);
                     return name + "=" + dataTypes[value..end];
                 })
             ];

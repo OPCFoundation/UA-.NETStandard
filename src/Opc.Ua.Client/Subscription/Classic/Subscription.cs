@@ -50,6 +50,12 @@ namespace Opc.Ua.Client
         private const uint kMaxSequenceNumberGap = 1024;
 
         /// <summary>
+        /// The most entries the incoming message queue keeps: a full sequence gap
+        /// of placeholders plus as many received messages.
+        /// </summary>
+        internal const int kMaxIncomingMessages = 2 * (int)kMaxSequenceNumberGap;
+
+        /// <summary>
         /// Orders the server id claims of all subscriptions in the process.
         /// </summary>
         private static long s_idClaims;
@@ -2288,6 +2294,20 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Adds a notification message received in a Republish response to the
+        /// internal cache when the subscription is still in the lifetime the
+        /// Republish was requested for. A subscription deleted or recreated
+        /// meanwhile does not take a message of its former lifetime.
+        /// </summary>
+        /// <returns><c>true</c> when the message was taken.</returns>
+        internal bool TrySaveRepublishedMessageInCache(
+            NotificationMessage message,
+            AcknowledgementScope requiredScope)
+        {
+            return SaveMessageInCache(default, message, false, requiredScope, requiredScope);
+        }
+
+        /// <summary>
         /// Adds a received message to the cache of messages waiting for dispatch.
         /// </summary>
         /// <param name="availableSequenceNumbers">The sequence numbers the server holds.</param>
@@ -2297,16 +2317,24 @@ namespace Opc.Ua.Client
         /// <param name="acknowledgementScope">The scope the engine tracked the acknowledgement
         /// with, or <c>null</c> to capture the current one. Delivered notifications carry the
         /// same handle.</param>
-        private void SaveMessageInCache(
+        /// <param name="requiredScope">The lifetime the subscription must still be in
+        /// for the message to be taken, or <c>null</c> to take it in any lifetime.</param>
+        /// <returns><c>false</c> when the subscription left the required lifetime.</returns>
+        private bool SaveMessageInCache(
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message,
             bool updateAvailableSequenceNumbers,
-            AcknowledgementScope? acknowledgementScope)
+            AcknowledgementScope? acknowledgementScope,
+            AcknowledgementScope? requiredScope = null)
         {
             PublishStateChangedEventHandler? callback = null;
 
             lock (m_cache)
             {
+                if (requiredScope != null && !requiredScope.Equals(GetAcknowledgementScope()))
+                {
+                    return false;
+                }
                 if (updateAvailableSequenceNumbers)
                 {
                     m_availableSequenceNumbers = availableSequenceNumbers;
@@ -2314,7 +2342,7 @@ namespace Opc.Ua.Client
 
                 if (message == null)
                 {
-                    return;
+                    return true;
                 }
 
                 // check if a publish error was previously reported.
@@ -2500,6 +2528,28 @@ namespace Opc.Ua.Client
 
                     node = next;
                 }
+
+                // Bound the queue. Entries stay queued behind the oldest one that is
+                // neither processed nor given up, for example a message the server
+                // keeps listing as available while its Republish fails, or messages
+                // that arrive while the message worker is stopped. Past the limit
+                // the oldest entries are given up, as if their recovery had expired.
+                while (m_incomingMessages.Count > kMaxIncomingMessages)
+                {
+                    entry = m_incomingMessages.First!.Value;
+                    if (!entry.Processed)
+                    {
+                        m_logger.SubscriptionIdSubscriptionIdSkippingPublishResponseSequenceNumber(
+                            Id,
+                            entry.SequenceNumber,
+                            Session?.SessionId);
+                    }
+                    if (IsNewerSequenceNumber(entry.SequenceNumber, m_lastSequenceNumberProcessed))
+                    {
+                        m_lastSequenceNumberProcessed = entry.SequenceNumber;
+                    }
+                    m_incomingMessages.RemoveFirst();
+                }
             }
 
             // send notification that publishing received a keep alive or has to republish.
@@ -2507,6 +2557,7 @@ namespace Opc.Ua.Client
 
             // process messages.
             m_messageWorkerEvent.Set();
+            return true;
         }
 
         /// <summary>
@@ -2815,6 +2866,13 @@ namespace Opc.Ua.Client
                     int republishMessages = 0;
                     for (int i = 0; i < availableNumbers; i++)
                     {
+                        if (m_incomingMessages.Count >= kMaxIncomingMessages)
+                        {
+                            // The queue keeps its bound: the older messages stay
+                            // in the acknowledgement list and are released
+                            // instead of republished.
+                            break;
+                        }
                         bool found = false;
                         bool republishRequested = false;
                         foreach (uint sequenceNumber in availableSequenceNumberList)
@@ -3408,6 +3466,12 @@ namespace Opc.Ua.Client
                             }
 
                             ii.Value.Processed = true;
+
+                            // The entry stays queued until the messages before it
+                            // are resolved. It only needs its sequence number for
+                            // that; the message is cached above and handed to the
+                            // dispatch below.
+                            ii.Value.Message = null;
 
                             // Keep the last sequence number processed going up
                             if (IsNewerSequenceNumber(ii.Value.SequenceNumber, m_lastSequenceNumberProcessed))

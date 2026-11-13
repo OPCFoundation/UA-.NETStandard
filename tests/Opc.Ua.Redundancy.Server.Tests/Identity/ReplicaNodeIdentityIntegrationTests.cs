@@ -395,7 +395,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
                 bool isProperty = entry.Key.EndsWith("/Units", StringComparison.Ordinal);
                 Assert.That(entry.Value.NodeClass,
                     Is.EqualTo(isReading || isProperty ? NodeClass.Variable : NodeClass.Object), entry.Key);
-                int separator = entry.Key.LastIndexOf('/');
+                int separator = entry.Key.LastIndexOf('/', StringComparison.Ordinal);
                 NodeId parentId = separator < 0 ? ObjectIds.ObjectsFolder : nodes[entry.Key[..separator]].NodeId;
                 NodeId referenceTypeId = isProperty
                     ? ReferenceTypeIds.HasProperty

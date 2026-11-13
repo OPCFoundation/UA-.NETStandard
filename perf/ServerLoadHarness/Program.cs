@@ -32,7 +32,7 @@
 // Modes:
 //   server  --port P [--diag 0|1] [--audit 0|1] [--threads N]
 //           Starts a ReferenceServer and reads commands from stdin: mark | report | quit
-//   run     --scenario read|write|sub|browse [--sessions N] [--nodes K] [--inflight I]
+//   run     --scenario read|write|sub|browse|churn [--sessions N] [--nodes K] [--inflight I]
 //           [--duration S] [--warmup S] [--security none|sign|encrypt] [--diag 0|1] [--audit 0|1]
 //           [--subs S] [--pub ms] [--write-interval ms] [--write-nodes K]
 //           [--trace file] [--trace-profile p] [--out file]
@@ -1047,7 +1047,66 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             m_call = Enumerable.Repeat(call, m_nodes).ToArray();
             Console.WriteLine(FormattableString.Invariant(
                 $"{m_kind}: {nodes.Count} nodes/request, inflight {m_inflight}/session"));
-            return Task.CompletedTask;
+            return m_kind == "churn" ? CreateChurnSubscriptionsAsync() : Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// churn: one subscription per session whose monitored items are created and deleted
+        /// again by every operation (one operation = CreateMonitoredItems + DeleteMonitoredItems).
+        /// </summary>
+        private async Task CreateChurnSubscriptionsAsync()
+        {
+            foreach (ISession session in m_sessions)
+            {
+                CreateSubscriptionResponse response = await session.CreateSubscriptionAsync(
+                    null, 1000, 600, 10, 0, true, 0, CancellationToken.None).ConfigureAwait(false);
+                m_churnSubscriptions[session] = response.SubscriptionId;
+            }
+            m_churnItems = (m_read.ToArray() ?? []).Select((r, i) => new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = r,
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = (uint)i,
+                    SamplingInterval = 1000,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            }).ToArray();
+        }
+
+        private async Task ChurnAsync(ISession session, CancellationToken ct)
+        {
+            uint subscriptionId = m_churnSubscriptions[session];
+            CreateMonitoredItemsResponse created = await session.CreateMonitoredItemsAsync(
+                null, subscriptionId, TimestampsToReturn.Both, m_churnItems, ct).ConfigureAwait(false);
+            MonitoredItemCreateResult[] createResults = created.Results.ToArray() ?? [];
+            // delete what was created even when part of the batch failed, then count the pair
+            // only when every create and every delete succeeded.
+            uint[] ids = createResults
+                .Where(r => StatusCode.IsGood(r.StatusCode))
+                .Select(r => r.MonitoredItemId)
+                .ToArray();
+            StatusCode failure = createResults.Length != m_churnItems.Count
+                ? StatusCodes.BadUnexpectedError
+                : createResults.Select(r => r.StatusCode).FirstOrDefault(s => !StatusCode.IsGood(s));
+            if (ids.Length > 0)
+            {
+                DeleteMonitoredItemsResponse deleted = await session.DeleteMonitoredItemsAsync(
+                    null, subscriptionId, ids, ct).ConfigureAwait(false);
+                StatusCode[] deleteResults = deleted.Results.ToArray() ?? [];
+                if (StatusCode.IsGood(failure))
+                {
+                    failure = deleteResults.Length != ids.Length
+                        ? StatusCodes.BadUnexpectedError
+                        : deleteResults.FirstOrDefault(s => !StatusCode.IsGood(s));
+                }
+            }
+            if (!StatusCode.IsGood(failure))
+            {
+                throw new ServiceResultException(failure, "churn: a CreateMonitoredItems or DeleteMonitoredItems operation failed");
+            }
         }
 
         public override async Task RunAsync(CancellationToken ct)
@@ -1092,6 +1151,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     {
                         case "write":
                             await session.WriteAsync(null, m_write, ct).ConfigureAwait(false);
+                            break;
+                        case "churn":
+                            await ChurnAsync(session, ct).ConfigureAwait(false);
                             break;
                         case "browse":
                             await session.BrowseAsync(null, null, 0, m_browse, ct).ConfigureAwait(false);
@@ -1180,6 +1242,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private ArrayOf<ReadValueId> m_read;
         private ArrayOf<WriteValue> m_write;
         private ArrayOf<BrowseDescription> m_browse;
+        private readonly Dictionary<ISession, uint> m_churnSubscriptions = [];
+        private ArrayOf<MonitoredItemCreateRequest> m_churnItems;
     }
 
     /// <summary>

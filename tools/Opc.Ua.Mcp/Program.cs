@@ -81,7 +81,7 @@ rootCommand.SetAction(async (parseResult, ct) =>
     if (!string.IsNullOrWhiteSpace(toolProfile) &&
         !McpToolProfileSet.TryParse(toolProfile, out _, out string? profileError))
     {
-        await Console.Error.WriteLineAsync(profileError).ConfigureAwait(false);
+        await Console.Error.WriteLineAsync(profileError.AsMemory(), ct).ConfigureAwait(false);
         return 2;
     }
 
@@ -99,7 +99,7 @@ rootCommand.SetAction(async (parseResult, ct) =>
     }
 
     await Console.Error.WriteLineAsync(
-        $"Unknown transport '{transport}'. Valid transports: stdio, http, sse.").ConfigureAwait(false);
+        $"Unknown transport '{transport}'. Valid transports: stdio, http, sse.".AsMemory(), ct).ConfigureAwait(false);
     return 2;
 });
 
@@ -108,7 +108,7 @@ return await rootCommand.Parse(args).InvokeAsync().ConfigureAwait(false);
 static async Task RunStdioServerAsync(string? toolProfileOverride, CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
-        "Starting MCP server with stdio transport...").ConfigureAwait(false);
+        "Starting MCP server with stdio transport...".AsMemory(), ct).ConfigureAwait(false);
 
     HostApplicationBuilder builder = Host.CreateApplicationBuilder();
     McpHostBuilder.ConfigureLogging(builder.Logging, useStdioTransport: true);
@@ -141,7 +141,7 @@ static async Task RunHttpServerAsync(
     CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
-        $"Starting MCP server with Streamable HTTP transport on port {port} at /mcp...").ConfigureAwait(false);
+        $"Starting MCP server with Streamable HTTP transport on port {port} at /mcp...".AsMemory(), ct).ConfigureAwait(false);
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder();
     McpHostBuilder.ConfigureLogging(builder.Logging, useStdioTransport: false);

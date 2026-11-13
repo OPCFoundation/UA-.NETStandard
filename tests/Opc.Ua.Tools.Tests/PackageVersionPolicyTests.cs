@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -142,12 +142,14 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Di.Debug", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95.Debug", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning.Debug", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon.Debug", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry.Debug", false),
+                // These depend on preview-only families, so a stable root
+                // cannot pack them as stable (NU5104).
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry.Debug", true),
                 // A package that merely starts with the same prefix text
                 // must not be matched (family boundary is a dot, not a
                 // substring).
@@ -652,6 +654,9 @@ namespace Opc.Ua.Tools.Tests
                 "Opc.Ua.AI",
                 "Opc.Ua.Mcp.Robotics",
                 "Opc.Ua.Mcp.CranesHoists",
+                "Opc.Ua.Mcp.Positioning",
+                "Opc.Ua.Mcp.WotCon",
+                "Opc.Ua.Mcp.XRegistry",
                 "Opc.Ua.OpenUsd.Connector",
                 "Opc.Ua.OpenUsd.Connector.Viewer"
             ];
@@ -1308,7 +1313,7 @@ namespace Opc.Ua.Tools.Tests
             [
                 .. workflow[..checkout]
                     .Split('\n')
-                    .Where(l => !l.TrimStart().StartsWith('#'))
+                    .Where(l => !l.TrimStart().StartsWith('#', StringComparison.Ordinal))
             ];
 
             Assert.Multiple(
@@ -1540,7 +1545,7 @@ namespace Opc.Ua.Tools.Tests
                     Is.Zero,
                     $"package-version-policy.ps1 script failed:\n{output}\n{error}");
 
-                return JsonDocument.Parse(output).RootElement;
+                return JsonElement.Parse(output);
             }
             finally
             {
@@ -1594,6 +1599,10 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Server", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotConExtra", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.CranesHoistsExtra", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoistsExtra", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists.Child", false),

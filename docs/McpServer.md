@@ -711,7 +711,8 @@ After installation, the `opcua-mcp` command is available globally.
 
 The tool includes every [tool profile](#tool-profiles), including composed
 sets such as `vision,robotics` or `machinetool,gms,craneshoists`.
-Robotics and CranesHoists embedding libraries remain preview-only.
+Robotics, CranesHoists, Positioning, WotCon and XRegistry embedding libraries
+remain preview-only.
 Vision, MachineTool and GMS embedding libraries follow the normal
 root release version; see [Packages](#packages).
 
@@ -1271,10 +1272,12 @@ Every tool-bearing library keeps its MCP tool classes and partials in `Tools/`;
 registration, configuration and supporting services stay outside that folder.
 Folder placement does not change public namespaces or tool names.
 
-The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
-`net10.0`. `Mcp.Robotics` and `Mcp.CranesHoists` remain preview-only,
-including their Debug variants. `Mcp.Vision`, `Mcp.MachineTool`, `Mcp.GMS`,
-the other industrial companion, WoT, xRegistry and MCP libraries, and the
+The libraries multi-target `net8.0;net9.0;net10.0;net11.0`; the executable targets
+`net10.0` and `net11.0`. `Mcp.Robotics`, `Mcp.CranesHoists`, `Mcp.Positioning`,
+`Mcp.WotCon` and `Mcp.XRegistry` remain preview-only, including their Debug
+variants, because they depend on preview-only package families.
+`Mcp.Vision`, `Mcp.MachineTool`, `Mcp.GMS`, the other industrial companion
+and MCP libraries, and the
 `opcua-mcp` tool follow the root release channel: a stable root release produces
 stable versions, while development builds retain the root prerelease version.
 

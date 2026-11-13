@@ -632,7 +632,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 directory = directory.Parent!;
             }
             Assert.That(directory, Is.Not.Null);
-            string sourcePath = Path.Combine(directory!.FullName, Path.Combine(relativePath.Split('\\')));
+            string sourcePath = Path.Combine([directory!.FullName, .. relativePath.Split('\\')]);
             using FileStream stream = File.OpenRead(sourcePath);
             UANodeSet source = UANodeSet.Read(stream)!;
             var options = new WotNodeSetConverterOptions

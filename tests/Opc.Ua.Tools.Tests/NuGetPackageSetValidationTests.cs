@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -280,7 +280,8 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// Industrial, WoT, xRegistry and Vision MCP modules follow a stable root; Robotics remains preview.
+        /// Industrial and Vision MCP modules follow a stable root; Robotics, Positioning,
+        /// WoT and xRegistry MCP modules remain preview because their dependencies are preview-only.
         /// </summary>
         [TestCase("")]
         [TestCase(".Debug")]
@@ -290,11 +291,15 @@ namespace Opc.Ua.Tools.Tests
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core" + suffix, "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics" + suffix, PreviewFamilyVersion);
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision" + suffix, "2.0.0");
-            string[] families =
-                ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95", "Positioning", "WotCon", "XRegistry"];
+            string[] families = ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95"];
             foreach (string family in families)
             {
                 fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Mcp.{family}{suffix}", "2.0.0");
+            }
+            string[] previewFamilies = ["Positioning", "WotCon", "XRegistry"];
+            foreach (string family in previewFamilies)
+            {
+                fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Mcp.{family}{suffix}", PreviewFamilyVersion);
             }
 
             ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.0").ConfigureAwait(false);
@@ -674,7 +679,7 @@ namespace Opc.Ua.Tools.Tests
                 if (File.Exists(manifestPath))
                 {
                     string manifestJson = await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false);
-                    manifest = JsonDocument.Parse(manifestJson).RootElement;
+                    manifest = JsonElement.Parse(manifestJson);
                 }
 
                 return new ValidationResult(process.ExitCode, combined, manifest);

@@ -1106,7 +1106,7 @@ namespace Opc.Ua.Wot
             int index = 1;
             while (index <= pointer.Length)
             {
-                int next = pointer.IndexOf('/', index);
+                int next = pointer.IndexOf('/', index, StringComparison.Ordinal);
                 if (next < 0)
                 {
                     next = pointer.Length;

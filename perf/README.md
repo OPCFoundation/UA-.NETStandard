@@ -1,7 +1,7 @@
 # Performance tooling
 
 Tools for measuring server and client latency, throughput and GC cost under load. They are not
-part of the product build (not in `UA.slnx`) and target `net10.0` only.
+part of the product build (not in `UA.slnx`) and target `net10.0` and `net11.0` (build one with `CustomTestTarget`). The server child runs on the same runtime as the harness, so the two builds compare the runtimes.
 
 | Path | Purpose |
 |---|---|
@@ -37,6 +37,7 @@ are described in [docs/ServerScalability.md](../docs/ServerScalability.md#runtim
 
 ```bash
 CustomTestTarget=net10.0 dotnet build perf/ServerLoadHarness -c Release
+CustomTestTarget=net11.0 dotnet build perf/ServerLoadHarness -c Release
 dotnet build perf/TraceAnalyzer -c Release
 dotnet tool install -g dotnet-trace
 ```
@@ -49,7 +50,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `translate` (`--nodes` TranslateBrowsePaths of Server/ServerStatus/CurrentTime per request), `call` (`--nodes` calls of the reference server's `Methods_Void` per request), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, or `native-read`/`native-counters` (see below). |
+| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `translate` (`--nodes` TranslateBrowsePaths of Server/ServerStatus/CurrentTime per request), `call` (`--nodes` calls of the reference server's `Methods_Void` per request), `churn` (CreateMonitoredItems plus DeleteMonitoredItems of `--nodes` items on one subscription per session), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, or `native-read`/`native-counters` (see below). |
 | `--sessions` | 20 (`counters`: 1) | Concurrent sessions. |
 | `--nodes` | 100 | Values per Read/Write request, or monitored items per subscription. |
 | `--inflight` | 1 | Outstanding requests per session (closed loop). |

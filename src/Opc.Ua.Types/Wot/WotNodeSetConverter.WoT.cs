@@ -3237,7 +3237,7 @@ namespace Opc.Ua.Wot
         {
             if (nodeId.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = nodeId.IndexOf(';', 4);
+                int delimiter = nodeId.IndexOf(';', 4, StringComparison.Ordinal);
                 if (delimiter > 4 && delimiter + 1 < nodeId.Length)
                 {
                     string namespaceUri = CoreUtils.UnescapeUri(nodeId.AsSpan(4, delimiter - 4));
@@ -4313,7 +4313,7 @@ namespace Opc.Ua.Wot
             }
             if (portableNodeId.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = portableNodeId.IndexOf(';', 4);
+                int delimiter = portableNodeId.IndexOf(';', 4, StringComparison.Ordinal);
                 if (delimiter < 0 || delimiter + 1 >= portableNodeId.Length)
                 {
                     diagnostics.Add(new WotDiagnostic(
@@ -5408,7 +5408,7 @@ namespace Opc.Ua.Wot
                 const string marker = "nsu=";
                 if (uavId.StartsWith(marker, StringComparison.Ordinal))
                 {
-                    int semicolon = uavId.IndexOf(';', marker.Length);
+                    int semicolon = uavId.IndexOf(';', marker.Length, StringComparison.Ordinal);
                     // The nsu= form is percent escaped, like every other place
                     // the converter reads one.
                     string ns = semicolon < 0

@@ -34,7 +34,7 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 
 ## Prerequisites
 
-- **.NET SDK 10.0.400 or later** — `global.json` sets this minimum and selects the highest installed stable SDK through `rollForward: latestMajor`; prerelease SDKs are excluded. CI selects its SDK version explicitly. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)); those target frameworks do not determine the SDK used to build the repository.
+- **.NET SDK 11.0.100 or later (11.0 feature bands)** — `global.json` sets this minimum and selects the highest installed stable 11.0 SDK through `rollForward: latestFeature`; prerelease SDKs are excluded. (`actions/setup-dotnet` reads `latestMajor` as "the current LTS", which would install a .NET 10 SDK in CI.) CI selects its SDK version explicitly. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)); those target frameworks do not determine the SDK used to build the repository.
 - **An IDE (optional but recommended)** — Visual Studio 2026, Visual Studio Code with the C# Dev Kit, or JetBrains Rider. Everything can also be done from the command line with `dotnet`.
 - **git** — to clone and to create feature branches.
 - **Docker Desktop (optional)** — only needed to run the containerized reference server; see [ContainerReferenceServer.md](ContainerReferenceServer.md).
@@ -145,7 +145,7 @@ Conventions and requirements:
   ```
 - **Before a pull request that changes C# source files**, the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**. Pull requests changing only non-C# files do not require these .NET test runs before opening.
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
-- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
+- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net11.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (net10.0, Debug, .NET 9/8) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
 
 Wire compatibility with the released 1.5 stack is covered by
 [`tests/Opc.Ua.Interop.Tests`](../tests/Opc.Ua.Interop.Tests), in both
@@ -538,8 +538,9 @@ The class libraries currently target:
 3. .NET 8.0
 4. .NET 9.0
 5. .NET 10.0
+6. .NET 11.0
 
-The pull-request gate *compiles* every one of these targets, but only runs the test suite on (2) and (5) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
+The pull-request gate *compiles* every one of these targets, but only runs the test suite on (2) and (6) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
 
 ### Supported analyzer and source generator hosts
 
@@ -603,9 +604,9 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 
 | | Pull request (`buildandtest.yml`) | Full scope (`nightly.yml`) |
 | --- | --- | --- |
-| Test profiles | Windows net48, Windows/Linux/macOS net10.0 | the above plus net9.0, net8.0, the Debug legs, and the tiers that lift the category filter |
-| Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` on Linux for net8.0/net9.0/net10.0 | every `.slnx` on Windows for all four TFMs × Debug/Release, plus the Linux legs |
-| Native AoT | linux-x64, osx-x64, osx-arm64 | the above plus win-x64 |
+| Test profiles | Windows net48, Windows/Linux/macOS net11.0 | Windows net48, Windows/macOS net10.0, net9.0, net8.0, the net10.0 Debug legs, and the tiers that lift the category filter (on net10.0) |
+| Solution builds | every `.slnx` on Windows for net48/net10.0/net11.0 × Debug/Release, `UA.slnx` on Linux for net8.0/net9.0/net10.0/net11.0 | every `.slnx` on Windows for net48/net10.0/net11.0 in Release and net48/net11.0 in Debug, plus the Linux legs (net8.0 to net11.0) |
+| Native AoT | linux-x64, osx-x64, osx-arm64, each on net10.0 and net11.0 | the above plus win-x64 |
 | Coverage | project floors and the graduated patch gate | project floors only |
 | Trigger | every push and pull request | weekly schedule and `workflow_dispatch` |
 
@@ -626,7 +627,7 @@ The executor fails a project when its build fails, when the TRX counters report 
 
 Each project or filtered shard has a **45-minute test-execution budget**.
 Server.Tests runs the native NodeManager lifecycle fixture separately from the
-remaining tests on net8.0, net9.0 and net10.0; net48 uses finer-grained shards.
+remaining tests on net8.0, net9.0, net10.0 and net11.0; net48 uses finer-grained shards.
 Long-running WoT/sample suites use exhaustive, non-overlapping filters instead
 of larger project-specific timeouts. For example, the modern WoT sample suite
 separates ordinary cases, full generation replacement, and native comparisons.

@@ -30,7 +30,7 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **A full-stack OPC UA implementation** — Core / Client / Server /
   PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
-- **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
+- **Cross-platform** — runs on .NET 11, .NET 10 (LTS), .NET 9, .NET 8 (LTS),
   .NET Framework 4.8; ships
   Native-AOT-friendly assemblies.
 - **Conformance regression testing** — the reference server is tested with the

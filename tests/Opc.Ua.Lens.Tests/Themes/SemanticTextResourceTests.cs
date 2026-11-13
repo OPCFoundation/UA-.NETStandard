@@ -111,7 +111,7 @@ namespace UaLens.Tests.Themes
         private static bool IsStatusAccentResource(string? value)
         {
             if (value is null ||
-                !value.EndsWith('}') ||
+                !value.EndsWith('}', StringComparison.Ordinal) ||
                 (!value.StartsWith("{DynamicResource ", StringComparison.Ordinal) &&
                     !value.StartsWith("{StaticResource ", StringComparison.Ordinal)))
             {
