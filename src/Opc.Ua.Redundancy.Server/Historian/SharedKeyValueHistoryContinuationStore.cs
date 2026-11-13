@@ -395,9 +395,15 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
             m_deleteChannel.Writer.TryComplete();
-            Task completedTask = await Task.WhenAny(
-                m_deleteTask,
-                Task.Delay(s_deleteShutdownTimeout)).ConfigureAwait(false);
+            Task completedTask;
+            using (var deadlineCts = new CancellationTokenSource())
+            {
+                completedTask = await Task.WhenAny(
+                    m_deleteTask,
+                    Task.Delay(s_deleteShutdownTimeout, deadlineCts.Token)).ConfigureAwait(false);
+                // Stop the deadline timer once the delete task won.
+                deadlineCts.Cancel();
+            }
             if (completedTask != m_deleteTask)
             {
                 m_logger?.HistoryContinuationCleanupShutdownTimedOut();

@@ -541,7 +541,7 @@ namespace RedundantClient
 
         private static IPEndPoint ParseGossipEndpoint(string hostPort)
         {
-            int separator = hostPort.LastIndexOf(':');
+            int separator = hostPort.LastIndexOf(':', StringComparison.Ordinal);
             if (separator <= 0 || separator == hostPort.Length - 1)
             {
                 throw new FormatException($"Invalid gossip endpoint '{hostPort}'; expected host:port.");

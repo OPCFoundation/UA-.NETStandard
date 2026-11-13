@@ -90,7 +90,18 @@ namespace Opc.Ua.Bindings
         {
             const string coreAssemblyName = "Opc.Ua.Core";
             const string diagnosticsAssemblyName = "Opc.Ua.Core.Diagnostics";
-            var stackTrace = new System.Diagnostics.StackTrace(skipFrames: 1, fNeedFileInfo: false);
+            System.Diagnostics.StackTrace stackTrace;
+            try
+            {
+                stackTrace = new System.Diagnostics.StackTrace(skipFrames: 1, fNeedFileInfo: false);
+            }
+            catch (NotSupportedException)
+            {
+                // Without stack trace support (trimmed, .NET 11) the caller cannot
+                // be verified; earlier runtimes returned no frames and failed below.
+                throw new InvalidOperationException(
+                    "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Core.Diagnostics assembly.");
+            }
 
             for (int ii = 0; ii < stackTrace.FrameCount; ii++)
             {

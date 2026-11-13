@@ -553,6 +553,19 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <summary>
+        /// Waits for <paramref name="task"/> for at most <paramref name="timeout"/>
+        /// and reports whether it completed in time. The timeout timer is
+        /// cancelled as soon as the task wins, so it does not outlive the wait.
+        /// </summary>
+        internal static async Task<bool> CompletesWithinAsync(Task task, TimeSpan timeout)
+        {
+            using var deadlineCts = new CancellationTokenSource();
+            Task winner = await Task.WhenAny(task, Task.Delay(timeout, deadlineCts.Token)).ConfigureAwait(false);
+            deadlineCts.Cancel();
+            return winner == task;
+        }
+
+        /// <summary>
         /// Validates lifecycle timeout values consistently on .NET Framework and modern .NET.
         /// </summary>
         internal static TimeSpan ValidateCloseTimeout(TimeSpan timeout)

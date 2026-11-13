@@ -1445,7 +1445,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 {
                     string localId = LocalNodeId(pumpName, binding.LocalPath);
                     Affordance property = FindAffordance(documents, "properties", localId);
-                    int separator = binding.LocalPath.LastIndexOf('.');
+                    int separator = binding.LocalPath.LastIndexOf('.', StringComparison.Ordinal);
                     string ownerPath = separator < 0 ? string.Empty : binding.LocalPath[..separator];
                     Assert.That(property.Root.GetProperty("uav:id").GetString(),
                         Is.EqualTo(LocalNodeId(pumpName, ownerPath)), binding.Name);

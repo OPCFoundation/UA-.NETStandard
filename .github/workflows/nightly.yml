@@ -84,6 +84,13 @@ jobs:
             $matrix += @{ os = 'macos-15-intel'; rid = 'osx-x64' }
             $matrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
         }
+        # Every RID publishes and runs the NativeAOT tests for the LTS and the
+        # newest target framework.
+        $matrix = @(foreach ($entry in $matrix) {
+            foreach ($tfm in @('net10.0', 'net11.0')) {
+                @{ os = $entry.os; rid = $entry.rid; tfm = $tfm }
+            }
+        })
         "matrix=$(ConvertTo-Json -InputObject @($matrix) -Compress)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
     - name: Upload the workload manifest
@@ -163,7 +170,7 @@ jobs:
         artifact-name: dotnet-results-${{ matrix.entry.id }}
 
   aot:
-    name: aot-${{ matrix.os }}
+    name: aot-${{ matrix.os }}-${{ matrix.tfm }}
     needs: discover
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
@@ -193,6 +200,7 @@ jobs:
       shell: pwsh
       env:
         RID: ${{ matrix.rid }}
+        TFM: ${{ matrix.tfm }}
       run: |
         $ErrorActionPreference = 'Stop'
         $projects = @(
@@ -202,9 +210,9 @@ jobs:
         $failed = @()
         foreach ($project in $projects) {
             $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
-            Write-Host "::group::$stem ($($env:RID))"
+            Write-Host "::group::$stem ($($env:RID), $($env:TFM))"
             try {
-                $output = dotnet publish $project --configuration $env:CONFIGURATION |
+                $output = dotnet publish $project --configuration $env:CONFIGURATION --framework $env:TFM -p:CustomTestTarget=$($env:TFM) |
                     ForEach-Object { Write-Host $_; "$_" }
                 if ($LASTEXITCODE -ne 0) {
                     # Surface the MSBuild errors in the annotation, not just
@@ -214,7 +222,7 @@ jobs:
                     throw "Publish failed with exit code $LASTEXITCODE`: $reason"
                 }
 
-                $publishDir = Join-Path (Split-Path $project -Parent) "bin/$($env:CONFIGURATION)/net10.0/$($env:RID)/publish"
+                $publishDir = Join-Path (Split-Path $project -Parent) "bin/$($env:CONFIGURATION)/$($env:TFM)/$($env:RID)/publish"
                 if (-not (Test-Path -LiteralPath $publishDir -PathType Container)) {
                     throw "Publish succeeded but '$publishDir' does not exist."
                 }
@@ -242,7 +250,7 @@ jobs:
             }
             catch {
                 $failed += $stem
-                Write-Host "::error title=$stem ($($env:RID))::$($_.Exception.Message)"
+                Write-Host "::error title=$stem ($($env:RID), $($env:TFM))::$($_.Exception.Message)"
             }
             finally {
                 Write-Host '::endgroup::'
@@ -256,7 +264,7 @@ jobs:
       if: ${{ always() }}
       uses: actions/upload-artifact@v7
       with:
-        name: aot-results-${{ matrix.os }}-${{ matrix.rid }}
+        name: aot-results-${{ matrix.os }}-${{ matrix.rid }}-${{ matrix.tfm }}
         path: |
           **/TestResults/**
           **/*-report.html

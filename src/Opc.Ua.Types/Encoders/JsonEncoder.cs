@@ -1933,7 +1933,7 @@ namespace Opc.Ua
         {
             if (name.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                return name.IndexOf(';', 4) >= 0;
+                return name.IndexOf(';', 4, StringComparison.Ordinal) >= 0;
             }
             int digits = 0;
             while (digits < name.Length && name[digits] is >= '0' and <= '9')

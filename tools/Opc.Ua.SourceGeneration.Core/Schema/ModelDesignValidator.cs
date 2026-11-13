@@ -2877,7 +2877,7 @@ namespace Opc.Ua.Schema.Model
                 {
                     string? line = reader.ReadLine();
 
-                    if (string.IsNullOrEmpty(line) || line.StartsWith('#'))
+                    if (string.IsNullOrEmpty(line) || line.StartsWith('#', StringComparison.Ordinal))
                     {
                         continue;
                     }
@@ -2890,7 +2890,7 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
                     // remove the node class if it is present.
-                    int lastIndex = line.LastIndexOf(',');
+                    int lastIndex = line.LastIndexOf(',', StringComparison.Ordinal);
 
                     if (lastIndex != -1 && index != lastIndex)
 
@@ -2906,7 +2906,7 @@ namespace Opc.Ua.Schema.Model
                             m_logger.LogDebug("Loaded ID: {Name}={Id}", name, id);
                         }
 
-                        if (id.StartsWith('"'))
+                        if (id.StartsWith('"', StringComparison.Ordinal))
                         {
                             identifiers[name] = id[1..^1];
                         }
@@ -4113,7 +4113,7 @@ namespace Opc.Ua.Schema.Model
         private static bool TryGetIdentifierFromName(string name, out decimal id)
         {
             id = 0;
-            int index = name.LastIndexOf(NodeDesign.PathChar);
+            int index = name.LastIndexOf(NodeDesign.PathChar, StringComparison.Ordinal);
 
             if (index <= 0 || index == name.Length - 1)
             {

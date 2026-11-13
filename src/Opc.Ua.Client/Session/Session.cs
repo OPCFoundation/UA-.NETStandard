@@ -5599,9 +5599,12 @@ namespace Opc.Ua.Client
                     // normally; if the deadline wins we log a warning and
                     // abandon the task — it runs on the thread pool (not a
                     // foreground thread) so it will not prevent process exit.
+                    using var deadlineCts = new CancellationTokenSource();
                     Task winner = await Task
-                        .WhenAny(keepAliveWorker, Task.Delay(s_keepAliveStopTimeout))
+                        .WhenAny(keepAliveWorker, Task.Delay(s_keepAliveStopTimeout, deadlineCts.Token))
                         .ConfigureAwait(false);
+                    // Stop the deadline timer once the worker won.
+                    deadlineCts.Cancel();
 
                     if (winner == keepAliveWorker)
                     {

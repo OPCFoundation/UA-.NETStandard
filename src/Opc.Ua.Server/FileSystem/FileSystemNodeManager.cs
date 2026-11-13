@@ -548,7 +548,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return NodeId.Null;
             }
-            int slash = providerPath.LastIndexOf('/');
+            int slash = providerPath.LastIndexOf('/', StringComparison.Ordinal);
             string parent = slash < 0 ? string.Empty : providerPath[..slash];
             return string.IsNullOrEmpty(parent)
                 ? FileSystemNodeId.BuildRoot(NamespaceIndex)

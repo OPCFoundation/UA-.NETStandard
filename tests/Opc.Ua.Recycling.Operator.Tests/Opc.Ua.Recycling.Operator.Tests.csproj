@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>$(ModernTargetFrameworks)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <RootNamespace>Opc.Ua.Recycling.Operator.Tests</RootNamespace>
     <IsPackable>false</IsPackable>

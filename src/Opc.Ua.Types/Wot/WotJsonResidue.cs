@@ -2217,7 +2217,7 @@ namespace Opc.Ua.Wot
             WotDocument generatedDocument,
             List<WotDiagnostic> diagnostics)
         {
-            string definitionPointer = pointer[..pointer.LastIndexOf('/')];
+            string definitionPointer = pointer[..pointer.LastIndexOf('/', StringComparison.Ordinal)];
             if (!generatedDocument.TryEvaluatePointer(definitionPointer, out JsonElement generated))
             {
                 diagnostics.Add(new WotDiagnostic(
@@ -2341,8 +2341,8 @@ namespace Opc.Ua.Wot
         private static void AddSelectedNativeTranslation(
             JsonObject translations, string pointer, string plural, WotDocument generatedDocument)
         {
-            int localeSeparator = pointer.LastIndexOf('/');
-            int pluralSeparator = pointer.LastIndexOf('/', localeSeparator - 1);
+            int localeSeparator = pointer.LastIndexOf('/', StringComparison.Ordinal);
+            int pluralSeparator = pointer.LastIndexOf('/', localeSeparator - 1, StringComparison.Ordinal);
             if (pluralSeparator < 0 ||
                 !generatedDocument.TryEvaluatePointer(pointer[..pluralSeparator], out JsonElement owner))
             {
@@ -2513,7 +2513,7 @@ namespace Opc.Ua.Wot
             // A member name containing '/' is escaped as '~1' by the capture, so
             // a further separator can only be a further pointer token.
             return pointer.IndexOf(
-                '/', prefix.Length, pointer.Length - prefix.Length - suffix.Length) < 0;
+                '/', prefix.Length, pointer.Length - prefix.Length - suffix.Length, StringComparison.Ordinal) < 0;
         }
 
         private static JsonObject? ApplyLinkEntry(
