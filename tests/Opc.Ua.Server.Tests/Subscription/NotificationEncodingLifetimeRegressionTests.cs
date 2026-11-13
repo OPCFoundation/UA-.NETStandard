@@ -170,7 +170,6 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(value!.Events[0].ClientHandle, Is.EqualTo(77u));
                 Assert.That(value.Events[0].EventFields[0].GetInt32(), Is.EqualTo(42));
                 Assert.That(eventItem.ClientHandle, Is.Zero);
-                item.Reuse();
             }
             else
             {
@@ -179,9 +178,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(value!.MonitoredItems[0].ClientHandle, Is.EqualTo(77u));
                 Assert.That(value.MonitoredItems[0].Value.WrappedValue.GetInt32(), Is.EqualTo(42));
 
-                // data change notifications are not pooled by the server; they are left to the GC.
+                // data change notifications are values; the message holds a copy.
                 Assert.That(item.ClientHandle, Is.EqualTo(77u));
-                item.Reuse();
                 eventItem.Reuse();
             }
             queue.Clear();
@@ -197,7 +195,7 @@ namespace Opc.Ua.Server.Tests
         {
             var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
             var message = new CountingNotificationMessage { SequenceNumber = 1 };
-            var item = new CountingMonitoredItemNotification { ClientHandle = 5, Value = new DataValue(7) };
+            var item = new MonitoredItemNotification { ClientHandle = 5, Value = new DataValue(7) };
             message.NotificationData = [new ExtensionObject(new DataChangeNotification { MonitoredItems = [item] })];
 
             NotificationMessage sent = queue.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
@@ -207,18 +205,11 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(message.ReuseCount, Is.Zero, "acknowledged before it was sent");
-                Assert.That(item.ReuseCount, Is.Zero);
                 Assert.That(Encode(response).NotificationMessage.SequenceNumber, Is.EqualTo(1u));
             });
 
             ((IPooledEncodeable)response).Reuse();
-            Assert.Multiple(() =>
-            {
-                Assert.That(message.ReuseCount, Is.EqualTo(1));
-
-                // data change notifications are not pooled by the server and never reused.
-                Assert.That(item.ReuseCount, Is.Zero);
-            });
+            Assert.That(message.ReuseCount, Is.EqualTo(1));
         }
 
         /// <summary>
@@ -230,7 +221,7 @@ namespace Opc.Ua.Server.Tests
         {
             var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
             var message = new CountingNotificationMessage { SequenceNumber = 1 };
-            var item = new CountingMonitoredItemNotification { ClientHandle = 5, Value = new DataValue(7) };
+            var item = new MonitoredItemNotification { ClientHandle = 5, Value = new DataValue(7) };
             message.NotificationData = [new ExtensionObject(new DataChangeNotification { MonitoredItems = [item] })];
 
             NotificationMessage sent = queue.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
@@ -269,7 +260,7 @@ namespace Opc.Ua.Server.Tests
             var message = new CountingNotificationMessage { SequenceNumber = 1 };
             message.NotificationData = [new ExtensionObject(new DataChangeNotification
             {
-                MonitoredItems = [new CountingMonitoredItemNotification { ClientHandle = 5 }]
+                MonitoredItems = [new MonitoredItemNotification { ClientHandle = 5 }]
             })];
             NotificationMessage sent = queue.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
             var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
@@ -337,13 +328,13 @@ namespace Opc.Ua.Server.Tests
             if (acknowledgeFirst)
             {
                 Assert.That(queue.TryAcknowledge(1), Is.True);
-                Assert.That(rented[0], Is.SameAs(originals[0]), "still being sent");
+                Assert.That(rented[0], Is.EqualTo(originals[0]), "still being sent");
                 ((IPooledEncodeable)response).Reuse();
             }
             else
             {
                 ((IPooledEncodeable)response).Reuse();
-                Assert.That(rented[0], Is.SameAs(originals[0]), "still retained for republish");
+                Assert.That(rented[0], Is.EqualTo(originals[0]), "still retained for republish");
                 Assert.That(queue.TryAcknowledge(1), Is.True);
             }
 
@@ -351,7 +342,7 @@ namespace Opc.Ua.Server.Tests
             // (another test may have rented it again since).
             for (int ii = 0; ii < originals.Length; ii++)
             {
-                Assert.That(rented[ii], Is.Not.SameAs(originals[ii]));
+                Assert.That(rented[ii], Is.Not.EqualTo(originals[ii]));
             }
         }
 
@@ -381,13 +372,13 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(sent.SequenceNumber, Is.EqualTo(2u));
                 Assert.That(discarded, Is.EqualTo(1u));
-                Assert.That(dropped[0], Is.Not.SameAs(droppedItem), "returned with the dropped message");
-                Assert.That(kept[0], Is.SameAs(keptItem));
+                Assert.That(dropped[0], Is.Not.EqualTo(droppedItem), "returned with the dropped message");
+                Assert.That(kept[0], Is.EqualTo(keptItem));
                 Assert.That(rented, Has.Count.EqualTo(1), "trimmed with the messages");
             });
             lease.Release();
             queue.Clear();
-            Assert.That(kept[0], Is.Not.SameAs(keptItem));
+            Assert.That(kept[0], Is.Not.EqualTo(keptItem));
         }
 
         /// <summary>
@@ -478,19 +469,6 @@ namespace Opc.Ua.Server.Tests
         /// Counts recycling instead of returning the instance to the shared pool.
         /// </summary>
         private sealed class CountingNotificationMessage : NotificationMessage
-        {
-            public int ReuseCount { get; private set; }
-
-            protected override void ReuseCore()
-            {
-                ReuseCount++;
-            }
-        }
-
-        /// <summary>
-        /// Counts recycling instead of returning the instance to the shared pool.
-        /// </summary>
-        private sealed class CountingMonitoredItemNotification : MonitoredItemNotification
         {
             public int ReuseCount { get; private set; }
 

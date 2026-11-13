@@ -440,9 +440,6 @@ namespace Opc.Ua.Client.Tests
             }, subscription.GetAcknowledgementScope());
 
             SubscriptionNotificationMessage message = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
-
-            Assert.That(data.MonitoredItems[0].DiagnosticInfo,
-                Is.SameAs(registeredItems && !disableCache ? first : null));
             Assert.That(message.Notifications[0].DataChanges[0].DiagnosticInfo, Is.SameAs(first));
             Assert.That(message.Notifications[0].DataChanges[1].DiagnosticInfo, Is.SameAs(second));
             Assert.That(message.StringTable[1], Is.EqualTo("second"));

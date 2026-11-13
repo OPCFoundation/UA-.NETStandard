@@ -4089,17 +4089,11 @@ namespace Opc.Ua.Client
                     continue;
                 }
 
-                // save the message.
-                notification.Message = message;
-
-                // get diagnostic info.
-                if (notifications.DiagnosticInfos.Count > ii)
-                {
-                    notification.DiagnosticInfo = notifications.DiagnosticInfos[ii];
-                }
-
-                // save in cache.
-                monitoredItem.SaveValueInCache(notification);
+                // save in cache with the message and diagnostic info.
+                monitoredItem.SaveValueInCache(
+                    notification,
+                    message,
+                    notifications.DiagnosticInfos.Count > ii ? notifications.DiagnosticInfos[ii] : null);
             }
         }
 

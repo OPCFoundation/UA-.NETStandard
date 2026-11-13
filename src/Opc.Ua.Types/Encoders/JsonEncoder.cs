@@ -240,7 +240,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void EncodeMessage<T>(T message) where T : IEncodeable, new()
         {
-            if (EqualityComparer<T>.Default.Equals(message, default!))
+            if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -252,7 +252,7 @@ namespace Opc.Ua
         public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(message, default!))
+            if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -725,7 +725,8 @@ namespace Opc.Ua
         public void WriteEncodeable<T>(string? fieldName, T value, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(value, default!))
+            // a value type is never null, also when it equals its default.
+            if (value is null)
             {
                 WriteNull(fieldName);
                 return;
@@ -743,7 +744,8 @@ namespace Opc.Ua
         public void WriteEncodeableAsExtensionObject<T>(string? fieldName, T value)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(value, default!))
+            // a value type is never null, also when it equals its default.
+            if (value is null)
             {
                 WriteNull(fieldName);
                 return;
