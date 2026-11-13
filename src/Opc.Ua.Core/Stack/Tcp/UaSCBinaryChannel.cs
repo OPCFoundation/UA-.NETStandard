@@ -1418,7 +1418,28 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Receives and dispatches chunks while the transport remains current, reporting receive and dispatch failures.
         /// </summary>
+        /// <remarks>
+        /// The requests that the received responses complete continue once the loop waits:
+        /// every wait of the loop that goes pending runs them on the loop's thread (see
+        /// <see cref="ResponseContinuationDeferral"/>).
+        /// </remarks>
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
+        {
+            try
+            {
+                await RunReceiveLoopCoreAsync(transport, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                // the loop ended with completions it deferred
+                ResponseContinuationDeferral.CompletePending(inline: false);
+            }
+        }
+
+        /// <summary>
+        /// The loop of <see cref="RunReceiveLoopAsync"/>.
+        /// </summary>
+        private async Task RunReceiveLoopCoreAsync(IUaSCByteTransport transport, CancellationToken ct)
         {
             while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
             {
@@ -1427,8 +1448,8 @@ namespace Opc.Ua.Bindings
                 {
                     // backpressure: do not read more requests while their responses
                     // cannot be written; the peer's sends block in TCP flow control.
-                    await WaitForWriteCapacityAsync(ct).ConfigureAwait(false);
-                    chunk = await transport.ReceiveChunkAsync(ct).ConfigureAwait(false);
+                    await ResponseContinuationDeferral.AwaitAndComplete(WaitForWriteCapacityAsync(ct));
+                    chunk = await ResponseContinuationDeferral.AwaitAndComplete(transport.ReceiveChunkAsync(ct));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -1456,7 +1477,18 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
+                    // the responses in the chunk defer the continuations of their requests
+                    ValueTask dispatch;
+                    ResponseContinuationDeferral.Enter();
+                    try
+                    {
+                        dispatch = OnChunkReceivedAsync(chunk, ct);
+                    }
+                    finally
+                    {
+                        ResponseContinuationDeferral.Exit();
+                    }
+                    await ResponseContinuationDeferral.AwaitAndComplete(dispatch);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {

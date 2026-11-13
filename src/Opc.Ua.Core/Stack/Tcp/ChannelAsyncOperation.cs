@@ -40,7 +40,7 @@ namespace Opc.Ua.Bindings
     /// Stores the results of an asynchronous operation.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class ChannelAsyncOperation<T> : IAsyncResult, IDisposable, IValueTaskSource
+    public class ChannelAsyncOperation<T> : IAsyncResult, IDisposable, IValueTaskSource, IDeferredWaitCompletion
     {
         /// <summary>
         /// Initializes the object with a callback
@@ -435,10 +435,20 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void TrySetWaitResult(bool completed)
         {
-            if (Interlocked.Exchange(ref m_waitResultSet, 1) == 0)
+            if (Interlocked.Exchange(ref m_waitResultSet, 1) == 0 &&
+                !(completed && ResponseContinuationDeferral.TryDefer(this)))
             {
                 m_waitCore.SetResult(completed);
             }
+        }
+
+        /// <inheritdoc/>
+        void IDeferredWaitCompletion.CompleteDeferredWait(bool inline)
+        {
+            // the receive loop that deferred the completion holds no lock now and no
+            // longer depends on its thread (see ResponseContinuationDeferral)
+            m_waitCore.RunContinuationsAsynchronously = !inline;
+            m_waitCore.SetResult(true);
         }
 
         /// <inheritdoc/>
