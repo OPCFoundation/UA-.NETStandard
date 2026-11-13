@@ -942,7 +942,7 @@ namespace Opc.Ua
             // DataValue is constructed once instead of via a chain of
             // intermediate "With..." struct copies.
             Variant wrappedValue = Variant.Null;
-            StatusCode statusCode = StatusCodes.Good;
+            uint statusCode = 0;
             DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
             DateTimeUtc serverTimestamp = DateTimeUtc.MinValue;
             ushort sourcePicoseconds = 0;
@@ -955,7 +955,7 @@ namespace Opc.Ua
 
             if ((encodingByte & (byte)DataValueEncodingBits.StatusCode) != 0)
             {
-                statusCode = ReadStatusCode(null);
+                statusCode = SafeReadUInt32();
             }
 
             // Picoseconds without their timestamp are read and ignored, and
@@ -989,7 +989,7 @@ namespace Opc.Ua
                 }
             }
 
-            return new DataValue(
+            return DataValue.FromStored(
                 wrappedValue,
                 statusCode,
                 sourceTimestamp,

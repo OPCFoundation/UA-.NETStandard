@@ -60,7 +60,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public override void Enqueue(DataValue value, ServiceResult error)
+        public override void Enqueue(in DataValue value, ServiceResult error)
         {
             base.Enqueue(value, error);
             Mirror();
@@ -78,7 +78,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public override void OverwriteLastValue(DataValue value, ServiceResult error)
+        public override void OverwriteLastValue(in DataValue value, ServiceResult error)
         {
             base.OverwriteLastValue(value, error);
             Mirror();
