@@ -179,7 +179,7 @@ namespace Opc.Ua.PubSub.Kafka
                 return ($"[{ipv6Host}]", ipv6Port);
             }
 
-            int colon = entry.LastIndexOf(':');
+            int colon = entry.LastIndexOf(':', StringComparison.Ordinal);
             string host;
             int port;
             if (colon >= 0)

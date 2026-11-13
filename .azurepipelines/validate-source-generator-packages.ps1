@@ -334,7 +334,7 @@ function Test-SourceGeneratingConsumer
     @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>$consumerTargetFramework</TargetFramework>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
@@ -480,7 +480,7 @@ function Test-DownlevelAnalyzerHost
     @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>$consumerTargetFramework</TargetFramework>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>
@@ -630,7 +630,7 @@ function Test-CleanConsumer
     @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>$consumerTargetFramework</TargetFramework>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 $expectedDiagnosticSuppression
@@ -677,6 +677,19 @@ $resolvedPackageDirectory = (Resolve-Path $PackageDirectory).Path
 $PackageDirectory = $resolvedPackageDirectory
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $validationRoot = Join-Path (Join-Path $repoRoot "artifacts") "source-generator-consumer"
+# The consumers restore from the artifact directory alone, so they must target the
+# framework whose targeting pack ships with the SDK global.json selects: an older
+# framework would need its Microsoft.NETCore.App.Ref package from nuget.org.
+Push-Location $repoRoot
+try
+{
+    $sdkVersion = (& dotnet --version) -replace '-.*$', ''
+}
+finally
+{
+    Pop-Location
+}
+$consumerTargetFramework = "net$(([version]$sdkVersion).Major).0"
 Test-ConfigurationPackageIds (
     Join-Path $repoRoot "tools\Opc.Ua.SourceGeneration.Pack\Opc.Ua.SourceGeneration.Pack.csproj")
 Test-ConfigurationPackageIds (

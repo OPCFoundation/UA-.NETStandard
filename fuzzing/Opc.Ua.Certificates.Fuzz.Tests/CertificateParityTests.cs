@@ -251,7 +251,7 @@ namespace Opc.Ua.Fuzzing
                     actual.RevokedCertificates[0].CrlEntryExtensions[1].Critical = false;
                     break;
                 case "entryExtensionBytes":
-                    actual.RevokedCertificates[0].CrlEntryExtensions[1].RawData = [0x05, 0x00];
+                    SetExtensionBytes(actual.RevokedCertificates[0].CrlEntryExtensions[1], [0x05, 0x00]);
                     break;
                 case "crlExtensionCount":
                     actual.CrlExtensions.Add(new X509Extension("1.2.3.9", [0x05, 0x00], false));
@@ -266,7 +266,7 @@ namespace Opc.Ua.Fuzzing
                     actual.CrlExtensions[1].Critical = false;
                     break;
                 case "crlExtensionBytes":
-                    actual.CrlExtensions[1].RawData = [0x05, 0x00];
+                    SetExtensionBytes(actual.CrlExtensions[1], [0x05, 0x00]);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(mutation));
@@ -515,6 +515,12 @@ namespace Opc.Ua.Fuzzing
             action();
             Assert.That(Certificate.InstancesCreated - created, Is.EqualTo(Certificate.InstancesDisposed - disposed),
                 "Every certificate core created by the callback must be disposed before it returns.");
+        }
+
+        private static void SetExtensionBytes(X509Extension extension, byte[] rawData)
+        {
+            // The RawData setter is obsolete (SYSLIB0065) on .NET 11.
+            extension.CopyFrom(new X509Extension(extension.Oid!, rawData, extension.Critical));
         }
 
         private static void SwapExtensions(X509ExtensionCollection extensions)

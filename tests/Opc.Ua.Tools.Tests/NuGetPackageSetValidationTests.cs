@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -679,7 +679,7 @@ namespace Opc.Ua.Tools.Tests
                 if (File.Exists(manifestPath))
                 {
                     string manifestJson = await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false);
-                    manifest = JsonDocument.Parse(manifestJson).RootElement;
+                    manifest = JsonElement.Parse(manifestJson);
                 }
 
                 return new ValidationResult(process.ExitCode, combined, manifest);

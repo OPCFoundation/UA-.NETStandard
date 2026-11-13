@@ -59,12 +59,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotResource placeholder = registry.Current.FindResource("models", "unwritten")!;
             WotRegistryMutationResult failed = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "dependent", VersionId = "v1",
+                GroupId = "things",
+                ResourceId = "dependent",
+                VersionId = "v1",
                 Content = ByteString.From(TestMaterialization.Td("urn:dependent", extendsHrefs: placeholder.Xid))
             });
             WotRegistryMutationResult independent = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "independent", VersionId = "v1",
+                GroupId = "things",
+                ResourceId = "independent",
+                VersionId = "v1",
                 Content = ByteString.From(TestMaterialization.Td("urn:independent"))
             });
             using WotMaterializationCoordinator coordinator = Coordinator(registry, runtime);
@@ -347,11 +351,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 """));
             WotRegistryMutationResult a = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "a", VersionId = "v1", Content = original
+                GroupId = "things",
+                ResourceId = "a",
+                VersionId = "v1",
+                Content = original
             });
             WotRegistryMutationResult b = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "b", VersionId = "v1",
+                GroupId = "things",
+                ResourceId = "b",
+                VersionId = "v1",
                 Content = ByteString.From(Encoding.UTF8.GetBytes("""
                     {"id":"urn:b","title":"B","links":[{"rel":"ua:ConnectedTo","href":"urn:a"}]}
                     """))
@@ -363,7 +372,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "a", VersionId = "v2",
+                GroupId = "things",
+                ResourceId = "a",
+                VersionId = "v2",
                 Content = ByteString.From(TestMaterialization.Td("urn:a", "changed"))
             });
             await registry.InitializeAsync();
@@ -440,6 +451,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(Environment.Version.Major, Is.EqualTo(8));
 #elif NET9_0
             Assert.That(Environment.Version.Major, Is.EqualTo(9));
+#elif NET11_0_OR_GREATER
+            Assert.That(Environment.Version.Major, Is.EqualTo(11));
 #elif NET10_0
             Assert.That(Environment.Version.Major, Is.EqualTo(10));
 #endif
@@ -461,12 +474,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             WotRegistryMutationResult model = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "models", ResourceId = "model", VersionId = "v1", Kind = WoTDocumentKindEnum.ThingModel,
+                GroupId = "models",
+                ResourceId = "model",
+                VersionId = "v1",
+                Kind = WoTDocumentKindEnum.ThingModel,
                 Content = ByteString.From(TestMaterialization.Tm("urn:snapshot:model"))
             });
             WotRegistryMutationResult source = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "source", VersionId = "v1",
+                GroupId = "things",
+                ResourceId = "source",
+                VersionId = "v1",
                 Content = ByteString.From(TestMaterialization.Td(
                     "urn:snapshot:source", extendsHrefs: "urn:snapshot:model"))
             });
@@ -479,7 +497,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             return new WoTResourceSelectorDataType
             {
-                Kind = resource.Kind, GroupId = resource.GroupId, ResourceId = resource.ResourceId, VersionId = "v1"
+                Kind = resource.Kind,
+                GroupId = resource.GroupId,
+                ResourceId = resource.ResourceId,
+                VersionId = "v1"
             };
         }
 

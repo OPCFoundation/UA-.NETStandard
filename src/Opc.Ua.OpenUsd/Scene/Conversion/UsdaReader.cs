@@ -634,7 +634,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                     break;
                 }
                 int nameStart = i + 1;
-                int nameEnd = blockContent.IndexOf('"', nameStart);
+                int nameEnd = blockContent.IndexOf('"', nameStart, StringComparison.Ordinal);
                 if (nameEnd < 0)
                 {
                     break;
@@ -1211,7 +1211,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         private static bool TryParseAssetReference(string s, ref int pos, out UsdValue result)
         {
             result = UsdValue.Null;
-            int end = s.IndexOf('@', pos + 1);
+            int end = s.IndexOf('@', pos + 1, StringComparison.Ordinal);
             if (end < 0)
             {
                 return false;
@@ -1226,7 +1226,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         private static bool TryParsePathReference(string s, ref int pos, out UsdValue result)
         {
             result = UsdValue.Null;
-            int end = s.IndexOf('>', pos + 1);
+            int end = s.IndexOf('>', pos + 1, StringComparison.Ordinal);
             if (end < 0)
             {
                 return false;

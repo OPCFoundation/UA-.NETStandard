@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <LensTestSourceRoot>$(MSBuildThisFileDirectory)</LensTestSourceRoot>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <OutputType>Library</OutputType>

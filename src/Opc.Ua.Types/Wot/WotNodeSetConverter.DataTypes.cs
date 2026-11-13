@@ -1033,7 +1033,7 @@ namespace Opc.Ua.Wot
             local = string.Empty;
             if (name.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = name.IndexOf(';', 4);
+                int delimiter = name.IndexOf(';', 4, StringComparison.Ordinal);
                 if (delimiter < 0 || delimiter + 1 >= name.Length)
                 {
                     return false;

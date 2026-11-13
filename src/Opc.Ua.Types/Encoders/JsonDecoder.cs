@@ -1712,7 +1712,7 @@ namespace Opc.Ua
                     }
                     // Verbose encoding
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.2
-                    int split = text.LastIndexOf('_');
+                    int split = text.LastIndexOf('_', StringComparison.Ordinal);
                     string? symbol = text;
                     if (split >= 0)
                     {
@@ -1771,7 +1771,7 @@ namespace Opc.Ua
                     CheckStringLength(text);
                     // Verbose encoding
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.2
-                    int split = text.LastIndexOf('_');
+                    int split = text.LastIndexOf('_', StringComparison.Ordinal);
                     // Without a separator there is no symbolic name. Taking the
                     // whole text as the symbol made a bare "5" re-encode as "5_5".
                     string? symbol = null;
@@ -2675,7 +2675,7 @@ namespace Opc.Ua
                 // Without the ';' that separates a NamespaceUri from the name
                 // only the <name> form of Table 7 matches: a name in
                 // namespace 0.
-                int index = text.IndexOf(';', 4);
+                int index = text.IndexOf(';', 4, StringComparison.Ordinal);
                 if (index >= 0 &&
                     CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) &&
                     !string.IsNullOrWhiteSpace(namespaceUri))

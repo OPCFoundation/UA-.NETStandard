@@ -417,7 +417,7 @@ namespace Opc.Ua
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int index = text.IndexOf(';', 4);
+                int index = text.IndexOf(';', 4, StringComparison.Ordinal);
 
                 if (index < 0)
                 {
@@ -451,7 +451,7 @@ namespace Opc.Ua
 
             if (text.StartsWith("ns=", StringComparison.Ordinal))
             {
-                int index = text.IndexOf(';', 3);
+                int index = text.IndexOf(';', 3, StringComparison.Ordinal);
 
                 if (index < 0)
                 {

@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using Opc.Ua.GMS;
 using Opc.Ua.GMS.Contracts;
 using Opc.Ua.Machinery.Result;

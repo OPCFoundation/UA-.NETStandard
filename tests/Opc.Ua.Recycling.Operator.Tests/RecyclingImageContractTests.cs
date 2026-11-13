@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.IO;
 using System.Linq;
@@ -85,14 +85,14 @@ namespace Opc.Ua.Recycling.Operator.Tests
 
             Assert.That(
                 global.RootElement.GetProperty("sdk").GetProperty("rollForward").GetString(),
-                Is.EqualTo("latestMajor"),
+                Is.EqualTo("latestFeature"),
                 "The image version check uses the repository's minimum-SDK roll-forward policy.");
             Assert.That(global.RootElement.GetProperty("sdk").GetProperty("allowPrerelease").GetBoolean(), Is.False);
             Assert.That(UsesCompatibleSdkImage(dockerfile, Version.Parse(sdk)), Is.True,
                 "The source stage must pin a stable Azure Linux SDK at or above the repository minimum.");
             Assert.That(dockerfile, Does.Contain($"samples/Recycling/{project}/{project}.csproj"));
-            Assert.That(dockerfile, Does.Contain("-f net10.0"));
-            Assert.That(dockerfile, Does.Contain("-p:CustomTestTarget=net10.0"));
+            Assert.That(dockerfile, Does.Contain("-f net11.0"));
+            Assert.That(dockerfile, Does.Contain("-p:CustomTestTarget=net11.0"));
             Assert.That(dockerfile, Does.Contain("-p:PublishAot=false"));
             Assert.That(dockerfile, Does.Contain("-p:UseAppHost=false"));
             Assert.That(dockerfile, Does.Contain("-p:SelfContained=false"));
@@ -181,7 +181,7 @@ namespace Opc.Ua.Recycling.Operator.Tests
             Assert.That(dockerfile, Does.Contain("ARG PUBLISH_DIR=artifacts/docker/publish"));
             Assert.That(dockerfile, Does.Contain("COPY ${PUBLISH_DIR}/ /app/publish/"));
             Assert.That(dockerfile, Does.Contain("FROM ${PUBLISH_SOURCE} AS publish"));
-            Assert.That(dockerfile, Does.Contain($"FROM mcr.microsoft.com/dotnet/{runtime}:10.0"));
+            Assert.That(dockerfile, Does.Contain($"FROM mcr.microsoft.com/dotnet/{runtime}:11.0"));
             Assert.That(dockerfile, Does.Contain("COPY --from=publish --chown=app:app /app/publish/ ./"));
             Assert.That(dockerfile, Does.Contain("USER $APP_UID"));
             Assert.That(dockerfile, Does.Contain($"EXPOSE {port}"));
