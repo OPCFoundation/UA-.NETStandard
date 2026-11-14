@@ -55,9 +55,11 @@ namespace System.Security.Cryptography.X509Certificates
             }
             if (!IsDerCertificate(data))
             {
-                // A DER blob of another shape is rejected without probing it; any
-                // other encoding (PEM) must be identified as a single certificate.
-                ThrowIfNotCertificate(IsDerEncoded(data)
+                // Empty data and a DER blob of another shape are rejected without
+                // probing them (GetCertContentType throws ArgumentException for empty
+                // data); any other encoding (PEM) must be identified as a single
+                // certificate.
+                ThrowIfNotCertificate(data.Length == 0 || IsDerEncoded(data)
                     ? X509ContentType.Unknown
                     : X509Certificate2.GetCertContentType(data));
             }
@@ -79,7 +81,7 @@ namespace System.Security.Cryptography.X509Certificates
         {
             if (!IsDerCertificate(rawData))
             {
-                ThrowIfNotCertificate(IsDerEncoded(rawData)
+                ThrowIfNotCertificate(rawData.IsEmpty || IsDerEncoded(rawData)
                     ? X509ContentType.Unknown
                     : X509Certificate2.GetCertContentType(rawData));
             }

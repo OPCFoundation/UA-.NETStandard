@@ -147,11 +147,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validation options for user token certificates: an untrusted certificate
         /// or any other suppressible error is never accepted, whatever the
-        /// application certificate configuration of the validator is.
+        /// application certificate configuration of the validator is. A user
+        /// certificate only signs, so its key usage is checked for signing rather
+        /// than for the data encipherment an application certificate needs.
         /// </summary>
         private static readonly Security.Certificates.CertificateValidationOptions s_userTokenValidationOptions = new()
         {
             AutoAcceptUntrustedCertificates = false,
+            ValidateForSigning = true,
             AcceptError = static (_, _) => false
         };
 

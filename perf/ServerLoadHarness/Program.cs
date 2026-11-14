@@ -477,7 +477,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
             // sub: --writers adds dedicated writer sessions after the subscriber sessions
             int writerCount = scenario == "sub" ? ArgInt("writers", 0) : 0;
-            var sessions = new ISession[sessionCount + writerCount];
+            // connect/channel open their own sessions or channels per operation; idle
+            // preconnected sessions would only add keep-alive traffic to the measurement
+            var sessions = new ISession[connectScenario ? 0 : sessionCount + writerCount];
             var connectTime = Stopwatch.StartNew();
             // Shared sessions connect one at a time by default: concurrent creation
             // on one ClientChannelManager fails with BadSecureChannelClosed.

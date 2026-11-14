@@ -30,6 +30,7 @@
 
 using System;
 using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -238,6 +239,25 @@ namespace Opc.Ua.Server.Tests.Identity
         public async Task AuthenticateAsyncUserCertificateInTrustedUserStoreAccepted()
         {
             using Certificate certificate = CreateCertificate("CN=TrustedStoreUser");
+            await AssertAcceptedFromTrustedUserStoreAsync(certificate).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A user certificate only signs: a trusted RSA certificate whose key usage
+        /// permits digital signatures but not data encipherment is accepted.
+        /// </summary>
+        [Test]
+        public async Task AuthenticateAsyncSignatureOnlyUserCertificateAccepted()
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=SignatureOnlyUser")
+                .AddExtension(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, critical: true))
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                .CreateForRSA();
+            await AssertAcceptedFromTrustedUserStoreAsync(certificate).ConfigureAwait(false);
+        }
+
+        private static async Task AssertAcceptedFromTrustedUserStoreAsync(Certificate certificate)
+        {
             using Certificate publicCertificate = Certificate.FromRawData(certificate.RawData);
             string usersPath = CreateTempDirectory();
             try

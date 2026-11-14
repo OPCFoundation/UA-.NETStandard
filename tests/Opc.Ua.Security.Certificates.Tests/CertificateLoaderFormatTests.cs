@@ -111,6 +111,19 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         [Test]
+        public void LoadCertificateRejectsEmptyData()
+        {
+            Assert.That(
+                () => X509CertificateLoader.LoadCertificate(Array.Empty<byte>()),
+                Throws.InstanceOf<CryptographicException>());
+#if NET6_0_OR_GREATER
+            Assert.That(
+                () => X509CertificateLoader.LoadCertificate(ReadOnlySpan<byte>.Empty),
+                Throws.InstanceOf<CryptographicException>());
+#endif
+        }
+
+        [Test]
         public void LoadCertificateRejectsPkcs7()
         {
             Assert.That(
