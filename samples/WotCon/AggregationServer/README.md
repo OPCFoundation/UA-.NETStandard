@@ -15,7 +15,7 @@ opcUa.AddWotProtocolBinders()
     .AddWotBindingExecutor(new MemoryWotBindingExecutor(memoryStore));
 ```
 
-The executable server targets `net8.0`, `net9.0`, and `net10.0`, where its OPC UA binding executor is available. Legacy `CustomTestTarget` solution builds use a no-op shell and are not runnable sample configurations.
+The executable server targets `net10.0` and `net11.0`, where its OPC UA binding executor is available. Legacy `CustomTestTarget` solution builds use a no-op shell and are not runnable sample configurations.
 
 The default endpoint uses the numeric loopback host `127.0.0.1`, so the
 anonymous demonstration's management and projection surfaces are local-only.

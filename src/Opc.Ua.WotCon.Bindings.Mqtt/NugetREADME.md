@@ -12,6 +12,6 @@ It uses the repository's MQTTnet infrastructure (kept out of the core model asse
 
 Register it with `builder.AddMqttWotBinding(...)`.
 
-The package targets `net8.0`, `net9.0`, and `net10.0`. The MQTT planner and common binding contracts are supplied by `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`.
+The package targets `net10.0` and `net11.0`. The MQTT planner and common binding contracts are supplied by `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`.
 
 See the [WoT protocol bindings guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotBindings.md).

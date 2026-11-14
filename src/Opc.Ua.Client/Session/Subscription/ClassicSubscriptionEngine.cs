@@ -932,22 +932,22 @@ namespace Opc.Ua.Client
 
                 // update subscription cache with the scope tracked at receipt, so the
                 // delivered notifications carry the handle the engine acknowledges.
-                if (republished)
-                {
-                    subscription.SaveRepublishedMessageInCache(notificationMessage, receivedScope);
-                }
-                else
-                {
-                    subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage, receivedScope);
-                }
+                bool raiseNotification = republished
+                    ? subscription.SaveRepublishedMessageInCache(notificationMessage, receivedScope)
+                    : subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage, receivedScope);
 
-                // raise the notification.
-                var args = new NotificationEventArgs(
-                    subscription,
-                    notificationMessage,
-                    responseHeader.StringTable);
+                // raise the notification, when a handler was attached when the message
+                // was saved: the subscription can return the buffers of a message that
+                // no handler could have been handed.
+                if (raiseNotification)
+                {
+                    var args = new NotificationEventArgs(
+                        subscription,
+                        notificationMessage,
+                        responseHeader.StringTable);
 
-                m_context.OnPublishNotification(subscription, args);
+                    m_context.OnPublishNotification(subscription, args);
+                }
             }
             else if (m_context.DeleteSubscriptionsOnClose &&
                 !m_context.Reconnecting &&

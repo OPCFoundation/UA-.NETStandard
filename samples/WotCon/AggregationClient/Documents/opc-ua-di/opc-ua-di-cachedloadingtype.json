@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -67,6 +68,7 @@
       "output": {
         "properties": {
           "UpdateBehavior": {
+            "type": "integer",
             "uav:mapToType": "nsu=http://opcfoundation.org/UA/DI/;i=333",
             "uav:valueRank": -1
           }
@@ -360,6 +362,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CachedLoadingType"
           }
         ],
@@ -394,6 +397,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "GetUpdateBehavior"
           }
         ],
@@ -428,6 +432,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -460,6 +465,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],

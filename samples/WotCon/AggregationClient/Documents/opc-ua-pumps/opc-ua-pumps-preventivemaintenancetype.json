@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -48,6 +49,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "title": "ActivePreventiveMaintenanceTime",
       "type": "number",
       "uav:browseName": "ns1:ActivePreventiveMaintenanceTime",
@@ -568,6 +575,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "title": "PreventiveMaintenanceTime",
       "type": "number",
       "uav:browseName": "ns1:PreventiveMaintenanceTime",
@@ -800,6 +813,7 @@
         "browseName": "1:PreventiveMaintenanceType",
         "displayName": [
           {
+            "locale": "",
             "value": "PreventiveMaintenanceType"
           }
         ],
@@ -845,15 +859,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:ActivePreventiveMaintenanceTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates the date of installation or commissioning of the device."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ActivePreventiveMaintenanceTime"
           }
         ],
@@ -891,10 +908,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -920,10 +939,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -950,10 +971,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -980,15 +1003,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:InstallationDate",
         "dataType": "DateTime",
         "description": [
           {
+            "locale": "",
             "value": "This attribute identifies the date when the device was last inspected."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InstallationDate"
           }
         ],
@@ -1018,10 +1044,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1048,15 +1076,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:LastInspectionDate",
         "dataType": "DateTime",
         "description": [
           {
+            "locale": "",
             "value": "This attribute identifies the date when the device is scheduled for the next inspection."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LastInspectionDate"
           }
         ],
@@ -1086,10 +1117,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1116,15 +1149,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:LastServicingDate",
         "dataType": "DateTime",
         "description": [
           {
+            "locale": "",
             "value": "This attribute identifies the date when the device is scheduled for the next servicing."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LastServicingDate"
           }
         ],
@@ -1154,10 +1190,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1184,15 +1222,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:NextInspectionDate",
         "dataType": "DateTime",
         "description": [
           {
+            "locale": "",
             "value": "This attribute identifies the date when the device was last serviced."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NextInspectionDate"
           }
         ],
@@ -1222,10 +1263,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1252,15 +1295,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:NextServicingDate",
         "dataType": "DateTime",
         "description": [
           {
+            "locale": "",
             "value": "Part of maintenance time when preventive maintenance is carried out on an item, including technical, logistic and internal administrative delays"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NextServicingDate"
           }
         ],
@@ -1290,10 +1336,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1320,15 +1368,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:PreventiveMaintenanceTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Part of the active maintenance time taken to perform a preventive maintenance"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PreventiveMaintenanceTime"
           }
         ],
@@ -1366,10 +1417,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1395,10 +1448,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1425,10 +1480,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],

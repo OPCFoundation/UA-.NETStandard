@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -914,11 +914,14 @@
       {
         "browseName": "1:FieldbusEnum",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Fieldbus is not specified in this enumeration"
                 }
               ],
@@ -926,9 +929,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "ARCNET"
                 }
               ],
@@ -936,9 +941,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "AS-Interface"
                 }
               ],
@@ -947,9 +954,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "BACnet/IP"
                 }
               ],
@@ -958,9 +967,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "BACnet/MSTP"
                 }
               ],
@@ -969,9 +980,11 @@
               "value": 4
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Bluetooth"
                 }
               ],
@@ -979,9 +992,11 @@
               "value": 5
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Bluetooth Low Energy"
                 }
               ],
@@ -989,9 +1004,11 @@
               "value": 6
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "CAN"
                 }
               ],
@@ -999,9 +1016,11 @@
               "value": 7
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "CANopen"
                 }
               ],
@@ -1009,9 +1028,11 @@
               "value": 8
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "CC-Link"
                 }
               ],
@@ -1020,9 +1041,11 @@
               "value": 9
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "ControlNet"
                 }
               ],
@@ -1030,9 +1053,11 @@
               "value": 10
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "DALI"
                 }
               ],
@@ -1040,9 +1065,11 @@
               "value": 11
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "DECT ULE"
                 }
               ],
@@ -1050,9 +1077,11 @@
               "value": 12
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "DeviceNet"
                 }
               ],
@@ -1060,9 +1089,11 @@
               "value": 13
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "DMX"
                 }
               ],
@@ -1070,9 +1101,11 @@
               "value": 14
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "KNX"
                 }
               ],
@@ -1080,9 +1113,11 @@
               "value": 15
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "EnOcean"
                 }
               ],
@@ -1090,9 +1125,11 @@
               "value": 16
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "EtherCAT"
                 }
               ],
@@ -1100,9 +1137,11 @@
               "value": 17
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Ethernet/IP"
                 }
               ],
@@ -1111,9 +1150,11 @@
               "value": 18
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Ethernet TCP/IP"
                 }
               ],
@@ -1122,9 +1163,11 @@
               "value": 19
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "IEEE1588"
                 }
               ],
@@ -1132,9 +1175,11 @@
               "value": 20
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "GSM"
                 }
               ],
@@ -1142,9 +1187,11 @@
               "value": 21
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Interbus"
                 }
               ],
@@ -1152,9 +1199,11 @@
               "value": 22
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "IO-Link"
                 }
               ],
@@ -1163,9 +1212,11 @@
               "value": 23
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "HART"
                 }
               ],
@@ -1173,9 +1224,11 @@
               "value": 24
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "LON"
                 }
               ],
@@ -1183,9 +1236,11 @@
               "value": 25
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "LoRaWAN"
                 }
               ],
@@ -1193,9 +1248,11 @@
               "value": 26
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "LIN-Bus"
                 }
               ],
@@ -1204,9 +1261,11 @@
               "value": 27
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "LTE"
                 }
               ],
@@ -1214,9 +1273,11 @@
               "value": 28
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "LTE-M"
                 }
               ],
@@ -1225,9 +1286,11 @@
               "value": 29
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "M-Bus"
                 }
               ],
@@ -1236,9 +1299,11 @@
               "value": 30
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Modbus TCP"
                 }
               ],
@@ -1246,9 +1311,11 @@
               "value": 31
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Modbus RTU"
                 }
               ],
@@ -1256,9 +1323,11 @@
               "value": 32
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "MP-Bus"
                 }
               ],
@@ -1267,9 +1336,11 @@
               "value": 33
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "NB-IOT"
                 }
               ],
@@ -1278,9 +1349,11 @@
               "value": 34
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "NFC"
                 }
               ],
@@ -1288,9 +1361,11 @@
               "value": 35
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "OPC UA"
                 }
               ],
@@ -1298,9 +1373,11 @@
               "value": 36
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "OPC DA"
                 }
               ],
@@ -1308,9 +1385,11 @@
               "value": 37
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "PROFIBUS DP"
                 }
               ],
@@ -1318,9 +1397,11 @@
               "value": 38
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "PROFINET RT"
                 }
               ],
@@ -1328,9 +1409,11 @@
               "value": 39
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Powerlink"
                 }
               ],
@@ -1338,9 +1421,11 @@
               "value": 40
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "SERCOS"
                 }
               ],
@@ -1348,9 +1433,11 @@
               "value": 41
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "SMI"
                 }
               ],
@@ -1358,9 +1445,11 @@
               "value": 42
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Thread"
                 }
               ],
@@ -1368,9 +1457,11 @@
               "value": 43
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "UMTS"
                 }
               ],
@@ -1378,9 +1469,11 @@
               "value": 44
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "WIFI"
                 }
               ],
@@ -1388,9 +1481,11 @@
               "value": 45
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "X2X-Link"
                 }
               ],
@@ -1399,9 +1494,11 @@
               "value": 46
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "VARAN"
                 }
               ],
@@ -1409,9 +1506,11 @@
               "value": 47
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "ZigBee"
                 }
               ],
@@ -1419,9 +1518,11 @@
               "value": 48
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Z-Wave"
                 }
               ],
@@ -1434,11 +1535,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "defines possible field buses"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FieldbusEnum"
           }
         ],
@@ -1464,6 +1567,7 @@
         "dataType": "EnumValueType",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumValues"
           }
         ],

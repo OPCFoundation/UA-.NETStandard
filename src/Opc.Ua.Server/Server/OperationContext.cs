@@ -317,6 +317,70 @@ namespace Opc.Ua.Server
         internal bool ClientCertificateErrorAccepted { get; set; }
 
         /// <summary>
+        /// Starts the response byte budget of the service call: the results the call
+        /// keeps for its response are charged against <paramref name="maxResponseBytes"/>
+        /// while they are built, so a response that cannot fit the message size limit
+        /// is refused before all of it is built. Zero or less disables the budget, which
+        /// is the default: the services that send their results start it, in-process
+        /// callers of the node managers do not.
+        /// </summary>
+        /// <param name="maxResponseBytes">The response size limit in bytes.</param>
+        internal void StartResponseBudget(int maxResponseBytes)
+        {
+            Volatile.Write(
+                ref m_responseBudget,
+                maxResponseBytes <= 0 ? kNoResponseBudget :
+                maxResponseBytes == int.MaxValue ? int.MaxValue : maxResponseBytes + 1);
+        }
+
+        /// <summary>
+        /// Charges result bytes against the response byte budget.
+        /// </summary>
+        /// <param name="bytes">A lower bound of the encoded size of the result.</param>
+        /// <returns><c>false</c> once the charged bytes exceed the budget.</returns>
+        internal bool TryChargeResponse(long bytes)
+        {
+            int current = Volatile.Read(ref m_responseBudget);
+            while (true)
+            {
+                if (current == kNoResponseBudget)
+                {
+                    return true;
+                }
+                if (current == kResponseBudgetExceeded)
+                {
+                    return false;
+                }
+                long remaining = current - bytes;
+                int next = remaining < 1 ? kResponseBudgetExceeded : (int)remaining;
+                int observed = Interlocked.CompareExchange(ref m_responseBudget, next, current);
+                if (observed == current)
+                {
+                    return next != kResponseBudgetExceeded;
+                }
+                current = observed;
+            }
+        }
+
+        /// <summary>
+        /// The bytes left in the response byte budget, or -1 when the call has no budget.
+        /// </summary>
+        internal long ResponseBytesRemaining
+        {
+            get
+            {
+                int current = Volatile.Read(ref m_responseBudget);
+                return current == kNoResponseBudget ? -1 :
+                    current == kResponseBudgetExceeded ? 0 : current - 1L;
+            }
+        }
+
+        /// <summary>
+        /// Whether the results charged so far exceed the response byte budget.
+        /// </summary>
+        internal bool ResponseBudgetExceeded => Volatile.Read(ref m_responseBudget) == kResponseBudgetExceeded;
+
+        /// <summary>
         /// Updates the status code (thread safe).
         /// </summary>
         /// <param name="statusCode">The status code.</param>
@@ -1128,6 +1192,13 @@ namespace Opc.Ua.Server
             private bool m_disposed;
         }
 
+        /// <summary>
+        /// The response byte budget: <see cref="kNoResponseBudget"/>, the bytes left plus
+        /// one, or <see cref="kResponseBudgetExceeded"/>.
+        /// </summary>
+        private int m_responseBudget;
+        private const int kNoResponseBudget = 0;
+        private const int kResponseBudgetExceeded = int.MinValue;
         private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
         private RequestManager? m_requestCompletion;

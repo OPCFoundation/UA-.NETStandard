@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -267,11 +268,13 @@
         "browseName": "1:Events",
         "description": [
           {
+            "locale": "",
             "value": "States, alarms, and conditions of a pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Events"
           }
         ],

@@ -5,6 +5,7 @@
       "@language": "en",
       "ns1": "http://opcfoundation.org/UA/Machinery/",
       "ns2": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -94,6 +95,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Manufacturer",
+      "type": "string",
       "uav:browseName": "ns2:Manufacturer",
       "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=6022",
       "uav:mapToType": "i=21",
@@ -298,6 +300,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IMachineryItemVendorNameplateType"
           }
         ],
@@ -340,6 +343,7 @@
         "superType": "ns=2;i=15035"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:InitialOperationDate",
         "dataType": "DateTime",
         "description": [
@@ -350,6 +354,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InitialOperationDate"
           }
         ],
@@ -375,6 +380,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:Manufacturer",
         "dataType": "LocalizedText",
         "description": [
@@ -385,6 +391,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -410,6 +417,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MonthOfConstruction",
         "dataType": "Byte",
         "description": [
@@ -420,6 +428,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MonthOfConstruction"
           }
         ],
@@ -445,6 +454,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:SerialNumber",
         "dataType": "String",
         "description": [
@@ -455,6 +465,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -480,6 +491,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:YearOfConstruction",
         "dataType": "UInt16",
         "description": [
@@ -490,6 +502,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "YearOfConstruction"
           }
         ],

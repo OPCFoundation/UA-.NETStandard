@@ -1536,6 +1536,24 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Queues a message like <see cref="BeginWriteMessage(BufferCollection, object)"/> but
+        /// leaves starting the writer to a caller that holds the gate: it starts the writer
+        /// with <see cref="StartWriterInline"/> after it released the gate.
+        /// </summary>
+        /// <returns>True if the caller must start the writer.</returns>
+        private protected bool BeginWriteMessageDeferred(BufferCollection buffers, object? state)
+        {
+            IUaSCByteTransport? transport = m_transport;
+            if (transport == null)
+            {
+                BeginWriteMessage(buffers, state);
+                return false;
+            }
+            Interlocked.Increment(ref m_activeWriteRequests);
+            return TryQueueWrite(new PendingWrite(transport, buffers, state));
+        }
+
+        /// <summary>
         /// Queues a write so that it runs off the caller's stack but still in
         /// the order the caller issued it.
         /// </summary>
@@ -1553,6 +1571,21 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void QueueWrite(PendingWrite write)
         {
+            if (TryQueueWrite(write))
+            {
+                ScheduleWriter();
+            }
+        }
+
+        /// <summary>
+        /// Queues a write like <see cref="QueueWrite"/> but leaves starting the writer to the
+        /// caller.
+        /// </summary>
+        /// <returns>True if the writer is not running and the caller must start it, with
+        /// <see cref="StartWriterInline"/> once it holds neither the gate nor
+        /// <see cref="SendOrder"/>, or with <see cref="ScheduleWriter"/>.</returns>
+        private bool TryQueueWrite(PendingWrite write)
+        {
             long retained = write.RetainedBytes;
             lock (m_writeQueueLock)
             {
@@ -1560,12 +1593,11 @@ namespace Opc.Ua.Bindings
                 Volatile.Write(ref m_queuedWriteBytes, m_queuedWriteBytes + retained);
                 if (m_writerRunning)
                 {
-                    return;
+                    return false;
                 }
                 m_writerRunning = true;
+                return true;
             }
-
-            ScheduleWriter();
         }
 
         /// <summary>
@@ -1654,9 +1686,37 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Starts the writer that <see cref="TryQueueWrite"/> left to the caller on the
+        /// calling thread. The caller must hold neither the gate (the write completes
+        /// through <see cref="HandleWriteComplete"/>, which enters it) nor
+        /// <see cref="SendOrder"/>.
+        /// </summary>
+        /// <remarks>
+        /// A work item queued for the writer wakes a pool worker even when the issuing
+        /// thread runs the item itself as it returns to the pool. That woken worker finds no
+        /// work, and since .NET 11 a worker spins much longer before it blocks again
+        /// (UnfairSemaphoreSpinLimit 70 to 1024), which cost 40 to 70 % more CPU per
+        /// request. A caller that holds nothing sends on its own thread before it awaits the
+        /// response, which is where the queued item ran as well.
+        /// </remarks>
+        private protected void StartWriterInline()
+        {
+            // the pool item did not flow the execution context either
+            if (ExecutionContext.IsFlowSuppressed())
+            {
+                _ = RunWritesAsync();
+                return;
+            }
+            using (ExecutionContext.SuppressFlow())
+            {
+                _ = RunWritesAsync();
+            }
+        }
+
+        /// <summary>
         /// Starts the writer on the thread pool.
         /// </summary>
-        private void ScheduleWriter()
+        private protected void ScheduleWriter()
         {
             // The execution context is not needed by the write and is not flowed.
             // The write goes to the local queue of the issuing thread, which picks

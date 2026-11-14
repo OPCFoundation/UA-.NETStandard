@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
@@ -51,9 +52,19 @@ namespace Opc.Ua.Server
         internal Task<bool> Completion => m_completion.Task;
 
         /// <summary>
-        /// Gets the exact notification instance retained by the subscription.
+        /// The position of the notification in the subscription's publish queue
+        /// (see <see cref="Subscription.TrackValuePublication"/>), or -1 if not yet tracked.
         /// </summary>
-        internal MonitoredItemNotification? Notification { get; private set; }
+        internal long NotificationOrdinal { get; set; } = -1;
+
+        /// <summary>
+        /// The message that holds the notification, once the subscription built it.
+        /// </summary>
+        internal NotificationMessage? Message
+        {
+            get => m_message;
+            set => m_message = value;
+        }
 
         /// <summary>
         /// Releases the subscription's references on every exit from the bounded wait.
@@ -78,12 +89,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Associates the exact notification without treating item dequeue as publication.
         /// </summary>
-        internal void TrackNotification(MonitoredItemNotification notification)
+        internal void TrackNotification(Queue<MonitoredItemNotification> notifications)
         {
-            if (Notification == null && !m_completion.Task.IsCompleted)
+            if (NotificationOrdinal < 0 && !m_completion.Task.IsCompleted)
             {
-                Notification = notification;
-                m_subscription.TrackValuePublication(this);
+                m_subscription.TrackValuePublication(this, notifications);
             }
         }
 
@@ -110,5 +120,8 @@ namespace Opc.Ua.Server
         /// <summary>The asynchronous signal for the observation.</summary>
         private readonly TaskCompletionSource<bool> m_completion =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>Set under the subscription lock, read by the Publish response path.</summary>
+        private volatile NotificationMessage? m_message;
     }
 }

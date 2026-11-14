@@ -974,8 +974,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 12345,
                 54321);
 
-            Assert.That(dv.SourcePicoseconds, Is.EqualTo((ushort)12345));
-            Assert.That(dv.ServerPicoseconds, Is.EqualTo((ushort)54321));
+            // values above the 9999 maximum (OPC 10000-6 5.2.2.17) are stored as 9999.
+            Assert.That(dv.SourcePicoseconds, Is.EqualTo((ushort)9999));
+            Assert.That(dv.ServerPicoseconds, Is.EqualTo((ushort)9999));
         }
 
         [Test]
@@ -1014,6 +1015,95 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.EqualTo(3.14));
+        }
+
+        [Test]
+        public void LayoutIsFortyEightBytes()
+        {
+            Assert.That(System.Runtime.CompilerServices.Unsafe.SizeOf<DataValue>(), Is.EqualTo(48));
+        }
+
+        [Test]
+        public void PicosecondsKeepTheirRangeAndAreClampedAboveIt()
+        {
+            var inRange = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.Now, DateTimeUtc.Now, 9999, 1);
+            var above = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTimeUtc.Now,
+                DateTimeUtc.Now,
+                ushort.MaxValue,
+                10000);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(inRange.SourcePicoseconds, Is.EqualTo((ushort)9999));
+                Assert.That(inRange.ServerPicoseconds, Is.EqualTo((ushort)1));
+                Assert.That(above.SourcePicoseconds, Is.EqualTo((ushort)9999));
+                Assert.That(above.ServerPicoseconds, Is.EqualTo((ushort)9999));
+                Assert.That(inRange.WithSourcePicoseconds(3).ServerPicoseconds, Is.EqualTo((ushort)1));
+                Assert.That(inRange.WithServerPicoseconds(4).SourcePicoseconds, Is.EqualTo((ushort)9999));
+            });
+        }
+
+        [Test]
+        public void EveryWithMutatorMarksADefaultValueAsSet()
+        {
+            DataValue empty = default;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(empty.IsNull, Is.True);
+                Assert.That(empty.WithWrappedValue(Variant.Null).IsNull, Is.False);
+                Assert.That(empty.WithStatus(StatusCodes.Good).IsNull, Is.False);
+                Assert.That(empty.WithSourceTimestamp(DateTimeUtc.MinValue).IsNull, Is.False);
+                Assert.That(empty.WithServerTimestamp(DateTimeUtc.MinValue).IsNull, Is.False);
+                Assert.That(empty.WithSourcePicoseconds(0).IsNull, Is.False);
+                Assert.That(empty.WithServerPicoseconds(0).IsNull, Is.False);
+                Assert.That(empty.Copy().IsNull, Is.False);
+                // the null flag does not take part in equality.
+                Assert.That(empty, Is.EqualTo(new DataValue()));
+            });
+        }
+
+        [Test]
+        public void StatusCodeKeepsAllBitsAndTheInternedSymbol()
+        {
+            uint code = StatusCodes.Uncertain.Code | 0x0400 | 0x0080;
+            var value = new DataValue(new Variant(1), new StatusCode(code));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.StatusCodeValue, Is.EqualTo(code));
+                Assert.That(value.StatusCode.Code, Is.EqualTo(code));
+                Assert.That(value.StatusCode.Overflow, Is.True);
+                Assert.That(value.StatusCode.SymbolicId, Is.EqualTo("Uncertain"));
+                Assert.That(value.IsUncertain, Is.True);
+                Assert.That(value.IsNotGood, Is.True);
+                Assert.That(value.IsNotBad, Is.True);
+                Assert.That(
+                    new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown).IsBad,
+                    Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Only the 32-bit code is stored: a symbolic id that was never interned
+        /// is not kept, the interned one for the code is returned instead.
+        /// </summary>
+        [Test]
+        public void StatusCodeSymbolComesFromTheInternedTable()
+        {
+            Assume.That(StatusCode.TryGetInternedStatusCode(0x8FFF0000, out _), Is.False);
+            var unknown = new DataValue(Variant.Null, new StatusCode(0x8FFF0000, "MyVendorBad"));
+            var known = new DataValue(Variant.Null, new StatusCode(StatusCodes.BadNodeIdUnknown.Code, "Other"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(unknown.StatusCode.Code, Is.EqualTo(0x8FFF0000));
+                Assert.That(unknown.StatusCode.SymbolicId, Is.Null);
+                Assert.That(known.StatusCode.SymbolicId, Is.EqualTo("BadNodeIdUnknown"));
+            });
         }
     }
 }

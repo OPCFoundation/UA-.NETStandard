@@ -1448,7 +1448,7 @@ namespace Quickstarts
                 if (m_logger.IsEnabled(LogLevel.Information))
                 {
                     m_logger.MonitoredItemNotification(
-                        notification.Message.SequenceNumber,
+                        monitoredItem.LastMessage?.SequenceNumber ?? 0,
                         monitoredItem.ResolvedNodeId,
                         notification.Value,
                         localTime.ToLongTimeString());

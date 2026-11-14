@@ -219,7 +219,7 @@ namespace Opc.Ua.Wot
 
         private static void WriteModels(Utf8JsonWriter writer, ModelTableEntry[]? models)
         {
-            if (models is null || models.Length == 0)
+            if (models is null)
             {
                 return;
             }
@@ -335,7 +335,7 @@ namespace Opc.Ua.Wot
 
         private static void WriteAliases(Utf8JsonWriter writer, NodeIdAlias[]? aliases)
         {
-            if (aliases is null || aliases.Length == 0)
+            if (aliases is null)
             {
                 return;
             }
@@ -938,7 +938,7 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             TranslationType[]? translations)
         {
-            if (translations is null || translations.Length == 0)
+            if (translations is null)
             {
                 return;
             }
@@ -1069,7 +1069,7 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             Reference[]? references)
         {
-            if (references is null || references.Length == 0)
+            if (references is null)
             {
                 return;
             }
@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             RolePermission[]? rolePermissions)
         {
-            if (rolePermissions is null || rolePermissions.Length == 0)
+            if (rolePermissions is null)
             {
                 return;
             }
@@ -1174,7 +1174,7 @@ namespace Opc.Ua.Wot
             string name,
             Export.LocalizedText[]? texts)
         {
-            if (texts is null || texts.Length == 0)
+            if (texts is null)
             {
                 return;
             }
@@ -1228,7 +1228,7 @@ namespace Opc.Ua.Wot
             string name,
             System.Xml.XmlElement[]? elements)
         {
-            if (elements is null || elements.Length == 0)
+            if (elements is null)
             {
                 return;
             }
@@ -1326,7 +1326,7 @@ namespace Opc.Ua.Wot
             string name,
             string[]? values)
         {
-            if (values is null || values.Length == 0)
+            if (values is null)
             {
                 return;
             }
@@ -1366,7 +1366,7 @@ namespace Opc.Ua.Wot
             string name,
             string? value)
         {
-            if (string.IsNullOrEmpty(value))
+            if (value is null)
             {
                 return false;
             }

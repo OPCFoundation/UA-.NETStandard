@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -461,11 +461,14 @@
       {
         "browseName": "1:ControlModeEnum",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Constant pressure control mode"
                 }
               ],
@@ -473,9 +476,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Constant temperature control mode"
                 }
               ],
@@ -483,9 +488,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Differential pressure control mode"
                 }
               ],
@@ -493,9 +500,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Constant differential pressure control mode"
                 }
               ],
@@ -503,9 +512,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Variable differential pressure control mode"
                 }
               ],
@@ -513,9 +524,11 @@
               "value": 4
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Flow-dependent differential pressure control mode"
                 }
               ],
@@ -523,9 +536,11 @@
               "value": 5
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Return flow temperature control mode"
                 }
               ],
@@ -533,9 +548,11 @@
               "value": 6
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Flow temperature control mode"
                 }
               ],
@@ -543,9 +560,11 @@
               "value": 7
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Flow rate control mode"
                 }
               ],
@@ -553,9 +572,11 @@
               "value": 8
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Speed control mode"
                 }
               ],
@@ -563,9 +584,11 @@
               "value": 9
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Automatic control mode"
                 }
               ],
@@ -573,9 +596,11 @@
               "value": 10
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "None / uncontrolled mode"
                 }
               ],
@@ -587,11 +612,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "describes the possible control modes of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ControlModeEnum"
           }
         ],
@@ -617,6 +644,7 @@
         "dataType": "EnumValueType",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumValues"
           }
         ],

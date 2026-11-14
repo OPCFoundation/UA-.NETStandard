@@ -35,6 +35,7 @@ paths that match your application, or use the contents list to find a feature.
 - [Reference and upgrade](#reference-and-upgrade)
 - [Contributing and maintaining the SDK](#contributing-and-maintaining-the-sdk)
 - [UaLens NodeSet2 explorer](UaLens.md#opening-nodeset2-files)
+- [NodeSet2 to WoT export tool](WotExportTool.md)
 
 ## How to use this index
 

@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -413,11 +416,14 @@
       {
         "browseName": "1:ExplosionProtectionOptionSet",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "This category is intended for use in underground mines and their surface installations which may be endangered by firedamp and/or combustible dust. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)"
                 }
               ],
@@ -425,9 +431,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "This category is intended for use in underground mines and their surface installations which may be endangered by firedamp and/or combustible dust. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)"
                 }
               ],
@@ -435,9 +443,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)"
                 }
               ],
@@ -446,9 +456,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)"
                 }
               ],
@@ -457,9 +469,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 3 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a normal level of safety. (2014/34/EU)"
                 }
               ],
@@ -468,9 +482,11 @@
               "value": 4
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)"
                 }
               ],
@@ -479,9 +495,11 @@
               "value": 5
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)"
                 }
               ],
@@ -490,9 +508,11 @@
               "value": 6
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 3 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a normal level of safety. (2014/34/EU)"
                 }
               ],
@@ -506,11 +526,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "defines flags for the category of explosion protection for devices according to EU Directive 2014/34/EU (ATEX)"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ExplosionProtectionOptionSet"
           }
         ],
@@ -548,6 +570,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "OptionSetValues"
           }
         ],

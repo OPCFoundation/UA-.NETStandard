@@ -971,7 +971,7 @@ namespace Opc.Ua.Wot
         /// path, so a nested document's <c>uav:componentOf</c> href resolves
         /// without reaching outside the set.
         /// </summary>
-        private sealed class DocumentSetThingResolver : IWotThingResolver
+        private sealed class DocumentSetThingResolver : IWotThingResolver, IWotCapturedDataTypeDefinitions
         {
             public DocumentSetThingResolver(WotDocumentSet documents, IWotThingResolver? fallback = null)
             {
@@ -980,6 +980,14 @@ namespace Opc.Ua.Wot
             }
 
             public UANodeSet? ArchiveContext { get; set; }
+
+            /// <summary>
+            /// Gets or sets the synthesized definition carrier whose original inputs are already budgeted.
+            /// </summary>
+            public WotDocument? NativeDataTypeDocument { get; set; }
+
+            /// <inheritdoc/>
+            public ArrayOf<WotDataTypeDefinitionSource> DataTypeDefinitions { get; set; } = [];
 
             /// <summary>
             /// Gets or sets the defer preserved fact validation for <c>DocumentSetThingResolver</c>.

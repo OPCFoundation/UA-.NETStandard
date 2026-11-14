@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -322,6 +323,7 @@
         "browseName": "1:ConnectionImplementationType",
         "displayName": [
           {
+            "locale": "",
             "value": "ConnectionImplementationType"
           }
         ],
@@ -344,15 +346,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:NominalSize",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "An alphanumeric designation of size for components of a pipework system, which is used for reference purposes. It comprises the letters DN followed by a dimensionless whole number which is indirectly related to the physical size, in millimeters, of the bore or outside diameter of the end connections."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NominalSize"
           }
         ],
@@ -382,10 +387,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],

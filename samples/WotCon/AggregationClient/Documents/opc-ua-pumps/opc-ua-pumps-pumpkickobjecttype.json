@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -210,6 +211,7 @@
       ],
       "observable": true,
       "title": "PumpKickMode",
+      "type": "integer",
       "uav:browseName": "ns1:PumpKickMode",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8829",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3009",
@@ -254,7 +256,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "This property determines the interval time of a pump kick, if Pump Kick Mode is operator specific. The time for the next pump kick results of the sum of Pump Kick Time and Pump Kick Time Difference",
       "links": [
         {
@@ -263,6 +265,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/SEC"
+      },
       "title": "PumpKickTimeDifference",
       "type": "number",
       "uav:browseName": "ns1:PumpKickTimeDifference",
@@ -495,6 +503,7 @@
         "browseName": "1:PumpKickObjectType",
         "displayName": [
           {
+            "locale": "",
             "value": "PumpKickObjectType"
           }
         ],
@@ -524,15 +533,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:PumpKickMode",
         "dataType": "PumpKickModeEnum",
         "description": [
           {
+            "locale": "",
             "value": "This property describes the pump kick mode of the pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpKickMode"
           }
         ],
@@ -562,10 +574,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -592,15 +606,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:PumpKickTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "This property determines the absolute time of a pump kick, if Pump Kick Mode is operator specific. The time for the next pump kick results of the sum of Pump Kick Time and Pump Kick Time Difference"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpKickTime"
           }
         ],
@@ -630,10 +647,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -660,15 +679,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:PumpKickTimeDifference",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "This property determines the interval time of a pump kick, if Pump Kick Mode is operator specific. The time for the next pump kick results of the sum of Pump Kick Time and Pump Kick Time Difference"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpKickTimeDifference"
           }
         ],
@@ -707,10 +729,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -736,10 +760,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -766,10 +792,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5457219</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>second [unit of time]</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
