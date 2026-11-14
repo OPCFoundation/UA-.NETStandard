@@ -138,7 +138,8 @@ jobs:
             # branch head. A two-dot diff would also report commits that landed
             # on the base branch after this one was cut, which would make an
             # unrelated base-branch change look like a build-relevant change here.
-            $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            # Include both paths when a build input is moved into the docs tree.
+            $changed = @(& git diff --name-only --no-renames "$($env:BASE_SHA)...HEAD")
             if ($LASTEXITCODE -ne 0) {
                 throw (
                     "Could not diff pull-request base '$($env:BASE_SHA)' against HEAD " +
