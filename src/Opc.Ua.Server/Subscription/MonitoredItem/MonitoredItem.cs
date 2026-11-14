@@ -2221,7 +2221,10 @@ namespace Opc.Ua.Server
         /// per event than the allocation it saves, and a smaller bound misses most of the
         /// time (issue #4819).
         /// </remarks>
-        private EventFieldList CreateEventFieldList(IFilterTarget instance, Variant[] eventFieldValues)
+        private EventFieldList CreateEventFieldList(
+            IFilterTarget instance,
+            Variant[] eventFieldValues,
+            SharedEventEvaluation? sharedEvaluation = null)
         {
             var result = new EventFieldList
             {
@@ -2229,7 +2232,22 @@ namespace Opc.Ua.Server
                 Handle = instance,
                 EventFields = eventFieldValues
             };
-            m_server.EventManager?.RegisterEventFields(result, instance);
+            EventManager? eventManager = m_server.EventManager;
+            if (eventManager != null)
+            {
+                if (sharedEvaluation != null)
+                {
+                    // the stamp depends only on the event and the shared field values.
+                    eventManager.RegisterEventFields(
+                        result,
+                        instance,
+                        sharedEvaluation.GetFieldsStamp(eventManager, instance, eventFieldValues));
+                }
+                else
+                {
+                    eventManager.RegisterEventFields(result, instance);
+                }
+            }
             return result;
         }
 
@@ -2491,7 +2509,8 @@ namespace Opc.Ua.Server
                 {
                     fields = CreateEventFieldList(
                         instance,
-                        sharedEvaluation.GetEventFields(this, context, filter, instance));
+                        sharedEvaluation.GetEventFields(this, context, filter, instance),
+                        sharedEvaluation);
                 }
                 else
                 {
