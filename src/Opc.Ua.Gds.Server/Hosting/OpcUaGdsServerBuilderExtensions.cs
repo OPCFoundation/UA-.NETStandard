@@ -844,6 +844,11 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp => sp.GetRequiredService<LinqApplicationsDatabase>());
                 Services.TryAddSingleton<ICertificateRequest>(
                     sp => sp.GetRequiredService<LinqApplicationsDatabase>());
+                Services.TryAddSingleton<IClientCertificateBoundCertificateRequestStore>(
+                    sp => sp.GetRequiredService<ICertificateRequest>() as
+                        IClientCertificateBoundCertificateRequestStore
+                            ?? throw new InvalidOperationException(
+                                "The configured certificate request store does not support client certificate binding."));
                 Services.TryAddSingleton<ICertificateGroup, CertificateGroup>();
                 Services.TryAddSingleton<LinqUserDatabase>();
                 Services.TryAddSingleton<IUserDatabase>(
@@ -908,6 +913,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 Services.AddSingleton<T>();
                 Services.AddSingleton<ICertificateRequest>(
                     sp => sp.GetRequiredService<T>());
+                Services.RemoveAll<IClientCertificateBoundCertificateRequestStore>();
+                if (typeof(IClientCertificateBoundCertificateRequestStore).IsAssignableFrom(typeof(T)))
+                {
+                    Services.AddSingleton<IClientCertificateBoundCertificateRequestStore>(
+                        sp => (IClientCertificateBoundCertificateRequestStore)sp.GetRequiredService<T>());
+                }
                 return this;
             }
 

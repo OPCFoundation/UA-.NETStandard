@@ -166,7 +166,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task AcceptedRequestDoesNotReplayItsRetainedIssuance()
         {
             var database = new LinqApplicationsDatabase();
-            var requests = new Mock<ICertificateRequest>(MockBehavior.Strict);
+            var requests = new Mock<IClientCertificateBoundCertificateRequestStore>(MockBehavior.Strict);
             using var manager = CreateManager(database, requests.Object);
             NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("AcceptedIssuance"));
             NodeId requestId = new("request", 1);
@@ -174,8 +174,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             string? type = null;
             ByteString certificate = default;
             ByteString privateKey = default;
-            requests.Setup(r => r.FinishRequest(
-                applicationId, requestId, out group, out type, out certificate, out privateKey))
+            requests.Setup(r => r.FinishBoundRequest(
+                applicationId, requestId, It.IsAny<ByteString>(),
+                out group, out type, out certificate, out privateKey))
                 .Returns(CertificateRequestState.Accepted);
             var issuanceStore = new Mock<ICertificateRequestIssuanceStore>(MockBehavior.Strict);
             manager.CertificateRequestIssuanceStore = issuanceStore.Object;
@@ -187,6 +188,78 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             issuanceStore.VerifyNoOtherCalls();
             requests.Verify(r => r.AcceptRequest(It.IsAny<NodeId>(), It.IsAny<ByteString>()), Times.Never);
+        }
+
+        /// <summary>
+        /// FinishRequest rejects a certificate other than the one bound when the request was started.
+        /// </summary>
+        [Test]
+        public async Task FinishRequestRejectsDifferentInitiatingClientCertificate()
+        {
+            var database = new LinqApplicationsDatabase();
+            using var manager = CreateManager(database, database);
+            NodeId applicationId = database.RegisterApplication(
+                CreateTestApplicationRecord("DifferentInitiatingCertificate"));
+            ServerSystemContext initiatingContext = CreateContext(GdsRole.CertificateAuthorityAdmin, 4);
+            ByteString fingerprint = AuthorizationHelper.GetClientCertificateFingerprint(initiatingContext);
+            NodeId requestId = database.StartBoundSigningRequest(
+                applicationId,
+                "DefaultApplicationGroup",
+                nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                ByteString.From([1, 2, 3]),
+                fingerprint,
+                "test");
+            database.ApproveRequest(requestId, false);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await manager.OnFinishRequestAsync(
+                    CreateContext(GdsRole.CertificateAuthorityAdmin, 5),
+                    new MethodState(null),
+                    default,
+                    applicationId,
+                    requestId,
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                database.FinishBoundRequest(
+                    applicationId, requestId, fingerprint, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+        }
+
+        /// <summary>
+        /// FinishRequest accepts the initiating certificate in a different session and SecureChannel.
+        /// </summary>
+        [Test]
+        public async Task FinishRequestAcceptsSameCertificateFromDifferentSessionAndSecureChannel()
+        {
+            var database = new LinqApplicationsDatabase();
+            using var manager = CreateManager(database, database);
+            NodeId applicationId = database.RegisterApplication(
+                CreateTestApplicationRecord("SameCertificateDifferentChannel"));
+            ServerSystemContext initiatingContext = CreateContext(
+                GdsRole.CertificateAuthorityAdmin, 6, "initiating-session");
+            NodeId requestId = database.StartBoundSigningRequest(
+                applicationId,
+                "DefaultApplicationGroup",
+                nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                ByteString.From([1, 2, 3]),
+                AuthorizationHelper.GetClientCertificateFingerprint(initiatingContext),
+                "test");
+            ServerSystemContext finishingContext = CreateContext(
+                GdsRole.CertificateAuthorityAdmin, 6, "finishing-session");
+
+            Assert.That(finishingContext.SessionId, Is.Not.EqualTo(initiatingContext.SessionId));
+
+            FinishRequestMethodStateResult result = await manager.OnFinishRequestAsync(
+                finishingContext,
+                new MethodState(null),
+                default,
+                applicationId,
+                requestId,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         /// <summary>
@@ -240,6 +313,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     }).Returns(default(ValueTask));
                 NodeId applicationId;
                 NodeId requestId;
+                ServerSystemContext context;
+                ByteString fingerprint;
                 using (var receiptStore = new SecretStoreCertificateRequestIssuanceStore(
                     secrets, ReferenceServer.CurrentInstance.NamespaceUris, "gds"))
                 using (ApplicationsNodeManager manager = CreateConfiguredManager(
@@ -248,23 +323,26 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
                         .ConfigureAwait(false);
                     applicationId = database.RegisterApplication(CreateTestApplicationRecord("ReceiptRetry"));
+                    context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+                    fingerprint = AuthorizationHelper.GetClientCertificateFingerprint(context);
                     requestId = newKeyPair
-                        ? database.StartNewKeyPairRequest(applicationId, "DefaultApplicationGroup",
+                        ? database.StartBoundNewKeyPairRequest(applicationId, "DefaultApplicationGroup",
+                            nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType), "CN=Receipt retry",
+                            ["localhost"], "PFX", "request-password".AsSpan(), fingerprint, "test")
+                        : database.StartBoundSigningRequest(applicationId, "DefaultApplicationGroup",
                             nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
-                            "CN=Receipt retry", ["localhost"], "PFX", "request-password", "test")
-                        : database.StartSigningRequest(applicationId, "DefaultApplicationGroup",
-                            nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
-                            ByteString.From(new byte[] { 1 }), "test");
+                            ByteString.From(new byte[] { 1 }), fingerprint, "test");
                     database.ApproveRequest(requestId, false);
 
                     IOException? actual = await Assert.ThrowsAsync<IOException>(async () =>
                         await manager.OnFinishRequestAsync(
-                            CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                            context, new MethodState(null), default,
                             applicationId, requestId, CancellationToken.None).ConfigureAwait(false));
 
                     Assert.That(actual, Is.SameAs(failure));
                     Assert.That(pending, Is.EqualTo(certificate));
-                    Assert.That(database.FinishRequest(applicationId, requestId, out _, out _, out _, out _),
+                    Assert.That(database.FinishBoundRequest(
+                        applicationId, requestId, fingerprint, out _, out _, out _, out _),
                         Is.EqualTo(CertificateRequestState.Approved));
                 }
                 using var restoredStore = new SecretStoreCertificateRequestIssuanceStore(
@@ -275,7 +353,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false);
 
                 FinishRequestMethodStateResult result = await restored.OnFinishRequestAsync(
-                    CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                    context, new MethodState(null), default,
                     applicationId, requestId, CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
@@ -283,7 +361,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(result.PrivateKey, Is.EqualTo(privateKey));
                 Assert.That(pending, Is.EqualTo(certificate));
                 Assert.That(publications, Is.EqualTo(2));
-                Assert.That(database.FinishRequest(applicationId, requestId, out _, out _, out _, out _),
+                Assert.That(database.FinishBoundRequest(
+                    applicationId, requestId, fingerprint, out _, out _, out _, out _),
                     Is.EqualTo(CertificateRequestState.Accepted));
                 group.Verify(g => g.SigningRequestAsync(
                     It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string[]>(),
@@ -299,7 +378,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Assert.That(passwordStaging, Is.All.EqualTo('\0'));
                 }
                 FinishRequestMethodStateResult accepted = await restored.OnFinishRequestAsync(
-                    CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                    context, new MethodState(null), default,
                     applicationId, requestId, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(accepted.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(publications, Is.EqualTo(2));
@@ -355,18 +434,21 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
                     .ConfigureAwait(false);
                 NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("ReceiptUnpublished"));
-                NodeId requestId = database.StartSigningRequest(applicationId, "DefaultApplicationGroup",
+                ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+                ByteString fingerprint = AuthorizationHelper.GetClientCertificateFingerprint(context);
+                NodeId requestId = database.StartBoundSigningRequest(applicationId, "DefaultApplicationGroup",
                     nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
-                    ByteString.From(new byte[] { 1 }), "test");
+                    ByteString.From(new byte[] { 1 }), fingerprint, "test");
                 database.ApproveRequest(requestId, false);
 
                 IOException? actual = await Assert.ThrowsAsync<IOException>(async () =>
                     await manager.OnFinishRequestAsync(
-                        CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                        context, new MethodState(null), default,
                         applicationId, requestId, CancellationToken.None).ConfigureAwait(false));
 
                 Assert.That(actual, Is.SameAs(failure));
-                Assert.That(database.FinishRequest(applicationId, requestId, out _, out _, out _, out _),
+                Assert.That(database.FinishBoundRequest(
+                    applicationId, requestId, fingerprint, out _, out _, out _, out _),
                     Is.EqualTo(CertificateRequestState.Approved));
                 Assert.That(database.GetApplicationCertificate(
                     applicationId, nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType), out _), Is.False);
@@ -417,18 +499,21 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
                     .ConfigureAwait(false);
                 NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("ReceiptMismatch"));
-                NodeId requestId = database.StartSigningRequest(applicationId, "DefaultApplicationGroup",
+                ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+                ByteString fingerprint = AuthorizationHelper.GetClientCertificateFingerprint(context);
+                NodeId requestId = database.StartBoundSigningRequest(applicationId, "DefaultApplicationGroup",
                     nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
-                    ByteString.From(new byte[] { 1 }), "test");
+                    ByteString.From(new byte[] { 1 }), fingerprint, "test");
                 database.ApproveRequest(requestId, false);
 
                 ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await manager.OnFinishRequestAsync(
-                        CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                        context, new MethodState(null), default,
                         applicationId, requestId, CancellationToken.None).ConfigureAwait(false));
 
                 Assert.That(actual!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-                Assert.That(database.FinishRequest(applicationId, requestId, out _, out _, out _, out _),
+                Assert.That(database.FinishBoundRequest(
+                    applicationId, requestId, fingerprint, out _, out _, out _, out _),
                     Is.EqualTo(CertificateRequestState.Approved));
                 authorization.Verify(g => g.RecordCertificateIssuedAsync(
                     It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(), It.IsAny<ByteString>(),
@@ -478,11 +563,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
                     .ConfigureAwait(false);
                 NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("ConcurrentReceipt"));
-                NodeId requestId = database.StartSigningRequest(applicationId, "DefaultApplicationGroup",
-                    nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
-                    ByteString.From(new byte[] { 1 }), "test");
-                database.ApproveRequest(requestId, false);
                 ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+                ByteString fingerprint = AuthorizationHelper.GetClientCertificateFingerprint(context);
+                NodeId requestId = database.StartBoundSigningRequest(applicationId, "DefaultApplicationGroup",
+                    nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                    ByteString.From(new byte[] { 1 }), fingerprint, "test");
+                database.ApproveRequest(requestId, false);
                 var method = new MethodState(null);
                 Task<FinishRequestMethodStateResult> first = manager.OnFinishRequestAsync(
                     context, method, default, applicationId, requestId, CancellationToken.None).AsTask();
@@ -1262,23 +1348,40 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Supplies a real encrypted-channel operation context without granting an application privilege.
         /// </summary>
-        private ServerSystemContext CreateContext(Role role)
+        private ServerSystemContext CreateContext(
+            Role role,
+            byte certificateMarker = 1,
+            string? sessionId = null)
         {
             var identity = new GdsRoleBasedIdentity(
                 new UserIdentity(new UserNameIdentityToken { UserName = "onboarding-test" }),
                 [role], default, null, ReferenceServer.CurrentInstance.NamespaceUris);
             var channel = new SecureChannelContext(
-                "onboarding-directory-tests",
+                $"onboarding-directory-tests-{Guid.NewGuid():N}",
                 new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicyUri = SecurityPolicies.Basic256Sha256
                 },
                 RequestEncoding.Binary,
-                [1, 2, 3]);
-            var operation = new OperationContext(
-                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, identity);
+                [certificateMarker, 2, 3]);
+            OperationContext operation = sessionId is null
+                ? new OperationContext(
+                    new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, identity)
+                : CreateSessionOperationContext(channel, identity, sessionId);
             return ReferenceServer.CurrentInstance.DefaultSystemContext.Copy(operation);
+        }
+
+        private static OperationContext CreateSessionOperationContext(
+            SecureChannelContext channel,
+            IUserIdentity identity,
+            string sessionId)
+        {
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.Id).Returns(new NodeId(sessionId, 0));
+            session.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+            return new OperationContext(
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, session.Object);
         }
 
         /// <summary>

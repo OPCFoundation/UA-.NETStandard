@@ -40,6 +40,27 @@ namespace Opc.Ua.Gds.Server
         public ICertificateRequestIssuanceStore? CertificateRequestIssuanceStore { get; set; }
 
         /// <summary>
+        /// Gets or sets the request store that durably binds certificate requests to their initiating client
+        /// certificate. Direct construction uses the request store when it implements the bound-store contract.
+        /// </summary>
+        public IClientCertificateBoundCertificateRequestStore? ClientCertificateBoundRequestStore { get; set; }
+
+        /// <summary>
+        /// Gets the configured request store that enforces client-certificate binding.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadRequestNotAllowed"/> when the configured request store does not
+        /// support client-certificate binding.
+        /// </exception>
+        private IClientCertificateBoundCertificateRequestStore RequireClientCertificateBoundRequestStore()
+        {
+            return ClientCertificateBoundRequestStore
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadRequestNotAllowed,
+                    "The certificate request store does not support client certificate binding.");
+        }
+
+        /// <summary>
         /// Reads assigned certificates only after current onboarding ownership or the standard GDS grant is checked.
         /// This enables Part 12 signing recovery without allowing a denied device relation to use an admin fallback.
         /// </summary>

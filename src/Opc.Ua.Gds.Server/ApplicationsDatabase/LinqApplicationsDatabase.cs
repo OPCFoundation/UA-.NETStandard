@@ -82,6 +82,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string? PrivateKeyFormat { get; set; }
 
         /// <summary>
+        /// Gets or sets the SHA-256 fingerprint of the client certificate that started this request.
+        /// </summary>
+        public byte[]? ClientCertificateFingerprint { get; set; }
+
+        /// <summary>
         /// OPC 10000-12 §7.9.4: the CertificateManager shall not persist the
         /// private key password, so it only lives in memory.
         /// </summary>
@@ -146,7 +151,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
     }
 
     [Serializable]
-    public class LinqApplicationsDatabase : ApplicationsDatabaseBase, ICertificateRequest
+    public class LinqApplicationsDatabase :
+        ApplicationsDatabaseBase,
+        IClientCertificateBoundCertificateRequestStore
     {
         public override void Initialize()
         {
@@ -855,6 +862,33 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             ByteString certificateRequest,
             string authorityId)
         {
+            return StartSigningRequestCore(
+                applicationId, certificateGroupId, certificateTypeId, certificateRequest, default, authorityId);
+        }
+
+        /// <inheritdoc/>
+        public NodeId StartBoundSigningRequest(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            ByteString certificateRequest,
+            ByteString clientCertificateFingerprint,
+            string authorityId)
+        {
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            return StartSigningRequestCore(
+                applicationId, certificateGroupId, certificateTypeId, certificateRequest,
+                clientCertificateFingerprint, authorityId);
+        }
+
+        private NodeId StartSigningRequestCore(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            ByteString certificateRequest,
+            ByteString clientCertificateFingerprint,
+            string authorityId)
+        {
             Guid id = GetNodeIdGuid(applicationId);
 
             lock (Lock)
@@ -867,6 +901,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     id,
                     certificateGroupId,
                     certificateTypeId,
+                    clientCertificateFingerprint,
                     authorityId);
 
                 request.SubjectName = null;
@@ -892,6 +927,40 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             ReadOnlySpan<char> privateKeyPassword,
             string authorityId)
         {
+            return StartNewKeyPairRequestCore(
+                applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames, privateKeyFormat,
+                privateKeyPassword, default, authorityId);
+        }
+
+        /// <inheritdoc/>
+        public NodeId StartBoundNewKeyPairRequest(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            string subjectName,
+            ArrayOf<string> domainNames,
+            string privateKeyFormat,
+            ReadOnlySpan<char> privateKeyPassword,
+            ByteString clientCertificateFingerprint,
+            string authorityId)
+        {
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            return StartNewKeyPairRequestCore(
+                applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames, privateKeyFormat,
+                privateKeyPassword, clientCertificateFingerprint, authorityId);
+        }
+
+        private NodeId StartNewKeyPairRequestCore(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            string subjectName,
+            ArrayOf<string> domainNames,
+            string privateKeyFormat,
+            ReadOnlySpan<char> privateKeyPassword,
+            ByteString clientCertificateFingerprint,
+            string authorityId)
+        {
             Guid id = GetNodeIdGuid(applicationId);
 
             lock (Lock)
@@ -904,6 +973,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     id,
                     certificateGroupId,
                     certificateTypeId,
+                    clientCertificateFingerprint,
                     authorityId);
 
                 request.SubjectName = subjectName;
@@ -978,6 +1048,37 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out ByteString signedCertificate,
             out ByteString privateKey)
         {
+            return FinishRequestCore(
+                applicationId, requestId, default, enforceClientCertificateBinding: false,
+                out certificateGroupId, out certificateTypeId, out signedCertificate, out privateKey);
+        }
+
+        /// <inheritdoc/>
+        public CertificateRequestState FinishBoundRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            ByteString clientCertificateFingerprint,
+            out string? certificateGroupId,
+            out string? certificateTypeId,
+            out ByteString signedCertificate,
+            out ByteString privateKey)
+        {
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            return FinishRequestCore(
+                applicationId, requestId, clientCertificateFingerprint, enforceClientCertificateBinding: true,
+                out certificateGroupId, out certificateTypeId, out signedCertificate, out privateKey);
+        }
+
+        private CertificateRequestState FinishRequestCore(
+            NodeId applicationId,
+            NodeId requestId,
+            ByteString clientCertificateFingerprint,
+            bool enforceClientCertificateBinding,
+            out string? certificateGroupId,
+            out string? certificateTypeId,
+            out ByteString signedCertificate,
+            out ByteString privateKey)
+        {
             certificateGroupId = null;
             certificateTypeId = null;
             signedCertificate = default;
@@ -988,6 +1089,16 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             lock (Lock)
             {
                 CertificateRequest request = FindApplicationRequest(reqId, appId);
+                if (enforceClientCertificateBinding)
+                {
+                    VerifyClientCertificateBinding(request, clientCertificateFingerprint);
+                }
+                else if (request.ClientCertificateFingerprint != null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUserAccessDenied,
+                        "A certificate-bound request must be finished with its initiating client certificate.");
+                }
 
                 switch (request.State)
                 {
@@ -1079,6 +1190,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Guid applicationId,
             string certificateGroupId,
             string certificateTypeId,
+            ByteString clientCertificateFingerprint,
             string authorityId)
         {
             CertificateRequest? request = (
@@ -1105,7 +1217,33 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             request.RequestId = Guid.NewGuid();
             request.State = (int)CertificateRequestState.New;
             request.Certificate = null;
+            request.ClientCertificateFingerprint = clientCertificateFingerprint.IsEmpty
+                ? null
+                : clientCertificateFingerprint.Span.ToArray();
             return request;
+        }
+
+        private static void ValidateClientCertificateFingerprint(ByteString clientCertificateFingerprint)
+        {
+            if (clientCertificateFingerprint.Length != 32)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A valid SHA-256 client certificate fingerprint is required.");
+            }
+        }
+
+        private static void VerifyClientCertificateBinding(
+            CertificateRequest request,
+            ByteString clientCertificateFingerprint)
+        {
+            if (request.ClientCertificateFingerprint is not { Length: 32 } fingerprint ||
+                !fingerprint.AsSpan().SequenceEqual(clientCertificateFingerprint.Span))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUserAccessDenied,
+                    "The certificate request belongs to a different client certificate.");
+            }
         }
 
         /// <summary>

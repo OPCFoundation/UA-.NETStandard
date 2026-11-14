@@ -180,6 +180,7 @@ namespace Opc.Ua.Gds.Server
             m_autoApprove = autoApprove;
             m_database = database;
             m_request = request;
+            ClientCertificateBoundRequestStore = request as IClientCertificateBoundCertificateRequestStore;
             m_certificateGroupFactory = certificateGroupFactory;
             m_ownedCertificateGroups = [];
             m_certificateGroups = [];
@@ -2282,7 +2283,9 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-                requestId = m_request.StartNewKeyPairRequest(
+                ByteString clientCertificateFingerprint =
+                    AuthorizationHelper.GetClientCertificateFingerprint(context);
+                requestId = RequireClientCertificateBoundRequestStore().StartBoundNewKeyPairRequest(
                     applicationId,
                     certificateGroup.Configuration.Id!,
                     certificateTypeNameId,
@@ -2290,6 +2293,7 @@ namespace Opc.Ua.Gds.Server
                     domainNames,
                     privateKeyFormat,
                     privateKeyPassword?.ToCharArray()!,
+                    clientCertificateFingerprint,
                     userIdentity?.DisplayName!);
 
                 if (m_autoApprove)
@@ -2428,11 +2432,14 @@ namespace Opc.Ua.Gds.Server
 
                 // store request in the queue for approval
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-                result.RequestId = m_request.StartSigningRequest(
+                ByteString clientCertificateFingerprint =
+                    AuthorizationHelper.GetClientCertificateFingerprint(context);
+                result.RequestId = RequireClientCertificateBoundRequestStore().StartBoundSigningRequest(
                     applicationId,
                     certificateGroup.Configuration.Id!,
                     certificateTypeNameId,
                     certificateRequest,
+                    clientCertificateFingerprint,
                     userIdentity?.DisplayName!);
 
                 if (m_autoApprove)
@@ -2576,9 +2583,11 @@ namespace Opc.Ua.Gds.Server
                 return result;
             }
 
-            CertificateRequestState state = m_request.FinishRequest(
+            ByteString clientCertificateFingerprint = AuthorizationHelper.GetClientCertificateFingerprint(context);
+            CertificateRequestState state = RequireClientCertificateBoundRequestStore().FinishBoundRequest(
                 applicationId,
                 requestId,
+                clientCertificateFingerprint,
                 out string? certificateGroupId,
                 out string? certificateTypeId,
                 out ByteString generatedCertificate,
