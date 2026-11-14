@@ -452,6 +452,26 @@ namespace Opc.Ua.Client
                     stringTable, moreNotifications);
             }
 
+            /// <inheritdoc/>
+            public ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+                uint subscriptionId,
+                IIngressWaitPolicy waitPolicy,
+                CancellationToken ct)
+            {
+                if (subscriptionId != 0)
+                {
+                    IReadOnlyList<Subscription> subscriptions = m_context.Subscriptions;
+                    for (int i = 0; i < subscriptions.Count; i++)
+                    {
+                        if (subscriptions[i].Id == subscriptionId)
+                        {
+                            return subscriptions[i].WaitForIncomingRoomAsync(waitPolicy, ct);
+                        }
+                    }
+                }
+                return new ValueTask<bool>(true);
+            }
+
             private readonly ISubscriptionEngineContext m_context;
             private readonly TimeProvider m_timeProvider;
         }

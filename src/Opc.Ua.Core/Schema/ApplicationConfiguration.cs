@@ -1735,6 +1735,23 @@ namespace Opc.Ua
         [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
         public OperationLimits OperationLimits { get; set; } = new();
 
+        /// <summary>
+        /// Whether a session verifies the ServerEndpoints returned by CreateSession
+        /// against the endpoints returned by the DiscoveryEndpoint its endpoint was
+        /// selected from. Default <c>true</c>.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-4 §5.7.2.2 requires the Client to verify the list when it used a
+        /// DiscoveryEndpoint to select the security options, comparing only the
+        /// EndpointDescriptions that match the transportProfileUri of the current
+        /// SecureChannel. The same clause lets a Client that has the security options
+        /// configured for the connection use that configuration and ignore the list.
+        /// Set this to <c>false</c> only for such a configured connection: the check
+        /// is what detects a discovery reply from which stronger endpoints were removed.
+        /// </remarks>
+        [DataTypeField(Order = 7, DefaultValueHandling = DefaultValueHandling.Emit)]
+        public bool VerifyServerEndpointsWithDiscovery { get; set; } = true;
+
         private ArrayOf<string> m_wellKnownDiscoveryUrls;
         private ArrayOf<EndpointDescription> m_discoveryServers;
     }

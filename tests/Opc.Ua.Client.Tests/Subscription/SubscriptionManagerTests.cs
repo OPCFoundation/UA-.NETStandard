@@ -2407,6 +2407,82 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(manager.Items, Is.EquivalentTo([remaining]));
         }
 
+        /// <summary>
+        /// A subscription held through the classic session API acknowledges a
+        /// message when it saves it. While its queue is full, one worker may park
+        /// on it; the last free worker neither saves nor acknowledges the message,
+        /// so the server keeps it for Republish, and keeps publishing.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task FullClassicSubscriptionLeavesMessagesUnacknowledgedOnServerAsync(
+            CancellationToken ct)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(5);
+            var released = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int refused = 0;
+            session.SessionSubscriptionRoomHandler = async (id, waitPolicy, waitCt) =>
+            {
+                Assert.That(id, Is.EqualTo(5u));
+                if (!waitPolicy.TryEnterWait())
+                {
+                    Interlocked.Increment(ref refused);
+                    return false;
+                }
+                try
+                {
+                    await released.Task.WaitAsync(waitCt).ConfigureAwait(false);
+                    return true;
+                }
+                finally
+                {
+                    waitPolicy.ExitWait();
+                }
+            };
+            uint sequenceNumber = 0;
+            session.OnPublishAsync = (_, acknowledgements, _) => new ValueTask<PublishResponse>(new PublishResponse
+            {
+                SubscriptionId = 5,
+                MoreNotifications = true,
+                AvailableSequenceNumbers = [],
+                Results = acknowledgements.ConvertAll(_ => (StatusCode)StatusCodes.Good),
+                NotificationMessage = new NotificationMessage
+                {
+                    SequenceNumber = Interlocked.Increment(ref sequenceNumber),
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                }
+            });
+            await using var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 2,
+                MaxPublishWorkerCount = 2
+            };
+            manager.Update();
+            manager.Resume();
+            try
+            {
+                while (Volatile.Read(ref refused) < 20)
+                {
+                    await Task.Delay(10, ct).ConfigureAwait(false);
+                }
+                Assert.That(manager.ParkedPublishWorkerCount, Is.EqualTo(1));
+                Assert.That(session.SessionDispatchCount, Is.Zero,
+                    "A message must not be saved into a full classic subscription.");
+                Assert.That(session.PublishCalls.SelectMany(c => c.Acknowledgements.ToArray()!), Is.Empty,
+                    "A message that was not saved must not be acknowledged.");
+            }
+            finally
+            {
+                released.TrySetResult(true);
+            }
+            while (session.SessionDispatchCount == 0)
+            {
+                await Task.Delay(10, ct).ConfigureAwait(false);
+            }
+            Assert.That(manager.ParkedPublishWorkerCount, Is.Zero);
+        }
+
         [Test]
         public void MinPublishWorkerCountSetAndGet()
         {

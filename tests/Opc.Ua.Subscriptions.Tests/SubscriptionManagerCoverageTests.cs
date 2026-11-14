@@ -704,6 +704,14 @@ namespace Opc.Ua.Subscriptions.Tests
                 return false;
             }
 
+            public ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+                uint subscriptionId,
+                IIngressWaitPolicy waitPolicy,
+                CancellationToken ct)
+            {
+                return new ValueTask<bool>(true);
+            }
+
             private int m_publishCallCount;
         }
 
@@ -817,9 +825,10 @@ namespace Opc.Ua.Subscriptions.Tests
                 throw new NotSupportedException();
             }
 
-            public ValueTask OnPublishReceivedAsync(NotificationMessage message,
+            public ValueTask<bool> OnPublishReceivedAsync(NotificationMessage message,
                 IReadOnlyList<uint>? availableSequenceNumbers,
-                IReadOnlyList<string> stringTable)
+                IReadOnlyList<string> stringTable,
+                IIngressWaitPolicy? waitPolicy = null)
             {
                 throw new NotSupportedException();
             }

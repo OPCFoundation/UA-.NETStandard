@@ -68,8 +68,33 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="message"></param>
         /// <param name="availableSequenceNumbers"></param>
         /// <param name="stringTable"></param>
-        ValueTask OnPublishReceivedAsync(NotificationMessage message,
+        /// <param name="waitPolicy">Decides whether the caller may wait for room
+        /// when the ingress queue is full. <c>null</c> always waits.</param>
+        /// <returns><c>false</c> when the queue was full and the policy did not
+        /// allow the caller to wait: the message was not admitted, and it must
+        /// not be acknowledged, so the server keeps it for Republish.</returns>
+        ValueTask<bool> OnPublishReceivedAsync(NotificationMessage message,
             IReadOnlyList<uint>? availableSequenceNumbers,
-            IReadOnlyList<string> stringTable);
+            IReadOnlyList<string> stringTable,
+            IIngressWaitPolicy? waitPolicy = null);
+    }
+
+    /// <summary>
+    /// Decides whether a publish worker may park on the full ingress queue
+    /// of one subscription. Parked workers send no Publish requests, so a
+    /// policy keeps enough workers free for the other subscriptions.
+    /// </summary>
+    internal interface IIngressWaitPolicy
+    {
+        /// <summary>
+        /// Called before the caller waits for room. Returns <c>false</c> when
+        /// it must not wait.
+        /// </summary>
+        bool TryEnterWait();
+
+        /// <summary>
+        /// Called when a wait admitted by <see cref="TryEnterWait"/> ends.
+        /// </summary>
+        void ExitWait();
     }
 }
