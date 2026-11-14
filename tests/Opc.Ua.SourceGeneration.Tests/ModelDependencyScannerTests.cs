@@ -639,6 +639,47 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Regression for #5082: an assembly that produces a model and re-exports it without version
+        /// metadata as a dependency of another of its models must not report a collision with itself.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SameAssemblyReexportOfOwnModelDoesNotReportTieBreak(bool reexportFirst)
+        {
+            string payload = new ModelDependencyV1
+            {
+                ModelUri = DemoModelUri,
+                FluentAccessorsEmitted = false
+            }.ToBase64Payload();
+            string producerAttribute = CreateModelDependencyAttributeSource(
+                "\"1.0\"", "\"2099-01-01\"", "\"" + payload + "\"");
+            string reexportAttribute = CreateModelDependencyAttributeSource("null", "null", "null");
+            CSharpCompilation producer = CreateStackCompilation("SelfReexportingProducer")
+                .AddCode(new Dictionary<string, string>
+                {
+                    ["ModelMetadata.cs"] = reexportFirst
+                        ? reexportAttribute + Environment.NewLine + producerAttribute
+                        : producerAttribute + Environment.NewLine + reexportAttribute
+                }, LanguageVersion.CSharp11);
+            Assert.That(
+                producer.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                string.Join(Environment.NewLine, producer.GetDiagnostics()));
+
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                producer,
+                fluentAccessorsOnly: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(diagnostics.Where(diagnostic => diagnostic.Id != "MODELGEN013"), Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(result.GeneratedSources, Is.Empty,
+                    "The payload-bearing producer entry must be selected and suppress duplicate generation.");
+            });
+        }
+
+        /// <summary>
         /// Selecting among actual model producers still reports the chosen and rejected versions.
         /// </summary>
         [TestCase(false)]
@@ -1206,6 +1247,20 @@ namespace Opc.Ua.SourceGeneration
                 Is.Empty,
                 string.Join(Environment.NewLine, compilation.GetDiagnostics()));
             return compilation;
+        }
+
+        private static string CreateModelDependencyAttributeSource(
+            string versionLiteral,
+            string publicationDateLiteral,
+            string payloadLiteral)
+        {
+            return "[assembly: global::Opc.Ua.ModelDependencyAttribute(" +
+                "\"" + DemoModelUri + "\", " +
+                "\"DemoModel\", " +
+                versionLiteral + ", " +
+                publicationDateLiteral + ", " +
+                "\"DemoModel\", " +
+                payloadLiteral + ")]";
         }
 
         private static CSharpCompilation CreateGeneratedDiProducer()
