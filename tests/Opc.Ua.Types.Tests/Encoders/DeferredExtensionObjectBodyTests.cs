@@ -174,6 +174,188 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void RewindDecodesTheBodyAgainAsANewInstance()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(3)));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? first), Is.True);
+
+            decoded.RewindDeferredBody();
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? second), Is.True);
+            Assert.That(second, Is.Not.SameAs(first));
+            Assert.That(second!.IsEqual(first!), Is.True);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? third), Is.True);
+            Assert.That(third, Is.SameAs(second));
+        }
+
+        [Test]
+        public void RewindCallbackRestoresStateOnEachLaterDecode()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? first), Is.True);
+            first!.SequenceNumber = 7;
+            int calls = 0;
+
+            decoded.RewindDeferredBody(
+                (value, state) =>
+                {
+                    calls++;
+                    ((EventNotificationList)value).SequenceNumber = (uint)state!;
+                },
+                7u);
+
+            Assert.That(calls, Is.Zero);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? second), Is.True);
+            Assert.That(second!.SequenceNumber, Is.EqualTo(7u));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.True);
+            Assert.That(calls, Is.EqualTo(1));
+
+            decoded.RewindDeferredBody(
+                (value, state) =>
+                {
+                    calls++;
+                    ((EventNotificationList)value).SequenceNumber = (uint)state!;
+                },
+                7u);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? third), Is.True);
+            Assert.That(third!.SequenceNumber, Is.EqualTo(7u));
+            Assert.That(calls, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task ConcurrentReaderDoesNotSeeAValueBeforeItIsRestoredAsync()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.True);
+            using var entered = new ManualResetEventSlim();
+            using var gate = new ManualResetEventSlim();
+
+            decoded.RewindDeferredBody(
+                (value, state) =>
+                {
+                    entered.Set();
+                    gate.Wait(TimeSpan.FromSeconds(10));
+                    ((EventNotificationList)value).SequenceNumber = (uint)state!;
+                },
+                7u);
+
+            Task<uint> restoring = Task.Run(() =>
+                decoded.TryGetValue(out EventNotificationList? value) ? value!.SequenceNumber : 0u);
+            Assert.That(entered.Wait(TimeSpan.FromSeconds(10)), Is.True);
+            Task<uint> concurrent = Task.Run(() =>
+                decoded.TryGetValue(out EventNotificationList? value) ? value!.SequenceNumber : 0u);
+            await Task.Delay(100).ConfigureAwait(false);
+            gate.Set();
+
+            Assert.That(await restoring.ConfigureAwait(false), Is.EqualTo(7u));
+            Assert.That(await concurrent.ConfigureAwait(false), Is.EqualTo(7u));
+        }
+
+        [Test]
+        public void RewindBeforeFirstReadIsSafe()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(2)));
+
+            decoded.RewindDeferredBody();
+            decoded.RewindDeferredBody();
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReleaseAfterRewindDropsTheValue()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.True);
+
+            decoded.RewindDeferredBody();
+            decoded.ReleaseDeferredBody();
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        [Test]
+        public void RewindAfterReleaseKeepsTheBodyReleased()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.True);
+
+            decoded.ReleaseDeferredBody();
+            decoded.RewindDeferredBody();
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        [Test]
+        public void RewindLeavesOtherBodiesAlone()
+        {
+            EventNotificationList events = CreateEvents(1);
+            var extension = new ExtensionObject(events);
+
+            extension.RewindDeferredBody();
+
+            Assert.That(extension.TryGetValue(out EventNotificationList? value), Is.True);
+            Assert.That(value, Is.SameAs(events));
+        }
+
+        [Test]
+        public void MalformedBodyIsAvailableAsBytesAgainAfterRewind()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, EncodeRaw([1, 0, 0, 0, 1, 2, 3]));
+            Assert.That(decoded.TryGetAsBinary(out ByteString first), Is.True);
+
+            decoded.RewindDeferredBody();
+
+            Assert.That(decoded.TryGetAsBinary(out ByteString second), Is.True);
+            Assert.That(second.ToArray(), Is.EqualTo(first.ToArray()));
+        }
+
+        [Test]
+        public async Task ReadersConcurrentWithRewindsAlwaysSeeAValueAsync()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(20)));
+            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+
+            var readers = new Task<int>[4];
+            for (int i = 0; i < readers.Length; i++)
+            {
+                readers[i] = Task.Run(() =>
+                {
+                    int missing = 0;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        if (!decoded.TryGetValue(out EventNotificationList? value) || value!.Events.Count != 20)
+                        {
+                            missing++;
+                        }
+                    }
+                    return missing;
+                });
+            }
+            Task rewinder = Task.Run(() =>
+            {
+                while (!stop.IsCancellationRequested)
+                {
+                    decoded.RewindDeferredBody();
+                }
+            });
+
+            int[] missed = await Task.WhenAll(readers).ConfigureAwait(false);
+            await rewinder.ConfigureAwait(false);
+
+            Assert.That(missed, Has.All.EqualTo(0));
+        }
+
+        [Test]
         public void MalformedBodyDoesNotFailTheDecoderAndStaysAvailableAsBytes()
         {
             ServiceMessageContext context = CreateContext(defer: true);

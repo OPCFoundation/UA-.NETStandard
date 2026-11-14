@@ -568,12 +568,32 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// The message of the last notification saved in the cache, without marking the
+        /// messages of the subscription as handed out.
+        /// </summary>
+        internal NotificationMessage? LastMessageInCache
+        {
+            get
+            {
+                lock (m_cache)
+                {
+                    if (m_hasLastDataChange)
+                    {
+                        return m_lastMessage;
+                    }
+                    return (m_lastNotification as EventFieldList)?.Message ?? m_lastMessage;
+                }
+            }
+        }
+
+        /// <summary>
         /// The last message containing a notification for the item.
         /// </summary>
         public NotificationMessage? LastMessage
         {
             get
             {
+                Subscription?.MarkMessagesHandedOut();
                 lock (m_cache)
                 {
                     // The last notification is stored whatever its kind, so a
