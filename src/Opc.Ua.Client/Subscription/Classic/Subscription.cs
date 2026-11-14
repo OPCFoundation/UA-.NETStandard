@@ -642,10 +642,7 @@ namespace Opc.Ua.Client
         /// <see cref="LastNotification"/> or <see cref="MonitoredItem.LastMessage"/>,
         /// or after a message was saved while the session had a
         /// <see cref="ISession.Notification"/> handler (also on an earlier session of
-        /// this subscription); those messages keep their bytes. A message reached only through the
-        /// <c>Message</c> property of a <see cref="MonitoredItemNotification"/> or
-        /// <see cref="EventFieldList"/> has no notification data after it left the
-        /// cache.
+        /// this subscription); those messages keep their bytes.
         /// </remarks>
         public int MaxMessageCount
         {
@@ -4299,8 +4296,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sets on a body of a cached message, decoded again after its dispatch, what the
         /// dispatch set on the first decoded instance: the message fields of the
-        /// notification list and the message of each event. A data change, a value,
-        /// carries neither its message nor its diagnostic info.
+        /// notification list. A data change or an event, a value, carries neither its
+        /// message nor its diagnostic info.
         /// </summary>
         private static void RestoreDispatchState(IEncodeable value, object? state)
         {
@@ -4316,10 +4313,6 @@ namespace Opc.Ua.Client
                 events.PublishTime = message.PublishTime;
                 events.SequenceNumber = message.SequenceNumber;
                 events.MoreNotifications = message.MoreNotifications;
-                for (int ii = 0; ii < events.Events.Count; ii++)
-                {
-                    events.Events[ii].Message = message;
-                }
             }
         }
 
@@ -4403,11 +4396,8 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // save the message.
-                eventFields.Message = message;
-
-                // save in cache.
-                monitoredItem.SaveValueInCache(eventFields);
+                // save in cache with the message.
+                monitoredItem.SaveValueInCache(eventFields, message);
                 KeepLastMessageIfDetached(monitoredItem);
             }
         }

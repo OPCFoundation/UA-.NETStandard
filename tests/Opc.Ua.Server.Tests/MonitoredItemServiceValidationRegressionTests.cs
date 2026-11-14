@@ -354,8 +354,9 @@ namespace Opc.Ua.Server.Tests
                 // the event is delivered with a null third field.
                 const string message = "Partially valid select clause";
                 ReportServerEvent(message);
-                EventFieldList fields = await PublishEventAsync(message).ConfigureAwait(false);
-                Assert.That(fields, Is.Not.Null, "Did not receive the event.");
+                EventFieldList? received = await PublishEventAsync(message).ConfigureAwait(false);
+                Assert.That(received, Is.Not.Null, "Did not receive the event.");
+                EventFieldList fields = received!.Value;
                 Assert.That(fields.EventFields.Count, Is.EqualTo(3));
                 Assert.That(fields.EventFields[0].IsNull, Is.False);
                 Assert.That(fields.EventFields[2].IsNull, Is.True);
@@ -455,8 +456,9 @@ namespace Opc.Ua.Server.Tests
                 // the item still reports events with the fields of its previous filter.
                 const string message = "Select clause limit";
                 ReportServerEvent(message);
-                EventFieldList fields = await PublishEventAsync(message).ConfigureAwait(false);
-                Assert.That(fields, Is.Not.Null, "Did not receive the event.");
+                EventFieldList? received = await PublishEventAsync(message).ConfigureAwait(false);
+                Assert.That(received, Is.Not.Null, "Did not receive the event.");
+                EventFieldList fields = received!.Value;
                 Assert.That(fields.EventFields.Count, Is.EqualTo(limit));
 
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
@@ -570,8 +572,9 @@ namespace Opc.Ua.Server.Tests
                 e.Initialize(context, notifier, EventSeverity.Medium, new LocalizedText(message));
                 notifier.ReportEvent(context, e);
 
-                EventFieldList fields = await PublishEventAsync(message).ConfigureAwait(false);
-                Assert.That(fields, Is.Not.Null, "Did not receive the event.");
+                EventFieldList? received = await PublishEventAsync(message).ConfigureAwait(false);
+                Assert.That(received, Is.Not.Null, "Did not receive the event.");
+                EventFieldList fields = received!.Value;
                 Assert.That(fields.EventFields.Count, Is.EqualTo(2));
             }
             finally
@@ -718,7 +721,7 @@ namespace Opc.Ua.Server.Tests
         /// Publishes until an event with the given message arrives (the message is matched
         /// against the second event field) or the attempts are exhausted.
         /// </summary>
-        private async Task<EventFieldList> PublishEventAsync(string message)
+        private async Task<EventFieldList?> PublishEventAsync(string message)
         {
             var acknowledgements = new List<SubscriptionAcknowledgement>();
             for (int attempt = 0; attempt < 20; attempt++)
@@ -760,7 +763,7 @@ namespace Opc.Ua.Server.Tests
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
-            return null!;
+            return null;
         }
     }
 }

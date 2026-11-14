@@ -1448,12 +1448,11 @@ namespace Opc.Ua.Server
                 m_clientHandle = clientHandle;
             }
 
-            public override EventFieldList? Apply(EventFieldList fields)
+            public override QueuedEvent? Apply(QueuedEvent fields)
             {
                 if (m_filter == null)
                 {
-                    fields.ClientHandle = m_clientHandle;
-                    return fields;
+                    return fields.WithClientHandle(m_clientHandle);
                 }
 
                 if (fields.Handle is not IFilterTarget target)
@@ -1469,9 +1468,7 @@ namespace Opc.Ua.Server
 
                 // a trailing filtered retain event keeps its FilteredRetainTarget handle,
                 // so the rebuilt fields report the same Retain override.
-                EventFieldList rebuilt = m_owner.GetEventFields(m_context!, m_filter, target);
-                rebuilt.ClientHandle = m_clientHandle;
-                return rebuilt;
+                return m_owner.GetEventFields(m_context!, m_filter, target).WithClientHandle(m_clientHandle);
             }
 
             public override QueuedEventTransform Then(QueuedEventTransform next)
@@ -1534,8 +1531,8 @@ namespace Opc.Ua.Server
         /// select clauses: a field selected before keeps its value, a new one is null. An
         /// event none of whose fields is selected any more is dropped.
         /// </summary>
-        private static EventFieldList? ProjectEventFields(
-            EventFieldList fields,
+        private static QueuedEvent? ProjectEventFields(
+            QueuedEvent fields,
             int[] previousIndexes,
             uint clientHandle)
         {
@@ -1559,11 +1556,11 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            return new EventFieldList
+            return new QueuedEvent(new EventFieldList
             {
                 ClientHandle = clientHandle,
                 EventFields = eventFields
-            };
+            });
         }
 
         private static bool AreSelectClausesEqual(
@@ -2204,51 +2201,45 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Fetches the event fields from the event.
         /// </summary>
-        private EventFieldList GetEventFields(
+        private QueuedEvent GetEventFields(
             FilterContext context,
             EventFilter filter,
             IFilterTarget instance)
         {
-            return CreateEventFieldList(instance, EvaluateEventFields(context, filter, instance));
+            return CreateQueuedEvent(instance, EvaluateEventFields(context, filter, instance));
         }
 
         /// <summary>
-        /// Creates the event field list of this item for event field values.
+        /// Creates the queued event of this item for event field values.
         /// </summary>
         /// <remarks>
-        /// The list is allocated, not rented from a pool: a pool bound that covers the
-        /// lists in flight (about two publishing cycles of events per item) costs more CPU
-        /// per event than the allocation it saves, and a smaller bound misses most of the
-        /// time (issue #4819).
+        /// The fields are a value held in the queue of the item, so only the field values
+        /// are allocated (and shared by a group of items, see SharedEventEvaluation).
         /// </remarks>
-        private EventFieldList CreateEventFieldList(
+        private QueuedEvent CreateQueuedEvent(
             IFilterTarget instance,
             Variant[] eventFieldValues,
             SharedEventEvaluation? sharedEvaluation = null)
         {
-            var result = new EventFieldList
+            var fields = new EventFieldList
             {
                 ClientHandle = ClientHandle,
-                Handle = instance,
                 EventFields = eventFieldValues
             };
+            object? stamp = null;
             EventManager? eventManager = m_server.EventManager;
             if (eventManager != null)
             {
-                if (sharedEvaluation != null)
-                {
-                    // the stamp depends only on the event and the shared field values.
-                    eventManager.RegisterEventFields(
-                        result,
+                // with a shared evaluation the stamp depends only on the event and the shared
+                // field values, so it is created once for the group.
+                stamp = sharedEvaluation != null
+                    ? eventManager.RegisterEventFields(
+                        fields.EventFields,
                         instance,
-                        sharedEvaluation.GetFieldsStamp(eventManager, instance, eventFieldValues));
-                }
-                else
-                {
-                    eventManager.RegisterEventFields(result, instance);
-                }
+                        sharedEvaluation.GetFieldsStamp(eventManager, instance, eventFieldValues))
+                    : eventManager.RegisterEventFields(fields.EventFields, instance);
             }
-            return result;
+            return new QueuedEvent(fields, instance, stamp);
         }
 
         /// <summary>
@@ -2500,14 +2491,14 @@ namespace Opc.Ua.Server
                 // wrapper stays the handle of the queued event, so a later change of the
                 // select clauses rebuilds its fields with the same Retain override. Its
                 // fields are this item's own, the other fields are shared by the group.
-                EventFieldList fields;
+                QueuedEvent fields;
                 if (overrideRetain)
                 {
                     fields = GetEventFields(context, filter, new FilteredRetainTarget(instance));
                 }
                 else if (sharedEvaluation != null)
                 {
-                    fields = CreateEventFieldList(
+                    fields = CreateQueuedEvent(
                         instance,
                         sharedEvaluation.GetEventFields(this, context, filter, instance),
                         sharedEvaluation);
@@ -2532,14 +2523,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds an event to the queue.
         /// </summary>
-        /// <param name="fields">The event field list.</param>
-        public virtual void QueueEvent(EventFieldList fields)
+        /// <param name="fields">The queued event.</param>
+        public virtual void QueueEvent(QueuedEvent fields)
         {
             QueueEventFields(fields, TakeAdmittedSourceGeneration());
         }
 
         private void QueueEventFields(
-            EventFieldList fields,
+            QueuedEvent fields,
             NodeManagerGeneration? admittedGeneration)
         {
             bool capturedSourceEmission = admittedGeneration is not null;
@@ -2801,7 +2792,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public virtual bool Publish(
             OperationContext context,
-            Queue<EventFieldList> notifications,
+            Queue<QueuedEvent> notifications,
             uint maxNotificationsPerPublish)
         {
             if (context == null)
@@ -2914,7 +2905,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the fields of an EventQueueOverflowEventType event for this item.
         /// </summary>
-        private EventFieldList CreateEventQueueOverflowEventFields(OperationContext context)
+        private QueuedEvent CreateEventQueueOverflowEventFields(OperationContext context)
         {
             return CreateInternalEventFields(
                 context,
@@ -2927,7 +2918,7 @@ namespace Opc.Ua.Server
         /// Creates the fields of an event the server raises for this item, such as
         /// EventQueueOverflow or RefreshRequired (SourceNode = Server).
         /// </summary>
-        private EventFieldList CreateInternalEventFields(
+        private QueuedEvent CreateInternalEventFields(
             OperationContext context,
             BaseEventState e,
             string key,

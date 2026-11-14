@@ -191,7 +191,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             Assert.That(evt, Is.Not.Null,
                 "The RefreshCompleted event must be delivered through the notifier chain.");
-            ArrayOf<Variant> fields = evt!.EventFields;
+            ArrayOf<Variant> fields = evt.Value.EventFields;
             Assert.That(AsString(fields[Field.RequestId]), Is.EqualTo(RequestId),
                 "RequestId must be populated from the materialization event arguments.");
             Assert.That(AsUInt32(fields[Field.Generation]), Is.EqualTo(result.NewGeneration),
@@ -297,7 +297,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             Assert.That(evt, Is.Not.Null,
                 "The validation failure event must be delivered through the notifier chain.");
-            ArrayOf<Variant> fields = evt!.EventFields;
+            ArrayOf<Variant> fields = evt.Value.EventFields;
             Assert.That(AsString(fields[Field.ResourceId]), Is.EqualTo("bad-thing"));
             Assert.That(
                 fields[Field.ValidationOutcome].TryGetValue(out ExtensionObject outcomeEo), Is.True,
@@ -345,7 +345,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             Assert.That(evt, Is.Not.Null);
             Assert.That(
-                FieldByBrowseName(evt!, filter, Opc.Ua.XRegistry.BrowseNames.SourceUrl)
+                FieldByBrowseName(evt.Value, filter, Opc.Ua.XRegistry.BrowseNames.SourceUrl)
                     .TryGetValue(out string sourceUrl) ? sourceUrl : string.Empty,
                 Is.EqualTo("https://wot-registry.example.test"));
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
@@ -472,7 +472,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(evt, Is.Not.Null);
             Variant changedField = FieldByBrowseName(
-                evt!,
+                evt.Value,
                 filter,
                 XRegistryModel.BrowseNames.Changed);
             Assert.That(changedField.TryGetValue(out ArrayOf<string> changed), Is.True);
@@ -563,7 +563,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(evt, Is.Not.Null);
             Variant changedField = FieldByBrowseName(
-                evt!,
+                evt.Value,
                 resourceFilter,
                 XRegistryModel.BrowseNames.Changed);
             Assert.That(changedField.TryGetValue(out ArrayOf<string> changed), Is.True);
@@ -577,7 +577,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Assert.That(changedNames, Does.Contain("description"));
                 Assert.That(
                     AsUInt32(FieldByBrowseName(
-                        evt!,
+                        evt.Value,
                         resourceFilter,
                         XRegistryModel.BrowseNames.MetaEpoch)),
                     Is.EqualTo(checked((uint)current.MetaEpoch)));

@@ -152,11 +152,11 @@ namespace Opc.Ua.Server.Tests
             }
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
-            var published = new List<List<EventFieldList>>();
+            var published = new List<List<QueuedEvent>>();
             for (int ii = 0; ii < specs.Length; ii++)
             {
-                List<EventFieldList> expected = Publish(alone[ii]);
-                List<EventFieldList> actual = Publish(shared[ii]);
+                List<QueuedEvent> expected = Publish(alone[ii]);
+                List<QueuedEvent> actual = Publish(shared[ii]);
                 published.Add(actual);
                 Assert.That(actual, Has.Count.EqualTo(expected.Count), $"item {ii}");
                 for (int jj = 0; jj < expected.Count; jj++)
@@ -225,11 +225,11 @@ namespace Opc.Ua.Server.Tests
             }
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
-            List<EventFieldList> expected = Publish(alone);
+            List<QueuedEvent> expected = Publish(alone);
             Assert.That(expected, Has.Count.EqualTo(2));
             foreach (MonitoredItem item in derived.Cast<MonitoredItem>().Append(plain))
             {
-                List<EventFieldList> actual = Publish(item);
+                List<QueuedEvent> actual = Publish(item);
                 Assert.That(actual, Has.Count.EqualTo(2));
                 for (int jj = 0; jj < expected.Count; jj++)
                 {
@@ -589,7 +589,7 @@ namespace Opc.Ua.Server.Tests
             EventFilter filter = CreateFilter(SelectA(), null);
             MonitoredItem reference = CreateItem(3, filter, null);
             reference.QueueEvent(snapshot);
-            EventFieldList fields = Publish(reference)[0];
+            QueuedEvent fields = Publish(reference)[0];
             var source = new Mock<IAsyncNodeManager>();
             var unrelatedSource = new Mock<IAsyncNodeManager>();
             var parent = new CountingMonitoredItem(this, 1, filter, source.Object);
@@ -638,7 +638,7 @@ namespace Opc.Ua.Server.Tests
             EventFilter filter = CreateFilter(SelectA(), null);
             MonitoredItem reference = CreateItem(2, filter, null);
             reference.QueueEvent(snapshot);
-            EventFieldList fields = Publish(reference)[0];
+            QueuedEvent fields = Publish(reference)[0];
             var source = new Mock<IAsyncNodeManager>();
             var item = new CountingMonitoredItem(this, 1, filter, source.Object);
             m_disposables.Add(item);
@@ -829,8 +829,8 @@ namespace Opc.Ua.Server.Tests
             item.QueueSharedEvent(snapshot, otherKey, evaluation);
             alone.QueueEvent(snapshot);
 
-            List<EventFieldList> expected = Publish(alone);
-            List<EventFieldList> actual = Publish(item);
+            List<QueuedEvent> expected = Publish(alone);
+            List<QueuedEvent> actual = Publish(item);
             Assert.That(actual, Has.Count.EqualTo(1));
             Assert.That(actual[0].EventFields.ToArray(), Is.EqualTo(expected[0].EventFields.ToArray()));
             Assert.That(actual[0].EventFields.Count, Is.EqualTo(SelectA().Length));
@@ -870,22 +870,22 @@ namespace Opc.Ua.Server.Tests
             Assert.That(keys[0].Representative, Is.SameAs(keys[0]), "the first held key stays its own");
         }
 
-        private static string? Message(EventFieldList fields)
+        private static string? Message(QueuedEvent fields)
         {
             // Message is the third select clause of SelectA and SelectB.
             return fields.EventFields[2].TryGetValue(out LocalizedText text) ? text.Text : null;
         }
 
-        private static List<EventFieldList> Publish(MonitoredItem item)
+        private static List<QueuedEvent> Publish(MonitoredItem item)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = item.Publish(new OperationContext(item), notifications, 100);
             return [.. notifications];
         }
 
-        private static List<EventFieldList> Publish(MonitoredItem item, DiagnosticsMasks diagnosticsMask)
+        private static List<QueuedEvent> Publish(MonitoredItem item, DiagnosticsMasks diagnosticsMask)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             using var context = new OperationContext(
                 new RequestHeader { ReturnDiagnostics = (uint)diagnosticsMask },
                 null,
@@ -938,7 +938,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(firstResult.DiagnosticInfo, Is.SameAs(firstDiagnostics), "the first notification is unchanged");
         }
 
-        private static StatusResult ResultOf(EventFieldList fields, int index)
+        private static StatusResult ResultOf(QueuedEvent fields, int index)
         {
             StatusResult result;
             Assert.That(fields.EventFields[index].TryGetStructure(out result!), Is.True);
