@@ -1094,6 +1094,206 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.That(children, Is.Empty, "ParentObject should have 0 children by default (backward compatibility)");
         }
 
+        /// <summary>
+        /// A generic imported child cannot be adopted by a typed slot of a
+        /// generated class. The slot copied it into a typed child, but linking
+        /// also added the generic child, so the parent exposed both under one
+        /// NodeId and the import kept the generic one (issue #5081).
+        /// </summary>
+        [Test]
+        public void LinkConvertsGenericChildrenIntoTypedSlots()
+        {
+            SystemContext context = CreateTypedSlotContext(out Export.UANodeSet nodeSet);
+            var nodes = new NodeStateCollection();
+            nodeSet.Import(
+                context,
+                nodes,
+                (_, _, discriminatorId) => discriminatorId == ObjectTypeIds.NamespaceMetadataType
+                    ? new NamespaceMetadataState(null)
+                    : null,
+                linkParentChild: false);
+            NodeState genericUri = nodes.Single(node => node.NodeId == new NodeId(1001u, 1));
+
+            Export.UANodeSet.LinkParentChildRelationships(
+                context,
+                nodes,
+                new Export.NodeSetImportLinkOptions
+                {
+                    UseTypedReplacement = (parent, _) => parent is NamespaceMetadataState
+                });
+
+            NamespaceMetadataState metadata = nodes.OfType<NamespaceMetadataState>().Single();
+            var children = new List<BaseInstanceState>();
+            metadata.GetChildren(context, children);
+            Assert.That(children, Has.Count.EqualTo(3));
+            Assert.That(children.Select(child => child.BrowseName.Name), Is.Unique);
+
+            PropertyState<string>? namespaceUri = metadata.NamespaceUri;
+            Assert.That(namespaceUri, Is.Not.Null);
+            Assert.That(namespaceUri, Is.Not.SameAs(genericUri));
+            Assert.That(namespaceUri!.NodeId, Is.EqualTo(new NodeId(1001u, 1)));
+            Assert.That(namespaceUri.Value, Is.EqualTo("urn:test:typed-slot"));
+            Assert.That(namespaceUri.Parent, Is.SameAs(metadata));
+            Assert.That(metadata.NamespaceVersion?.Value, Is.EqualTo("1.0.0"));
+            Assert.That(
+                nodes.Single(node => node.NodeId == new NodeId(1001u, 1)),
+                Is.SameAs(metadata.NamespaceUri));
+            Assert.That(
+                nodes.Single(node => node.NodeId == new NodeId(1002u, 1)),
+                Is.SameAs(metadata.NamespaceVersion));
+            Assert.That(
+                nodes.Single(node => node.NodeId == new NodeId(1003u, 1)),
+                Is.SameAs(metadata.NamespaceFile));
+            Assert.That(((BaseInstanceState)genericUri).Parent, Is.Null);
+        }
+
+        /// <summary>
+        /// A grandchild imported below a converted child links to the typed
+        /// child which replaced its declared parent, even when the document
+        /// lists the grandchild before its parent.
+        /// </summary>
+        [Test]
+        public void LinkAttachesGrandchildrenToTheConvertedTypedChild()
+        {
+            SystemContext context = CreateTypedSlotContext(out Export.UANodeSet nodeSet);
+            var nodes = new NodeStateCollection();
+            nodeSet.Import(
+                context,
+                nodes,
+                (_, _, discriminatorId) => discriminatorId == ObjectTypeIds.NamespaceMetadataType
+                    ? new NamespaceMetadataState(null)
+                    : null,
+                linkParentChild: false);
+
+            Export.UANodeSet.LinkParentChildRelationships(
+                context,
+                nodes,
+                new Export.NodeSetImportLinkOptions
+                {
+                    UseTypedReplacement = (parent, _) => parent is NamespaceMetadataState
+                });
+
+            NamespaceMetadataState metadata = nodes.OfType<NamespaceMetadataState>().Single();
+            AddressSpaceFileState? file = metadata.NamespaceFile;
+            Assert.That(file, Is.Not.Null);
+            BaseInstanceState size = (BaseInstanceState)nodes.Single(
+                node => node.NodeId == new NodeId(1004u, 1));
+            Assert.That(size.Parent, Is.SameAs(file));
+            Assert.That(file!.FindChild(context, QualifiedName.From("Size")), Is.SameAs(size));
+            var children = new List<BaseInstanceState>();
+            file.GetChildren(context, children);
+            Assert.That(children, Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A typed placeholder which already occupies the slot is displaced,
+        /// not overwritten, by the typed child converted from the imported
+        /// generic child, and the callback receives that typed child.
+        /// </summary>
+        [Test]
+        public void LinkDisplacesTypedPlaceholderWithConvertedChild()
+        {
+            SystemContext context = CreateTypedSlotContext(out Export.UANodeSet nodeSet);
+            var metadata = new NamespaceMetadataState(null)
+            {
+                NodeId = new NodeId(1000u, 1),
+                BrowseName = new QualifiedName("urn:test:typed-slot", 1)
+            };
+            PropertyState<string> placeholder = metadata.CreateOrReplaceNamespaceUri(context, null, false);
+            placeholder.NodeId = new NodeId(5000u, 1);
+            var nodes = new NodeStateCollection();
+            nodeSet.Import(context, nodes, stateFactory: null, linkParentChild: false);
+            nodes.Remove(nodes.Single(node => node.NodeId == metadata.NodeId));
+            var replacements = new List<(BaseInstanceState Replaced, BaseInstanceState Replacement)>();
+
+            Export.UANodeSet.LinkParentChildRelationships(
+                context,
+                nodes,
+                new Export.NodeSetImportLinkOptions
+                {
+                    AvailableNodes = new Dictionary<NodeId, NodeState> { [metadata.NodeId] = metadata },
+                    UseTypedReplacement = (parent, _) => parent is NamespaceMetadataState,
+                    OnTypedReplacement = (replaced, replacement) => replacements.Add((replaced, replacement))
+                });
+
+            PropertyState<string>? namespaceUri = metadata.NamespaceUri;
+            Assert.That(namespaceUri, Is.Not.Null);
+            Assert.That(namespaceUri, Is.Not.SameAs(placeholder));
+            Assert.That(namespaceUri!.NodeId, Is.EqualTo(new NodeId(1001u, 1)));
+            Assert.That(namespaceUri.Value, Is.EqualTo("urn:test:typed-slot"));
+            Assert.That(placeholder.NodeId, Is.EqualTo(new NodeId(5000u, 1)));
+            Assert.That(placeholder.Parent, Is.Null);
+            Assert.That(replacements, Has.Count.EqualTo(1));
+            Assert.That(replacements[0].Replaced, Is.SameAs(placeholder));
+            Assert.That(replacements[0].Replacement, Is.SameAs(namespaceUri));
+            Assert.That(
+                nodes.Single(node => node.NodeId == new NodeId(1001u, 1)),
+                Is.SameAs(namespaceUri));
+            var children = new List<BaseInstanceState>();
+            metadata.GetChildren(context, children);
+            Assert.That(children.Count(child => child.BrowseName.Name == "NamespaceUri"), Is.EqualTo(1));
+        }
+
+        private static SystemContext CreateTypedSlotContext(out Export.UANodeSet nodeSet)
+        {
+            const string xml = """
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
+                    xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <NamespaceUris><Uri>urn:test:typed-slot</Uri></NamespaceUris>
+                  <UAObject NodeId="ns=1;i=1000" BrowseName="1:urn:test:typed-slot">
+                    <DisplayName>urn:test:typed-slot</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=11616</Reference>
+                    </References>
+                  </UAObject>
+                  <UAVariable NodeId="ns=1;i=1001" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=1000"
+                      DataType="i=12">
+                    <DisplayName>NamespaceUri</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=1000</Reference>
+                    </References>
+                    <Value><uax:String>urn:test:typed-slot</uax:String></Value>
+                  </UAVariable>
+                  <UAVariable NodeId="ns=1;i=1002" BrowseName="NamespaceVersion" ParentNodeId="ns=1;i=1000"
+                      DataType="i=12">
+                    <DisplayName>NamespaceVersion</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=1000</Reference>
+                    </References>
+                    <Value><uax:String>1.0.0</uax:String></Value>
+                  </UAVariable>
+                  <UAVariable NodeId="ns=1;i=1004" BrowseName="Size" ParentNodeId="ns=1;i=1003" DataType="i=9">
+                    <DisplayName>Size</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=1003</Reference>
+                    </References>
+                    <Value><uax:UInt64>42</uax:UInt64></Value>
+                  </UAVariable>
+                  <UAObject NodeId="ns=1;i=1003" BrowseName="NamespaceFile" ParentNodeId="ns=1;i=1000">
+                    <DisplayName>NamespaceFile</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=11595</Reference>
+                      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+                    </References>
+                  </UAObject>
+                </UANodeSet>
+                """;
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            nodeSet = Export.UANodeSet.Read(stream)!;
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            foreach (string namespaceUri in nodeSet.NamespaceUris!)
+            {
+                context.NamespaceUris.Append(namespaceUri);
+            }
+            return context;
+        }
+
         private static Export.UANodeSet CreateMethodReferenceNodeSet()
         {
             const string xml = """

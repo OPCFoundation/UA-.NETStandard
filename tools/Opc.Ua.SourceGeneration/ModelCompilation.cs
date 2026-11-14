@@ -477,6 +477,10 @@ namespace Opc.Ua.SourceGeneration
                 {
                     map[candidate.ModelUri] = candidate;
                 }
+                if (IsSameAssemblyReexport(selected, ignored))
+                {
+                    continue;
+                }
                 m_context.ReportDiagnostic(
                     Diagnostic.Create(
                         SourceGenerator.ModelDependencyTieBreak,
@@ -506,6 +510,24 @@ namespace Opc.Ua.SourceGeneration
             return (candidate.Payload.Length == 0 &&
                     (existing.Payload.Length == 0 || IsModelProducer(existing))) ||
                 (existing.Payload.Length == 0 && IsModelProducer(candidate));
+        }
+
+        /// <summary>
+        /// Identifies two entries for the same model URI declared by one
+        /// assembly where at least one is a payloadless dependency declaration,
+        /// e.g. an assembly that produces a model and also re-exports it as a
+        /// dependency of another model it compiles (GDS in Opc.Ua.Gds is both
+        /// produced and referenced by the Onboarding model). That is not a
+        /// conflict between referenced assemblies, so the selection made by
+        /// <see cref="CompareReferencedModels"/> stands without a diagnostic.
+        /// Two payload-bearing entries in one assembly are still reported.
+        /// </summary>
+        private static bool IsSameAssemblyReexport(
+            ModelDependencyReference selected,
+            ModelDependencyReference ignored)
+        {
+            return string.Equals(selected.AssemblyName, ignored.AssemblyName, StringComparison.Ordinal) &&
+                (selected.Payload.Length == 0 || ignored.Payload.Length == 0);
         }
 
         /// <summary>
