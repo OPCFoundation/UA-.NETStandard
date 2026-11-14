@@ -3053,6 +3053,50 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A HistoryRead event filter with more select clauses than MaxSelectClauseParameters
+        /// is rejected with Bad_EventFilterInvalid; a filter within the limit is accepted.
+        /// </summary>
+        [Test]
+        public async Task HistoryReadEventFilterSelectClauseLimitAsync()
+        {
+            async Task<StatusCode> ReadEventsAsync(int selectClauses)
+            {
+                var filter = new EventFilter();
+                for (int ii = 0; ii < selectClauses; ii++)
+                {
+                    filter.AddSelectClause(
+                        ObjectTypeIds.BaseEventType,
+                        BrowseNames.Message,
+                        Attributes.Value);
+                }
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                HistoryReadResponse response = await m_server.HistoryReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    new ExtensionObject(new ReadEventDetails
+                    {
+                        StartTime = DateTime.UtcNow.AddMinutes(-1),
+                        EndTime = DateTime.UtcNow.AddSeconds(1),
+                        NumValuesPerNode = 0,
+                        Filter = filter
+                    }),
+                    TimestampsToReturn.Neither,
+                    false,
+                    [new HistoryReadValueId { NodeId = new NodeId("CTT", 2) }],
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(response.Results.Count, Is.EqualTo(1));
+                return response.Results[0].StatusCode;
+            }
+
+            Assert.That(
+                await ReadEventsAsync(ServerConfiguration.DefaultMaxSelectClauseParameters + 1).ConfigureAwait(false),
+                Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+            Assert.That(
+                await ReadEventsAsync(ServerConfiguration.DefaultMaxSelectClauseParameters).ConfigureAwait(false),
+                Is.Not.EqualTo(StatusCodes.BadEventFilterInvalid));
+        }
+
+        /// <summary>
         /// Test that the Variant arrays (1D and 2D) are accessible with proper NodeIds.
         /// </summary>
         [Test]

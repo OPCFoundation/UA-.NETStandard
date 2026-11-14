@@ -87,6 +87,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The maximum number of raw values that the calculator of an aggregate monitored item
+        /// keeps for its current processing interval (zero or less for no limit). See
+        /// <see cref="ServerConfiguration.MaxMonitoredItemAggregateRawValues"/>.
+        /// </summary>
+        public int MaxMonitoredItemRawValues { get; set; } =
+            ServerConfiguration.DefaultMaxMonitoredItemAggregateRawValues;
+
+        /// <summary>
+        /// The maximum number of raw values kept for one processing interval when processed
+        /// history is calculated from raw history (zero or less for no limit). See
+        /// <see cref="ServerConfiguration.MaxProcessedHistoryRawValues"/>.
+        /// </summary>
+        public int MaxProcessedHistoryRawValues { get; set; } =
+            ServerConfiguration.DefaultMaxProcessedHistoryRawValues;
+
+        /// <summary>
         /// The minimum processing interval for any aggregate calculation.
         /// </summary>
         public double MinimumProcessingInterval
