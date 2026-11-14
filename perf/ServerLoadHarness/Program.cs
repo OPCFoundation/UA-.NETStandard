@@ -469,7 +469,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // classic: Session from the default session factory (classic subscription engine).
             // shared: classic Sessions whose secure channels come from one ClientChannelManager.
             string clientKind = Arg("client", "managed");
-            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared"
+            bool connectScenario = scenario is "connect" or "channel";
+            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared" || connectScenario
                 ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
                 : null;
             var channelManager = new ClientChannelManager(client.Config, telemetry);
@@ -523,7 +524,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
 
-            Workload workload = counters
+            Workload workload = connectScenario
+                ? new ConnectWorkload(scenario, client, endpointForBuilder!, ArgInt("workers", 8))
+                : counters
                 ? new CounterWorkload(sessions, counterSubs, ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
                 : scenario == "events"
                 ? new EventWorkload(

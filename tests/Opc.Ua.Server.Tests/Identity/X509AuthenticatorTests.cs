@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -174,6 +175,121 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(accepted.Identity, Is.SameAs(acceptedIdentity));
             Assert.That(rejected.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
             Assert.That(mapped.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncUserCertificateValidationIgnoresAutoAcceptUntrusted()
+        {
+            using Certificate certificate = CreateCertificate("CN=UntrustedUser");
+            string usersPath = CreateTempDirectory();
+            try
+            {
+                await using var manager = new CertificateManager(NUnitTelemetryContext.Create());
+                manager.RegisterTrustList(TrustListIdentifier.Users, usersPath);
+                manager.AutoAcceptUntrustedCertificates = true;
+                var authenticator = new X509Authenticator(manager);
+
+                AuthenticationResult result = await authenticator.AuthenticateAsync(
+                    CreateContext(CreateHandler(certificate)))
+                    .ConfigureAwait(false);
+
+                Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+                Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+                Assert.That(result.Identity, Is.Null);
+            }
+            finally
+            {
+                DeleteDirectory(usersPath);
+            }
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncUserCertificateValidationIgnoresManagerAcceptError()
+        {
+            using Certificate certificate = CreateCertificate("CN=UntrustedUser");
+            string usersPath = CreateTempDirectory();
+            try
+            {
+                await using var manager = new CertificateManager(NUnitTelemetryContext.Create());
+                manager.RegisterTrustList(TrustListIdentifier.Users, usersPath);
+                int acceptErrorCalls = 0;
+                manager.AcceptError = (_, _) =>
+                {
+                    Interlocked.Increment(ref acceptErrorCalls);
+                    return true;
+                };
+                var authenticator = new X509Authenticator(manager);
+
+                AuthenticationResult result = await authenticator.AuthenticateAsync(
+                    CreateContext(CreateHandler(certificate)))
+                    .ConfigureAwait(false);
+
+                Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+                Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+                Assert.That(acceptErrorCalls, Is.Zero);
+            }
+            finally
+            {
+                DeleteDirectory(usersPath);
+            }
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncUserCertificateInTrustedUserStoreAccepted()
+        {
+            using Certificate certificate = CreateCertificate("CN=TrustedStoreUser");
+            using Certificate publicCertificate = Certificate.FromRawData(certificate.RawData);
+            string usersPath = CreateTempDirectory();
+            try
+            {
+                await using var manager = new CertificateManager(NUnitTelemetryContext.Create());
+                manager.RegisterTrustList(TrustListIdentifier.Users, usersPath);
+                manager.AutoAcceptUntrustedCertificates = true;
+                using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Users))
+                {
+                    await store.AddAsync(publicCertificate).ConfigureAwait(false);
+                }
+                var authenticator = new X509Authenticator(manager);
+
+                AuthenticationResult result = await authenticator.AuthenticateAsync(
+                    CreateContext(CreateHandler(certificate)))
+                    .ConfigureAwait(false);
+
+                Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+                var claims = result.Identity as IIdentityClaims;
+                Assert.That(claims, Is.Not.Null);
+                Assert.That(claims!.Subject, Is.EqualTo(certificate.Subject));
+            }
+            finally
+            {
+                DeleteDirectory(usersPath);
+            }
+        }
+
+        private static string CreateTempDirectory()
+        {
+            string path = Path.Combine(Path.GetTempPath(), "x509auth-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
+        private static void DeleteDirectory(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                }
+            }
+            catch (IOException)
+            {
+                // best effort cleanup
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // best effort cleanup
+            }
         }
 
         private static Certificate CreateCertificate(string subject)

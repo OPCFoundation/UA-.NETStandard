@@ -220,6 +220,9 @@ namespace Opc.Ua.Server
                 string? issuer = GetOptionalString(payload, "iss");
                 string? subject = GetOptionalString(payload, "sub");
 
+                // ValidatePayload has checked that exp is present.
+                TryGetInt64(payload, "exp", out long expiresAt);
+
                 return AuthenticationResult.Accept(
                     new JwtUserIdentity(
                         issuedTokenHandler,
@@ -227,7 +230,8 @@ namespace Opc.Ua.Server
                         groups,
                         roles,
                         issuer,
-                        subject));
+                        subject,
+                        GetExpiration(expiresAt)));
             }
             catch (JsonException)
             {
@@ -253,6 +257,33 @@ namespace Opc.Ua.Server
             {
                 return AuthenticationResult.Reject(ex.Result);
             }
+        }
+
+        /// <summary>
+        /// The UTC time until which the session credentials of a token with the
+        /// expiration claim <paramref name="expiresAt"/> (seconds since the Unix
+        /// epoch) stay valid: the expiration plus the clock skew tolerance, which
+        /// is also the grace the activation itself applies.
+        /// </summary>
+        private DateTime GetExpiration(long expiresAt)
+        {
+            const long kMinUnixSeconds = -62135596800; // 0001-01-01T00:00:00Z
+            const long kMaxUnixSeconds = 253402300799; // 9999-12-31T23:59:59Z
+            if (expiresAt >= kMaxUnixSeconds)
+            {
+                return DateTime.MaxValue;
+            }
+
+            DateTime expiration = DateTimeOffset
+                .FromUnixTimeSeconds(Math.Max(expiresAt, kMinUnixSeconds))
+                .UtcDateTime;
+            if (m_clockSkewTolerance <= TimeSpan.Zero)
+            {
+                return expiration;
+            }
+            return DateTime.MaxValue - expiration > m_clockSkewTolerance
+                ? expiration + m_clockSkewTolerance
+                : DateTime.MaxValue;
         }
 
         private ServiceResult? ValidatePayload(JsonElement payload)
