@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -49,6 +50,7 @@
       "observable": true,
       "readOnly": true,
       "title": "ActualMode",
+      "type": "string",
       "uav:browseName": "ns1:ActualMode",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6010",
       "uav:mapToType": "i=21",
@@ -62,7 +64,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -95,7 +99,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -156,7 +162,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -429,6 +437,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BlockType"
           }
         ],
@@ -466,10 +475,12 @@
         "superType": "ns=1;i=1001"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RevisionCounter",
         "dataType": "Int32",
         "displayName": [
           {
+            "locale": "",
             "value": "RevisionCounter"
           }
         ],
@@ -495,10 +506,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ActualMode",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "ActualMode"
           }
         ],
@@ -529,6 +542,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "PermittedMode"
           }
         ],
@@ -560,6 +574,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "NormalMode"
           }
         ],
@@ -591,6 +606,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TargetMode"
           }
         ],

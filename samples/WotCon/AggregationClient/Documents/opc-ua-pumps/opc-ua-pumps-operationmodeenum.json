@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -446,11 +446,14 @@
       {
         "browseName": "1:OperationModeEnum",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "standard control algorithm, not configurable"
                 }
               ],
@@ -458,9 +461,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "pid algorithm, control parameters configurable in functional element ControlPID"
                 }
               ],
@@ -468,9 +473,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "manufacturer specific control algorithm, control parameters configurable"
                 }
               ],
@@ -478,9 +485,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "ready for operation "
                 }
               ],
@@ -488,9 +497,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "open loop operation at minimum characteristic"
                 }
               ],
@@ -498,9 +509,11 @@
               "value": 4
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "open loop operation at set point value"
                 }
               ],
@@ -508,9 +521,11 @@
               "value": 5
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "open loop operation at maximum characteristic"
                 }
               ],
@@ -518,9 +533,11 @@
               "value": 6
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "closed loop operation at minimum characteristic"
                 }
               ],
@@ -528,9 +545,11 @@
               "value": 7
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "closed loop operation at maximum characteristic"
                 }
               ],
@@ -538,9 +557,11 @@
               "value": 8
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Test operation"
                 }
               ],
@@ -548,9 +569,11 @@
               "value": 9
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Calibration mode"
                 }
               ],
@@ -562,11 +585,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "describes the possible operation modes of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OperationModeEnum"
           }
         ],
@@ -592,6 +617,7 @@
         "dataType": "EnumValueType",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumValues"
           }
         ],

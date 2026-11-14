@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -35,6 +36,7 @@
         }
       },
       "@type": "uav:variable",
+      "contentEncoding": "base64",
       "links": [
         {
           "href": "i=63",
@@ -44,6 +46,7 @@
       "observable": true,
       "readOnly": true,
       "title": "<ImageIdentifier>",
+      "type": "string",
       "uav:browseName": "ns1:<ImageIdentifier>",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15056",
       "uav:mapToType": "i=30",
@@ -296,6 +299,7 @@
         "browseName": "1:DeviceTypeImage",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceTypeImage"
           }
         ],
@@ -325,10 +329,12 @@
         "typeDefinition": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<ImageIdentifier>",
         "dataType": "i=30",
         "displayName": [
           {
+            "locale": "",
             "value": "<ImageIdentifier>"
           }
         ],
