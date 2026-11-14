@@ -373,10 +373,45 @@ namespace Opc.Ua.Server
         /// <typeparam name="T">The operation's result type.</typeparam>
         internal T ExecuteNotificationOperation<T>(Func<T> operation)
         {
-            lock (m_notificationAuthorizationLock)
+            // Subscriptions of one session publish and acknowledge in parallel, each under its
+            // own subscription lock; only an identity commit excludes them.
+            m_notificationAuthorizationLock.EnterReadLock();
+            try
             {
                 return operation();
             }
+            finally
+            {
+                m_notificationAuthorizationLock.ExitReadLock();
+            }
+        }
+
+        /// <summary>
+        /// Enters an identity commit: no notification operation of the session's subscriptions
+        /// runs until the returned scope is disposed.
+        /// </summary>
+        private IdentityCommitScope EnterIdentityCommit()
+        {
+            m_notificationAuthorizationLock.EnterWriteLock();
+            return new IdentityCommitScope(m_notificationAuthorizationLock);
+        }
+
+        /// <summary>
+        /// Leaves an identity commit entered by <see cref="EnterIdentityCommit"/>.
+        /// </summary>
+        private readonly ref struct IdentityCommitScope
+        {
+            public IdentityCommitScope(ReaderWriterLockSlim gate)
+            {
+                m_gate = gate;
+            }
+
+            public void Dispose()
+            {
+                m_gate.ExitWriteLock();
+            }
+
+            private readonly ReaderWriterLockSlim m_gate;
         }
 
         /// <inheritdoc/>
@@ -401,7 +436,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void MarkIdentityStale()
         {
-            lock (m_notificationAuthorizationLock)
+            using (EnterIdentityCommit())
             {
                 lock (m_lock)
                 {
@@ -450,7 +485,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(effectiveIdentity));
             }
 
-            lock (m_notificationAuthorizationLock)
+            using (EnterIdentityCommit())
             {
                 lock (m_lock)
                 {
@@ -477,7 +512,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(effectiveIdentity));
             }
 
-            lock (m_notificationAuthorizationLock)
+            using (EnterIdentityCommit())
             {
                 lock (m_lock)
                 {
@@ -1237,8 +1272,10 @@ namespace Opc.Ua.Server
             ArrayOf<string> localeIds,
             Nonce serverNonce)
         {
-            return ExecuteNotificationOperation(() =>
-                ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce, null));
+            using (EnterIdentityCommit())
+            {
+                return ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce, null);
+            }
         }
 
         /// <summary>
@@ -1253,9 +1290,11 @@ namespace Opc.Ua.Server
             Nonce serverNonce,
             long expectedIdentityGeneration)
         {
-            return ExecuteNotificationOperation(() =>
-                ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce,
-                    expectedIdentityGeneration));
+            using (EnterIdentityCommit())
+            {
+                return ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce,
+                    expectedIdentityGeneration);
+            }
         }
 
         /// <summary>
@@ -2182,8 +2221,16 @@ namespace Opc.Ua.Server
         }
         private readonly Lock m_lock = new();
 
-        /// <summary>Serializes identity commits and notification delivery before entering the session state.</summary>
-        private readonly Lock m_notificationAuthorizationLock = new();
+        /// <summary>
+        /// Excludes notification delivery (shared) during identity commits (exclusive) before
+        /// entering the session state. Recursion is allowed because the mutex it replaced was
+        /// reentrant. It is never disposed: a subscription may still deliver after the session
+        /// was disposed, and the gate only allocates wait handles while it is contended.
+        /// </summary>
+        [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
+            Justification = "Subscriptions may still enter the gate after the session was disposed.")]
+        private readonly ReaderWriterLockSlim m_notificationAuthorizationLock =
+            new(LockRecursionPolicy.SupportsRecursion);
 
         /// <summary>The current notification epoch; null while effective grants require refresh.</summary>
         private NotificationAuthorization? m_notificationAuthorization;
