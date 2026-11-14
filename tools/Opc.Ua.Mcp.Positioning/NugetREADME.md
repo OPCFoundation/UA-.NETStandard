@@ -1,7 +1,7 @@
 # OPC UA Positioning MCP tools
 
 Read-only Model Context Protocol tools over the existing RSL and GPOS typed
-clients, targeting .NET 8, 9 and 10.
+clients, targeting .NET 10 and 11.
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;

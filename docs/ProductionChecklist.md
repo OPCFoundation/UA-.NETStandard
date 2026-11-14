@@ -113,6 +113,13 @@ review of your deployment.
   each connection. See [Concepts: node identity and namespaces](Concepts.md#node-identity-and-namespaces).
 - [ ] Pass cancellation tokens and dispose sessions and subscriptions. See
   [Concepts: how the SDK is organized](Concepts.md#how-the-sdk-is-organized).
+- [ ] For clients that receive more than about a million notifications per
+  second, enable Server GC (`<ServerGarbageCollection>true</ServerGarbageCollection>`)
+  or a larger gen0 budget (`DOTNET_GCgen0size`). With Workstation GC the
+  notifications in flight outgrow gen0, every collection promotes them, and the
+  client falls behind the server. Keep deferred notification decoding on (the
+  default), and give classic subscriptions a small `MaxMessageCount`, such as 1.
+  See [Deferred notification decoding](Sessions.md#deferred-notification-decoding).
 
 ## Deployment and operation
 

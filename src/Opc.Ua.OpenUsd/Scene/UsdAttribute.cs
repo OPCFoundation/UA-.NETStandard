@@ -49,7 +49,7 @@ namespace Opc.Ua.OpenUsd.Scene
         {
             Name = name ?? string.Empty;
             TypeName = typeName ?? string.Empty;
-            int idx = Name.LastIndexOf(':');
+            int idx = Name.LastIndexOf(':', StringComparison.Ordinal);
             Namespace = idx < 0 ? string.Empty : Name.Substring(0, idx);
             BaseName = idx < 0 ? Name : Name.Substring(idx + 1);
         }

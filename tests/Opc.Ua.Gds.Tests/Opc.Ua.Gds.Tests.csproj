@@ -44,7 +44,7 @@
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\OnboardingRegistrarNodeManager.cs"
              Link="Onboarding\OnboardingRegistrarNodeManager.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushManagedApplicationTargetProvider.cs"
              Link="Onboarding\PushManagedApplicationTargetProvider.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushRegistrarCheckpointFiles.cs"

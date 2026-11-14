@@ -64,16 +64,6 @@ namespace UaLens.Samples
             {
                 return new(false, "Requires configuration: select a trusted local source root and a managed build.");
             }
-            if (sample == RepositorySampleId.VisualInspectionCell &&
-                source.Framework != RepositorySampleFramework.Net10)
-            {
-                return new(false, "Requires configuration: the Vision fixture cell targets managed .NET 10.");
-            }
-            if (sample == RepositorySampleId.IntentEnabledRobot &&
-                source.Framework != RepositorySampleFramework.Net10)
-            {
-                return new(false, "Requires configuration: the draft Robot Intent sample targets managed .NET 10.");
-            }
             string root = RepositorySamplePaths.ValidateRoot(source.Root);
             string build = RepositorySampleCatalog.GetBuildDirectory(source, sample);
             RepositorySamplePaths.EnsureNoLinks(root, build);

@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -272,6 +273,7 @@
       "observable": true,
       "readOnly": true,
       "title": "RemainingLockTime",
+      "type": "number",
       "uav:browseName": "ns1:RemainingLockTime",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6298",
       "uav:mapToType": "i=290",
@@ -524,6 +526,7 @@
         "browseName": "1:Lock",
         "displayName": [
           {
+            "locale": "",
             "value": "Lock"
           }
         ],
@@ -581,10 +584,12 @@
         "typeDefinition": "ns=1;i=6388"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Locked",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Locked"
           }
         ],
@@ -610,10 +615,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingClient",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingClient"
           }
         ],
@@ -639,10 +646,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingUser",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingUser"
           }
         ],
@@ -668,10 +677,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RemainingLockTime",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "RemainingLockTime"
           }
         ],
@@ -700,6 +711,7 @@
         "browseName": "1:InitLock",
         "displayName": [
           {
+            "locale": "",
             "value": "InitLock"
           }
         ],
@@ -734,6 +746,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -766,6 +779,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -796,6 +810,7 @@
         "browseName": "1:RenewLock",
         "displayName": [
           {
+            "locale": "",
             "value": "RenewLock"
           }
         ],
@@ -826,6 +841,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -856,6 +872,7 @@
         "browseName": "1:ExitLock",
         "displayName": [
           {
+            "locale": "",
             "value": "ExitLock"
           }
         ],
@@ -886,6 +903,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -916,6 +934,7 @@
         "browseName": "1:BreakLock",
         "displayName": [
           {
+            "locale": "",
             "value": "BreakLock"
           }
         ],
@@ -946,6 +965,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],

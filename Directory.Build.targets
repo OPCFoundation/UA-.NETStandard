@@ -31,8 +31,8 @@
     reference assemblies while the rest of the stack is built for
     `<tfm>`.  Mixing the two surfaces as `CS0433` on every BCL type the
     stack polyfills for older frameworks (`System.Threading.Lock` is
-    defined by `Opc.Ua.Types` on `net8.0` and by `System.Runtime` on
-    `net9.0+`), which is a property of the pinned build rather than of
+    defined by `Opc.Ua.Types` on `net48` and by `System.Runtime` on
+    modern .NET), which is a property of the pinned build rather than of
     the project's own sources.
 
     The project still loads in the `.slnx` graph so the matrix prep
@@ -61,6 +61,11 @@
          building against a framework the rest of the solution is not using. -->
     <_RestrictedToLegacyTfm
         Condition="'$(RestrictForLegacyTfm)' == 'true' and '$(CustomTestTarget)' != '' and '$(TargetFrameworks)' == '' and '$(TargetFramework)' != '' and '$(CustomTestTarget)' != '$(TargetFramework)'">true</_RestrictedToLegacyTfm>
+    <!-- The same for a project whose TargetFrameworks collapsed to one framework
+         other than CustomTestTarget, as $(ModernTargetFrameworks) does (net10.0)
+         when CustomTestTarget names a framework below net10.0. -->
+    <_RestrictedToLegacyTfm
+        Condition="'$(RestrictForLegacyTfm)' == 'true' and '$(CustomTestTarget)' != '' and '$(TargetFrameworks)' != '' and !$(TargetFrameworks.Contains(';')) and '$(CustomTestTarget)' != '$(TargetFrameworks)'">true</_RestrictedToLegacyTfm>
   </PropertyGroup>
   <PropertyGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
     <OutputType>Library</OutputType>

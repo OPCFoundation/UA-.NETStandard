@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -82,6 +83,7 @@
       "observable": true,
       "readOnly": true,
       "title": "ComponentName",
+      "type": "string",
       "uav:browseName": "ns1:ComponentName",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15050",
       "uav:mapToType": "i=21",
@@ -335,6 +337,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ITagNameplateType"
           }
         ],
@@ -360,10 +363,12 @@
         "superType": "i=17602"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:AssetId",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "AssetId"
           }
         ],
@@ -389,10 +394,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ComponentName",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "ComponentName"
           }
         ],

@@ -104,8 +104,7 @@ namespace Opc.Ua.Client.Tests
             await using UaManagedSession session = await set.ConnectAsync(options, null, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
-            var states = new ConcurrentQueue<ConnectionState>();
-            session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
+            ConcurrentQueue<ConnectionState> states = RecordStatesAfterConnect(session);
 
             set.Primary.SetServiceLevel(150);
             await WaitUntilAsync(
@@ -203,11 +202,18 @@ namespace Opc.Ua.Client.Tests
             };
             await using UaManagedSession session = await set.ConnectAsync(options, null, timeout.Token)
                 .ConfigureAwait(false);
-            var states = new ConcurrentQueue<ConnectionState>();
-            session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
+            ConcurrentQueue<ConnectionState> states = RecordStatesAfterConnect(session);
 
             ServerRedundancyInfo info = await WaitForMemberAsync(
                 session, set.Backup, server => server.ResolutionError != null, timeout.Token).ConfigureAwait(false);
+            // The state machine signals services ready inside the transition and raises
+            // the Connected event afterwards, so ConnectAsync can return before the
+            // initial Connected notification reaches the handler. Discard it: only
+            // transitions caused by the refresh below are of interest.
+            while (states.TryPeek(out ConnectionState first) && first == ConnectionState.Connected)
+            {
+                states.TryDequeue(out _);
+            }
             RedundantServer backup = Member(info, set.Backup);
             Assert.Multiple(() =>
             {

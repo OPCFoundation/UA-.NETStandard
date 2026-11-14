@@ -10,7 +10,7 @@
   A build with all custom targets which are not part of a regular build
   is scheduled once a week in the DevOps build pipeline.
   Uncomment the following lines to test a custom test target
-  supported values: net48, net8.0, net9.0, net10.0
+  supported values: net48, net10.0, net11.0
    -->
   <!--
   <PropertyGroup>
@@ -31,28 +31,6 @@
         <HttpsTargetFrameworks>net48</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <When Condition="'$(CustomTestTarget)' == 'net8.0'">
-      <PropertyGroup>
-        <AppTargetFrameworks>net8.0</AppTargetFrameworks>
-        <AppTargetFramework>net8.0</AppTargetFramework>
-        <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
-        <LibTargetFrameworks>net8.0</LibTargetFrameworks>
-        <LibCoreTargetFrameworks>net8.0</LibCoreTargetFrameworks>
-        <LibxTargetFrameworks>net8.0</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net8.0</HttpsTargetFrameworks>
-      </PropertyGroup>
-    </When>
-    <When Condition="'$(CustomTestTarget)' == 'net9.0'">
-      <PropertyGroup>
-        <AppTargetFrameworks>net9.0</AppTargetFrameworks>
-        <AppTargetFramework>net9.0</AppTargetFramework>
-        <TestsTargetFrameworks>net9.0</TestsTargetFrameworks>
-        <LibTargetFrameworks>net9.0</LibTargetFrameworks>
-        <LibCoreTargetFrameworks>net9.0</LibCoreTargetFrameworks>
-        <LibxTargetFrameworks>net9.0</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net9.0</HttpsTargetFrameworks>
-      </PropertyGroup>
-    </When>
     <When Condition="'$(CustomTestTarget)' == 'net10.0'">
       <PropertyGroup>
         <AppTargetFrameworks>net10.0</AppTargetFrameworks>
@@ -64,16 +42,44 @@
         <HttpsTargetFrameworks>net10.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
+    <When Condition="'$(CustomTestTarget)' == 'net11.0'">
+      <PropertyGroup>
+        <AppTargetFrameworks>net11.0</AppTargetFrameworks>
+        <AppTargetFramework>net11.0</AppTargetFramework>
+        <TestsTargetFrameworks>net11.0</TestsTargetFrameworks>
+        <LibTargetFrameworks>net11.0</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net11.0</LibCoreTargetFrameworks>
+        <LibxTargetFrameworks>net11.0</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net11.0</HttpsTargetFrameworks>
+      </PropertyGroup>
+    </When>
     <Otherwise>
       <PropertyGroup>
-        <AppTargetFrameworks>net10.0;net9.0;net8.0;net48</AppTargetFrameworks>
+        <AppTargetFrameworks>net11.0;net10.0;net48</AppTargetFrameworks>
         <AppTargetFramework>net10.0</AppTargetFramework>
-        <TestsTargetFrameworks>net48;net8.0;net9.0;net10.0</TestsTargetFrameworks>
-        <LibTargetFrameworks>net48;net8.0;net9.0;net10.0</LibTargetFrameworks>
-        <LibCoreTargetFrameworks>net48;net8.0;net9.0;net10.0</LibCoreTargetFrameworks>
-        <LibxTargetFrameworks>net48;net8.0;net9.0;net10.0</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net48;net8.0;net9.0;net10.0</HttpsTargetFrameworks>
+        <TestsTargetFrameworks>net48;net10.0;net11.0</TestsTargetFrameworks>
+        <LibTargetFrameworks>net48;net10.0;net11.0</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net48;net10.0;net11.0</LibCoreTargetFrameworks>
+        <LibxTargetFrameworks>net48;net10.0;net11.0</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net48;net10.0;net11.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </Otherwise>
   </Choose>
+  <!--
+  Projects that need .NET 10 or later (NativeAOT test executables, Aspire/MCP
+  hosts, modern-only samples and the tests that consume them) target
+  ModernTargetFrameworks: net10.0 and net11.0, or the single one CustomTestTarget
+  pins. A CustomTestTarget below net10.0 leaves net10.0, which
+  Directory.Build.targets turns into an empty shell for projects that set
+  RestrictForLegacyTfm.
+  ModernTargetFramework is the single framework fallback such projects use
+  where only one can be named: the LTS release, or net11.0 when pinned.
+  -->
+  <PropertyGroup>
+    <ModernTargetFramework>net10.0</ModernTargetFramework>
+    <ModernTargetFramework Condition="'$(CustomTestTarget)' == 'net11.0'">net11.0</ModernTargetFramework>
+    <ModernTargetFrameworks>net10.0;net11.0</ModernTargetFrameworks>
+    <ModernTargetFrameworks Condition="'$(CustomTestTarget)' == 'net10.0' OR '$(CustomTestTarget)' == 'net11.0'">$(CustomTestTarget)</ModernTargetFrameworks>
+    <ModernTargetFrameworks Condition="'$(CustomTestTarget)' != '' AND '$(CustomTestTarget)' != 'net10.0' AND '$(CustomTestTarget)' != 'net11.0'">net10.0</ModernTargetFrameworks>
+  </PropertyGroup>
 </Project>

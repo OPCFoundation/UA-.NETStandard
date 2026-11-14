@@ -61,6 +61,12 @@ namespace Opc.Ua.Server.FileSystem
         public string ProviderPath { get; }
 
         /// <summary>
+        /// The quota of open files shared by the handles of a mount, or <c>null</c>
+        /// when the opens of this file are not bounded by one.
+        /// </summary>
+        public FileOpenQuota? OpenQuota { get; set; }
+
+        /// <summary>
         /// Gets the number of completed file opens, excluding reservations still waiting for provider streams.
         /// </summary>
         public ushort OpenCount
@@ -470,6 +476,10 @@ namespace Opc.Ua.Server.FileSystem
                             "File already open with incompatible access.");
                         return false;
                     }
+                    if (OpenQuota != null && !OpenQuota.TryAcquire(sessionId, out error))
+                    {
+                        return false;
+                    }
                     pending = new OpenFile(CreateFileHandle(), sessionId, mode, linkedOpenCancellation);
                     if (wantsWrite)
                     {
@@ -519,11 +529,13 @@ namespace Opc.Ua.Server.FileSystem
                 if (ReferenceEquals(m_write, pending))
                 {
                     m_write = null;
+                    OpenQuota?.Release(pending.SessionId);
                 }
                 else if (m_reads.TryGetValue(pending.Handle, out OpenFile? current) &&
                     ReferenceEquals(current, pending))
                 {
                     m_reads.Remove(pending.Handle);
+                    OpenQuota?.Release(pending.SessionId);
                 }
             }
         }
@@ -538,6 +550,19 @@ namespace Opc.Ua.Server.FileSystem
                 return FileWriteMode.Truncate;
             }
             return (mode & 8) != 0 ? FileWriteMode.Append : FileWriteMode.OpenOrCreate;
+        }
+
+        /// <summary>
+        /// Waits for <paramref name="task"/> for at most <paramref name="timeout"/>
+        /// and reports whether it completed in time. The timeout timer is
+        /// cancelled as soon as the task wins, so it does not outlive the wait.
+        /// </summary>
+        internal static async Task<bool> CompletesWithinAsync(Task task, TimeSpan timeout)
+        {
+            using var deadlineCts = new CancellationTokenSource();
+            Task winner = await Task.WhenAny(task, Task.Delay(timeout, deadlineCts.Token)).ConfigureAwait(false);
+            deadlineCts.Cancel();
+            return winner == task;
         }
 
         /// <summary>
@@ -892,7 +917,7 @@ namespace Opc.Ua.Server.FileSystem
 
         private async ValueTask WaitForCleanupAsync(Task cleanup)
         {
-            if (await Task.WhenAny(cleanup, Task.Delay(CloseTimeout)).ConfigureAwait(false) == cleanup)
+            if (await CompletesWithinAsync(cleanup, CloseTimeout).ConfigureAwait(false))
             {
                 try
                 {

@@ -7,7 +7,7 @@ This repository implements the OPC UA **WoT Connectivity** companion specificati
 | `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) generated once from the combined **WoT Connectivity 1.1** NodeSet2 (incorporating the OPC 10100-1 v1.02 model plus additive registry nodes in one namespace) and the draft **xRegistry** base NodeSet2 (see §11) |
 | `Opc.Ua.WotCon.Server`           | Server-side node manager (`WotConnectivityNodeManager` → `AsyncCustomNodeManager`) and the extensible provider model |
 | `Opc.Ua.WotCon.Client`           | Client wrappers + extension methods that compose the generated proxies without inheritance, covering both the OPC 10100-1 v1.02 asset-connection surface (`WotConnectivityClient`) and the WoT Connectivity 1.1 registry surface (`WotRegistryClient`, see §11.8) |
-| `Opc.Ua.WotCon.Bindings`         | Protocol-binding abstractions, planners, codecs, credential references, HTTP/Modbus/OPC UA executors on net8+, and the generic target-mapping channel factory |
+| `Opc.Ua.WotCon.Bindings`         | Protocol-binding abstractions, planners, codecs, credential references, HTTP/Modbus/OPC UA executors on net10+, and the generic target-mapping channel factory |
 | `Opc.Ua.WotCon.Bindings.Mqtt`    | Optional MQTT executor package |
 | `Opc.Ua.WotCon.Tests`            | NUnit tests covering the TD parser, mappers, simulated provider, discovery facade |
 
@@ -868,7 +868,7 @@ for arbitrary federated or non-registry providers. Validate reports unperformed 
 
 ### 11.4 Binder integration seam
 
-`IWotBinderRegistry` is the runtime-neutral seam the coordinator uses during Prepare/Activate/Deactivate. `WotProtocolBinderRegistry` implements that seam and `IWotBindingChannelFactory`, compiling immutable plans from the registered binders and opening channels through independently registered executors. The base `Opc.Ua.WotCon.Bindings` package ships all eight planners and bundles HTTP, Modbus TCP, and OPC UA executors on `net8.0`, `net9.0`, and `net10.0`; MQTT remains in `Opc.Ua.WotCon.Bindings.Mqtt`. The base package retains the full `net48;net8.0;net9.0;net10.0` matrix, where planner-only validation remains available even when concrete executor namespaces are not compiled.
+`IWotBinderRegistry` is the runtime-neutral seam the coordinator uses during Prepare/Activate/Deactivate. `WotProtocolBinderRegistry` implements that seam and `IWotBindingChannelFactory`, compiling immutable plans from the registered binders and opening channels through independently registered executors. The base `Opc.Ua.WotCon.Bindings` package ships all eight planners and bundles HTTP, Modbus TCP, and OPC UA executors on `net10.0` and `net11.0`; MQTT remains in `Opc.Ua.WotCon.Bindings.Mqtt`. The base package retains the full `net48;net10.0;net11.0` matrix, where planner-only validation remains available even when concrete executor namespaces are not compiled.
 
 The generic projection runtime is implemented in `Opc.Ua.WotCon.Server.Materialization`. It resolves affordance-level OPC 10101 target mappings against freshly imported runtime NodeSets, wires async read/write handlers, opens one lazy channel per compiled form per generation, lets local monitored items sample the same read handler, supports reflection-free structured field mapping, and disposes channels with their owning generation.
 

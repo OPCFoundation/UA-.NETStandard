@@ -83,7 +83,7 @@ namespace BinPickingClient
 #else
                 Console.Error.WriteLine(
                     "MCP hosting is unavailable for this target framework. Run the sample without --mcp, " +
-                    "or use the net8.0, net9.0, or net10.0 target framework for MCP hosting.");
+                    "or use the net10.0 or net11.0 target framework for MCP hosting.");
                 return 2;
 #endif
             }

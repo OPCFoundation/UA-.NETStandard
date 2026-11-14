@@ -345,7 +345,7 @@ namespace Opc.Ua.SourceGeneration
 
             while (parentId != null)
             {
-                int index = parentId.LastIndexOf('_');
+                int index = parentId.LastIndexOf('_', StringComparison.Ordinal);
 
                 if (index > 0)
                 {

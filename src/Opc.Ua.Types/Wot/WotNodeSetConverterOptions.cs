@@ -122,6 +122,12 @@ namespace Opc.Ua.Wot
         public IWotProjectionFormProvider? ProjectionFormProvider { get; set; }
 
         /// <summary>
+        /// Gets or sets the source of QUDT unit and quantity-kind mappings.
+        /// When omitted, the explicit UN/CEFACT mapping is used.
+        /// </summary>
+        public IWotUnitMappingProvider? UnitMappingProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the preservation-envelope policy. The default uses
         /// readable mapping plus structured fallback and emits an opaque envelope
         /// only when required.

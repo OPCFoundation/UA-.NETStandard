@@ -1264,7 +1264,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int index = xml!.LastIndexOf('_');
+                    int index = xml!.LastIndexOf('_', StringComparison.Ordinal);
 
                     try
                     {
@@ -1310,7 +1310,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int index = xml!.LastIndexOf('_');
+                    int index = xml!.LastIndexOf('_', StringComparison.Ordinal);
 
                     try
                     {
@@ -3091,7 +3091,7 @@ namespace Opc.Ua
                 HasPrefixAt(trimmed, start, "nsu=") ||
                 HasPrefixAt(trimmed, start, "ns="))
             {
-                int separator = trimmed.IndexOf(';', start);
+                int separator = trimmed.IndexOf(';', start, StringComparison.Ordinal);
                 if (separator < 0)
                 {
                     break;

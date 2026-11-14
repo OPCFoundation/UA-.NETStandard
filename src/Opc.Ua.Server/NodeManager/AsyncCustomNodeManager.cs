@@ -7897,6 +7897,12 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
+                // the call fails as a whole once its results exceed the response byte budget.
+                if (context.ResponseBudgetExceeded)
+                {
+                    break;
+                }
+
                 CallMethodRequest methodToCall = methodsToCall[ii];
 
                 // skip items that have already been processed.

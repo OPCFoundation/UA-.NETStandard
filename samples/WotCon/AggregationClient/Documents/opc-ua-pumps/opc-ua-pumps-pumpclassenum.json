@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -398,11 +398,14 @@
       {
         "browseName": "1:PumpClassEnum",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Rotodynamic pump"
                 }
               ],
@@ -410,9 +413,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Positive displacement pump"
                 }
               ],
@@ -420,9 +425,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Process vacuum pump"
                 }
               ],
@@ -430,9 +437,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Turbo vacuum pump"
                 }
               ],
@@ -440,9 +449,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Vacuum pump"
                 }
               ],
@@ -450,9 +461,11 @@
               "value": 4
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Liquid pump"
                 }
               ],
@@ -460,9 +473,11 @@
               "value": 5
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Pump"
                 }
               ],
@@ -475,11 +490,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "defines possible pump types"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpClassEnum"
           }
         ],
@@ -506,6 +523,7 @@
         "dataType": "EnumValueType",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumValues"
           }
         ],

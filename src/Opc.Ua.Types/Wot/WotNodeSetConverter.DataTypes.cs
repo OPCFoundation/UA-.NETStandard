@@ -1033,7 +1033,7 @@ namespace Opc.Ua.Wot
             local = string.Empty;
             if (name.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = name.IndexOf(';', 4);
+                int delimiter = name.IndexOf(';', 4, StringComparison.Ordinal);
                 if (delimiter < 0 || delimiter + 1 >= name.Length)
                 {
                     return false;
@@ -2069,9 +2069,10 @@ namespace Opc.Ua.Wot
             }
             writer.WritePropertyName("uav:dataTypeDefinitions");
             writer.WriteStartArray();
+            Dictionary<string, UANode> index = BuildIndex(nodeSet);
             foreach (UADataType dataType in dataTypes)
             {
-                WriteDataTypeDefinition(writer, dataType, nodeSet, referenceTypes, defaultLocale);
+                WriteDataTypeDefinition(writer, dataType, nodeSet, referenceTypes, defaultLocale, index);
             }
             writer.WriteEndArray();
         }
@@ -2081,10 +2082,15 @@ namespace Opc.Ua.Wot
             UADataType dataType,
             UANodeSet nodeSet,
             WotReferenceTypeNames referenceTypes,
-            string defaultLocale)
+            string defaultLocale,
+            Dictionary<string, UANode> index)
         {
             Export.DataTypeDefinition? definition = dataType.Definition;
             bool isEnumeration = definition is not null && HasEnumFields(definition);
+            if (definition is { IsUnion: false } && !isEnumeration)
+            {
+                definition = CompleteStructureFieldPrefix(dataType, nodeSet, index);
+            }
 
             writer.WriteStartObject();
             string? portableId = ToPortableNodeId(dataType.NodeId, nodeSet.NamespaceUris);
@@ -2155,6 +2161,68 @@ namespace Opc.Ua.Wot
                 WriteStructureFields(writer, definition, nodeSet, defaultLocale);
             }
             writer.WriteEndObject();
+        }
+
+        /// <summary>
+        /// Expands locally declared structure fields into the complete inherited prefix required by a readable DTD.
+        /// </summary>
+        private static Export.DataTypeDefinition CompleteStructureFieldPrefix(
+            UADataType dataType,
+            UANodeSet nodeSet,
+            Dictionary<string, UANode> index)
+        {
+            var chain = new Stack<Export.DataTypeDefinition>();
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            UADataType? current = dataType;
+            while (current?.Definition is { IsUnion: false } definition && !HasEnumFields(definition))
+            {
+                if (!visited.Add(current.NodeId ?? string.Empty))
+                {
+                    return dataType.Definition!;
+                }
+                chain.Push(definition);
+                UADataType? parent = null;
+                foreach (Reference reference in current.References ?? [])
+                {
+                    if (!reference.IsForward &&
+                        ResolveArchivedAlias(reference.ReferenceType, aliases) == "i=45" &&
+                        index.TryGetValue(ResolveArchivedAlias(reference.Value, aliases), out UANode? node))
+                    {
+                        parent = node as UADataType;
+                        break;
+                    }
+                }
+                current = parent;
+            }
+            var fields = new List<DataTypeField>();
+            while (chain.Count > 0)
+            {
+                DataTypeField[] declared = chain.Pop().Field ?? [];
+                bool complete = declared.Length >= fields.Count;
+                var inheritedNames = new HashSet<string?>(StringComparer.Ordinal);
+                for (int position = 0; position < fields.Count; position++)
+                {
+                    inheritedNames.Add(fields[position].Name);
+                    complete &= position < declared.Length && fields[position].Name == declared[position].Name;
+                }
+                if (complete)
+                {
+                    fields.Clear();
+                }
+                else
+                {
+                    foreach (DataTypeField field in declared)
+                    {
+                        if (inheritedNames.Contains(field.Name))
+                        {
+                            return dataType.Definition!;
+                        }
+                    }
+                }
+                fields.AddRange(declared);
+            }
+            return new Export.DataTypeDefinition { Field = [.. fields] };
         }
 
         /// <summary>
@@ -2268,7 +2336,7 @@ namespace Opc.Ua.Wot
             }
             foreach (Reference reference in dataType.References)
             {
-                if (!string.Equals(reference.ReferenceType, "HasSubtype", StringComparison.Ordinal) ||
+                if (!IsReferenceTypeNamed(reference.ReferenceType, "HasSubtype", WotVocabulary.HasSubtype) ||
                     reference.IsForward)
                 {
                     continue;

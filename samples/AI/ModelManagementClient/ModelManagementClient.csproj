@@ -4,9 +4,9 @@
     <AssemblyName>ModelManagementClient</AssemblyName>
     <!-- net48 is deliberately absent: the Opc.Ua.AI libraries this sample builds
          on target modern .NET only. -->
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net9.0;net8.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
-    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net11.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net10.0' OR '$(CustomTestTarget)' == 'net11.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(ModernTargetFramework)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>    <RootNamespace>ModelManagement.Client</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
     <IsPackable>false</IsPackable>

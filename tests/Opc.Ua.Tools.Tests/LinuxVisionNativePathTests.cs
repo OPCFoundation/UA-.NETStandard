@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -48,8 +48,8 @@ namespace Opc.Ua.Tools.Tests
         /// Exports both package layouts without discarding inherited paths or existing CI variables.
         /// </summary>
         [TestCase(null, "Release", "net10.0")]
-        [TestCase("", "Debug", "net8.0")]
-        [TestCase("/opt/native", "Release", "net9.0")]
+        [TestCase("", "Debug", "net11.0")]
+        [TestCase("/opt/native", "Release", "net11.0")]
         [TestCase("/opt/first:/opt/native with spaces", "Debug", "net10.0")]
         public async Task ActionExportsNativeDirectoriesAndPreservesInheritedPathsAsync(
             string? inheritedPath,

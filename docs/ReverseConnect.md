@@ -381,7 +381,7 @@ back-compat (opc.tcp consumers do not need the new overload).
 
 The `Opc.Ua.Bindings.Https` package serves the `opc.tcp`
 listener from a Kestrel `IHost` instead of raw `Socket` + SAEA (an
-opt-in alternative on `net8.0`+ to the default raw-socket listener that
+opt-in alternative on `net10.0`+ to the default raw-socket listener that
 ships in `Opc.Ua.Core`). It
 supports the full forward AND reverse-connect listener modes the
 raw-socket `TcpTransportListener` does. To use it, install the binding

@@ -1086,7 +1086,7 @@ namespace Opc.Ua.Mcp
             private static Dictionary<string, string> ParseFieldValues(string fieldValues)
             {
                 string trimmed = fieldValues.Trim();
-                if (trimmed.StartsWith('{'))
+                if (trimmed.StartsWith('{', StringComparison.Ordinal))
                 {
                     using var document = JsonDocument.Parse(trimmed);
                     var values = new Dictionary<string, string>(StringComparer.Ordinal);

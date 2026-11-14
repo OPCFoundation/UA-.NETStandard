@@ -53,15 +53,10 @@ inputs:
 runs:
   using: composite
   steps:
-  - name: Setup .NET
-    uses: actions/setup-dotnet@v6
+  - name: Setup repository .NET SDK
+    uses: ./.github/actions/setup-repository-dotnet
     with:
       dotnet-version: ${{ inputs.dotnet }}
-
-  - name: Setup repository .NET SDK
-    uses: actions/setup-dotnet@v6
-    with:
-      global-json-file: global.json
 
   - name: Set cloud version
     shell: pwsh
@@ -217,6 +212,40 @@ runs:
       fi
 
       echo "core_pattern=$(cat /proc/sys/kernel/core_pattern)"
+
+  - name: Enable Windows crash dumps
+    # Windows counterpart of 'Enable native core dumps'. On PR #5072 run
+    # 43357705407 the net48 test host of Opc.Ua.Client.Tests died with no
+    # stderr text and no dump: --blame-crash needs procdump on Windows, which
+    # the hosted runners do not ship ("procdump64.exe could not be found").
+    # Windows Error Reporting writes a dump of any test host that dies of an
+    # unhandled exception, a fail-fast or a native fault, without a download
+    # and without attaching to the process. Nothing is written unless a host
+    # crashes, so healthy runs pay nothing. Diagnostics only: warn, never fail.
+    if: ${{ runner.os == 'Windows' }}
+    shell: pwsh
+    run: |
+      $dumps = Join-Path $env:RUNNER_TEMP 'crashdumps'
+      try
+      {
+          New-Item -ItemType Directory -Force -Path $dumps | Out-Null
+          $root = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps'
+          foreach ($exe in 'testhost.exe', 'testhost.x86.exe', 'testhost.net48.exe', 'testhost.net48.x86.exe')
+          {
+              $key = Join-Path $root $exe
+              New-Item -Path $key -Force | Out-Null
+              New-ItemProperty -Path $key -Name DumpFolder -PropertyType ExpandString -Value $dumps -Force | Out-Null
+              # 2 = full dump: a mini dump of a .NET Framework process lacks the
+              # managed heap that SOS needs to name the faulting exception.
+              New-ItemProperty -Path $key -Name DumpType -PropertyType DWord -Value 2 -Force | Out-Null
+              New-ItemProperty -Path $key -Name DumpCount -PropertyType DWord -Value 3 -Force | Out-Null
+          }
+          Write-Host "Windows Error Reporting writes test host crash dumps to $dumps."
+      }
+      catch
+      {
+          Write-Host "::warning::Could not enable Windows Error Reporting dumps: $($_.Exception.Message)"
+      }
 
   - name: Build and test
     shell: pwsh
@@ -461,6 +490,48 @@ runs:
       done
 
       ls -la "$dst"
+
+  - name: Stage Windows crash dumps
+    # Collects the dumps enabled by 'Enable Windows crash dumps' into
+    # TestResults, which 'Upload test results' already publishes. A full dump
+    # of a test host compresses well; one that is still too big is dropped
+    # with a warning rather than slowing the upload of everything else.
+    if: ${{ failure() && runner.os == 'Windows' }}
+    shell: pwsh
+    run: |
+      $src = Join-Path $env:RUNNER_TEMP 'crashdumps'
+      $dst = 'TestResults/windows-diagnostics'
+      $maxCompressed = 2GB
+      $files = @(Get-ChildItem -LiteralPath $src -Filter '*.dmp' -File -ErrorAction SilentlyContinue)
+      if ($files.Count -eq 0)
+      {
+          Write-Host "No crash dumps found in $src."
+          exit 0
+      }
+      New-Item -ItemType Directory -Force -Path $dst | Out-Null
+      foreach ($file in $files)
+      {
+          Write-Host "Found $($file.FullName) ($($file.Length) bytes)"
+          $archive = Join-Path $dst "$($file.Name).zip"
+          try
+          {
+              Compress-Archive -LiteralPath $file.FullName -DestinationPath $archive -CompressionLevel Fastest -Force
+              $size = (Get-Item -LiteralPath $archive).Length
+              if ($size -gt $maxCompressed)
+              {
+                  Write-Host "::warning::$($file.Name) compresses to $size bytes; dropping it."
+                  Remove-Item -LiteralPath $archive -Force
+              }
+              else
+              {
+                  Write-Host "Staged $archive ($size bytes)"
+              }
+          }
+          catch
+          {
+              Write-Host "::warning::Could not stage $($file.Name): $($_.Exception.Message)"
+          }
+      }
 
   - name: Capture macOS native loader diagnostics
     if: >-

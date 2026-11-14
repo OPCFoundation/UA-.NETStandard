@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -59,6 +60,7 @@
       "observable": true,
       "readOnly": true,
       "title": "DeviceHealth",
+      "type": "integer",
       "uav:browseName": "ns1:DeviceHealth",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15052",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/DI/;i=6244",
@@ -312,6 +314,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IDeviceHealthType"
           }
         ],
@@ -337,10 +340,12 @@
         "superType": "i=17602"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceHealth",
         "dataType": "ns=1;i=6244",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceHealth"
           }
         ],

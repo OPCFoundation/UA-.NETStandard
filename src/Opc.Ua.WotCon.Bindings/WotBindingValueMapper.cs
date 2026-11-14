@@ -62,7 +62,7 @@ namespace Opc.Ua.WotCon.Bindings
             string name = element;
             if (element.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int separator = element.IndexOf(';', 4);
+                int separator = element.IndexOf(';', 4, StringComparison.Ordinal);
                 if (separator <= 4 || separator + 1 >= element.Length)
                 {
                     throw new ServiceResultException(
@@ -75,7 +75,7 @@ namespace Opc.Ua.WotCon.Bindings
             }
             else if (element.Length > 0 && element[0] == '{')
             {
-                int separator = element.IndexOf('}', 1);
+                int separator = element.IndexOf('}', 1, StringComparison.Ordinal);
                 if (separator <= 1 || separator + 1 >= element.Length)
                 {
                     throw new ServiceResultException(

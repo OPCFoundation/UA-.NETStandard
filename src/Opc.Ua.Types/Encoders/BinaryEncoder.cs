@@ -363,7 +363,7 @@ namespace Opc.Ua
         public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(message, default!))
+            if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -394,7 +394,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void EncodeMessage<T>(T message) where T : IEncodeable, new()
         {
-            if (EqualityComparer<T>.Default.Equals(message, default!))
+            if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -926,8 +926,8 @@ namespace Opc.Ua
                 encoding |= (byte)DataValueEncodingBits.Value;
             }
 
-            StatusCode statusCode = value.StatusCode;
-            if (!statusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
+            uint statusCode = value.StatusCodeValue;
+            if (statusCode != 0)
             {
                 encoding |= (byte)DataValueEncodingBits.StatusCode;
             }
@@ -969,7 +969,7 @@ namespace Opc.Ua
 
             if ((encoding & (byte)DataValueEncodingBits.StatusCode) != 0)
             {
-                WriteStatusCode(null, statusCode);
+                WriteUInt32(null, statusCode);
             }
 
             if ((encoding & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
@@ -1134,7 +1134,8 @@ namespace Opc.Ua
         public void WriteEncodeable<T>(string? fieldName, T value)
             where T : IEncodeable, new()
         {
-            if (EqualityComparer<T>.Default.Equals(value, default!))
+            // a value type is never null, and the JIT drops the check for it.
+            if (value is null)
             {
                 // create a default object if a null object specified.
                 value = new T();
@@ -1147,7 +1148,8 @@ namespace Opc.Ua
             T value,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(value, default!))
+            // a value type is never null, and the JIT drops the check for it.
+            if (value is null)
             {
                 // create a default object if a null object specified.
                 if (!Context.Factory.TryGetEncodeableType(encodeableTypeId, out IEncodeableType? activator))

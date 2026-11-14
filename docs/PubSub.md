@@ -99,7 +99,7 @@
   provide diagnostics (`Opc.Ua.PubSub.Diagnostics`), JSON Schema generation
   (`Opc.Ua.PubSub.Schema`), and redundancy integration
   (`Opc.Ua.Redundancy.PubSub`).
-- Multi-TFM: `net48`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
+- Multi-TFM: `net48`, `net10.0` (LTS), `net11.0`.
 - The combined reference sample publishes as a Native AOT self-contained
   executable on `net10.0` with its default backends; see [Native AOT](#native-aot).
 - Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), **MQTT** (3.1.1 + 5.0), **Kafka** (`kafka://` / `kafkas://`), and **Ethernet** (`opc.eth://`, Layer 2 UADP with 802.1Q VLAN).
@@ -748,7 +748,7 @@ opc.eth://00-11-22-33-44-55                 # unicast
 | SharpPcap (`WithPcap()`) | Linux, macOS, **Windows** | libpcap / Npcap via SharpPcap. Opt-in; requires the native capture library installed. |
 | In-memory loopback | any | Deterministic, privilege-free; used by the tests and for local diagnostics. |
 
-On Windows the default native factory throws `PlatformNotSupportedException`; register the SharpPcap backend with `WithPcap()` or inject a custom `IEthernetFrameChannelFactory`. The native and in-memory backends are NativeAOT / trim clean; the SharpPcap backend lives in the same package with its SharpPcap-touching members isolated via `[UnconditionalSuppressMessage]` (compiled `net8.0+` because PacketDotNet has no `netstandard` asset), and an AOT smoke test in `Opc.Ua.Aot.Tests` verifies it runs under NativeAOT.
+On Windows the default native factory throws `PlatformNotSupportedException`; register the SharpPcap backend with `WithPcap()` or inject a custom `IEthernetFrameChannelFactory`. The native and in-memory backends are NativeAOT / trim clean; the SharpPcap backend lives in the same package with its SharpPcap-touching members isolated via `[UnconditionalSuppressMessage]` (compiled `net10.0+` because PacketDotNet has no `netstandard` asset), and an AOT smoke test in `Opc.Ua.Aot.Tests` verifies it runs under NativeAOT.
 
 ```csharp
 services.AddOpcUa().AddPubSub(pubsub => pubsub
@@ -864,7 +864,7 @@ var subscriber = new PubSubConnectionDataType
 };
 ```
 
-On .NET 8+ DTLS uses .NET BCL cryptography only. The .NET Framework build has
+On .NET 10+ DTLS uses .NET BCL cryptography only. The .NET Framework build has
 no raw ECDH agreement and no `AesGcm` / `ChaCha20Poly1305` in its BCL, so there
 the ECDHE agreement and the AEAD record ciphers run in the managed
 BouncyCastle implementation that `Opc.Ua.Security.Certificates` carries for the
@@ -873,12 +873,12 @@ HMAC and the record-number mask stay on the platform. Unsupported primitives
 are never substituted or downgraded: the profile is not registered and
 `Resolve(...)` / transport open throws a clear `NotSupportedException`.
 
-| Profile family | net8/net9/net10 status | net48 status |
+| Profile family | net10/net11 status | net48 status |
 | -------------- | ---------------------- | ------------ |
 | NIST P-256/P-384 + AES-128/256-GCM | Implemented when `AesGcm` and the named curve are available. | Implemented (BouncyCastle AES-GCM and ECDH). |
 | NIST P-256/P-384 + ChaCha20-Poly1305 | Implemented when `ChaCha20Poly1305.IsSupported` and the named curve are available. | Implemented (BouncyCastle ChaCha20-Poly1305 and ECDH). |
 | NIST P-256/P-384 integrity-only (`TLS_SHA256_SHA256` / `TLS_SHA384_SHA384`) | Implemented. | Implemented (BouncyCastle ECDH). |
-| Brainpool P256r1/P384r1 + AES-GCM / ChaCha20 / integrity-only | Implemented only on platforms where the BCL can create the Brainpool curve OID. | Same as net8+ (CNG supports the Brainpool curves). |
+| Brainpool P256r1/P384r1 + AES-GCM / ChaCha20 / integrity-only | Implemented only on platforms where the BCL can create the Brainpool curve OID. | Same as net10+ (CNG supports the Brainpool curves). |
 | Curve25519 / Curve448 mandatory profiles | Unsupported: .NET BCL has no portable X25519/X448 API; fail-closed. | Unsupported. |
 
 Peer authentication reuses the injected stack certificate validator /
@@ -905,7 +905,7 @@ TFM matrix:
 | Target                          | MQTTnet major |
 | ------------------------------- | ------------- |
 | `net48` | v4 |
-| `net8.0`, `net9.0`, `net10.0`   | v5 |
+| `net10.0`, `net11.0`   | v5 |
 
 Highlights:
 

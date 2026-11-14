@@ -14,7 +14,7 @@
 # The final image runs as a non-root user and listens on 0.0.0.0:62640
 # (override host/port via the `host` / `port` environment variables).
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:11.0-azurelinux3.0 AS build
 WORKDIR /src
 
 # JIT is disabled for the source generators unless W^X is turned off on
@@ -62,7 +62,7 @@ RUN dotnet restore "samples/AI/ModelManagementServer/ModelManagementServer.cspro
 RUN dotnet publish "samples/AI/ModelManagementServer/ModelManagementServer.csproj" \
         --no-restore \
         -c Release \
-        -f net10.0 \
+        -f net11.0 \
         -p:PublishAot=false \
         -p:NoHttps=true \
         -p:Dockerbuild=true \
@@ -72,7 +72,7 @@ RUN dotnet publish "samples/AI/ModelManagementServer/ModelManagementServer.cspro
         -p:InformationalVersion=${InformationalVersion} \
         -o /app/publish
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS layout
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/runtime:11.0-azurelinux3.0 AS layout
 
 # Azure Linux forces the SymCrypt OpenSSL provider as the default for all
 # EVP operations. SymCrypt's ECDSA SignHash path rejects the self-signing
@@ -86,7 +86,7 @@ RUN mkdir -p /openssl /layout/app/pki /layout/run/secrets/ai \
     && chown -R $APP_UID:0 /layout/app /layout/run/secrets/ai \
     && chmod -R g=u /layout/app /layout/run/secrets/ai
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0-distroless-extra AS final
+FROM mcr.microsoft.com/dotnet/runtime:11.0-azurelinux3.0-distroless-extra AS final
 COPY --from=layout /openssl/openssl.cnf /etc/pki/tls/openssl.cnf
 COPY --from=layout /layout/ /
 WORKDIR /app

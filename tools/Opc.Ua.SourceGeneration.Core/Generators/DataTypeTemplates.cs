@@ -1291,6 +1291,129 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Data type emitted as a value type, selected by
+        /// <c>IsValueType="true"</c> in the design. The validator restricts
+        /// it to concrete structures deriving from Structure without
+        /// optional fields. The parameterless constructor initializes the
+        /// fields like the class does (<c>new T()</c> in the decoders runs it);
+        /// <c>default</c> and array elements hold the CLR defaults instead,
+        /// e.g. a null <c>DataValue</c>. Collections hold the values inline and the
+        /// generic encoder and decoder paths read and write them without
+        /// boxing; only the <see cref="IEncodeable"/> interface paths box.
+        /// </summary>
+        public static readonly TemplateString ValueTypeStruct = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// The {{Tokens.BrowseName}} DataType.
+            /// </summary>
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
+            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
+            public partial struct {{Tokens.ClassName}} :
+                {{Tokens.ExtraInterfaces}}global::System.IEquatable<{{Tokens.ClassName}}>,
+                global::Opc.Ua.IEncodeable
+            {
+                /// <summary>
+                /// The default constructor. A <c>default</c> instance (an array
+                /// element) does not run it and holds the CLR defaults instead.
+                /// </summary>
+                public {{Tokens.ClassName}}()
+                {
+                    {{Tokens.ListOfFieldInitializers}}
+                }
+
+                {{Tokens.ListOfProperties}}
+
+                /// <inheritdoc/>
+                public readonly global::Opc.Ua.ExpandedNodeId TypeId => DataTypeIds.{{Tokens.BrowseName}};
+
+                /// <inheritdoc/>
+                public readonly global::Opc.Ua.ExpandedNodeId BinaryEncodingId => {{Tokens.BinaryEncodingId}};
+
+                /// <inheritdoc/>
+                public readonly global::Opc.Ua.ExpandedNodeId XmlEncodingId => {{Tokens.XmlEncodingId}};
+
+                /// <inheritdoc/>
+                public void Encode(global::Opc.Ua.IEncoder encoder)
+                {
+                    encoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfEncodedFields}}
+                    encoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public void Decode(global::Opc.Ua.IDecoder decoder)
+                {
+                    decoder.PushNamespace({{Tokens.XmlNamespaceUri}});
+                    {{Tokens.ListOfDecodedFields}}
+                    decoder.PopNamespace();
+                }
+
+                /// <inheritdoc/>
+                public readonly bool IsEqual(global::Opc.Ua.IEncodeable? encodeable)
+                {
+                    return encodeable is {{Tokens.ClassName}} value && Equals(value);
+                }
+
+                /// <inheritdoc/>
+                public readonly bool Equals({{Tokens.ClassName}} value)
+                {
+                    {{Tokens.ListOfComparedFields}}
+
+                    return true;
+                }
+
+                /// <inheritdoc/>
+                public static bool operator ==({{Tokens.ClassName}} left, {{Tokens.ClassName}} right)
+                {
+                    return left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public static bool operator !=({{Tokens.ClassName}} left, {{Tokens.ClassName}} right)
+                {
+                    return !left.Equals(right);
+                }
+
+                /// <inheritdoc/>
+                public override readonly bool Equals(object? obj)
+                {
+                    return obj is {{Tokens.ClassName}} value && Equals(value);
+                }
+
+                /// <inheritdoc/>
+                public override readonly int GetHashCode()
+                {
+                    int hashCode = 43624234;
+                    {{Tokens.ListOfChildHashes}}
+                    return hashCode;
+                }
+
+                /// <inheritdoc/>
+                public override readonly string ToString()
+                {
+                    global::System.Text.StringBuilder sb = new global::System.Text.StringBuilder("{{Tokens.ClassName}}")
+                        .AppendLine();
+                    {{Tokens.ListOfAppendStringFields}}
+                    return sb.ToString();
+                }
+
+                /// <inheritdoc/>
+                public readonly object Clone()
+                {
+                    {{Tokens.ClassName}} clone = this;
+                    {{Tokens.ListOfClonedFields}}
+                    return clone;
+                }
+
+                {{Tokens.ListOfFields}}
+            }
+
+            """);
+
+        /// <summary>
         /// Derived data type class
         /// </summary>
         public static readonly TemplateString DerivedClass = TemplateString.Parse(

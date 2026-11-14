@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -49,6 +50,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Manufacturer",
+      "type": "string",
       "uav:browseName": "ns1:Manufacturer",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=373",
       "uav:mapToType": "i=21",
@@ -357,6 +359,7 @@
         "browseName": "1:FallbackVersion",
         "displayName": [
           {
+            "locale": "",
             "value": "FallbackVersion"
           }
         ],
@@ -394,10 +397,12 @@
         "typeDefinition": "ns=1;i=212"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -423,10 +428,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -452,10 +459,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],

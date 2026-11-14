@@ -67,6 +67,20 @@ namespace Opc.Ua.Server.FileSystem
         public int MaxDepth { get; set; } = 8;
 
         /// <summary>
+        /// Gets or sets the files one Session can keep open below the bound directory through
+        /// <c>FileType.Open</c>, 64 by default; zero means no limit. An open beyond it fails
+        /// with <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        public int MaxOpenFilesPerSession { get; set; } = FileOpenQuota.DefaultMaxOpenFilesPerSession;
+
+        /// <summary>
+        /// Gets or sets the files all Sessions together can keep open below the bound directory
+        /// through <c>FileType.Open</c>, 1024 by default; zero means no limit. An open beyond it
+        /// fails with <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        public int MaxOpenFiles { get; set; } = FileOpenQuota.DefaultMaxOpenFiles;
+
+        /// <summary>
         /// Gets or sets the lifecycle wait limit. Active provider operations and their reservations remain
         /// owned after this limit; a subsequent disposal can observe their eventual cleanup outcome.
         /// </summary>
@@ -208,6 +222,11 @@ namespace Opc.Ua.Server.FileSystem
                 m_context = context;
                 m_logger = context.Telemetry.CreateLogger<FileDirectoryBinder>();
                 m_options = ValidateOptions(options);
+                m_openQuota = new FileOpenQuota
+                {
+                    MaxOpenFilesPerSession = m_options.MaxOpenFilesPerSession,
+                    MaxOpenFiles = m_options.MaxOpenFiles
+                };
                 m_registerNode = registerNode;
                 m_deregisterNode = deregisterNode;
                 m_nodeIdPrefix = "FileDirectoryBinding:" + directory.NodeId;
@@ -287,7 +306,7 @@ namespace Opc.Ua.Server.FileSystem
                     }
                     _ = CompleteDisposalAsync(completion);
                 }
-                if (await Task.WhenAny(cleanup, Task.Delay(m_options.CloseTimeout)).ConfigureAwait(false) == cleanup)
+                if (await FileHandle.CompletesWithinAsync(cleanup, m_options.CloseTimeout).ConfigureAwait(false))
                 {
                     await cleanup.ConfigureAwait(false);
                 }
@@ -395,7 +414,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return NodeId.Null;
                 }
-                int slash = providerPath.LastIndexOf('/');
+                int slash = providerPath.LastIndexOf('/', StringComparison.Ordinal);
                 string parent = slash < 0 ? string.Empty : providerPath[..slash];
                 return string.IsNullOrEmpty(parent) ? Directory.NodeId : BuildDirectoryNodeId(parent);
             }
@@ -422,7 +441,8 @@ namespace Opc.Ua.Server.FileSystem
 
                     handle = new FileHandle(Provider, providerPath, IsSessionTerminated)
                     {
-                        CloseTimeout = m_options.CloseTimeout
+                        CloseTimeout = m_options.CloseTimeout,
+                        OpenQuota = m_openQuota
                     };
                     FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                     m_handles.Add(identity, handle);
@@ -777,7 +797,7 @@ namespace Opc.Ua.Server.FileSystem
 
             private static string GetParentPath(string path)
             {
-                int slash = path.LastIndexOf('/');
+                int slash = path.LastIndexOf('/', StringComparison.Ordinal);
                 return slash < 0 ? string.Empty : path[..slash];
             }
 
@@ -1062,6 +1082,10 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     throw new ArgumentOutOfRangeException(nameof(options), "MaxDepth must be non-negative.");
                 }
+                if (options.MaxOpenFilesPerSession < 0 || options.MaxOpenFiles < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(options), "Open file limits must be non-negative.");
+                }
 
                 return options;
             }
@@ -1078,6 +1102,7 @@ namespace Opc.Ua.Server.FileSystem
             private readonly ISystemContext m_context;
             private readonly ILogger m_logger;
             private readonly FileDirectoryBindingOptions m_options;
+            private readonly FileOpenQuota m_openQuota;
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_registerNode;
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_deregisterNode;
             private readonly Lock m_lock = new();

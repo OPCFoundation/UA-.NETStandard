@@ -758,6 +758,22 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Captures the allocation stack, or a placeholder when the application
+        /// was trimmed without stack trace support (.NET 11 throws there).
+        /// </summary>
+        private static string CaptureAllocationStackTrace()
+        {
+            try
+            {
+                return new System.Diagnostics.StackTrace(fNeedFileInfo: false).ToString();
+            }
+            catch (NotSupportedException)
+            {
+                return "(stack trace support is disabled)";
+            }
+        }
+
+        /// <summary>
         /// Tracks the allocation until this handle is disposed.
         /// </summary>
         private void Track()
@@ -766,7 +782,7 @@ namespace Opc.Ua.Security.Certificates
             m_allocationInfo = new CertificateAllocationInfo(
                 allocationId,
                 this,
-                new System.Diagnostics.StackTrace(fNeedFileInfo: false).ToString(),
+                CaptureAllocationStackTrace(),
                 s_leakTrackingScope.Value);
             s_allocationTracker[allocationId] = m_allocationInfo;
         }

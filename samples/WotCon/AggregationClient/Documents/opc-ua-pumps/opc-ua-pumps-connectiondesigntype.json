@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -323,6 +324,7 @@
         "browseName": "1:ConnectionDesignType",
         "displayName": [
           {
+            "locale": "",
             "value": "ConnectionDesignType"
           }
         ],
@@ -344,15 +346,18 @@
         "superType": "ns=3;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NominalPressure",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Alphanumeric parameter for reference purposes, referring to a combination of mechanical and dimensional properties of a component of a piping system. It comprises the letters PN followed by a dimensionless number."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NominalPressure"
           }
         ],
@@ -382,10 +387,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],

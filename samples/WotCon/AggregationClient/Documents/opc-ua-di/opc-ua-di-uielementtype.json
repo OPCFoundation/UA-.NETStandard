@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -266,6 +267,7 @@
     ],
     "nodes": [
       {
+        "arrayDimensions": "",
         "browseName": "1:UIElementType",
         "category": [
           "DI Information Model"
@@ -273,6 +275,7 @@
         "dataType": "i=24",
         "displayName": [
           {
+            "locale": "",
             "value": "UIElementType"
           }
         ],

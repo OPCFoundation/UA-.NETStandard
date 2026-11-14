@@ -367,6 +367,7 @@
     <File Path="docs/WhatsNewIn2.0.md" />
     <File Path="docs/WotCon.md" />
     <File Path="docs/WotNodeSetConversion.md" />
+    <File Path="docs/WotExportTool.md" />
   </Folder>
   <Folder Name="/Solution Items/docs/migrate/" />
   <Folder Name="/Solution Items/docs/migrate/2.0.x/">
@@ -392,6 +393,7 @@
     <File Path=".github/agents/coverage-test-generator.agent.md" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Opc.Ua.Wot.Exporter.Tests/Opc.Ua.Wot.Exporter.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lens.Artifacts.Tests/Opc.Ua.Lens.Artifacts.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj" />
@@ -487,6 +489,7 @@
     <Project Path="tools/Opc.Ua.Lens.AppHost/Opc.Ua.Lens.AppHost.csproj" />
     <Project Path="tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj" />
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
+    <Project Path="tools/Opc.Ua.Wot.Exporter/Opc.Ua.Wot.Exporter.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.AMB/Opc.Ua.Mcp.AMB.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.AutoID/Opc.Ua.Mcp.AutoID.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />

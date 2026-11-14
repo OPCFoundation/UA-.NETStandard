@@ -114,7 +114,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 return false;
             }
             int start = prefix.Length;
-            int end = intentId.IndexOf('-', start);
+            int end = intentId.IndexOf('-', start, StringComparison.Ordinal);
             if (end < 0)
             {
                 end = intentId.Length;

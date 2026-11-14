@@ -6,6 +6,7 @@
       "ns2": "http://opcfoundation.org/UA/Pumps/",
       "ns3": "http://opcfoundation.org/UA/Machinery/",
       "ns4": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,6 +42,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -91,6 +93,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -141,6 +144,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -191,6 +195,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -858,11 +863,13 @@
         "browseName": "1:Pump_1",
         "description": [
           {
+            "locale": "",
             "value": "Sample-owned aggregate pump projected from two upstream OPC UA servers."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Pump #1"
           }
         ],
@@ -950,6 +957,7 @@
         "browseName": "4:Identification",
         "displayName": [
           {
+            "locale": "",
             "value": "Identification"
           }
         ],
@@ -982,10 +990,12 @@
         "typeDefinition": "ns=2;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "4:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -1007,10 +1017,12 @@
         "valueXml": "<uax:LocalizedText xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:Text>SimPump Corp</uax:Text>\n      </uax:LocalizedText>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "4:SerialNumber",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -1032,10 +1044,12 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">SN-001</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "4:ProductInstanceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductInstanceUri"
           }
         ],
@@ -1060,6 +1074,7 @@
         "browseName": "4:Operational",
         "displayName": [
           {
+            "locale": "",
             "value": "Operational"
           }
         ],
@@ -1087,6 +1102,7 @@
         "browseName": "2:Measurements",
         "displayName": [
           {
+            "locale": "",
             "value": "Measurements"
           }
         ],
@@ -1139,10 +1155,12 @@
         "typeDefinition": "ns=2;i=1054"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:DifferentialPressure",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "DifferentialPressure"
           }
         ],
@@ -1171,10 +1189,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1196,10 +1216,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1221,10 +1243,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>1000000</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:FluidTemperature",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "FluidTemperature"
           }
         ],
@@ -1253,10 +1277,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1278,10 +1304,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1303,10 +1331,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>233.15</uax:Low>\n            <uax:High>473.15</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:BearingTemperature",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "BearingTemperature"
           }
         ],
@@ -1335,10 +1365,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1360,10 +1392,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1385,10 +1419,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>233.15</uax:Low>\n            <uax:High>473.15</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:PumpPowerInput",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "PumpPowerInput"
           }
         ],
@@ -1417,10 +1453,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1442,10 +1480,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5723220</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>W</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Watt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1467,10 +1507,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>50000</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:MassFlow",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "MassFlow"
           }
         ],
@@ -1499,10 +1541,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1524,10 +1568,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4933459</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>kg/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Kilograms per Second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1549,10 +1595,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>1</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:PumpEfficiency",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "PumpEfficiency"
           }
         ],
@@ -1581,10 +1629,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1606,10 +1656,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1631,10 +1683,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>100</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:Level",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "Level"
           }
         ],
@@ -1663,10 +1717,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1688,10 +1744,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1713,10 +1771,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>10</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:NumberOfStarts",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "NumberOfStarts"
           }
         ],
@@ -1740,6 +1800,7 @@
         "browseName": "2:Events",
         "displayName": [
           {
+            "locale": "",
             "value": "Events"
           }
         ],
@@ -1771,6 +1832,7 @@
         "browseName": "2:SupervisionProcessFluid",
         "displayName": [
           {
+            "locale": "",
             "value": "SupervisionProcessFluid"
           }
         ],
@@ -1795,10 +1857,12 @@
         "typeDefinition": "ns=2;i=1015"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:Cavitation",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Cavitation"
           }
         ],
@@ -1822,6 +1886,7 @@
         "browseName": "2:SupervisionPumpOperation",
         "displayName": [
           {
+            "locale": "",
             "value": "SupervisionPumpOperation"
           }
         ],
@@ -1846,10 +1911,12 @@
         "typeDefinition": "ns=2;i=1016"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:MotorOverheat",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheat"
           }
         ],
@@ -1873,6 +1940,7 @@
         "browseName": "4:Maintenance",
         "displayName": [
           {
+            "locale": "",
             "value": "Maintenance"
           }
         ],
@@ -1893,10 +1961,12 @@
         "typeDefinition": "ns=2;i=1011"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SourceARunning",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceARunning"
           }
         ],
@@ -1920,6 +1990,7 @@
         "browseName": "1:SourceAStart",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAStart"
           }
         ],
@@ -1938,6 +2009,7 @@
         "browseName": "1:SourceAStop",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAStop"
           }
         ],
@@ -1956,6 +2028,7 @@
         "browseName": "1:SourceAReset",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAReset"
           }
         ],
@@ -1971,10 +2044,12 @@
         ]
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SourceBRunning",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBRunning"
           }
         ],
@@ -1998,6 +2073,7 @@
         "browseName": "1:SourceBStart",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBStart"
           }
         ],
@@ -2016,6 +2092,7 @@
         "browseName": "1:SourceBStop",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBStop"
           }
         ],
@@ -2034,6 +2111,7 @@
         "browseName": "1:SourceBReset",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBReset"
           }
         ],
@@ -2052,11 +2130,13 @@
         "browseName": "1:CavitationAlarm",
         "description": [
           {
+            "locale": "",
             "value": "SourceA-owned Cavitation notifications for Pump1."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationAlarm"
           }
         ],
@@ -2077,6 +2157,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -2102,6 +2183,7 @@
         "browseName": "1:CavitationAcknowledge",
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationAcknowledge"
           }
         ],
@@ -2127,6 +2209,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -2152,6 +2235,7 @@
         "browseName": "1:CavitationConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationConfirm"
           }
         ],
@@ -2175,11 +2259,13 @@
         "browseName": "1:MotorOverheatAlarm",
         "description": [
           {
+            "locale": "",
             "value": "SourceB-owned MotorOverheat notifications for Pump1."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatAlarm"
           }
         ],
@@ -2200,6 +2286,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -2225,6 +2312,7 @@
         "browseName": "1:MotorOverheatAcknowledge",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatAcknowledge"
           }
         ],
@@ -2250,6 +2338,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -2275,6 +2364,7 @@
         "browseName": "1:MotorOverheatConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatConfirm"
           }
         ],
@@ -2298,11 +2388,13 @@
         "browseName": "1:Pump_1Type",
         "description": [
           {
+            "locale": "",
             "value": "Sample-owned PumpType subtype declaring the alarms Pump1 raises."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Pump_1Type"
           }
         ],
@@ -2329,11 +2421,13 @@
         "browseName": "1:Pump_2",
         "description": [
           {
+            "locale": "",
             "value": "Sample-owned aggregate pump projected from two upstream OPC UA servers."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Pump #2"
           }
         ],
@@ -2421,6 +2515,7 @@
         "browseName": "4:Identification",
         "displayName": [
           {
+            "locale": "",
             "value": "Identification"
           }
         ],
@@ -2453,10 +2548,12 @@
         "typeDefinition": "ns=2;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "4:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -2478,10 +2575,12 @@
         "valueXml": "<uax:LocalizedText xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:Text>SimPump Corp</uax:Text>\n      </uax:LocalizedText>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "4:SerialNumber",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -2503,10 +2602,12 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">SN-002</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "4:ProductInstanceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductInstanceUri"
           }
         ],
@@ -2531,6 +2632,7 @@
         "browseName": "4:Operational",
         "displayName": [
           {
+            "locale": "",
             "value": "Operational"
           }
         ],
@@ -2558,6 +2660,7 @@
         "browseName": "2:Measurements",
         "displayName": [
           {
+            "locale": "",
             "value": "Measurements"
           }
         ],
@@ -2610,10 +2713,12 @@
         "typeDefinition": "ns=2;i=1054"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:DifferentialPressure",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "DifferentialPressure"
           }
         ],
@@ -2642,10 +2747,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2667,10 +2774,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2692,10 +2801,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>1000000</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:FluidTemperature",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "FluidTemperature"
           }
         ],
@@ -2724,10 +2835,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2749,10 +2862,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2774,10 +2889,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>233.15</uax:Low>\n            <uax:High>473.15</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:BearingTemperature",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "BearingTemperature"
           }
         ],
@@ -2806,10 +2923,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2831,10 +2950,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2856,10 +2977,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>233.15</uax:Low>\n            <uax:High>473.15</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:PumpPowerInput",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "PumpPowerInput"
           }
         ],
@@ -2888,10 +3011,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2913,10 +3038,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5723220</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>W</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Watt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2938,10 +3065,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>50000</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:MassFlow",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "MassFlow"
           }
         ],
@@ -2970,10 +3099,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2995,10 +3126,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4933459</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>kg/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Kilograms per Second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3020,10 +3153,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>1</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:PumpEfficiency",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "PumpEfficiency"
           }
         ],
@@ -3052,10 +3187,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3077,10 +3214,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3102,10 +3241,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>100</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:Level",
         "dataType": "Double",
         "displayName": [
           {
+            "locale": "",
             "value": "Level"
           }
         ],
@@ -3134,10 +3275,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3159,10 +3302,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>Metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3184,10 +3329,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=885</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:Range>\n            <uax:Low>0</uax:Low>\n            <uax:High>10</uax:High>\n          </uax:Range>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:NumberOfStarts",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "NumberOfStarts"
           }
         ],
@@ -3211,6 +3358,7 @@
         "browseName": "2:Events",
         "displayName": [
           {
+            "locale": "",
             "value": "Events"
           }
         ],
@@ -3242,6 +3390,7 @@
         "browseName": "2:SupervisionProcessFluid",
         "displayName": [
           {
+            "locale": "",
             "value": "SupervisionProcessFluid"
           }
         ],
@@ -3266,10 +3415,12 @@
         "typeDefinition": "ns=2;i=1015"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:Cavitation",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Cavitation"
           }
         ],
@@ -3293,6 +3444,7 @@
         "browseName": "2:SupervisionPumpOperation",
         "displayName": [
           {
+            "locale": "",
             "value": "SupervisionPumpOperation"
           }
         ],
@@ -3317,10 +3469,12 @@
         "typeDefinition": "ns=2;i=1016"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:MotorOverheat",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheat"
           }
         ],
@@ -3344,6 +3498,7 @@
         "browseName": "4:Maintenance",
         "displayName": [
           {
+            "locale": "",
             "value": "Maintenance"
           }
         ],
@@ -3364,10 +3519,12 @@
         "typeDefinition": "ns=2;i=1011"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SourceARunning",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceARunning"
           }
         ],
@@ -3391,6 +3548,7 @@
         "browseName": "1:SourceAStart",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAStart"
           }
         ],
@@ -3409,6 +3567,7 @@
         "browseName": "1:SourceAStop",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAStop"
           }
         ],
@@ -3427,6 +3586,7 @@
         "browseName": "1:SourceAReset",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAReset"
           }
         ],
@@ -3442,10 +3602,12 @@
         ]
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SourceBRunning",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBRunning"
           }
         ],
@@ -3469,6 +3631,7 @@
         "browseName": "1:SourceBStart",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBStart"
           }
         ],
@@ -3487,6 +3650,7 @@
         "browseName": "1:SourceBStop",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBStop"
           }
         ],
@@ -3505,6 +3669,7 @@
         "browseName": "1:SourceBReset",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBReset"
           }
         ],
@@ -3523,11 +3688,13 @@
         "browseName": "1:CavitationAlarm",
         "description": [
           {
+            "locale": "",
             "value": "SourceA-owned Cavitation notifications for Pump2."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationAlarm"
           }
         ],
@@ -3548,6 +3715,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3573,6 +3741,7 @@
         "browseName": "1:CavitationAcknowledge",
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationAcknowledge"
           }
         ],
@@ -3598,6 +3767,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3623,6 +3793,7 @@
         "browseName": "1:CavitationConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationConfirm"
           }
         ],
@@ -3646,11 +3817,13 @@
         "browseName": "1:MotorOverheatAlarm",
         "description": [
           {
+            "locale": "",
             "value": "SourceB-owned MotorOverheat notifications for Pump2."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatAlarm"
           }
         ],
@@ -3671,6 +3844,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3696,6 +3870,7 @@
         "browseName": "1:MotorOverheatAcknowledge",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatAcknowledge"
           }
         ],
@@ -3721,6 +3896,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3746,6 +3922,7 @@
         "browseName": "1:MotorOverheatConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatConfirm"
           }
         ],
@@ -3769,11 +3946,13 @@
         "browseName": "1:Pump_2Type",
         "description": [
           {
+            "locale": "",
             "value": "Sample-owned PumpType subtype declaring the alarms Pump2 raises."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Pump_2Type"
           }
         ],

@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -45,7 +46,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates a failure in armature circuit.",
       "links": [
         {
@@ -74,7 +75,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates unacceptable current inside the device.",
       "links": [
         {
@@ -723,7 +724,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates a generic electrical fault.",
       "links": [
         {
@@ -762,6 +763,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7215"
@@ -792,6 +794,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7242"
@@ -822,6 +825,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7245"
@@ -852,6 +856,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7248"
@@ -882,6 +887,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7251"
@@ -912,6 +918,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7254"
@@ -942,6 +949,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7257"
@@ -972,6 +980,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7260"
@@ -1002,6 +1011,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7263"
@@ -1032,6 +1042,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7266"
@@ -1062,6 +1073,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7269"
@@ -1092,6 +1104,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7218"
@@ -1122,6 +1135,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7272"
@@ -1152,6 +1166,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7221"
@@ -1182,6 +1197,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7224"
@@ -1212,6 +1228,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7227"
@@ -1242,6 +1259,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7230"
@@ -1272,6 +1290,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7233"
@@ -1302,6 +1321,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7236"
@@ -1332,6 +1352,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7239"
@@ -1352,7 +1373,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates a failure in field circuit.",
       "links": [
         {
@@ -1381,7 +1402,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates an unacceptable electrical installation, e.g. mixed up phases.",
       "links": [
         {
@@ -1410,7 +1431,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates an unacceptable low winding resistance.",
       "links": [
         {
@@ -1439,7 +1460,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates a phase failure.",
       "links": [
         {
@@ -1468,7 +1489,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates a short circuit.",
       "links": [
         {
@@ -1497,7 +1518,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates a short to earth.",
       "links": [
         {
@@ -1526,7 +1547,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates a failure of supply current.",
       "links": [
         {
@@ -1555,7 +1576,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates too high supply current.",
       "links": [
         {
@@ -1584,7 +1605,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates too low supply current.",
       "links": [
         {
@@ -1613,7 +1634,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates unacceptable supply frequency.",
       "links": [
         {
@@ -1642,7 +1663,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates too high supply frequency.",
       "links": [
         {
@@ -1671,7 +1692,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates too low supply frequency.",
       "links": [
         {
@@ -1700,7 +1721,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates a failure of supply voltage.",
       "links": [
         {
@@ -1729,7 +1750,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates too high supply voltage.",
       "links": [
         {
@@ -1758,7 +1779,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates too low supply voltage.",
       "links": [
         {
@@ -1797,6 +1818,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7215"
@@ -1827,6 +1849,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7242"
@@ -1857,6 +1880,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7245"
@@ -1887,6 +1911,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7248"
@@ -1917,6 +1942,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7251"
@@ -1947,6 +1973,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7254"
@@ -1977,6 +2004,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7257"
@@ -2007,6 +2035,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7260"
@@ -2037,6 +2066,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7263"
@@ -2067,6 +2097,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7266"
@@ -2097,6 +2128,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7269"
@@ -2127,6 +2159,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7218"
@@ -2157,6 +2190,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7272"
@@ -2187,6 +2221,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7221"
@@ -2217,6 +2252,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7224"
@@ -2247,6 +2283,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7227"
@@ -2277,6 +2314,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7230"
@@ -2307,6 +2345,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7233"
@@ -2337,6 +2376,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7236"
@@ -2367,6 +2407,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=7239"
@@ -2387,7 +2428,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates unacceptable voltage inside the device.",
       "links": [
         {
@@ -2416,7 +2457,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This property indicates an unacceptable winding temperature.",
       "links": [
         {
@@ -2656,11 +2697,13 @@
         "browseName": "1:SupervisionElectronicsType",
         "description": [
           {
+            "locale": "",
             "value": "Supervision Electrics specifies information for monitoring the electronics."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupervisionElectronicsType"
           }
         ],
@@ -2774,15 +2817,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:ArmatureCircuit",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates a failure in armature circuit."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ArmatureCircuit"
           }
         ],
@@ -2822,10 +2868,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2851,10 +2899,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -2880,10 +2930,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -2910,15 +2962,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:CurrentInsideDevice",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates unacceptable current inside the device."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CurrentInsideDevice"
           }
         ],
@@ -2958,10 +3013,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2987,10 +3044,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3016,10 +3075,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3046,15 +3107,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:ElectricalFault",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates a generic electrical fault."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ElectricalFault"
           }
         ],
@@ -3094,10 +3158,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3123,10 +3189,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3152,10 +3220,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3182,15 +3252,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:FieldCircuit",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates a failure in field circuit."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FieldCircuit"
           }
         ],
@@ -3230,10 +3303,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3259,10 +3334,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3288,10 +3365,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3318,15 +3397,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:InstallationFault",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates an unacceptable electrical installation, e.g. mixed up phases."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InstallationFault"
           }
         ],
@@ -3366,10 +3448,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3395,10 +3479,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3424,10 +3510,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3454,15 +3542,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:InsulationResistance",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates an unacceptable low winding resistance."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InsulationResistance"
           }
         ],
@@ -3502,10 +3593,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3531,10 +3624,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3560,10 +3655,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3590,15 +3687,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:PhaseFailure",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates a phase failure."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PhaseFailure"
           }
         ],
@@ -3638,10 +3738,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3667,10 +3769,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3696,10 +3800,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3726,15 +3832,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:ShortCircuit",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates a short circuit."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ShortCircuit"
           }
         ],
@@ -3774,10 +3883,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3803,10 +3914,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3832,10 +3945,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3862,15 +3977,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:ShortToEarth",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates a short to earth."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ShortToEarth"
           }
         ],
@@ -3910,10 +4028,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3939,10 +4059,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3968,10 +4090,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3998,15 +4122,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SupplyCurrent",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates a failure of supply current."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupplyCurrent"
           }
         ],
@@ -4046,10 +4173,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4075,10 +4204,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4104,10 +4235,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4134,15 +4267,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SupplyCurrentHigh",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates too high supply current."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupplyCurrentHigh"
           }
         ],
@@ -4182,10 +4318,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4211,10 +4349,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4240,10 +4380,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4270,15 +4412,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SupplyCurrentLow",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates too low supply current."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupplyCurrentLow"
           }
         ],
@@ -4318,10 +4463,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4347,10 +4494,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4376,10 +4525,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4406,15 +4557,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SupplyFrequency",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates unacceptable supply frequency."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupplyFrequency"
           }
         ],
@@ -4454,10 +4608,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4483,10 +4639,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4512,10 +4670,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4542,15 +4702,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SupplyFrequencyHigh",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates too high supply frequency."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupplyFrequencyHigh"
           }
         ],
@@ -4590,10 +4753,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4619,10 +4784,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4648,10 +4815,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4678,15 +4847,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SupplyFrequencyLow",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates too low supply frequency."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupplyFrequencyLow"
           }
         ],
@@ -4726,10 +4898,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4755,10 +4929,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4784,10 +4960,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4814,15 +4992,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SupplyVoltage",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates a failure of supply voltage."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupplyVoltage"
           }
         ],
@@ -4862,10 +5043,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4891,10 +5074,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4920,10 +5105,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4950,15 +5137,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SupplyVoltageHigh",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates too high supply voltage."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupplyVoltageHigh"
           }
         ],
@@ -4998,10 +5188,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5027,10 +5219,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -5056,10 +5250,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -5086,15 +5282,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SupplyVoltageLow",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates too low supply voltage."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupplyVoltageLow"
           }
         ],
@@ -5134,10 +5333,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5163,10 +5364,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -5192,10 +5395,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -5222,15 +5427,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VoltageInsideDevice",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates unacceptable voltage inside the device."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VoltageInsideDevice"
           }
         ],
@@ -5270,10 +5478,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5299,10 +5509,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -5328,10 +5540,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -5358,15 +5572,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:WindingTemperature",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property indicates an unacceptable winding temperature."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "WindingTemperature"
           }
         ],
@@ -5406,10 +5623,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5435,10 +5654,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -5464,10 +5685,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],

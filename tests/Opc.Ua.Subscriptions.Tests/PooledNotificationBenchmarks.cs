@@ -41,8 +41,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// Compares the unpooled <c>new</c> path against the pooled
     /// <c>CreateInstance() + Reuse()</c> path for each publish-payload
     /// type tagged <c>Poolable="true"</c> in the design XML
-    /// (<see cref="MonitoredItemNotification"/>,
-    /// <see cref="DataChangeNotification"/>,
+    /// (<see cref="DataChangeNotification"/>,
     /// <see cref="EventFieldList"/>,
     /// <see cref="EventNotificationList"/>).
     /// </summary>
@@ -90,9 +89,6 @@ namespace Opc.Ua.Client.Subscriptions
             // doesn't pay the cost of populating them.
             for (int i = 0; i < Iterations; i++)
             {
-                var m = (MonitoredItemNotification)
-                    MonitoredItemNotificationActivator.Instance.CreateInstance();
-                m.Reuse();
                 var d = (DataChangeNotification)
                     DataChangeNotificationActivator.Instance.CreateInstance();
                 d.Reuse();
@@ -117,22 +113,6 @@ namespace Opc.Ua.Client.Subscriptions
                     ClientHandle = (uint)i
                 };
                 sum += (int)item.ClientHandle;
-            }
-            Assert.That(sum, Is.GreaterThanOrEqualTo(0));
-        }
-
-        [Benchmark(Description = "MonitoredItemNotificationActivator + Reuse")]
-        [Test]
-        public void PooledMonitoredItemNotification()
-        {
-            int sum = 0;
-            for (int i = 0; i < Iterations; i++)
-            {
-                var item = (MonitoredItemNotification)
-                    MonitoredItemNotificationActivator.Instance.CreateInstance();
-                item.ClientHandle = (uint)i;
-                sum += (int)item.ClientHandle;
-                item.Reuse();
             }
             Assert.That(sum, Is.GreaterThanOrEqualTo(0));
         }
@@ -165,12 +145,11 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 var notification = (DataChangeNotification)
                     DataChangeNotificationActivator.Instance.CreateInstance();
-                var item = (MonitoredItemNotification)
-                    MonitoredItemNotificationActivator.Instance.CreateInstance();
-                item.ClientHandle = (uint)i;
-                notification.MonitoredItems = new MonitoredItemNotification[] { item };
+                notification.MonitoredItems = new MonitoredItemNotification[]
+                {
+                    new() { ClientHandle = (uint)i }
+                };
                 count += notification.MonitoredItems.Count;
-                item.Reuse();
                 notification.Reuse();
             }
             Assert.That(count, Is.EqualTo(Iterations));
