@@ -2208,9 +2208,9 @@ namespace Opc.Ua.Server.Tests
             // CreateNamespaceMetadataStateAsync does not itself register a brand
             // new namespace URI in that table.
             string namespaceUri = m_server.CurrentInstance.NamespaceUris.GetString(1)!;
-            NamespaceMetadataState created = await m_configManager
+            NamespaceMetadataState created = (await m_configManager
                 .CreateNamespaceMetadataStateAsync(namespaceUri!)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(created, Is.Not.Null);
 
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(namespaceUri);
@@ -2231,9 +2231,9 @@ namespace Opc.Ua.Server.Tests
         public async Task GetNamespaceMetadataStateCachedReturnsSameInstanceAsync()
         {
             const string namespaceUri = "http://test.org/UA/CachedLookupTest";
-            NamespaceMetadataState created = await m_configManager
+            NamespaceMetadataState created = (await m_configManager
                 .CreateNamespaceMetadataStateAsync(namespaceUri)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             NamespaceMetadataState first = (await m_configManager
                 .GetNamespaceMetadataStateAsync(namespaceUri)

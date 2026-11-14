@@ -1857,6 +1857,42 @@ For source-generated models, the publisher fills
 `ModelDependencyAttribute` stamped on model assemblies. Existing
 metadata objects and already-populated values are preserved.
 
+An existing metadata object is recognized by its type definition
+(`NamespaceMetadataType` or a subtype) and its `NamespaceUri` property,
+not by its CLR state type. A companion NodeSet imported with
+`UANodeSet.Import(context, nodes)` and no state factory carries its own
+metadata object as a plain `BaseObjectState`; the publisher keeps that
+object as the only metadata object of its namespace instead of creating
+a duplicate, and leaves its values untouched. Its
+`DefaultRolePermissions`, `DefaultUserRolePermissions` and
+`DefaultAccessRestrictions` properties, whether linked as children or
+only through `HasProperty` references, provide the namespace default
+permissions, and changes to their values invalidate the permission
+caches. A default property that the NodeSet declares without a value
+(as the DI NodeSet does) was never initialized and counts as not
+configured, so the namespace keeps the server defaults; a configured
+value that cannot be read or decoded still denies access. While a
+`HasProperty` target of such an object cannot be resolved (for example
+because its node manager is still starting) and a default property is
+still missing, the namespace defaults are unknown: permission checks for
+that namespace fail closed until the target resolves, and the object is
+still never duplicated. The same holds while the object's `NamespaceUri`
+property cannot be resolved, or is present but holds no value or an empty
+one yet: the
+namespace the object describes is
+unknown, so lookups of every namespace without its own metadata object
+fail closed and no metadata object is created for them until the
+property resolves. OPC 10000-5 §6.3.14 derives the BrowseName of such an
+object from its namespace, so when the BrowseName name is a namespace URI
+registered in the server's `NamespaceArray`, only that namespace is
+treated as unknown and all other namespaces are unaffected. Because no
+`NamespaceMetadataState` exists for such a namespace,
+`IConfigurationNodeManager.GetNamespaceMetadataStateAsync` and
+`CreateNamespaceMetadataStateAsync` return `null` for it; callers of
+`CreateNamespaceMetadataStateAsync` must treat `null` as "metadata is
+provided, or may be provided, by another object" and leave that object
+as is.
+
 #### Node-manager authoring note
 
 Attaching a child to an object owned by another node manager is not
@@ -1866,7 +1902,8 @@ common for namespace metadata because `Server/Namespaces` is a namespace
 object may be created by another manager. Register the link as a
 cross-manager reference with `AddReferencesAsync` when the owner differs.
 `NamespaceMetadataPublisher` does this check automatically for metadata
-objects it creates.
+objects it creates and for existing metadata objects it keeps, such as an
+untyped NodeSet import, without changing their values.
 
 Servers that publish namespace metadata themselves can override
 `StandardServer.PublishNamespaceMetadataAsync` and either add custom

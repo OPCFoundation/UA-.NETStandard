@@ -176,7 +176,12 @@ namespace Opc.Ua.Positioning.Server.Hosting
                 cancellationToken).ConfigureAwait(false);
         }
 
-        private static async ValueTask EnsureAsync(
+        /// <summary>
+        /// Fills in the metadata of <paramref name="namespaceUri"/> and links it under
+        /// <c>Server/Namespaces</c>. A namespace already described by a metadata object that is
+        /// not a <see cref="NamespaceMetadataState"/> keeps that object untouched.
+        /// </summary>
+        internal static async ValueTask EnsureAsync(
             AsyncCustomNodeManager manager,
             IConfigurationNodeManager configurationNodeManager,
             string namespaceUri,
@@ -184,10 +189,17 @@ namespace Opc.Ua.Positioning.Server.Hosting
             DateTime publicationDate,
             CancellationToken cancellationToken)
         {
-            NamespaceMetadataState metadata =
+            NamespaceMetadataState? metadata =
                 await configurationNodeManager.CreateNamespaceMetadataStateAsync(
                     namespaceUri,
                     cancellationToken).ConfigureAwait(false);
+            if (metadata == null)
+            {
+                // the namespace is described by an existing metadata object that is not a
+                // NamespaceMetadataState (e.g. an untyped NodeSet import), which is kept as is.
+                return;
+            }
+
             ushort namespaceIndex = (ushort)manager.Server.NamespaceUris.GetIndex(
                 namespaceUri);
             metadata.BrowseName = new QualifiedName(
