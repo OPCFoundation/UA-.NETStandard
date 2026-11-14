@@ -48,6 +48,23 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Resolves the namespace metadata Object, typed or untyped, for the asynchronous reads of
+    /// <see cref="NamespaceDefaultPermissionReader"/>. A configuration node manager without it
+    /// only provides <see cref="NamespaceMetadataState"/> Objects through
+    /// <see cref="IConfigurationNodeManager.GetNamespaceMetadataStateAsync(ushort, CancellationToken)"/>.
+    /// </summary>
+    internal interface INamespaceMetadataSource
+    {
+        /// <summary>
+        /// Gets the metadata Object of <paramref name="namespaceIndex"/>, typed or untyped, or
+        /// <c>null</c> when the namespace has none.
+        /// </summary>
+        ValueTask<NamespaceMetadataNode?> GetNamespaceMetadataNodeAsync(
+            ushort namespaceIndex,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
     /// The single reader of the namespace defaults (<c>DefaultAccessRestrictions</c>,
     /// <c>DefaultRolePermissions</c> and <c>DefaultUserRolePermissions</c>, OPC 10000-5 6.3.13)
     /// used by permission checks. Values are read with the caller's system context, so
@@ -120,9 +137,10 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    // the configuration node manager also resolves untyped metadata Objects.
-                    state = configuration is ConfigurationNodeManager manager
-                        ? await manager.GetNamespaceMetadataNodeAsync(namespaceIndex, cancellationToken)
+                    // a configuration node manager that is a metadata source also resolves untyped
+                    // metadata Objects.
+                    state = configuration is INamespaceMetadataSource source
+                        ? await source.GetNamespaceMetadataNodeAsync(namespaceIndex, cancellationToken)
                             .ConfigureAwait(false)
                         : NamespaceMetadataNode.From(await configuration
                             .GetNamespaceMetadataStateAsync(namespaceIndex, cancellationToken)

@@ -705,7 +705,9 @@ namespace Opc.Ua.Server
                 {
                     m_untyped[node] = metadata;
                     m_stale.TryRemove(node.NodeId, out _);
-                    completed = m_incomplete.Remove(node.NodeId);
+                    // an Object incomplete in this or an invalidated generation completes now.
+                    completed = m_wasIncomplete.Remove(node.NodeId);
+                    completed = m_incomplete.Remove(node.NodeId) || completed;
                     if (completed)
                     {
                         // a miss remembered while the Object was incomplete relied on its
@@ -721,7 +723,10 @@ namespace Opc.Ua.Server
 
             if (completed)
             {
+                // the defaults of the namespace were unknown until now, so every verdict derived
+                // from them, including the permission caches of active monitored items, is stale.
                 NamespaceDefaultPermissionReader.Invalidate();
+                DefaultPermissionsChanged?.Invoke(m_host, EventArgs.Empty);
             }
         }
 
@@ -905,6 +910,7 @@ namespace Opc.Ua.Server
                 m_untyped.Clear();
                 m_stale.Clear();
                 m_incomplete.Clear();
+                m_wasIncomplete.Clear();
                 Volatile.Write(ref m_incompleteCount, 0);
             }
 
@@ -994,6 +1000,11 @@ namespace Opc.Ua.Server
 
                 return indeterminate;
             }
+            catch (OperationCanceledException)
+            {
+                // a cancelled lookup is no definitive absence and must not be remembered as one.
+                throw;
+            }
             catch (Exception ex)
             {
                 m_logger.ErrorSearchingNamespaceMetadata(ex, namespaceUri);
@@ -1060,7 +1071,14 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // the prime resolves every untyped Object again, the incomplete ones included.
+                // the prime resolves every untyped Object again, the incomplete ones included; they
+                // stay known as incomplete, so their completion still retires the verdicts derived
+                // from their unknown defaults.
+                foreach (NodeId incompleteId in m_incomplete.Keys)
+                {
+                    m_wasIncomplete.Add(incompleteId);
+                }
+
                 m_incomplete.Clear();
                 Volatile.Write(ref m_incompleteCount, 0);
                 Volatile.Write(ref m_primeRequired, 1);
@@ -1386,7 +1404,11 @@ namespace Opc.Ua.Server
                 objectNode.GetReferences(context, references);
                 foreach (IReference reference in references)
                 {
-                    if (reference.IsInverse || reference.ReferenceTypeId != ReferenceTypeIds.HasProperty)
+                    // a target on another server is never a property of the local Object; it is
+                    // skipped before the conversion, which ignores the server index.
+                    if (reference.IsInverse ||
+                        reference.ReferenceTypeId != ReferenceTypeIds.HasProperty ||
+                        reference.TargetId.ServerIndex != 0)
                     {
                         continue;
                     }
@@ -1394,9 +1416,8 @@ namespace Opc.Ua.Server
                     var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.Server.NamespaceUris);
                     if (targetId.IsNull)
                     {
-                        // a local target in a namespace that is not registered yet cannot be resolved
-                        // now; a target on another server is never a property of the local Object.
-                        unresolved |= !reference.TargetId.IsNull && reference.TargetId.ServerIndex == 0;
+                        // a local target in a namespace that is not registered yet cannot be resolved now.
+                        unresolved |= !reference.TargetId.IsNull;
                         continue;
                     }
 
@@ -1554,7 +1575,9 @@ namespace Opc.Ua.Server
             HashSet<NodeId>? children = null;
             foreach (IReference reference in references)
             {
-                if (reference.IsInverse || reference.ReferenceTypeId != ReferenceTypeIds.HasProperty)
+                if (reference.IsInverse ||
+                    reference.ReferenceTypeId != ReferenceTypeIds.HasProperty ||
+                    reference.TargetId.ServerIndex != 0)
                 {
                     continue;
                 }
@@ -1620,6 +1643,9 @@ namespace Opc.Ua.Server
         // whether they are reference targets of Server/Namespaces; guarded by m_lock. The count is
         // read without the lock by every asynchronous lookup.
         private readonly Dictionary<NodeId, (BaseObjectState Node, bool IsReferenceTarget)> m_incomplete = [];
+        // Untyped metadata Objects that were incomplete when an invalidation retired them; their
+        // completion in a later generation still raises DefaultPermissionsChanged. Guarded by m_lock.
+        private readonly HashSet<NodeId> m_wasIncomplete = [];
         private int m_incompleteCount;
         private int m_resolvingIncomplete;
         private readonly HashSet<BaseObjectState> m_tracked = [];

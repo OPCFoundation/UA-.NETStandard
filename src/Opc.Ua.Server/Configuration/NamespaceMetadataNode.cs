@@ -99,20 +99,24 @@ namespace Opc.Ua.Server
         public bool IsIncomplete { get; }
 
         /// <summary>
-        /// The namespace the Object describes, read from its <c>NamespaceUri</c> property.
+        /// The namespace the Object describes, read from its <c>NamespaceUri</c> property;
+        /// <c>null</c> while that property holds no URI, including an empty one.
         /// </summary>
         public string? NamespaceUri
         {
             get
             {
+                string? namespaceUri = null;
                 if (TypedState != null)
                 {
-                    return TypedState.NamespaceUri?.Value;
+                    namespaceUri = TypedState.NamespaceUri?.Value;
+                }
+                else if (m_namespaceUri != null && m_namespaceUri.Value.TryGetValue(out string? value))
+                {
+                    namespaceUri = value;
                 }
 
-                return m_namespaceUri != null && m_namespaceUri.Value.TryGetValue(out string? namespaceUri)
-                    ? namespaceUri
-                    : null;
+                return string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             }
         }
 

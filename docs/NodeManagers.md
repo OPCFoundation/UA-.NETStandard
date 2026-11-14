@@ -1877,7 +1877,8 @@ because its node manager is still starting) and a default property is
 still missing, the namespace defaults are unknown: permission checks for
 that namespace fail closed until the target resolves, and the object is
 still never duplicated. The same holds while the object's `NamespaceUri`
-property cannot be resolved, or is present but holds no value yet: the
+property cannot be resolved, or is present but holds no value or an empty
+one yet: the
 namespace the object describes is
 unknown, so lookups of every namespace without its own metadata object
 fail closed and no metadata object is created for them until the

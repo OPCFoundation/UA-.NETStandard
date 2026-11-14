@@ -41,11 +41,14 @@ namespace Opc.Ua.Server
     /// <see cref="DefaultPermissionsChanged"/> notification. The behaviour lives in
     /// <see cref="NamespaceMetadataRegistry"/>; the manager satisfies its
     /// <see cref="INamespaceMetadataHost"/> contract with the inherited public members plus
-    /// the <c>Server/Namespaces</c> lookup below. It also answers synchronous metadata
-    /// lookups (<see cref="INamespaceMetadataSnapshot"/>) for
-    /// <see cref="NamespaceDefaultPermissionReader"/>.
+    /// the <c>Server/Namespaces</c> lookup below. It also answers synchronous and asynchronous
+    /// metadata lookups (<see cref="INamespaceMetadataSnapshot"/>, <see cref="INamespaceMetadataSource"/>)
+    /// for <see cref="NamespaceDefaultPermissionReader"/>.
     /// </summary>
-    public partial class ConfigurationNodeManager : INamespaceMetadataHost, INamespaceMetadataSnapshot
+    public partial class ConfigurationNodeManager :
+        INamespaceMetadataHost,
+        INamespaceMetadataSnapshot,
+        INamespaceMetadataSource
     {
         /// <inheritdoc/>
         public event EventHandler? DefaultPermissionsChanged
@@ -147,17 +150,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets the metadata Object of <paramref name="namespaceIndex"/>, typed
-        /// or untyped, or <c>null</c> when the namespace has none.
-        /// </summary>
-        internal ValueTask<NamespaceMetadataNode?> GetNamespaceMetadataNodeAsync(
-            ushort namespaceIndex,
-            CancellationToken cancellationToken = default)
-        {
-            return m_namespaceMetadata.GetNodeAsync(namespaceIndex, cancellationToken);
-        }
-
-        /// <summary>
         /// Gets the metadata Object of <paramref name="namespaceUri"/>, typed or
         /// untyped, and creates a <see cref="NamespaceMetadataState"/> only when
         /// the namespace has none; <c>null</c> when it cannot be created. While an
@@ -170,6 +162,14 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             return m_namespaceMetadata.GetOrCreateNodeAsync(namespaceUri, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<NamespaceMetadataNode?> INamespaceMetadataSource.GetNamespaceMetadataNodeAsync(
+            ushort namespaceIndex,
+            CancellationToken cancellationToken)
+        {
+            return m_namespaceMetadata.GetNodeAsync(namespaceIndex, cancellationToken);
         }
 
         /// <inheritdoc/>
