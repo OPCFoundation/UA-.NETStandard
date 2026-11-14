@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -84,6 +85,14 @@ namespace Opc.Ua.PADIM.Server
         /// <summary>
         /// Configures the declared analog unit and engineering range without converting provider values.
         /// </summary>
+        /// <remarks>
+        /// Copies the metadata, including localized translations and formatting arguments.
+        /// Changes to the supplied values take effect only through another call to this method.
+        /// The caller must prevent concurrent mutation while the metadata is copied.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// Localized text contains a dictionary or formatting argument that cannot be copied safely.
+        /// </exception>
         public PadimValueBinding WithEngineeringUnits(EUInformation units, Range range)
         {
             if (Variable is not AnalogSignalVariableState analog)
@@ -104,8 +113,33 @@ namespace Opc.Ua.PADIM.Server
             {
                 throw new ArgumentException("A unit and finite ordered engineering range are required.", nameof(range));
             }
-            analog.EngineeringUnits!.Value = units;
-            analog.AddEURange(m_device.Context, property => property.Value = range);
+
+            var ownedUnits = new EUInformation
+            {
+                NamespaceUri = units.NamespaceUri,
+                UnitId = units.UnitId,
+                DisplayName = units.DisplayName.Copy(),
+                Description = units.Description.Copy()
+            };
+            var ownedRange = new Range { Low = range.Low, High = range.High };
+            PropertyState<EUInformation> engineeringUnits = analog.EngineeringUnits!;
+            EUInformation previousUnits = engineeringUnits.Value;
+            PropertyState? previousRangeProperty = analog.EURange;
+            Variant previousRange = previousRangeProperty?.Value ?? default;
+            bool isRegistered = ReferenceEquals(
+                m_device.Manager.FindPredefinedNode(analog.NodeId),
+                analog);
+
+            engineeringUnits.Value = ownedUnits;
+            analog.AddEURange(m_device.Context, property => property.Value = ownedRange);
+            if (isRegistered)
+            {
+                if (!EngineeringUnitsEqual(previousUnits, ownedUnits))
+                {
+                    m_device.Manager.ReportSemanticChange(m_device.Context, engineeringUnits);
+                }
+                m_device.Manager.ReportPropertyValueChanged(m_device.Context, analog.EURange!, previousRange);
+            }
             return this;
         }
 
@@ -346,6 +380,131 @@ namespace Opc.Ua.PADIM.Server
                 m_actualVariable.StatusCode = sample.StatusCode;
                 m_actualVariable.Timestamp = sample.SourceTimestamp;
             }
+        }
+
+        /// <summary>
+        /// Compares the unit identity and all retained localized metadata without changing wire-value equality.
+        /// </summary>
+        private static bool EngineeringUnitsEqual(EUInformation? previous, EUInformation current)
+        {
+            return previous != null &&
+                previous.NamespaceUri == current.NamespaceUri &&
+                previous.UnitId == current.UnitId &&
+                LocalizedMetadataEqual(previous.DisplayName, current.DisplayName) &&
+                LocalizedMetadataEqual(previous.Description, current.Description);
+        }
+
+        /// <summary>
+        /// Compares selected text, fallback formatting and translation entries.
+        /// Entry order is ignored only when it does not change retained fallback information or locale selection.
+        /// </summary>
+        private static bool LocalizedMetadataEqual(LocalizedText previous, LocalizedText current)
+        {
+            TranslationInfo previousInfo = previous.TranslationInfo;
+            TranslationInfo currentInfo = current.TranslationInfo;
+            IReadOnlyDictionary<string, string>? previousTranslations = previous.Translations;
+            IReadOnlyDictionary<string, string>? currentTranslations = current.Translations;
+            // Compare encoded ordering through usable translations, but retain equality for undecodable text.
+            bool selectedTextEqual = previous.Equals(current) ||
+                (previous.IsMultiLanguage && current.IsMultiLanguage &&
+                    previousTranslations?.Count > 0 && currentTranslations?.Count > 0);
+            if (!selectedTextEqual ||
+                (previousInfo with { Args = null }) != (currentInfo with { Args = null }) ||
+                !CoreUtils.IsEqual(previousInfo.Args!, currentInfo.Args!))
+            {
+                return false;
+            }
+
+            if ((previousTranslations?.Count ?? 0) != (currentTranslations?.Count ?? 0))
+            {
+                return false;
+            }
+            if (previousTranslations == null || previousTranslations.Count == 0)
+            {
+                return true;
+            }
+
+            foreach (KeyValuePair<string, string> entry in previousTranslations)
+            {
+                bool found = false;
+                foreach (KeyValuePair<string, string> candidate in currentTranslations!)
+                {
+                    if (string.Equals(entry.Key, candidate.Key, StringComparison.Ordinal))
+                    {
+                        if (!string.Equals(entry.Value, candidate.Value, StringComparison.Ordinal))
+                        {
+                            return false;
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    return false;
+                }
+            }
+            return TranslationFallbacksEqual(previousTranslations, currentTranslations!);
+        }
+
+        /// <summary>
+        /// Compares the first available locale and the first case-insensitive locale and language matches.
+        /// </summary>
+        private static bool TranslationFallbacksEqual(
+            IReadOnlyDictionary<string, string> previous,
+            IReadOnlyDictionary<string, string> current)
+        {
+            using IEnumerator<KeyValuePair<string, string>> first = current.GetEnumerator();
+            if (!first.MoveNext())
+            {
+                return false;
+            }
+            var languages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var locales = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, string> entry in previous)
+            {
+                if (languages.Count == 0 &&
+                    !string.Equals(entry.Key, first.Current.Key, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+                if (locales.Add(entry.Key))
+                {
+                    foreach (KeyValuePair<string, string> candidate in current)
+                    {
+                        if (string.Equals(entry.Key, candidate.Key, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!string.Equals(entry.Key, candidate.Key, StringComparison.Ordinal))
+                            {
+                                return false;
+                            }
+                            break;
+                        }
+                    }
+                }
+                int separator = entry.Key.IndexOf('-', StringComparison.Ordinal);
+                string language = separator < 0 ? entry.Key : entry.Key.Substring(0, separator);
+                if (!languages.Add(language))
+                {
+                    continue;
+                }
+                foreach (KeyValuePair<string, string> candidate in current)
+                {
+                    int candidateSeparator = candidate.Key.IndexOf('-', StringComparison.Ordinal);
+                    string candidateLanguage = candidateSeparator < 0
+                        ? candidate.Key
+                        : candidate.Key.Substring(0, candidateSeparator);
+                    if (string.Equals(language, candidateLanguage, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.Equals(entry.Key, candidate.Key, StringComparison.Ordinal))
+                        {
+                            return false;
+                        }
+                        break;
+                    }
+                }
+            }
+            return true;
         }
 
         /// <summary>

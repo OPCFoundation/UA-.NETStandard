@@ -449,11 +449,7 @@ namespace Opc.Ua
         /// </summary>
         public static ExtensionObject Clone(ExtensionObject value)
         {
-            if (value.TryGetValue(out IEncodeable? e))
-            {
-                return new ExtensionObject(e!, true);
-            }
-            return value;
+            return new ExtensionObject(value);
         }
 
         /// <summary>

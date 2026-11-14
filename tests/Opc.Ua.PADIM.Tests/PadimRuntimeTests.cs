@@ -257,6 +257,110 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// Retains copied metadata until the caller explicitly reapplies its changed values.
+        /// </summary>
+        [Test]
+        public async Task EngineeringMetadataDetachesCallerValues([Values] bool registered)
+        {
+            (PadimDevice device, BaseVariableState value) = await CreateAnalogAsync($"MetadataOwnership{registered}");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            PadimValueBinding binding = device.BindValue(value, "temperature", provider.Object);
+            var translations = new Dictionary<string, string>(StringComparer.Ordinal) { ["en-US"] = "degrees" };
+            var arguments = new object[] { "original" };
+            var units = new EUInformation
+            {
+                NamespaceUri = "urn:units:original",
+                UnitId = 1,
+                DisplayName = new LocalizedText(translations),
+                Description = new LocalizedText(new TranslationInfo("unit", "en-US", "{0}", arguments))
+            };
+            var range = new Range(high: 100, low: -40);
+            binding.WithEngineeringUnits(units, range);
+            if (registered)
+            {
+                await device.RegisterAsync();
+            }
+            var analog = (AnalogSignalVariableState)value;
+            EUInformation initialUnits = analog.EngineeringUnits!.Value;
+            Range initialRange = analog.EURange!.Value;
+
+            units.NamespaceUri = "urn:units:changed";
+            units.UnitId = 2;
+            translations["en-US"] = "changed";
+            arguments[0] = "changed";
+            range.Low = -50;
+            range.High = 150;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(initialUnits, Is.Not.SameAs(units));
+                Assert.That(initialRange, Is.Not.SameAs(range));
+                Assert.That(initialUnits.NamespaceUri, Is.EqualTo("urn:units:original"));
+                Assert.That(initialUnits.UnitId, Is.EqualTo(1));
+                Assert.That(initialUnits.DisplayName.Translations!["en-US"], Is.EqualTo("degrees"));
+                Assert.That(initialUnits.Description.Text, Is.EqualTo("original"));
+                Assert.That(initialRange.Low, Is.EqualTo(-40));
+                Assert.That(initialRange.High, Is.EqualTo(100));
+            });
+
+            binding.WithEngineeringUnits(units, range);
+            EUInformation reappliedUnits = analog.EngineeringUnits.Value;
+            Range reappliedRange = analog.EURange.Value;
+            Assert.Multiple(() =>
+            {
+                Assert.That(reappliedUnits, Is.Not.SameAs(units));
+                Assert.That(reappliedUnits.NamespaceUri, Is.EqualTo("urn:units:changed"));
+                Assert.That(reappliedUnits.UnitId, Is.EqualTo(2));
+                Assert.That(reappliedUnits.DisplayName.Translations!["en-US"], Is.EqualTo("changed"));
+                Assert.That(reappliedUnits.Description.Text, Is.EqualTo("changed"));
+                Assert.That(reappliedRange.Low, Is.EqualTo(-50));
+                Assert.That(reappliedRange.High, Is.EqualTo(150));
+                Assert.That(initialUnits.UnitId, Is.EqualTo(1));
+                Assert.That(initialUnits.Description.Text, Is.EqualTo("original"));
+                Assert.That(initialRange.High, Is.EqualTo(100));
+            });
+            translations["en-US"] = "later";
+            arguments[0] = "later";
+            range.High = 200;
+            Assert.Multiple(() =>
+            {
+                Assert.That(reappliedUnits.DisplayName.Translations!["en-US"], Is.EqualTo("changed"));
+                Assert.That(reappliedUnits.Description.Text, Is.EqualTo("changed"));
+                Assert.That(reappliedRange.High, Is.EqualTo(150));
+            });
+        }
+
+        /// <summary>
+        /// Rejects unsupported localized metadata before replacing either published property.
+        /// </summary>
+        [Test]
+        public async Task EngineeringMetadataCopyFailurePreservesProperties()
+        {
+            (PadimDevice device, BaseVariableState value) = await CreateAnalogAsync("MetadataCopyFailure");
+            PadimValueBinding binding = device.BindValue(
+                value, "temperature", new Mock<IPadimValueProvider>(MockBehavior.Strict).Object);
+            binding.WithEngineeringUnits(new EUInformation("K", "urn:units"), new Range(high: 100, low: 0));
+            var analog = (AnalogSignalVariableState)value;
+            EUInformation previousUnits = analog.EngineeringUnits!.Value;
+            Range previousRange = analog.EURange!.Value;
+            var unsupported = new EUInformation
+            {
+                DisplayName = new LocalizedText("changed"),
+                Description = new LocalizedText(
+                    new TranslationInfo("unit", "en-US", "{0}", new object[] { new List<string>() }))
+            };
+
+            Assert.That(() => binding.WithEngineeringUnits(unsupported, new Range(high: 200, low: 0)),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadNotSupported));
+            Assert.Multiple(() =>
+            {
+                Assert.That(analog.EngineeringUnits.Value, Is.SameAs(previousUnits));
+                Assert.That(analog.EURange.Value, Is.SameAs(previousRange));
+            });
+        }
+
+        /// <summary>
         /// Restores the latest acquired sample, including uncertain quality, after simulation is disabled.
         /// </summary>
         [Test]

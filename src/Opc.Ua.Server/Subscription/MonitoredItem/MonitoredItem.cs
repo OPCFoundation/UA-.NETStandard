@@ -2266,8 +2266,9 @@ namespace Opc.Ua.Server
                 // a missing value stays a null field.
                 if (!value.IsNull)
                 {
-                    // translate any localized text (scalar or array).
-                    if (value.TypeInfo.BuiltInType == BuiltInType.LocalizedText)
+                    // Translate text values and supported structures without changing the source event.
+                    if (ResourceManager.CanTranslateValue(value) &&
+                        m_server.ResourceManager != null)
                     {
                         value = m_server.ResourceManager.TranslateValue(context.PreferredLocales, value);
                     }
@@ -3109,7 +3110,7 @@ namespace Opc.Ua.Server
 
             // select the translation the session prefers for a localized text value
             // (Part 4 5.4); the queued value keeps all its translations.
-            if (value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.LocalizedText &&
+            if (ResourceManager.CanTranslateValue(value.WrappedValue) &&
                 m_server.ResourceManager != null)
             {
                 value = value.WithWrappedValue(
