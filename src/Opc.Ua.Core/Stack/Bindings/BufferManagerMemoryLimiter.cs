@@ -156,6 +156,9 @@ namespace Opc.Ua
                 using CapacityWaiter waiter = registration.Value;
                 try
                 {
+                    // A receive loop that blocks here completes the response it holds on the
+                    // pool first: that request's caller may be the one to return the budget.
+                    Bindings.ResponseContinuationDeferral.CompletePending(inline: false);
                     BeforeCapacityWaitForTesting?.Invoke();
                     waiter.Wait(ct);
                 }
