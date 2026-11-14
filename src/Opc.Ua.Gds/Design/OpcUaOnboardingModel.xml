@@ -13,7 +13,7 @@
 >
   <opc:Namespaces>
     <opc:Namespace Name="OpcUaOnboarding" Prefix="Opc.Ua.Onboarding" XmlNamespace="http://opcfoundation.org/UA/Onboarding/Types.xsd" XmlPrefix="Onboarding">http://opcfoundation.org/UA/Onboarding/</opc:Namespace>
-    <opc:Namespace Name="OpcUaGds" Prefix="Opc.Ua.Gds" XmlNamespace="http://opcfoundation.org/UA/GDS/Types.xsd" XmlPrefix="GDS">http://opcfoundation.org/UA/GDS/</opc:Namespace>
+    <opc:Namespace Name="OpcUaGds" Version="1.05.07" PublicationDate="2026-04-15T00:00:00Z" Prefix="Opc.Ua.Gds" XmlNamespace="http://opcfoundation.org/UA/GDS/Types.xsd" XmlPrefix="GDS">http://opcfoundation.org/UA/GDS/</opc:Namespace>
     <opc:Namespace Name="OpcUa" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
   </opc:Namespaces>
 

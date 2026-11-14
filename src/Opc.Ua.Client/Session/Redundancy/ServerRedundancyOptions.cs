@@ -65,6 +65,33 @@ namespace Opc.Ua.Client
         public TimeSpan PeerDiscoveryTimeout { get; init; } = DefaultTimeout;
 
         /// <summary>
+        /// Default for <see cref="MaxRedundantServers"/>.
+        /// </summary>
+        public const int DefaultMaxRedundantServers = 32;
+
+        /// <summary>
+        /// Default for <see cref="MaxConcurrentPeerDiscoveries"/>.
+        /// </summary>
+        public const int DefaultMaxConcurrentPeerDiscoveries = 4;
+
+        /// <summary>
+        /// The maximum number of members of a redundant Server set the client
+        /// takes from <c>RedundantServerArray</c> and <c>ServerUriArray</c>,
+        /// after removing duplicate ServerUris. Members of
+        /// <c>RedundantServerArray</c> come first; further entries are
+        /// ignored. Default <see cref="DefaultMaxRedundantServers"/>.
+        /// </summary>
+        public int MaxRedundantServers { get; init; } = DefaultMaxRedundantServers;
+
+        /// <summary>
+        /// The maximum number of members whose endpoints are discovered at the
+        /// same time. <see cref="PeerDiscoveryTimeout"/> applies to each member
+        /// from the moment its discovery starts. Default
+        /// <see cref="DefaultMaxConcurrentPeerDiscoveries"/>.
+        /// </summary>
+        public int MaxConcurrentPeerDiscoveries { get; init; } = DefaultMaxConcurrentPeerDiscoveries;
+
+        /// <summary>
         /// When <see langword="true"/>, a <see cref="ManagedSession"/> reads <c>Server.ServiceLevel</c> and
         /// <c>Server.ServerStatus.State</c> of every other member of a non-transparent redundant Server set
         /// over a short session with a copy of the identity of the session in use, when a selection or
@@ -112,16 +139,31 @@ namespace Opc.Ua.Client
         public IReverseConnectionAvailability? MemberConnections { get; init; }
 
         /// <summary>
-        /// Validates that both bounds and the monitoring interval are usable.
+        /// Validates that the bounds and the monitoring interval are usable.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when a bound is neither positive nor <see cref="Timeout.InfiniteTimeSpan"/>, or when
-        /// <see cref="ServiceLevelMonitoringInterval"/> is set and not positive.
+        /// <see cref="ServiceLevelMonitoringInterval"/> is set and not positive, or when
+        /// <see cref="MaxRedundantServers"/> or <see cref="MaxConcurrentPeerDiscoveries"/> is not positive.
         /// </exception>
         public void Validate()
         {
             ValidateTimeout(RefreshTimeout, nameof(RefreshTimeout));
             ValidateTimeout(PeerDiscoveryTimeout, nameof(PeerDiscoveryTimeout));
+            if (MaxRedundantServers <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(MaxRedundantServers),
+                    MaxRedundantServers,
+                    "The maximum number of redundant servers must be positive.");
+            }
+            if (MaxConcurrentPeerDiscoveries <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(MaxConcurrentPeerDiscoveries),
+                    MaxConcurrentPeerDiscoveries,
+                    "The maximum number of concurrent peer discoveries must be positive.");
+            }
             if (ServiceLevelMonitoringInterval is TimeSpan interval && interval <= TimeSpan.Zero)
             {
                 throw new ArgumentOutOfRangeException(

@@ -76,6 +76,13 @@ namespace Opc.Ua.Client.Roles
         /// </summary>
         public int MaxMappingEntries { get; }
 
+        /// <summary>
+        /// Starts the limits on the pages one <see cref="ListRolesAsync"/>
+        /// call follows. Defaults to the <see cref="BrowserOptions"/> defaults.
+        /// </summary>
+        internal Func<BrowsePagingLimits> StartBrowseLimits { get; set; }
+            = static () => BrowsePagingLimits.StartDefault();
+
         private static NodeId RoleSetId => ObjectIds.Server_ServerCapabilities_RoleSet;
 
         private static NodeId AddRoleMethodId
@@ -104,6 +111,8 @@ namespace Opc.Ua.Client.Roles
                     ResultMask = (uint)BrowseResultMask.All
                 }
             ];
+            // The duration limit counts from the Browse request.
+            BrowsePagingLimits limits = StartBrowseLimits();
             BrowseResponse browseResponse = await Session.BrowseAsync(
                 null,
                 null,
@@ -125,7 +134,7 @@ namespace Opc.Ua.Client.Roles
                 throw new ServiceResultException(result.StatusCode);
             }
             ByteString continuationPoint = result.ContinuationPoint;
-            int emptyRounds = 0;
+            var counter = new BrowsePageCounter();
             try
             {
                 while (true)
@@ -134,10 +143,14 @@ namespace Opc.Ua.Client.Roles
                     {
                         materializedRefs.Add(reference);
                     }
-                    Browser.ThrowIfNoBrowseProgress(
-                        result.References,
-                        continuationPoint,
-                        ref emptyRounds);
+                    ServiceResult? stop = counter.Record(
+                        limits,
+                        result.References.Count,
+                        !continuationPoint.IsEmpty);
+                    if (stop != null)
+                    {
+                        throw new ServiceResultException(stop);
+                    }
                     if (continuationPoint.IsEmpty)
                     {
                         break;
