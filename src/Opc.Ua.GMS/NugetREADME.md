@@ -105,10 +105,11 @@ Known publication differences remain explicit:
   semantics with `Indication=Time` and `IsCountingUp=false`. A runtime selecting
   that CU must instantiate/configure the optional Qualified entry accordingly;
   this model package preserves the publication and does not claim that CU.
-- Section 12.3.2.7 names `GMS_ProductionStatisticsType`, which is absent from
-  both the CU definitions and the normative XML. Inherited production statistics
-  and defined GMS jobs/parts remain available. No new type or NodeId is invented,
-  and a complete GMS Production facet is not advertised.
+- Table 63 names `GMS GMS_ProductionStatisticsType` as a mandatory conformance
+  unit, but Table 56 does not define that unit. The normative XML contains no
+  node named `GMS_ProductionStatisticsType`. Inherited production statistics
+  and defined GMS jobs/parts remain available, and the complete GMS Production
+  facet is not advertised.
 
 Server hosting, equipment providers, measurement/production publishing,
 result-store binding, higher-level client workflows and MCP tools are separate

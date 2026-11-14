@@ -161,14 +161,15 @@ registration mechanism. CUs depend on configured, committed instances and
 providers, not namespace presence. Secure profiles also require actual endpoint
 policies, certificates, and certificate user-token capability.
 
-Only the complete GMS Production facet is withheld for the upstream
-`GMS GMS_ProductionStatisticsType` inconsistency: section 12.3.2.7 requires it,
-but section 12.2 and the released normative NodeSet define no such type or NodeId.
-Defined GMS job/part behavior and inherited production statistics are still
-implemented. The model's `Qualified/IsCountingUp=true` default is retained in
-the canonical XML but overridden to the required countdown at runtime. The
-sensor-warning implementation uses the actual released `SensorWarningAlarmType`
-(`i=1010`), not the misspelled prose event name.
+Only the complete GMS Production facet is withheld. Table 63 names
+`GMS GMS_ProductionStatisticsType` as a mandatory conformance unit, but Table 56
+does not define that unit. The released normative NodeSet contains no node named
+`GMS_ProductionStatisticsType`. Defined GMS job/part behavior and inherited
+production statistics are still implemented. The model's
+`Qualified/IsCountingUp=true` default is retained in the canonical XML but
+overridden to the required countdown at runtime. The sensor-warning
+implementation uses the actual released `SensorWarningAlarmType` (`i=1010`),
+not the misspelled prose event name.
 
 GMS version 1 production, calibration, and measurement state are observations.
 This API introduces no GMS acquisition, calibration-execution, job-start, or
