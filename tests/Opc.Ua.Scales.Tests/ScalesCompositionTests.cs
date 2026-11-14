@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
@@ -88,6 +89,34 @@ namespace Opc.Ua.Scales.Tests
             builder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks);
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => builder.AddScalesToMachinery(options => options.ZeroSettingRange = 2));
+        }
+
+        [Test]
+        public void AddScalesToMachineryRegistersConfiguredOptions()
+        {
+            IOpcUaServerBuilder builder = new ServiceCollection().AddOpcUa().AddServer<StandardServer>(_ => { });
+            builder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
+                .AddScalesToMachinery(options =>
+                {
+                    options.OrganizeIntoMachinesFolder = false;
+                    options.RequireSiUnits = true;
+                    options.PackMLInitialState = PackMLInitialState.Stopped;
+                    options.ZeroSettingRange = 0.25;
+                    options.AdditionalNamespaceUris = ["urn:example:scales:vendor"];
+                });
+
+            using ServiceProvider services = builder.Services.BuildServiceProvider();
+            ScalesServerOptions actual = services.GetRequiredService<IOptions<ScalesServerOptions>>().Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(actual.OrganizeIntoMachinesFolder, Is.False);
+                Assert.That(actual.RequireSiUnits, Is.True);
+                Assert.That(actual.PackMLInitialState, Is.EqualTo(PackMLInitialState.Stopped));
+                Assert.That(actual.ZeroSettingRange, Is.EqualTo(0.25));
+                Assert.That(actual.AdditionalNamespaceUris.Count, Is.EqualTo(1));
+                Assert.That(actual.AdditionalNamespaceUris[0], Is.EqualTo("urn:example:scales:vendor"));
+            });
         }
 
         [Test]
