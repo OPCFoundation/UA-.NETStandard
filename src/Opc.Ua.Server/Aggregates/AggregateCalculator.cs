@@ -306,6 +306,7 @@ namespace Opc.Ua.Server
             }
             else if (MaxRawValues > 0 &&
                 m_values.Count >= MaxRawValues &&
+                CountValuesFromSliceStart() >= MaxRawValues &&
                 CanReplaceNewestValue(value))
             {
                 // keep the number of values held bounded: the newest held value is replaced,
@@ -328,7 +329,8 @@ namespace Opc.Ua.Server
         /// limit. Only applies when time flows forward. When the limit is reached, a new value
         /// replaces the newest held value of the same interval, or the newest value held while
         /// the current interval waits for its late bound, and every interval that lost a value
-        /// is reported Uncertain_DataSubNormal instead of Good.
+        /// is reported Uncertain_DataSubNormal instead of Good. Only the values from the start of
+        /// the current interval count; the values before it are pruned to its early bounds.
         /// </summary>
         internal int MaxRawValues { get; set; }
 
@@ -336,6 +338,59 @@ namespace Opc.Ua.Server
         /// The number of raw values the calculator currently holds.
         /// </summary>
         internal int RawValueCount => m_values.Count;
+
+        /// <summary>
+        /// Returns the number of held values at or after the start of the current slice, so
+        /// the early bounds kept for the slice do not count against its raw value limit.
+        /// Values that precede the slice (a start time in the future, or stale timestamps
+        /// repeated before the first interval completes) are first pruned to the bounds of the
+        /// slice, so they cannot grow without limit and the scan stays short.
+        /// </summary>
+        private int CountValuesFromSliceStart()
+        {
+            TimeSlice? slice = CurrentSlice;
+            if (slice == null)
+            {
+                return m_values.Count;
+            }
+
+            int before = CountValuesBeforeSlice(slice, kMaxValuesBeforeSlice + 1);
+            if (before > kMaxValuesBeforeSlice)
+            {
+                // the values queued since the last update may hold new early bounds. A
+                // complete slice has seen all of them, and must keep its late bound.
+                if (!slice.Complete)
+                {
+                    UpdateSlice(slice);
+                }
+                RemoveValuesBeforeSlice(slice);
+                before = CountValuesBeforeSlice(slice, int.MaxValue);
+            }
+
+            return m_values.Count - before;
+        }
+
+        /// <summary>
+        /// Counts the held values before the start of the slice, up to a limit.
+        /// </summary>
+        private int CountValuesBeforeSlice(TimeSlice slice, int limit)
+        {
+            int before = 0;
+            for (LinkedListNode<DataValue>? ii = m_values.First;
+                ii != null && before < limit && CompareTimestamps(slice.StartTime, ii) > 0;
+                ii = ii.Next)
+            {
+                before++;
+            }
+
+            return before;
+        }
+
+        /// <summary>
+        /// The most values that remain before a slice once the values that no interval needs
+        /// are removed: the second early bound, the early bound and the latest value before it.
+        /// </summary>
+        private const int kMaxValuesBeforeSlice = 3;
 
         /// <summary>
         /// Returns true if the newest held value can be replaced by the new value: both lie in
@@ -444,6 +499,19 @@ namespace Opc.Ua.Server
             {
                 for (LinkedListNode<DataValue>? ii = latestBefore.Previous;
                     ii != null && !ReferenceEquals(ii, slice.EarlyBound);)
+                {
+                    LinkedListNode<DataValue>? previous = ii.Previous;
+                    m_values.Remove(ii);
+                    ii = previous;
+                }
+            }
+
+            // so are the values between the second early bound and the early bound; only the
+            // two bounds themselves are used.
+            if (slice.SecondEarlyBound != null && slice.EarlyBound != null)
+            {
+                for (LinkedListNode<DataValue>? ii = slice.EarlyBound.Previous;
+                    ii != null && !ReferenceEquals(ii, slice.SecondEarlyBound);)
                 {
                     LinkedListNode<DataValue>? previous = ii.Previous;
                     m_values.Remove(ii);

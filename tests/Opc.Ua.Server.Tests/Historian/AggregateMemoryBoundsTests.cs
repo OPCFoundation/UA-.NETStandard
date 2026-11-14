@@ -179,6 +179,72 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Values before the start of the first interval (a filter start time in the future, or
+        /// the same stale timestamp repeated) stay within the per-item limit, and the first
+        /// interval is still calculated from its bounds and is Good.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MonitoredItemAggregateBoundsValuesBeforeStartTimeAsync(bool sameTimestamp)
+        {
+            using var harness = new Harness();
+            harness.AggregateManager.MaxMonitoredItemRawValues = 100;
+            var processed = new List<DataValue>();
+            AggregationFilterHandler handler = await harness.CreateHandlerAsync(
+                ObjectIds.AggregateFunction_Average,
+                processingInterval: 1000,
+                processed).ConfigureAwait(false);
+
+            for (int ii = 0; ii < 5000; ii++)
+            {
+                double offset = sameTimestamp ? -1000 : -50_000 + (ii * 10);
+                Assert.That(handler.TryQueueValue(CreateValue(ii, offset), false, out bool accepted), Is.True);
+                Assert.That(accepted, Is.True);
+            }
+
+            Assert.That(processed, Is.Empty);
+            Assert.That(GetRawValueCount(handler), Is.LessThanOrEqualTo(100));
+
+            // the first intervals are complete once later values arrive, and none lost a value.
+            handler.TryQueueValue(CreateValue(10, 0), false, out _);
+            handler.TryQueueValue(CreateValue(20, 500), false, out _);
+            handler.TryQueueValue(CreateValue(30, 1500), false, out _);
+            handler.TryQueueValue(CreateValue(40, 2500), false, out _);
+
+            Assert.That(processed, Has.Count.GreaterThanOrEqualTo(2));
+            Assert.That(processed[0].SourceTimestamp, Is.EqualTo(s_baseTime));
+            Assert.That(StatusCode.IsGood(processed[0].StatusCode), Is.True, processed[0].StatusCode.ToString());
+            Assert.That(StatusCode.IsGood(processed[1].StatusCode), Is.True, processed[1].StatusCode.ToString());
+            Assert.That(GetRawValueCount(handler), Is.LessThan(10));
+        }
+
+        /// <summary>
+        /// The early bounds kept from a completed interval do not count against the limit of the
+        /// next interval: an interval with exactly as many values as the limit keeps all of them.
+        /// </summary>
+        [Test]
+        public async Task MonitoredItemAggregateIntervalAtLimitAfterCompletedIntervalIsGoodAsync()
+        {
+            using var harness = new Harness();
+            harness.AggregateManager.MaxMonitoredItemRawValues = 3;
+            var processed = new List<DataValue>();
+            AggregationFilterHandler handler = await harness.CreateHandlerAsync(
+                ObjectIds.AggregateFunction_Count,
+                processingInterval: 1000,
+                processed).ConfigureAwait(false);
+
+            foreach (double offset in new[] { 0, 300, 600, 1000, 1300, 1600, 2500 })
+            {
+                handler.TryQueueValue(CreateValue(1, offset), false, out _);
+            }
+
+            DataValue second = processed.Find(value => value.SourceTimestamp == s_baseTime.AddMilliseconds(1000));
+            Assert.That(second.IsNull, Is.False);
+            Assert.That(StatusCode.IsGood(second.StatusCode), Is.True, second.StatusCode.ToString());
+            Assert.That(second.WrappedValue.GetInt32(), Is.EqualTo(3));
+        }
+
+        /// <summary>
         /// Queuing many intervals of raw values before draining them stays linear.
         /// </summary>
         [Test]

@@ -141,7 +141,6 @@ namespace Opc.Ua.Server
                 MaxDurableQueueSize = (uint)configuration.ServerConfiguration
                     .MaxDurableNotificationQueueSize;
                 MinSupportedSamplingInterval = configuration.ServerConfiguration.MinSupportedSamplingInterval;
-                m_maxSelectClauseParameters = configuration.ServerConfiguration.MaxSelectClauseParameters;
             }
 
             // save a reference to the UA server instance that owns the node manager.
@@ -7169,14 +7168,6 @@ namespace Opc.Ua.Server
                             {
                                 validation = StatusCodes.BadEventFilterInvalid;
                             }
-
-                            // the filter is kept by the continuation points of the request.
-                            if (ServiceResult.IsGood(validation) &&
-                                m_maxSelectClauseParameters > 0 &&
-                                readEventDetails.Filter.SelectClauses.Count > m_maxSelectClauseParameters)
-                            {
-                                validation = StatusCodes.BadEventFilterInvalid;
-                            }
                         }
                         validated = true;
                     }
@@ -11420,11 +11411,6 @@ namespace Opc.Ua.Server
         /// relationship; the ReferenceType is null for local parents (see AddNodeCoreAsync).
         /// </summary>
         private readonly ConcurrentDictionary<(NodeId, QualifiedName, NodeId), byte> m_addNodesBrowseNameReservations = new();
-
-        /// <summary>
-        /// The maximum number of select clauses of a HistoryRead event filter (zero or less for no limit).
-        /// </summary>
-        private readonly int m_maxSelectClauseParameters = ServerConfiguration.DefaultMaxSelectClauseParameters;
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;
