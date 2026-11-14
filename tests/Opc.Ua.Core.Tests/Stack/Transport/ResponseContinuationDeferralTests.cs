@@ -241,6 +241,75 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(operation.End(0), Is.EqualTo(7));
         }
 
+        /// <summary>
+        /// An inline continuation completes the loop's receive synchronously, so the loop
+        /// resumes on its stack and defers the next response. That one completes on the
+        /// pool: run nested inline, it would wait for the first continuation forever.
+        /// </summary>
+        [Test]
+        [CancelAfter(20000)]
+        public async Task LoopResumedInsideAnInlineContinuationDoesNotNestTheNextAsync()
+        {
+            using var first = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
+            using var second = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
+            // continuations of a default source run synchronously, as with an in-process peer
+            var firstReceive = new TaskCompletionSource<int>();
+            var secondReceive = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var firstDone = new ManualResetEventSlim();
+
+            Task firstCaller = CompleteReceiveAsync(
+                first.WaitForCompletionAsync(CancellationToken.None), firstReceive, firstDone);
+            Task<bool> secondCaller = WaitForEventAsync(
+                second.WaitForCompletionAsync(CancellationToken.None), firstDone);
+
+            Task<int> loop = Task.Run(async () =>
+            {
+                ResponseContinuationDeferral.Enter();
+                try
+                {
+                    first.Complete(true, 1);
+                }
+                finally
+                {
+                    ResponseContinuationDeferral.Exit();
+                }
+                await ResponseContinuationDeferral.AwaitAndComplete(new ValueTask<int>(firstReceive.Task));
+
+                // resumed inside the first caller's continuation
+                ResponseContinuationDeferral.Enter();
+                try
+                {
+                    second.Complete(true, 2);
+                }
+                finally
+                {
+                    ResponseContinuationDeferral.Exit();
+                }
+                return await ResponseContinuationDeferral.AwaitAndComplete(new ValueTask<int>(secondReceive.Task));
+            });
+
+            await firstCaller.ConfigureAwait(false);
+            Assert.That(await secondCaller.ConfigureAwait(false), Is.True, "the first caller finished");
+            secondReceive.SetResult(3);
+            Assert.That(await loop.ConfigureAwait(false), Is.EqualTo(3));
+        }
+
+        private static async Task CompleteReceiveAsync(
+            ValueTask wait,
+            TaskCompletionSource<int> receive,
+            ManualResetEventSlim done)
+        {
+            await wait.ConfigureAwait(false);
+            receive.SetResult(1);
+            done.Set();
+        }
+
+        private static async Task<bool> WaitForEventAsync(ValueTask wait, ManualResetEventSlim done)
+        {
+            await wait.ConfigureAwait(false);
+            return done.Wait(TimeSpan.FromSeconds(5));
+        }
+
         private static async Task ReturnBudgetAsync(ValueTask wait, BufferManagerMemoryLimiter limiter, long reservation)
         {
             await wait.ConfigureAwait(false);

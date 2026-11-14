@@ -146,6 +146,10 @@ namespace Opc.Ua.Bindings
             t_pending = null;
             int depth = t_depth;
             t_depth = 0;
+            if (inline)
+            {
+                t_inline++;
+            }
             try
             {
                 pending.CompleteDeferredWait(inline);
@@ -153,6 +157,10 @@ namespace Opc.Ua.Bindings
             finally
             {
                 t_depth = depth;
+                if (inline)
+                {
+                    t_inline--;
+                }
             }
         }
 
@@ -161,11 +169,17 @@ namespace Opc.Ua.Bindings
         /// unless the loop ran inside the dispatch of another loop on this thread, which
         /// may hold locks: that loop completes it when it suspends.
         /// </summary>
+        /// <remarks>
+        /// A loop can also resume inside a continuation this thread runs inline, when that
+        /// continuation completes the loop's receive synchronously. The wait it deferred
+        /// then completes on the pool: run inline as well, its continuation would be
+        /// nested in the first and could wait for it forever.
+        /// </remarks>
         private static void CompleteOnSuspended()
         {
             if (t_depth == 0)
             {
-                CompletePending(inline: true);
+                CompletePending(inline: t_inline == 0);
             }
         }
 
@@ -273,5 +287,8 @@ namespace Opc.Ua.Bindings
 
         [ThreadStatic]
         private static int t_depth;
+
+        [ThreadStatic]
+        private static int t_inline;
     }
 }
