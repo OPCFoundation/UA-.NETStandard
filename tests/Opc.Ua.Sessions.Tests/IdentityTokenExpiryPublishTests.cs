@@ -121,16 +121,108 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
+        /// A parked Publish that is woken by a GoodSubscriptionTransferred status message
+        /// after the token expired must not return that status message either.
+        /// </summary>
+        [Test]
+        public async Task QueuedPublishWokenBySubscriptionTransferAfterTheTokenExpiredFailsAsync()
+        {
+            var augmenter = new ExpiringSysAdminAugmenter(s_tokenLifetime);
+            ReferenceServer.CurrentInstance.IdentityRegistry.RegisterAugmenter(augmenter);
+            ISession? session = null;
+            ISession? target = null;
+            try
+            {
+                session = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+                if (session == null)
+                {
+                    Assert.Ignore("The server exposes no endpoint with a UserName token policy.");
+                }
+                DateTime expiresAt = augmenter.LastExpiresAt;
+                Assert.That(expiresAt, Is.Not.Default, "the identity was not wrapped");
+
+                CreateSubscriptionResponse created = await session.CreateSubscriptionAsync(
+                    null,
+                    kPublishingInterval,
+                    kKeepAliveCount * 3,
+                    kKeepAliveCount,
+                    0,
+                    true,
+                    0,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                PublishResponse first = await session.PublishAsync(null, default, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(first.SubscriptionId, Is.EqualTo(created.SubscriptionId));
+
+                // the session that takes the subscription over; its token outlives the test
+                augmenter.Lifetime = TimeSpan.FromMinutes(5);
+                target = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+
+                if (DateTime.UtcNow > expiresAt - TimeSpan.FromSeconds(1))
+                {
+                    Assert.Inconclusive("The setup took too long to park a Publish before the token expired.");
+                }
+                Task<PublishResponse> parked = session
+                    .PublishAsync(new RequestHeader { TimeoutHint = 30_000 }, default, CancellationToken.None)
+                    .AsTask();
+
+                TimeSpan untilExpired = expiresAt - DateTime.UtcNow + TimeSpan.FromMilliseconds(500);
+                if (untilExpired > TimeSpan.Zero)
+                {
+                    await Task.Delay(untilExpired).ConfigureAwait(false);
+                }
+                Assert.That(parked.IsCompleted, Is.False,
+                    "the Publish must still be parked when the token expires");
+
+                // the transfer queues GoodSubscriptionTransferred for the expired session
+                // and wakes its parked Publish before the next keep-alive is due
+                TransferSubscriptionsResponse transferred = await target.TransferSubscriptionsAsync(
+                    null,
+                    new uint[] { created.SubscriptionId },
+                    false,
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(transferred.Results.Count, Is.EqualTo(1));
+                Assert.That(StatusCode.IsGood(transferred.Results[0].StatusCode), Is.True,
+                    transferred.Results[0].StatusCode.ToString());
+
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await parked.ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            }
+            finally
+            {
+                ReferenceServer.CurrentInstance.IdentityRegistry.UnregisterAugmenter(augmenter);
+                foreach (ISession? s in new[] { session, target })
+                {
+                    if (s != null)
+                    {
+                        await s.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                        s.Dispose();
+                    }
+                }
+            }
+        }
+        /// <summary>
         /// Gives the sysadmin identity a token expiration a fixed time after activation.
         /// </summary>
         private sealed class ExpiringSysAdminAugmenter : IIdentityAugmenter
         {
-            private readonly TimeSpan m_lifetime;
+            private long m_lifetimeTicks;
             private long m_lastExpiresAtTicks;
 
             public ExpiringSysAdminAugmenter(TimeSpan lifetime)
             {
-                m_lifetime = lifetime;
+                m_lifetimeTicks = lifetime.Ticks;
+            }
+
+            /// <summary>
+            /// The token lifetime given to the identities activated from now on.
+            /// </summary>
+            public TimeSpan Lifetime
+            {
+                get => TimeSpan.FromTicks(Interlocked.Read(ref m_lifetimeTicks));
+                set => Interlocked.Exchange(ref m_lifetimeTicks, value.Ticks);
             }
 
             public DateTime LastExpiresAt => new(Interlocked.Read(ref m_lastExpiresAtTicks), DateTimeKind.Utc);
@@ -144,7 +236,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
                 }
-                DateTime expiresAt = DateTime.UtcNow + m_lifetime;
+                DateTime expiresAt = DateTime.UtcNow + Lifetime;
                 Interlocked.Exchange(ref m_lastExpiresAtTicks, expiresAt.Ticks);
                 return new ValueTask<AuthenticationResult>(
                     AuthenticationResult.Accept(new ExpiringIdentity(identity, expiresAt)));
