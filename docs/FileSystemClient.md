@@ -506,6 +506,16 @@ handle is published. The physical provider uses `FileAccess.ReadWrite` and
 `FileShare.None` for combined access, with `Create` for erase and `OpenOrCreate`
 otherwise.
 
+A mount bounds the files it keeps open through `FileType.Open`, because every
+open holds a provider stream until it is closed or its session ends.
+`FileSystemNodeManager.MaxOpenFilesPerSession` and
+`FileDirectoryBindingOptions.MaxOpenFilesPerSession` (64 by default) limit the
+files one session keeps open in the mount; `MaxOpenFiles` (1024 by default)
+limits the files all sessions keep open in it. Zero means no limit. An open
+beyond a limit fails with `BadTooManyOperations`, and a closed file, or the end
+of its session, releases its place. A Read allocates at most the bytes left
+after the position of a seekable stream.
+
 Each handle serializes Read, Write, GetPosition, and SetPosition. Explicit Close
 stops admission, drains operations already admitted, then closes the stream.
 Session closure and server shutdown also request cancellation of active provider

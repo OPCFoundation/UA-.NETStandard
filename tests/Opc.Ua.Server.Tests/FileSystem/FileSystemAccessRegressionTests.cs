@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -147,6 +148,85 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(ServiceResult.IsGood(closed), Is.True);
             ServiceResult deleted = await DeleteAsync(CreateDirectory("a"), DirId("a/b")).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(deleted), Is.True, deleted.ToString());
+        }
+
+        /// <summary>
+        /// A Session keeps at most 64 files of a mount open by default; another Session
+        /// can still open files.
+        /// </summary>
+        [Test]
+        public async Task OpenFilesOfASessionAreLimitedByDefaultAsync()
+        {
+            var file = new FileObjectState(m_manager.SystemContext, FileId("a/x.txt"), "a/x.txt", "x.txt");
+            var first = new NodeId(100, 1);
+            var second = new NodeId(101, 1);
+            var handles = new List<uint>();
+            for (int ii = 0; ii < 64; ii++)
+            {
+                handles.Add(await FileReadRegressionTests.OpenAsync(file, m_manager.SystemContext)
+                    .ConfigureAwait(false));
+            }
+
+            (ServiceResult refused, _) = await FileReadRegressionTests.CallAsync(
+                file.Open!, m_manager.SystemContext, file.NodeId, [(byte)0x01]).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = second;
+            uint otherHandle = await FileReadRegressionTests.OpenAsync(file, m_manager.SystemContext)
+                .ConfigureAwait(false);
+            await CloseAsync(file, otherHandle).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = first;
+            foreach (uint handle in handles)
+            {
+                await CloseAsync(file, handle).ConfigureAwait(false);
+            }
+
+            Assert.That(refused.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+        }
+
+        private async Task CloseAsync(FileObjectState file, uint handle)
+        {
+            (ServiceResult closed, _) = await FileReadRegressionTests.CallAsync(
+                file.Close!, m_manager.SystemContext, file.NodeId, [handle]).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(closed), Is.True, closed.ToString());
+        }
+
+        /// <summary>
+        /// The open file limits of a mount count every file of the mount, apply per Session
+        /// and in total, and are released when a file is closed.
+        /// </summary>
+        [Test]
+        public async Task OpenFileLimitsCountAllFilesOfTheMountAndAreReleasedOnCloseAsync()
+        {
+            m_manager.MaxOpenFilesPerSession = 2;
+            m_manager.MaxOpenFiles = 3;
+            var x = new FileObjectState(m_manager.SystemContext, FileId("a/x.txt"), "a/x.txt", "x.txt");
+            var y = new FileObjectState(m_manager.SystemContext, FileId("a/b/y.txt"), "a/b/y.txt", "y.txt");
+            var first = new NodeId(100, 1);
+            var second = new NodeId(101, 1);
+
+            uint handle = await FileReadRegressionTests.OpenAsync(x, m_manager.SystemContext).ConfigureAwait(false);
+            uint firstY = await FileReadRegressionTests.OpenAsync(y, m_manager.SystemContext).ConfigureAwait(false);
+            (ServiceResult perSession, _) = await FileReadRegressionTests.CallAsync(
+                x.Open!, m_manager.SystemContext, x.NodeId, [(byte)0x01]).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = second;
+            uint secondX = await FileReadRegressionTests.OpenAsync(x, m_manager.SystemContext).ConfigureAwait(false);
+            (ServiceResult total, _) = await FileReadRegressionTests.CallAsync(
+                y.Open!, m_manager.SystemContext, y.NodeId, [(byte)0x01]).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(perSession.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+                Assert.That(total.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+            });
+
+            m_manager.SystemContext.SessionId = first;
+            await CloseAsync(x, handle).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = second;
+            uint secondY = await FileReadRegressionTests.OpenAsync(y, m_manager.SystemContext).ConfigureAwait(false);
+
+            await CloseAsync(x, secondX).ConfigureAwait(false);
+            await CloseAsync(y, secondY).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = first;
+            await CloseAsync(y, firstY).ConfigureAwait(false);
         }
 
         /// <summary>
