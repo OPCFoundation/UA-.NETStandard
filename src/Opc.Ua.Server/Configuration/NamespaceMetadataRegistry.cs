@@ -186,6 +186,7 @@ namespace Opc.Ua.Server
                 // the Namespaces node, both checked without enumerating it.
                 NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
                 long generation = Interlocked.Read(ref m_generation);
+                long missEpoch = Interlocked.Read(ref m_missEpoch);
                 if (IsCachedMiss(m_missingByUri, namespaceUri, generation, pendingChanges))
                 {
                     return null;
@@ -212,7 +213,10 @@ namespace Opc.Ua.Server
 
                     if (namespaceMetadataState == null)
                     {
-                        m_missingByUri[namespaceUri] = (generation, pendingChanges);
+                        if (Interlocked.Read(ref m_missEpoch) == missEpoch)
+                        {
+                            m_missingByUri[namespaceUri] = (generation, pendingChanges);
+                        }
                     }
                     else if (!namespaceMetadataState.IsIncomplete)
                     {
@@ -252,6 +256,7 @@ namespace Opc.Ua.Server
 
                 NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
                 long generation = Interlocked.Read(ref m_generation);
+                long missEpoch = Interlocked.Read(ref m_missEpoch);
                 if (IsCachedMiss(m_missingByIndex, namespaceIndex, generation, pendingChanges))
                 {
                     return null;
@@ -270,7 +275,10 @@ namespace Opc.Ua.Server
 
                     if (namespaceMetadataState == null)
                     {
-                        m_missingByIndex[namespaceIndex] = (generation, pendingChanges);
+                        if (Interlocked.Read(ref m_missEpoch) == missEpoch)
+                        {
+                            m_missingByIndex[namespaceIndex] = (generation, pendingChanges);
+                        }
                     }
                     else if (!namespaceMetadataState.IsIncomplete)
                     {
@@ -293,10 +301,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>
         /// <c>true</c> when the result (including a definitive absence) is
-        /// known; <c>false</c> when an unresolved reference of
-        /// <c>Server/Namespaces</c>, or an untyped metadata Object whose
-        /// properties are not resolved yet, could hold the metadata node, or
-        /// when an invalidation ran during the lookup.
+        /// known; <c>false</c> when no exact match exists but an unresolved
+        /// reference of <c>Server/Namespaces</c>, or an untyped metadata Object
+        /// whose properties are not resolved yet, could hold the metadata node,
+        /// or when an invalidation ran during the lookup. An exact match is
+        /// returned even when such an entry precedes it.
         /// </returns>
         public bool TryGetSnapshot(ushort namespaceIndex, out NamespaceMetadataNode? state)
         {
@@ -307,6 +316,7 @@ namespace Opc.Ua.Server
 
             NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
             long generation = Interlocked.Read(ref m_generation);
+            long missEpoch = Interlocked.Read(ref m_missEpoch);
             if (IsCachedMiss(m_missingByIndex, namespaceIndex, generation, pendingChanges))
             {
                 state = null;
@@ -331,6 +341,10 @@ namespace Opc.Ua.Server
                 return true;
             }
 
+            // an entry of unknown identity that needs an asynchronous lookup only decides the
+            // result when no exact match follows it; one known to describe the namespace decides
+            // it at once, as the asynchronous lookup returns it first (see FindAsync).
+            bool indeterminate = false;
             ServerSystemContext context = m_host.SystemContext;
             IList<BaseInstanceState> children = [];
             serverNamespacesNode.GetChildren(context, children);
@@ -338,14 +352,17 @@ namespace Opc.Ua.Server
             {
                 if (!TryResolve(context, child, out NamespaceMetadataNode? metadata))
                 {
-                    if (IsOtherNamespace(context, child, namespaceUri))
+                    // the properties of an untyped metadata node are resolved asynchronously.
+                    m_stale.TryGetValue(child.NodeId, out NamespaceMetadataNode? retiredChild);
+                    UnresolvedEntry entry = ClassifyUnresolved(context, child, retiredChild, namespaceUri);
+                    if (entry == UnresolvedEntry.SameNamespace)
                     {
-                        continue;
+                        state = null;
+                        return false;
                     }
 
-                    // the properties of an untyped metadata node are resolved asynchronously.
-                    state = null;
-                    return false;
+                    indeterminate |= entry == UnresolvedEntry.Unknown;
+                    continue;
                 }
 
                 if (metadata != null && metadata.NamespaceUri == namespaceUri)
@@ -369,21 +386,25 @@ namespace Opc.Ua.Server
                     var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.Server.NamespaceUris);
                     if (targetId.IsNull)
                     {
-                        return false;
+                        indeterminate = true;
+                        continue;
                     }
 
                     if (!m_referenceTargets.TryGetValue(targetId, out NamespaceMetadataNode? target))
                     {
-                        if (m_stale.TryGetValue(targetId, out NamespaceMetadataNode? retired) &&
-                            GetIdentity(context, retired) is string retiredUri &&
-                            retiredUri != namespaceUri)
+                        // an unresolved link can only be followed asynchronously; only its retired
+                        // view, if any, tells which namespace it describes.
+                        UnresolvedEntry entry = m_stale.TryGetValue(targetId, out NamespaceMetadataNode? retired)
+                            ? ClassifyUnresolved(context, retired.Node, retired, namespaceUri)
+                            : UnresolvedEntry.Unknown;
+                        if (entry == UnresolvedEntry.SameNamespace)
                         {
-                            // retired metadata of another namespace.
-                            continue;
+                            state = null;
+                            return false;
                         }
 
-                        // an unresolved link can only be followed asynchronously.
-                        return false;
+                        indeterminate |= entry == UnresolvedEntry.Unknown;
+                        continue;
                     }
 
                     if (target != null && target.NamespaceUri == namespaceUri)
@@ -392,6 +413,11 @@ namespace Opc.Ua.Server
                         break;
                     }
                 }
+            }
+
+            if (state == null && indeterminate)
+            {
+                return false;
             }
 
             if (state != null)
@@ -414,7 +440,7 @@ namespace Opc.Ua.Server
                     m_statesByIndex[namespaceIndex] = state;
                     m_missingByIndex.TryRemove(namespaceIndex, out _);
                 }
-                else
+                else if (Interlocked.Read(ref m_missEpoch) == missEpoch)
                 {
                     m_missingByIndex[namespaceIndex] = (generation, pendingChanges);
                 }
@@ -659,6 +685,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void PublishUntyped(BaseObjectState node, NamespaceMetadataNode metadata, long generation)
         {
+            bool completed = false;
             lock (m_lock)
             {
                 if (Interlocked.Read(ref m_generation) != generation)
@@ -678,10 +705,23 @@ namespace Opc.Ua.Server
                 {
                     m_untyped[node] = metadata;
                     m_stale.TryRemove(node.NodeId, out _);
-                    m_incomplete.Remove(node.NodeId);
+                    completed = m_incomplete.Remove(node.NodeId);
+                    if (completed)
+                    {
+                        // a miss remembered while the Object was incomplete relied on its
+                        // BrowseName hint, which its now known NamespaceUri may contradict.
+                        Interlocked.Increment(ref m_missEpoch);
+                        m_missingByUri.Clear();
+                        m_missingByIndex.Clear();
+                    }
                 }
 
                 Volatile.Write(ref m_incompleteCount, m_incomplete.Count);
+            }
+
+            if (completed)
+            {
+                NamespaceDefaultPermissionReader.Invalidate();
             }
         }
 
@@ -855,6 +895,7 @@ namespace Opc.Ua.Server
 
                 m_tracked.Clear();
                 m_trackedProperties.Clear();
+                m_replacedIn.Clear();
                 Interlocked.Increment(ref m_generation);
                 m_statesByUri.Clear();
                 m_statesByIndex.Clear();
@@ -1090,10 +1131,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="metadata">The metadata view.</param>
         /// <param name="generation">
-        /// The generation the view was resolved in. A view of the current generation replaces
-        /// the properties subscribed before; a view resolved before an invalidation, whose
-        /// properties may have been replaced since, only adds its properties, so it never
-        /// releases the handler of a live property. Validation and subscription share the lock.
+        /// The generation the view was resolved in. Only a view that reflects the current
+        /// properties replaces the properties subscribed before (see
+        /// <see cref="ReplacesSubscriptions"/>); any other view only adds its properties, so it
+        /// never releases the handler of a live property. Validation and subscription share
+        /// the lock.
         /// </param>
         private void SubscribeToDefaultPermissions(NamespaceMetadataNode metadata, long generation)
         {
@@ -1115,7 +1157,7 @@ namespace Opc.Ua.Server
                     m_trackedProperties[metadataNode] = tracked;
                 }
 
-                if (Interlocked.Read(ref m_generation) == generation)
+                if (ReplacesSubscriptions(metadata, generation))
                 {
                     foreach (BaseVariableState previous in tracked)
                     {
@@ -1145,11 +1187,48 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns <c>true</c> when <paramref name="metadata"/>, resolved in
+        /// <paramref name="generation"/>, reflects the current properties of its Object, so its
+        /// properties replace the ones subscribed before. Called under <c>m_lock</c>.
+        /// </summary>
+        /// <remarks>
+        /// A generated state reads its property slots live. An untyped view captures its
+        /// properties when it is resolved, and lookups of one generation can complete in any
+        /// order: an incomplete view or a later view of the same generation may lack a property
+        /// that an earlier complete view subscribed. So only the first complete untyped view of
+        /// the current generation replaces; every other view only adds its properties. A
+        /// handler left on a replaced property raises a spurious invalidation at most, and
+        /// <see cref="Detach"/> releases it.
+        /// </remarks>
+        private bool ReplacesSubscriptions(NamespaceMetadataNode metadata, long generation)
+        {
+            if (Interlocked.Read(ref m_generation) != generation)
+            {
+                return false;
+            }
+
+            if (metadata.TypedState != null)
+            {
+                return true;
+            }
+
+            if (metadata.IsIncomplete ||
+                (m_replacedIn.TryGetValue(metadata.Node, out long replacedIn) && replacedIn == generation))
+            {
+                return false;
+            }
+
+            m_replacedIn[metadata.Node] = generation;
+            return true;
+        }
+
+        /// <summary>
         /// Releases the handlers of every default property subscribed for a metadata node.
         /// Called under <c>m_lock</c>.
         /// </summary>
         private void UnsubscribeDefaultProperties(BaseObjectState metadataNode)
         {
+            m_replacedIn.Remove(metadataNode);
             if (m_trackedProperties.TryGetValue(metadataNode, out HashSet<BaseVariableState>? tracked))
             {
                 foreach (BaseVariableState property in tracked)
@@ -1259,8 +1338,10 @@ namespace Opc.Ua.Server
 
             long generation = Interlocked.Read(ref m_generation);
             BaseVariableState?[] properties = FindPropertyChildren(context, objectNode);
-            if (Array.IndexOf(properties, null) >= 0 && HasUnlinkedPropertyReferences(context, objectNode))
+            if ((Array.IndexOf(properties, null) >= 0 && HasUnlinkedPropertyReferences(context, objectNode)) ||
+                IsIdentityUnavailable(properties[0]))
             {
+                // incomplete: resolved asynchronously, which retries it until it is complete.
                 return false;
             }
 
@@ -1357,34 +1438,53 @@ namespace Opc.Ua.Server
 
             // the BrowseName of an unresolved target is unknown, so it may be any missing property:
             // a missing default makes the defaults unknown and a missing NamespaceUri the namespace.
-            bool isIncomplete = unresolved && Array.IndexOf(properties, null) >= 0;
+            // A NamespaceUri property without a value leaves the namespace unknown as well.
+            bool isIncomplete = (unresolved && Array.IndexOf(properties, null) >= 0) ||
+                IsIdentityUnavailable(properties[0]);
             NamespaceMetadataNode metadata = CreateUntyped(objectNode, properties, isIncomplete);
             PublishUntyped(objectNode, metadata, generation);
             return metadata;
         }
 
         /// <summary>
-        /// Returns <c>true</c> when <paramref name="node"/>, an untyped metadata
-        /// Object that is not resolved yet, is known to describe another namespace
-        /// than <paramref name="namespaceUri"/>: from its <c>NamespaceUri</c> child
-        /// or the view retired by the last invalidation (see <see cref="GetIdentity"/>).
+        /// Classifies an untyped metadata Object that is not resolved yet for a synchronous
+        /// lookup of <paramref name="namespaceUri"/>, the way <see cref="FindAsync"/> treats its
+        /// incomplete view: a known <c>NamespaceUri</c> (the value of its <c>NamespaceUri</c>
+        /// child or of its retired view <paramref name="retired"/>) that matches makes it the
+        /// metadata of the namespace. An unknown one makes it a possible match, unless an
+        /// asynchronous lookup already found it incomplete and its BrowseName names another
+        /// namespace of the server (see <see cref="GetIdentity"/>); an Object that was never
+        /// resolved waits for the asynchronous lookup.
         /// </summary>
-        private bool IsOtherNamespace(ISystemContext context, NodeState node, string namespaceUri)
+        private static UnresolvedEntry ClassifyUnresolved(
+            ISystemContext context,
+            NodeState node,
+            NamespaceMetadataNode? retired,
+            string namespaceUri)
         {
-            string? candidateUri = null;
-            if (node.FindChildWithQualifiedName(context, s_propertyNames[0]) is BaseVariableState property)
+            string? knownUri = null;
+            if (node.FindChildWithQualifiedName(context, s_propertyNames[0]) is BaseVariableState property &&
+                !IsIdentityUnavailable(property))
             {
-                if (property.Value.TryGetValue(out string? value))
-                {
-                    candidateUri = value;
-                }
+                property.Value.TryGetValue(out knownUri);
             }
-            else if (m_stale.TryGetValue(node.NodeId, out NamespaceMetadataNode? retired))
+            else
             {
-                candidateUri = GetIdentity(context, retired);
+                knownUri = retired?.NamespaceUri;
             }
 
-            return candidateUri != null && candidateUri != namespaceUri;
+            if (knownUri != null)
+            {
+                return knownUri == namespaceUri ? UnresolvedEntry.SameNamespace : UnresolvedEntry.OtherNamespace;
+            }
+
+            if (retired is not { IsIncomplete: true })
+            {
+                return UnresolvedEntry.Unknown;
+            }
+
+            string? hint = GetBrowseNameIdentity(context, node);
+            return hint == null || hint == namespaceUri ? UnresolvedEntry.Unknown : UnresolvedEntry.OtherNamespace;
         }
 
         /// <summary>
@@ -1402,13 +1502,29 @@ namespace Opc.Ua.Server
                 return namespaceUri;
             }
 
-            if (!metadata.IsIncomplete)
-            {
-                return null;
-            }
+            return metadata.IsIncomplete ? GetBrowseNameIdentity(context, metadata.Node) : null;
+        }
 
-            string? name = metadata.Node.BrowseName.Name;
+        /// <summary>
+        /// Returns the name of the BrowseName of <paramref name="node"/> when it is a namespace
+        /// URI registered in the server's <c>NamespaceArray</c>, otherwise <c>null</c>
+        /// (see <see cref="GetIdentity"/>).
+        /// </summary>
+        private static string? GetBrowseNameIdentity(ISystemContext context, NodeState node)
+        {
+            string? name = node.BrowseName.Name;
             return !string.IsNullOrEmpty(name) && context.NamespaceUris.GetIndex(name) >= 0 ? name : null;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when the <c>NamespaceUri</c> property of an untyped metadata
+        /// Object is present but holds no namespace URI yet, e.g. a property declared without a
+        /// value or not initialized yet: the namespace the Object describes is unknown.
+        /// </summary>
+        private static bool IsIdentityUnavailable(BaseVariableState? namespaceUri)
+        {
+            return namespaceUri != null &&
+                (!namespaceUri.Value.TryGetValue(out string? value) || string.IsNullOrEmpty(value));
         }
 
         /// <summary>
@@ -1497,6 +1613,9 @@ namespace Opc.Ua.Server
         // resolved again.
         private readonly ConcurrentDictionary<NodeId, NamespaceMetadataNode> m_stale = new();
         private int m_primeRequired;
+        // Moved, under m_lock, when remembered misses are dropped without an invalidation; a miss
+        // found by a lookup that started before is not remembered.
+        private long m_missEpoch;
         // Untyped metadata Objects resolved incomplete in the current generation, by node id, and
         // whether they are reference targets of Server/Namespaces; guarded by m_lock. The count is
         // read without the lock by every asynchronous lookup.
@@ -1506,6 +1625,8 @@ namespace Opc.Ua.Server
         private readonly HashSet<BaseObjectState> m_tracked = [];
         // Every default property subscribed per metadata node since its last replacement.
         private readonly Dictionary<BaseObjectState, HashSet<BaseVariableState>> m_trackedProperties = [];
+        // The generation in which an untyped metadata node last replaced its subscriptions.
+        private readonly Dictionary<BaseObjectState, long> m_replacedIn = [];
         private readonly Lock m_lock = new();
 
         /// <summary>
@@ -1519,6 +1640,28 @@ namespace Opc.Ua.Server
             new QualifiedName(BrowseNames.DefaultRolePermissions),
             new QualifiedName(BrowseNames.DefaultUserRolePermissions)
         ];
+
+        /// <summary>
+        /// How an untyped metadata Object that is not resolved yet relates to the namespace a
+        /// synchronous lookup is for (see <see cref="ClassifyUnresolved"/>).
+        /// </summary>
+        private enum UnresolvedEntry
+        {
+            /// <summary>
+            /// The Object is known to describe another namespace.
+            /// </summary>
+            OtherNamespace,
+
+            /// <summary>
+            /// The Object may describe the namespace.
+            /// </summary>
+            Unknown,
+
+            /// <summary>
+            /// The Object is known to describe the namespace.
+            /// </summary>
+            SameNamespace
+        }
     }
 
     internal static partial class NamespaceMetadataRegistryLog

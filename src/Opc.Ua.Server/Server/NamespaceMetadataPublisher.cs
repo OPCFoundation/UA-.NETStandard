@@ -67,7 +67,8 @@ namespace Opc.Ua.Server
     /// overwritten. An existing Object whose type definition is
     /// <c>NamespaceMetadataType</c> or a subtype is recognized even when it is
     /// not a <see cref="NamespaceMetadataState"/>, e.g. when an untyped NodeSet
-    /// import created it; such an Object is left untouched.
+    /// import created it; such an Object keeps its values and is only linked to
+    /// <c>Namespaces</c> when it is not browsable.
     /// </para>
     /// </remarks>
     public sealed class NamespaceMetadataPublisher
@@ -99,7 +100,9 @@ namespace Opc.Ua.Server
 
             Dictionary<string, ModelDependencyAttribute> models = CollectModelMetadata();
             string[] namespaceUris = m_server.NamespaceUris.ToArray();
-            var published = new List<NamespaceMetadataState>(namespaceUris.Length);
+
+            // every metadata Object, published or already provided, must be browsable.
+            var metadataNodeIds = new HashSet<NodeId>();
 
             for (int ii = 0; ii < namespaceUris.Length; ii++)
             {
@@ -125,7 +128,9 @@ namespace Opc.Ua.Server
 
                 if (metadata.TypedState is not NamespaceMetadataState typed)
                 {
-                    // an object the address space already provides is kept as is.
+                    // an object the address space already provides keeps its values, but is
+                    // linked like a published one when it is not browsable.
+                    metadataNodeIds.Add(metadata.Node.NodeId);
                     if (metadata.NamespaceUri == namespaceUri)
                     {
                         m_logger.NamespaceMetadataProvided((ushort)ii, namespaceUri);
@@ -144,11 +149,11 @@ namespace Opc.Ua.Server
                     ApplyModelMetadata(typed, model);
                 }
 
-                published.Add(typed);
+                metadataNodeIds.Add(typed.NodeId);
                 m_logger.NamespaceMetadataPublished((ushort)ii, namespaceUri);
             }
 
-            await LinkUnreachableMetadataAsync(published, cancellationToken).ConfigureAwait(false);
+            await LinkUnreachableMetadataAsync(metadataNodeIds, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -159,13 +164,14 @@ namespace Opc.Ua.Server
         /// because <c>Namespaces</c> lives in namespace 0 — the link has to be
         /// registered as a cross-manager reference instead. This runs after
         /// every metadata Object exists so nodes that are already reachable
-        /// are never linked twice.
+        /// are never linked twice. Objects the address space already
+        /// provided, e.g. untyped NodeSet imports, are linked the same way.
         /// </summary>
         private async ValueTask LinkUnreachableMetadataAsync(
-            List<NamespaceMetadataState> published,
+            HashSet<NodeId> metadataNodeIds,
             CancellationToken cancellationToken)
         {
-            if (published.Count == 0)
+            if (metadataNodeIds.Count == 0)
             {
                 return;
             }
@@ -174,9 +180,9 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
 
             var missing = new List<IReference>();
-            foreach (NamespaceMetadataState metadata in published)
+            foreach (NodeId metadataNodeId in metadataNodeIds)
             {
-                if (metadata.NodeId.IsNull || reachable.Contains(metadata.NodeId))
+                if (metadataNodeId.IsNull || reachable.Contains(metadataNodeId))
                 {
                     continue;
                 }
@@ -185,7 +191,7 @@ namespace Opc.Ua.Server
                 {
                     ReferenceTypeId = ReferenceTypeIds.HasComponent,
                     IsInverse = false,
-                    TargetId = metadata.NodeId
+                    TargetId = metadataNodeId
                 });
             }
 

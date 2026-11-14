@@ -1877,7 +1877,8 @@ because its node manager is still starting) and a default property is
 still missing, the namespace defaults are unknown: permission checks for
 that namespace fail closed until the target resolves, and the object is
 still never duplicated. The same holds while the object's `NamespaceUri`
-property cannot be resolved: the namespace the object describes is
+property cannot be resolved, or is present but holds no value yet: the
+namespace the object describes is
 unknown, so lookups of every namespace without its own metadata object
 fail closed and no metadata object is created for them until the
 property resolves. OPC 10000-5 §6.3.14 derives the BrowseName of such an
@@ -1900,7 +1901,8 @@ common for namespace metadata because `Server/Namespaces` is a namespace
 object may be created by another manager. Register the link as a
 cross-manager reference with `AddReferencesAsync` when the owner differs.
 `NamespaceMetadataPublisher` does this check automatically for metadata
-objects it creates.
+objects it creates and for existing metadata objects it keeps, such as an
+untyped NodeSet import, without changing their values.
 
 Servers that publish namespace metadata themselves can override
 `StandardServer.PublishNamespaceMetadataAsync` and either add custom

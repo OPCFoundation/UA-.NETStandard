@@ -1012,6 +1012,116 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [Test]
+        public async Task IncompleteLookupAfterCompleteLookupKeepsLivePropertySubscribedAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (_, PropertyState roles) = host.AddForeignUntypedMetadataNode(DeterministicServerMock.TestNamespaceUri);
+
+            // the first lookup of the property waits and then finds its node manager unavailable.
+            var lookup = new TaskCompletionSource<NodeState?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int lookups = 0;
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(roles.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => ++lookups == 1
+                    ? new ValueTask<NodeState?>(lookup.Task)
+                    : new ValueTask<NodeState?>(roles));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            int raised = 0;
+            registry.DefaultPermissionsChanged += (_, _) => raised++;
+
+            Task<NamespaceMetadataNode?> older = registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .AsTask();
+            Assert.That(older.IsCompleted, Is.False, "the older lookup waits for the property target");
+            NamespaceMetadataNode? complete = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+
+            // the older lookup completes incomplete in the same generation, without an invalidation.
+            lookup.SetResult(null);
+            NamespaceMetadataNode? incomplete = await older.ConfigureAwait(false);
+
+            roles.Value = Variant.FromStructure(NextPermissions());
+            roles.ClearChangeMasks(host.SystemContext, false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(complete?.IsIncomplete, Is.False);
+                Assert.That(complete?.DefaultRolePermissions, Is.SameAs(roles));
+                Assert.That(incomplete?.IsIncomplete, Is.True);
+                Assert.That(raised, Is.EqualTo(1), "the incomplete lookup keeps the live handler");
+            });
+        }
+
+        [Test]
+        public async Task NamespaceUriWithoutValueIsIndeterminateUntilInitializedAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri,
+                ObjectTypeIds.NamespaceMetadataType);
+            var namespaceUri = (PropertyState)untyped.FindChildWithQualifiedName(
+                host.SystemContext,
+                new QualifiedName(BrowseNames.NamespaceUri))!;
+            namespaceUri.Value = Variant.Null;
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+
+            NamespaceMetadataNode? indeterminate = await registry.GetNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            NamespaceMetadataNode? existing = await registry.GetOrCreateNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            bool known = registry.TryGetSnapshot(index, out _);
+            NamespaceDefaultPermissions blocked = NamespaceDefaultPermissionReader.Read(
+                host.SystemContext.Server, host.SystemContext, index);
+
+            // the NamespaceUri is initialized without any event the registry observes.
+            namespaceUri.Value = new Variant(DeterministicServerMock.TestNamespaceUri);
+            NamespaceMetadataNode? resolved = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            bool knownAfterInitialization = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(indeterminate?.Node, Is.SameAs(untyped), "the object may describe the namespace");
+                Assert.That(indeterminate?.IsIncomplete, Is.True);
+                Assert.That(existing?.Node, Is.SameAs(untyped));
+                Assert.That(host.RegisteredNodes, Is.Empty, "no replacement is created");
+                Assert.That(known, Is.False, "the synchronous lookup stays indeterminate");
+                Assert.That(blocked.Status, Is.EqualTo(StatusCodes.BadWouldBlock));
+                Assert.That(resolved?.Node, Is.SameAs(untyped), "no miss was cached");
+                Assert.That(resolved?.IsIncomplete, Is.False);
+                Assert.That(knownAfterInitialization, Is.True);
+                Assert.That(snapshot?.Node, Is.SameAs(untyped));
+            });
+        }
+
+        [Test]
+        public async Task UnresolvedChildOfUnknownNamespaceBeforeExactMatchDoesNotBlockSnapshotAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+
+            // an untyped child of unknown namespace whose properties are only linked by reference,
+            // followed by the metadata of the test namespace.
+            (BaseObjectState pending, _) = host.AddForeignUntypedMetadataNode("urn:pending", asChild: true);
+            pending.BrowseName = new QualifiedName("PendingMetadata", host.NamespaceIndex);
+            NamespaceMetadataState own = host.AddMetadataNode(DeterministicServerMock.TestNamespaceUri);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(
+                DeterministicServerMock.TestNamespaceUri);
+            ushort unrelated = host.SystemContext.Server.NamespaceUris.GetIndexOrAppend("urn:unrelated");
+
+            bool known = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+            bool unrelatedKnown = registry.TryGetSnapshot(unrelated, out _);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(known, Is.True, "an exact match after the unresolved child answers");
+                Assert.That(snapshot?.TypedState, Is.SameAs(own));
+                Assert.That(unrelatedKnown, Is.False, "without an exact match the unresolved child may hold it");
+            });
+        }
+
         /// <summary>
         /// Answers the synchronous metadata lookups of the reader for the test namespace from
         /// <paramref name="registry"/> and returns the test namespace index.
