@@ -112,53 +112,104 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         [Test]
         [CancelAfter(10000)]
-        public async Task ScopeDefersAtMostSixteenCompletionsAsync()
+        public async Task LaterCompletionCompletesTheHeldOneOnThePoolAsync()
         {
-            var operations = new ChannelAsyncOperation<int>[17];
-            var waits = new ValueTask[operations.Length];
-            for (int ii = 0; ii < operations.Length; ii++)
-            {
-                operations[ii] = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
-                // each wait is awaited once, below
-#pragma warning disable CA2012
-                waits[ii] = operations[ii].WaitForCompletionAsync(CancellationToken.None);
-#pragma warning restore CA2012
-            }
+            using var first = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
+            using var second = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
+            Task<int> firstWaiter = ContinuationThreadAsync(first.WaitForCompletionAsync(CancellationToken.None));
+            Task<int> secondWaiter = ContinuationThreadAsync(second.WaitForCompletionAsync(CancellationToken.None));
+
+            ResponseContinuationDeferral.Enter();
             try
+            {
+                first.Complete(true, 1);
+                second.Complete(true, 2);
+            }
+            finally
+            {
+                ResponseContinuationDeferral.Exit();
+            }
+
+            // the first completes on the pool without the loop suspending; waited for on
+            // this thread, which holds the second
+            Assert.That(firstWaiter.Wait(TimeSpan.FromSeconds(5)), Is.True);
+            Assert.That(secondWaiter.IsCompleted, Is.False, "the latest completion is held");
+
+            ResponseContinuationDeferral.CompletePending(inline: true);
+            Assert.That(secondWaiter.IsCompleted, Is.True);
+            Assert.That(await secondWaiter.ConfigureAwait(false), Is.EqualTo(Environment.CurrentManagedThreadId));
+        }
+
+        [Test]
+        [CancelAfter(10000)]
+        public async Task HeldCompletionGoesToThePoolAfterFourMoreChunksAsync()
+        {
+            using var operation = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
+            Task<int> waiter = ContinuationThreadAsync(operation.WaitForCompletionAsync(CancellationToken.None));
+
+            ResponseContinuationDeferral.Enter();
+            try
+            {
+                operation.Complete(true, 7);
+            }
+            finally
+            {
+                ResponseContinuationDeferral.Exit();
+            }
+
+            // chunks without responses, received without the loop suspending
+            for (int ii = 0; ii < 4; ii++)
+            {
+                ResponseContinuationDeferral.Enter();
+                ResponseContinuationDeferral.Exit();
+            }
+            Assert.That(waiter.IsCompleted, Is.False, "held while the loop dispatches four more chunks");
+
+            ResponseContinuationDeferral.Enter();
+            ResponseContinuationDeferral.Exit();
+            await waiter.ConfigureAwait(false);
+            Assert.That(operation.End(0), Is.EqualTo(7));
+            ResponseContinuationDeferral.CompletePending(inline: true);
+        }
+
+        /// <summary>
+        /// Two responses in a row: the continuation of the first blocks until the second
+        /// request completes, which must not wait for the blocked thread.
+        /// </summary>
+        [Test]
+        [CancelAfter(20000)]
+        public async Task ContinuationBlockingOnTheNextResponseDoesNotDeadlockAsync()
+        {
+            using var first = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
+            using var second = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
+            var receive = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<int> secondWaiter = ContinuationThreadAsync(second.WaitForCompletionAsync(CancellationToken.None));
+            Task<bool> firstCaller = BlockOnAsync(first.WaitForCompletionAsync(CancellationToken.None), secondWaiter);
+
+            Task<int> loop = Task.Run(async () =>
             {
                 ResponseContinuationDeferral.Enter();
                 try
                 {
-                    foreach (ChannelAsyncOperation<int> operation in operations)
-                    {
-                        operation.Complete(true, 1);
-                    }
+                    first.Complete(true, 1);
+                    second.Complete(true, 2);
                 }
                 finally
                 {
                     ResponseContinuationDeferral.Exit();
                 }
+                return await ResponseContinuationDeferral.AwaitAndComplete(new ValueTask<int>(receive.Task));
+            });
 
-                for (int ii = 0; ii < 16; ii++)
-                {
-                    Assert.That(waits[ii].IsCompleted, Is.False, $"wait {ii} is deferred");
-                }
-                Assert.That(waits[16].IsCompleted, Is.True, "the 17th completion is not deferred");
+            Assert.That(await firstCaller.ConfigureAwait(false), Is.True, "the second response completed");
+            receive.SetResult(1);
+            Assert.That(await loop.ConfigureAwait(false), Is.EqualTo(1));
+        }
 
-                ResponseContinuationDeferral.CompletePending(inline: true);
-                foreach (ValueTask wait in waits)
-                {
-                    Assert.That(wait.IsCompleted, Is.True);
-                    await wait.ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                foreach (ChannelAsyncOperation<int> operation in operations)
-                {
-                    operation.Dispose();
-                }
-            }
+        private static async Task<bool> BlockOnAsync(ValueTask wait, Task other)
+        {
+            await wait.ConfigureAwait(false);
+            return other.Wait(TimeSpan.FromSeconds(5));
         }
 
         /// <summary>

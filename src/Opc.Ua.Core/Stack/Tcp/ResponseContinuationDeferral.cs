@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -64,26 +63,41 @@ namespace Opc.Ua.Bindings
     /// (UnfairSemaphoreSpinLimit 70 to 1024 backoff units).
     /// </para>
     /// <para>
-    /// The receive loop defers the completions instead and runs them where its thread
-    /// would have run the queued items: after the loop registered its continuation on a
+    /// The receive loop defers the completion instead and runs it where its thread
+    /// would have run the queued item: after the loop registered its continuation on a
     /// receive (or another wait) that went pending. The loop then no longer depends on
     /// the thread, so a caller's continuation that blocks it cannot stall the receive
-    /// loop, as with a pool thread today. A completion that would exceed
-    /// <see cref="kMaxPending"/> deferred ones is not deferred.
+    /// loop, as with a pool thread today.
+    /// </para>
+    /// <para>
+    /// A thread holds at most one deferred completion. A later response completes the
+    /// one held before it on the pool, as without deferral: a continuation run inline
+    /// may block until another of its requests completes, and that one must not wait
+    /// for the blocked thread. The held completion also goes to the pool once the loop
+    /// dispatched <see cref="kMaxDeferredChunks"/> more chunks without its receive going
+    /// pending, so a busy channel does not hold a response back.
     /// </para>
     /// </remarks>
     internal static class ResponseContinuationDeferral
     {
         /// <summary>
-        /// The most completions one receive loop defers; later ones complete at once.
+        /// How many more chunks a receive loop dispatches while it holds a completion
+        /// before it completes it on the pool.
         /// </summary>
-        private const int kMaxPending = 16;
+        private const int kMaxDeferredChunks = 4;
 
         /// <summary>
-        /// Opens a scope in which completed waits are deferred.
+        /// Opens a scope in which a completed wait is deferred.
         /// </summary>
+        /// <remarks>
+        /// Called by the receive loop before it dispatches a chunk, while it holds no lock.
+        /// </remarks>
         public static void Enter()
         {
+            if (t_pending != null && ++t_deferredChunks > kMaxDeferredChunks)
+            {
+                CompletePending(inline: false);
+            }
             t_depth++;
         }
 
@@ -96,8 +110,13 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Defers the completion of a wait, when the calling thread is in a scope.
+        /// Defers the completion of a wait, when the calling thread is in a scope. A
+        /// completion deferred before completes on the pool.
         /// </summary>
+        /// <remarks>
+        /// The caller may hold locks: a completion on the pool only queues the
+        /// continuation.
+        /// </remarks>
         /// <returns><see langword="false"/> if the caller must complete the wait.</returns>
         public static bool TryDefer(IDeferredWaitCompletion wait)
         {
@@ -105,49 +124,54 @@ namespace Opc.Ua.Bindings
             {
                 return false;
             }
-            List<IDeferredWaitCompletion> pending = t_pending ??= [];
-            if (pending.Count >= kMaxPending)
-            {
-                return false;
-            }
-            pending.Add(wait);
+            IDeferredWaitCompletion? previous = t_pending;
+            t_pending = wait;
+            t_deferredChunks = 0;
+            previous?.CompleteDeferredWait(inline: false);
             return true;
         }
 
         /// <summary>
-        /// Completes the deferred waits of this thread.
+        /// Completes the wait deferred on this thread, if any.
         /// </summary>
-        /// <param name="inline">Whether their continuations run on this thread; only
-        /// when the thread holds no lock and nothing waits for it to return.</param>
+        /// <param name="inline">Whether its continuation runs on this thread; only when
+        /// the thread holds no lock and nothing waits for it to return.</param>
         public static void CompletePending(bool inline)
         {
-            List<IDeferredWaitCompletion>? pending = t_pending;
-            if (pending == null || pending.Count == 0)
+            IDeferredWaitCompletion? pending = t_pending;
+            if (pending == null)
             {
                 return;
             }
+            t_pending = null;
             int depth = t_depth;
             t_depth = 0;
             try
             {
-                // in the order the responses arrived
-                for (int ii = 0; ii < pending.Count; ii++)
-                {
-                    IDeferredWaitCompletion wait = pending[ii];
-                    pending[ii] = null!;
-                    wait.CompleteDeferredWait(inline);
-                }
+                pending.CompleteDeferredWait(inline);
             }
             finally
             {
-                pending.Clear();
                 t_depth = depth;
             }
         }
 
         /// <summary>
+        /// Completes the deferred wait inline once the awaiting receive loop suspended,
+        /// unless the loop ran inside the dispatch of another loop on this thread, which
+        /// may hold locks: that loop completes it when it suspends.
+        /// </summary>
+        private static void CompleteOnSuspended()
+        {
+            if (t_depth == 0)
+            {
+                CompletePending(inline: true);
+            }
+        }
+
+        /// <summary>
         /// Awaits <paramref name="task"/> and, if it goes pending, completes the deferred
-        /// waits on this thread once the continuation is registered.
+        /// wait on this thread once the continuation is registered.
         /// </summary>
         public static CompleteOnSuspend AwaitAndComplete(ValueTask task)
         {
@@ -156,7 +180,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Awaits <paramref name="task"/> and, if it goes pending, completes the deferred
-        /// waits on this thread once the continuation is registered.
+        /// wait on this thread once the continuation is registered.
         /// </summary>
         /// <typeparam name="T">The result type.</typeparam>
         public static CompleteOnSuspend<T> AwaitAndComplete<T>(ValueTask<T> task)
@@ -166,7 +190,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Awaits a value task; when the awaiting method suspends, its continuation is
-        /// registered first, then the deferred waits complete inline.
+        /// registered first, then the deferred wait completes inline.
         /// </summary>
         internal readonly struct CompleteOnSuspend : ICriticalNotifyCompletion
         {
@@ -192,19 +216,19 @@ namespace Opc.Ua.Bindings
             public void OnCompleted(Action continuation)
             {
                 m_task.ConfigureAwait(false).GetAwaiter().OnCompleted(continuation);
-                CompletePending(inline: true);
+                CompleteOnSuspended();
             }
 
             public void UnsafeOnCompleted(Action continuation)
             {
                 m_task.ConfigureAwait(false).GetAwaiter().UnsafeOnCompleted(continuation);
-                CompletePending(inline: true);
+                CompleteOnSuspended();
             }
         }
 
         /// <summary>
         /// Awaits a value task; when the awaiting method suspends, its continuation is
-        /// registered first, then the deferred waits complete inline.
+        /// registered first, then the deferred wait completes inline.
         /// </summary>
         /// <typeparam name="T">The result type.</typeparam>
         internal readonly struct CompleteOnSuspend<T> : ICriticalNotifyCompletion
@@ -231,18 +255,21 @@ namespace Opc.Ua.Bindings
             public void OnCompleted(Action continuation)
             {
                 m_task.ConfigureAwait(false).GetAwaiter().OnCompleted(continuation);
-                CompletePending(inline: true);
+                CompleteOnSuspended();
             }
 
             public void UnsafeOnCompleted(Action continuation)
             {
                 m_task.ConfigureAwait(false).GetAwaiter().UnsafeOnCompleted(continuation);
-                CompletePending(inline: true);
+                CompleteOnSuspended();
             }
         }
 
         [ThreadStatic]
-        private static List<IDeferredWaitCompletion>? t_pending;
+        private static IDeferredWaitCompletion? t_pending;
+
+        [ThreadStatic]
+        private static int t_deferredChunks;
 
         [ThreadStatic]
         private static int t_depth;
