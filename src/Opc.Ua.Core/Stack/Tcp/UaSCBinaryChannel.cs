@@ -1418,62 +1418,87 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Receives and dispatches chunks while the transport remains current, reporting receive and dispatch failures.
         /// </summary>
+        /// <remarks>
+        /// The requests that the received responses complete continue once the loop waits:
+        /// every wait of the loop that goes pending runs them on the loop's thread (see
+        /// <see cref="ResponseContinuationDeferral"/>).
+        /// </remarks>
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
         {
-            while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
+            try
             {
-                ArraySegment<byte> chunk;
-                try
+                while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
                 {
-                    // backpressure: do not read more requests while their responses
-                    // cannot be written; the peer's sends block in TCP flow control.
-                    await WaitForWriteCapacityAsync(ct).ConfigureAwait(false);
-                    chunk = await transport.ReceiveChunkAsync(ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (ServiceResultException sre)
-                {
-                    OnTransportError(transport, sre.Result, ct);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    OnTransportError(transport, ServiceResult.Create(
-                        ex,
-                        StatusCodes.BadTcpInternalError,
-                        ex.Message), ct);
-                    return;
-                }
+                    ArraySegment<byte> chunk;
+                    try
+                    {
+                        // backpressure: do not read more requests while their responses
+                        // cannot be written; the peer's sends block in TCP flow control.
+                        await ResponseContinuationDeferral.AwaitAndComplete(WaitForWriteCapacityAsync(ct));
+                        chunk = await ResponseContinuationDeferral.AwaitAndComplete(transport.ReceiveChunkAsync(ct));
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        OnTransportError(transport, sre.Result, ct);
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        OnTransportError(transport, ServiceResult.Create(
+                            ex,
+                            StatusCodes.BadTcpInternalError,
+                            ex.Message), ct);
+                        return;
+                    }
 
-                if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
-                {
-                    BufferManager.ReturnBuffer(chunk.Array, nameof(RunReceiveLoopAsync));
-                    return;
-                }
+                    if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+                    {
+                        BufferManager.ReturnBuffer(chunk.Array, nameof(RunReceiveLoopAsync));
+                        return;
+                    }
 
-                try
-                {
-                    await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
+                    try
+                    {
+                        // the responses in the chunk defer the continuations of their requests
+                        ValueTask dispatch;
+                        ResponseContinuationDeferral.Enter();
+                        try
+                        {
+                            dispatch = OnChunkReceivedAsync(chunk, ct);
+                        }
+                        finally
+                        {
+                            ResponseContinuationDeferral.Exit();
+                        }
+                        await ResponseContinuationDeferral.AwaitAndComplete(dispatch);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Dispatching a chunk must never end the loop silently. The
+                        // task this runs on is fire-and-forget, so an escaping
+                        // exception would otherwise stop the channel receiving with no
+                        // report at all, and the peer would simply time out.
+                        OnTransportError(transport, ServiceResult.Create(
+                            ex,
+                            StatusCodes.BadTcpInternalError,
+                            "An error occurred dispatching a received message."), ct);
+                        return;
+                    }
                 }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    // Dispatching a chunk must never end the loop silently. The
-                    // task this runs on is fire-and-forget, so an escaping
-                    // exception would otherwise stop the channel receiving with no
-                    // report at all, and the peer would simply time out.
-                    OnTransportError(transport, ServiceResult.Create(
-                        ex,
-                        StatusCodes.BadTcpInternalError,
-                        "An error occurred dispatching a received message."), ct);
-                    return;
-                }
+            }
+            finally
+            {
+                // A completion deferred by the last chunk goes to the pool. The loop ends
+                // on the thread that dispatched that chunk, which holds the completion.
+                ResponseContinuationDeferral.CompletePending(inline: false);
             }
         }
 
