@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -47,7 +48,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 2,
+      "default": 2,
       "links": [
         {
           "href": "i=68",
@@ -315,6 +316,7 @@
         "browseName": "1:WaitingForConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "WaitingForConfirm"
           }
         ],
@@ -349,10 +351,12 @@
         "typeDefinition": "i=2307"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],

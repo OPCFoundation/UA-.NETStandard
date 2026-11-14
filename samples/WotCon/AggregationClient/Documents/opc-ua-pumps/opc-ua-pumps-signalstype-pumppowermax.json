@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -237,6 +238,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=9038"
@@ -267,6 +269,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=9175"
@@ -353,6 +356,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=9038"
@@ -383,6 +387,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=9175"
@@ -617,11 +622,13 @@
         "browseName": "1:PumpPowerMax",
         "description": [
           {
+            "locale": "",
             "value": "This element serves a feedback of pump operating at maximum power."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpPowerMax"
           }
         ],
@@ -659,15 +666,18 @@
         "typeDefinition": "ns=1;i=1030"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DiscreteInputValue",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property contains the actual value of the discrete input unit."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DiscreteInputValue"
           }
         ],
@@ -705,10 +715,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -734,10 +746,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -763,10 +777,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -792,15 +808,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OnOffCycle",
         "dataType": "UInt32",
         "description": [
           {
+            "locale": "",
             "value": "This property contains the total number of transitions of the value from the Off to the On state."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OnOffCycle"
           }
         ],
@@ -838,10 +857,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -867,10 +888,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -896,10 +919,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -925,15 +950,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Status",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property contains the actual status of the element."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Status"
           }
         ],
@@ -971,10 +999,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1000,10 +1030,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -1029,10 +1061,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],

@@ -1272,7 +1272,7 @@ Every tool-bearing library keeps its MCP tool classes and partials in `Tools/`;
 registration, configuration and supporting services stay outside that folder.
 Folder placement does not change public namespaces or tool names.
 
-The libraries multi-target `net8.0;net9.0;net10.0;net11.0`; the executable targets
+The libraries multi-target `net10.0;net11.0`; the executable targets
 `net10.0` and `net11.0`. `Mcp.Robotics`, `Mcp.CranesHoists`, `Mcp.Positioning`,
 `Mcp.WotCon` and `Mcp.XRegistry` remain preview-only, including their Debug
 variants, because they depend on preview-only package families.

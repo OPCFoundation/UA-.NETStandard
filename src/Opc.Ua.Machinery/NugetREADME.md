@@ -32,7 +32,7 @@ typed client access use `Opc.Ua.Machinery.Client`.
 
 ## Target frameworks
 
-net48, net8.0, net9.0, net10.0
+net48, net10.0, net11.0
 
 ## Additional documentation
 

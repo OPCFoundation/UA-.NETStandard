@@ -2215,12 +2215,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the event field list of this item for event field values.
         /// </summary>
+        /// <remarks>
+        /// The list is allocated, not rented from a pool: a pool bound that covers the
+        /// lists in flight (about two publishing cycles of events per item) costs more CPU
+        /// per event than the allocation it saves, and a smaller bound misses most of the
+        /// time (issue #4819).
+        /// </remarks>
         private EventFieldList CreateEventFieldList(IFilterTarget instance, Variant[] eventFieldValues)
         {
-            var result = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
-            result.ClientHandle = ClientHandle;
-            result.Handle = instance;
-            result.EventFields = eventFieldValues;
+            var result = new EventFieldList
+            {
+                ClientHandle = ClientHandle,
+                Handle = instance,
+                EventFields = eventFieldValues
+            };
             m_server.EventManager?.RegisterEventFields(result, instance);
             return result;
         }

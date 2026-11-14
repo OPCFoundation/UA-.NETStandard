@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -76,6 +77,7 @@
       "observable": true,
       "readOnly": true,
       "title": "ErrorMessage",
+      "type": "string",
       "uav:browseName": "ns1:ErrorMessage",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=151",
       "uav:mapToType": "i=21",
@@ -357,6 +359,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PackageLoadingType"
           }
         ],
@@ -390,10 +393,12 @@
         "superType": "ns=1;i=135"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ErrorMessage",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "ErrorMessage"
           }
         ],
@@ -419,10 +424,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:WriteBlockSize",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "WriteBlockSize"
           }
         ],

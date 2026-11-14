@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -70,7 +71,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 12,
+      "default": 12,
       "links": [
         {
           "href": "i=68",
@@ -338,6 +339,7 @@
         "browseName": "1:IdleToInstalling",
         "displayName": [
           {
+            "locale": "",
             "value": "IdleToInstalling"
           }
         ],
@@ -386,10 +388,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],

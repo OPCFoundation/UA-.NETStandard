@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -44,6 +45,7 @@
       "output": {
         "properties": {
           "DirectoryNodeId": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           }
@@ -102,6 +104,7 @@
             "uav:valueRank": -1
           },
           "FileNodeId": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           }
@@ -133,6 +136,7 @@
       "input": {
         "properties": {
           "ObjectToDelete": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           }
@@ -172,10 +176,12 @@
             "uav:valueRank": -1
           },
           "ObjectToMoveOrCopy": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           },
           "TargetDirectory": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           }
@@ -198,6 +204,7 @@
       "output": {
         "properties": {
           "NewNodeId": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           }
@@ -474,6 +481,7 @@
         "browseName": "FileSystem",
         "displayName": [
           {
+            "locale": "",
             "value": "FileSystem"
           }
         ],
@@ -518,6 +526,7 @@
         "browseName": "CreateDirectory",
         "displayName": [
           {
+            "locale": "",
             "value": "CreateDirectory"
           }
         ],
@@ -552,6 +561,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -584,6 +594,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -614,6 +625,7 @@
         "browseName": "CreateFile",
         "displayName": [
           {
+            "locale": "",
             "value": "CreateFile"
           }
         ],
@@ -648,6 +660,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -680,6 +693,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -710,6 +724,7 @@
         "browseName": "Delete",
         "displayName": [
           {
+            "locale": "",
             "value": "Delete"
           }
         ],
@@ -741,6 +756,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -771,6 +787,7 @@
         "browseName": "MoveOrCopy",
         "displayName": [
           {
+            "locale": "",
             "value": "MoveOrCopy"
           }
         ],
@@ -805,6 +822,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -837,6 +855,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],

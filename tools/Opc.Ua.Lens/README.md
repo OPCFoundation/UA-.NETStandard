@@ -307,7 +307,7 @@ enabled and build each supported desktop TFM; the normal warning-as-error
 settings make new obsolete calls visible:
 
 ```powershell
-foreach ($tfm in @('net8.0', 'net9.0', 'net10.0')) {
+foreach ($tfm in @('net10.0', 'net11.0')) {
     dotnet build tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj -c Release -f $tfm -p:CustomTestTarget=$tfm -m:2 --nologo
     if ($LASTEXITCODE -ne 0) { throw "Desktop build failed: $tfm" }
 }

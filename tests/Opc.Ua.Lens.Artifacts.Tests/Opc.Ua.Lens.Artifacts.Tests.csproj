@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net11.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <IsTestProject>true</IsTestProject>

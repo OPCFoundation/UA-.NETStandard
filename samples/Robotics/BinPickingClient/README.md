@@ -51,7 +51,7 @@ the sample opened. The Vision and Robotics tools share the connection, so an
 agent that captures a frame and submits a `Pick` is observing and commanding the
 same cell.
 
-MCP hosting is compiled for `net8.0`, `net9.0`, and `net10.0`. It is unavailable
+MCP hosting is compiled for `net10.0` and `net11.0`. It is unavailable
 on `net48`; running that leg with `--mcp` reports the limitation on stderr.
 Without `--mcp`, the sample continues to run on every framework it builds for.
 

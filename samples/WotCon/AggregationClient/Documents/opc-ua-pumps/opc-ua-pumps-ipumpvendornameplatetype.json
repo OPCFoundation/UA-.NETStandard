@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -585,6 +586,7 @@
         "browseName": "1:IPumpVendorNameplateType",
         "displayName": [
           {
+            "locale": "",
             "value": "IPumpVendorNameplateType"
           }
         ],
@@ -647,15 +649,18 @@
         "superType": "ns=2;i=1010"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ArticleNumber",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Alphanumeric character sequence identifying a manufactured, non-configurable product."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ArticleNumber"
           }
         ],
@@ -682,15 +687,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:CountryOfOrigin",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Country in which the product is manufactured."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CountryOfOrigin"
           }
         ],
@@ -716,15 +724,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DayOfConstruction",
         "dataType": "Int32",
         "description": [
           {
+            "locale": "",
             "value": "The optional DayOfConstrucition provides the day of the month in which the manufacturing process of the machine has been completed. It shall be a number and never change during the life-cycle of a machine."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DayOfConstruction"
           }
         ],
@@ -750,15 +761,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:FabricationNumber",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Alphanumeric character sequence assigned to a fabricated product, which allows the date, time and circumstances of fabrication to be traced."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FabricationNumber"
           }
         ],
@@ -784,15 +798,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:GTINCode",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Bar code number that identifies the device based on the Global Trade Item Number system."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "GTINCode"
           }
         ],
@@ -818,15 +835,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NationalStockNumber",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "13-digit numeric code, identifying all 'standardized material items of supply' as recognized by the United States Department of Defense."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NationalStockNumber"
           }
         ],
@@ -852,15 +872,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OrderProductCode",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Unique combination of numbers and letters used to order the device."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OrderProductCode"
           }
         ],
@@ -887,15 +910,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:PhysicalAddress",
         "dataType": "PhysicalAddressDataType",
         "description": [
           {
+            "locale": "",
             "value": "Physical address of the manufacturer."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PhysicalAddress"
           }
         ],
@@ -922,15 +948,18 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>ns=1;i=5017</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <PhysicalAddressDataType xmlns=\"http://opcfoundation.org/UA/Pumps/Types.xsd\">\n            <EncodingMask>0</EncodingMask>\n          </PhysicalAddressDataType>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Supplier",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Name of the supplier or vendor of a device."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Supplier"
           }
         ],
@@ -956,15 +985,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TypeOfProduct",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Characterization of the device based on its usage, operation principle, and its fabricated form."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TypeOfProduct"
           }
         ],

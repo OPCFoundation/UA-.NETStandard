@@ -36,8 +36,8 @@ read provenance and trust-boundary metadata. They can also invoke `Invoke` or
 | `OPCFoundation.NetStandard.Opc.Ua.AI.Client` | `AIClient`, `AIClientFactory` and `AddAIClient()` DI registration | `Opc.Ua.AI`, `Opc.Ua.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.AI.Inference` | `IInferenceBackend`, `ChatClientInferenceBackend`, `RestChatCompletionsBackend`, credential resolvers and backend options | `Opc.Ua.AI`, `Microsoft.Extensions.AI` |
 
-The AI libraries target modern .NET TFMs used by the sample (`net8.0`,
-`net9.0` and `net10.0`). The inference assembly intentionally has no Azure,
+The AI libraries target modern .NET TFMs used by the sample (`net10.0`
+and `net11.0`). The inference assembly intentionally has no Azure,
 OpenAI or other vendor SDK dependency.
 
 ## Model

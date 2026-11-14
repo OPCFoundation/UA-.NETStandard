@@ -653,16 +653,27 @@ namespace Opc.Ua.Redundancy.Server
             SharedSessionEntry entry,
             CancellationToken cancellationToken)
         {
-            TrackLocalSession(session.Id, authenticationToken, entry.SessionTimeout);
-
+            // The ownership is recorded before the session is tracked here. A tracked
+            // session is visible to the liveness refresh, which drops (closes) a local
+            // copy whose entry still names another owner; tracking first lets a slow
+            // ownership write (a shared store that is still electing a leader after the
+            // previous owner failed) close the session this restore just activated.
             // A failure to record the ownership is only logged, the activation is valid.
+            DateTime? mirroredContact = null;
             try
             {
-                await TakeOwnershipAsync(entry, session.Id, cancellationToken).ConfigureAwait(false);
+                mirroredContact = await TakeOwnershipAsync(entry, session.Id, cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 m_logger.FailedToMirrorActivatedSessionToSharedStore(ex);
+            }
+
+            TrackLocalSession(session.Id, authenticationToken, entry.SessionTimeout);
+            if (mirroredContact.HasValue)
+            {
+                MarkContactMirrored(authenticationToken, mirroredContact.Value);
             }
 
             if (session is Session restoredSession)
@@ -1057,7 +1068,11 @@ namespace Opc.Ua.Redundancy.Server
         /// Records this replica as the owner of a restored session, with the SessionId
         /// it was restored under, after its first activation passed validation.
         /// </summary>
-        private async ValueTask TakeOwnershipAsync(
+        /// <returns>
+        /// The client contact time the shared entry now carries, or <c>null</c> when the
+        /// ownership could not be recorded.
+        /// </returns>
+        private async ValueTask<DateTime?> TakeOwnershipAsync(
             SharedSessionEntry restoredFrom,
             NodeId sessionId,
             CancellationToken cancellationToken)
@@ -1077,8 +1092,7 @@ namespace Opc.Ua.Redundancy.Server
                         SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion
                     };
                     await m_sessionStore.PutAsync(recreated, cancellationToken).ConfigureAwait(false);
-                    MarkContactMirrored(recreated.AuthenticationToken, recreated.LastContactAt.ToDateTime());
-                    return;
+                    return recreated.LastContactAt.ToDateTime();
                 }
 
                 SharedSessionEntry updated = current with
@@ -1093,8 +1107,7 @@ namespace Opc.Ua.Redundancy.Server
                 };
                 if (await m_sessionStore.TryReplaceAsync(current, updated, cancellationToken).ConfigureAwait(false))
                 {
-                    MarkContactMirrored(updated.AuthenticationToken, updated.LastContactAt.ToDateTime());
-                    return;
+                    return updated.LastContactAt.ToDateTime();
                 }
 
                 current = await m_sessionStore
@@ -1103,6 +1116,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             m_logger.MirroredSessionUpdateConflicted(TokenDigest(restoredFrom.AuthenticationToken));
+            return null;
         }
 
         /// <summary>

@@ -69,15 +69,15 @@ This document starts with the bindings that ship today and how to register them,
 
 | Project, assembly, or namespace | Contents | Availability and dependencies |
 | --- | --- | --- |
-| `src/Opc.Ua.WotCon.Bindings` / `Opc.Ua.WotCon.Bindings` | Stable interfaces, plan model, codecs, the eight planner/validator binders, and registry. No sample binding ships in this library. | Base package `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`; full `net48;net8.0;net9.0;net10.0` matrix. |
-| `Opc.Ua.WotCon.Bindings.Http` | HTTP executor and options, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; `HttpClient`. |
-| `Opc.Ua.WotCon.Bindings.Modbus` | Modbus TCP client, executor, addressing, and conversion, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; sockets only. |
-| `Opc.Ua.WotCon.Bindings.OpcUa` | OPC UA-to-OPC UA executor and options, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; `Opc.Ua.Client`. |
-| `src/Opc.Ua.WotCon.Bindings.Mqtt` / `Opc.Ua.WotCon.Bindings.Mqtt` | MQTT executor and options | Separate `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt` package for `net8.0`, `net9.0`, and `net10.0`; MQTTnet. |
+| `src/Opc.Ua.WotCon.Bindings` / `Opc.Ua.WotCon.Bindings` | Stable interfaces, plan model, codecs, the eight planner/validator binders, and registry. No sample binding ships in this library. | Base package `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`; full `net48;net10.0;net11.0` matrix. |
+| `Opc.Ua.WotCon.Bindings.Http` | HTTP executor and options, included in the base Bindings package | `net10.0` and `net11.0`; `HttpClient`. |
+| `Opc.Ua.WotCon.Bindings.Modbus` | Modbus TCP client, executor, addressing, and conversion, included in the base Bindings package | `net10.0` and `net11.0`; sockets only. |
+| `Opc.Ua.WotCon.Bindings.OpcUa` | OPC UA-to-OPC UA executor and options, included in the base Bindings package | `net10.0` and `net11.0`; `Opc.Ua.Client`. |
+| `src/Opc.Ua.WotCon.Bindings.Mqtt` / `Opc.Ua.WotCon.Bindings.Mqtt` | MQTT executor and options | Separate `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt` package for `net10.0` and `net11.0`; MQTTnet. |
 | `Opc.Ua.WotCon.Server` | Materialization coordinator integration | References `Opc.Ua.WotCon.Bindings` only. |
 | `samples/WotCon` | Runnable sample guide plus `AggregationClient`, `AggregationServer`, and `FlatTagServer` projects. `AggregationServer/Bindings/MemoryWotBinding.cs` is a reference custom binding only. | Sample applications; the memory binding is deliberately not registered in the sample host. |
 
-The base Bindings package keeps its full TFM matrix, but its concrete HTTP, Modbus, and OPC UA executor namespaces are compiled only for `net8.0`, `net9.0`, and `net10.0`. MQTT remains separate because it carries an optional external transport dependency. Planner-only use therefore remains available on every base-package TFM. The WoT samples now live under `samples/WotCon`; their project, assembly, and namespace names are `AggregationClient`, `AggregationServer`, and `FlatTagServer` without a `Wot` prefix. The sample guide is [`samples/WotCon/README.md`](../samples/WotCon/README.md).
+The base Bindings package keeps its full TFM matrix, but its concrete HTTP, Modbus, and OPC UA executor namespaces are compiled only for `net10.0` and `net11.0`. MQTT remains separate because it carries an optional external transport dependency. Planner-only use therefore remains available on every base-package TFM. The WoT samples now live under `samples/WotCon`; their project, assembly, and namespace names are `AggregationClient`, `AggregationServer`, and `FlatTagServer` without a `Wot` prefix. The sample guide is [`samples/WotCon/README.md`](../samples/WotCon/README.md).
 
 The plural `Bindings` name is part of every current artifact and namespace. Do not add new references to the retired singular `Opc.Ua.WotCon.Binding*` names.
 
@@ -123,14 +123,14 @@ Eight planner/validator binders ship in `Opc.Ua.WotCon.Bindings` (`WotBuiltInBin
 
 | Binding | Id | Pinned source | Maturity | Executable |
 | --- | --- | --- | --- | --- |
-| HTTP | `w3c.http` | W3C TD 1.1 (normative HTTP mapping) | REC | yes (`Opc.Ua.WotCon.Bindings.Http`, bundled on net8+) |
+| HTTP | `w3c.http` | W3C TD 1.1 (normative HTTP mapping) | REC | yes (`Opc.Ua.WotCon.Bindings.Http`, bundled on net10+) |
 | CoAP | `w3c.coap` | W3C Binding Templates CoAP | Editor's Draft | planner only |
 | MQTT | `w3c.mqtt` | W3C Binding Templates MQTT | Editor's Draft | yes (`Opc.Ua.WotCon.Bindings.Mqtt`, separate package) |
-| Modbus TCP | `w3c.modbus` | W3C Binding Templates Modbus | Editor's Draft | yes (`Opc.Ua.WotCon.Bindings.Modbus`, bundled on net8+) |
+| Modbus TCP | `w3c.modbus` | W3C Binding Templates Modbus | Editor's Draft | yes (`Opc.Ua.WotCon.Bindings.Modbus`, bundled on net10+) |
 | BACnet | `w3c.bacnet` | W3C Binding Templates BACnet | Editor's Draft | planner only |
 | PROFINET | `w3c.profinet` | WoT PROFINET contribution | Unofficial Draft | planner only |
 | LoRaWAN | `w3c.lorawan` | WoT LoRaWAN contribution | Unofficial Draft | planner only |
-| OPC UA | `opc.opcua` | OPC 10101 (OPC UA for WoT Binding) | OPC specification | yes (`Opc.Ua.WotCon.Bindings.OpcUa`, bundled on net8+) |
+| OPC UA | `opc.opcua` | OPC 10101 (OPC UA for WoT Binding) | OPC specification | yes (`Opc.Ua.WotCon.Bindings.OpcUa`, bundled on net10+) |
 
 Notes:
 
@@ -462,7 +462,7 @@ indexes tests by specification part, version, and clause against the
 
 ### Portable browse-path targets
 
-On .NET 8+, OPC UA forms can address read/write/observe, Call, and event
+On .NET 10+, OPC UA forms can address read/write/observe, Call, and event
 subscription by portable `uav:id`, encoded `?id=`, or `uav:browsePath`:
 
 ```json
@@ -516,7 +516,7 @@ is a detached deterministic snapshot of published plans. Direct consumers use
 `GetSelectedBindingCapabilitiesAsync`; register `WoTBindingCapabilityDataType`
 with the Session's encodeable factory before decoding it.
 
-The planner binders are opt-in and replaceable. `AddHttpWotBinding`, `AddModbusWotBinding`, and `AddOpcUaWotBinding` come from the base Bindings package on `net8.0+`; `AddMqttWotBinding` requires the separate MQTT package:
+The planner binders are opt-in and replaceable. `AddHttpWotBinding`, `AddModbusWotBinding`, and `AddOpcUaWotBinding` come from the base Bindings package on `net10.0+`; `AddMqttWotBinding` requires the separate MQTT package:
 
 ```csharp
 builder
@@ -1498,9 +1498,9 @@ The base Bindings project sets `IsAotCompatible` for compatible `net10.0` builds
 
 ### Packaging and TFM decisions
 
-Keep protocol abstractions and planners in the base Bindings project when they can compile across the full library matrix without a transport dependency. Place a concrete executor in the base project only when its dependencies are already suitable for the bundled `net8.0+` build, as with HTTP, Modbus TCP, and OPC UA. Use a separate package when the executor introduces an optional external dependency, as MQTT does.
+Keep protocol abstractions and planners in the base Bindings project when they can compile across the full library matrix without a transport dependency. Place a concrete executor in the base project only when its dependencies are already suitable for the bundled `net10.0+` build, as with HTTP, Modbus TCP, and OPC UA. Use a separate package when the executor introduces an optional external dependency, as MQTT does.
 
-Conditionally exclude executor source on older TFMs rather than reducing the base package's TFM matrix. Public documentation and package README files must state both facts: the package is available on all library TFMs, and the concrete executor namespaces exist only on `net8.0+`.
+Conditionally exclude executor source on older TFMs rather than reducing the base package's TFM matrix. Public documentation and package README files must state both facts: the package is available on all library TFMs, and the concrete executor namespaces exist only on `net10.0+`.
 
 ### Contributor checklist
 
@@ -1540,7 +1540,7 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 | Target mapping | Affordance-level direct mapping, `nsu=` mapping, forms-level rejection, action/event rejection, field path requires type, direct/field conflict, duplicate field direction. |
 | Structured mapping | Nested fields, unknown field, non-structure intermediate, array-valued intermediate, one failed field, status/timestamp aggregation. |
 | Materialization | Strict rejection, non-strict degradation, successful activation, failed shadow replacement retaining old generation, old monitored-item drain. |
-| Packaging | Full base TFM matrix, executor source absent before `net8.0`, MQTT separate package, package README and dependency graph. |
+| Packaging | Full base TFM matrix, executor source absent before `net10.0`, MQTT separate package, package README and dependency graph. |
 | AOT/trimming | `net10.0` analyzer-clean build and NativeAOT publish/run smoke test for the concrete executor path. |
 
 ## Related documentation

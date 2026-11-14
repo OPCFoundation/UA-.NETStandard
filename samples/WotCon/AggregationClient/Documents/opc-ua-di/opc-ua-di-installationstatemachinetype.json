@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -30,7 +31,9 @@
       "input": {
         "properties": {
           "NodeIds": {
-            "items": {},
+            "items": {
+              "type": "string"
+            },
             "type": "array",
             "uav:arrayDimensions": [
               0
@@ -226,6 +229,7 @@
       "observable": true,
       "readOnly": true,
       "title": "InstallationDelay",
+      "type": "number",
       "uav:browseName": "ns1:InstallationDelay",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=264",
       "uav:mapToType": "i=290",
@@ -501,6 +505,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InstallationStateMachineType"
           }
         ],
@@ -569,10 +574,12 @@
         "superType": "i=2771"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PercentComplete",
         "dataType": "Byte",
         "displayName": [
           {
+            "locale": "",
             "value": "PercentComplete"
           }
         ],
@@ -598,10 +605,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:InstallationDelay",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "InstallationDelay"
           }
         ],
@@ -633,6 +642,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InstallSoftwarePackage"
           }
         ],
@@ -668,6 +678,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -701,6 +712,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InstallFiles"
           }
         ],
@@ -736,6 +748,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -766,6 +779,7 @@
         "browseName": "1:Uninstall",
         "displayName": [
           {
+            "locale": "",
             "value": "Uninstall"
           }
         ],
@@ -794,6 +808,7 @@
         "browseName": "1:Resume",
         "displayName": [
           {
+            "locale": "",
             "value": "Resume"
           }
         ],

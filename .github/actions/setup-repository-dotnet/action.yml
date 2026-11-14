@@ -10,8 +10,8 @@ description: >-
 inputs:
   dotnet-version:
     description: >-
-      Newline-separated additional .NET SDK versions, for example the 8.0.x,
-      9.0.x and 10.0.x SDKs whose runtimes older target frameworks execute on.
+      Newline-separated additional .NET SDK versions, for example the 10.0.x
+      SDK whose runtime the net10.0 target framework executes on.
       The global.json SDK is always installed and always selected.
     required: false
     default: ''

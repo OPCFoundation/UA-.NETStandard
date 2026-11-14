@@ -145,13 +145,16 @@ namespace Opc.Ua.Server
                 }
                 else if (data[i].TryGetValue(out EventNotificationList? enl))
                 {
-                    ReadOnlySpan<EventFieldList> events = enl.Events.Span;
-                    for (int j = 0; j < events.Length; j++)
+                    // the event field lists are not pooled (see MonitoredItem); only the
+                    // occurrence references they hold are released.
+                    if (eventManager != null)
                     {
-                        eventManager?.ReleaseEventFields(events[j]);
-                        (events[j] as IPooledEncodeable)?.Reuse();
+                        ReadOnlySpan<EventFieldList> events = enl.Events.Span;
+                        for (int j = 0; j < events.Length; j++)
+                        {
+                            eventManager.ReleaseEventFields(events[j]);
+                        }
                     }
-                    (enl as IPooledEncodeable)?.Reuse();
                 }
             }
             (message as IPooledEncodeable)?.Reuse();

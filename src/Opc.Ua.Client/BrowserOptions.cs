@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Text.Json.Serialization;
 
 namespace Opc.Ua.Client
@@ -108,6 +109,52 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataTypeField(Order = 10)]
         public ushort MaxBrowseContinuationPoints { get; set; }
+
+        /// <summary>
+        /// Default for <see cref="MaxReferencesPerNode"/>.
+        /// </summary>
+        public const uint DefaultMaxReferencesPerNode = 1_000_000;
+
+        /// <summary>
+        /// Default for <see cref="MaxPagesPerNode"/>.
+        /// </summary>
+        public const uint DefaultMaxPagesPerNode = 100_000;
+
+        /// <summary>
+        /// Default for <see cref="MaxBrowseDuration"/>.
+        /// </summary>
+        public static readonly TimeSpan DefaultMaxBrowseDuration = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// The maximum number of references a browse collects for one node
+        /// across all its pages. When a node reaches it and the server still
+        /// returns a continuation point, the browse releases the point and
+        /// reports <see cref="StatusCodes.BadEncodingLimitsExceeded"/> for the
+        /// node. Zero means no limit. Not persisted by <see cref="Browser.Save"/>.
+        /// </summary>
+        public uint MaxReferencesPerNode { get; set; } = DefaultMaxReferencesPerNode;
+
+        /// <summary>
+        /// The maximum number of pages (the Browse answer and each BrowseNext
+        /// answer) a browse reads for one node. When a node reaches it and the
+        /// server still returns a continuation point, the browse releases the
+        /// point and reports <see cref="StatusCodes.BadEncodingLimitsExceeded"/>
+        /// for the node. Zero means no limit. Not persisted by
+        /// <see cref="Browser.Save"/>.
+        /// </summary>
+        public uint MaxPagesPerNode { get; set; } = DefaultMaxPagesPerNode;
+
+        /// <summary>
+        /// The maximum time a browse may spend following continuation points,
+        /// counted from the Browse request of the node (the managed browse of
+        /// many nodes counts it per Browse request it sends). Each request is
+        /// still bounded by the operation timeout; this bounds the sum. When
+        /// it is exceeded, the browse releases the
+        /// points it still holds and reports <see cref="StatusCodes.BadTimeout"/>
+        /// for the nodes that were not complete. <see cref="TimeSpan.Zero"/>
+        /// means no limit. Not persisted by <see cref="Browser.Save"/>.
+        /// </summary>
+        public TimeSpan MaxBrowseDuration { get; set; } = DefaultMaxBrowseDuration;
     }
 
     /// <summary>

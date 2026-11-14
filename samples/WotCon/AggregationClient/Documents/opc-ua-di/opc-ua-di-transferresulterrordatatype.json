@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -311,12 +312,15 @@
           "DI Offline"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=6",
               "name": "Status"
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=25",
               "name": "Diagnostics"
             }
@@ -325,6 +329,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultErrorDataType"
           }
         ],

@@ -225,7 +225,7 @@ lifetimes use the 30-second default for assembly, and expiration reports
 
 ## HTTPS / Kestrel transport
 
-The HTTPS/WSS transport is Kestrel-hosted and can use the ASP.NET Core rate limiter middleware. Because that listener builds its own isolated web host, attach the limiter through the stack's DI with `AddHttpsRateLimiter` (net8+):
+The HTTPS/WSS transport is Kestrel-hosted and can use the ASP.NET Core rate limiter middleware. Because that listener builds its own isolated web host, attach the limiter through the stack's DI with `AddHttpsRateLimiter` (net10+):
 
 ```csharp
 services.AddOpcUa()

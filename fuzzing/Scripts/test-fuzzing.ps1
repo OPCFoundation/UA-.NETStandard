@@ -4,7 +4,7 @@ Source and output paths do not depend on the caller's working directory.
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('net48', 'net8.0', 'net9.0', 'net10.0')]
+    [ValidateSet('net48', 'net10.0', 'net11.0')]
     [string]$Framework = 'net10.0',
     [string]$ResultsDirectory,
     [ValidateRange(1, 240)]

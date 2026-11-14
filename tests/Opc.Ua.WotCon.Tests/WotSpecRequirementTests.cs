@@ -105,6 +105,6 @@ namespace Opc.Ua.WotCon.Tests
                 Is.GreaterThan(0));
         }
 
-        private static readonly string[] s_modernFrameworks = ["net8.0", "net9.0", "net10.0"];
+        private static readonly string[] s_modernFrameworks = ["net10.0", "net11.0"];
     }
 }

@@ -33,7 +33,7 @@ notification. This opt-in path additionally copies exact decoded ECM
 assignments; it does not invoke their virtual codecs or clone methods.
 `Opc.Ua.IA.Server` therefore depends on the `Opc.Ua.ECM` model package, which
 depends on the IA and DI models, not on IA.Server or ECM.Server. Both model and
-server libraries use the same net48/net8.0/net9.0/net10.0 target selection.
+server libraries use the same net48/net10.0/net11.0 target selection.
 No application copier or pre-owned-value registration is exposed.
 IA support is Full for the released information-model capabilities, including
 configured optional members. This does not establish certification or a

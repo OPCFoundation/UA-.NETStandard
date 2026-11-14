@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -32,7 +33,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "links": [
         {
           "href": "i=68",
@@ -88,7 +89,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "http://opcfoundation.org/UA/Pumps/",
+      "default": "http://opcfoundation.org/UA/Pumps/",
       "links": [
         {
           "href": "i=68",
@@ -116,7 +117,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "1.0.0",
+      "default": "1.0.0",
       "links": [
         {
           "href": "i=68",
@@ -144,7 +145,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -176,7 +176,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -208,7 +210,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "\n      ",
+      "default": "\n      ",
       "links": [
         {
           "href": "i=68",
@@ -454,6 +456,7 @@
         "browseName": "1:http://opcfoundation.org/UA/Pumps/",
         "displayName": [
           {
+            "locale": "",
             "value": "http://opcfoundation.org/UA/Pumps/"
           }
         ],
@@ -503,10 +506,12 @@
         "typeDefinition": "i=11616"
       },
       {
+        "arrayDimensions": "",
         "browseName": "IsNamespaceSubset",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "IsNamespaceSubset"
           }
         ],
@@ -528,10 +533,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespacePublicationDate",
         "dataType": "DateTime",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespacePublicationDate"
           }
         ],
@@ -553,10 +560,12 @@
         "valueXml": "<uax:DateTime xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">2021-04-19T00:00:00Z</uax:DateTime>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceUri"
           }
         ],
@@ -578,10 +587,12 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://opcfoundation.org/UA/Pumps/</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceVersion",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceVersion"
           }
         ],
@@ -608,6 +619,7 @@
         "dataType": "IdType",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticNodeIdTypes"
           }
         ],
@@ -635,6 +647,7 @@
         "dataType": "NumericRange",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticNumericNodeIdRange"
           }
         ],
@@ -657,10 +670,12 @@
         "valueXml": "<ListOfString xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <String>1:2147483647</String>\n      </ListOfString>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StaticStringNodeIdPattern",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticStringNodeIdPattern"
           }
         ],
