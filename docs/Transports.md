@@ -196,6 +196,20 @@ Closing the channel releases the queued responses and logs a warning with the
 wait time and the queued bytes. The UA-TCP, Kestrel TCP and binary WebSocket
 (`opcua+uacp`) listeners all check their channels every half `ChannelLifetime`.
 
+The HTTPS listener also applies this inactivity sweep to binary WebSocket
+channels. JSON WebSocket connections (`opcua+uajson` and `opcua+openapi`,
+including bearer-token variants) have the same idle limit when `ChannelLifetime`
+is positive. Partial messages and WebSocket control frames do not extend that
+deadline. In-flight binary and JSON requests, including Publish long polls, and
+queued binary writes are protected from inactivity until their responses are
+sent. Stalled writers still time out. Each JSON connection has a distinct
+channel identity, so session keepalives refresh only their own connection.
+
+When forward HTTPS/WSS admission reaches `MaxChannelCount` or aggregate
+connection capacity, it can reclaim an unused WebSocket without a committed
+session. Reclamation excludes partial messages and pending requests or writes.
+Pending reverse-connect handoffs retain their existing admission deadline.
+
 Hello negotiation also updates TCP and WebSocket receive-buffer sizes. The
 Kestrel pipe transport rents for the actual chunk size instead of the listener
 maximum, avoiding unnecessary retained capacity for small chunks.
@@ -263,7 +277,7 @@ names the missing scheme and suggested `Add*Transport()` method.
 
 * The `opc.tcp` listener uses the lightweight raw-socket
   `TcpTransportListener` by default (no ASP.NET Core dependency). An
-  opt-in alternative shipped in `Opc.Ua.Bindings.Https` (`net8.0`+) is
+  opt-in alternative shipped in `Opc.Ua.Bindings.Https` (`net10.0`+) is
   described below.
 * The `opc.https` and `opc.wss` listeners both share a single
   `HttpsTransportListener` per `(host, port)` — Kestrel routes the
@@ -393,6 +407,28 @@ Wire handles never wrap: exhaustion closes the connection with
 admission, cancels queued sends and close operations, and drains admitted
 socket users before disposing connection resources.
 
+A UA-TCP channel encodes a message into pooled chunks of the send buffer size.
+It takes at most one chunk more than a message within the channel's message
+size and chunk count limits fills, and no more than the encoder's
+`MaxMessageSize` allows, so a message past a limit stops being encoded as soon
+as it passes it instead of being encoded in full first. A message past the
+channel's limits still ends with an abort chunk (`BadResponseTooLarge` for a
+response, `BadRequestTooLarge` for a request); a response past only the
+encoder's `MaxMessageSize` is answered with a `BadEncodingLimitsExceeded`
+ServiceFault, without encoding the response a second time.
+
+On the server, the Browse, BrowseNext and Call services of a binary encoded
+request also charge the results they keep for the response against the
+server's `MaxMessageSize`
+while the node managers build them, using a lower bound of the encoded size.
+A request whose results cannot fit fails with `BadResponseTooLarge` once the
+bound passes the limit, instead of after all results are built. Browse fetches
+at most one reference more per node than the rest of that budget holds at the
+smallest reference size, also when the client asks for no limit
+(`requestedMaxReferencesPerNode` 0). Requests in other encodings, which can
+encode below the binary bound, and in-process callers of the node managers
+have no budget.
+
 HTTPS binary, JSON, and OpenAPI clients obtain response headers before
 buffering the body. A positive `MaxMessageSize` limits the actual body bytes, including
 chunked responses or misleading `Content-Length` values. An oversized
@@ -433,7 +469,7 @@ By default the stack ships **two** listener implementations for
 | Package | Listener | When to use |
 | --- | --- | --- |
 | `Opc.Ua.Core` (default) | `TcpTransportListener` | Raw `Socket` + `SocketAsyncEventArgs`. No ASP.NET Core dependency. The right choice for trimmed / AOT deployments and for environments that already avoid pulling in `Microsoft.AspNetCore.App`. |
-| `Opc.Ua.Bindings.Https` (opt-in, `net8.0`+) | `KestrelTcpTransportListener` | Hosts `opc.tcp://` on Kestrel via `Microsoft.AspNetCore.Connections.ConnectionHandler`. Lets a single `IHost` serve `opc.tcp`, `opc.https`, and `opc.wss` so consumers manage one HTTP-style runtime, share TLS plumbing, and share observability middleware. |
+| `Opc.Ua.Bindings.Https` (opt-in, `net10.0`+) | `KestrelTcpTransportListener` | Hosts `opc.tcp://` on Kestrel via `Microsoft.AspNetCore.Connections.ConnectionHandler`. Lets a single `IHost` serve `opc.tcp`, `opc.https`, and `opc.wss` so consumers manage one HTTP-style runtime, share TLS plumbing, and share observability middleware. |
 
 The Kestrel-TCP listener uses the same `IUaSCByteTransport` runtime
 boundary as the raw-socket listener, so the UASC channel pipeline is
@@ -472,7 +508,7 @@ binding registered via `AddCustomTransport<TListener, TChannel>()`.
 
 > **`AddOpcTcpTransport()` is optional.** `AddOpcUa()` already seeds the mandatory raw-socket `opc.tcp` listener and channel factories into the transport binding registry, so clients and servers reach `opc.tcp://` without it. Call it only to be explicit; the `Add*Transport()` extensions above still override the seeded defaults (last-writer-wins per URI scheme) whether or not it was called.
 
-The package targets net8.0+ only (the ASP.NET Core `ConnectionContext`
+The package targets net10.0+ only (the ASP.NET Core `ConnectionContext`
 API surface used to bridge `Socket`-like semantics — `LocalEndPoint`,
 `RemoteEndPoint`, `ConnectionClosed` — is not consistently available
 on older TFMs). Consumers on net48 continue to use

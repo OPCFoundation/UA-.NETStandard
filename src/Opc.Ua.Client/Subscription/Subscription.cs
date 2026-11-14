@@ -1058,25 +1058,13 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Walk a dispatched <see cref="DataChangeNotification"/> after the
-        /// handler returns and release pooled payload instances back to
-        /// their activators. Items that do not implement
-        /// <see cref="IPooledEncodeable"/> are skipped silently — this
-        /// allows the walk to be safe before source-gen learns to emit
-        /// the interface for tagged types, and serves as the universal
-        /// dispatch path for any future pooled payload variant.
+        /// Release a dispatched <see cref="DataChangeNotification"/> back to
+        /// its activator after the handler returns. Its
+        /// <see cref="MonitoredItemNotification"/> entries are values held by
+        /// the notification's array and need no release of their own.
         /// </summary>
         private static void ReuseDataChangeNotification(DataChangeNotification notification)
         {
-            ReadOnlySpan<MonitoredItemNotification> items =
-                notification.MonitoredItems.Span;
-            for (int i = 0; i < items.Length; i++)
-            {
-                if (items[i] is IPooledEncodeable item)
-                {
-                    item.Reuse();
-                }
-            }
             if (notification is IPooledEncodeable container)
             {
                 container.Reuse();

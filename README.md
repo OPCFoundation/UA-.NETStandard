@@ -30,7 +30,7 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **A full-stack OPC UA implementation** — Core / Client / Server /
   PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
-- **Cross-platform** — runs on .NET 11, .NET 10 (LTS), .NET 9, .NET 8 (LTS),
+- **Cross-platform** — runs on .NET 11, .NET 10 (LTS),
   .NET Framework 4.8; ships
   Native-AOT-friendly assemblies.
 - **Conformance regression testing** — the reference server is tested with the
@@ -83,9 +83,9 @@ The [recycling operator console](samples/Recycling/README.md#operator-console-wa
 live browser monitoring, native companion-specification inspection, material genealogy,
 and authorized controls over the [synthetic recycling line](samples/Recycling/README.md).
 
-You need a stable [.NET SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-version **10.0.400 or later** to build the repo. `global.json` selects the
-highest installed stable SDK, including newer major versions. From the repository root:
+You need a stable [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0)
+version **11.0.100 or later** to build the repo. `global.json` selects the
+highest installed stable 11.0 SDK and excludes newer major versions. From the repository root:
 
 ```bash
 dotnet restore UA.slnx
@@ -133,6 +133,8 @@ the companion
 
 ### Developer tools
 
+- [NodeSet2 to WoT export tool](docs/WotExportTool.md) - a .NET 10 global tool.
+  Read local NodeSet2 files and write W3C WoT Thing Models with progress and diagnostic messages.
 - [UaLens](docs/UaLens.md) — NativeAOT-capable desktop engineering workspace for secure connections,
   monitoring, alarms, structured values, history, administration, PubSub, continuity diagnostics, and guided
   companion-model tasks. See [build and artifact qualification](tools/Opc.Ua.Lens/README.md#publish-and-package).

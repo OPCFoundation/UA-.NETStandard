@@ -5,6 +5,7 @@
       "@language": "en",
       "ns1": "http://opcfoundation.org/UA/Machinery/",
       "ns2": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -54,6 +55,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Manufacturer",
+      "type": "string",
       "uav:browseName": "ns2:Manufacturer",
       "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=6019",
       "uav:mapToType": "i=21",
@@ -199,6 +201,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Identification"
           }
         ],
@@ -232,6 +235,7 @@
         "typeDefinition": "ns=1;i=1004"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:Manufacturer",
         "dataType": "LocalizedText",
         "description": [
@@ -242,6 +246,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -267,6 +272,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:SerialNumber",
         "dataType": "String",
         "description": [
@@ -277,6 +283,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],

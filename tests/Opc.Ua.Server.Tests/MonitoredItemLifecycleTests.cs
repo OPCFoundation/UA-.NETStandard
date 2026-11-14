@@ -1184,7 +1184,7 @@ namespace Opc.Ua.Server.Tests
                 m_inner.ResetQueue(queueSize, queueErrors);
             }
 
-            public void Enqueue(DataValue value, ServiceResult error)
+            public void Enqueue(in DataValue value, ServiceResult error)
             {
                 m_inner.Enqueue(value, error);
             }
@@ -1207,7 +1207,7 @@ namespace Opc.Ua.Server.Tests
                 return m_inner.TryPeekOldestValue(out value);
             }
 
-            public void OverwriteLastValue(DataValue value, ServiceResult error)
+            public void OverwriteLastValue(in DataValue value, ServiceResult error)
             {
                 m_inner.OverwriteLastValue(value, error);
             }

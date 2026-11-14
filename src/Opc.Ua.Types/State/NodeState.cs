@@ -5749,11 +5749,21 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns <c>false</c> for an ordinary child so that importing a node
         /// does not evict an application-authored child which happens to share
-        /// its browse name.
+        /// its browse name. A slot which cannot hold the replacement directly,
+        /// because it is not of the slot's generated class, materializes a new
+        /// typed child copied from the replacement; that typed child is returned
+        /// through <paramref name="adopted"/> and represents the replacement
+        /// from then on. A previously held child is detached first, so it is
+        /// never overwritten in place and is reported through
+        /// <paramref name="replaced"/>.
         /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="replacement">The replacement child.</param>
         /// <param name="replaced">The displaced explicitly defined child.</param>
+        /// <param name="adopted">
+        /// The child the slot holds afterwards: the replacement itself, or the
+        /// typed child copied from it.
+        /// </param>
         /// <param name="explicitSlotFound">
         /// Whether the browse name maps to an explicitly defined child slot.
         /// </param>
@@ -5764,9 +5774,11 @@ namespace Opc.Ua
             ISystemContext context,
             BaseInstanceState replacement,
             out BaseInstanceState? replaced,
+            out BaseInstanceState? adopted,
             out bool explicitSlotFound)
         {
             replaced = null;
+            adopted = null;
             explicitSlotFound = false;
 
             BaseInstanceState? existing = FindChild(
@@ -5789,28 +5801,59 @@ namespace Opc.Ua
                 }
             }
 
+            BaseInstanceState? detached = null;
+            if (existing is not null && !ReferenceEquals(existing, replacement))
+            {
+                // A slot which cannot adopt the replacement directly would copy
+                // it onto the held child, or ignore it. Empty the slot so it
+                // materializes a fresh typed child and the held child survives
+                // unchanged for the caller.
+                RemoveChild(existing);
+                if (FindChild(
+                    context,
+                    replacement.BrowseName,
+                    createOrReplace: false,
+                    replacement: null) is null)
+                {
+                    detached = existing;
+                }
+            }
+
             // A state which declares the child adopts the replacement into its
-            // slot; the base implementation appends it to the ordinary child
-            // collection instead.
-            BaseInstanceState? adopted = FindChild(
+            // slot, or materializes a typed child copied from it; the base
+            // implementation appends it to the ordinary child collection.
+            BaseInstanceState? slotChild = FindChild(
                 context,
                 replacement.BrowseName,
                 createOrReplace: true,
                 replacement);
-            if (!ReferenceEquals(adopted, replacement))
+            if (slotChild is null ||
+                ContainsBaseChildReference(slotChild) ||
+                (!ReferenceEquals(slotChild, replacement) &&
+                    (ReferenceEquals(slotChild, existing) ||
+                        slotChild.BrowseName != replacement.BrowseName)))
             {
-                return false;
-            }
-            if (ContainsBaseChildReference(replacement))
-            {
-                // There was no slot. Undo the append so the caller can attach
-                // the child the ordinary way.
-                RemoveChild(replacement);
+                // Either there was no slot, or the slot kept its child without
+                // taking anything over from the replacement.
+                if (slotChild is not null && ContainsBaseChildReference(slotChild))
+                {
+                    // Undo the append so the caller can attach the child the
+                    // ordinary way.
+                    RemoveChild(slotChild);
+                }
+                if (detached is not null)
+                {
+                    // Restore the held child into its slot.
+                    FindChild(context, detached.BrowseName, createOrReplace: true, detached);
+                }
                 return false;
             }
 
             explicitSlotFound = true;
-            if (existing is not null && !ReferenceEquals(existing, replacement))
+            adopted = slotChild;
+            if (existing is not null &&
+                !ReferenceEquals(existing, replacement) &&
+                !ReferenceEquals(existing, slotChild))
             {
                 existing.Parent = null;
                 replaced = existing;

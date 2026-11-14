@@ -10,7 +10,7 @@
   A build with all custom targets which are not part of a regular build
   is scheduled once a week in the DevOps build pipeline.
   Uncomment the following lines to test a custom test target
-  supported values: net48, net8.0, net9.0, net10.0, net11.0
+  supported values: net48, net10.0, net11.0
    -->
   <!--
   <PropertyGroup>
@@ -29,28 +29,6 @@
         <LibCoreTargetFrameworks>net48</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>net48</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net48</HttpsTargetFrameworks>
-      </PropertyGroup>
-    </When>
-    <When Condition="'$(CustomTestTarget)' == 'net8.0'">
-      <PropertyGroup>
-        <AppTargetFrameworks>net8.0</AppTargetFrameworks>
-        <AppTargetFramework>net8.0</AppTargetFramework>
-        <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
-        <LibTargetFrameworks>net8.0</LibTargetFrameworks>
-        <LibCoreTargetFrameworks>net8.0</LibCoreTargetFrameworks>
-        <LibxTargetFrameworks>net8.0</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net8.0</HttpsTargetFrameworks>
-      </PropertyGroup>
-    </When>
-    <When Condition="'$(CustomTestTarget)' == 'net9.0'">
-      <PropertyGroup>
-        <AppTargetFrameworks>net9.0</AppTargetFrameworks>
-        <AppTargetFramework>net9.0</AppTargetFramework>
-        <TestsTargetFrameworks>net9.0</TestsTargetFrameworks>
-        <LibTargetFrameworks>net9.0</LibTargetFrameworks>
-        <LibCoreTargetFrameworks>net9.0</LibCoreTargetFrameworks>
-        <LibxTargetFrameworks>net9.0</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net9.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
     <When Condition="'$(CustomTestTarget)' == 'net10.0'">
@@ -77,13 +55,13 @@
     </When>
     <Otherwise>
       <PropertyGroup>
-        <AppTargetFrameworks>net11.0;net10.0;net9.0;net8.0;net48</AppTargetFrameworks>
+        <AppTargetFrameworks>net11.0;net10.0;net48</AppTargetFrameworks>
         <AppTargetFramework>net10.0</AppTargetFramework>
-        <TestsTargetFrameworks>net48;net8.0;net9.0;net10.0;net11.0</TestsTargetFrameworks>
-        <LibTargetFrameworks>net48;net8.0;net9.0;net10.0;net11.0</LibTargetFrameworks>
-        <LibCoreTargetFrameworks>net48;net8.0;net9.0;net10.0;net11.0</LibCoreTargetFrameworks>
-        <LibxTargetFrameworks>net48;net8.0;net9.0;net10.0;net11.0</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net48;net8.0;net9.0;net10.0;net11.0</HttpsTargetFrameworks>
+        <TestsTargetFrameworks>net48;net10.0;net11.0</TestsTargetFrameworks>
+        <LibTargetFrameworks>net48;net10.0;net11.0</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net48;net10.0;net11.0</LibCoreTargetFrameworks>
+        <LibxTargetFrameworks>net48;net10.0;net11.0</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net48;net10.0;net11.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </Otherwise>
   </Choose>

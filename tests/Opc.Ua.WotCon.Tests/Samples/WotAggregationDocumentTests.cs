@@ -1511,10 +1511,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             {
                 Affordance property = FindAffordance(
                     documents, "properties", LocalNodeId(pumpName, "Identification." + name));
+                Assert.That(property.Value.GetProperty("type").GetString(), Is.EqualTo("string"), name);
+                Assert.That(property.Value.TryGetProperty("const", out _), Is.False, name);
                 if (dataType == "i=21")
                 {
-                    Assert.That(property.Value.TryGetProperty("type", out _), Is.False,
-                        "LocalizedText must not be constrained to a plain string that cannot retain its locale.");
                     UAVariable variable = FindNode<UAVariable>(
                         ReadPumpNodeSet(), $"ns=1;s={pumpName}.Identification.{name}");
                     var value = XElement.Parse(variable.Value!.OuterXml);
@@ -1524,8 +1524,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }
                 else
                 {
-                    Assert.That(property.Value.GetProperty("type").GetString(), Is.EqualTo("string"), name);
-                    Assert.That(property.Value.GetProperty("const").GetString(), Is.EqualTo(expected), name);
+                    Assert.That(property.Value.GetProperty("default").GetString(), Is.EqualTo(expected), name);
                 }
                 Assert.That(property.Value.GetProperty("uav:mapToType").GetString(), Is.EqualTo(dataType), name);
                 Assert.That(
@@ -2371,8 +2370,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(eventId.GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=15"), origin);
             Assert.That(eventId.GetProperty("uav:valueRank").GetInt32(), Is.EqualTo(-1), origin);
             JsonElement comment = properties.GetProperty("Comment");
-            Assert.That(comment.TryGetProperty("type", out _), Is.False,
-                "The definitive LocalizedText binding retains the locale as well as its text.");
+            Assert.That(comment.GetProperty("type").GetString(), Is.EqualTo("string"), origin);
             Assert.That(comment.GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=21"), origin);
             Assert.That(comment.GetProperty("uav:valueRank").GetInt32(), Is.EqualTo(-1), origin);
         }

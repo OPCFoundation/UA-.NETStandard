@@ -140,19 +140,21 @@ namespace Opc.Ua.Server
             {
                 if (data[i].TryGetValue(out DataChangeNotification? dcn))
                 {
-                    // the MonitoredItemNotification entries are not pooled (see
-                    // MonitoredItem.Publish) and are left to the garbage collector.
+                    // the MonitoredItemNotification entries are values in the rented array.
                     (dcn as IPooledEncodeable)?.Reuse();
                 }
                 else if (data[i].TryGetValue(out EventNotificationList? enl))
                 {
-                    ReadOnlySpan<EventFieldList> events = enl.Events.Span;
-                    for (int j = 0; j < events.Length; j++)
+                    // the event field lists are not pooled (see MonitoredItem); only the
+                    // occurrence references they hold are released.
+                    if (eventManager != null)
                     {
-                        eventManager?.ReleaseEventFields(events[j]);
-                        (events[j] as IPooledEncodeable)?.Reuse();
+                        ReadOnlySpan<EventFieldList> events = enl.Events.Span;
+                        for (int j = 0; j < events.Length; j++)
+                        {
+                            eventManager.ReleaseEventFields(events[j]);
+                        }
                     }
-                    (enl as IPooledEncodeable)?.Reuse();
                 }
             }
             (message as IPooledEncodeable)?.Reuse();

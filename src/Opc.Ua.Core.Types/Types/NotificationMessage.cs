@@ -77,26 +77,14 @@ namespace Opc.Ua
                 {
                     for (int ii = notification.MonitoredItems.Count - 1; ii >= 0; ii--)
                     {
-                        MonitoredItemNotification datachange = notification.MonitoredItems[ii];
-
-                        if (datachange != null)
-                        {
-                            datachange.Message = this;
-                            datachanges.Add(datachange);
-                        }
+                        datachanges.Add(notification.MonitoredItems[ii]);
                     }
                 }
                 else
                 {
                     for (int ii = 0; ii < notification.MonitoredItems.Count; ii++)
                     {
-                        MonitoredItemNotification datachange = notification.MonitoredItems[ii];
-
-                        if (datachange != null)
-                        {
-                            datachange.Message = this;
-                            datachanges.Add(datachange);
-                        }
+                        datachanges.Add(notification.MonitoredItems[ii]);
                     }
                 }
             }

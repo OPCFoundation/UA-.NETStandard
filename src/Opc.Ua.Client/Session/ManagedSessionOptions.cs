@@ -279,9 +279,8 @@ namespace Opc.Ua.Client
         /// Default: <c>true</c>.
         /// </para>
         /// <para>
-        /// Has no effect when the classic subscription engine is in
-        /// use; this option only applies to the V2
-        /// <see cref="Subscriptions.ISubscriptionManager"/>.
+        /// Applies to both subscription engines (see
+        /// <see cref="Session.DeferNotificationDecoding"/>).
         /// </para>
         /// </summary>
         public bool DeferNotificationDecoding { get; init; } = true;

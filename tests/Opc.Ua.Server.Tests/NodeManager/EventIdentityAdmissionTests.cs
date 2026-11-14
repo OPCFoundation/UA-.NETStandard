@@ -820,8 +820,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 message.NotificationData = [];
                 return message;
             }
-            var events = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();
-            events.Events = published.ToArrayOf();
+            var events = new EventNotificationList { Events = published.ToArrayOf() };
             message.NotificationData = [new ExtensionObject(events)];
             return message;
         }
@@ -852,8 +851,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 fixture.Context.Telemetry.CreateLogger<EventIdentityAdmissionTests>(), fixture.Manager);
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
             message.SequenceNumber = sent.AssignSequenceNumber();
-            var events = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();
-            events.Events = published.ToArrayOf();
+            var events = new EventNotificationList { Events = published.ToArrayOf() };
             message.NotificationData = [new ExtensionObject(events)];
             _ = sent.Enqueue([message], [], out _, out _);
             CollectUnownedTargets();

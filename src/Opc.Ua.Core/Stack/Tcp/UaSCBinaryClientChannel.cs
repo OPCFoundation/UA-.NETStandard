@@ -449,37 +449,50 @@ namespace Opc.Ua.Bindings
 
             using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = null;
+            bool startWriter = false;
 
             // a request that waits for the gate (another request or a response is being
             // processed) must not block its thread: a blocking wait spins first, and with
             // many concurrent requests on one channel the spinning took a fifth of the CPU.
-            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
+            try
             {
-                // Queue the operation while connecting and it will be played once connected.
-                if (State == TcpChannelState.Connecting)
+                using (await Gate.EnterAsync(ct).ConfigureAwait(false))
                 {
-                    operation = BeginOperation(timeout, null, null);
-                    QueueConnectOperation(operation, timeout, request);
+                    // Queue the operation while connecting and it will be played once connected.
+                    if (State == TcpChannelState.Connecting)
+                    {
+                        operation = BeginOperation(timeout, null, null);
+                        QueueConnectOperation(operation, timeout, request);
+                    }
+                    else
+                    {
+                        if (State != TcpChannelState.Open)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                        }
+
+                        m_logger.UaSCClientLog5(ChannelId);
+
+                        if (m_reconnecting)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadRequestInterrupted,
+                                "Attempting to reconnect to the server.");
+                        }
+
+                        // send request.
+                        operation = BeginOperation(timeout, null, null);
+                        startWriter = SendRequest(operation, request);
+                    }
                 }
-                else
+            }
+            finally
+            {
+                // the writer sends on this thread once the gate is released: a queued
+                // writer would wake a pool worker that finds no work (see StartWriterInline)
+                if (startWriter)
                 {
-                    if (State != TcpChannelState.Open)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadConnectionClosed);
-                    }
-
-                    m_logger.UaSCClientLog5(ChannelId);
-
-                    if (m_reconnecting)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadRequestInterrupted,
-                            "Attempting to reconnect to the server.");
-                    }
-
-                    // send request.
-                    operation = BeginOperation(timeout, null, null);
-                    SendRequest(operation, request);
+                    StartWriterInline();
                 }
             }
             try
@@ -1467,10 +1480,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a request to the server.
         /// </summary>
+        /// <returns>True if the writer must be started (see
+        /// <see cref="UaSCUaBinaryChannel.BeginWriteMessageDeferred"/>).</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private void SendRequest(WriteOperation operation, IServiceRequest request)
+        private bool SendRequest(WriteOperation operation, IServiceRequest request)
         {
             bool success = false;
+            bool startWriter = false;
             BufferCollection? buffers = null;
 
             try
@@ -1492,7 +1508,7 @@ namespace Opc.Ua.Bindings
                     true,
                     out bool limitsExceeded);
 
-                BeginWriteMessage(buffers, operation);
+                startWriter = BeginWriteMessageDeferred(buffers, operation);
                 buffers = null;
                 success = true;
 
@@ -1517,6 +1533,7 @@ namespace Opc.Ua.Bindings
                     OperationCompleted(operation);
                 }
             }
+            return startWriter;
         }
 
         /// <summary>
@@ -1989,7 +2006,10 @@ namespace Opc.Ua.Bindings
 
                     try
                     {
-                        SendRequest(request.Operation, request.Request);
+                        if (SendRequest(request.Operation, request.Request))
+                        {
+                            ScheduleWriter();
+                        }
                     }
                     catch (Exception e)
                     {

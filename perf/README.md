@@ -419,7 +419,8 @@ the scenario and all arguments.
 | Latency | `client:` percentiles `p50`/`p90`/`p99`; `write->notify latency` (`sub`), `event->notify latency` (`events`) |
 | CPU and allocation per operation | `per-op:` `cpuUs`, `allocB` per request or notification; `per-op2:` per written value or generated event |
 | GC | `server:` `gen0`/`gen1`/`gen2` collections and `pauseMs` in the window; `client-process:` the same for the client |
-| CPU use | `server:` `cpuMs` and `cpuCores` (average busy cores) |
+| CPU use | `server:` `cpuMs` and `cpuCores` (average busy cores), `userMs` (user-mode part of `cpuMs`); `client-process:` the same for the client |
+| Thread-pool hand-offs | `server:`, `client-process:` `workItems` (`ThreadPool.CompletedWorkItemCount` in the window); divide by the operations for the work items per operation. Thread-pool spinning shows as user-mode CPU that grows without more work items, see [Thread-pool spinning on .NET 11](../docs/ServerScalability.md#thread-pool-spinning-on-net-11) |
 
 ### Artifacts
 

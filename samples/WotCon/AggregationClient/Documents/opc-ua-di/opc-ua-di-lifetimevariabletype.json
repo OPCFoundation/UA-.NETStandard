@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -58,6 +59,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Indication",
+      "type": "string",
       "uav:browseName": "ns1:Indication",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=471",
       "uav:mapToType": "i=17",
@@ -401,6 +403,7 @@
     ],
     "nodes": [
       {
+        "arrayDimensions": "",
         "browseName": "1:LifetimeVariableType",
         "category": [
           "DI LT Lifetime Base"
@@ -408,11 +411,13 @@
         "dataType": "Number",
         "description": [
           {
+            "locale": "",
             "value": "Remaining lifetime"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LifetimeVariableType"
           }
         ],
@@ -445,15 +450,18 @@
         "superType": "i=17497"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:StartValue",
         "dataType": "Number",
         "description": [
           {
+            "locale": "",
             "value": "StartValue indicates the initial value, when there is still the full lifetime left."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "StartValue"
           }
         ],
@@ -479,15 +487,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LimitValue",
         "dataType": "Number",
         "description": [
           {
+            "locale": "",
             "value": "LimitValue indicates when the end of lifetime has been reached."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LimitValue"
           }
         ],
@@ -513,15 +524,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Indication",
         "dataType": "NodeId",
         "description": [
           {
+            "locale": "",
             "value": "Indication gives an indication of what is actually measured / represented by the Value of the Variable and the StartValue and LimitValue."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Indication"
           }
         ],
@@ -547,15 +561,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:WarningValues",
         "dataType": "Number",
         "description": [
           {
+            "locale": "",
             "value": "WarningValues indicates one or more levels when the end of lifetime is reached soon and can be used to inform the user when reached."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "WarningValues"
           }
         ],

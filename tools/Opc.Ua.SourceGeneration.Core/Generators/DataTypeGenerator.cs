@@ -126,7 +126,8 @@ namespace Opc.Ua.SourceGeneration
                 // generated in this assembly) so they can't satisfy the
                 // PooledEncodeableType<T> constraint. Use the plain
                 // EncodeableType<T> for them.
-                return datatype.IsPartOfOpcUaTypesLibrary()
+                // Value types are copied, not pooled.
+                return datatype.IsPartOfOpcUaTypesLibrary() || datatype.IsValueType
                     ? DataTypeTemplates.StructureActivatorClassWithDefinition
                     : DataTypeTemplates.PooledStructureActivatorClassWithDefinition;
             }
@@ -149,7 +150,8 @@ namespace Opc.Ua.SourceGeneration
         private TemplateString? LoadTemplate_ListOfPooledExtensions(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign datatype ||
-                datatype.IsPartOfOpcUaTypesLibrary())
+                datatype.IsPartOfOpcUaTypesLibrary() ||
+                datatype.IsValueType)
             {
                 return null;
             }
@@ -513,6 +515,10 @@ namespace Opc.Ua.SourceGeneration
                     if (datatype.IsUnion)
                     {
                         return DataTypeTemplates.UnionClass;
+                    }
+                    if (datatype.IsValueType)
+                    {
+                        return DataTypeTemplates.ValueTypeStruct;
                     }
                     if (datatype.HasFields && datatype.Fields.Any(x => x.IsOptional))
                     {
@@ -1770,9 +1776,12 @@ namespace Opc.Ua.SourceGeneration
                 if (field.DataTypeNode!.BasicDataType == BasicDataType.UserDefined ||
                     field.ValueRank == ValueRank.Array)
                 {
+                    // a scalar value type is never null, so it has no null fallback.
                     if (field.AllowSubTypes ||
                         (field.ValueRank != ValueRank.Array &&
-                            field.ValueRank != ValueRank.Scalar))
+                            field.ValueRank != ValueRank.Scalar) ||
+                        (field.ValueRank == ValueRank.Scalar &&
+                            field.DataTypeNode is DataTypeDesign { IsValueType: true }))
                     {
                         return DataTypeTemplates.ScalarProperty;
                     }

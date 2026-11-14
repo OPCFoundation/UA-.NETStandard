@@ -6,6 +6,7 @@
       "ns2": "http://opcfoundation.org/UA/Pumps/",
       "ns3": "http://opcfoundation.org/UA/Machinery/",
       "ns4": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -51,6 +52,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -112,6 +114,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -173,6 +176,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -234,6 +238,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -1654,11 +1659,13 @@
         "browseName": "1:Pump_1",
         "description": [
           {
+            "locale": "",
             "value": "Sample-owned aggregate pump projected from two upstream OPC UA servers."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Pump #1"
           }
         ],
@@ -1743,10 +1750,12 @@
         "typeDefinition": "ns=1;s=Pump1.Type"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SourceARunning",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceARunning"
           }
         ],
@@ -1770,6 +1779,7 @@
         "browseName": "1:SourceAStart",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAStart"
           }
         ],
@@ -1788,6 +1798,7 @@
         "browseName": "1:SourceAStop",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAStop"
           }
         ],
@@ -1806,6 +1817,7 @@
         "browseName": "1:SourceAReset",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAReset"
           }
         ],
@@ -1821,10 +1833,12 @@
         ]
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SourceBRunning",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBRunning"
           }
         ],
@@ -1848,6 +1862,7 @@
         "browseName": "1:SourceBStart",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBStart"
           }
         ],
@@ -1866,6 +1881,7 @@
         "browseName": "1:SourceBStop",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBStop"
           }
         ],
@@ -1884,6 +1900,7 @@
         "browseName": "1:SourceBReset",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBReset"
           }
         ],
@@ -1904,6 +1921,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -1929,6 +1947,7 @@
         "browseName": "1:CavitationAcknowledge",
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationAcknowledge"
           }
         ],
@@ -1954,6 +1973,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -1979,6 +1999,7 @@
         "browseName": "1:CavitationConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationConfirm"
           }
         ],
@@ -2004,6 +2025,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -2029,6 +2051,7 @@
         "browseName": "1:MotorOverheatAcknowledge",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatAcknowledge"
           }
         ],
@@ -2054,6 +2077,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -2079,6 +2103,7 @@
         "browseName": "1:MotorOverheatConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatConfirm"
           }
         ],

@@ -1680,7 +1680,7 @@
     <opc:Field Name="DiagnosticInfos" DataType="s0:DiagnosticInfo" ValueRank="0" />
   </opc:ComplexType>
 
-  <opc:ComplexType Name="MonitoredItemNotification" AllowArrays="true" NotInAddressSpace="true" PartNo="4" Purpose="ServicesOnly">
+  <opc:ComplexType Name="MonitoredItemNotification" AllowArrays="true" NotInAddressSpace="true" PartNo="4" Purpose="ServicesOnly" IsValueType="true">
     <opc:Field Name="ClientHandle" DataType="IntegerId" />
     <opc:Field Name="Value" DataType="s0:DataValue" />
   </opc:ComplexType>

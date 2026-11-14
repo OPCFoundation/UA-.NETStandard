@@ -630,7 +630,23 @@ namespace Opc.Ua.Client
         /// The maximum number of messages to keep in the internal cache.
         /// The newest message is always kept, so a value below one keeps one
         /// message. A lowered value takes effect when the next message arrives.
+        /// Cached messages stay in memory with their notifications (as encoded
+        /// bytes when <see cref="Session.DeferNotificationDecoding"/> is on), so at
+        /// high notification rates keep this value small, such as 1.
         /// </summary>
+        /// <remarks>
+        /// With deferred decoding, a message that leaves the cache returns its buffers
+        /// to the pool. Not while it is still the <see cref="MonitoredItem.LastMessage"/>
+        /// of a monitored item, and not once the application could hold messages of
+        /// this subscription: after it read <see cref="Notifications"/>,
+        /// <see cref="LastNotification"/> or <see cref="MonitoredItem.LastMessage"/>,
+        /// or after a message was saved while the session had a
+        /// <see cref="ISession.Notification"/> handler (also on an earlier session of
+        /// this subscription); those messages keep their bytes. A message reached only through the
+        /// <c>Message</c> property of a <see cref="MonitoredItemNotification"/> or
+        /// <see cref="EventFieldList"/> has no notification data after it left the
+        /// cache.
+        /// </remarks>
         public int MaxMessageCount
         {
             get => State.MaxMessageCount;
@@ -1055,6 +1071,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
+                        m_messagesHandedOut = true;
                         return m_messageCache.Last!.Value;
                     }
 
@@ -1073,6 +1090,7 @@ namespace Opc.Ua.Client
                 lock (m_cache)
                 {
                     // make a copy to ensure the state of the last cannot change during enumeration.
+                    m_messagesHandedOut = true;
                     return [.. m_messageCache];
                 }
             }
@@ -2264,19 +2282,23 @@ namespace Opc.Ua.Client
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message)
         {
-            SaveMessageInCache(availableSequenceNumbers, message, true, null);
+            SaveMessageInCache(availableSequenceNumbers, message, true, null, out _);
         }
 
         /// <summary>
         /// Adds the notification message to internal cache, with the acknowledgement scope the
         /// engine tracked when the message was received.
         /// </summary>
-        internal void SaveMessageInCache(
+        /// <returns>Whether the session raises <see cref="ISession.Notification"/> with
+        /// the message: only when a handler was attached when it was saved.</returns>
+        internal bool SaveMessageInCache(
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message,
             AcknowledgementScope? acknowledgementScope)
         {
-            SaveMessageInCache(availableSequenceNumbers, message, true, acknowledgementScope);
+            SaveMessageInCache(
+                availableSequenceNumbers, message, true, acknowledgementScope, out bool raiseNotification);
+            return raiseNotification;
         }
 
         /// <summary>
@@ -2286,11 +2308,14 @@ namespace Opc.Ua.Client
         /// kept: otherwise every other missing message would be given up
         /// while the server still holds it.
         /// </summary>
-        internal void SaveRepublishedMessageInCache(
+        /// <returns>Whether the session raises <see cref="ISession.Notification"/> with
+        /// the message: only when a handler was attached when it was saved.</returns>
+        internal bool SaveRepublishedMessageInCache(
             NotificationMessage message,
             AcknowledgementScope? acknowledgementScope = null)
         {
-            SaveMessageInCache(default, message, false, acknowledgementScope);
+            SaveMessageInCache(default, message, false, acknowledgementScope, out bool raiseNotification);
+            return raiseNotification;
         }
 
         /// <summary>
@@ -2299,12 +2324,18 @@ namespace Opc.Ua.Client
         /// Republish was requested for. A subscription deleted or recreated
         /// meanwhile does not take a message of its former lifetime.
         /// </summary>
+        /// <param name="message">The message.</param>
+        /// <param name="requiredScope">The lifetime the Republish was requested for.</param>
+        /// <param name="raiseNotification">Whether the session raises
+        /// <see cref="ISession.Notification"/> with the message: only when a handler was
+        /// attached when it was saved.</param>
         /// <returns><c>true</c> when the message was taken.</returns>
         internal bool TrySaveRepublishedMessageInCache(
             NotificationMessage message,
-            AcknowledgementScope requiredScope)
+            AcknowledgementScope requiredScope,
+            out bool raiseNotification)
         {
-            return SaveMessageInCache(default, message, false, requiredScope, requiredScope);
+            return SaveMessageInCache(default, message, false, requiredScope, out raiseNotification, requiredScope);
         }
 
         /// <summary>
@@ -2317,6 +2348,10 @@ namespace Opc.Ua.Client
         /// <param name="acknowledgementScope">The scope the engine tracked the acknowledgement
         /// with, or <c>null</c> to capture the current one. Delivered notifications carry the
         /// same handle.</param>
+        /// <param name="raiseNotification">Whether the session raises
+        /// <see cref="ISession.Notification"/> with the message. Decided here, per
+        /// message: a handler attached later must not get a message whose buffers the
+        /// subscription can already have returned.</param>
         /// <param name="requiredScope">The lifetime the subscription must still be in
         /// for the message to be taken, or <c>null</c> to take it in any lifetime.</param>
         /// <returns><c>false</c> when the subscription left the required lifetime.</returns>
@@ -2325,9 +2360,11 @@ namespace Opc.Ua.Client
             NotificationMessage message,
             bool updateAvailableSequenceNumbers,
             AcknowledgementScope? acknowledgementScope,
+            out bool raiseNotification,
             AcknowledgementScope? requiredScope = null)
         {
             PublishStateChangedEventHandler? callback = null;
+            raiseNotification = false;
 
             lock (m_cache)
             {
@@ -2343,6 +2380,15 @@ namespace Opc.Ua.Client
                 if (message == null)
                 {
                     return true;
+                }
+
+                // The session raises Notification with this message after it is saved,
+                // when a handler is attached now. The mark stays with the subscription,
+                // also when it moves to another session.
+                if (Session is not Session { NotificationHandlerAttached: false })
+                {
+                    m_messagesHandedOut = true;
+                    raiseNotification = true;
                 }
 
                 // check if a publish error was previously reported.
@@ -2639,7 +2685,10 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                // cleared first: a dispatch that saves a value in the item after the
+                // last message is read here sees it (KeepLastMessageIfDetached).
                 monitoredItem.Subscription = null;
+                KeepLastMessageOfDetachedItem(monitoredItem);
                 if (monitoredItem.Status.Created)
                 {
                     m_deletedItems.Add(monitoredItem);
@@ -2669,7 +2718,9 @@ namespace Opc.Ua.Client
                 {
                     if (m_monitoredItems.TryRemove(monitoredItem.ClientHandle, out _))
                     {
+                        // cleared first, see RemoveItem.
                         monitoredItem.Subscription = null;
+                        KeepLastMessageOfDetachedItem(monitoredItem);
 
                         if (monitoredItem.Status.Created)
                         {
@@ -3432,6 +3483,9 @@ namespace Opc.Ua.Client
                 // list of new messages to republish.
                 List<IncomingMessage>? messagesToRepublish = null;
 
+                // whether messages left the message cache, released after the dispatch below.
+                bool messagesEvicted = false;
+
                 PublishStateChangedMask publishStateChangedMask = PublishStateChangedMask.None;
 
                 lock (m_cache)
@@ -3462,6 +3516,8 @@ namespace Opc.Ua.Client
                             while (m_messageCache.Count > 1 &&
                                 m_messageCache.Count > MaxMessageCount)
                             {
+                                EvictMessage(m_messageCache.First!.Value);
+                                messagesEvicted = true;
                                 m_messageCache.RemoveFirst();
                             }
 
@@ -3691,6 +3747,17 @@ namespace Opc.Ua.Client
                                 Session?.SessionId);
                         }
 
+                        // The message stays reachable after its dispatch (message cache,
+                        // monitored item caches), so a body decoded on first use keeps
+                        // its bytes, not its value: kept decoded, the notifications of
+                        // every cached message would be promoted, and under Workstation
+                        // GC the client falls behind the server (#5003). A later read of
+                        // a cached message decodes it again, with what the dispatch set.
+                        for (int jj = 0; jj < message.NotificationData.Count; jj++)
+                        {
+                            message.NotificationData[jj].RewindDeferredBody(s_restoreDispatchState, message);
+                        }
+
                         if (MaxNotificationsPerPublish != 0 &&
                             noNotificationsReceived > MaxNotificationsPerPublish)
                         {
@@ -3706,6 +3773,11 @@ namespace Opc.Ua.Client
                     {
                         PublishingStateChanged(callback, publishStateChangedMask);
                     }
+                }
+
+                if (messagesEvicted)
+                {
+                    ReleaseEvictedMessages();
                 }
 
                 // do any re-publishes.
@@ -4063,6 +4135,215 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Returns the buffers of deferred bodies of messages that left the message
+        /// cache. Only while the application cannot hold one of them: it was never
+        /// handed messages of this subscription (<see cref="LastNotification"/>,
+        /// <see cref="Notifications"/>, <see cref="MonitoredItem.LastMessage"/>), and
+        /// no <see cref="ISession.Notification"/> handler was ever attached to the
+        /// session. Otherwise the messages keep their bytes, for the garbage collector.
+        /// </summary>
+        /// <remarks>
+        /// Runs after the dispatch of the messages that left the cache. They wait
+        /// until about one per <see cref="kMonitoredItemsPerReleasedMessage"/> monitored
+        /// items left the cache, so that the check of the last message of every item
+        /// costs a bounded share per message also in a large subscription.
+        /// </remarks>
+        private void ReleaseEvictedMessages()
+        {
+            List<NotificationMessage> pending;
+            MonitoredItem[] monitoredItems;
+            var keep = new HashSet<NotificationMessage>(ReferenceComparer.Instance);
+            lock (m_cache)
+            {
+                if (m_messagesHandedOut ||
+                    Session is not Session { NotificationHandlerAttached: false })
+                {
+                    m_releasePending = null;
+                    m_detachedLastMessages = null;
+                    return;
+                }
+                if (m_releasePending == null ||
+                    (long)m_releasePending.Count * kMonitoredItemsPerReleasedMessage < m_monitoredItems.Count)
+                {
+                    return;
+                }
+                pending = m_releasePending;
+                m_releasePending = null;
+                if (m_detachedLastMessages != null)
+                {
+                    // the messages detached items hold leave the set with this check.
+                    foreach (NotificationMessage message in pending)
+                    {
+                        if (m_detachedLastMessages.Remove(message))
+                        {
+                            keep.Add(message);
+                        }
+                    }
+                    if (m_detachedLastMessages.Count == 0)
+                    {
+                        m_detachedLastMessages = null;
+                    }
+                }
+
+                // taken under the same lock: an item removed after this point is
+                // still in the snapshot, one removed before it is in the detached set.
+                monitoredItems = [.. m_monitoredItems.Values];
+            }
+
+            // A monitored item that got nothing newer still returns the message as its
+            // LastMessage, which the application can read at any time; so does one that
+            // was removed from the subscription since (detached).
+            var candidates = new HashSet<NotificationMessage>(pending, ReferenceComparer.Instance);
+            foreach (MonitoredItem monitoredItem in monitoredItems)
+            {
+                if (monitoredItem.LastMessageInCache is NotificationMessage last &&
+                    candidates.Contains(last))
+                {
+                    keep.Add(last);
+                }
+            }
+            foreach (NotificationMessage message in pending)
+            {
+                if (keep.Contains(message))
+                {
+                    continue;
+                }
+                for (int ii = 0; ii < message.NotificationData.Count; ii++)
+                {
+                    message.NotificationData[ii].ReleaseDeferredBody();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Queues a message that left the message cache for <see cref="ReleaseEvictedMessages"/>
+        /// when a body of it is decoded on first use and its buffers can still be
+        /// returned. Called under the cache lock, so that a monitored item removed
+        /// before the release finds the message (<see cref="KeepLastMessageOfDetachedItem"/>).
+        /// </summary>
+        private void EvictMessage(NotificationMessage message)
+        {
+            if (!m_messagesHandedOut && HasDeferredBody(message))
+            {
+                (m_releasePending ??= []).Add(message);
+            }
+        }
+
+        /// <summary>
+        /// Whether a body of the message is decoded on first use.
+        /// </summary>
+        private static bool HasDeferredBody(NotificationMessage message)
+        {
+            for (int ii = 0; ii < message.NotificationData.Count; ii++)
+            {
+                if (message.NotificationData[ii].IsDeferred)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Keeps the last message of a monitored item that leaves the subscription,
+        /// which the application can still read as <see cref="MonitoredItem.LastMessage"/>,
+        /// when the message can still be released: it is cached or waits for release.
+        /// Called under the cache lock.
+        /// </summary>
+        private void KeepLastMessageOfDetachedItem(MonitoredItem monitoredItem)
+        {
+            if (m_messagesHandedOut ||
+                monitoredItem.LastMessageInCache is not NotificationMessage last)
+            {
+                return;
+            }
+            bool releasable = m_releasePending != null && m_releasePending.Contains(last);
+            for (LinkedListNode<NotificationMessage>? node = m_messageCache.First;
+                !releasable && node != null;
+                node = node.Next)
+            {
+                releasable = ReferenceEquals(node.Value, last);
+            }
+            if (releasable)
+            {
+                (m_detachedLastMessages ??= new(ReferenceComparer.Instance)).Add(last);
+            }
+        }
+
+        /// <summary>
+        /// Records that the application was handed a message of this subscription,
+        /// which it can keep after the message left the message cache.
+        /// </summary>
+        internal void MarkMessagesHandedOut()
+        {
+            Volatile.Write(ref m_messagesHandedOut, true);
+        }
+
+        /// <summary>
+        /// Keeps the message just saved as the last message of a monitored item that
+        /// was removed between its lookup and the save. A removal before the save has
+        /// already cleared <see cref="MonitoredItem.Subscription"/>, and one after it
+        /// finds the message itself (<see cref="KeepLastMessageOfDetachedItem"/>).
+        /// </summary>
+        private void KeepLastMessageIfDetached(MonitoredItem monitoredItem)
+        {
+            if (!ReferenceEquals(monitoredItem.Subscription, this))
+            {
+                lock (m_cache)
+                {
+                    KeepLastMessageOfDetachedItem(monitoredItem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets on a body of a cached message, decoded again after its dispatch, what the
+        /// dispatch set on the first decoded instance: the message fields of the
+        /// notification list and the message of each event. A data change, a value,
+        /// carries neither its message nor its diagnostic info.
+        /// </summary>
+        private static void RestoreDispatchState(IEncodeable value, object? state)
+        {
+            var message = (NotificationMessage)state!;
+            if (value is DataChangeNotification datachange)
+            {
+                datachange.PublishTime = message.PublishTime;
+                datachange.SequenceNumber = message.SequenceNumber;
+                datachange.MoreNotifications = message.MoreNotifications;
+            }
+            else if (value is EventNotificationList events)
+            {
+                events.PublishTime = message.PublishTime;
+                events.SequenceNumber = message.SequenceNumber;
+                events.MoreNotifications = message.MoreNotifications;
+                for (int ii = 0; ii < events.Events.Count; ii++)
+                {
+                    events.Events[ii].Message = message;
+                }
+            }
+        }
+
+        private static readonly Action<IEncodeable, object?> s_restoreDispatchState = RestoreDispatchState;
+
+        /// <summary>
+        /// Compares messages by reference.
+        /// </summary>
+        private sealed class ReferenceComparer : IEqualityComparer<NotificationMessage>
+        {
+            public static readonly ReferenceComparer Instance = new();
+
+            public bool Equals(NotificationMessage? x, NotificationMessage? y)
+            {
+                return ReferenceEquals(x, y);
+            }
+
+            public int GetHashCode(NotificationMessage obj)
+            {
+                return RuntimeHelpers.GetHashCode(obj);
+            }
+        }
+
+        /// <summary>
         /// Saves a data change in the monitored item cache.
         /// </summary>
         private void SaveDataChange(
@@ -4089,17 +4370,12 @@ namespace Opc.Ua.Client
                     continue;
                 }
 
-                // save the message.
-                notification.Message = message;
-
-                // get diagnostic info.
-                if (notifications.DiagnosticInfos.Count > ii)
-                {
-                    notification.DiagnosticInfo = notifications.DiagnosticInfos[ii];
-                }
-
-                // save in cache.
-                monitoredItem.SaveValueInCache(notification);
+                // save in cache with the message and diagnostic info.
+                monitoredItem.SaveValueInCache(
+                    notification,
+                    message,
+                    notifications.DiagnosticInfos.Count > ii ? notifications.DiagnosticInfos[ii] : null);
+                KeepLastMessageIfDetached(monitoredItem);
             }
         }
 
@@ -4132,6 +4408,7 @@ namespace Opc.Ua.Client
 
                 // save in cache.
                 monitoredItem.SaveValueInCache(eventFields);
+                KeepLastMessageIfDetached(monitoredItem);
             }
         }
 
@@ -4280,6 +4557,10 @@ namespace Opc.Ua.Client
         private int m_transferGeneration;
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
+        private bool m_messagesHandedOut;
+        private List<NotificationMessage>? m_releasePending;
+        private HashSet<NotificationMessage>? m_detachedLastMessages;
+        private const int kMonitoredItemsPerReleasedMessage = 64;
         private ArrayOf<uint> m_availableSequenceNumbers;
         private ConcurrentDictionary<uint, MonitoredItem> m_monitoredItems = new();
         private readonly AsyncAutoResetEvent m_messageWorkerEvent = new();

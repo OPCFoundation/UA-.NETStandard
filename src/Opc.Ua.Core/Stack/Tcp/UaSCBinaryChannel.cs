@@ -1418,62 +1418,87 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Receives and dispatches chunks while the transport remains current, reporting receive and dispatch failures.
         /// </summary>
+        /// <remarks>
+        /// The requests that the received responses complete continue once the loop waits:
+        /// every wait of the loop that goes pending runs them on the loop's thread (see
+        /// <see cref="ResponseContinuationDeferral"/>).
+        /// </remarks>
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
         {
-            while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
+            try
             {
-                ArraySegment<byte> chunk;
-                try
+                while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
                 {
-                    // backpressure: do not read more requests while their responses
-                    // cannot be written; the peer's sends block in TCP flow control.
-                    await WaitForWriteCapacityAsync(ct).ConfigureAwait(false);
-                    chunk = await transport.ReceiveChunkAsync(ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (ServiceResultException sre)
-                {
-                    OnTransportError(transport, sre.Result, ct);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    OnTransportError(transport, ServiceResult.Create(
-                        ex,
-                        StatusCodes.BadTcpInternalError,
-                        ex.Message), ct);
-                    return;
-                }
+                    ArraySegment<byte> chunk;
+                    try
+                    {
+                        // backpressure: do not read more requests while their responses
+                        // cannot be written; the peer's sends block in TCP flow control.
+                        await ResponseContinuationDeferral.AwaitAndComplete(WaitForWriteCapacityAsync(ct));
+                        chunk = await ResponseContinuationDeferral.AwaitAndComplete(transport.ReceiveChunkAsync(ct));
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        OnTransportError(transport, sre.Result, ct);
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        OnTransportError(transport, ServiceResult.Create(
+                            ex,
+                            StatusCodes.BadTcpInternalError,
+                            ex.Message), ct);
+                        return;
+                    }
 
-                if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
-                {
-                    BufferManager.ReturnBuffer(chunk.Array, nameof(RunReceiveLoopAsync));
-                    return;
-                }
+                    if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+                    {
+                        BufferManager.ReturnBuffer(chunk.Array, nameof(RunReceiveLoopAsync));
+                        return;
+                    }
 
-                try
-                {
-                    await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
+                    try
+                    {
+                        // the responses in the chunk defer the continuations of their requests
+                        ValueTask dispatch;
+                        ResponseContinuationDeferral.Enter();
+                        try
+                        {
+                            dispatch = OnChunkReceivedAsync(chunk, ct);
+                        }
+                        finally
+                        {
+                            ResponseContinuationDeferral.Exit();
+                        }
+                        await ResponseContinuationDeferral.AwaitAndComplete(dispatch);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Dispatching a chunk must never end the loop silently. The
+                        // task this runs on is fire-and-forget, so an escaping
+                        // exception would otherwise stop the channel receiving with no
+                        // report at all, and the peer would simply time out.
+                        OnTransportError(transport, ServiceResult.Create(
+                            ex,
+                            StatusCodes.BadTcpInternalError,
+                            "An error occurred dispatching a received message."), ct);
+                        return;
+                    }
                 }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    // Dispatching a chunk must never end the loop silently. The
-                    // task this runs on is fire-and-forget, so an escaping
-                    // exception would otherwise stop the channel receiving with no
-                    // report at all, and the peer would simply time out.
-                    OnTransportError(transport, ServiceResult.Create(
-                        ex,
-                        StatusCodes.BadTcpInternalError,
-                        "An error occurred dispatching a received message."), ct);
-                    return;
-                }
+            }
+            finally
+            {
+                // A completion deferred by the last chunk goes to the pool. The loop ends
+                // on the thread that dispatched that chunk, which holds the completion.
+                ResponseContinuationDeferral.CompletePending(inline: false);
             }
         }
 
@@ -1536,6 +1561,24 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Queues a message like <see cref="BeginWriteMessage(BufferCollection, object)"/> but
+        /// leaves starting the writer to a caller that holds the gate: it starts the writer
+        /// with <see cref="StartWriterInline"/> after it released the gate.
+        /// </summary>
+        /// <returns>True if the caller must start the writer.</returns>
+        private protected bool BeginWriteMessageDeferred(BufferCollection buffers, object? state)
+        {
+            IUaSCByteTransport? transport = m_transport;
+            if (transport == null)
+            {
+                BeginWriteMessage(buffers, state);
+                return false;
+            }
+            Interlocked.Increment(ref m_activeWriteRequests);
+            return TryQueueWrite(new PendingWrite(transport, buffers, state));
+        }
+
+        /// <summary>
         /// Queues a write so that it runs off the caller's stack but still in
         /// the order the caller issued it.
         /// </summary>
@@ -1553,6 +1596,21 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void QueueWrite(PendingWrite write)
         {
+            if (TryQueueWrite(write))
+            {
+                ScheduleWriter();
+            }
+        }
+
+        /// <summary>
+        /// Queues a write like <see cref="QueueWrite"/> but leaves starting the writer to the
+        /// caller.
+        /// </summary>
+        /// <returns>True if the writer is not running and the caller must start it, with
+        /// <see cref="StartWriterInline"/> once it holds neither the gate nor
+        /// <see cref="SendOrder"/>, or with <see cref="ScheduleWriter"/>.</returns>
+        private bool TryQueueWrite(PendingWrite write)
+        {
             long retained = write.RetainedBytes;
             lock (m_writeQueueLock)
             {
@@ -1560,12 +1618,11 @@ namespace Opc.Ua.Bindings
                 Volatile.Write(ref m_queuedWriteBytes, m_queuedWriteBytes + retained);
                 if (m_writerRunning)
                 {
-                    return;
+                    return false;
                 }
                 m_writerRunning = true;
+                return true;
             }
-
-            ScheduleWriter();
         }
 
         /// <summary>
@@ -1654,9 +1711,37 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Starts the writer that <see cref="TryQueueWrite"/> left to the caller on the
+        /// calling thread. The caller must hold neither the gate (the write completes
+        /// through <see cref="HandleWriteComplete"/>, which enters it) nor
+        /// <see cref="SendOrder"/>.
+        /// </summary>
+        /// <remarks>
+        /// A work item queued for the writer wakes a pool worker even when the issuing
+        /// thread runs the item itself as it returns to the pool. That woken worker finds no
+        /// work, and since .NET 11 a worker spins much longer before it blocks again
+        /// (UnfairSemaphoreSpinLimit 70 to 1024), which cost 40 to 70 % more CPU per
+        /// request. A caller that holds nothing sends on its own thread before it awaits the
+        /// response, which is where the queued item ran as well.
+        /// </remarks>
+        private protected void StartWriterInline()
+        {
+            // the pool item did not flow the execution context either
+            if (ExecutionContext.IsFlowSuppressed())
+            {
+                _ = RunWritesAsync();
+                return;
+            }
+            using (ExecutionContext.SuppressFlow())
+            {
+                _ = RunWritesAsync();
+            }
+        }
+
+        /// <summary>
         /// Starts the writer on the thread pool.
         /// </summary>
-        private void ScheduleWriter()
+        private protected void ScheduleWriter()
         {
             // The execution context is not needed by the write and is not flowed.
             // The write goes to the local queue of the issuing thread, which picks

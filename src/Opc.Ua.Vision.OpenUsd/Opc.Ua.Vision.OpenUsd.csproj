@@ -4,7 +4,7 @@
          is deliberately narrower than the Vision server/client contracts. The
          Vision server takes the ISceneCameraCaptureProvider abstraction and
          degrades to a non-rendering sensor when this assembly is not present. -->
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net11.0;net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net11.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
     <AssemblyName>$(AssemblyPrefix).Vision.OpenUsd</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Vision.OpenUsd</PackageId>

@@ -447,10 +447,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 #if NETFRAMEWORK
             Assert.That(Environment.Version.Major, Is.EqualTo(4));
-#elif NET8_0
-            Assert.That(Environment.Version.Major, Is.EqualTo(8));
-#elif NET9_0
-            Assert.That(Environment.Version.Major, Is.EqualTo(9));
 #elif NET11_0_OR_GREATER
             Assert.That(Environment.Version.Major, Is.EqualTo(11));
 #elif NET10_0

@@ -14,16 +14,14 @@
       legacy-TFM restriction. The runner records it as not applicable
       instead of treating zero discovered tests as a successful run.
       The stress tests themselves still run on the
-      net8.0/net9.0/net10.0/net11.0 matrix entries where they are supported.
+      net10.0/net11.0 matrix entries where they are supported.
     -->
     <_StressTestSupportedTarget>false</_StressTestSupportedTarget>
     <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == ''">true</_StressTestSupportedTarget>
-    <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == 'net8.0'">true</_StressTestSupportedTarget>
-    <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == 'net9.0'">true</_StressTestSupportedTarget>
     <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == 'net10.0'">true</_StressTestSupportedTarget>
     <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == 'net11.0'">true</_StressTestSupportedTarget>
     <RestrictForLegacyTfm Condition="'$(_StressTestSupportedTarget)' != 'true'">true</RestrictForLegacyTfm>
-    <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' == 'true' AND '$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' == 'true' AND '$(CustomTestTarget)' == ''">net10.0;net11.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' == 'true' AND '$(CustomTestTarget)' != ''">$(TestsTargetFrameworks)</TargetFrameworks>
     <!--
       For incompatible matrix entries (net48) the
@@ -37,7 +35,7 @@
       The placeholder assembly compiled for net48
       matrix entries has no source code; suppress CA1014 (assembly-level
       CLSCompliant) for that build only — the real stress-test build on
-      net8.0+ keeps the warning enabled.
+      net10.0+ keeps the warning enabled.
     -->
     <NoWarn Condition="'$(_StressTestSupportedTarget)' != 'true'">$(NoWarn);CA1014</NoWarn>
     <RootNamespace>Opc.Ua.Stress.Tests</RootNamespace>

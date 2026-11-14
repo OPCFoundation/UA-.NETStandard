@@ -87,7 +87,7 @@ Clients close call-owned subscriptions/files and their managed session.
 
 ## Frameworks and NativeAOT
 
-Both projects support net48, net8.0, net9.0 and net10.0. NativeAOT is selected
+Both projects support net48, net10.0 and net11.0. NativeAOT is selected
 only on the application projects for net10.0:
 
 ```powershell

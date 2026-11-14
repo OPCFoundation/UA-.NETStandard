@@ -31,8 +31,8 @@
     reference assemblies while the rest of the stack is built for
     `<tfm>`.  Mixing the two surfaces as `CS0433` on every BCL type the
     stack polyfills for older frameworks (`System.Threading.Lock` is
-    defined by `Opc.Ua.Types` on `net8.0` and by `System.Runtime` on
-    `net9.0+`), which is a property of the pinned build rather than of
+    defined by `Opc.Ua.Types` on `net48` and by `System.Runtime` on
+    modern .NET), which is a property of the pinned build rather than of
     the project's own sources.
 
     The project still loads in the `.slnx` graph so the matrix prep
