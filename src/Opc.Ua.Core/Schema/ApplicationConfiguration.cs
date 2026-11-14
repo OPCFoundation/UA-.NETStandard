@@ -1478,6 +1478,60 @@ namespace Opc.Ua
         /// </summary>
         public const int DefaultMaxSelectClauseParameters = 256;
 
+        /// <summary>
+        /// The maximum number of raw values that the aggregate calculator of a monitored item
+        /// with an AggregateFilter keeps for its current processing interval. When an interval
+        /// receives more values, the newest kept value is replaced by each later one and the
+        /// processed value of the interval is reported as Uncertain_DataSubNormal instead of Good.
+        /// Values of completed intervals are not counted, so the limit only applies to intervals
+        /// with an unusually high number of samples.
+        /// A value of zero or less means the server does not impose a limit.
+        /// </summary>
+        /// <value>The maximum number of raw values kept per aggregate monitored item.</value>
+        [DataTypeField(Order = 44)]
+        public int MaxMonitoredItemAggregateRawValues { get; set; } =
+            DefaultMaxMonitoredItemAggregateRawValues;
+
+        /// <summary>
+        /// The default of <see cref="MaxMonitoredItemAggregateRawValues"/>.
+        /// </summary>
+        public const int DefaultMaxMonitoredItemAggregateRawValues = 10_000;
+
+        /// <summary>
+        /// The maximum number of raw values that the server keeps for one processing interval
+        /// when it calculates a HistoryRead ReadProcessedDetails operation from raw history
+        /// (a historian without native processed reads). An operation that needs more returns
+        /// Bad_TooManyOperations.
+        /// A value of zero or less means the server does not impose a limit.
+        /// </summary>
+        /// <value>The maximum number of raw values per processed history interval.</value>
+        [DataTypeField(Order = 45)]
+        public int MaxProcessedHistoryRawValues { get; set; } =
+            DefaultMaxProcessedHistoryRawValues;
+
+        /// <summary>
+        /// The default of <see cref="MaxProcessedHistoryRawValues"/>.
+        /// </summary>
+        public const int DefaultMaxProcessedHistoryRawValues = 100_000;
+
+        /// <summary>
+        /// The maximum total number of values that the HistoryRead continuation points of one
+        /// session may hold (values buffered for processed reads that the server calculates).
+        /// Saving a continuation point that does not fit releases the oldest continuation points
+        /// of earlier requests; if that is not enough the operation returns
+        /// Bad_NoContinuationPoints.
+        /// A value of zero or less means the server does not impose a limit.
+        /// </summary>
+        /// <value>The maximum number of values held by the history continuation points of a session.</value>
+        [DataTypeField(Order = 46)]
+        public int MaxHistoryContinuationPointValues { get; set; } =
+            DefaultMaxHistoryContinuationPointValues;
+
+        /// <summary>
+        /// The default of <see cref="MaxHistoryContinuationPointValues"/>.
+        /// </summary>
+        public const int DefaultMaxHistoryContinuationPointValues = 100_000;
+
         private ArrayOf<UserTokenPolicy> m_userTokenPolicies;
         private ArrayOf<string> m_serverProfileArray;
         private ArrayOf<string> m_serverCapabilities;
