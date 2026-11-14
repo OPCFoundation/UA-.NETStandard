@@ -1,7 +1,7 @@
 # OPC UA Asset Management Basics MCP tools
 
 Embeddable Model Context Protocol tools over `Opc.Ua.AMB.Client` (OPC 10000-110).
-Targets .NET 8, 9 and 10. No server assembly dependency is required.
+Targets .NET 10 and 11. No server assembly dependency is required.
 
 ```csharp
 services.AddOpcUaMcpCore();

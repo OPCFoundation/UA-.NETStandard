@@ -245,8 +245,6 @@ namespace Opc.Ua.LADS.Server
 #endif
 #if NET9_0_OR_GREATER
             string hash = Convert.ToHexStringLower(digest);
-#elif NET5_0_OR_GREATER
-            string hash = Convert.ToHexString(digest).ToLowerInvariant();
 #else
             var hex = new StringBuilder(digest.Length * 2);
             foreach (byte value in digest)

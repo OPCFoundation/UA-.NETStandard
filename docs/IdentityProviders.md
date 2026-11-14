@@ -757,7 +757,7 @@ their concrete `IssuerVerificationKey` instances according to their lifetime.
 The helper
 deliberately uses
 `byte[]` overloads (no `System.IdentityModel.Tokens.Jwt`) so it works
-on net48 / net8+/net9+/net10+ and is
+on net48 / net10+ and is
 AOT-friendly.
 
 Supported JWS algorithms (RFC 7518 §3.1):
@@ -1038,7 +1038,7 @@ OPC UA identity abstractions plus the provider SDK you need.
 - Implement `WindowsIntegratedClientIdentityProvider : IClientIdentityProvider` to run a SPNEGO/Kerberos
   exchange and emit the resulting AP-REQ or wrapped Negotiate token as an issued user token profile owned by
   the package.
-- Use `System.Net.Security.NegotiateAuthentication` on `net8.0+`; use `System.Net.NegotiateStream` on
+- Use `System.Net.Security.NegotiateAuthentication` on `net10.0+`; use `System.Net.NegotiateStream` on
   down-level TFMs where the newer API is unavailable.
 - Derive the service principal name from the target OPC UA endpoint and `ApplicationUri`, for example
   `HOST/<server-fqdn>` for host-bound deployments or `OPCUA/<server-fqdn>` where an OPC UA-specific SPN is

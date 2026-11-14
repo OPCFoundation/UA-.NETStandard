@@ -6,6 +6,7 @@
       "ns2": "http://opcfoundation.org/UA/Pumps/",
       "ns3": "http://opcfoundation.org/UA/Machinery/",
       "ns4": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -61,6 +62,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Manufacturer",
+      "type": "string",
       "uav:browseName": "ns4:Manufacturer",
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification.Manufacturer",
       "uav:mapToNodeId": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification.Manufacturer",
@@ -74,7 +76,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "urn:simdevice:SimPump:PumpX-2000:SN-001",
+      "default": "urn:simdevice:SimPump:PumpX-2000:SN-001",
       "forms": [
         {
           "href": "${SOURCE_A_ENDPOINT}",
@@ -112,7 +114,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "SN-001",
+      "default": "SN-001",
       "forms": [
         {
           "href": "${SOURCE_A_ENDPOINT}",
@@ -252,6 +254,7 @@
         "browseName": "4:Identification",
         "displayName": [
           {
+            "locale": "",
             "value": "Identification"
           }
         ],
@@ -284,10 +287,12 @@
         "typeDefinition": "ns=2;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "4:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -309,10 +314,12 @@
         "valueXml": "<uax:LocalizedText xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:Text>SimPump Corp</uax:Text>\n      </uax:LocalizedText>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "4:SerialNumber",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -334,10 +341,12 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">SN-001</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "4:ProductInstanceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductInstanceUri"
           }
         ],

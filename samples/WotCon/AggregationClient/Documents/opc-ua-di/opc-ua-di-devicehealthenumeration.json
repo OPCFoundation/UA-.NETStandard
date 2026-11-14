@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -34,7 +35,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -385,11 +388,14 @@
           "DI DeviceHealth"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "This device functions normally."
                 }
               ],
@@ -397,9 +403,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Malfunction of the device or any of its peripherals."
                 }
               ],
@@ -407,9 +415,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Functional checks are currently performed."
                 }
               ],
@@ -417,9 +427,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The device is currently working outside of its specified range or that internal diagnoses indicate deviations from measured or set values."
                 }
               ],
@@ -427,9 +439,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "This element is working, but a maintenance operation is required."
                 }
               ],
@@ -441,6 +455,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceHealthEnumeration"
           }
         ],
@@ -466,6 +481,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumStrings"
           }
         ],

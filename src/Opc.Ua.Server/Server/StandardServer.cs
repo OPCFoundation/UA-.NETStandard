@@ -1743,6 +1743,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
+                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
 
                 (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.BrowseAsync(
@@ -1773,6 +1774,18 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// The response byte budget of Browse, BrowseNext and Call: the message size limit
+        /// for a binary encoded request, whose results it bounds from below. Other encodings
+        /// can be smaller than that bound (JSON numbers), so they have no budget.
+        /// </summary>
+        private int GetResponseByteBudget(SecureChannelContext secureChannelContext)
+        {
+            return secureChannelContext?.MessageEncoding == RequestEncoding.Binary
+                ? MessageContext.MaxMessageSize
+                : 0;
+        }
+
         /// <inheritdoc/>
         public override async ValueTask<BrowseNextResponse> BrowseNextAsync(
             SecureChannelContext secureChannelContext,
@@ -1790,6 +1803,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
+                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
 
                 (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.BrowseNextAsync(
@@ -3030,6 +3044,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
+                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
 
                 (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)

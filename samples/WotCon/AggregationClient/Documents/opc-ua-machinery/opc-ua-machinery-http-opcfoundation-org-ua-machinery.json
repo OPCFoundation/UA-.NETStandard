@@ -4,6 +4,7 @@
     {
       "ns1": "http://opcfoundation.org/UA/Machinery/",
       "ns2": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -31,7 +32,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "links": [
         {
           "href": "i=68",
@@ -87,7 +88,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "http://opcfoundation.org/UA/Machinery/",
+      "default": "http://opcfoundation.org/UA/Machinery/",
       "links": [
         {
           "href": "i=68",
@@ -115,7 +116,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "1.01.0",
+      "default": "1.01.0",
       "links": [
         {
           "href": "i=68",
@@ -143,7 +144,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -175,7 +175,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -334,6 +336,7 @@
         "browseName": "1:http://opcfoundation.org/UA/Machinery/",
         "displayName": [
           {
+            "locale": "",
             "value": "http://opcfoundation.org/UA/Machinery/"
           }
         ],
@@ -383,10 +386,12 @@
         "typeDefinition": "i=11616"
       },
       {
+        "arrayDimensions": "",
         "browseName": "IsNamespaceSubset",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "IsNamespaceSubset"
           }
         ],
@@ -408,10 +413,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespacePublicationDate",
         "dataType": "DateTime",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespacePublicationDate"
           }
         ],
@@ -433,10 +440,12 @@
         "valueXml": "<uax:DateTime xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">2021-02-25T00:00:00Z</uax:DateTime>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceUri"
           }
         ],
@@ -458,10 +467,12 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://opcfoundation.org/UA/Machinery/</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceVersion",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceVersion"
           }
         ],
@@ -488,6 +499,7 @@
         "dataType": "IdType",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticNodeIdTypes"
           }
         ],
@@ -515,6 +527,7 @@
         "dataType": "NumericRange",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticNumericNodeIdRange"
           }
         ],
@@ -536,10 +549,12 @@
         "valueRank": 1
       },
       {
+        "arrayDimensions": "",
         "browseName": "StaticStringNodeIdPattern",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticStringNodeIdPattern"
           }
         ],

@@ -61,51 +61,27 @@ namespace Opc.Ua.Client.Subscriptions
             // checks are stable. The pools are static on the closed
             // generic activator types, so prior tests in the run can
             // leave instances around; we evict everything we can see.
-            DrainPool(MonitoredItemNotificationActivator.Instance);
             DrainPool(DataChangeNotificationActivator.Instance);
             DrainPool(EventFieldListActivator.Instance);
             DrainPool(EventNotificationListActivator.Instance);
         }
 
         [Test]
-        public void GeneratedMonitoredItemNotificationImplementsPooledEncodeable()
+        public void GeneratedMonitoredItemNotificationIsValueType()
         {
-            var instance = new MonitoredItemNotification();
-            Assert.That(instance, Is.InstanceOf<IPooledEncodeable>());
-        }
-
-        [Test]
-        public void ReuseOnMonitoredItemNotificationResetsFieldsAndReturnsToPool()
-        {
-            // Rent via the activator so the sentinel starts at 0.
-            var rented = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
-            rented.ClientHandle = 42;
-            rented.Value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.Now);
-
-            rented.Reuse();
-
-            // Fields reset to the state of a newly constructed instance.
-            var constructed = new MonitoredItemNotification();
-            Assert.That(rented.ClientHandle, Is.Zero,
-                "Reuse should reset ClientHandle to default(uint)");
-            Assert.That(rented.Value.IsNull, Is.EqualTo(constructed.Value.IsNull),
-                "Reuse should reset Value to its constructed value");
-            Assert.That(rented.Value.WrappedValue.IsNull, Is.True,
-                "Reuse should clear the notification's value");
-
-            // Pool should now hand the same reference back.
-            var reRented = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
-            Assert.That(reRented, Is.SameAs(rented),
-                "Activator should re-rent the instance returned by Reuse");
+            // IsValueType="true" in the design: held inline by arrays and
+            // queues, so there is nothing to pool.
+            Assert.That(typeof(MonitoredItemNotification).IsValueType, Is.True);
+            Assert.That(typeof(IPooledEncodeable).IsAssignableFrom(typeof(MonitoredItemNotification)), Is.False);
+            Assert.That(MonitoredItemNotificationActivator.Instance.CreateInstance(),
+                Is.EqualTo(default(MonitoredItemNotification)));
         }
 
         [Test]
         public void DoubleReuseOnGeneratedTypeIsIdempotent()
         {
-            var rented = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
+            var rented = (DataChangeNotification)
+                DataChangeNotificationActivator.Instance.CreateInstance();
             rented.Reuse();
             // Second Reuse must be a no-op: it must not re-add the
             // instance to the pool. We verify by renting twice — the
@@ -113,34 +89,12 @@ namespace Opc.Ua.Client.Subscriptions
             // fresh new instance because the pool only ever held one
             // entry.
             rented.Reuse();
-            var first = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
-            var second = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
+            var first = (DataChangeNotification)
+                DataChangeNotificationActivator.Instance.CreateInstance();
+            var second = (DataChangeNotification)
+                DataChangeNotificationActivator.Instance.CreateInstance();
             Assert.That(first, Is.SameAs(rented));
             Assert.That(second, Is.Not.SameAs(rented));
-        }
-
-        [Test]
-        public void RentAfterReuseClearsSentinelSoSubsequentReuseStillWorks()
-        {
-            var rented = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
-            rented.ClientHandle = 7;
-            rented.Reuse();
-            var rerented = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
-            Assert.That(rerented, Is.SameAs(rented));
-            // After rent, sentinel should be clear; touching and reusing
-            // again should reset the fields and re-pool.
-            rerented.ClientHandle = 99;
-            rerented.Reuse();
-            Assert.That(rerented.ClientHandle, Is.Zero);
-            var third = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
-            Assert.That(third, Is.SameAs(rented),
-                "Sentinel should clear on rent so subsequent Reuse can " +
-                "re-pool the same instance");
         }
 
         [Test]
@@ -199,20 +153,16 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task DispatcherCallsReuseOnPayloadWhenPoolNotificationsEnabledAsync()
         {
             // Wire a TestMessageProcessor that mirrors the V2
-            // Subscription dispatch contract: on data change, walk the
-            // notification and call Reuse() on each pooled item
-            // (matching the production code in Subscription.cs).
-            DrainPool(MonitoredItemNotificationActivator.Instance);
+            // Subscription dispatch contract: on data change, call
+            // Reuse() on the pooled container (matching the production
+            // code in Subscription.cs).
             DrainPool(DataChangeNotificationActivator.Instance);
 
-            // Rent payload items from the activators so we have known
-            // instance identities to assert pool re-entry against.
-            var monitoredItem = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
-            monitoredItem.ClientHandle = 17;
+            // Rent the container from its activator so we have a known
+            // instance identity to assert pool re-entry against.
             var dataChange = (DataChangeNotification)
                 DataChangeNotificationActivator.Instance.CreateInstance();
-            dataChange.MonitoredItems = new[] { monitoredItem };
+            dataChange.MonitoredItems = new[] { new MonitoredItemNotification { ClientHandle = 17 } };
 
             var stringTable = new List<string>();
             var availableSeq = new List<uint>();
@@ -238,33 +188,26 @@ namespace Opc.Ua.Client.Subscriptions
                     .ConfigureAwait(false);
             }
 
-            // After the dispatcher finally runs the reuse walk, the
-            // activator's pool should contain our items. Rent and check
-            // identity to verify pooling actually happened.
-            var rentedItem = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
+            // After the dispatcher finally runs the reuse, the activator's
+            // pool should contain the container, reset.
             var rentedContainer = (DataChangeNotification)
                 DataChangeNotificationActivator.Instance.CreateInstance();
-            Assert.That(rentedItem, Is.SameAs(monitoredItem),
-                "Pool should hand back the MonitoredItemNotification that " +
-                "was reused after dispatch");
             Assert.That(rentedContainer, Is.SameAs(dataChange),
                 "Pool should hand back the DataChangeNotification that was " +
                 "reused after dispatch");
-            Assert.That(rentedItem.ClientHandle, Is.Zero,
-                "Reused MonitoredItemNotification should have been reset");
+            Assert.That(rentedContainer.MonitoredItems.Count, Is.Zero,
+                "Reused DataChangeNotification should have been reset");
         }
 
         [Test]
         public async Task DispatcherSkipsReuseWalkWhenPoolNotificationsDisabledAsync()
         {
-            DrainPool(MonitoredItemNotificationActivator.Instance);
+            DrainPool(DataChangeNotificationActivator.Instance);
             m_completion.PoolNotifications = false;
 
-            var monitoredItem = new MonitoredItemNotification { ClientHandle = 99 };
             var dataChange = new DataChangeNotification
             {
-                MonitoredItems = new[] { monitoredItem }
+                MonitoredItems = new[] { new MonitoredItemNotification { ClientHandle = 99 } }
             };
 
             var stringTable = new List<string>();
@@ -292,14 +235,13 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             // Pool is empty: nothing was returned because the dispatcher
-            // skipped the reuse walk. CreateInstance allocates a fresh.
-            var fresh = (MonitoredItemNotification)
-                MonitoredItemNotificationActivator.Instance.CreateInstance();
-            Assert.That(fresh, Is.Not.SameAs(monitoredItem),
+            // skipped the reuse. CreateInstance allocates a fresh one.
+            var fresh = (DataChangeNotification)
+                DataChangeNotificationActivator.Instance.CreateInstance();
+            Assert.That(fresh, Is.Not.SameAs(dataChange),
                 "PoolNotifications=false must not return instances to pool");
-            // The original item's fields must NOT have been reset by the
-            // dispatcher (since the reuse walk was skipped).
-            Assert.That(monitoredItem.ClientHandle, Is.EqualTo(99u),
+            // The payload must NOT have been reset by the dispatcher.
+            Assert.That(dataChange.MonitoredItems[0].ClientHandle, Is.EqualTo(99u),
                 "PoolNotifications=false must leave the payload untouched");
         }
 
@@ -344,18 +286,9 @@ namespace Opc.Ua.Client.Subscriptions
                 DataChangeNotificationReceived.Set();
                 if (PoolNotifications)
                 {
-                    // Mirror the production reuse walk from
-                    // Subscription.cs. Tested here in isolation so we
-                    // don't drag in the full Subscription stack.
-                    ReadOnlySpan<MonitoredItemNotification> items =
-                        notification.MonitoredItems.Span;
-                    for (int i = 0; i < items.Length; i++)
-                    {
-                        if (items[i] is IPooledEncodeable p)
-                        {
-                            p.Reuse();
-                        }
-                    }
+                    // Mirror the production reuse from Subscription.cs.
+                    // Tested here in isolation so we don't drag in the
+                    // full Subscription stack.
                     if (notification is IPooledEncodeable container)
                     {
                         container.Reuse();

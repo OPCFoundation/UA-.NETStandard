@@ -119,8 +119,14 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IReadOnlyList<uint>? availableSequenceNumbers,
             IReadOnlyList<string> stringTable)
         {
-            OnPublishReceivedCalls.Add(new OnPublishReceivedCall(message,
-                availableSequenceNumbers, stringTable));
+            // Several publish workers deliver concurrently; an unsynchronized
+            // List<T>.Add corrupts the list and fails the Publish with an
+            // IndexOutOfRangeException, which requeues and resends acknowledgements.
+            lock (OnPublishReceivedCalls)
+            {
+                OnPublishReceivedCalls.Add(new OnPublishReceivedCall(message,
+                    availableSequenceNumbers, stringTable));
+            }
             return OnPublishReceivedAsyncFunc?.Invoke(message,
                 availableSequenceNumbers, stringTable) ??
                 default;
@@ -130,8 +136,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IReadOnlyList<uint> availableSequenceNumbers,
             CancellationToken ct = default)
         {
-            TryCompleteTransferCalls.Add(new TryCompleteTransferCall(
-                availableSequenceNumbers));
+            lock (TryCompleteTransferCalls)
+            {
+                TryCompleteTransferCalls.Add(new TryCompleteTransferCall(
+                    availableSequenceNumbers));
+            }
             return OnTryCompleteTransferAsync?.Invoke(availableSequenceNumbers, ct)
                 ?? new ValueTask<bool>(true);
         }
@@ -144,7 +153,10 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         public void NotifySubscriptionManagerPaused(bool paused)
         {
-            NotifySubscriptionManagerPausedCalls.Add(paused);
+            lock (NotifySubscriptionManagerPausedCalls)
+            {
+                NotifySubscriptionManagerPausedCalls.Add(paused);
+            }
         }
 
         public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
@@ -174,7 +186,10 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             TimeSpan lifetime,
             CancellationToken ct = default)
         {
-            SetAsDurableCalls.Add(new SetAsDurableCall(lifetime));
+            lock (SetAsDurableCalls)
+            {
+                SetAsDurableCalls.Add(new SetAsDurableCall(lifetime));
+            }
             return OnSetAsDurableAsync?.Invoke(lifetime, ct)
                 ?? new ValueTask<TimeSpan>(lifetime);
         }
@@ -202,8 +217,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IReadOnlyCollection<IMonitoredItem>? linksToRemove = null,
             CancellationToken ct = default)
         {
-            SetTriggeringCalls.Add(new SetTriggeringCall(
-                triggeringItem, linksToAdd, linksToRemove));
+            lock (SetTriggeringCalls)
+            {
+                SetTriggeringCalls.Add(new SetTriggeringCall(
+                    triggeringItem, linksToAdd, linksToRemove));
+            }
             if (OnSetTriggeringAsync != null)
             {
                 return OnSetTriggeringAsync(triggeringItem,

@@ -89,6 +89,14 @@ namespace Opc.Ua.Server
             }
             if (ServiceResult.IsGoodOrUncertain(operation))
             {
+                // the outputs stay referenced until the response is sent: a call whose
+                // results exceed the response byte budget keeps none of them.
+                if (context != null &&
+                    context.ResponseBytesRemaining >= 0 &&
+                    !context.TryChargeResponse(ResponseSizeEstimator.Estimate(outputs)))
+                {
+                    return StatusCodes.BadResponseTooLarge;
+                }
                 result.OutputArguments = outputs;
             }
             return operation;

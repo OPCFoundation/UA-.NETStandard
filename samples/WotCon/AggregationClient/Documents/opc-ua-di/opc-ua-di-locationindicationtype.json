@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -34,7 +35,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -349,11 +352,14 @@
           "DI AssetLocationIndication"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Location indication through optical signals, such as blinking LEDs, if supported by the device."
                 }
               ],
@@ -361,9 +367,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Location indication through auditory signals, such as sounds or beeps, if supported by the device."
                 }
               ],
@@ -376,6 +384,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "LocationIndicationType"
           }
         ],
@@ -401,6 +410,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "OptionSetValues"
           }
         ],

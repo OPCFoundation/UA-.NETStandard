@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -1582,11 +1583,13 @@
         "browseName": "1:Documentation",
         "description": [
           {
+            "locale": "",
             "value": "Static documentation files of a pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Documentation"
           }
         ],
@@ -1788,15 +1791,18 @@
         "typeDefinition": "ns=1;i=1006"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ArrangementsLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Drawing showing replacement components layout for an item."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ArrangementsLink"
           }
         ],
@@ -1826,10 +1832,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1855,15 +1863,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:CertificatesLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Specific safety and statutory regulations certificates for items (lifting equipment, steam boilers, pressure vessels,...)."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CertificatesLink"
           }
         ],
@@ -1893,10 +1904,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1922,15 +1935,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:CircuitDiagramLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Overall feeder and control circuits diagram."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CircuitDiagramLink"
           }
         ],
@@ -1960,10 +1976,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1989,15 +2007,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ComponentsListLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Comprehensive list of items which constitute part of another one."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ComponentsListLink"
           }
         ],
@@ -2027,10 +2048,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2056,15 +2079,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DetailLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Drawing with part list to ensure dismantling, repair and assembly of items."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DetailLink"
           }
         ],
@@ -2094,10 +2120,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2123,15 +2151,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DuringMaintenanceServicesRenderedLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Final and/or interim report on services provided"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DuringMaintenanceServicesRenderedLink"
           }
         ],
@@ -2161,10 +2192,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2190,15 +2223,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ImplementationDescriptionLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Explanation of the work carried out"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ImplementationDescriptionLink"
           }
         ],
@@ -2228,10 +2264,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2257,15 +2295,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LayoutLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Drawing showing all areas of a particular plant."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LayoutLink"
           }
         ],
@@ -2295,10 +2336,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2324,15 +2367,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LocationLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Drawing showing the position of all field items within the considered area."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LocationLink"
           }
         ],
@@ -2362,10 +2408,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2391,15 +2439,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LogicDiagramLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "System control diagram to clarify the overall system logic."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LogicDiagramLink"
           }
         ],
@@ -2429,10 +2480,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2458,15 +2511,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LubricationMapLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Drawing showing position of each item lubrication point, with lubrication data and specifications."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LubricationMapLink"
           }
         ],
@@ -2496,10 +2552,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2525,15 +2583,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MaintenanceManualLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Technical instructions intended to preserve an item in, or restore it to, a state in which it can perform a required function."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaintenanceManualLink"
           }
         ],
@@ -2563,10 +2624,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2592,15 +2655,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OperationManualLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Technical instructions to reach a proper item function performance according to its technical specifications and safety conditions."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OperationManualLink"
           }
         ],
@@ -2630,10 +2696,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2659,15 +2727,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PersonnelRecordingLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "List of all activities (work order) performed by a technician. This list includes a predefined time period"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PersonnelRecordingLink"
           }
         ],
@@ -2697,10 +2768,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2726,15 +2799,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PipeAndInstrumentDiagramLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Overall fluid conduction (air, steam, oil, fuel ...), and control diagram."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PipeAndInstrumentDiagramLink"
           }
         ],
@@ -2764,10 +2840,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2793,15 +2871,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ScopeOfWorkLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "The hours worked in the execution of the work order. The type of hours worked should be indicated: normal, in shifts, at night, overtime, etc."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ScopeOfWorkLink"
           }
         ],
@@ -2831,10 +2912,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2860,15 +2943,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SingleLineDiagramLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Overall power distribution diagram (electrical, pneumatic, hydraulic). This kind of diagram includes switchboard circuits."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SingleLineDiagramLink"
           }
         ],
@@ -2898,10 +2984,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2927,15 +3015,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SparePartReferenceLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "List of all spare parts used within the scope of the work order"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SparePartReferenceLink"
           }
         ],
@@ -2965,10 +3056,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2994,15 +3087,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:StaffLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "List of all maintenance workers involved in the execution of the work order"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "StaffLink"
           }
         ],
@@ -3032,10 +3128,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3061,15 +3159,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TechnicalDataLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Manufacturer`s specification of the item."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TechnicalDataLink"
           }
         ],
@@ -3099,10 +3200,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3128,15 +3231,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TestProgramReportLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Commissioning report which demonstrates that an item is in compliance with specifications."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TestProgramReportLink"
           }
         ],
@@ -3166,10 +3272,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3195,15 +3303,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UnitMaintenanceReportLink",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "List of work orders for a particular unit. The list is created for a specified period of time"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "UnitMaintenanceReportLink"
           }
         ],
@@ -3233,10 +3344,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],

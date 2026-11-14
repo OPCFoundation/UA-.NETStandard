@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -814,6 +815,7 @@
         "browseName": "1:http://opcfoundation.org/UA/DI/",
         "displayName": [
           {
+            "locale": "",
             "value": "http://opcfoundation.org/UA/DI/"
           }
         ],
@@ -879,10 +881,12 @@
         "typeDefinition": "i=11616"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceUri"
           }
         ],
@@ -904,10 +908,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://opcfoundation.org/UA/DI/</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceVersion",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceVersion"
           }
         ],
@@ -929,10 +935,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">1.05.0</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespacePublicationDate",
         "dataType": "DateTime",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespacePublicationDate"
           }
         ],
@@ -954,10 +962,12 @@
         "valueXml": "<DateTime xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">2025-11-15T00:00:00Z</DateTime>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "IsNamespaceSubset",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "IsNamespaceSubset"
           }
         ],
@@ -984,6 +994,7 @@
         "dataType": "i=256",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticNodeIdTypes"
           }
         ],
@@ -1011,6 +1022,7 @@
         "dataType": "i=291",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticNumericNodeIdRange"
           }
         ],
@@ -1033,10 +1045,12 @@
         "valueXml": "<ListOfString xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <String>1:2147483647</String>\n      </ListOfString>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StaticStringNodeIdPattern",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticStringNodeIdPattern"
           }
         ],
@@ -1063,6 +1077,7 @@
         "dataType": "i=96",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultRolePermissions"
           }
         ],
@@ -1089,6 +1104,7 @@
         "dataType": "i=96",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultUserRolePermissions"
           }
         ],
@@ -1110,10 +1126,12 @@
         "valueRank": 1
       },
       {
+        "arrayDimensions": "",
         "browseName": "DefaultAccessRestrictions",
         "dataType": "i=95",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultAccessRestrictions"
           }
         ],
@@ -1134,10 +1152,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "ModelVersion",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ModelVersion"
           }
         ],
@@ -1165,6 +1185,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ConnectsTo"
           }
         ],
@@ -1188,6 +1209,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ConnectsToParent"
           }
         ],
@@ -1211,12 +1233,14 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IsOnline"
           }
         ],
         "documentation": "https://reference.opcfoundation.org/DI/v105/docs/6.3.2",
         "inverseName": [
           {
+            "locale": "",
             "value": "OnlineOf"
           }
         ],
@@ -1238,12 +1262,14 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "UpdateParent"
           }
         ],
         "documentation": "https://reference.opcfoundation.org/DI/v105/docs/8.6.1",
         "inverseName": [
           {
+            "locale": "",
             "value": "UpdateChild"
           }
         ],
@@ -1265,12 +1291,14 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CanUpdate"
           }
         ],
         "documentation": "https://reference.opcfoundation.org/DI/v105/docs/8.6.2",
         "inverseName": [
           {
+            "locale": "",
             "value": "CanBeUpdatedBy"
           }
         ],
@@ -1292,6 +1320,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceSet"
           }
         ],
@@ -1318,6 +1347,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceFeatures"
           }
         ],
@@ -1344,6 +1374,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NetworkSet"
           }
         ],
@@ -1370,6 +1401,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceTopology"
           }
         ],
@@ -1394,10 +1426,12 @@
         "typeDefinition": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OnlineAccess",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "OnlineAccess"
           }
         ],
@@ -1424,6 +1458,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TopologyElementType"
           }
         ],
@@ -1464,6 +1499,7 @@
         "browseName": "1:ParameterSet",
         "displayName": [
           {
+            "locale": "",
             "value": "ParameterSet"
           }
         ],
@@ -1493,10 +1529,12 @@
         "typeDefinition": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<ParameterIdentifier>",
         "dataType": "i=24",
         "displayName": [
           {
+            "locale": "",
             "value": "<ParameterIdentifier>"
           }
         ],
@@ -1526,6 +1564,7 @@
         "browseName": "1:MethodSet",
         "displayName": [
           {
+            "locale": "",
             "value": "MethodSet"
           }
         ],
@@ -1554,6 +1593,7 @@
         "browseName": "1:<GroupIdentifier>",
         "displayName": [
           {
+            "locale": "",
             "value": "<GroupIdentifier>"
           }
         ],
@@ -1583,6 +1623,7 @@
         "browseName": "1:Identification",
         "displayName": [
           {
+            "locale": "",
             "value": "Identification"
           }
         ],
@@ -1611,6 +1652,7 @@
         "browseName": "1:Lock",
         "displayName": [
           {
+            "locale": "",
             "value": "Lock"
           }
         ],
@@ -1668,10 +1710,12 @@
         "typeDefinition": "ns=1;i=6388"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Locked",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Locked"
           }
         ],
@@ -1697,10 +1741,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingClient",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingClient"
           }
         ],
@@ -1726,10 +1772,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingUser",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingUser"
           }
         ],
@@ -1755,10 +1803,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RemainingLockTime",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "RemainingLockTime"
           }
         ],
@@ -1787,6 +1837,7 @@
         "browseName": "1:InitLock",
         "displayName": [
           {
+            "locale": "",
             "value": "InitLock"
           }
         ],
@@ -1821,6 +1872,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -1853,6 +1905,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -1883,6 +1936,7 @@
         "browseName": "1:RenewLock",
         "displayName": [
           {
+            "locale": "",
             "value": "RenewLock"
           }
         ],
@@ -1913,6 +1967,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -1943,6 +1998,7 @@
         "browseName": "1:ExitLock",
         "displayName": [
           {
+            "locale": "",
             "value": "ExitLock"
           }
         ],
@@ -1973,6 +2029,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -2003,6 +2060,7 @@
         "browseName": "1:BreakLock",
         "displayName": [
           {
+            "locale": "",
             "value": "BreakLock"
           }
         ],
@@ -2033,6 +2091,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -2066,6 +2125,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IVendorNameplateType"
           }
         ],
@@ -2139,10 +2199,12 @@
         "superType": "i=17602"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -2168,10 +2230,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -2197,10 +2261,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Model",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Model"
           }
         ],
@@ -2226,10 +2292,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:HardwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "HardwareRevision"
           }
         ],
@@ -2255,10 +2323,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -2284,10 +2354,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceRevision"
           }
         ],
@@ -2313,10 +2385,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductCode",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductCode"
           }
         ],
@@ -2342,10 +2416,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceManual",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceManual"
           }
         ],
@@ -2371,10 +2447,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceClass",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceClass"
           }
         ],
@@ -2400,10 +2478,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SerialNumber",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -2429,10 +2509,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductInstanceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductInstanceUri"
           }
         ],
@@ -2458,10 +2540,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RevisionCounter",
         "dataType": "Int32",
         "displayName": [
           {
+            "locale": "",
             "value": "RevisionCounter"
           }
         ],
@@ -2487,10 +2571,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareReleaseDate",
         "dataType": "DateTime",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareReleaseDate"
           }
         ],
@@ -2521,6 +2607,7 @@
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "PatchIdentifiers"
           }
         ],
@@ -2553,6 +2640,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ITagNameplateType"
           }
         ],
@@ -2578,10 +2666,12 @@
         "superType": "i=17602"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:AssetId",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "AssetId"
           }
         ],
@@ -2607,10 +2697,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ComponentName",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "ComponentName"
           }
         ],
@@ -2642,6 +2734,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IDeviceHealthType"
           }
         ],
@@ -2667,10 +2760,12 @@
         "superType": "i=17602"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceHealth",
         "dataType": "ns=1;i=6244",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceHealth"
           }
         ],
@@ -2699,6 +2794,7 @@
         "browseName": "1:DeviceHealthAlarms",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceHealthAlarms"
           }
         ],
@@ -2730,6 +2826,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ISupportInfoType"
           }
         ],
@@ -2770,6 +2867,7 @@
         "browseName": "1:DeviceTypeImage",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceTypeImage"
           }
         ],
@@ -2799,10 +2897,12 @@
         "typeDefinition": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<ImageIdentifier>",
         "dataType": "i=30",
         "displayName": [
           {
+            "locale": "",
             "value": "<ImageIdentifier>"
           }
         ],
@@ -2832,6 +2932,7 @@
         "browseName": "1:Documentation",
         "displayName": [
           {
+            "locale": "",
             "value": "Documentation"
           }
         ],
@@ -2861,10 +2962,12 @@
         "typeDefinition": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<DocumentIdentifier>",
         "dataType": "ByteString",
         "displayName": [
           {
+            "locale": "",
             "value": "<DocumentIdentifier>"
           }
         ],
@@ -2894,6 +2997,7 @@
         "browseName": "1:DocumentationFiles",
         "displayName": [
           {
+            "locale": "",
             "value": "DocumentationFiles"
           }
         ],
@@ -2926,6 +3030,7 @@
         "browseName": "1:<DocumentFileId>",
         "displayName": [
           {
+            "locale": "",
             "value": "<DocumentFileId>"
           }
         ],
@@ -2992,10 +3097,12 @@
         "typeDefinition": "i=11575"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Size",
         "dataType": "UInt64",
         "displayName": [
           {
+            "locale": "",
             "value": "Size"
           }
         ],
@@ -3021,10 +3128,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Writable",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Writable"
           }
         ],
@@ -3050,10 +3159,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "UserWritable",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "UserWritable"
           }
         ],
@@ -3079,10 +3190,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "OpenCount",
         "dataType": "UInt16",
         "displayName": [
           {
+            "locale": "",
             "value": "OpenCount"
           }
         ],
@@ -3111,6 +3224,7 @@
         "browseName": "Open",
         "displayName": [
           {
+            "locale": "",
             "value": "Open"
           }
         ],
@@ -3145,6 +3259,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3177,6 +3292,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -3207,6 +3323,7 @@
         "browseName": "Close",
         "displayName": [
           {
+            "locale": "",
             "value": "Close"
           }
         ],
@@ -3237,6 +3354,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3267,6 +3385,7 @@
         "browseName": "Read",
         "displayName": [
           {
+            "locale": "",
             "value": "Read"
           }
         ],
@@ -3301,6 +3420,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3333,6 +3453,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -3363,6 +3484,7 @@
         "browseName": "Write",
         "displayName": [
           {
+            "locale": "",
             "value": "Write"
           }
         ],
@@ -3393,6 +3515,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3423,6 +3546,7 @@
         "browseName": "GetPosition",
         "displayName": [
           {
+            "locale": "",
             "value": "GetPosition"
           }
         ],
@@ -3457,6 +3581,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3489,6 +3614,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -3519,6 +3645,7 @@
         "browseName": "SetPosition",
         "displayName": [
           {
+            "locale": "",
             "value": "SetPosition"
           }
         ],
@@ -3549,6 +3676,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3579,6 +3707,7 @@
         "browseName": "1:ProtocolSupport",
         "displayName": [
           {
+            "locale": "",
             "value": "ProtocolSupport"
           }
         ],
@@ -3608,10 +3737,12 @@
         "typeDefinition": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<ProtocolSupportIdentifier>",
         "dataType": "ByteString",
         "displayName": [
           {
+            "locale": "",
             "value": "<ProtocolSupportIdentifier>"
           }
         ],
@@ -3641,6 +3772,7 @@
         "browseName": "1:ImageSet",
         "displayName": [
           {
+            "locale": "",
             "value": "ImageSet"
           }
         ],
@@ -3670,10 +3802,12 @@
         "typeDefinition": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<ImageIdentifier>",
         "dataType": "i=30",
         "displayName": [
           {
+            "locale": "",
             "value": "<ImageIdentifier>"
           }
         ],
@@ -3706,6 +3840,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IAssetLocationIndicationType"
           }
         ],
@@ -3749,6 +3884,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "StartLocationIndication"
           }
         ],
@@ -3779,6 +3915,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -3809,6 +3946,7 @@
         "browseName": "1:StopLocationIndication",
         "displayName": [
           {
+            "locale": "",
             "value": "StopLocationIndication"
           }
         ],
@@ -3829,10 +3967,12 @@
         ]
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:IsIndicating",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "IsIndicating"
           }
         ],
@@ -3858,10 +3998,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UsedIndicationType",
         "dataType": "ns=1;i=410",
         "displayName": [
           {
+            "locale": "",
             "value": "UsedIndicationType"
           }
         ],
@@ -3887,10 +4029,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SupportedIndicationTypes",
         "dataType": "ns=1;i=410",
         "displayName": [
           {
+            "locale": "",
             "value": "SupportedIndicationTypes"
           }
         ],
@@ -3922,6 +4066,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ComponentType"
           }
         ],
@@ -4003,10 +4148,12 @@
         "superType": "ns=1;i=1001"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -4032,10 +4179,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -4061,10 +4210,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Model",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Model"
           }
         ],
@@ -4090,10 +4241,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:HardwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "HardwareRevision"
           }
         ],
@@ -4119,10 +4272,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -4148,10 +4303,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceRevision"
           }
         ],
@@ -4177,10 +4334,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductCode",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductCode"
           }
         ],
@@ -4206,10 +4365,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceManual",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceManual"
           }
         ],
@@ -4235,10 +4396,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceClass",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceClass"
           }
         ],
@@ -4264,10 +4427,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SerialNumber",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -4293,10 +4458,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductInstanceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductInstanceUri"
           }
         ],
@@ -4322,10 +4489,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RevisionCounter",
         "dataType": "Int32",
         "displayName": [
           {
+            "locale": "",
             "value": "RevisionCounter"
           }
         ],
@@ -4351,10 +4520,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:AssetId",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "AssetId"
           }
         ],
@@ -4380,10 +4551,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ComponentName",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "ComponentName"
           }
         ],
@@ -4415,6 +4588,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceType"
           }
         ],
@@ -4516,10 +4690,12 @@
         "superType": "ns=1;i=15063"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -4545,10 +4721,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -4574,10 +4752,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Model",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Model"
           }
         ],
@@ -4603,10 +4783,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:HardwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "HardwareRevision"
           }
         ],
@@ -4632,10 +4814,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -4661,10 +4845,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceRevision"
           }
         ],
@@ -4690,10 +4876,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductCode",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductCode"
           }
         ],
@@ -4719,10 +4907,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceManual",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceManual"
           }
         ],
@@ -4748,10 +4938,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceClass",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceClass"
           }
         ],
@@ -4777,10 +4969,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SerialNumber",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -4806,10 +5000,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductInstanceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductInstanceUri"
           }
         ],
@@ -4835,10 +5031,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RevisionCounter",
         "dataType": "Int32",
         "displayName": [
           {
+            "locale": "",
             "value": "RevisionCounter"
           }
         ],
@@ -4867,6 +5065,7 @@
         "browseName": "1:<CPIdentifier>",
         "displayName": [
           {
+            "locale": "",
             "value": "<CPIdentifier>"
           }
         ],
@@ -4904,6 +5103,7 @@
         "browseName": "1:NetworkAddress",
         "displayName": [
           {
+            "locale": "",
             "value": "NetworkAddress"
           }
         ],
@@ -4929,10 +5129,12 @@
         "typeDefinition": "ns=1;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceHealth",
         "dataType": "ns=1;i=6244",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceHealth"
           }
         ],
@@ -4961,6 +5163,7 @@
         "browseName": "1:DeviceHealthAlarms",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceHealthAlarms"
           }
         ],
@@ -4989,6 +5192,7 @@
         "browseName": "1:DeviceTypeImage",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceTypeImage"
           }
         ],
@@ -5018,10 +5222,12 @@
         "typeDefinition": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<ImageIdentifier>",
         "dataType": "i=30",
         "displayName": [
           {
+            "locale": "",
             "value": "<ImageIdentifier>"
           }
         ],
@@ -5051,6 +5257,7 @@
         "browseName": "1:Documentation",
         "displayName": [
           {
+            "locale": "",
             "value": "Documentation"
           }
         ],
@@ -5080,10 +5287,12 @@
         "typeDefinition": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<DocumentIdentifier>",
         "dataType": "ByteString",
         "displayName": [
           {
+            "locale": "",
             "value": "<DocumentIdentifier>"
           }
         ],
@@ -5113,6 +5322,7 @@
         "browseName": "1:ProtocolSupport",
         "displayName": [
           {
+            "locale": "",
             "value": "ProtocolSupport"
           }
         ],
@@ -5142,10 +5352,12 @@
         "typeDefinition": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<ProtocolSupportIdentifier>",
         "dataType": "ByteString",
         "displayName": [
           {
+            "locale": "",
             "value": "<ProtocolSupportIdentifier>"
           }
         ],
@@ -5175,6 +5387,7 @@
         "browseName": "1:ImageSet",
         "displayName": [
           {
+            "locale": "",
             "value": "ImageSet"
           }
         ],
@@ -5204,10 +5417,12 @@
         "typeDefinition": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:<ImageIdentifier>",
         "dataType": "i=30",
         "displayName": [
           {
+            "locale": "",
             "value": "<ImageIdentifier>"
           }
         ],
@@ -5240,6 +5455,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareType"
           }
         ],
@@ -5268,10 +5484,12 @@
         "superType": "ns=1;i=15063"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -5297,10 +5515,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Model",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Model"
           }
         ],
@@ -5326,10 +5546,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -5361,6 +5583,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BlockType"
           }
         ],
@@ -5398,10 +5621,12 @@
         "superType": "ns=1;i=1001"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RevisionCounter",
         "dataType": "Int32",
         "displayName": [
           {
+            "locale": "",
             "value": "RevisionCounter"
           }
         ],
@@ -5427,10 +5652,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ActualMode",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "ActualMode"
           }
         ],
@@ -5461,6 +5688,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "PermittedMode"
           }
         ],
@@ -5492,6 +5720,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "NormalMode"
           }
         ],
@@ -5523,6 +5752,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TargetMode"
           }
         ],
@@ -5555,6 +5785,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceHealthDiagnosticAlarmType"
           }
         ],
@@ -5578,6 +5809,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FailureAlarmType"
           }
         ],
@@ -5600,6 +5832,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CheckFunctionAlarmType"
           }
         ],
@@ -5622,6 +5855,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OffSpecAlarmType"
           }
         ],
@@ -5644,6 +5878,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaintenanceRequiredAlarmType"
           }
         ],
@@ -5666,6 +5901,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ConfigurableObjectType"
           }
         ],
@@ -5693,6 +5929,7 @@
         "browseName": "1:SupportedTypes",
         "displayName": [
           {
+            "locale": "",
             "value": "SupportedTypes"
           }
         ],
@@ -5721,6 +5958,7 @@
         "browseName": "1:<ObjectIdentifier>",
         "displayName": [
           {
+            "locale": "",
             "value": "<ObjectIdentifier>"
           }
         ],
@@ -5747,6 +5985,7 @@
         "typeDefinition": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LifetimeVariableType",
         "category": [
           "DI LT Lifetime Base"
@@ -5754,11 +5993,13 @@
         "dataType": "Number",
         "description": [
           {
+            "locale": "",
             "value": "Remaining lifetime"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LifetimeVariableType"
           }
         ],
@@ -5791,15 +6032,18 @@
         "superType": "i=17497"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:StartValue",
         "dataType": "Number",
         "description": [
           {
+            "locale": "",
             "value": "StartValue indicates the initial value, when there is still the full lifetime left."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "StartValue"
           }
         ],
@@ -5825,15 +6069,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LimitValue",
         "dataType": "Number",
         "description": [
           {
+            "locale": "",
             "value": "LimitValue indicates when the end of lifetime has been reached."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LimitValue"
           }
         ],
@@ -5859,15 +6106,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Indication",
         "dataType": "NodeId",
         "description": [
           {
+            "locale": "",
             "value": "Indication gives an indication of what is actually measured / represented by the Value of the Variable and the StartValue and LimitValue."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Indication"
           }
         ],
@@ -5893,15 +6143,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:WarningValues",
         "dataType": "Number",
         "description": [
           {
+            "locale": "",
             "value": "WarningValues indicates one or more levels when the end of lifetime is reached soon and can be used to inform the user when reached."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "WarningValues"
           }
         ],
@@ -5934,11 +6187,13 @@
         ],
         "description": [
           {
+            "locale": "",
             "value": "Base indication type not further defining a semantic"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BaseLifetimeIndicationType"
           }
         ],
@@ -5962,11 +6217,13 @@
         ],
         "description": [
           {
+            "locale": "",
             "value": "Indicates the time the entity has been in use or can still be used"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TimeIndicationType"
           }
         ],
@@ -5990,11 +6247,13 @@
         ],
         "description": [
           {
+            "locale": "",
             "value": "Indicates the total number of parts that have been produced or can still be produced."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NumberOfPartsIndicationType"
           }
         ],
@@ -6018,11 +6277,13 @@
         ],
         "description": [
           {
+            "locale": "",
             "value": "Indicates counting the process steps the entity has been used or can still be used for (for example usages of a punching tool)."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NumberOfUsagesIndicationType"
           }
         ],
@@ -6046,11 +6307,13 @@
         ],
         "description": [
           {
+            "locale": "",
             "value": "Indicates the abraded length, for example of a drill."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LengthIndicationType"
           }
         ],
@@ -6074,11 +6337,13 @@
         ],
         "description": [
           {
+            "locale": "",
             "value": "Indicates the abraded diameter, for example of a drill."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DiameterIndicationType"
           }
         ],
@@ -6102,11 +6367,13 @@
         ],
         "description": [
           {
+            "locale": "",
             "value": "Indicates the volume of a substance, for example of a liquid."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SubstanceVolumeIndicationType"
           }
         ],
@@ -6130,6 +6397,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FunctionalGroupType"
           }
         ],
@@ -6157,6 +6425,7 @@
         "browseName": "1:<GroupIdentifier>",
         "displayName": [
           {
+            "locale": "",
             "value": "<GroupIdentifier>"
           }
         ],
@@ -6187,10 +6456,12 @@
         "typeDefinition": "ns=1;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UIElement",
         "dataType": "i=24",
         "displayName": [
           {
+            "locale": "",
             "value": "UIElement"
           }
         ],
@@ -6216,10 +6487,12 @@
         "typeDefinition": "ns=1;i=6246"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UIElement",
         "dataType": "i=24",
         "displayName": [
           {
+            "locale": "",
             "value": "UIElement"
           }
         ],
@@ -6249,6 +6522,7 @@
         "designToolOnly": true,
         "displayName": [
           {
+            "locale": "",
             "value": "Configuration"
           }
         ],
@@ -6267,6 +6541,7 @@
         "designToolOnly": true,
         "displayName": [
           {
+            "locale": "",
             "value": "Tuning"
           }
         ],
@@ -6285,6 +6560,7 @@
         "designToolOnly": true,
         "displayName": [
           {
+            "locale": "",
             "value": "Maintenance"
           }
         ],
@@ -6303,6 +6579,7 @@
         "designToolOnly": true,
         "displayName": [
           {
+            "locale": "",
             "value": "Diagnostics"
           }
         ],
@@ -6321,6 +6598,7 @@
         "designToolOnly": true,
         "displayName": [
           {
+            "locale": "",
             "value": "Statistics"
           }
         ],
@@ -6339,6 +6617,7 @@
         "designToolOnly": true,
         "displayName": [
           {
+            "locale": "",
             "value": "Status"
           }
         ],
@@ -6357,6 +6636,7 @@
         "designToolOnly": true,
         "displayName": [
           {
+            "locale": "",
             "value": "Operational"
           }
         ],
@@ -6375,6 +6655,7 @@
         "designToolOnly": true,
         "displayName": [
           {
+            "locale": "",
             "value": "OperationCounters"
           }
         ],
@@ -6393,6 +6674,7 @@
         "designToolOnly": true,
         "displayName": [
           {
+            "locale": "",
             "value": "Identification"
           }
         ],
@@ -6414,6 +6696,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ProtocolType"
           }
         ],
@@ -6435,11 +6718,14 @@
           "DI DeviceHealth"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "This device functions normally."
                 }
               ],
@@ -6447,9 +6733,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Malfunction of the device or any of its peripherals."
                 }
               ],
@@ -6457,9 +6745,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Functional checks are currently performed."
                 }
               ],
@@ -6467,9 +6757,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The device is currently working outside of its specified range or that internal diagnoses indicate deviations from measured or set values."
                 }
               ],
@@ -6477,9 +6769,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "This element is working, but a maintenance operation is required."
                 }
               ],
@@ -6491,6 +6785,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceHealthEnumeration"
           }
         ],
@@ -6516,6 +6811,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumStrings"
           }
         ],
@@ -6544,11 +6840,13 @@
         ],
         "description": [
           {
+            "locale": "",
             "value": "Interface defining counters for the duration of operation"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IOperationCounterType"
           }
         ],
@@ -6578,15 +6876,18 @@
         "superType": "i=17602"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PowerOnDuration",
         "dataType": "i=290",
         "description": [
           {
+            "locale": "",
             "value": "PowerOnDuration is the duration the Device has been powered. The main purpose is to determine the time in which degradation of the Device occurred. The details, when the time is counted, is implementation-specific. Companion specifications can define specific rules. Typically, when the Device has supply voltage and the main CPU is running, the time is counted. This can include any kind of sleep mode, but cannot include pure Wake on LAN. This value shall only increase during the lifetime of the Device and shall not be reset when the Device is restarted. The PowerOnDuration is provided as Duration, i.e., in milliseconds or even fractions of a millisecond. However, the Server is not expected to update the value in such a high frequency, but possibly once a minute or once an hour, depending on the application."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PowerOnDuration"
           }
         ],
@@ -6612,15 +6913,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OperationDuration",
         "dataType": "i=290",
         "description": [
           {
+            "locale": "",
             "value": "OperationDuration is the duration the Device has been powered and performing an activity. This counter is intended for Devices where a distinction is made between switched on and in operation. For example, a drive can be powered on but not operating. It is not intended for Devices always performing an activity like sensors always measuring data. This value shall only increase during the lifetime of the Device and shall not be reset when the Device is restarted. The OperationDuration is provided as Duration, i.e., in milliseconds or even fractions of a millisecond. However, the Server is not expected to update the value in such a high frequency, but possibly once a minute or once an hour, depending on the application."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OperationDuration"
           }
         ],
@@ -6646,15 +6950,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OperationCycleCounter",
         "dataType": "UInteger",
         "description": [
           {
+            "locale": "",
             "value": "OperationCycleCounter is counting the times the Device switches from not performing an activity to performing an activity. For example, each time a valve starts moving, is counted. This value shall only increase during the lifetime of the Device and shall not be reset when the Device is restarted."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OperationCycleCounter"
           }
         ],
@@ -6680,6 +6987,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UIElementType",
         "category": [
           "DI Information Model"
@@ -6687,6 +6995,7 @@
         "dataType": "i=24",
         "displayName": [
           {
+            "locale": "",
             "value": "UIElementType"
           }
         ],
@@ -6710,6 +7019,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NetworkType"
           }
         ],
@@ -6741,6 +7051,7 @@
         "browseName": "1:<ProfileIdentifier>",
         "displayName": [
           {
+            "locale": "",
             "value": "<ProfileIdentifier>"
           }
         ],
@@ -6770,6 +7081,7 @@
         "browseName": "1:<CPIdentifier>",
         "displayName": [
           {
+            "locale": "",
             "value": "<CPIdentifier>"
           }
         ],
@@ -6807,6 +7119,7 @@
         "browseName": "1:NetworkAddress",
         "displayName": [
           {
+            "locale": "",
             "value": "NetworkAddress"
           }
         ],
@@ -6835,6 +7148,7 @@
         "browseName": "1:Lock",
         "displayName": [
           {
+            "locale": "",
             "value": "Lock"
           }
         ],
@@ -6892,10 +7206,12 @@
         "typeDefinition": "ns=1;i=6388"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Locked",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Locked"
           }
         ],
@@ -6921,10 +7237,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingClient",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingClient"
           }
         ],
@@ -6950,10 +7268,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingUser",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingUser"
           }
         ],
@@ -6979,10 +7299,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RemainingLockTime",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "RemainingLockTime"
           }
         ],
@@ -7011,6 +7333,7 @@
         "browseName": "1:InitLock",
         "displayName": [
           {
+            "locale": "",
             "value": "InitLock"
           }
         ],
@@ -7045,6 +7368,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -7077,6 +7401,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -7107,6 +7432,7 @@
         "browseName": "1:RenewLock",
         "displayName": [
           {
+            "locale": "",
             "value": "RenewLock"
           }
         ],
@@ -7137,6 +7463,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -7167,6 +7494,7 @@
         "browseName": "1:ExitLock",
         "displayName": [
           {
+            "locale": "",
             "value": "ExitLock"
           }
         ],
@@ -7197,6 +7525,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -7227,6 +7556,7 @@
         "browseName": "1:BreakLock",
         "displayName": [
           {
+            "locale": "",
             "value": "BreakLock"
           }
         ],
@@ -7257,6 +7587,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -7290,6 +7621,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ConnectionPointType"
           }
         ],
@@ -7322,6 +7654,7 @@
         "browseName": "1:NetworkAddress",
         "displayName": [
           {
+            "locale": "",
             "value": "NetworkAddress"
           }
         ],
@@ -7350,6 +7683,7 @@
         "browseName": "1:<ProfileIdentifier>",
         "displayName": [
           {
+            "locale": "",
             "value": "<ProfileIdentifier>"
           }
         ],
@@ -7379,6 +7713,7 @@
         "browseName": "1:<NetworkIdentifier>",
         "displayName": [
           {
+            "locale": "",
             "value": "<NetworkIdentifier>"
           }
         ],
@@ -7414,10 +7749,12 @@
           "DI Offline"
         ],
         "definition": {
+          "baseType": "",
           "name": "1:FetchResultDataType"
         },
         "displayName": [
           {
+            "locale": "",
             "value": "FetchResultDataType"
           }
         ],
@@ -7440,12 +7777,15 @@
           "DI Offline"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=6",
               "name": "Status"
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=25",
               "name": "Diagnostics"
             }
@@ -7454,6 +7794,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultErrorDataType"
           }
         ],
@@ -7475,16 +7816,20 @@
           "DI Offline"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=6",
               "name": "SequenceNumber"
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=1",
               "name": "EndOfResults"
             },
             {
+              "arrayDimensions": "",
               "dataType": "ns=1;i=6525",
               "name": "ParameterDefs",
               "valueRank": 1
@@ -7494,6 +7839,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultDataDataType"
           }
         ],
@@ -7512,17 +7858,21 @@
       {
         "browseName": "1:ParameterResultDataType",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=20",
               "name": "NodePath",
               "valueRank": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=19",
               "name": "StatusCode"
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=25",
               "name": "Diagnostics"
             }
@@ -7531,6 +7881,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "ParameterResultDataType"
           }
         ],
@@ -7553,6 +7904,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TransferServicesType"
           }
         ],
@@ -7587,6 +7939,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TransferToDevice"
           }
         ],
@@ -7617,6 +7970,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -7650,6 +8004,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TransferFromDevice"
           }
         ],
@@ -7680,6 +8035,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -7713,6 +8069,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FetchTransferResultData"
           }
         ],
@@ -7747,6 +8104,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -7779,6 +8137,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -7806,10 +8165,12 @@
         "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FetchResultData</Name>\n              <DataType>\n                <Identifier>i=22</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MaxInactiveLockTime",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "MaxInactiveLockTime"
           }
         ],
@@ -7836,6 +8197,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LockingServicesType"
           }
         ],
@@ -7888,10 +8250,12 @@
         "superType": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "DefaultInstanceBrowseName",
         "dataType": "QualifiedName",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultInstanceBrowseName"
           }
         ],
@@ -7913,10 +8277,12 @@
         "valueXml": "<QualifiedName xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <NamespaceIndex>1</NamespaceIndex>\n        <Name>Lock</Name>\n      </QualifiedName>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Locked",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Locked"
           }
         ],
@@ -7942,10 +8308,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingClient",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingClient"
           }
         ],
@@ -7971,10 +8339,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingUser",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingUser"
           }
         ],
@@ -8000,10 +8370,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RemainingLockTime",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "RemainingLockTime"
           }
         ],
@@ -8035,6 +8407,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InitLock"
           }
         ],
@@ -8069,6 +8442,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -8101,6 +8475,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -8134,6 +8509,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RenewLock"
           }
         ],
@@ -8164,6 +8540,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -8197,6 +8574,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ExitLock"
           }
         ],
@@ -8227,6 +8605,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -8260,6 +8639,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BreakLock"
           }
         ],
@@ -8290,6 +8670,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -8323,6 +8704,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareUpdateType"
           }
         ],
@@ -8394,6 +8776,7 @@
         "browseName": "1:Loading",
         "displayName": [
           {
+            "locale": "",
             "value": "Loading"
           }
         ],
@@ -8422,6 +8805,7 @@
         "browseName": "1:PrepareForUpdate",
         "displayName": [
           {
+            "locale": "",
             "value": "PrepareForUpdate"
           }
         ],
@@ -8459,10 +8843,12 @@
         "typeDefinition": "ns=1;i=213"
       },
       {
+        "arrayDimensions": "",
         "browseName": "CurrentState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "CurrentState"
           }
         ],
@@ -8492,10 +8878,12 @@
         "typeDefinition": "i=2760"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Id",
         "dataType": "NodeId",
         "displayName": [
           {
+            "locale": "",
             "value": "Id"
           }
         ],
@@ -8524,6 +8912,7 @@
         "browseName": "1:Prepare",
         "displayName": [
           {
+            "locale": "",
             "value": "Prepare"
           }
         ],
@@ -8548,6 +8937,7 @@
         "browseName": "1:Abort",
         "displayName": [
           {
+            "locale": "",
             "value": "Abort"
           }
         ],
@@ -8572,6 +8962,7 @@
         "browseName": "1:Installation",
         "displayName": [
           {
+            "locale": "",
             "value": "Installation"
           }
         ],
@@ -8605,10 +8996,12 @@
         "typeDefinition": "ns=1;i=249"
       },
       {
+        "arrayDimensions": "",
         "browseName": "CurrentState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "CurrentState"
           }
         ],
@@ -8638,10 +9031,12 @@
         "typeDefinition": "i=2760"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Id",
         "dataType": "NodeId",
         "displayName": [
           {
+            "locale": "",
             "value": "Id"
           }
         ],
@@ -8670,6 +9065,7 @@
         "browseName": "1:Resume",
         "displayName": [
           {
+            "locale": "",
             "value": "Resume"
           }
         ],
@@ -8694,6 +9090,7 @@
         "browseName": "1:PowerCycle",
         "displayName": [
           {
+            "locale": "",
             "value": "PowerCycle"
           }
         ],
@@ -8723,10 +9120,12 @@
         "typeDefinition": "ns=1;i=285"
       },
       {
+        "arrayDimensions": "",
         "browseName": "CurrentState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "CurrentState"
           }
         ],
@@ -8756,10 +9155,12 @@
         "typeDefinition": "i=2760"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Id",
         "dataType": "NodeId",
         "displayName": [
           {
+            "locale": "",
             "value": "Id"
           }
         ],
@@ -8788,6 +9189,7 @@
         "browseName": "1:Confirmation",
         "displayName": [
           {
+            "locale": "",
             "value": "Confirmation"
           }
         ],
@@ -8825,10 +9227,12 @@
         "typeDefinition": "ns=1;i=307"
       },
       {
+        "arrayDimensions": "",
         "browseName": "CurrentState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "CurrentState"
           }
         ],
@@ -8858,10 +9262,12 @@
         "typeDefinition": "i=2760"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Id",
         "dataType": "NodeId",
         "displayName": [
           {
+            "locale": "",
             "value": "Id"
           }
         ],
@@ -8890,6 +9296,7 @@
         "browseName": "1:Confirm",
         "displayName": [
           {
+            "locale": "",
             "value": "Confirm"
           }
         ],
@@ -8911,10 +9318,12 @@
         ]
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ConfirmationTimeout",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "ConfirmationTimeout"
           }
         ],
@@ -8943,6 +9352,7 @@
         "browseName": "1:Parameters",
         "displayName": [
           {
+            "locale": "",
             "value": "Parameters"
           }
         ],
@@ -8984,10 +9394,12 @@
         "typeDefinition": "i=15744"
       },
       {
+        "arrayDimensions": "",
         "browseName": "ClientProcessingTimeout",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "ClientProcessingTimeout"
           }
         ],
@@ -9016,6 +9428,7 @@
         "browseName": "GenerateFileForRead",
         "displayName": [
           {
+            "locale": "",
             "value": "GenerateFileForRead"
           }
         ],
@@ -9050,6 +9463,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -9082,6 +9496,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -9112,6 +9527,7 @@
         "browseName": "GenerateFileForWrite",
         "displayName": [
           {
+            "locale": "",
             "value": "GenerateFileForWrite"
           }
         ],
@@ -9146,6 +9562,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -9178,6 +9595,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -9208,6 +9626,7 @@
         "browseName": "CloseAndCommit",
         "displayName": [
           {
+            "locale": "",
             "value": "CloseAndCommit"
           }
         ],
@@ -9242,6 +9661,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -9274,6 +9694,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -9301,10 +9722,12 @@
         "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>CompletionStateMachine</Name>\n              <DataType>\n                <Identifier>i=17</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UpdateStatus",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "UpdateStatus"
           }
         ],
@@ -9330,10 +9753,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareClass",
         "dataType": "ns=1;i=408",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareClass"
           }
         ],
@@ -9359,10 +9784,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareSubclass",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareSubclass"
           }
         ],
@@ -9388,10 +9815,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareName",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareName"
           }
         ],
@@ -9417,10 +9846,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UnsignedPackageAllowed",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "UnsignedPackageAllowed"
           }
         ],
@@ -9446,10 +9877,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:VendorErrorCode",
         "dataType": "Int32",
         "displayName": [
           {
+            "locale": "",
             "value": "VendorErrorCode"
           }
         ],
@@ -9475,10 +9908,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "DefaultInstanceBrowseName",
         "dataType": "QualifiedName",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultInstanceBrowseName"
           }
         ],
@@ -9506,6 +9941,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareLoadingType"
           }
         ],
@@ -9527,10 +9963,12 @@
         "superType": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UpdateKey",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "UpdateKey"
           }
         ],
@@ -9562,6 +10000,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PackageLoadingType"
           }
         ],
@@ -9598,6 +10037,7 @@
         "browseName": "1:CurrentVersion",
         "displayName": [
           {
+            "locale": "",
             "value": "CurrentVersion"
           }
         ],
@@ -9635,10 +10075,12 @@
         "typeDefinition": "ns=1;i=212"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -9664,10 +10106,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -9693,10 +10137,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -9725,6 +10171,7 @@
         "browseName": "1:FileTransfer",
         "displayName": [
           {
+            "locale": "",
             "value": "FileTransfer"
           }
         ],
@@ -9766,10 +10213,12 @@
         "typeDefinition": "i=15744"
       },
       {
+        "arrayDimensions": "",
         "browseName": "ClientProcessingTimeout",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "ClientProcessingTimeout"
           }
         ],
@@ -9798,6 +10247,7 @@
         "browseName": "GenerateFileForRead",
         "displayName": [
           {
+            "locale": "",
             "value": "GenerateFileForRead"
           }
         ],
@@ -9832,6 +10282,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -9864,6 +10315,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -9894,6 +10346,7 @@
         "browseName": "GenerateFileForWrite",
         "displayName": [
           {
+            "locale": "",
             "value": "GenerateFileForWrite"
           }
         ],
@@ -9928,6 +10381,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -9960,6 +10414,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -9990,6 +10445,7 @@
         "browseName": "CloseAndCommit",
         "displayName": [
           {
+            "locale": "",
             "value": "CloseAndCommit"
           }
         ],
@@ -10024,6 +10480,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -10056,6 +10513,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -10083,10 +10541,12 @@
         "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>CompletionStateMachine</Name>\n              <DataType>\n                <Identifier>i=17</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ErrorMessage",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "ErrorMessage"
           }
         ],
@@ -10112,10 +10572,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:WriteBlockSize",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "WriteBlockSize"
           }
         ],
@@ -10147,6 +10609,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DirectLoadingType"
           }
         ],
@@ -10171,10 +10634,12 @@
         "superType": "ns=1;i=137"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UpdateBehavior",
         "dataType": "ns=1;i=333",
         "displayName": [
           {
+            "locale": "",
             "value": "UpdateBehavior"
           }
         ],
@@ -10200,10 +10665,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:WriteTimeout",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "WriteTimeout"
           }
         ],
@@ -10235,6 +10702,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CachedLoadingType"
           }
         ],
@@ -10266,6 +10734,7 @@
         "browseName": "1:PendingVersion",
         "displayName": [
           {
+            "locale": "",
             "value": "PendingVersion"
           }
         ],
@@ -10303,10 +10772,12 @@
         "typeDefinition": "ns=1;i=212"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -10332,10 +10803,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -10361,10 +10834,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -10393,6 +10868,7 @@
         "browseName": "1:FallbackVersion",
         "displayName": [
           {
+            "locale": "",
             "value": "FallbackVersion"
           }
         ],
@@ -10430,10 +10906,12 @@
         "typeDefinition": "ns=1;i=212"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -10459,10 +10937,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -10488,10 +10968,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -10523,6 +11005,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "GetUpdateBehavior"
           }
         ],
@@ -10557,6 +11040,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -10589,6 +11073,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -10622,6 +11107,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FileSystemLoadingType"
           }
         ],
@@ -10653,6 +11139,7 @@
         "browseName": "FileSystem",
         "displayName": [
           {
+            "locale": "",
             "value": "FileSystem"
           }
         ],
@@ -10697,6 +11184,7 @@
         "browseName": "CreateDirectory",
         "displayName": [
           {
+            "locale": "",
             "value": "CreateDirectory"
           }
         ],
@@ -10731,6 +11219,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -10763,6 +11252,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -10793,6 +11283,7 @@
         "browseName": "CreateFile",
         "displayName": [
           {
+            "locale": "",
             "value": "CreateFile"
           }
         ],
@@ -10827,6 +11318,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -10859,6 +11351,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -10889,6 +11382,7 @@
         "browseName": "Delete",
         "displayName": [
           {
+            "locale": "",
             "value": "Delete"
           }
         ],
@@ -10920,6 +11414,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -10950,6 +11445,7 @@
         "browseName": "MoveOrCopy",
         "displayName": [
           {
+            "locale": "",
             "value": "MoveOrCopy"
           }
         ],
@@ -10984,6 +11480,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -11016,6 +11513,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -11049,6 +11547,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "GetUpdateBehavior"
           }
         ],
@@ -11083,6 +11582,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -11115,6 +11615,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -11148,6 +11649,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ValidateFiles"
           }
         ],
@@ -11182,6 +11684,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -11214,6 +11717,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -11247,6 +11751,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareVersionType"
           }
         ],
@@ -11295,10 +11800,12 @@
         "superType": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -11324,10 +11831,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -11353,10 +11862,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -11387,6 +11898,7 @@
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "PatchIdentifiers"
           }
         ],
@@ -11413,10 +11925,12 @@
         "valueRank": 1
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ReleaseDate",
         "dataType": "DateTime",
         "displayName": [
           {
+            "locale": "",
             "value": "ReleaseDate"
           }
         ],
@@ -11442,10 +11956,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ChangeLogReference",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ChangeLogReference"
           }
         ],
@@ -11471,10 +11987,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Hash",
         "dataType": "ByteString",
         "displayName": [
           {
+            "locale": "",
             "value": "Hash"
           }
         ],
@@ -11503,6 +12021,7 @@
         "browseName": "1:Clear",
         "displayName": [
           {
+            "locale": "",
             "value": "Clear"
           }
         ],
@@ -11529,6 +12048,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareFolderType"
           }
         ],
@@ -11557,10 +12077,12 @@
         "superType": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareClass",
         "dataType": "ns=1;i=408",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareClass"
           }
         ],
@@ -11592,6 +12114,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Add"
           }
         ],
@@ -11622,6 +12145,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -11655,6 +12179,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Delete"
           }
         ],
@@ -11685,6 +12210,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -11718,6 +12244,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PrepareForUpdateStateMachineType"
           }
         ],
@@ -11786,10 +12313,12 @@
         "superType": "i=2771"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PercentComplete",
         "dataType": "Byte",
         "displayName": [
           {
+            "locale": "",
             "value": "PercentComplete"
           }
         ],
@@ -11818,6 +12347,7 @@
         "browseName": "1:Prepare",
         "displayName": [
           {
+            "locale": "",
             "value": "Prepare"
           }
         ],
@@ -11846,6 +12376,7 @@
         "browseName": "1:Abort",
         "displayName": [
           {
+            "locale": "",
             "value": "Abort"
           }
         ],
@@ -11879,6 +12410,7 @@
         "browseName": "1:Resume",
         "displayName": [
           {
+            "locale": "",
             "value": "Resume"
           }
         ],
@@ -11907,6 +12439,7 @@
         "browseName": "1:Idle",
         "displayName": [
           {
+            "locale": "",
             "value": "Idle"
           }
         ],
@@ -11946,10 +12479,12 @@
         "typeDefinition": "i=2309"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -11979,6 +12514,7 @@
         "browseName": "1:Preparing",
         "displayName": [
           {
+            "locale": "",
             "value": "Preparing"
           }
         ],
@@ -12018,10 +12554,12 @@
         "typeDefinition": "i=2307"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -12051,6 +12589,7 @@
         "browseName": "1:PreparedForUpdate",
         "displayName": [
           {
+            "locale": "",
             "value": "PreparedForUpdate"
           }
         ],
@@ -12085,10 +12624,12 @@
         "typeDefinition": "i=2307"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -12118,6 +12659,7 @@
         "browseName": "1:Resuming",
         "displayName": [
           {
+            "locale": "",
             "value": "Resuming"
           }
         ],
@@ -12152,10 +12694,12 @@
         "typeDefinition": "i=2307"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -12185,6 +12729,7 @@
         "browseName": "1:IdleToPreparing",
         "displayName": [
           {
+            "locale": "",
             "value": "IdleToPreparing"
           }
         ],
@@ -12225,10 +12770,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -12258,6 +12805,7 @@
         "browseName": "1:PreparingToIdle",
         "displayName": [
           {
+            "locale": "",
             "value": "PreparingToIdle"
           }
         ],
@@ -12298,10 +12846,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -12331,6 +12881,7 @@
         "browseName": "1:PreparingToPreparedForUpdate",
         "displayName": [
           {
+            "locale": "",
             "value": "PreparingToPreparedForUpdate"
           }
         ],
@@ -12367,10 +12918,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -12400,6 +12953,7 @@
         "browseName": "1:PreparedForUpdateToResuming",
         "displayName": [
           {
+            "locale": "",
             "value": "PreparedForUpdateToResuming"
           }
         ],
@@ -12440,10 +12994,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -12473,6 +13029,7 @@
         "browseName": "1:ResumingToIdle",
         "displayName": [
           {
+            "locale": "",
             "value": "ResumingToIdle"
           }
         ],
@@ -12513,10 +13070,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -12549,6 +13108,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InstallationStateMachineType"
           }
         ],
@@ -12617,10 +13177,12 @@
         "superType": "i=2771"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PercentComplete",
         "dataType": "Byte",
         "displayName": [
           {
+            "locale": "",
             "value": "PercentComplete"
           }
         ],
@@ -12646,10 +13208,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:InstallationDelay",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "InstallationDelay"
           }
         ],
@@ -12681,6 +13245,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InstallSoftwarePackage"
           }
         ],
@@ -12716,6 +13281,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -12749,6 +13315,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InstallFiles"
           }
         ],
@@ -12784,6 +13351,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -12814,6 +13382,7 @@
         "browseName": "1:Uninstall",
         "displayName": [
           {
+            "locale": "",
             "value": "Uninstall"
           }
         ],
@@ -12842,6 +13411,7 @@
         "browseName": "1:Resume",
         "displayName": [
           {
+            "locale": "",
             "value": "Resume"
           }
         ],
@@ -12870,6 +13440,7 @@
         "browseName": "1:Idle",
         "displayName": [
           {
+            "locale": "",
             "value": "Idle"
           }
         ],
@@ -12909,10 +13480,12 @@
         "typeDefinition": "i=2309"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -12942,6 +13515,7 @@
         "browseName": "1:Installing",
         "displayName": [
           {
+            "locale": "",
             "value": "Installing"
           }
         ],
@@ -12981,10 +13555,12 @@
         "typeDefinition": "i=2307"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -13014,6 +13590,7 @@
         "browseName": "1:Error",
         "displayName": [
           {
+            "locale": "",
             "value": "Error"
           }
         ],
@@ -13048,10 +13625,12 @@
         "typeDefinition": "i=2307"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -13081,6 +13660,7 @@
         "browseName": "1:IdleToInstalling",
         "displayName": [
           {
+            "locale": "",
             "value": "IdleToInstalling"
           }
         ],
@@ -13129,10 +13709,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -13162,6 +13744,7 @@
         "browseName": "1:InstallingToIdle",
         "displayName": [
           {
+            "locale": "",
             "value": "InstallingToIdle"
           }
         ],
@@ -13198,10 +13781,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -13231,6 +13816,7 @@
         "browseName": "1:InstallingToError",
         "displayName": [
           {
+            "locale": "",
             "value": "InstallingToError"
           }
         ],
@@ -13267,10 +13853,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -13300,6 +13888,7 @@
         "browseName": "1:ErrorToIdle",
         "displayName": [
           {
+            "locale": "",
             "value": "ErrorToIdle"
           }
         ],
@@ -13340,10 +13929,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -13376,6 +13967,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PowerCycleStateMachineType"
           }
         ],
@@ -13411,6 +14003,7 @@
         "browseName": "1:NotWaitingForPowerCycle",
         "displayName": [
           {
+            "locale": "",
             "value": "NotWaitingForPowerCycle"
           }
         ],
@@ -13445,10 +14038,12 @@
         "typeDefinition": "i=2309"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -13478,6 +14073,7 @@
         "browseName": "1:WaitingForPowerCycle",
         "displayName": [
           {
+            "locale": "",
             "value": "WaitingForPowerCycle"
           }
         ],
@@ -13512,10 +14108,12 @@
         "typeDefinition": "i=2307"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -13545,6 +14143,7 @@
         "browseName": "1:NotWaitingForPowerCycleToWaitingForPowerCycle",
         "displayName": [
           {
+            "locale": "",
             "value": "NotWaitingForPowerCycleToWaitingForPowerCycle"
           }
         ],
@@ -13581,10 +14180,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -13614,6 +14215,7 @@
         "browseName": "1:WaitingForPowerCycleToNotWaitingForPowerCycle",
         "displayName": [
           {
+            "locale": "",
             "value": "WaitingForPowerCycleToNotWaitingForPowerCycle"
           }
         ],
@@ -13650,10 +14252,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -13686,6 +14290,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ConfirmationStateMachineType"
           }
         ],
@@ -13729,6 +14334,7 @@
         "browseName": "1:Confirm",
         "displayName": [
           {
+            "locale": "",
             "value": "Confirm"
           }
         ],
@@ -13754,10 +14360,12 @@
         ]
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ConfirmationTimeout",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "ConfirmationTimeout"
           }
         ],
@@ -13786,6 +14394,7 @@
         "browseName": "1:NotWaitingForConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "NotWaitingForConfirm"
           }
         ],
@@ -13820,10 +14429,12 @@
         "typeDefinition": "i=2309"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -13853,6 +14464,7 @@
         "browseName": "1:WaitingForConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "WaitingForConfirm"
           }
         ],
@@ -13887,10 +14499,12 @@
         "typeDefinition": "i=2307"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StateNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "StateNumber"
           }
         ],
@@ -13920,6 +14534,7 @@
         "browseName": "1:NotWaitingForConfirmToWaitingForConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "NotWaitingForConfirmToWaitingForConfirm"
           }
         ],
@@ -13956,10 +14571,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -13989,6 +14606,7 @@
         "browseName": "1:WaitingForConfirmToNotWaitingForConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "WaitingForConfirmToNotWaitingForConfirm"
           }
         ],
@@ -14029,10 +14647,12 @@
         "typeDefinition": "i=2310"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TransitionNumber",
         "dataType": "UInt32",
         "displayName": [
           {
+            "locale": "",
             "value": "TransitionNumber"
           }
         ],
@@ -14064,11 +14684,14 @@
           "DI SU Software Update"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The software update is used for the firmware of a physical device."
                 }
               ],
@@ -14076,9 +14699,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The software update is used for an executable software."
                 }
               ],
@@ -14086,9 +14711,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The software update is used for the configuration of a device or application."
                 }
               ],
@@ -14096,9 +14723,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The software update is used to install a solution with several software package to several components."
                 }
               ],
@@ -14110,6 +14739,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareClass"
           }
         ],
@@ -14135,6 +14765,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumStrings"
           }
         ],
@@ -14162,11 +14793,14 @@
           "DI AssetLocationIndication"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Location indication through optical signals, such as blinking LEDs, if supported by the device."
                 }
               ],
@@ -14174,9 +14808,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Location indication through auditory signals, such as sounds or beeps, if supported by the device."
                 }
               ],
@@ -14189,6 +14825,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "LocationIndicationType"
           }
         ],
@@ -14214,6 +14851,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "OptionSetValues"
           }
         ],
@@ -14238,11 +14876,14 @@
       {
         "browseName": "1:SoftwareVersionFileType",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The currently used version of the software identified by the CurrentVersion Object."
                 }
               ],
@@ -14250,9 +14891,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The pending version of the software that could be installed identified by the PendingVersion Object."
                 }
               ],
@@ -14260,9 +14903,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The fallback version of the software identified by the FallbackVersion Object."
                 }
               ],
@@ -14274,6 +14919,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareVersionFileType"
           }
         ],
@@ -14299,6 +14945,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumStrings"
           }
         ],
@@ -14326,11 +14973,14 @@
           "DI SU Software Update"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If KeepsParameters is not set, the device will lose its configuration during update. The Client should do a backup of the parameters before the update and restore them afterwards."
                 }
               ],
@@ -14338,9 +14988,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If WillDisconnect is set, the OPC UA Server will restart during installation. This can be the case if the update is about the firmware of the device that hosts the OPC UA Server."
                 }
               ],
@@ -14348,9 +15000,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If RequiresPowerCycle is set, the devices require a manual power off / power on for installation."
                 }
               ],
@@ -14358,9 +15012,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If WillReboot is set, the device will reboot during the update, inclusive of embedded infrastructure elements like an integrated switch. An update Client should take this into account since the devices behind an integrated switch are not reachable for that time."
                 }
               ],
@@ -14368,9 +15024,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If NeedsPreparation is not set, the Client can install the update without maintaining the PrepareForUpdateStateMachine. This can be used to support an installation without stopping the software."
                 }
               ],
@@ -14383,6 +15041,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "UpdateBehavior"
           }
         ],
@@ -14408,6 +15067,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "OptionSetValues"
           }
         ],
@@ -14433,6 +15093,7 @@
         "browseName": "Default Binary",
         "displayName": [
           {
+            "locale": "",
             "value": "Default Binary"
           }
         ],
@@ -14460,6 +15121,7 @@
         "browseName": "Default Binary",
         "displayName": [
           {
+            "locale": "",
             "value": "Default Binary"
           }
         ],
@@ -14487,6 +15149,7 @@
         "browseName": "Default Binary",
         "displayName": [
           {
+            "locale": "",
             "value": "Default Binary"
           }
         ],
@@ -14514,6 +15177,7 @@
         "browseName": "Default Binary",
         "displayName": [
           {
+            "locale": "",
             "value": "Default Binary"
           }
         ],
@@ -14538,10 +15202,12 @@
         "typeDefinition": "i=76"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Opc.Ua.Di",
         "dataType": "ByteString",
         "displayName": [
           {
+            "locale": "",
             "value": "Opc.Ua.Di"
           }
         ],
@@ -14588,10 +15254,12 @@
         "valueXml": "<ByteString xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">PG9wYzpUeXBlRGljdGlvbmFyeQ0KICB4bWxuczpvcGM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9y\nZy9CaW5hcnlTY2hlbWEvIg0KICB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1M\nU2NoZW1hLWluc3RhbmNlIg0KICB4bWxuczp1YT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VB\nLyINCiAgeG1sbnM6dG5zPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvREkvIg0KICBEZWZh\ndWx0Qnl0ZU9yZGVyPSJMaXR0bGVFbmRpYW4iDQogIFRhcmdldE5hbWVzcGFjZT0iaHR0cDovL29w\nY2ZvdW5kYXRpb24ub3JnL1VBL0RJLyINCj4NCiAgPG9wYzpJbXBvcnQgTmFtZXNwYWNlPSJodHRw\nOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvIiBMb2NhdGlvbj0iT3BjLlVhLkJpbmFyeVNjaGVtYS5i\nc2QiLz4NCg0KICA8b3BjOkVudW1lcmF0ZWRUeXBlIE5hbWU9IkRldmljZUhlYWx0aEVudW1lcmF0\naW9uIiBMZW5ndGhJbkJpdHM9IjMyIj4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJO\nT1JNQUwiIFZhbHVlPSIwIiAvPg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9IkZBSUxV\nUkUiIFZhbHVlPSIxIiAvPg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9IkNIRUNLX0ZV\nTkNUSU9OIiBWYWx1ZT0iMiIgLz4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJPRkZf\nU1BFQyIgVmFsdWU9IjMiIC8+DQogICAgPG9wYzpFbnVtZXJhdGVkVmFsdWUgTmFtZT0iTUFJTlRF\nTkFOQ0VfUkVRVUlSRUQiIFZhbHVlPSI0IiAvPg0KICA8L29wYzpFbnVtZXJhdGVkVHlwZT4NCg0K\nICA8b3BjOlN0cnVjdHVyZWRUeXBlIE5hbWU9IkZldGNoUmVzdWx0RGF0YVR5cGUiIEJhc2VUeXBl\nPSJ1YTpFeHRlbnNpb25PYmplY3QiPg0KICA8L29wYzpTdHJ1Y3R1cmVkVHlwZT4NCg0KICA8b3Bj\nOlN0cnVjdHVyZWRUeXBlIE5hbWU9IlRyYW5zZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgQmFzZVR5\ncGU9InRuczpGZXRjaFJlc3VsdERhdGFUeXBlIj4NCiAgICA8b3BjOkZpZWxkIE5hbWU9IlN0YXR1\ncyIgVHlwZU5hbWU9Im9wYzpJbnQzMiIgLz4NCiAgICA8b3BjOkZpZWxkIE5hbWU9IkRpYWdub3N0\naWNzIiBUeXBlTmFtZT0idWE6RGlhZ25vc3RpY0luZm8iIC8+DQogIDwvb3BjOlN0cnVjdHVyZWRU\neXBlPg0KDQogIDxvcGM6U3RydWN0dXJlZFR5cGUgTmFtZT0iVHJhbnNmZXJSZXN1bHREYXRhRGF0\nYVR5cGUiIEJhc2VUeXBlPSJ0bnM6RmV0Y2hSZXN1bHREYXRhVHlwZSI+DQogICAgPG9wYzpGaWVs\nZCBOYW1lPSJTZXF1ZW5jZU51bWJlciIgVHlwZU5hbWU9Im9wYzpJbnQzMiIgLz4NCiAgICA8b3Bj\nOkZpZWxkIE5hbWU9IkVuZE9mUmVzdWx0cyIgVHlwZU5hbWU9Im9wYzpCb29sZWFuIiAvPg0KICAg\nIDxvcGM6RmllbGQgTmFtZT0iTm9PZlBhcmFtZXRlckRlZnMiIFR5cGVOYW1lPSJvcGM6SW50MzIi\nIC8+DQogICAgPG9wYzpGaWVsZCBOYW1lPSJQYXJhbWV0ZXJEZWZzIiBUeXBlTmFtZT0idG5zOlBh\ncmFtZXRlclJlc3VsdERhdGFUeXBlIiBMZW5ndGhGaWVsZD0iTm9PZlBhcmFtZXRlckRlZnMiIC8+\nDQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQogIDxvcGM6U3RydWN0dXJlZFR5cGUgTmFtZT0i\nUGFyYW1ldGVyUmVzdWx0RGF0YVR5cGUiIEJhc2VUeXBlPSJ1YTpFeHRlbnNpb25PYmplY3QiPg0K\nICAgIDxvcGM6RmllbGQgTmFtZT0iTm9PZk5vZGVQYXRoIiBUeXBlTmFtZT0ib3BjOkludDMyIiAv\nPg0KICAgIDxvcGM6RmllbGQgTmFtZT0iTm9kZVBhdGgiIFR5cGVOYW1lPSJ1YTpRdWFsaWZpZWRO\nYW1lIiBMZW5ndGhGaWVsZD0iTm9PZk5vZGVQYXRoIiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0i\nU3RhdHVzQ29kZSIgVHlwZU5hbWU9InVhOlN0YXR1c0NvZGUiIC8+DQogICAgPG9wYzpGaWVsZCBO\nYW1lPSJEaWFnbm9zdGljcyIgVHlwZU5hbWU9InVhOkRpYWdub3N0aWNJbmZvIiAvPg0KICA8L29w\nYzpTdHJ1Y3R1cmVkVHlwZT4NCg0KICA8b3BjOkVudW1lcmF0ZWRUeXBlIE5hbWU9IlNvZnR3YXJl\nQ2xhc3MiIExlbmd0aEluQml0cz0iMzIiPg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9\nIkZpcm13YXJlIiBWYWx1ZT0iMCIgLz4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJB\ncHBsaWNhdGlvbiIgVmFsdWU9IjEiIC8+DQogICAgPG9wYzpFbnVtZXJhdGVkVmFsdWUgTmFtZT0i\nQ29uZmlndXJhdGlvbiIgVmFsdWU9IjIiIC8+DQogICAgPG9wYzpFbnVtZXJhdGVkVmFsdWUgTmFt\nZT0iU29sdXRpb24iIFZhbHVlPSIzIiAvPg0KICA8L29wYzpFbnVtZXJhdGVkVHlwZT4NCg0KICA8\nb3BjOkVudW1lcmF0ZWRUeXBlIE5hbWU9IkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIExlbmd0aElu\nQml0cz0iMTYiIElzT3B0aW9uU2V0PSJ0cnVlIj4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBO\nYW1lPSJOb25lIiBWYWx1ZT0iMCIgLz4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJW\naXN1YWwiIFZhbHVlPSIxIiAvPg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9IkF1ZGli\nbGUiIFZhbHVlPSIyIiAvPg0KICA8L29wYzpFbnVtZXJhdGVkVHlwZT4NCg0KICA8b3BjOkVudW1l\ncmF0ZWRUeXBlIE5hbWU9IlNvZnR3YXJlVmVyc2lvbkZpbGVUeXBlIiBMZW5ndGhJbkJpdHM9IjMy\nIj4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJDdXJyZW50IiBWYWx1ZT0iMCIgLz4N\nCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJQZW5kaW5nIiBWYWx1ZT0iMSIgLz4NCiAg\nICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJGYWxsYmFjayIgVmFsdWU9IjIiIC8+DQogIDwv\nb3BjOkVudW1lcmF0ZWRUeXBlPg0KDQogIDxvcGM6RW51bWVyYXRlZFR5cGUgTmFtZT0iVXBkYXRl\nQmVoYXZpb3IiIExlbmd0aEluQml0cz0iMzIiIElzT3B0aW9uU2V0PSJ0cnVlIj4NCiAgICA8b3Bj\nOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJOb25lIiBWYWx1ZT0iMCIgLz4NCiAgICA8b3BjOkVudW1l\ncmF0ZWRWYWx1ZSBOYW1lPSJLZWVwc1BhcmFtZXRlcnMiIFZhbHVlPSIxIiAvPg0KICAgIDxvcGM6\nRW51bWVyYXRlZFZhbHVlIE5hbWU9IldpbGxEaXNjb25uZWN0IiBWYWx1ZT0iMiIgLz4NCiAgICA8\nb3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJSZXF1aXJlc1Bvd2VyQ3ljbGUiIFZhbHVlPSI0IiAv\nPg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9IldpbGxSZWJvb3QiIFZhbHVlPSI4IiAv\nPg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9Ik5lZWRzUHJlcGFyYXRpb24iIFZhbHVl\nPSIxNiIgLz4NCiAgPC9vcGM6RW51bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5\nPg==</ByteString>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceUri"
           }
         ],
@@ -14614,10 +15282,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://opcfoundation.org/UA/DI/</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Deprecated",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Deprecated"
           }
         ],
@@ -14640,10 +15310,12 @@
         "valueXml": "<Boolean xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">true</Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:FetchResultDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "FetchResultDataType"
           }
         ],
@@ -14666,10 +15338,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">FetchResultDataType</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TransferResultErrorDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultErrorDataType"
           }
         ],
@@ -14692,10 +15366,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">TransferResultErrorDataType</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TransferResultDataDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultDataDataType"
           }
         ],
@@ -14718,10 +15394,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">TransferResultDataDataType</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ParameterResultDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ParameterResultDataType"
           }
         ],
@@ -14747,6 +15425,7 @@
         "browseName": "Default XML",
         "displayName": [
           {
+            "locale": "",
             "value": "Default XML"
           }
         ],
@@ -14774,6 +15453,7 @@
         "browseName": "Default XML",
         "displayName": [
           {
+            "locale": "",
             "value": "Default XML"
           }
         ],
@@ -14801,6 +15481,7 @@
         "browseName": "Default XML",
         "displayName": [
           {
+            "locale": "",
             "value": "Default XML"
           }
         ],
@@ -14828,6 +15509,7 @@
         "browseName": "Default XML",
         "displayName": [
           {
+            "locale": "",
             "value": "Default XML"
           }
         ],
@@ -14852,10 +15534,12 @@
         "typeDefinition": "i=76"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Opc.Ua.Di",
         "dataType": "ByteString",
         "displayName": [
           {
+            "locale": "",
             "value": "Opc.Ua.Di"
           }
         ],
@@ -14902,10 +15586,12 @@
         "valueXml": "<ByteString xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">PHhzOnNjaGVtYQ0KICB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEi\nDQogIHhtbG5zOnVhPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54\nc2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0RJL1R5cGVzLnhz\nZCINCiAgdGFyZ2V0TmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvREkvVHlw\nZXMueHNkIg0KICBlbGVtZW50Rm9ybURlZmF1bHQ9InF1YWxpZmllZCINCj4NCiAgPHhzOmFubm90\nYXRpb24+DQogICAgPHhzOmFwcGluZm8+DQogICAgICA8dWE6TW9kZWwgTW9kZWxVcmk9Imh0dHA6\nLy9vcGNmb3VuZGF0aW9uLm9yZy9VQS9ESS8iIFZlcnNpb249IjEuMDUuMCIgUHVibGljYXRpb25E\nYXRlPSIyMDI1LTExLTE1VDAwOjAwOjAwWiIgLz4NCiAgICA8L3hzOmFwcGluZm8+DQogIDwveHM6\nYW5ub3RhdGlvbj4NCiAgDQogIDx4czppbXBvcnQgbmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRh\ndGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54c2QiIC8+DQoNCiAgPHhzOnNpbXBsZVR5cGUgIG5h\nbWU9IkRldmljZUhlYWx0aEVudW1lcmF0aW9uIj4NCiAgICA8eHM6cmVzdHJpY3Rpb24gYmFzZT0i\neHM6c3RyaW5nIj4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2YWx1ZT0iTk9STUFMXzAiIC8+DQog\nICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkZBSUxVUkVfMSIgLz4NCiAgICAgIDx4czplbnVt\nZXJhdGlvbiB2YWx1ZT0iQ0hFQ0tfRlVOQ1RJT05fMiIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlv\nbiB2YWx1ZT0iT0ZGX1NQRUNfMyIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2YWx1ZT0iTUFJ\nTlRFTkFOQ0VfUkVRVUlSRURfNCIgLz4NCiAgICA8L3hzOnJlc3RyaWN0aW9uPg0KICA8L3hzOnNp\nbXBsZVR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IkRldmljZUhlYWx0aEVudW1lcmF0aW9uIiB0\neXBlPSJ0bnM6RGV2aWNlSGVhbHRoRW51bWVyYXRpb24iIC8+DQoNCiAgPHhzOmNvbXBsZXhUeXBl\nIG5hbWU9Ikxpc3RPZkRldmljZUhlYWx0aEVudW1lcmF0aW9uIj4NCiAgICA8eHM6c2VxdWVuY2U+\nDQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJEZXZpY2VIZWFsdGhFbnVtZXJhdGlvbiIgdHlwZT0i\ndG5zOkRldmljZUhlYWx0aEVudW1lcmF0aW9uIiBtaW5PY2N1cnM9IjAiIG1heE9jY3Vycz0idW5i\nb3VuZGVkIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4\nczplbGVtZW50IG5hbWU9Ikxpc3RPZkRldmljZUhlYWx0aEVudW1lcmF0aW9uIiB0eXBlPSJ0bnM6\nTGlzdE9mRGV2aWNlSGVhbHRoRW51bWVyYXRpb24iIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1l\nbnQ+DQoNCiAgPHhzOmNvbXBsZXhUeXBlIG5hbWU9IkZldGNoUmVzdWx0RGF0YVR5cGUiPg0KICAg\nIDx4czpzZXF1ZW5jZT4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBlPg0K\nICA8eHM6ZWxlbWVudCBuYW1lPSJGZXRjaFJlc3VsdERhdGFUeXBlIiB0eXBlPSJ0bnM6RmV0Y2hS\nZXN1bHREYXRhVHlwZSIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mRmV0Y2hS\nZXN1bHREYXRhVHlwZSI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFt\nZT0iRmV0Y2hSZXN1bHREYXRhVHlwZSIgdHlwZT0idG5zOkZldGNoUmVzdWx0RGF0YVR5cGUiIG1p\nbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAg\nIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9\nIkxpc3RPZkZldGNoUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZGZXRjaFJlc3VsdERh\ndGFUeXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQogIDx4czpjb21wbGV4VHlw\nZSBuYW1lPSJUcmFuc2ZlclJlc3VsdEVycm9yRGF0YVR5cGUiPg0KICAgIDx4czpjb21wbGV4Q29u\ndGVudCBtaXhlZD0iZmFsc2UiPg0KICAgICAgPHhzOmV4dGVuc2lvbiBiYXNlPSJ0bnM6RmV0Y2hS\nZXN1bHREYXRhVHlwZSI+DQogICAgICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgICAgICA8eHM6ZWxl\nbWVudCBuYW1lPSJTdGF0dXMiIHR5cGU9InhzOmludCIgbWluT2NjdXJzPSIwIiAvPg0KICAgICAg\nICAgIDx4czplbGVtZW50IG5hbWU9IkRpYWdub3N0aWNzIiB0eXBlPSJ1YTpEaWFnbm9zdGljSW5m\nbyIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICAgICAgPC94czpzZXF1ZW5j\nZT4NCiAgICAgIDwveHM6ZXh0ZW5zaW9uPg0KICAgIDwveHM6Y29tcGxleENvbnRlbnQ+DQogIDwv\neHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IlRyYW5zZmVyUmVzdWx0RXJyb3JE\nYXRhVHlwZSIgdHlwZT0idG5zOlRyYW5zZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgLz4NCg0KICA8\neHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mVHJhbnNmZXJSZXN1bHRFcnJvckRhdGFUeXBlIj4N\nCiAgICA8eHM6c2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJUcmFuc2ZlclJlc3Vs\ndEVycm9yRGF0YVR5cGUiIHR5cGU9InRuczpUcmFuc2ZlclJlc3VsdEVycm9yRGF0YVR5cGUiIG1p\nbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAg\nIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9\nIkxpc3RPZlRyYW5zZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgdHlwZT0idG5zOkxpc3RPZlRyYW5z\nZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0K\nICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iVHJhbnNmZXJSZXN1bHREYXRhRGF0YVR5cGUiPg0KICAg\nIDx4czpjb21wbGV4Q29udGVudCBtaXhlZD0iZmFsc2UiPg0KICAgICAgPHhzOmV4dGVuc2lvbiBi\nYXNlPSJ0bnM6RmV0Y2hSZXN1bHREYXRhVHlwZSI+DQogICAgICAgIDx4czpzZXF1ZW5jZT4NCiAg\nICAgICAgICA8eHM6ZWxlbWVudCBuYW1lPSJTZXF1ZW5jZU51bWJlciIgdHlwZT0ieHM6aW50IiBt\naW5PY2N1cnM9IjAiIC8+DQogICAgICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iRW5kT2ZSZXN1bHRz\nIiB0eXBlPSJ4czpib29sZWFuIiBtaW5PY2N1cnM9IjAiIC8+DQogICAgICAgICAgPHhzOmVsZW1l\nbnQgbmFtZT0iUGFyYW1ldGVyRGVmcyIgdHlwZT0idG5zOkxpc3RPZlBhcmFtZXRlclJlc3VsdERh\ndGFUeXBlIiBtaW5PY2N1cnM9IjAiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAgICAgICA8L3hzOnNl\ncXVlbmNlPg0KICAgICAgPC94czpleHRlbnNpb24+DQogICAgPC94czpjb21wbGV4Q29udGVudD4N\nCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iVHJhbnNmZXJSZXN1bHRE\nYXRhRGF0YVR5cGUiIHR5cGU9InRuczpUcmFuc2ZlclJlc3VsdERhdGFEYXRhVHlwZSIgLz4NCg0K\nICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mVHJhbnNmZXJSZXN1bHREYXRhRGF0YVR5cGUi\nPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IlRyYW5zZmVyUmVz\ndWx0RGF0YURhdGFUeXBlIiB0eXBlPSJ0bnM6VHJhbnNmZXJSZXN1bHREYXRhRGF0YVR5cGUiIG1p\nbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAg\nIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9\nIkxpc3RPZlRyYW5zZmVyUmVzdWx0RGF0YURhdGFUeXBlIiB0eXBlPSJ0bnM6TGlzdE9mVHJhbnNm\nZXJSZXN1bHREYXRhRGF0YVR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCiAg\nPHhzOmNvbXBsZXhUeXBlIG5hbWU9IlBhcmFtZXRlclJlc3VsdERhdGFUeXBlIj4NCiAgICA8eHM6\nc2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJOb2RlUGF0aCIgdHlwZT0idWE6TGlz\ndE9mUXVhbGlmaWVkTmFtZSIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICAg\nIDx4czplbGVtZW50IG5hbWU9IlN0YXR1c0NvZGUiIHR5cGU9InVhOlN0YXR1c0NvZGUiIG1pbk9j\nY3Vycz0iMCIgLz4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IkRpYWdub3N0aWNzIiB0eXBlPSJ1\nYTpEaWFnbm9zdGljSW5mbyIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICA8\nL3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJQ\nYXJhbWV0ZXJSZXN1bHREYXRhVHlwZSIgdHlwZT0idG5zOlBhcmFtZXRlclJlc3VsdERhdGFUeXBl\nIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZQYXJhbWV0ZXJSZXN1bHREYXRh\nVHlwZSI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iUGFyYW1l\ndGVyUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpQYXJhbWV0ZXJSZXN1bHREYXRhVHlwZSIgbWlu\nT2NjdXJzPSIwIiBtYXhPY2N1cnM9InVuYm91bmRlZCIgbmlsbGFibGU9InRydWUiIC8+DQogICAg\nPC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0i\nTGlzdE9mUGFyYW1ldGVyUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZQYXJhbWV0ZXJS\nZXN1bHREYXRhVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0KICA8eHM6c2lt\ncGxlVHlwZSAgbmFtZT0iU29mdHdhcmVDbGFzcyI+DQogICAgPHhzOnJlc3RyaWN0aW9uIGJhc2U9\nInhzOnN0cmluZyI+DQogICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkZpcm13YXJlXzAiIC8+\nDQogICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkFwcGxpY2F0aW9uXzEiIC8+DQogICAgICA8\neHM6ZW51bWVyYXRpb24gdmFsdWU9IkNvbmZpZ3VyYXRpb25fMiIgLz4NCiAgICAgIDx4czplbnVt\nZXJhdGlvbiB2YWx1ZT0iU29sdXRpb25fMyIgLz4NCiAgICA8L3hzOnJlc3RyaWN0aW9uPg0KICA8\nL3hzOnNpbXBsZVR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IlNvZnR3YXJlQ2xhc3MiIHR5cGU9\nInRuczpTb2Z0d2FyZUNsYXNzIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZT\nb2Z0d2FyZUNsYXNzIj4NCiAgICA8eHM6c2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1l\nPSJTb2Z0d2FyZUNsYXNzIiB0eXBlPSJ0bnM6U29mdHdhcmVDbGFzcyIgbWluT2NjdXJzPSIwIiBt\nYXhPY2N1cnM9InVuYm91bmRlZCIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBs\nZXhUeXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZTb2Z0d2FyZUNsYXNzIiB0eXBlPSJ0\nbnM6TGlzdE9mU29mdHdhcmVDbGFzcyIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0K\nICA8eHM6c2ltcGxlVHlwZSAgbmFtZT0iTG9jYXRpb25JbmRpY2F0aW9uVHlwZSI+DQogICAgPHhz\nOnJlc3RyaWN0aW9uIGJhc2U9InhzOnVuc2lnbmVkU2hvcnQiPg0KICAgIDwveHM6cmVzdHJpY3Rp\nb24+DQogIDwveHM6c2ltcGxlVHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iTG9jYXRpb25JbmRp\nY2F0aW9uVHlwZSIgdHlwZT0idG5zOkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIC8+DQoNCiAgPHhz\nOmNvbXBsZXhUeXBlIG5hbWU9Ikxpc3RPZkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiPg0KICAgIDx4\nczpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IkxvY2F0aW9uSW5kaWNhdGlvblR5\ncGUiIHR5cGU9InRuczpMb2NhdGlvbkluZGljYXRpb25UeXBlIiBtaW5PY2N1cnM9IjAiIG1heE9j\nY3Vycz0idW5ib3VuZGVkIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5\ncGU+DQogIDx4czplbGVtZW50IG5hbWU9Ikxpc3RPZkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIHR5\ncGU9InRuczpMaXN0T2ZMb2NhdGlvbkluZGljYXRpb25UeXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94\nczplbGVtZW50Pg0KDQogIDx4czpzaW1wbGVUeXBlICBuYW1lPSJTb2Z0d2FyZVZlcnNpb25GaWxl\nVHlwZSI+DQogICAgPHhzOnJlc3RyaWN0aW9uIGJhc2U9InhzOnN0cmluZyI+DQogICAgICA8eHM6\nZW51bWVyYXRpb24gdmFsdWU9IkN1cnJlbnRfMCIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2\nYWx1ZT0iUGVuZGluZ18xIiAvPg0KICAgICAgPHhzOmVudW1lcmF0aW9uIHZhbHVlPSJGYWxsYmFj\na18yIiAvPg0KICAgIDwveHM6cmVzdHJpY3Rpb24+DQogIDwveHM6c2ltcGxlVHlwZT4NCiAgPHhz\nOmVsZW1lbnQgbmFtZT0iU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIHR5cGU9InRuczpTb2Z0d2Fy\nZVZlcnNpb25GaWxlVHlwZSIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mU29m\ndHdhcmVWZXJzaW9uRmlsZVR5cGUiPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVt\nZW50IG5hbWU9IlNvZnR3YXJlVmVyc2lvbkZpbGVUeXBlIiB0eXBlPSJ0bnM6U29mdHdhcmVWZXJz\naW9uRmlsZVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIC8+DQogICAg\nPC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0i\nTGlzdE9mU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIHR5cGU9InRuczpMaXN0T2ZTb2Z0d2FyZVZl\ncnNpb25GaWxlVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0KICA8eHM6c2lt\ncGxlVHlwZSAgbmFtZT0iVXBkYXRlQmVoYXZpb3IiPg0KICAgIDx4czpyZXN0cmljdGlvbiBiYXNl\nPSJ4czp1bnNpZ25lZEludCI+DQogICAgPC94czpyZXN0cmljdGlvbj4NCiAgPC94czpzaW1wbGVU\neXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJVcGRhdGVCZWhhdmlvciIgdHlwZT0idG5zOlVwZGF0\nZUJlaGF2aW9yIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZVcGRhdGVCZWhh\ndmlvciI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iVXBkYXRl\nQmVoYXZpb3IiIHR5cGU9InRuczpVcGRhdGVCZWhhdmlvciIgbWluT2NjdXJzPSIwIiBtYXhPY2N1\ncnM9InVuYm91bmRlZCIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBl\nPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZVcGRhdGVCZWhhdmlvciIgdHlwZT0idG5zOkxp\nc3RPZlVwZGF0ZUJlaGF2aW9yIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hz\nOnNjaGVtYT4=</ByteString>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceUri"
           }
         ],
@@ -14928,10 +15614,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://opcfoundation.org/UA/DI/Types.xsd</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Deprecated",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Deprecated"
           }
         ],
@@ -14954,10 +15642,12 @@
         "valueXml": "<Boolean xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">true</Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:FetchResultDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "FetchResultDataType"
           }
         ],
@@ -14980,10 +15670,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='FetchResultDataType']</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TransferResultErrorDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultErrorDataType"
           }
         ],
@@ -15006,10 +15698,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='TransferResultErrorDataType']</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TransferResultDataDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultDataDataType"
           }
         ],
@@ -15032,10 +15726,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='TransferResultDataDataType']</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ParameterResultDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ParameterResultDataType"
           }
         ],
@@ -15061,6 +15757,7 @@
         "browseName": "Default JSON",
         "displayName": [
           {
+            "locale": "",
             "value": "Default JSON"
           }
         ],
@@ -15084,6 +15781,7 @@
         "browseName": "Default JSON",
         "displayName": [
           {
+            "locale": "",
             "value": "Default JSON"
           }
         ],
@@ -15107,6 +15805,7 @@
         "browseName": "Default JSON",
         "displayName": [
           {
+            "locale": "",
             "value": "Default JSON"
           }
         ],
@@ -15130,6 +15829,7 @@
         "browseName": "Default JSON",
         "displayName": [
           {
+            "locale": "",
             "value": "Default JSON"
           }
         ],

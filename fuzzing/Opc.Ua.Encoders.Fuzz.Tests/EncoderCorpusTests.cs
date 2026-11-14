@@ -116,7 +116,9 @@ namespace Opc.Ua.Fuzzing
                         publish.NotificationMessage.NotificationData[0]
                             .TryGetValue(out DataChangeNotification? notification),
                         Is.True);
-                    notification!.MonitoredItems[0].ClientHandle = 999;
+                    // a value type: change the element in the array, which must not be shared.
+                    System.Runtime.InteropServices.MemoryMarshal.GetReference(
+                        notification!.MonitoredItems.Span).ClientHandle = 999;
                     break;
                 case WriteRequest write:
                     write.NodesToWrite[0].IndexRange = "4:5";

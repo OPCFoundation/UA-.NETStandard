@@ -5,6 +5,7 @@
       "@language": "en",
       "ns1": "http://opcfoundation.org/UA/Machinery/",
       "ns2": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -60,7 +61,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "\n      ",
+      "default": "\n      ",
       "description": "To be used by end users to store a unique identification in the context of their overall application. Servers shall support at least 40 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 40 Unicode characters into that field.",
       "links": [
         {
@@ -103,6 +104,7 @@
       ],
       "observable": true,
       "title": "ComponentName",
+      "type": "string",
       "uav:browseName": "ns2:ComponentName",
       "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=6014",
       "uav:mapToType": "i=21",
@@ -219,6 +221,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Manufacturer",
+      "type": "string",
       "uav:browseName": "ns2:Manufacturer",
       "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=6002",
       "uav:mapToType": "i=21",
@@ -276,6 +279,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Model",
+      "type": "string",
       "uav:browseName": "ns2:Model",
       "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=6008",
       "uav:mapToType": "i=21",
@@ -567,6 +571,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MachineryItemIdentificationType"
           }
         ],
@@ -649,6 +654,7 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "2:AssetId",
         "dataType": "String",
         "description": [
@@ -659,6 +665,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "AssetId"
           }
         ],
@@ -686,6 +693,7 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "2:ComponentName",
         "dataType": "LocalizedText",
         "description": [
@@ -696,6 +704,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ComponentName"
           }
         ],
@@ -722,6 +731,7 @@
         "valueXml": "<uax:LocalizedText xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" />"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:DeviceClass",
         "dataType": "String",
         "description": [
@@ -732,6 +742,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceClass"
           }
         ],
@@ -757,6 +768,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:HardwareRevision",
         "dataType": "String",
         "description": [
@@ -767,6 +779,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "HardwareRevision"
           }
         ],
@@ -792,6 +805,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:InitialOperationDate",
         "dataType": "DateTime",
         "description": [
@@ -802,6 +816,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InitialOperationDate"
           }
         ],
@@ -827,6 +842,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:Manufacturer",
         "dataType": "LocalizedText",
         "description": [
@@ -837,6 +853,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -862,6 +879,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:ManufacturerUri",
         "dataType": "String",
         "description": [
@@ -872,6 +890,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -897,6 +916,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:Model",
         "dataType": "LocalizedText",
         "description": [
@@ -907,6 +927,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Model"
           }
         ],
@@ -932,6 +953,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MonthOfConstruction",
         "dataType": "Byte",
         "description": [
@@ -942,6 +964,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MonthOfConstruction"
           }
         ],
@@ -967,6 +990,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:ProductCode",
         "dataType": "String",
         "description": [
@@ -977,6 +1001,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ProductCode"
           }
         ],
@@ -1002,6 +1027,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:ProductInstanceUri",
         "dataType": "String",
         "description": [
@@ -1012,6 +1038,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ProductInstanceUri"
           }
         ],
@@ -1037,6 +1064,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:SerialNumber",
         "dataType": "String",
         "description": [
@@ -1047,6 +1075,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -1072,6 +1101,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:SoftwareRevision",
         "dataType": "String",
         "description": [
@@ -1082,6 +1112,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -1107,6 +1138,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:YearOfConstruction",
         "dataType": "UInt16",
         "description": [
@@ -1117,6 +1149,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "YearOfConstruction"
           }
         ],

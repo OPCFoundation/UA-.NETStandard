@@ -4,7 +4,7 @@
          assembly is deliberately narrower than the connector that loads it. The
          connector keeps targeting net48 through net10.0 and reports a clear
          diagnostic when the view option is unavailable. -->
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net11.0;net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net11.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
     <OutputType>Library</OutputType>
     <AssemblyName>Opc.Ua.OpenUsd.Connector.Viewer</AssemblyName>

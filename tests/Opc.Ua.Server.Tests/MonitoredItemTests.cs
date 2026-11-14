@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
             MonitoredItemNotification publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
+            Assert.That(publishResult.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
             Assert.That(
                 publishErrorResult!.InnerStatusCode,
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Empty);
             MonitoredItemNotification publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
+            Assert.That(publishResult.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
             Assert.That(
                 publishErrorResult!.InnerStatusCode,

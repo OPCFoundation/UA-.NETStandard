@@ -1311,7 +1311,8 @@ namespace Opc.Ua.Wot
             string[]? namespaceUris,
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
-            string defaultLocale)
+            string defaultLocale,
+            ReadableScalarContext scalarContext)
         {
             if (projection.IsCondition)
             {
@@ -1333,7 +1334,7 @@ namespace Opc.Ua.Wot
             Dictionary<string, UAVariable> declared = CollectDeclaredEventFields(eventType, index);
 
             WriteEventDataSchema(
-                writer, standard, declared, namespaceUris, nodeSet, defaultLocale);
+                writer, standard, declared, namespaceUris, nodeSet, defaultLocale, scalarContext);
         }
 
         /// <summary>
@@ -1358,7 +1359,8 @@ namespace Opc.Ua.Wot
             Dictionary<string, UAVariable> declared,
             string[]? namespaceUris,
             UANodeSet nodeSet,
-            string defaultLocale)
+            string defaultLocale,
+            ReadableScalarContext scalarContext)
         {
             writer.WritePropertyName(DataMember);
             writer.WriteStartObject();
@@ -1423,7 +1425,7 @@ namespace Opc.Ua.Wot
                 }
                 writer.WritePropertyName(field.Key);
                 WriteDeclaredEventField(
-                    writer, field.Value, namespaceUris, nodeSet, defaultLocale);
+                    writer, field.Value, namespaceUris, nodeSet, defaultLocale, scalarContext);
                 if (IsMandatory(field.Value))
                 {
                     required.Add(field.Key);
@@ -1464,7 +1466,8 @@ namespace Opc.Ua.Wot
                 CollectDeclaredEventFields(eventType, index),
                 namespaceUris,
                 nodeSet,
-                defaultLocale);
+                defaultLocale,
+                new ReadableScalarContext(nodeSet, index));
         }
 
         /// <summary>
@@ -1628,11 +1631,12 @@ namespace Opc.Ua.Wot
             UAVariable field,
             string[]? namespaceUris,
             UANodeSet nodeSet,
-            string defaultLocale)
+            string defaultLocale,
+            ReadableScalarContext scalarContext)
         {
             writer.WriteStartObject();
             WriteLocalizedTextContext(writer, field.DisplayName, field.Description, defaultLocale);
-            WriteRankedJsonType(writer, field.DataType, field.ValueRank);
+            WriteRankedJsonType(writer, field.DataType, field.ValueRank, scalarContext);
             WriteLocalizedTitle(writer, field.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, field.Description, defaultLocale);
             WriteOptional(

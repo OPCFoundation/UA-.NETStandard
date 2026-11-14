@@ -3204,7 +3204,7 @@ namespace Opc.Ua
                     typeof(T).Name);
             }
             value = instance;
-            return TryGetEncodeableFromElement(value, element);
+            return TryGetEncodeableFromElement(ref value, element);
         }
 
         /// <summary>
@@ -3216,7 +3216,7 @@ namespace Opc.Ua
             where T : IEncodeable, new()
         {
             value = new T();
-            return TryGetEncodeableFromElement(value, element);
+            return TryGetEncodeableFromElement(ref value, element);
         }
 
         /// <summary>
@@ -3224,7 +3224,11 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="ServiceResultException"></exception>
-        internal bool TryGetEncodeableFromElement<T>(T encodeable, JsonElement element)
+        /// <remarks>
+        /// The encodeable is passed by reference so that a value type is decoded in place
+        /// instead of into a copy.
+        /// </remarks>
+        internal bool TryGetEncodeableFromElement<T>(ref T encodeable, JsonElement element)
             where T : IEncodeable
         {
             switch (element.ValueKind)

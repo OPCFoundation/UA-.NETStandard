@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -315,17 +316,21 @@
       {
         "browseName": "1:ParameterResultDataType",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=20",
               "name": "NodePath",
               "valueRank": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=19",
               "name": "StatusCode"
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=25",
               "name": "Diagnostics"
             }
@@ -334,6 +339,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "ParameterResultDataType"
           }
         ],
