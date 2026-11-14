@@ -251,6 +251,8 @@ namespace Opc.Ua.Server.Tests.Programs
                 fixture.Context, ProgramControlMethod.Reset).ConfigureAwait(false);
             Assert.That(reset.OperationResult.StatusCode, Is.EqualTo(StatusCodes.BadNotExecutable));
             Assert.That(fixture.Runtime.CurrentState, Is.EqualTo(ProgramState.Suspended));
+            Assert.That(fixture.Execution.CallCount, Is.EqualTo(2),
+                "Reset from Suspended must not reach the provider.");
             await fixture.CallAsync(ProgramControlMethod.Resume, ProgramState.Running).ConfigureAwait(false);
             Assert.That(fixture.Runtime.Node.RecycleCount!.Value, Is.Zero);
             await fixture.CallAsync(ProgramControlMethod.Halt, ProgramState.Halted).ConfigureAwait(false);
