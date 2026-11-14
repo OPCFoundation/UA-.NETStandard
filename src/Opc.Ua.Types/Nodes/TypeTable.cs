@@ -609,6 +609,7 @@ namespace Opc.Ua
                 typeInfo.NodeId = node.NodeId;
                 typeInfo.SuperType = superTypeInfo;
                 typeInfo.Deleted = false;
+                typeInfo.RegistrationVersion = Interlocked.Increment(ref s_nextRegistrationVersion);
 
                 // add to supertype.
                 superTypeInfo?.AddSubType(typeInfo);
@@ -794,6 +795,7 @@ namespace Opc.Ua
                 typeInfo.NodeId = subTypeId;
                 typeInfo.SuperType = superTypeInfo;
                 typeInfo.Deleted = false;
+                typeInfo.RegistrationVersion = Interlocked.Increment(ref s_nextRegistrationVersion);
 
                 // add to supertype.
                 superTypeInfo?.AddSubType(typeInfo);
@@ -839,37 +841,81 @@ namespace Opc.Ua
             {
                 // remove type.
 
-                if (!m_nodes.TryGetValue(localId, out TypeInfo? typeInfo))
+                if (!m_nodes.ContainsKey(localId))
                 {
                     return;
                 }
 
                 EnsureMutable();
-                EnsureWritableGraph();
-                typeInfo = m_nodes[localId];
-                m_revision++;
-                m_nodes.Remove(localId);
+                RemoveRegistration(localId);
+            }
+        }
 
-                // setting the flag to deleted ensures references from subtypes are not broken.
-                typeInfo.Deleted = true;
+        /// <summary>
+        /// Gets the version of a type registration, or zero when it is absent.
+        /// </summary>
+        internal long GetRegistrationVersion(NodeId typeId)
+        {
+            if (typeId.IsNull)
+            {
+                return 0;
+            }
+            lock (m_lock)
+            {
+                return m_nodes.TryGetValue(typeId, out TypeInfo? typeInfo)
+                    ? typeInfo.RegistrationVersion
+                    : 0;
+            }
+        }
 
-                // remove from subtype list.
-                typeInfo.SuperType?.RemoveSubType(localId);
-
-                // remove encodings.
-                if (typeInfo.Encodings != null)
+        /// <summary>
+        /// Removes a captured registration unless publication currently reserves it.
+        /// A later registration with the same identifier is left unchanged.
+        /// </summary>
+        /// <returns>False only when the captured registration is reserved by a publication.</returns>
+        internal bool TryRemoveRegistration(NodeId typeId, long registrationVersion)
+        {
+            if (typeId.IsNull || registrationVersion == 0)
+            {
+                return true;
+            }
+            lock (m_lock)
+            {
+                if (!m_nodes.TryGetValue(typeId, out TypeInfo? typeInfo) ||
+                    typeInfo.RegistrationVersion != registrationVersion)
                 {
-                    for (int ii = 0; ii < typeInfo.Encodings.Length; ii++)
-                    {
-                        m_encodings.Remove(typeInfo.Encodings[ii]);
-                    }
+                    return true;
                 }
-
-                // remove reference type.
-                if (!typeInfo.BrowseName.IsNull)
+                if (m_publicationPending)
                 {
-                    m_referenceTypes.Remove(typeInfo.BrowseName);
+                    return false;
                 }
+                RemoveRegistration(typeId);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Removes a registration while the storage lock is held.
+        /// </summary>
+        private void RemoveRegistration(NodeId typeId)
+        {
+            EnsureWritableGraph();
+            TypeInfo typeInfo = m_nodes[typeId];
+            m_revision++;
+            m_nodes.Remove(typeId);
+            typeInfo.Deleted = true;
+            typeInfo.SuperType?.RemoveSubType(typeId);
+            if (typeInfo.Encodings != null)
+            {
+                for (int ii = 0; ii < typeInfo.Encodings.Length; ii++)
+                {
+                    m_encodings.Remove(typeInfo.Encodings[ii]);
+                }
+            }
+            if (!typeInfo.BrowseName.IsNull)
+            {
+                m_referenceTypes.Remove(typeInfo.BrowseName);
             }
         }
 
@@ -879,6 +925,9 @@ namespace Opc.Ua
         private class TypeInfo
         {
             public bool Deleted;
+
+            /// <summary>The identity of the most recent registration of this type.</summary>
+            public long RegistrationVersion;
             public NodeId NodeId = NodeId.Null;
             public QualifiedName BrowseName = QualifiedName.Null;
             public TypeInfo? SuperType;
@@ -955,6 +1004,8 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>The process-wide sequence for type registration identities.</summary>
+        private static long s_nextRegistrationVersion;
         private Lock m_lock => m_storage.Gate;
         private readonly NamespaceTable m_namespaceUris;
         private SortedDictionary<QualifiedName, TypeInfo> m_referenceTypes => m_storage.References;

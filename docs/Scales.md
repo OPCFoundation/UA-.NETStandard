@@ -1241,6 +1241,10 @@ before it rethrows.
 
 ### PackML
 
+For a standalone PackML BaseObject with provider-backed modes, Status and Admin,
+use the [PackML server and client packages](PackML.md). The Scales composition
+below retains the controller's existing automatic-completion default.
+
 `PackMLStateMachineController` from `Opc.Ua.PackML` drives the three nested
 machines: base (Aborted … Cleared), machine (Stopped … Running) and execute
 (Idle … Complete).

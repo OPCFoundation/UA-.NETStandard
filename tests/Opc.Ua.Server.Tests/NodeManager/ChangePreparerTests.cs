@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -448,6 +449,86 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(sourceType, Is.SameAs(rangeType));
                 Assert.That(ChangePreparer.GetServer(created), Is.SameAs(staging));
             });
+        }
+
+        /// <summary>
+        /// Retaining an aborted or retired staging server does not retain its released facade or resource.
+        /// </summary>
+        /// <param name="bound">Whether the candidate reached canonical binding before cleanup.</param>
+        /// <param name="dispose">Whether cleanup disposes rather than detaches the staging server.</param>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task RetainedStagingServerReleasesFacadeAndResourceAfterCleanupAsync(bool bound, bool dispose)
+        {
+            (ChangePreparer.StagingServer retainedServer,
+                WeakReference<IAsyncNodeManager> facade,
+                WeakReference<IAsyncNodeManager> resource) =
+                await CreateRetainedServerAfterCleanupAsync(bound, dispose).ConfigureAwait(false);
+
+            CollectReleasedManagers();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(retainedServer.RegisteredFacade, Is.Null);
+                Assert.That(facade.TryGetTarget(out _), Is.False);
+                Assert.That(resource.TryGetTarget(out _), Is.False);
+            });
+            GC.KeepAlive(retainedServer);
+        }
+
+        /// <summary>
+        /// Separates candidate construction and cleanup from the retained-server collection assertions.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(
+            ChangePreparer.StagingServer Server,
+            WeakReference<IAsyncNodeManager> Facade,
+            WeakReference<IAsyncNodeManager> Resource)> CreateRetainedServerAfterCleanupAsync(bool bound, bool dispose)
+        {
+            var preparation = new ChangePreparer(CreateServer().Object);
+            IAsyncNodeManager resource = new Mock<IAsyncNodeManager>().Object;
+            var facade = new Mock<IAsyncNodeManager>();
+            facade.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(facade.Object));
+            IAsyncNodeManager created = await preparation.CreateNodeManagerAsync(
+                factory.Object, null!, false, _ => false, CancellationToken.None).ConfigureAwait(false);
+            ChangePreparer.StagingServer staging = ChangePreparer.GetServer(created)!;
+            Assert.That(staging.RegisteredFacade, Is.SameAs(created));
+            if (bound)
+            {
+                ChangePreparer.Bind(created);
+                Assert.That(staging.RegisteredFacade, Is.SameAs(created));
+            }
+            if (dispose)
+            {
+                await ChangePreparer.DisposeAsync(created).ConfigureAwait(false);
+            }
+            else
+            {
+                ChangePreparer.Detach(created);
+            }
+            return (
+                staging,
+                new WeakReference<IAsyncNodeManager>(created),
+                new WeakReference<IAsyncNodeManager>(resource));
+        }
+
+        /// <summary>
+        /// Collects candidate cycles without retaining their targets in the assertion frame.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void CollectReleasedManagers()
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
         }
 
         /// <summary>

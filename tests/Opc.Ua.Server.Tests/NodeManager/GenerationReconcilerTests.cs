@@ -878,6 +878,96 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Retirement releases raw and facade bindings through the owners that created them.
+        /// </summary>
+        /// <param name="failFirstRelease">Whether the raw owner's first event release needs a retry.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ForwardedRetirementPreservesBindingCallbackOwnersAsync(bool failFirstRelease)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var events = new EventManager(server.Object, 100, 100))
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None))
+            {
+                server.SetupGet(value => value.EventManager).Returns(events);
+                var session = new Mock<ISession>();
+                var sessionId = new NodeId("forwarded-binding-session", 2);
+                session.SetupGet(value => value.Id).Returns(sessionId);
+                session.SetupGet(value => value.Activated).Returns(true);
+                session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([session.Object]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var resource = new Mock<IAsyncNodeManager>();
+                resource.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                resource.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                int releases = 0;
+                resource.Setup(value => value.SubscribeToAllEventsAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<uint>(), It.IsAny<IEventMonitoredItem>(),
+                        It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext _, uint _, IEventMonitoredItem _, bool unsubscribe,
+                        CancellationToken _) =>
+                    {
+                        if (unsubscribe && failFirstRelease && ++releases == 1)
+                        {
+                            return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadServerNotConnected));
+                        }
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                facade.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                facade.Setup(value => value.SubscribeToAllEventsAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<uint>(), It.IsAny<IEventMonitoredItem>(),
+                        It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                IEventMonitoredItem item = CreateAllEventsItem(events, resource.Object, context);
+                NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(resource.Object);
+                var reconciler = new GenerationReconciler(server.Object);
+                await reconciler.BindAsync(original, CancellationToken.None).ConfigureAwait(false);
+
+                var routing = new NodeManagerRoutingTable();
+                routing.Add(facade.Object, [1]);
+                NodeManagerGeneration published = routing.Revision.GetGeneration(facade.Object);
+                NodeManagerGenerationReference? itemReference = ((MonitoredItem)item).Generation;
+                Assert.That(itemReference, Is.Not.Null);
+                Assert.That(itemReference!.TryGetGeneration(out NodeManagerGeneration? itemGeneration), Is.True);
+                Assert.That(itemGeneration!.Gate, Is.SameAs(published.Gate));
+                await reconciler.BindAsync(published, CancellationToken.None).ConfigureAwait(false);
+                routing.Remove(facade.Object);
+
+                if (failFirstRelease)
+                {
+                    await Assert.ThatAsync(
+                        async () => await reconciler.UnbindRetiredAsync(
+                            published, true, CancellationToken.None).ConfigureAwait(false),
+                        Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+                }
+                await reconciler.UnbindRetiredAsync(published, true, CancellationToken.None).ConfigureAwait(false);
+                await reconciler.UnbindRetiredAsync(published, true, CancellationToken.None).ConfigureAwait(false);
+
+                resource.Verify(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), item, false, It.IsAny<CancellationToken>()),
+                    Times.Once);
+                facade.Verify(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), item, false, It.IsAny<CancellationToken>()),
+                    Times.Once);
+                resource.Verify(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), item, true, It.IsAny<CancellationToken>()),
+                    Times.Exactly(failFirstRelease ? 2 : 1));
+                facade.Verify(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), item, true, It.IsAny<CancellationToken>()),
+                    Times.Once);
+                resource.Verify(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()), Times.Once);
+                facade.Verify(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
+        /// <summary>
         /// Creates a live all-events item in the deterministic server's event manager.
         /// </summary>
         private static IEventMonitoredItem CreateAllEventsItem(

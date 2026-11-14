@@ -145,6 +145,7 @@ namespace Opc.Ua
                     NodeId = original.NodeId,
                     BrowseName = original.BrowseName,
                     Deleted = original.Deleted,
+                    RegistrationVersion = original.RegistrationVersion,
                     Encodings = original.Encodings is null ? null : [.. original.Encodings]
                 };
                 copies.Add(original, copy);
@@ -195,13 +196,15 @@ namespace Opc.Ua
                         throw new InvalidOperationException(
                             $"Type '{entry.Key}' cannot redefine a serving supertype or reference name.");
                     }
+                    existing.RegistrationVersion = candidate.RegistrationVersion;
                 }
                 else
                 {
                     merged.m_nodes.Add(entry.Key, new TypeInfo
                     {
                         NodeId = candidate.NodeId,
-                        BrowseName = candidate.BrowseName
+                        BrowseName = candidate.BrowseName,
+                        RegistrationVersion = candidate.RegistrationVersion
                     });
                 }
             }

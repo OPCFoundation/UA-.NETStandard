@@ -326,7 +326,7 @@ support gap.
 | [Machine Vision](Vision.md), OPC 40100-1/-2 | Full | Control, configuration, recipes, results, asset/condition monitoring and clients; providers supply acquisition, separate from the Perception draft |
 | [WoT Connectivity](WotCon.md), OPC 10100-1 | Full | Published 1.02 asset-connection API, server and client; additive registry extensions have separate scope |
 | [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
-| [PackML](Scales.md), OPC 30050 | Partial | Generated model and Scales recipe/state integration; not a standalone implementation of every PackML unit mode |
+| [PackML](PackML.md), OPC 30050 | Full | Standalone runtime, administration, typed clients and fluent hosting, including defined optional capabilities enabled by unit configuration. Implementers must configure application time synchronization for certification; see [capability boundaries](PackML.md#capability-boundaries). |
 | [PA-DIM](PADIM.md), OPC 30081 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
 | [Energy Consumption Management](ECM.md), OPC 34100 | Full | All defined measurement, standby and WOL capabilities with provider-backed server bindings, typed clients and fluent DI composition; equipment behavior remains application-owned |
 | [LADS](LADS.md), OPC 30500-1 | Full | Devices, functions, programs, results, maintenance, cooperative running operations, stored-data restoration, opt-in AMB building blocks and optional DI subtree locking. BaseServer configurable identification requires a stable URI and persistent AMB store; physical execution requires application providers |
@@ -849,6 +849,7 @@ for the variant selected by `--ctt`.
 - [Pumps](Pumps.md) (OPC 40223)
 - [AutoID Devices](AutoID.md) (OPC 30010)
 - [Scales](Scales.md) (OPC 40200 and PackML)
+- [PackML](PackML.md) (OPC 30050 standalone units)
 - [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4)
 - [MachineTool and WMTP](MachineTool.md) (OPC 40501-1 and OPC 40505)
 - [Geometric Measurement Systems](GMS.md) (OPC 40210)
@@ -955,7 +956,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30020: MDIS](https://reference.opcfoundation.org/specs/OPC-30020) | 1.3 | No | - |
 | [OPC 30030: BACnet](https://reference.opcfoundation.org/specs/OPC-30030) | 2.00.1 | No | - |
 | [OPC 30040: AutomationML](https://reference.opcfoundation.org/specs/OPC-30040) | 1.00 | No | - |
-| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Partial | Generated model and Scales integration; not a standalone all-unit-mode runtime |
+| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Full | - |
 | [OPC 30060: Tobacco Machine Communication](https://reference.opcfoundation.org/specs/OPC-30060) | 2.00.1 | No | - |
 | [OPC 30081: PA-DIM](https://reference.opcfoundation.org/specs/OPC-30081) | 1.02.0 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
 | [OPC 30090: Field Device Tool (FDT)](https://reference.opcfoundation.org/specs/OPC-30090) | 1.01 | No | - |

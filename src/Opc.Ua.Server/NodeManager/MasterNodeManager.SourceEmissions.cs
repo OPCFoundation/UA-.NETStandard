@@ -76,7 +76,7 @@ namespace Opc.Ua.Server
             {
                 if (!generationReference.TryGetGeneration(out generation) ||
                     generation is null ||
-                    !ReferenceEquals(generation.NodeManager, nodeManager))
+                    !master.IsCurrentBoundSource(generation, nodeManager))
                 {
                     return false;
                 }
@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
             {
                 if (!generationReference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) ||
                     boundGeneration is null ||
-                    !ReferenceEquals(boundGeneration.NodeManager, nodeManager))
+                    !master.IsCurrentBoundSource(boundGeneration, nodeManager))
                 {
                     return false;
                 }
@@ -163,6 +163,101 @@ namespace Opc.Ua.Server
 
             emission = new SourceEmissionAdmission(master, generation, slot);
             return true;
+        }
+
+        /// <summary>
+        /// Accepts a bound source when its visible route carries the generation or its owner is unrouted.
+        /// </summary>
+        /// <remarks>
+        /// A registered emitter must be visible and route the bound generation itself. An unregistered
+        /// stack adapter alias uses the first visible facade for its resource. A raw resource needs exactly
+        /// one visible facade for itself. The routed generation must be the bound one in each case. The
+        /// exact owner of a generation is accepted outside every route, as for a legacy source, only while
+        /// no facade, visible or hidden, is registered for its resource.
+        /// </remarks>
+        private bool IsCurrentBoundSource(NodeManagerGeneration generation, IAsyncNodeManager nodeManager)
+        {
+            if (!IsCanonicalBoundSource(generation, nodeManager))
+            {
+                return false;
+            }
+
+            NodeManagerRoutingTable.RoutingSnapshot routing = m_nodeManagers.Revision;
+            for (int ii = 0; ii < routing.NodeManagers.Length; ii++)
+            {
+                if (ReferenceEquals(routing.NodeManagers[ii], nodeManager))
+                {
+                    return !IsHidden(routing, nodeManager) &&
+                        ReferenceEquals(routing.Generations[ii], generation);
+                }
+            }
+
+            IAsyncNodeManager resource = NodeManagerGenerationRegistry.GetIdentity(nodeManager);
+            bool rawResource = ReferenceEquals(resource, nodeManager);
+            NodeManagerGeneration? routed = null;
+            int visibleRoutes = 0;
+            bool registeredResource = false;
+            for (int ii = 0; ii < routing.NodeManagers.Length; ii++)
+            {
+                IAsyncNodeManager facade = routing.NodeManagers[ii];
+                if (!ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(facade), resource))
+                {
+                    continue;
+                }
+                registeredResource = true;
+                if (IsHidden(routing, facade))
+                {
+                    continue;
+                }
+                if (!rawResource)
+                {
+                    return ReferenceEquals(routing.Generations[ii], generation);
+                }
+                visibleRoutes++;
+                routed = routing.Generations[ii];
+            }
+            if (visibleRoutes > 0)
+            {
+                return visibleRoutes == 1 && ReferenceEquals(routed, generation);
+            }
+            return !registeredResource && ReferenceEquals(generation.NodeManager, nodeManager);
+        }
+
+        /// <summary>
+        /// Matches the exact owner, a stack adapter alias of the owner's resource, or that raw resource.
+        /// </summary>
+        /// <remarks>
+        /// A distinct custom facade that is neither the resource nor a stack adapter is not accepted
+        /// unless it owns the generation.
+        /// </remarks>
+        private static bool IsCanonicalBoundSource(NodeManagerGeneration generation, IAsyncNodeManager nodeManager)
+        {
+            if (ReferenceEquals(generation.NodeManager, nodeManager))
+            {
+                return true;
+            }
+            IAsyncNodeManager resource = NodeManagerGenerationRegistry.GetIdentity(nodeManager);
+            if (!ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager), resource))
+            {
+                return false;
+            }
+            return ReferenceEquals(resource, nodeManager) ||
+                nodeManager is AsyncNodeManagerAdapter;
+        }
+
+        /// <summary>
+        /// Checks whether a registered facade is unreachable by Clients in a routing view.
+        /// </summary>
+        private static bool IsHidden(NodeManagerRoutingTable.RoutingSnapshot routing, IAsyncNodeManager facade)
+        {
+            foreach (IAsyncNodeManager hiddenManager in routing.HiddenNodeManagers)
+            {
+                if (ReferenceEquals(hiddenManager, facade))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -402,7 +497,7 @@ namespace Opc.Ua.Server
                 if (generation is null ||
                     !ReferenceEquals(Volatile.Read(ref m_owner), owner) ||
                     (!(globalSink || ReferenceEquals(nodeManager, owner.CoreNodeManager)) &&
-                        (!ReferenceEquals(nodeManager, generation.NodeManager) ||
+                        (!IsCanonicalBoundSource(generation, nodeManager) ||
                             (reference is not null &&
                                 (!reference.TryGetGeneration(out NodeManagerGeneration? bound) ||
                                     !ReferenceEquals(bound, generation))))) ||

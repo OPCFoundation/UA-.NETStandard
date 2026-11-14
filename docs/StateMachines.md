@@ -46,6 +46,7 @@ the same activation and inactive-state quality handling.
   - [Client side — typed sub-SM accessors (generated)](#client-side--typed-sub-sm-accessors-generated)
   - [Fluent builder behavior — `HasSubStateMachine` is on the state node](#fluent-builder-behavior--hassubstatemachine-is-on-the-state-node)
 - [Extensibility recipes](#extensibility-recipes)
+  - [Asynchronous causes and transitions](#asynchronous-causes-and-transitions)
 - [Tests](#tests)
 - [See also](#see-also)
 
@@ -714,6 +715,11 @@ Callers that passed the state machine's `ObjectId` to
   to arm one timer on entry into `fromStateId`, including the initial
   state. Re-arming disposes the previous timer. A queued callback
   cannot transition after reset, replacement, or exit/re-entry.
+  If the timeout expires during an awaited notification, the callback
+  waits for admission and rechecks its state, revision and registration
+  before transitioning. Timers armed by async entry or initial-state
+  synchronization use native async transitions; timers armed synchronously
+  retain synchronous overrides and lifecycle callbacks after waiting.
   `StopTimedTransitions()` permanently stops that builder's automatic
   transitions without removing the machine or its lifecycle observers.
   Timer-only causes emit transition events, not fabricated Method audit
@@ -727,6 +733,77 @@ per-invocation source and destination snapshots, including nested callbacks.
 If a before-handler changes the state, the stale outer transition is rejected
 with `BadInvalidState`. Transition events capture their state data before
 after-handlers run, so a nested transition cannot rewrite an earlier event.
+
+### Asynchronous causes and transitions
+
+`DoCause` and `DoTransition` report transition and audit events through the
+synchronous `ReportEvent` and publish change masks through `ClearChangeMasks`.
+When a monitored-event or change-notification sink completes asynchronously,
+the calling thread waits for it. The native virtual `DoCauseAsync` and
+`DoTransitionAsync` counterparts await `ReportEventAsync` and
+`ClearChangeMasksAsync` without blocking that thread. Each transition publishes
+its live state before another admitted async transition can mutate the machine.
+
+```csharp
+ServiceResult result = await machine.DoCauseAsync(
+    context,
+    startMethod,
+    Methods.ProgramStateMachineType_Start,
+    inputArguments,
+    outputArguments,
+    cancellationToken);
+```
+
+The new state is committed before its notification is published, so readers
+can observe it while an event sink is pending. Synchronous `DoCause` and
+`DoTransition` return `BadInvalidState` during async notification delivery;
+`SetState` throws `ServiceResultException` with that status. Ordinary legacy
+synchronous transitions retain their callback ordering. An async callback must
+not await another operation on the same machine; reentry from its execution
+context is rejected rather than waiting on itself.
+
+Cancellation is checked before mutation. After mutation, notification delivery
+finishes without using the caller's token and does not roll the state back.
+Processing and notification failures are retained in delivery order; a single
+failure is rethrown and several failures are reported in `AggregateException`.
+These rules do not change `NodeState`'s handling of multiple sinks within one
+notification. The audit status records the cause outcome.
+
+A subclass that customizes `DoCause` or `DoTransition` must override its native
+async counterpart for asynchronous behavior. Existing synchronous overrides
+still serve synchronous callers and wire Methods, but are not called by the
+async counterpart. Protected cause mapping and event creation hooks apply on
+both paths. `FluentFiniteStateMachineState` rejects causes and transitions on a
+suspended sub-state machine with `BadStateNotActive` on either path.
+
+Builder-composed async transitions await hierarchical activation and lifecycle
+observers through native async callbacks. Use `OnAfterTransitionAsync` for an
+injected transition callback that performs asynchronous work. The legacy
+synchronous callback remains available, but application code must not block it
+on an asynchronous sink. Synchronous wire Methods retain their synchronous
+behavior.
+
+For a controller that coordinates several machines, use
+`ExecuteStateOperationAsync(context, operation, cancellationToken)` on their
+common parent. The operation can await native causes and transitions and make
+non-transition state assignments between them. Other state operations wait
+until it returns; overlapping external synchronous writes are rejected.
+An already-active descendant rejects the composite operation with
+`ServiceResultException(BadInvalidState)` before its callback runs.
+Each native transition still delivers its live notifications before the next
+transition. To publish state assignments that do not perform a transition,
+await `PublishStateChangesAsync(context, includeChildren, cancellationToken)`
+inside the operation.
+
+The callback receives the caller's cancellation token and returns a
+`ServiceResult`. A bad result or exception does not undo changes already made.
+The controller must await its notification delivery before returning. A
+controller must perform its changes sequentially and must not schedule writes
+that outlive the operation. A
+notification callback must not start another composite operation on a
+participating machine; that reentry returns `BadInvalidState`.
+These APIs expose state operations and publication, not synchronization
+handles or ownership scopes.
 
 ## Tests
 
