@@ -237,7 +237,8 @@ namespace Opc.Ua
 
     /// <summary>
     /// What the decoders of one response share: the budget of bodies recovered as raw
-    /// bytes and whether the first failure was logged. Bodies decoded on first use can
+    /// bytes, whether the first failure was logged, and the count of the encodeables
+    /// they decode. Bodies decoded on first use can
     /// run on any thread, after the decoder of the response is gone.
     /// </summary>
     internal sealed class DecoderRecoveries
@@ -269,7 +270,56 @@ namespace Opc.Ua
             return Interlocked.Exchange(ref m_failureLogged, 1) == 0;
         }
 
+        /// <summary>
+        /// Raises the encodeable limit of the response to the limit of a decoder
+        /// that shares its count, see BinaryDecoder.CountEncodeable.
+        /// </summary>
+        public void RaiseEncodeableLimit(long limit)
+        {
+            long current = Volatile.Read(ref m_encodeableLimit);
+            while (current < limit)
+            {
+                long seen = Interlocked.CompareExchange(ref m_encodeableLimit, limit, current);
+                if (seen == current)
+                {
+                    return;
+                }
+                current = seen;
+            }
+        }
+
+        /// <summary>
+        /// Counts encodeables of the response; false, with nothing counted, when
+        /// the count would exceed the larger of <paramref name="limit"/> and the
+        /// limit of the response.
+        /// </summary>
+        public bool TryCountEncodeables(long count, long limit)
+        {
+            limit = Math.Max(limit, Volatile.Read(ref m_encodeableLimit));
+            long current = Volatile.Read(ref m_encodeableCount);
+            while (current + count <= limit)
+            {
+                long seen = Interlocked.CompareExchange(ref m_encodeableCount, current + count, current);
+                if (seen == current)
+                {
+                    return true;
+                }
+                current = seen;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Returns encodeables a decoder counted ahead but did not decode.
+        /// </summary>
+        public void ReleaseEncodeables(long count)
+        {
+            Interlocked.Add(ref m_encodeableCount, -count);
+        }
+
         private int m_count;
         private int m_failureLogged;
+        private long m_encodeableCount;
+        private long m_encodeableLimit;
     }
 }

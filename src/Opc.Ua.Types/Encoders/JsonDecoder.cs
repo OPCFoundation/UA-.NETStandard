@@ -3032,11 +3032,14 @@ namespace Opc.Ua
                                         // The embedded body continues this message's
                                         // nesting budget (approximated by the JSON
                                         // element depth) and spans the whole buffer.
+                                        // The bodies of one message share the
+                                        // limit of the encodeables they decode.
                                         decoder.InheritDecodingState(
                                             m_namespaceMappings,
                                             m_serverMappings,
                                             (uint)m_stack.Count,
-                                            body.Length);
+                                            body.Length,
+                                            m_binaryBodyRecoveries ??= new DecoderRecoveries());
                                         value = decoder.ReadEncodeable<T>(null, typeId);
                                         if (decoder.Position != body.Length)
                                         {
@@ -4845,6 +4848,9 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;
+
+        // Shared by the decoders of the binary bodies embedded in this message.
+        private DecoderRecoveries? m_binaryBodyRecoveries;
         private readonly Stack<JsonElement> m_stack = new();
         private readonly JsonDocument m_document;
         private readonly JsonDecoderOptions m_options;
