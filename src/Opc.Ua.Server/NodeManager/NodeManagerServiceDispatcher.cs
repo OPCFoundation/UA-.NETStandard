@@ -1842,9 +1842,21 @@ namespace Opc.Ua.Server
                 if (!nodesToRead[ii].ContinuationPoint.IsEmpty &&
                     context.Session?.ContinuationPoints is SessionContinuationPoints holder)
                 {
-                    (result, errors[ii]) = await ReadHistoryContinuationAsync(
-                        context, holder, nodesToRead[ii], details!, timestampsToReturn,
-                        releaseContinuationPoints, ii, nodesToRead.Count, cancellationToken).ConfigureAwait(false);
+                    if (eventFilterTooLarge && !releaseContinuationPoints)
+                    {
+                        // a resumed read passes the filter of the request on to the node
+                        // manager, so the limit applies here too. The point cannot be
+                        // resumed with this filter, so it is released rather than kept.
+                        holder.ReleaseHistory(nodesToRead[ii].ContinuationPoint);
+                        result = new HistoryReadResult();
+                        errors[ii] = StatusCodes.BadEventFilterInvalid;
+                    }
+                    else
+                    {
+                        (result, errors[ii]) = await ReadHistoryContinuationAsync(
+                            context, holder, nodesToRead[ii], details!, timestampsToReturn,
+                            releaseContinuationPoints, ii, nodesToRead.Count, cancellationToken).ConfigureAwait(false);
+                    }
                     nodesToRead[ii].Processed = true;
                     if (ServiceResult.IsBad(errors[ii]))
                     {

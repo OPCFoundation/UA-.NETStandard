@@ -73,6 +73,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 async Task<StatusCode> ReadEventsAsync(int selectClauses)
                 {
+                    return (await ReadAsync(selectClauses, default, false).ConfigureAwait(false)).StatusCode;
+                }
+
+                async Task<HistoryReadResult> ReadAsync(
+                    int selectClauses,
+                    ByteString continuationPoint,
+                    bool release)
+                {
                     var filter = new EventFilter();
                     for (int ii = 0; ii < selectClauses; ii++)
                     {
@@ -93,11 +101,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             Filter = filter
                         }),
                         TimestampsToReturn.Neither,
-                        false,
-                        [new HistoryReadValueId { NodeId = notifierId }],
+                        release,
+                        [new HistoryReadValueId { NodeId = notifierId, ContinuationPoint = continuationPoint }],
                         RequestLifetime.None).ConfigureAwait(false);
                     Assert.That(response.Results.Count, Is.EqualTo(1));
-                    return response.Results[0].StatusCode;
+                    return response.Results[0];
                 }
 
                 int limit = fixture.Config.ServerConfiguration!.MaxSelectClauseParameters;
@@ -112,6 +120,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await ReadEventsAsync(limit).ConfigureAwait(false),
                     Is.EqualTo(StatusCodes.Good));
                 Assert.That(nodeManager.EventReads, Is.EqualTo(1));
+
+                // resuming an issued point with an oversized filter is rejected as well, and
+                // the point is released instead of reaching the legacy manager.
+                nodeManager.IssueContinuationPoints = true;
+                HistoryReadResult first = await ReadAsync(limit, default, false).ConfigureAwait(false);
+                Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
+                Assert.That(nodeManager.EventReads, Is.EqualTo(2));
+                nodeManager.IssueContinuationPoints = false;
+
+                HistoryReadResult resumed = await ReadAsync(limit + 1, first.ContinuationPoint, false)
+                    .ConfigureAwait(false);
+                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+                Assert.That(nodeManager.EventReads, Is.EqualTo(2));
+                Assert.That(
+                    (await ReadAsync(limit, first.ContinuationPoint, false).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+
+                // a release-only request still releases a point whatever its filter.
+                nodeManager.IssueContinuationPoints = true;
+                HistoryReadResult second = await ReadAsync(limit, default, false).ConfigureAwait(false);
+                Assert.That(second.ContinuationPoint.IsEmpty, Is.False);
+                nodeManager.IssueContinuationPoints = false;
+                Assert.That(
+                    (await ReadAsync(limit + 1, second.ContinuationPoint, true).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    (await ReadAsync(limit, second.ContinuationPoint, false).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
 
                 requestHeader.Timestamp = DateTimeUtc.Now;
                 await server.CloseSessionAsync(secureChannelContext, requestHeader, CancellationToken.None)
@@ -181,10 +218,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 foreach (NodeHandle handle in nodesToProcess)
                 {
                     errors[handle.Index] = ServiceResult.Good;
+                    if (IssueContinuationPoints &&
+                        context.OperationContext?.Session?.ContinuationPoints is { } continuationPoints)
+                    {
+#pragma warning disable CA2000 // The session takes ownership of the saved point.
+                        var point = new ContinuationPoint();
+#pragma warning restore CA2000
+                        continuationPoints.SaveHistory(point);
+                        results[handle.Index].ContinuationPoint = point.Id.ToByteArray().ToByteString();
+                    }
                 }
             }
 
+            /// <summary>
+            /// Whether event reads return a continuation point.
+            /// </summary>
+            public bool IssueContinuationPoints { get; set; }
+
             private int m_eventReads;
+        }
+
+        private sealed class ContinuationPoint : IHistoryContinuationPoint
+        {
+            public Guid Id { get; } = Guid.NewGuid();
+
+            public void Dispose()
+            {
+            }
         }
     }
 }
