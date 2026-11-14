@@ -55,7 +55,8 @@ namespace Opc.Ua.Server
     /// a null value or a stored property that was never initialized (declared without a value,
     /// reporting <c>BadWaitingForInitialData</c>) is reported as absent, a configured zero/empty
     /// value as present. A failed
-    /// read, a callback exception, a wrong type or unknown restriction bits produce a Bad
+    /// read, a callback exception, a wrong type, unknown restriction bits or untyped metadata
+    /// whose default properties are not resolved yet produce a Bad
     /// <see cref="NamespaceDefaultPermissions.Status"/>, which callers must treat as a denial and
     /// which is never cached.
     /// </summary>
@@ -229,6 +230,12 @@ namespace Opc.Ua.Server
                     namespaceIndex, AccessRestrictionType.None, default, default, generation);
             }
 
+            if (state.IsIncomplete)
+            {
+                // an unresolved property could be a default that must be enforced.
+                return Failed(namespaceIndex, StatusCodes.BadResourceUnavailable, generation);
+            }
+
             StatusCode status = ReadValue(callerContext, state.DefaultAccessRestrictions, out Variant restrictionsValue);
             if (StatusCode.IsBad(status))
             {
@@ -386,7 +393,8 @@ namespace Opc.Ua.Server
         internal static bool AreDefaultsStatic(NamespaceMetadataNode? state)
         {
             return state == null ||
-                (IsStatic(state.DefaultAccessRestrictions) &&
+                (!state.IsIncomplete &&
+                    IsStatic(state.DefaultAccessRestrictions) &&
                     IsStatic(state.DefaultRolePermissions) &&
                     IsStatic(state.DefaultUserRolePermissions));
         }

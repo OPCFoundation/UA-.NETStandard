@@ -50,18 +50,23 @@ namespace Opc.Ua.Server
         /// <param name="defaultAccessRestrictions">The <c>DefaultAccessRestrictions</c> property.</param>
         /// <param name="defaultRolePermissions">The <c>DefaultRolePermissions</c> property.</param>
         /// <param name="defaultUserRolePermissions">The <c>DefaultUserRolePermissions</c> property.</param>
+        /// <param name="isIncomplete">
+        /// Whether a <c>HasProperty</c> target could not be resolved while a default property is missing.
+        /// </param>
         public NamespaceMetadataNode(
             BaseObjectState node,
             BaseVariableState? namespaceUri,
             BaseVariableState? defaultAccessRestrictions,
             BaseVariableState? defaultRolePermissions,
-            BaseVariableState? defaultUserRolePermissions)
+            BaseVariableState? defaultUserRolePermissions,
+            bool isIncomplete = false)
         {
             Node = node;
             m_namespaceUri = namespaceUri;
             m_defaultAccessRestrictions = defaultAccessRestrictions;
             m_defaultRolePermissions = defaultRolePermissions;
             m_defaultUserRolePermissions = defaultUserRolePermissions;
+            IsIncomplete = isIncomplete;
         }
 
         /// <summary>
@@ -83,6 +88,14 @@ namespace Opc.Ua.Server
         /// otherwise <c>null</c>.
         /// </summary>
         public NamespaceMetadataState? TypedState { get; }
+
+        /// <summary>
+        /// <c>true</c> when a <c>HasProperty</c> target of the untyped Object could not be
+        /// resolved while one of its default properties is still missing: the unresolved
+        /// target may be that default, so the defaults of the namespace are unknown and
+        /// permission checks must fail closed until the Object is resolved again.
+        /// </summary>
+        public bool IsIncomplete { get; }
 
         /// <summary>
         /// The namespace the Object describes, read from its <c>NamespaceUri</c> property.

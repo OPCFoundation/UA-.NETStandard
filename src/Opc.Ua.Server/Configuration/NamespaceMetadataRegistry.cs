@@ -143,12 +143,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the metadata node for <paramref name="namespaceUri"/>, or
         /// <c>null</c> when none exists. Results are cached until the
-        /// <c>Namespaces</c> object changes.
+        /// <c>Namespaces</c> object changes; an incomplete untyped view
+        /// (<see cref="NamespaceMetadataNode.IsIncomplete"/>) is never cached.
         /// </summary>
         /// <remarks>
         /// Permission checks call this for every request. Cached results,
         /// found and missing, are read without a lock; only filling and
-        /// invalidating the cache take it.
+        /// invalidating the cache take it. A result resolved while an
+        /// invalidation ran is resolved again.
         /// </remarks>
         public async ValueTask<NamespaceMetadataNode?> GetNodeAsync(
             string namespaceUri,
@@ -159,55 +161,63 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (m_statesByUri.TryGetValue(namespaceUri, out NamespaceMetadataNode? value))
+            NamespaceMetadataNode? namespaceMetadataState = null;
+            for (int attempt = 0; attempt < kMaxResolveAttempts; attempt++)
             {
-                return value;
-            }
+                // untyped metadata retired by an invalidation is resolved again first, also when
+                // the result is cached, so that synchronous lookups answer from refreshed views.
+                await PrimeIfRequiredAsync(cancellationToken).ConfigureAwait(false);
 
-            // A missing metadata node is only remembered while the
-            // Namespaces node is unchanged: a node manager registered later
-            // can link its NamespaceMetadata through a reference that raises
-            // no StateChanged event, and its default permissions must then
-            // be found instead of the cached miss. Such changes either bump
-            // the generation (Invalidate) or leave pending change masks on
-            // the Namespaces node, both checked without enumerating it.
-            NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
-            long generation = Interlocked.Read(ref m_generation);
-            if (IsCachedMiss(m_missingByUri, namespaceUri, generation, pendingChanges))
-            {
-                return null;
-            }
+                if (m_statesByUri.TryGetValue(namespaceUri, out NamespaceMetadataNode? value))
+                {
+                    return value;
+                }
 
-            // untyped metadata retired by an invalidation is resolved again, so that
-            // synchronous lookups can answer from the refreshed views.
-            if (Interlocked.CompareExchange(ref m_primeRequired, 0, 1) == 1)
-            {
-                await PrimeReferencesAsync(cancellationToken).ConfigureAwait(false);
-            }
+                // A missing metadata node is only remembered while the
+                // Namespaces node is unchanged: a node manager registered later
+                // can link its NamespaceMetadata through a reference that raises
+                // no StateChanged event, and its default permissions must then
+                // be found instead of the cached miss. Such changes either bump
+                // the generation (Invalidate) or leave pending change masks on
+                // the Namespaces node, both checked without enumerating it.
+                NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
+                long generation = Interlocked.Read(ref m_generation);
+                if (IsCachedMiss(m_missingByUri, namespaceUri, generation, pendingChanges))
+                {
+                    return null;
+                }
 
-            NamespaceMetadataNode? namespaceMetadataState = await FindAsync(
-                namespaceUri, cancellationToken).ConfigureAwait(false);
+                namespaceMetadataState = await FindAsync(
+                    namespaceUri, generation, cancellationToken).ConfigureAwait(false);
 
-            // metadata linked by reference from another node manager is tracked
-            // as well, so its default changes invalidate permission caches.
-            if (namespaceMetadataState != null)
-            {
-                SubscribeToDefaultPermissions(namespaceMetadataState);
-            }
-
-            lock (m_lock)
-            {
-                // remember the result for faster access. A miss found before an
-                // invalidation carries the old generation and is never used.
+                // metadata linked by reference from another node manager is tracked
+                // as well, so its default changes invalidate permission caches.
                 if (namespaceMetadataState != null)
                 {
-                    m_statesByUri[namespaceUri] = namespaceMetadataState;
-                    m_missingByUri.TryRemove(namespaceUri, out _);
+                    SubscribeToDefaultPermissions(namespaceMetadataState);
                 }
-                else
+
+                lock (m_lock)
                 {
-                    m_missingByUri[namespaceUri] = (generation, pendingChanges);
+                    // a result resolved before an invalidation can miss the change it
+                    // announced, so it is never remembered and resolved again.
+                    if (Interlocked.Read(ref m_generation) != generation)
+                    {
+                        continue;
+                    }
+
+                    if (namespaceMetadataState == null)
+                    {
+                        m_missingByUri[namespaceUri] = (generation, pendingChanges);
+                    }
+                    else if (!namespaceMetadataState.IsIncomplete)
+                    {
+                        m_statesByUri[namespaceUri] = namespaceMetadataState;
+                        m_missingByUri.TryRemove(namespaceUri, out _);
+                    }
                 }
+
+                return namespaceMetadataState;
             }
 
             return namespaceMetadataState;
@@ -226,33 +236,46 @@ namespace Opc.Ua.Server
             ushort namespaceIndex,
             CancellationToken cancellationToken = default)
         {
-            if (m_statesByIndex.TryGetValue(namespaceIndex, out NamespaceMetadataNode? value))
+            NamespaceMetadataNode? namespaceMetadataState = null;
+            for (int attempt = 0; attempt < kMaxResolveAttempts; attempt++)
             {
-                return value;
-            }
+                await PrimeIfRequiredAsync(cancellationToken).ConfigureAwait(false);
 
-            NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
-            long generation = Interlocked.Read(ref m_generation);
-            if (IsCachedMiss(m_missingByIndex, namespaceIndex, generation, pendingChanges))
-            {
-                return null;
-            }
-
-            string? namespaceUri = m_host.SystemContext.Server.NamespaceUris.GetString(namespaceIndex);
-            NamespaceMetadataNode? namespaceMetadataState = await GetNodeAsync(
-                namespaceUri!, cancellationToken).ConfigureAwait(false);
-
-            lock (m_lock)
-            {
-                if (namespaceMetadataState != null)
+                if (m_statesByIndex.TryGetValue(namespaceIndex, out NamespaceMetadataNode? value))
                 {
-                    m_statesByIndex[namespaceIndex] = namespaceMetadataState;
-                    m_missingByIndex.TryRemove(namespaceIndex, out _);
+                    return value;
                 }
-                else
+
+                NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
+                long generation = Interlocked.Read(ref m_generation);
+                if (IsCachedMiss(m_missingByIndex, namespaceIndex, generation, pendingChanges))
                 {
-                    m_missingByIndex[namespaceIndex] = (generation, pendingChanges);
+                    return null;
                 }
+
+                string? namespaceUri = m_host.SystemContext.Server.NamespaceUris.GetString(namespaceIndex);
+                namespaceMetadataState = await GetNodeAsync(
+                    namespaceUri!, cancellationToken).ConfigureAwait(false);
+
+                lock (m_lock)
+                {
+                    if (Interlocked.Read(ref m_generation) != generation)
+                    {
+                        continue;
+                    }
+
+                    if (namespaceMetadataState == null)
+                    {
+                        m_missingByIndex[namespaceIndex] = (generation, pendingChanges);
+                    }
+                    else if (!namespaceMetadataState.IsIncomplete)
+                    {
+                        m_statesByIndex[namespaceIndex] = namespaceMetadataState;
+                        m_missingByIndex.TryRemove(namespaceIndex, out _);
+                    }
+                }
+
+                return namespaceMetadataState;
             }
 
             return namespaceMetadataState;
@@ -268,7 +291,8 @@ namespace Opc.Ua.Server
         /// <c>true</c> when the result (including a definitive absence) is
         /// known; <c>false</c> when an unresolved reference of
         /// <c>Server/Namespaces</c>, or an untyped metadata Object whose
-        /// properties are not resolved yet, could hold the metadata node.
+        /// properties are not resolved yet, could hold the metadata node, or
+        /// when an invalidation ran during the lookup.
         /// </returns>
         public bool TryGetSnapshot(ushort namespaceIndex, out NamespaceMetadataNode? state)
         {
@@ -373,6 +397,13 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                // a result found while an invalidation ran may be built from retired views.
+                if (Interlocked.Read(ref m_generation) != generation)
+                {
+                    state = null;
+                    return false;
+                }
+
                 if (state != null)
                 {
                     m_statesByUri[namespaceUri] = state;
@@ -393,11 +424,47 @@ namespace Opc.Ua.Server
         /// another node manager, and the properties of every untyped metadata
         /// child, so <see cref="TryGetSnapshot"/> can answer synchronous
         /// lookups, and tracks the metadata nodes found. The next asynchronous
-        /// lookup after <see cref="Invalidate"/> primes again.
+        /// lookup after <see cref="Invalidate"/>, or after a prime that did not
+        /// complete, primes again.
         /// </summary>
         public async ValueTask PrimeReferencesAsync(CancellationToken cancellationToken = default)
         {
+            // the flag is cleared before the generation is read, so an invalidation that
+            // is missed by this prime sets it again.
             Volatile.Write(ref m_primeRequired, 0);
+            long generation = Interlocked.Read(ref m_generation);
+            try
+            {
+                await PrimeAsync(generation, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                Volatile.Write(ref m_primeRequired, 1);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Runs a pending prime (see <see cref="PrimeReferencesAsync"/>) without
+        /// any cost when none is pending.
+        /// </summary>
+        private ValueTask PrimeIfRequiredAsync(CancellationToken cancellationToken)
+        {
+            if (Volatile.Read(ref m_primeRequired) == 1 &&
+                Interlocked.CompareExchange(ref m_primeRequired, 0, 1) == 1)
+            {
+                return PrimeReferencesAsync(cancellationToken);
+            }
+
+            return default;
+        }
+
+        /// <summary>
+        /// Resolves the reference targets and untyped children of <c>Server/Namespaces</c>
+        /// and publishes the views found while the registry is still in <paramref name="generation"/>.
+        /// </summary>
+        private async ValueTask PrimeAsync(long generation, CancellationToken cancellationToken)
+        {
             if (m_host.FindServerNamespacesNode() is not NamespacesState serverNamespacesNode)
             {
                 return;
@@ -415,8 +482,8 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    NamespaceMetadataNode? metadata = await ResolveAsync(context, child, cancellationToken)
-                        .ConfigureAwait(false);
+                    NamespaceMetadataNode? metadata = await ResolveAsync(
+                        context, child, generation, cancellationToken).ConfigureAwait(false);
                     if (metadata != null)
                     {
                         SubscribeToDefaultPermissions(metadata);
@@ -455,7 +522,7 @@ namespace Opc.Ua.Server
                         targetId, cancellationToken).ConfigureAwait(false);
                     metadata = target == null
                         ? null
-                        : await ResolveAsync(context, target, cancellationToken).ConfigureAwait(false);
+                        : await ResolveAsync(context, target, generation, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -467,19 +534,69 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (target == null)
-                {
-                    // not resolvable yet, e.g. the owning node manager is still starting.
-                    m_referenceTargets.TryRemove(targetId, out _);
-                    continue;
-                }
-
                 if (metadata != null)
                 {
                     SubscribeToDefaultPermissions(metadata);
                 }
 
-                m_referenceTargets[targetId] = metadata;
+                PublishReferenceTarget(targetId, target, metadata, generation);
+            }
+        }
+
+        /// <summary>
+        /// Remembers the metadata view of a resolved reference target of <c>Server/Namespaces</c>
+        /// while the registry is still in <paramref name="generation"/>. A target that is not
+        /// resolvable yet, e.g. because its node manager is still starting, or whose view is
+        /// incomplete is forgotten, so synchronous lookups wait for an asynchronous one.
+        /// </summary>
+        private void PublishReferenceTarget(
+            NodeId targetId,
+            NodeState? target,
+            NamespaceMetadataNode? metadata,
+            long generation)
+        {
+            lock (m_lock)
+            {
+                if (Interlocked.Read(ref m_generation) != generation)
+                {
+                    return;
+                }
+
+                if (target == null || metadata is { IsIncomplete: true })
+                {
+                    m_referenceTargets.TryRemove(targetId, out _);
+                }
+                else
+                {
+                    m_referenceTargets[targetId] = metadata;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Remembers the view of an untyped metadata Object while the registry is still in
+        /// <paramref name="generation"/>. An incomplete view is only remembered as retired,
+        /// so synchronous lookups of other namespaces can skip the Object while lookups of
+        /// its own namespace wait until its properties are resolved.
+        /// </summary>
+        private void PublishUntyped(BaseObjectState node, NamespaceMetadataNode metadata, long generation)
+        {
+            lock (m_lock)
+            {
+                if (Interlocked.Read(ref m_generation) != generation)
+                {
+                    return;
+                }
+
+                if (metadata.IsIncomplete)
+                {
+                    m_stale[node.NodeId] = metadata;
+                }
+                else
+                {
+                    m_untyped[node] = metadata;
+                    m_stale.TryRemove(node.NodeId, out _);
+                }
             }
         }
 
@@ -543,12 +660,13 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             NamespaceMetadataNode? existing = await FindAsync(
-                namespaceUri, cancellationToken).ConfigureAwait(false);
+                namespaceUri, Interlocked.Read(ref m_generation), cancellationToken).ConfigureAwait(false);
 
             if (existing != null)
             {
                 // Subscribe to the default permission properties so that any future changes
                 // trigger a DefaultPermissionsChanged notification to allow caches to be invalidated.
+                // An incomplete untyped Object is existing metadata as well and never duplicated.
                 SubscribeToDefaultPermissions(existing);
                 return existing;
             }
@@ -655,10 +773,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds the metadata node for <paramref name="namespaceUri"/> among
         /// the children and forward references of <c>Server/Namespaces</c>,
-        /// resolving references into other node managers.
+        /// resolving references into other node managers. The views found are
+        /// remembered only while the registry is still in <paramref name="generation"/>.
         /// </summary>
         private async ValueTask<NamespaceMetadataNode?> FindAsync(
             string namespaceUri,
+            long generation,
             CancellationToken cancellationToken = default)
         {
             try
@@ -679,7 +799,7 @@ namespace Opc.Ua.Server
                 {
                     // Find NamespaceMetadata node of NamespaceUri in Namespaces children
                     NamespaceMetadataNode? namespaceMetadata = await ResolveAsync(
-                        context, namespacesReference, cancellationToken).ConfigureAwait(false);
+                        context, namespacesReference, generation, cancellationToken).ConfigureAwait(false);
                     if (namespaceMetadata != null && namespaceMetadata.NamespaceUri == namespaceUri)
                     {
                         return namespaceMetadata;
@@ -703,12 +823,13 @@ namespace Opc.Ua.Server
                         {
                             // only a resolved node is known not to be metadata; an unresolved
                             // target keeps the synchronous lookup on the asynchronous path.
+                            PublishReferenceTarget(nameSpaceNodeId, null, null, generation);
                             continue;
                         }
 
                         NamespaceMetadataNode? namespaceMetadata = await ResolveAsync(
-                            context, targetNode, cancellationToken).ConfigureAwait(false);
-                        m_referenceTargets[nameSpaceNodeId] = namespaceMetadata;
+                            context, targetNode, generation, cancellationToken).ConfigureAwait(false);
+                        PublishReferenceTarget(nameSpaceNodeId, targetNode, namespaceMetadata, generation);
 
                         if (namespaceMetadata != null && namespaceMetadata.NamespaceUri == namespaceUri)
                         {
@@ -986,15 +1107,15 @@ namespace Opc.Ua.Server
                 return true;
             }
 
+            long generation = Interlocked.Read(ref m_generation);
             BaseVariableState?[] properties = FindPropertyChildren(context, objectNode);
             if (Array.IndexOf(properties, null) >= 0 && HasUnlinkedPropertyReferences(context, objectNode))
             {
                 return false;
             }
 
-            metadata = CreateUntyped(objectNode, properties);
-            m_untyped[objectNode] = metadata;
-            m_stale.TryRemove(objectNode.NodeId, out _);
+            metadata = CreateUntyped(objectNode, properties, isIncomplete: false);
+            PublishUntyped(objectNode, metadata, generation);
             return true;
         }
 
@@ -1004,11 +1125,15 @@ namespace Opc.Ua.Server
         /// metadata Object are its children with the property BrowseName or,
         /// when it has no such child, the targets of its forward
         /// <c>HasProperty</c> references, e.g. when a NodeSet was imported
-        /// without linking its children.
+        /// without linking its children. A target that cannot be resolved while
+        /// a default property is missing makes the view incomplete
+        /// (<see cref="NamespaceMetadataNode.IsIncomplete"/>). The view is
+        /// remembered only while the registry is still in <paramref name="generation"/>.
         /// </summary>
         private async ValueTask<NamespaceMetadataNode?> ResolveAsync(
             ServerSystemContext context,
             NodeState node,
+            long generation,
             CancellationToken cancellationToken)
         {
             if (node is NamespaceMetadataState namespaceMetadataState)
@@ -1023,6 +1148,7 @@ namespace Opc.Ua.Server
             }
 
             BaseVariableState?[] properties = FindPropertyChildren(context, objectNode);
+            bool unresolved = false;
             if (Array.IndexOf(properties, null) >= 0)
             {
                 IList<IReference> references = [];
@@ -1040,8 +1166,29 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    NodeState? target = await context.Server.NodeManager.FindNodeInAddressSpaceAsync(
-                        targetId, cancellationToken).ConfigureAwait(false);
+                    NodeState? target;
+                    try
+                    {
+                        target = await context.Server.NodeManager.FindNodeInAddressSpaceAsync(
+                            targetId, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.ErrorSearchingNamespaceMetadata(ex, targetId.ToString());
+                        target = null;
+                    }
+
+                    if (target == null)
+                    {
+                        // e.g. the owning node manager is still starting.
+                        unresolved = true;
+                        continue;
+                    }
+
                     if (target is not BaseVariableState property)
                     {
                         continue;
@@ -1055,9 +1202,11 @@ namespace Opc.Ua.Server
                 }
             }
 
-            NamespaceMetadataNode metadata = CreateUntyped(objectNode, properties);
-            m_untyped[objectNode] = metadata;
-            m_stale.TryRemove(objectNode.NodeId, out _);
+            // the BrowseName of an unresolved target is unknown, so it may be one of the missing
+            // defaults, which follow the NamespaceUri in s_propertyNames.
+            bool isIncomplete = unresolved && Array.IndexOf(properties, null, 1) >= 0;
+            NamespaceMetadataNode metadata = CreateUntyped(objectNode, properties, isIncomplete);
+            PublishUntyped(objectNode, metadata, generation);
             return metadata;
         }
 
@@ -1142,10 +1291,19 @@ namespace Opc.Ua.Server
         /// Creates the view of an untyped metadata Object from the properties
         /// found in the order of <see cref="s_propertyNames"/>.
         /// </summary>
-        private static NamespaceMetadataNode CreateUntyped(BaseObjectState node, BaseVariableState?[] properties)
+        private static NamespaceMetadataNode CreateUntyped(
+            BaseObjectState node,
+            BaseVariableState?[] properties,
+            bool isIncomplete)
         {
-            return new NamespaceMetadataNode(node, properties[0], properties[1], properties[2], properties[3]);
+            return new NamespaceMetadataNode(
+                node, properties[0], properties[1], properties[2], properties[3], isIncomplete);
         }
+
+        /// <summary>
+        /// How often a lookup is resolved again when an invalidation retired its result.
+        /// </summary>
+        private const int kMaxResolveAttempts = 3;
 
         private readonly INamespaceMetadataHost m_host;
         private readonly ILogger m_logger;
@@ -1157,8 +1315,9 @@ namespace Opc.Ua.Server
         private long m_generation;
         private readonly ConcurrentDictionary<NodeId, NamespaceMetadataNode?> m_referenceTargets = new();
         private readonly ConcurrentDictionary<BaseObjectState, NamespaceMetadataNode> m_untyped = new();
-        // Untyped views retired by Invalidate, keyed by node id; their live NamespaceUri lets a
-        // synchronous lookup skip metadata of other namespaces until they are resolved again.
+        // Untyped views retired by Invalidate or resolved incomplete, keyed by node id; their live
+        // NamespaceUri lets a synchronous lookup skip metadata of other namespaces until they are
+        // resolved again.
         private readonly ConcurrentDictionary<NodeId, NamespaceMetadataNode> m_stale = new();
         private int m_primeRequired;
         private readonly HashSet<BaseObjectState> m_tracked = [];

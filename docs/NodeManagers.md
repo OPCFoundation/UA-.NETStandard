@@ -1871,7 +1871,12 @@ permissions, and changes to their values invalidate the permission
 caches. A default property that the NodeSet declares without a value
 (as the DI NodeSet does) was never initialized and counts as not
 configured, so the namespace keeps the server defaults; a configured
-value that cannot be read or decoded still denies access. Because no
+value that cannot be read or decoded still denies access. While a
+`HasProperty` target of such an object cannot be resolved (for example
+because its node manager is still starting) and a default property is
+still missing, the namespace defaults are unknown: permission checks for
+that namespace fail closed until the target resolves, and the object is
+still never duplicated. Because no
 `NamespaceMetadataState` exists for such a namespace,
 `IConfigurationNodeManager.GetNamespaceMetadataStateAsync` and
 `CreateNamespaceMetadataStateAsync` return `null` for it; callers of

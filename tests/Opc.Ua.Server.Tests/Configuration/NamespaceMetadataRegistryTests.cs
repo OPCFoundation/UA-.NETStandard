@@ -585,7 +585,9 @@ namespace Opc.Ua.Server.Tests
             registry.Invalidate();
             bool unrelatedAfterInvalidate = registry.TryGetSnapshot(unrelated, out NamespaceMetadataNode? none);
             bool ownAfterInvalidate = registry.TryGetSnapshot(index, out _);
-            await registry.GetNodeAsync("urn:unrelated").ConfigureAwait(false);
+
+            // the unrelated namespace's miss is cached by index; the lookup primes nonetheless.
+            await registry.GetNodeAsync(unrelated).ConfigureAwait(false);
             bool ownAfterRefresh = registry.TryGetSnapshot(index, out NamespaceMetadataNode? refreshed);
 
             Assert.Multiple(() =>
@@ -598,6 +600,124 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(ownAfterInvalidate, Is.False, "the retired child is resolved again first");
                 Assert.That(ownAfterRefresh, Is.True, "the next asynchronous lookup primes again");
                 Assert.That(refreshed?.Node, Is.SameAs(primed?.Node));
+            });
+        }
+
+        [Test]
+        public async Task UnresolvedDefaultPropertyFailsClosedUntilResolvedAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            var restrictions = new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.EncryptionRequired)
+            };
+            host.AddForeignProperty(untyped, restrictions);
+
+            // the owning node manager of the restrictive default is not available yet.
+            bool available = false;
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(restrictions.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(available ? restrictions : null));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+            ushort unrelated = server.NamespaceUris.GetIndexOrAppend("urn:unrelated");
+            ushort probe = server.NamespaceUris.GetIndexOrAppend("urn:probe");
+
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+            bool knownWhileUnresolved = registry.TryGetSnapshot(index, out _);
+            bool unrelatedKnown = registry.TryGetSnapshot(unrelated, out NamespaceMetadataNode? none);
+            NamespaceDefaultPermissions blocked = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+            NamespaceMetadataNode? incomplete = await registry.GetNodeAsync(index).ConfigureAwait(false);
+            NamespaceMetadataNode? existing = await registry.GetOrCreateNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            Mock.Get(server.NodeManager.ConfigurationNodeManager!).As<INamespaceMetadataSnapshot>()
+                .Setup(value => value.TryGetNamespaceMetadataState(probe, out It.Ref<NamespaceMetadataNode?>.IsAny))
+                .Returns(new TryGetSnapshotCallback((ushort _, out NamespaceMetadataNode? state) =>
+                {
+                    state = incomplete;
+                    return true;
+                }));
+            NamespaceDefaultPermissions failed = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, probe);
+
+            available = true;
+            NamespaceMetadataNode? resolved = await registry.GetNodeAsync(index).ConfigureAwait(false);
+            bool knownAfterResolution = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+            NamespaceDefaultPermissions enforced = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(knownWhileUnresolved, Is.False, "an incomplete view must not answer synchronously");
+                Assert.That(unrelatedKnown, Is.True, "an incomplete view of another namespace does not block");
+                Assert.That(none, Is.Null);
+                Assert.That(blocked.Status, Is.EqualTo(StatusCodes.BadWouldBlock));
+                Assert.That(incomplete, Is.Not.Null);
+                Assert.That(incomplete!.IsIncomplete, Is.True);
+                Assert.That(incomplete.DefaultAccessRestrictions, Is.Null);
+                Assert.That(existing?.Node, Is.SameAs(untyped), "an incomplete object is existing metadata");
+                Assert.That(host.RegisteredNodes, Is.Empty, "no duplicate metadata node is created");
+                Assert.That(failed.Status, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                Assert.That(resolved?.IsIncomplete, Is.False, "the incomplete view was not cached");
+                Assert.That(resolved?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(knownAfterResolution, Is.True);
+                Assert.That(snapshot?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(enforced.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(enforced.DefaultAccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired));
+            });
+        }
+
+        [Test]
+        public async Task InvalidateDuringSuspendedPropertyLookupResolvesAgainAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, PropertyState roles) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            var lookup = new TaskCompletionSource<NodeState?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(roles.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(lookup.Task));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+
+            Task<NamespaceMetadataNode?> pending = registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .AsTask();
+            Assert.That(pending.IsCompleted, Is.False, "the lookup waits for the property target");
+
+            // a restrictive default is linked while the lookup is suspended.
+            var restrictions = new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.EncryptionRequired)
+            };
+            host.AddForeignProperty(untyped, restrictions);
+            registry.Invalidate();
+            lookup.SetResult(roles);
+
+            NamespaceMetadataNode? found = await pending.ConfigureAwait(false);
+            NamespaceMetadataNode? cached = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            bool known = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found?.DefaultAccessRestrictions, Is.SameAs(restrictions),
+                    "a view resolved before the invalidation is resolved again");
+                Assert.That(cached?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(known, Is.True);
+                Assert.That(snapshot?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(defaults.DefaultAccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired));
             });
         }
 
