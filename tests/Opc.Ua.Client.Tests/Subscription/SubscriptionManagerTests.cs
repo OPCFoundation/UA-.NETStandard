@@ -2440,7 +2440,7 @@ namespace Opc.Ua.Client.Subscriptions
                     waitPolicy.ExitWait();
                 }
             };
-            uint sequenceNumber = 0;
+            int sequenceNumber = 0;
             session.OnPublishAsync = (_, acknowledgements, _) => new ValueTask<PublishResponse>(new PublishResponse
             {
                 SubscriptionId = 5,
@@ -2449,7 +2449,7 @@ namespace Opc.Ua.Client.Subscriptions
                 Results = acknowledgements.ConvertAll(_ => (StatusCode)StatusCodes.Good),
                 NotificationMessage = new NotificationMessage
                 {
-                    SequenceNumber = Interlocked.Increment(ref sequenceNumber),
+                    SequenceNumber = (uint)Interlocked.Increment(ref sequenceNumber),
                     NotificationData = [new ExtensionObject(new DataChangeNotification())]
                 }
             });
