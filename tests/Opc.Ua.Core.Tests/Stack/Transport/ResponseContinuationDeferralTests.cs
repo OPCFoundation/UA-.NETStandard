@@ -206,6 +206,47 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(await loop.ConfigureAwait(false), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// A receive loop that blocks for buffer budget completes the response it holds on
+        /// the pool: that request's caller returns the budget the loop waits for.
+        /// </summary>
+        [Test]
+        [CancelAfter(20000)]
+        public async Task LoopBlockedOnBufferBudgetCompletesTheHeldResponseAsync()
+        {
+            using var limiter = new BufferManagerMemoryLimiter(100);
+            long held = limiter.Reserve(100, CancellationToken.None);
+            using var operation = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
+            Task caller = ReturnBudgetAsync(operation.WaitForCompletionAsync(CancellationToken.None), limiter, held);
+
+            Task loop = Task.Run(() =>
+            {
+                ResponseContinuationDeferral.Enter();
+                try
+                {
+                    operation.Complete(true, 7);
+                }
+                finally
+                {
+                    ResponseContinuationDeferral.Exit();
+                }
+                // the next receive rents a buffer from the exhausted budget
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                long next = limiter.Reserve(50, timeout.Token);
+                limiter.Cancel(next);
+            });
+
+            await loop.ConfigureAwait(false);
+            await caller.ConfigureAwait(false);
+            Assert.That(operation.End(0), Is.EqualTo(7));
+        }
+
+        private static async Task ReturnBudgetAsync(ValueTask wait, BufferManagerMemoryLimiter limiter, long reservation)
+        {
+            await wait.ConfigureAwait(false);
+            limiter.Cancel(reservation);
+        }
+
         private static async Task<bool> BlockOnAsync(ValueTask wait, Task other)
         {
             await wait.ConfigureAwait(false);
