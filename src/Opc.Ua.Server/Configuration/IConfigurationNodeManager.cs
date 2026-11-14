@@ -51,11 +51,13 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// An existing <c>NamespaceMetadataType</c> Object of the namespace is never duplicated. When
         /// that Object is not a <see cref="NamespaceMetadataState"/>, e.g. one created by an untyped
-        /// NodeSet import, it is kept and <c>null</c> is returned.
+        /// NodeSet import, it is kept and <c>null</c> is returned. While the <c>NamespaceUri</c> of such
+        /// an Object cannot be resolved yet, the Object may describe the namespace, so nothing is
+        /// created and <c>null</c> is returned as well.
         /// </remarks>
         /// <returns>
-        /// The metadata node, or <c>null</c> when the namespace is described by an Object that is not
-        /// a <see cref="NamespaceMetadataState"/> or when the node cannot be created.
+        /// The metadata node, or <c>null</c> when the namespace is (or may be) described by an Object
+        /// that is not a <see cref="NamespaceMetadataState"/> or when the node cannot be created.
         /// </returns>
         ValueTask<NamespaceMetadataState?> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default);
 

@@ -126,7 +126,16 @@ namespace Opc.Ua.Server
                 if (metadata.TypedState is not NamespaceMetadataState typed)
                 {
                     // an object the address space already provides is kept as is.
-                    m_logger.NamespaceMetadataProvided((ushort)ii, namespaceUri);
+                    if (metadata.NamespaceUri == namespaceUri)
+                    {
+                        m_logger.NamespaceMetadataProvided((ushort)ii, namespaceUri);
+                    }
+                    else
+                    {
+                        // an object whose NamespaceUri is not resolvable yet may describe the namespace.
+                        m_logger.NamespaceMetadataIdentityUnresolved((ushort)ii, namespaceUri, metadata.Node.NodeId);
+                    }
+
                     continue;
                 }
 
@@ -374,5 +383,17 @@ namespace Opc.Ua.Server
             this ILogger logger,
             ushort namespaceIndex,
             string namespaceUri);
+
+        [LoggerMessage(
+            EventId = ServerEventIds.NamespaceMetadataPublisher + 3,
+            Level = LogLevel.Warning,
+            Message = "NamespaceMetadata for namespace {NamespaceIndex} ('{NamespaceUri}') is not published: " +
+                "the NamespaceUri of the existing untyped NamespaceMetadataType object {NodeId} cannot be " +
+                "resolved yet and it may describe the namespace.")]
+        public static partial void NamespaceMetadataIdentityUnresolved(
+            this ILogger logger,
+            ushort namespaceIndex,
+            string namespaceUri,
+            NodeId nodeId);
     }
 }

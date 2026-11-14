@@ -160,7 +160,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the metadata Object of <paramref name="namespaceUri"/>, typed or
         /// untyped, and creates a <see cref="NamespaceMetadataState"/> only when
-        /// the namespace has none; <c>null</c> when it cannot be created.
+        /// the namespace has none; <c>null</c> when it cannot be created. While an
+        /// untyped metadata Object whose <c>NamespaceUri</c> cannot be resolved yet
+        /// may describe the namespace, its incomplete view is returned and nothing
+        /// is created.
         /// </summary>
         internal ValueTask<NamespaceMetadataNode?> GetOrCreateNamespaceMetadataNodeAsync(
             string namespaceUri,

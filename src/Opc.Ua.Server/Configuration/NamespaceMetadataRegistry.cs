@@ -145,6 +145,9 @@ namespace Opc.Ua.Server
         /// <c>null</c> when none exists. Results are cached until the
         /// <c>Namespaces</c> object changes; an incomplete untyped view
         /// (<see cref="NamespaceMetadataNode.IsIncomplete"/>) is never cached.
+        /// While an untyped metadata Object's <c>NamespaceUri</c> cannot be
+        /// resolved, a namespace without other metadata gets that Object's
+        /// incomplete view, as the Object may describe it.
         /// </summary>
         /// <remarks>
         /// Permission checks call this for every request. Cached results,
@@ -194,7 +197,7 @@ namespace Opc.Ua.Server
                 // as well, so its default changes invalidate permission caches.
                 if (namespaceMetadataState != null)
                 {
-                    SubscribeToDefaultPermissions(namespaceMetadataState);
+                    SubscribeToDefaultPermissions(namespaceMetadataState, generation);
                 }
 
                 lock (m_lock)
@@ -392,7 +395,7 @@ namespace Opc.Ua.Server
 
             if (state != null)
             {
-                SubscribeToDefaultPermissions(state);
+                SubscribeToDefaultPermissions(state, generation);
             }
 
             lock (m_lock)
@@ -445,8 +448,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Runs a pending prime (see <see cref="PrimeReferencesAsync"/>) without
-        /// any cost when none is pending.
+        /// Runs a pending prime (see <see cref="PrimeReferencesAsync"/>), or resolves the
+        /// untyped metadata Objects that were resolved incomplete again, without any cost
+        /// beyond two volatile reads when neither is pending.
         /// </summary>
         private ValueTask PrimeIfRequiredAsync(CancellationToken cancellationToken)
         {
@@ -456,7 +460,73 @@ namespace Opc.Ua.Server
                 return PrimeReferencesAsync(cancellationToken);
             }
 
+            if (Volatile.Read(ref m_incompleteCount) != 0)
+            {
+                return ResolveIncompleteAsync(cancellationToken);
+            }
+
             return default;
+        }
+
+        /// <summary>
+        /// Resolves the untyped metadata Objects whose views are incomplete again, so a
+        /// property target that became available, e.g. because its node manager finished
+        /// starting, is seen by synchronous lookups without waiting for an invalidation.
+        /// </summary>
+        /// <remarks>
+        /// Only one resolution runs at a time; concurrent lookups skip it. A property
+        /// reference that never resolves, e.g. a dangling reference of a malformed NodeSet,
+        /// keeps its namespace failing closed and costs one targeted resolution of its
+        /// Object per asynchronous lookup.
+        /// </remarks>
+        private async ValueTask ResolveIncompleteAsync(CancellationToken cancellationToken)
+        {
+            if (Interlocked.CompareExchange(ref m_resolvingIncomplete, 1, 0) != 0)
+            {
+                return;
+            }
+
+            try
+            {
+                long generation = Interlocked.Read(ref m_generation);
+                KeyValuePair<NodeId, (BaseObjectState Node, bool IsReferenceTarget)>[] incomplete;
+                lock (m_lock)
+                {
+                    incomplete = [.. m_incomplete];
+                }
+
+                ServerSystemContext context = m_host.SystemContext;
+                foreach (KeyValuePair<NodeId, (BaseObjectState Node, bool IsReferenceTarget)> entry in incomplete)
+                {
+                    try
+                    {
+                        NamespaceMetadataNode? metadata = await ResolveAsync(
+                            context, entry.Value.Node, generation, cancellationToken).ConfigureAwait(false);
+                        if (metadata == null)
+                        {
+                            continue;
+                        }
+
+                        SubscribeToDefaultPermissions(metadata, generation);
+                        if (entry.Value.IsReferenceTarget)
+                        {
+                            PublishReferenceTarget(entry.Key, entry.Value.Node, metadata, generation);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.ErrorSearchingNamespaceMetadata(ex, entry.Key.ToString());
+                    }
+                }
+            }
+            finally
+            {
+                Volatile.Write(ref m_resolvingIncomplete, 0);
+            }
         }
 
         /// <summary>
@@ -486,7 +556,7 @@ namespace Opc.Ua.Server
                         context, child, generation, cancellationToken).ConfigureAwait(false);
                     if (metadata != null)
                     {
-                        SubscribeToDefaultPermissions(metadata);
+                        SubscribeToDefaultPermissions(metadata, generation);
                     }
                 }
                 catch (OperationCanceledException)
@@ -536,7 +606,7 @@ namespace Opc.Ua.Server
 
                 if (metadata != null)
                 {
-                    SubscribeToDefaultPermissions(metadata);
+                    SubscribeToDefaultPermissions(metadata, generation);
                 }
 
                 PublishReferenceTarget(targetId, target, metadata, generation);
@@ -547,7 +617,8 @@ namespace Opc.Ua.Server
         /// Remembers the metadata view of a resolved reference target of <c>Server/Namespaces</c>
         /// while the registry is still in <paramref name="generation"/>. A target that is not
         /// resolvable yet, e.g. because its node manager is still starting, or whose view is
-        /// incomplete is forgotten, so synchronous lookups wait for an asynchronous one.
+        /// incomplete is forgotten, so synchronous lookups wait for an asynchronous one; an
+        /// incomplete view is resolved again by the next asynchronous lookup.
         /// </summary>
         private void PublishReferenceTarget(
             NodeId targetId,
@@ -565,6 +636,11 @@ namespace Opc.Ua.Server
                 if (target == null || metadata is { IsIncomplete: true })
                 {
                     m_referenceTargets.TryRemove(targetId, out _);
+                    if (metadata is { IsIncomplete: true })
+                    {
+                        m_incomplete[targetId] = (metadata.Node, true);
+                        Volatile.Write(ref m_incompleteCount, m_incomplete.Count);
+                    }
                 }
                 else
                 {
@@ -577,7 +653,8 @@ namespace Opc.Ua.Server
         /// Remembers the view of an untyped metadata Object while the registry is still in
         /// <paramref name="generation"/>. An incomplete view is only remembered as retired,
         /// so synchronous lookups of other namespaces can skip the Object while lookups of
-        /// its own namespace wait until its properties are resolved.
+        /// its own namespace wait until its properties are resolved, and the Object is
+        /// resolved again by the next asynchronous lookup (<see cref="ResolveIncompleteAsync"/>).
         /// </summary>
         private void PublishUntyped(BaseObjectState node, NamespaceMetadataNode metadata, long generation)
         {
@@ -591,12 +668,19 @@ namespace Opc.Ua.Server
                 if (metadata.IsIncomplete)
                 {
                     m_stale[node.NodeId] = metadata;
+                    if (!m_incomplete.ContainsKey(node.NodeId))
+                    {
+                        m_incomplete[node.NodeId] = (node, false);
+                    }
                 }
                 else
                 {
                     m_untyped[node] = metadata;
                     m_stale.TryRemove(node.NodeId, out _);
+                    m_incomplete.Remove(node.NodeId);
                 }
+
+                Volatile.Write(ref m_incompleteCount, m_incomplete.Count);
             }
         }
 
@@ -628,8 +712,10 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>
         /// The <see cref="NamespaceMetadataState"/>, or <c>null</c> when it
-        /// cannot be created or when the namespace is already described by an
-        /// untyped metadata Object, which is kept and never duplicated.
+        /// cannot be created, when the namespace is already described by an
+        /// untyped metadata Object, which is kept and never duplicated, or when
+        /// an untyped metadata Object whose <c>NamespaceUri</c> cannot be resolved
+        /// yet may describe the namespace.
         /// </returns>
         public async ValueTask<NamespaceMetadataState?> CreateAsync(
             string namespaceUri,
@@ -639,7 +725,14 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
             if (metadata != null && metadata.TypedState == null)
             {
-                m_logger.UntypedNamespaceMetadataKept(namespaceUri, metadata.Node.NodeId);
+                if (metadata.NamespaceUri == namespaceUri)
+                {
+                    m_logger.UntypedNamespaceMetadataKept(namespaceUri, metadata.Node.NodeId);
+                }
+                else
+                {
+                    m_logger.NamespaceMetadataIdentityUnresolved(namespaceUri, metadata.Node.NodeId);
+                }
             }
 
             return metadata?.TypedState;
@@ -653,21 +746,25 @@ namespace Opc.Ua.Server
         /// default-permission properties.
         /// </summary>
         /// <returns>
-        /// The metadata node, or <c>null</c> when it cannot be created.
+        /// The metadata node, the incomplete view of an untyped metadata Object
+        /// whose <c>NamespaceUri</c> cannot be resolved yet and may describe the
+        /// namespace (nothing is created then), or <c>null</c> when it cannot be
+        /// created.
         /// </returns>
         public async ValueTask<NamespaceMetadataNode?> GetOrCreateNodeAsync(
             string namespaceUri,
             CancellationToken cancellationToken = default)
         {
+            long generation = Interlocked.Read(ref m_generation);
             NamespaceMetadataNode? existing = await FindAsync(
-                namespaceUri, Interlocked.Read(ref m_generation), cancellationToken).ConfigureAwait(false);
+                namespaceUri, generation, cancellationToken).ConfigureAwait(false);
 
             if (existing != null)
             {
                 // Subscribe to the default permission properties so that any future changes
                 // trigger a DefaultPermissionsChanged notification to allow caches to be invalidated.
                 // An incomplete untyped Object is existing metadata as well and never duplicated.
-                SubscribeToDefaultPermissions(existing);
+                SubscribeToDefaultPermissions(existing, generation);
                 return existing;
             }
 
@@ -699,7 +796,7 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
 
             NamespaceMetadataNode created = NamespaceMetadataNode.From(namespaceMetadataState)!;
-            SubscribeToDefaultPermissions(created);
+            SubscribeToDefaultPermissions(created, Interlocked.Read(ref m_generation));
 
             return created;
         }
@@ -729,7 +826,7 @@ namespace Opc.Ua.Server
             {
                 if (TryResolve(context, child, out NamespaceMetadataNode? metadata) && metadata != null)
                 {
-                    SubscribeToDefaultPermissions(metadata);
+                    SubscribeToDefaultPermissions(metadata, Interlocked.Read(ref m_generation));
                 }
             }
         }
@@ -746,11 +843,17 @@ namespace Opc.Ua.Server
                 serverNamespacesNode.StateChanged -= OnServerNamespacesChanged;
             }
 
-            BaseObjectState[] tracked;
             lock (m_lock)
             {
-                tracked = [.. m_tracked];
+                // released under the lock, so a concurrent subscription is either released or made after.
+                foreach (BaseObjectState metadataNode in m_tracked)
+                {
+                    metadataNode.StateChanged -= OnNamespaceChildrenChanged;
+                    UnsubscribeDefaultProperties(metadataNode);
+                }
+
                 m_tracked.Clear();
+                m_trackedProperties.Clear();
                 Interlocked.Increment(ref m_generation);
                 m_statesByUri.Clear();
                 m_statesByIndex.Clear();
@@ -759,12 +862,8 @@ namespace Opc.Ua.Server
                 m_referenceTargets.Clear();
                 m_untyped.Clear();
                 m_stale.Clear();
-            }
-
-            foreach (BaseObjectState metadataNode in tracked)
-            {
-                metadataNode.StateChanged -= OnNamespaceChildrenChanged;
-                UnsubscribeDefaultProperties(metadataNode);
+                m_incomplete.Clear();
+                Volatile.Write(ref m_incompleteCount, 0);
             }
 
             NamespaceDefaultPermissionReader.Invalidate();
@@ -773,8 +872,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds the metadata node for <paramref name="namespaceUri"/> among
         /// the children and forward references of <c>Server/Namespaces</c>,
-        /// resolving references into other node managers. The views found are
-        /// remembered only while the registry is still in <paramref name="generation"/>.
+        /// resolving references into other node managers. Without an exact match,
+        /// the incomplete view of an untyped metadata Object whose <c>NamespaceUri</c>
+        /// cannot be resolved yet is returned, since it may describe the namespace.
+        /// The views found are remembered only while the registry is still in
+        /// <paramref name="generation"/>.
         /// </summary>
         private async ValueTask<NamespaceMetadataNode?> FindAsync(
             string namespaceUri,
@@ -792,6 +894,11 @@ namespace Opc.Ua.Server
 
                 ServerSystemContext context = m_host.SystemContext;
 
+                // an untyped Object whose NamespaceUri cannot be resolved yet may describe the
+                // namespace; without an exact match it is returned, so the namespace fails closed
+                // and no miss is cached or replacement created until its identity is known.
+                NamespaceMetadataNode? indeterminate = null;
+
                 IList<BaseInstanceState> serverNamespacesChildren = [];
                 serverNamespacesNode.GetChildren(context, serverNamespacesChildren);
 
@@ -804,6 +911,8 @@ namespace Opc.Ua.Server
                     {
                         return namespaceMetadata;
                     }
+
+                    indeterminate ??= AsIndeterminate(namespaceMetadata);
                 }
 
                 IList<IReference> serverNamespacesReferences = [];
@@ -835,16 +944,27 @@ namespace Opc.Ua.Server
                         {
                             return namespaceMetadata;
                         }
+
+                        indeterminate ??= AsIndeterminate(namespaceMetadata);
                     }
                 }
 
-                return null;
+                return indeterminate;
             }
             catch (Exception ex)
             {
                 m_logger.ErrorSearchingNamespaceMetadata(ex, namespaceUri);
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Returns <paramref name="metadata"/> when it is the incomplete view of an untyped
+        /// metadata Object whose <c>NamespaceUri</c> is unknown, otherwise <c>null</c>.
+        /// </summary>
+        private static NamespaceMetadataNode? AsIndeterminate(NamespaceMetadataNode? metadata)
+        {
+            return metadata is { IsIncomplete: true, NamespaceUri: null } ? metadata : null;
         }
 
         /// <summary>
@@ -885,6 +1005,9 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                // the prime resolves every untyped Object again, the incomplete ones included.
+                m_incomplete.Clear();
+                Volatile.Write(ref m_incompleteCount, 0);
                 Volatile.Write(ref m_primeRequired, 1);
             }
 
@@ -932,7 +1055,7 @@ namespace Opc.Ua.Server
                         {
                             if (TryResolve(context, child, out NamespaceMetadataNode? metadata) && metadata != null)
                             {
-                                SubscribeToDefaultPermissions(metadata);
+                                SubscribeToDefaultPermissions(metadata, Interlocked.Read(ref m_generation));
                             }
                         }
                     }
@@ -951,7 +1074,14 @@ namespace Opc.Ua.Server
         /// remembers the node and properties so a replaced property and <see cref="Detach"/>
         /// release their handlers.
         /// </summary>
-        private void SubscribeToDefaultPermissions(NamespaceMetadataNode metadata)
+        /// <param name="metadata">The metadata view.</param>
+        /// <param name="generation">
+        /// The generation the view was resolved in. A view of the current generation replaces
+        /// the properties subscribed before; a view resolved before an invalidation, whose
+        /// properties may have been replaced since, only adds its properties, so it never
+        /// releases the handler of a live property. Validation and subscription share the lock.
+        /// </param>
+        private void SubscribeToDefaultPermissions(NamespaceMetadataNode metadata, long generation)
         {
             BaseObjectState metadataNode = metadata.Node;
             BaseVariableState?[] properties =
@@ -961,63 +1091,67 @@ namespace Opc.Ua.Server
                 metadata.DefaultUserRolePermissions
             ];
 
-            BaseVariableState?[]? previous;
+            // the events are field-like and take no lock, and no handler runs under this lock.
             lock (m_lock)
             {
                 m_tracked.Add(metadataNode);
-                m_trackedProperties.TryGetValue(metadataNode, out previous);
-                m_trackedProperties[metadataNode] = properties;
-            }
-
-            if (previous != null)
-            {
-                foreach (BaseVariableState? property in previous)
+                if (!m_trackedProperties.TryGetValue(metadataNode, out HashSet<BaseVariableState>? tracked))
                 {
-                    if (property != null && Array.IndexOf(properties, property) < 0)
+                    tracked = [];
+                    m_trackedProperties[metadataNode] = tracked;
+                }
+
+                if (Interlocked.Read(ref m_generation) == generation)
+                {
+                    foreach (BaseVariableState previous in tracked)
                     {
+                        if (Array.IndexOf(properties, previous) < 0)
+                        {
+                            previous.StateChanged -= OnDefaultPermissionsChanged;
+                        }
+                    }
+
+                    tracked.Clear();
+                }
+
+                foreach (BaseVariableState? property in properties)
+                {
+                    if (property != null)
+                    {
+                        // unsubscribe first to avoid duplicate subscriptions if called multiple times
                         property.StateChanged -= OnDefaultPermissionsChanged;
+                        property.StateChanged += OnDefaultPermissionsChanged;
+                        tracked.Add(property);
                     }
                 }
-            }
 
-            foreach (BaseVariableState? property in properties)
-            {
-                if (property != null)
-                {
-                    // unsubscribe first to avoid duplicate subscriptions if called multiple times
-                    property.StateChanged -= OnDefaultPermissionsChanged;
-                    property.StateChanged += OnDefaultPermissionsChanged;
-                }
+                metadataNode.StateChanged -= OnNamespaceChildrenChanged;
+                metadataNode.StateChanged += OnNamespaceChildrenChanged;
             }
-
-            metadataNode.StateChanged -= OnNamespaceChildrenChanged;
-            metadataNode.StateChanged += OnNamespaceChildrenChanged;
         }
 
         /// <summary>
-        /// Releases the handlers of the default properties a metadata node had when last subscribed.
+        /// Releases the handlers of every default property subscribed for a metadata node.
+        /// Called under <c>m_lock</c>.
         /// </summary>
         private void UnsubscribeDefaultProperties(BaseObjectState metadataNode)
         {
-            BaseVariableState?[]? previous;
-            lock (m_lock)
+            if (m_trackedProperties.TryGetValue(metadataNode, out HashSet<BaseVariableState>? tracked))
             {
-                m_trackedProperties.TryGetValue(metadataNode, out previous);
+                foreach (BaseVariableState property in tracked)
+                {
+                    property.StateChanged -= OnDefaultPermissionsChanged;
+                }
+
                 m_trackedProperties.Remove(metadataNode);
+                return;
             }
 
-            BaseVariableState?[] properties = previous ??
-                (metadataNode is NamespaceMetadataState namespaceMetadataState
-                    ?
-                    [
-                        namespaceMetadataState.DefaultAccessRestrictions,
-                        namespaceMetadataState.DefaultRolePermissions,
-                        namespaceMetadataState.DefaultUserRolePermissions
-                    ]
-                    : []);
-            foreach (BaseVariableState? property in properties)
+            if (metadataNode is NamespaceMetadataState namespaceMetadataState)
             {
-                property?.StateChanged -= OnDefaultPermissionsChanged;
+                namespaceMetadataState.DefaultAccessRestrictions?.StateChanged -= OnDefaultPermissionsChanged;
+                namespaceMetadataState.DefaultRolePermissions?.StateChanged -= OnDefaultPermissionsChanged;
+                namespaceMetadataState.DefaultUserRolePermissions?.StateChanged -= OnDefaultPermissionsChanged;
             }
         }
 
@@ -1037,7 +1171,9 @@ namespace Opc.Ua.Server
 
             if (metadataNode is NamespaceMetadataState namespaceMetadataState)
             {
-                SubscribeToDefaultPermissions(NamespaceMetadataNode.From(namespaceMetadataState)!);
+                SubscribeToDefaultPermissions(
+                    NamespaceMetadataNode.From(namespaceMetadataState)!,
+                    Interlocked.Read(ref m_generation));
             }
             else
             {
@@ -1046,7 +1182,7 @@ namespace Opc.Ua.Server
                 Invalidate();
                 if (TryResolve(context, metadataNode, out NamespaceMetadataNode? metadata) && metadata != null)
                 {
-                    SubscribeToDefaultPermissions(metadata);
+                    SubscribeToDefaultPermissions(metadata, Interlocked.Read(ref m_generation));
                 }
             }
 
@@ -1126,7 +1262,7 @@ namespace Opc.Ua.Server
         /// when it has no such child, the targets of its forward
         /// <c>HasProperty</c> references, e.g. when a NodeSet was imported
         /// without linking its children. A target that cannot be resolved while
-        /// a default property is missing makes the view incomplete
+        /// a property is missing makes the view incomplete
         /// (<see cref="NamespaceMetadataNode.IsIncomplete"/>). The view is
         /// remembered only while the registry is still in <paramref name="generation"/>.
         /// </summary>
@@ -1163,6 +1299,8 @@ namespace Opc.Ua.Server
                     var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.Server.NamespaceUris);
                     if (targetId.IsNull)
                     {
+                        // a target in a namespace that is not registered yet cannot be resolved now.
+                        unresolved |= !reference.TargetId.IsNull;
                         continue;
                     }
 
@@ -1202,9 +1340,9 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // the BrowseName of an unresolved target is unknown, so it may be one of the missing
-            // defaults, which follow the NamespaceUri in s_propertyNames.
-            bool isIncomplete = unresolved && Array.IndexOf(properties, null, 1) >= 0;
+            // the BrowseName of an unresolved target is unknown, so it may be any missing property:
+            // a missing default makes the defaults unknown and a missing NamespaceUri the namespace.
+            bool isIncomplete = unresolved && Array.IndexOf(properties, null) >= 0;
             NamespaceMetadataNode metadata = CreateUntyped(objectNode, properties, isIncomplete);
             PublishUntyped(objectNode, metadata, generation);
             return metadata;
@@ -1320,8 +1458,15 @@ namespace Opc.Ua.Server
         // resolved again.
         private readonly ConcurrentDictionary<NodeId, NamespaceMetadataNode> m_stale = new();
         private int m_primeRequired;
+        // Untyped metadata Objects resolved incomplete in the current generation, by node id, and
+        // whether they are reference targets of Server/Namespaces; guarded by m_lock. The count is
+        // read without the lock by every asynchronous lookup.
+        private readonly Dictionary<NodeId, (BaseObjectState Node, bool IsReferenceTarget)> m_incomplete = [];
+        private int m_incompleteCount;
+        private int m_resolvingIncomplete;
         private readonly HashSet<BaseObjectState> m_tracked = [];
-        private readonly Dictionary<BaseObjectState, BaseVariableState?[]> m_trackedProperties = [];
+        // Every default property subscribed per metadata node since its last replacement.
+        private readonly Dictionary<BaseObjectState, HashSet<BaseVariableState>> m_trackedProperties = [];
         private readonly Lock m_lock = new();
 
         /// <summary>
@@ -1358,6 +1503,14 @@ namespace Opc.Ua.Server
             Message = "Namespace '{NamespaceUri}' is described by the untyped NamespaceMetadataType " +
                 "object {NodeId}; no NamespaceMetadataState is created.")]
         public static partial void UntypedNamespaceMetadataKept(
+            this ILogger logger,
+            string namespaceUri,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.NamespaceMetadataRegistry + 4, Level = LogLevel.Warning,
+            Message = "The NamespaceUri of the untyped NamespaceMetadataType object {NodeId} cannot be " +
+                "resolved yet; no NamespaceMetadataState is created for namespace '{NamespaceUri}'.")]
+        public static partial void NamespaceMetadataIdentityUnresolved(
             this ILogger logger,
             string namespaceUri,
             NodeId nodeId);

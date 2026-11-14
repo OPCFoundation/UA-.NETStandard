@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
         /// <param name="defaultRolePermissions">The <c>DefaultRolePermissions</c> property.</param>
         /// <param name="defaultUserRolePermissions">The <c>DefaultUserRolePermissions</c> property.</param>
         /// <param name="isIncomplete">
-        /// Whether a <c>HasProperty</c> target could not be resolved while a default property is missing.
+        /// Whether a <c>HasProperty</c> target could not be resolved while a property is missing.
         /// </param>
         public NamespaceMetadataNode(
             BaseObjectState node,
@@ -91,9 +91,10 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// <c>true</c> when a <c>HasProperty</c> target of the untyped Object could not be
-        /// resolved while one of its default properties is still missing: the unresolved
-        /// target may be that default, so the defaults of the namespace are unknown and
-        /// permission checks must fail closed until the Object is resolved again.
+        /// resolved while one of its properties is still missing: the unresolved target may
+        /// be a default, so the defaults of the namespace are unknown, or the
+        /// <c>NamespaceUri</c>, so the namespace the Object describes is unknown. Permission
+        /// checks must fail closed until the Object is resolved again.
         /// </summary>
         public bool IsIncomplete { get; }
 

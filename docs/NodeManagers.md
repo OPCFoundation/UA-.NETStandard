@@ -1876,12 +1876,17 @@ value that cannot be read or decoded still denies access. While a
 because its node manager is still starting) and a default property is
 still missing, the namespace defaults are unknown: permission checks for
 that namespace fail closed until the target resolves, and the object is
-still never duplicated. Because no
+still never duplicated. The same holds while the object's `NamespaceUri`
+property cannot be resolved: the namespace the object describes is
+unknown, so lookups of every namespace without its own metadata object
+fail closed and no metadata object is created for them until the
+property resolves. Because no
 `NamespaceMetadataState` exists for such a namespace,
 `IConfigurationNodeManager.GetNamespaceMetadataStateAsync` and
 `CreateNamespaceMetadataStateAsync` return `null` for it; callers of
 `CreateNamespaceMetadataStateAsync` must treat `null` as "metadata is
-provided by another object" and leave that object as is.
+provided, or may be provided, by another object" and leave that object
+as is.
 
 #### Node-manager authoring note
 
