@@ -64,7 +64,10 @@ namespace Opc.Ua.Server
     /// <para>
     /// Publishing is idempotent: namespaces that already carry a metadata
     /// Object keep it, and values that the model already populated are never
-    /// overwritten.
+    /// overwritten. An existing Object whose type definition is
+    /// <c>NamespaceMetadataType</c> or a subtype is recognized even when it is
+    /// not a <see cref="NamespaceMetadataState"/>, e.g. when an untyped NodeSet
+    /// import created it; such an Object is left untouched.
     /// </para>
     /// </remarks>
     public sealed class NamespaceMetadataPublisher
@@ -106,21 +109,33 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                NamespaceMetadataState? metadata = await configuration
-                    .CreateNamespaceMetadataStateAsync(namespaceUri, cancellationToken)
-                    .ConfigureAwait(false);
+                // the configuration node manager also recognizes an untyped
+                // NamespaceMetadataType object, e.g. from an untyped NodeSet import.
+                NamespaceMetadataNode? metadata = configuration is ConfigurationNodeManager manager
+                    ? await manager.GetOrCreateNamespaceMetadataNodeAsync(namespaceUri, cancellationToken)
+                        .ConfigureAwait(false)
+                    : NamespaceMetadataNode.From(await configuration
+                        .CreateNamespaceMetadataStateAsync(namespaceUri, cancellationToken)
+                        .ConfigureAwait(false));
                 if (metadata == null)
                 {
                     m_logger.NamespaceMetadataNotPublished(namespaceUri);
                     continue;
                 }
 
-                if (models.TryGetValue(namespaceUri, out ModelDependencyAttribute? model))
+                if (metadata.TypedState is not NamespaceMetadataState typed)
                 {
-                    ApplyModelMetadata(metadata, model);
+                    // an object the address space already provides is kept as is.
+                    m_logger.NamespaceMetadataProvided((ushort)ii, namespaceUri);
+                    continue;
                 }
 
-                published.Add(metadata);
+                if (models.TryGetValue(namespaceUri, out ModelDependencyAttribute? model))
+                {
+                    ApplyModelMetadata(typed, model);
+                }
+
+                published.Add(typed);
                 m_logger.NamespaceMetadataPublished((ushort)ii, namespaceUri);
             }
 
@@ -348,6 +363,16 @@ namespace Opc.Ua.Server
             Message = "Could not publish NamespaceMetadata for namespace '{NamespaceUri}'.")]
         public static partial void NamespaceMetadataNotPublished(
             this ILogger logger,
+            string namespaceUri);
+
+        [LoggerMessage(
+            EventId = ServerEventIds.NamespaceMetadataPublisher + 2,
+            Level = LogLevel.Debug,
+            Message = "NamespaceMetadata for namespace {NamespaceIndex} ('{NamespaceUri}') is provided by " +
+                "an existing untyped NamespaceMetadataType object; nothing is published.")]
+        public static partial void NamespaceMetadataProvided(
+            this ILogger logger,
+            ushort namespaceIndex,
             string namespaceUri);
     }
 }

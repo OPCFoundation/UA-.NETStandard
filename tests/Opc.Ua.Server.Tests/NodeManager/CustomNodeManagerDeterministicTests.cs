@@ -1288,7 +1288,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var mockServer = new Mock<IServerInternal>();
             var mockMasterNodeManager = new Mock<IMasterNodeManager>();
             var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
-            NamespaceMetadataState? noMetadata = null;
+            NamespaceMetadataNode? noMetadata = null;
             mockConfigurationNodeManager.As<INamespaceMetadataSnapshot>()
                 .Setup(manager => manager.TryGetNamespaceMetadataState(It.IsAny<ushort>(), out noMetadata))
                 .Returns(true);

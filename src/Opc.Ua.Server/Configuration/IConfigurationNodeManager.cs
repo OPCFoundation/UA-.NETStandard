@@ -48,7 +48,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or creates the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
         /// </summary>
-        ValueTask<NamespaceMetadataState> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default);
+        /// <remarks>
+        /// An existing <c>NamespaceMetadataType</c> Object of the namespace is never duplicated. When
+        /// that Object is not a <see cref="NamespaceMetadataState"/>, e.g. one created by an untyped
+        /// NodeSet import, it is kept and <c>null</c> is returned.
+        /// </remarks>
+        /// <returns>
+        /// The metadata node, or <c>null</c> when the namespace is described by an Object that is not
+        /// a <see cref="NamespaceMetadataState"/> or when the node cannot be created.
+        /// </returns>
+        ValueTask<NamespaceMetadataState?> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Creates the configuration node for the server.
