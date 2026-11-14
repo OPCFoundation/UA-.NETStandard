@@ -1880,7 +1880,10 @@ still never duplicated. The same holds while the object's `NamespaceUri`
 property cannot be resolved: the namespace the object describes is
 unknown, so lookups of every namespace without its own metadata object
 fail closed and no metadata object is created for them until the
-property resolves. Because no
+property resolves. OPC 10000-5 §6.3.14 derives the BrowseName of such an
+object from its namespace, so when the BrowseName name is a namespace URI
+registered in the server's `NamespaceArray`, only that namespace is
+treated as unknown and all other namespaces are unaffected. Because no
 `NamespaceMetadataState` exists for such a namespace,
 `IConfigurationNodeManager.GetNamespaceMetadataStateAsync` and
 `CreateNamespaceMetadataStateAsync` return `null` for it; callers of

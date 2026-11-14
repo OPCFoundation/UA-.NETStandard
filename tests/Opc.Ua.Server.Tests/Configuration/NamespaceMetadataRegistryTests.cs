@@ -896,6 +896,78 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task UnresolvedNamespaceUriBlocksOnlyNamespaceNamedByBrowseNameAsync()
+        {
+            // the BrowseName of the object is its namespace URI (OPC 10000-5 §6.3.14).
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            PropertyState namespaceUri = host.GetForeignProperty(untyped, BrowseNames.NamespaceUri);
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(namespaceUri.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>((NodeState?)null));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+            const string unrelatedUri = "urn:unrelated";
+            ushort unrelated = server.NamespaceUris.GetIndexOrAppend(unrelatedUri);
+
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+            NamespaceMetadataNode? named = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            bool namedKnown = registry.TryGetSnapshot(index, out _);
+            bool unrelatedKnown = registry.TryGetSnapshot(unrelated, out NamespaceMetadataNode? none);
+            NamespaceMetadataNode? missing = await registry.GetNodeAsync(unrelatedUri).ConfigureAwait(false);
+            NamespaceMetadataNode? created = await registry.GetOrCreateNodeAsync(unrelatedUri).ConfigureAwait(false);
+
+            // a BrowseName that names no namespace of the server does not rule any namespace out.
+            untyped.BrowseName = new QualifiedName("NamespaceMetadata", host.NamespaceIndex);
+            registry.Invalidate();
+            NamespaceMetadataNode? unnamed = await registry.GetNodeAsync("urn:other").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(named?.Node, Is.SameAs(untyped), "the named namespace stays indeterminate");
+                Assert.That(named?.IsIncomplete, Is.True);
+                Assert.That(namedKnown, Is.False);
+                Assert.That(unrelatedKnown, Is.True, "another namespace does not wait for the object");
+                Assert.That(none, Is.Null);
+                Assert.That(missing, Is.Null);
+                Assert.That(created?.TypedState, Is.Not.Null, "metadata of another namespace is created");
+                Assert.That(host.RegisteredNodes, Has.Count.EqualTo(1));
+                Assert.That(unnamed?.Node, Is.SameAs(untyped));
+                Assert.That(unnamed?.IsIncomplete, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task RemotePropertyTargetDoesNotMakeViewIncompleteAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, PropertyState roles) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            untyped.AddReference(
+                ReferenceTypeIds.HasProperty,
+                false,
+                new ExpandedNodeId("Remote", 0, null, 1));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+
+            NamespaceMetadataNode? resolved = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                host.SystemContext.Server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolved?.IsIncomplete, Is.False, "a target on another server is never a property");
+                Assert.That(resolved?.DefaultRolePermissions, Is.SameAs(roles));
+                Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(defaults.DefaultRolePermissions, Is.EqualTo(GetRolePermissions(roles)));
+            });
+        }
+
+        [Test]
         public async Task IncompleteViewOfPrimeRecoversThroughUnrelatedCachedLookupAsync()
         {
             var host = new FakeHost(withNamespacesNode: true);

@@ -147,7 +147,8 @@ namespace Opc.Ua.Server
         /// (<see cref="NamespaceMetadataNode.IsIncomplete"/>) is never cached.
         /// While an untyped metadata Object's <c>NamespaceUri</c> cannot be
         /// resolved, a namespace without other metadata gets that Object's
-        /// incomplete view, as the Object may describe it.
+        /// incomplete view, as the Object may describe it, unless the Object's
+        /// BrowseName names another namespace of the server.
         /// </summary>
         /// <remarks>
         /// Permission checks call this for every request. Cached results,
@@ -374,7 +375,7 @@ namespace Opc.Ua.Server
                     if (!m_referenceTargets.TryGetValue(targetId, out NamespaceMetadataNode? target))
                     {
                         if (m_stale.TryGetValue(targetId, out NamespaceMetadataNode? retired) &&
-                            retired.NamespaceUri is string retiredUri &&
+                            GetIdentity(context, retired) is string retiredUri &&
                             retiredUri != namespaceUri)
                         {
                             // retired metadata of another namespace.
@@ -895,8 +896,9 @@ namespace Opc.Ua.Server
                 ServerSystemContext context = m_host.SystemContext;
 
                 // an untyped Object whose NamespaceUri cannot be resolved yet may describe the
-                // namespace; without an exact match it is returned, so the namespace fails closed
-                // and no miss is cached or replacement created until its identity is known.
+                // namespace unless its BrowseName names another one; without an exact match it is
+                // returned, so the namespace fails closed and no miss is cached or replacement
+                // created until its identity is known.
                 NamespaceMetadataNode? indeterminate = null;
 
                 IList<BaseInstanceState> serverNamespacesChildren = [];
@@ -912,7 +914,7 @@ namespace Opc.Ua.Server
                         return namespaceMetadata;
                     }
 
-                    indeterminate ??= AsIndeterminate(namespaceMetadata);
+                    indeterminate ??= AsIndeterminate(context, namespaceMetadata, namespaceUri);
                 }
 
                 IList<IReference> serverNamespacesReferences = [];
@@ -945,7 +947,7 @@ namespace Opc.Ua.Server
                             return namespaceMetadata;
                         }
 
-                        indeterminate ??= AsIndeterminate(namespaceMetadata);
+                        indeterminate ??= AsIndeterminate(context, namespaceMetadata, namespaceUri);
                     }
                 }
 
@@ -960,11 +962,23 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Returns <paramref name="metadata"/> when it is the incomplete view of an untyped
-        /// metadata Object whose <c>NamespaceUri</c> is unknown, otherwise <c>null</c>.
+        /// metadata Object whose <c>NamespaceUri</c> is unknown and that may describe
+        /// <paramref name="namespaceUri"/>, otherwise <c>null</c>. Its BrowseName naming
+        /// another namespace of the server rules <paramref name="namespaceUri"/> out
+        /// (see <see cref="GetIdentity"/>).
         /// </summary>
-        private static NamespaceMetadataNode? AsIndeterminate(NamespaceMetadataNode? metadata)
+        private static NamespaceMetadataNode? AsIndeterminate(
+            ISystemContext context,
+            NamespaceMetadataNode? metadata,
+            string namespaceUri)
         {
-            return metadata is { IsIncomplete: true, NamespaceUri: null } ? metadata : null;
+            if (metadata is not { IsIncomplete: true, NamespaceUri: null })
+            {
+                return null;
+            }
+
+            string? identity = GetIdentity(context, metadata);
+            return identity == null || identity == namespaceUri ? metadata : null;
         }
 
         /// <summary>
@@ -1299,8 +1313,9 @@ namespace Opc.Ua.Server
                     var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.Server.NamespaceUris);
                     if (targetId.IsNull)
                     {
-                        // a target in a namespace that is not registered yet cannot be resolved now.
-                        unresolved |= !reference.TargetId.IsNull;
+                        // a local target in a namespace that is not registered yet cannot be resolved
+                        // now; a target on another server is never a property of the local Object.
+                        unresolved |= !reference.TargetId.IsNull && reference.TargetId.ServerIndex == 0;
                         continue;
                     }
 
@@ -1352,7 +1367,7 @@ namespace Opc.Ua.Server
         /// Returns <c>true</c> when <paramref name="node"/>, an untyped metadata
         /// Object that is not resolved yet, is known to describe another namespace
         /// than <paramref name="namespaceUri"/>: from its <c>NamespaceUri</c> child
-        /// or the view retired by the last invalidation.
+        /// or the view retired by the last invalidation (see <see cref="GetIdentity"/>).
         /// </summary>
         private bool IsOtherNamespace(ISystemContext context, NodeState node, string namespaceUri)
         {
@@ -1366,10 +1381,34 @@ namespace Opc.Ua.Server
             }
             else if (m_stale.TryGetValue(node.NodeId, out NamespaceMetadataNode? retired))
             {
-                candidateUri = retired.NamespaceUri;
+                candidateUri = GetIdentity(context, retired);
             }
 
             return candidateUri != null && candidateUri != namespaceUri;
+        }
+
+        /// <summary>
+        /// Returns the namespace <paramref name="metadata"/> describes: its <c>NamespaceUri</c>,
+        /// or, while that property of an incomplete view cannot be resolved, the name of the
+        /// Object's BrowseName when it is a namespace URI of the server. OPC 10000-5 §6.3.14
+        /// requires the BrowseName of an Object under <c>Namespaces</c> to be derived from the
+        /// namespace it represents, e.g. with the namespace URI as name.
+        /// </summary>
+        /// <returns>The namespace URI, or <c>null</c> when the namespace is unknown.</returns>
+        private static string? GetIdentity(ISystemContext context, NamespaceMetadataNode metadata)
+        {
+            if (metadata.NamespaceUri is string namespaceUri)
+            {
+                return namespaceUri;
+            }
+
+            if (!metadata.IsIncomplete)
+            {
+                return null;
+            }
+
+            string? name = metadata.Node.BrowseName.Name;
+            return !string.IsNullOrEmpty(name) && context.NamespaceUris.GetIndex(name) >= 0 ? name : null;
         }
 
         /// <summary>
