@@ -183,8 +183,14 @@ namespace Opc.Ua
             try
             {
                 IEncodeable value = m_activator.CreateInstance();
+                // the first decode counts with the response. A decode after Rewind
+                // counts on its own, against the limit of one message of this
+                // length, so that reading a body again never fails where the first
+                // read succeeded, and repeated reads do not add up.
+                DecoderRecoveries recoveries = m_decoded ? new DecoderRecoveries(m_recoveries) : m_recoveries;
+                m_decoded = true;
                 using var decoder = new BinaryDecoder(buffer, 0, m_length, m_context);
-                decoder.InheritDecodingState(null, null, m_nestingLevel, m_length, m_recoveries);
+                decoder.InheritDecodingState(null, null, m_nestingLevel, m_length, recoveries);
                 value.Decode(decoder);
                 if (decoder.Position == m_length)
                 {
@@ -233,6 +239,7 @@ namespace Opc.Ua
         private Action<IEncodeable, object?>? m_onDecodedAgain;
         private object? m_onDecodedAgainState;
         private bool m_resolved;
+        private bool m_decoded;
     }
 
     /// <summary>
@@ -244,11 +251,32 @@ namespace Opc.Ua
     internal sealed class DecoderRecoveries
     {
         /// <summary>
+        /// Create the state of one response.
+        /// </summary>
+        public DecoderRecoveries()
+        {
+        }
+
+        /// <summary>
+        /// Create the state of a decode that shares the recovery budget and the
+        /// logged failure of <paramref name="response"/> but counts its own
+        /// encodeables.
+        /// </summary>
+        public DecoderRecoveries(DecoderRecoveries response)
+        {
+            m_response = response;
+        }
+
+        /// <summary>
         /// Takes one recovery from the budget, false when it is used up. Bodies of one
         /// response can be read concurrently, so checking and counting are one step.
         /// </summary>
         public bool TryReserve(int budget)
         {
+            if (m_response != null)
+            {
+                return m_response.TryReserve(budget);
+            }
             int count = Volatile.Read(ref m_count);
             while (count < budget)
             {
@@ -267,6 +295,10 @@ namespace Opc.Ua
         /// </summary>
         public bool TryLogFailure()
         {
+            if (m_response != null)
+            {
+                return m_response.TryLogFailure();
+            }
             return Interlocked.Exchange(ref m_failureLogged, 1) == 0;
         }
 
@@ -291,10 +323,11 @@ namespace Opc.Ua
         /// <summary>
         /// Counts encodeables of the response; false, with nothing counted, when
         /// the count would exceed the larger of <paramref name="limit"/> and the
-        /// limit of the response.
+        /// limit of the response, which keeps the larger one.
         /// </summary>
         public bool TryCountEncodeables(long count, long limit)
         {
+            RaiseEncodeableLimit(limit);
             limit = Math.Max(limit, Volatile.Read(ref m_encodeableLimit));
             long current = Volatile.Read(ref m_encodeableCount);
             while (current + count <= limit)
@@ -317,6 +350,7 @@ namespace Opc.Ua
             Interlocked.Add(ref m_encodeableCount, -count);
         }
 
+        private readonly DecoderRecoveries? m_response;
         private int m_count;
         private int m_failureLogged;
         private long m_encodeableCount;

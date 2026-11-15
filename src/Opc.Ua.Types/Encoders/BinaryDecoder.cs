@@ -1207,8 +1207,8 @@ namespace Opc.Ua
             }
             // the deferred body counts its encodeables with this message, and
             // this decoder counts the body itself as the eager path does.
-            DecoderRecoveries shared = ShareEncodeableCount();
             CountEncodeable();
+            DecoderRecoveries shared = ShareEncodeableCount();
             byte[] buffer = DeferredExtensionObjectBody.Rent(length);
             try
             {
@@ -3335,6 +3335,14 @@ namespace Opc.Ua
             else
             {
                 shared.RaiseEncodeableLimit(limit);
+
+                // the units this decoder reserved ahead go back, so that the
+                // decoder it hands off to can count up to the limit.
+                if (m_encodeablesLeft > 0)
+                {
+                    shared.ReleaseEncodeables(m_encodeablesLeft);
+                    m_encodeablesLeft = 0;
+                }
             }
             return shared;
         }
@@ -3356,9 +3364,18 @@ namespace Opc.Ua
         /// </summary>
         private int GetEncodeableLimit()
         {
-            int maxMessageSize = Context.MaxMessageSize;
+            return GetEncodeableLimit(Context, GetInputLength());
+        }
+
+        /// <summary>
+        /// The most encodeables a message of <paramref name="inputLength"/> bytes
+        /// may decode.
+        /// </summary>
+        internal static int GetEncodeableLimit(IServiceMessageContext context, long inputLength)
+        {
+            int maxMessageSize = context.MaxMessageSize;
             long limit = maxMessageSize > 0 ? maxMessageSize : DefaultEncodingLimits.MaxMessageSize;
-            return (int)Math.Min(Math.Max(limit, GetInputLength()) + kEncodeableAllowance, int.MaxValue);
+            return (int)Math.Min(Math.Max(limit, inputLength) + kEncodeableAllowance, int.MaxValue);
         }
 
         /// <summary>

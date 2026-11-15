@@ -63,6 +63,7 @@ namespace Opc.Ua
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_options = options ?? new JsonDecoderOptions();
             m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
+            m_inputLength = utf8Json.Length;
             try
             {
                 m_document = JsonDocument.Parse(
@@ -93,6 +94,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     stream,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                m_inputLength = stream.CanSeek ? stream.Position : 0;
                 CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
@@ -118,6 +120,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                m_inputLength = json.Length;
                 CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
@@ -3033,13 +3036,22 @@ namespace Opc.Ua
                                         // nesting budget (approximated by the JSON
                                         // element depth) and spans the whole buffer.
                                         // The bodies of one message share the
-                                        // limit of the encodeables they decode.
+                                        // limit of the encodeables they decode,
+                                        // which is that of the whole message: its
+                                        // length, or, when unknown, the bytes of
+                                        // all bodies.
+                                        m_binaryBodyRecoveries ??= new DecoderRecoveries();
+                                        m_binaryBodyBytes += body.Length;
+                                        m_binaryBodyRecoveries.RaiseEncodeableLimit(
+                                            BinaryDecoder.GetEncodeableLimit(
+                                                Context,
+                                                Math.Max(m_inputLength, m_binaryBodyBytes)));
                                         decoder.InheritDecodingState(
                                             m_namespaceMappings,
                                             m_serverMappings,
                                             (uint)m_stack.Count,
                                             body.Length,
-                                            m_binaryBodyRecoveries ??= new DecoderRecoveries());
+                                            m_binaryBodyRecoveries);
                                         value = decoder.ReadEncodeable<T>(null, typeId);
                                         if (decoder.Position != body.Length)
                                         {
@@ -4851,6 +4863,8 @@ namespace Opc.Ua
 
         // Shared by the decoders of the binary bodies embedded in this message.
         private DecoderRecoveries? m_binaryBodyRecoveries;
+        private long m_binaryBodyBytes;
+        private readonly long m_inputLength;
         private readonly Stack<JsonElement> m_stack = new();
         private readonly JsonDocument m_document;
         private readonly JsonDecoderOptions m_options;
