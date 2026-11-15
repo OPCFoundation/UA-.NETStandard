@@ -628,6 +628,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }).ConfigureAwait(false);
 
                 Assert.That(failure!.Message, Does.Contain("durable NodeManager decision succeeded"));
+                Assert.That(failure.Message, Does.Contain("Candidate cleanup is deferred until server shutdown"));
+                Assert.That(failure.Message, Does.Not.Contain("cleanup was skipped"));
                 Assert.That(failure.InnerException, Is.SameAs(expected));
                 Assert.That(decisionCompleted, Is.True);
                 Assert.That(prepared.IsCommitted, Is.False,

@@ -2430,7 +2430,8 @@ namespace Opc.Ua.Server
                         deferUntilShutdown: true).ConfigureAwait(false);
                     throw new InvalidOperationException(
                         "The durable NodeManager decision succeeded, but routing publication failed before the " +
-                        "serving view changed. Candidate cleanup was skipped; restart the server to recover.",
+                        "serving view changed. Candidate cleanup is deferred until server shutdown; " +
+                        "restart the server to recover.",
                         failure);
                 }
                 catch (Exception failure) when (batch.IsCommitted && failure is not OutOfMemoryException)
