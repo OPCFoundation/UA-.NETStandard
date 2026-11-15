@@ -858,8 +858,19 @@ namespace Opc.Ua.AMB.Tests
             return rows;
         }
 
+        /// <summary>
+        /// Resolves model inputs from the configured checkout or the test assembly's ancestry.
+        /// </summary>
         internal static string ModelFile(string fileName)
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string path = Path.Combine(Path.GetFullPath(configured), "src", "Opc.Ua.AMB", "Model", fileName);
+                Assert.That(File.Exists(path), Is.True, $"The configured checkout has no model file: {path}");
+                return path;
+            }
+
             DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
             while (directory != null)
             {
