@@ -44,6 +44,10 @@ namespace Opc.Ua.Server
         "Design",
         "CA1032:Implement standard exception constructors",
         Justification = "A deferred-cleanup exception must carry the actual cleanup completion task.")]
+    [SuppressMessage(
+        "Roslynator",
+        "RCS1194:Implement exception constructors",
+        Justification = "A deferred-cleanup exception must carry the actual cleanup completion task.")]
     public sealed class NodeManagerCleanupDeferredException : InvalidOperationException
     {
         /// <summary>

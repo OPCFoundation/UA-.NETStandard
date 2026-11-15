@@ -1955,7 +1955,7 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "Shutdown publication cannot include initialization or read images.");
                 }
-                shutdown.ValidateChanges(changes);
+                ShutdownPublication.ValidateChanges(changes);
             }
 
             var entries = new List<BatchEntry>();

@@ -522,7 +522,7 @@ namespace Opc.Ua.Server
         /// Reports whether the holder recorded the exact generation as an owner of a history continuation.
         /// A point without a recorded generation is left alone rather than dropped on a guess.
         /// </summary>
-        private bool IsOwnedBy(
+        private static bool IsOwnedBy(
             HistoryContinuationPoint continuationPoint,
             NodeManagerGeneration generation)
         {
@@ -2987,7 +2987,7 @@ namespace Opc.Ua.Server
         /// <param name="id">The continuation point identifier.</param>
         /// <param name="ownerSessionId">The captured session owner.</param>
         /// <returns>The envelope.</returns>
-        private ContinuationPointEnvelope CreateHistoryEnvelope(Guid id, NodeId ownerSessionId)
+        private static ContinuationPointEnvelope CreateHistoryEnvelope(Guid id, NodeId ownerSessionId)
         {
             return new ContinuationPointEnvelope
             {

@@ -61,7 +61,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Prevents this capability from preparing additions, replacements or read images.
             /// </summary>
-            internal void ValidateChanges(ArrayOf<LifecycleChange> changes)
+            internal static void ValidateChanges(ArrayOf<LifecycleChange> changes)
             {
                 foreach (LifecycleChange change in changes)
                 {
