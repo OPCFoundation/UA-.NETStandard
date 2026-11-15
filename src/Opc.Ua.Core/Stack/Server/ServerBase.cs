@@ -373,6 +373,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(configuration));
             }
 
+            SealStartupBindings();
+
             // do any pre-startup processing
             await OnServerStartingAsync(configuration, cancellationToken).ConfigureAwait(false);
 
@@ -441,6 +443,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(configuration));
             }
 
+            SealStartupBindings();
+
             // do any pre-startup processing
             await OnServerStartingAsync(configuration, cancellationToken).ConfigureAwait(false);
 
@@ -483,6 +487,13 @@ namespace Opc.Ua
             }
 
             await CompleteServerStartAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Closes server-owned configuration before overridable startup callbacks run.
+        /// </summary>
+        internal virtual void SealStartupBindings()
+        {
         }
 
         private async ValueTask CompleteServerStartAsync(

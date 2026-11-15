@@ -37,6 +37,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.Fluent
 {
@@ -421,8 +423,11 @@ namespace Opc.Ua.Server.Tests.Fluent
 
         private async Task AddSourcesAsync(bool useSamplingGroups, params ControlledEventSource[] sources)
         {
-            await m_server.NodeManagerLifecycle.AddAsync(
-                new EventNodeManagerFactory(sources, useSamplingGroups), null).ConfigureAwait(false);
+            LifecycleInspection.Registration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new EventNodeManagerFactory(
+                sources, useSamplingGroups)), CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
         }
 
         private Task<CreateMonitoredItemsResponse> CreateAsync(

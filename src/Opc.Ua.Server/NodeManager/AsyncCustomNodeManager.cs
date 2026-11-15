@@ -820,12 +820,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        protected PredefinedNodeDictionary PredefinedNodes { get; }
 
         /// <summary>
         /// The root notifiers for the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> RootNotifiers { get; }
+        protected PredefinedNodeDictionary RootNotifiers { get; }
 
         /// <summary>
         /// Gets the table of nodes being monitored.
@@ -2393,15 +2393,9 @@ namespace Opc.Ua.Server
                     instance.AddReference(item.ReferenceTypeId, true, parentNodeId);
                 }
 
-                NodeId previousAddNodeId = m_addNodesNodeId.Value;
-                m_addNodesNodeId.Value = newNodeId;
-                try
+                using (new NodeManagerAmbientScope<NodeId>(m_addNodesNodeId, newNodeId))
                 {
                     await AddPredefinedNodeAsync(systemContext, instance, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_addNodesNodeId.Value = previousAddNodeId;
                 }
 
                 // Remote parents need an explicit reference added through their owning manager.
@@ -3621,18 +3615,13 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
-            int depth = m_registrationDepth.Value;
-            m_registrationDepth.Value = depth + 1;
+            bool nested = NodeManagerAmbientScope<bool>.GetValue(m_registrationScope);
             NodeState active;
-            try
+            using (new NodeManagerAmbientScope<bool>(m_registrationScope, true))
             {
                 active = await AddPredefinedNodeCoreAsync(context, node, cancellationToken).ConfigureAwait(false);
             }
-            finally
-            {
-                m_registrationDepth.Value = depth;
-            }
-            if (depth == 0)
+            if (!nested)
             {
                 m_localAddressSpace?.NotifyAdded(active);
             }
@@ -3746,13 +3735,9 @@ namespace Opc.Ua.Server
 
                 if (RequiresInstanceNodeIdRepair(candidate))
                 {
-                    if (!candidate.NodeId.IsNull &&
-                        PredefinedNodes.TryGetValue(
-                            candidate.NodeId,
-                            out NodeState? indexedNode) &&
-                        ReferenceEquals(indexedNode, candidate))
+                    if (!candidate.NodeId.IsNull)
                     {
-                        PredefinedNodes.TryRemove(candidate.NodeId, out _);
+                        PredefinedNodes.TryRemove(candidate.NodeId, candidate);
                     }
 
                     NodeId previousNodeId = context.AssignInstanceNodeId(candidate);
@@ -3943,7 +3928,8 @@ namespace Opc.Ua.Server
                     Server.TypeTree);
             }
 
-            if (!m_addNodesNodeId.Value.IsNull && m_addNodesNodeId.Value == activeNode.NodeId)
+            NodeId reservedNodeId = NodeManagerAmbientScope<NodeId>.GetValue(m_addNodesNodeId);
+            if (!reservedNodeId.IsNull && reservedNodeId == activeNode.NodeId)
             {
                 if (!PredefinedNodes.TryAdd(activeNode.NodeId, activeNode))
                 {
@@ -3991,7 +3977,7 @@ namespace Opc.Ua.Server
             List<LocalReference> referencesToRemove,
             CancellationToken cancellationToken = default)
         {
-            if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+            if (!PredefinedNodes.TryRemove(node.NodeId, node))
             {
                 return;
             }
@@ -4369,6 +4355,7 @@ namespace Opc.Ua.Server
         public virtual async ValueTask DeleteAddressSpaceAsync(
             CancellationToken cancellationToken = default)
         {
+            NodeState[] notifiers = [.. RootNotifiers.Values];
             NodeState[] nodes = [.. PredefinedNodes.Values];
             ISystemContext context = SystemContext;
             List<LocalReference> referencesToRemove =
@@ -4389,7 +4376,7 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
-                if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+                if (!PredefinedNodes.TryRemove(node.NodeId, node))
                 {
                     continue;
                 }
@@ -4417,7 +4404,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            foreach (NodeState notifier in RootNotifiers.Values)
+            foreach (NodeState notifier in notifiers)
             {
                 await RemoveRootNotifierAsync(notifier, cancellationToken).ConfigureAwait(false);
             }
@@ -8171,7 +8158,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
-            if (RootNotifiers.TryRemove(notifier.NodeId, out notifier!))
+            if (RootNotifiers.TryRemove(notifier.NodeId, notifier))
             {
                 if (stagingServer?.IsStaging == true)
                 {
@@ -11286,12 +11273,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private IRebasableNodeIdFactory m_nodeIdFactory;
         private PredefinedNodesAddressSpace? m_localAddressSpace;
-        private readonly AsyncLocal<int> m_registrationDepth = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<bool>?> m_registrationScope = new();
 
         /// <summary>
         /// Carries the NodeId reserved for the current asynchronous AddNodes operation.
         /// </summary>
-        private readonly AsyncLocal<NodeId> m_addNodesNodeId = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<NodeId>?> m_addNodesNodeId = new();
 
         /// <summary>
         /// Retains AddNodes identifiers until asynchronous registration and reference publication have finished.

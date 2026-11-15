@@ -1155,6 +1155,9 @@ namespace Opc.Ua.Tools.Tests
             });
         }
 
+        /// <summary>
+        /// Appends a culture-independent measurement block for the parser controls.
+        /// </summary>
         private static void AppendResult(
             StringBuilder input,
             string side,
@@ -1176,7 +1179,8 @@ namespace Opc.Ua.Tools.Tests
             long? serverCpuTicks = null)
         {
             input.AppendLine(FormattableString.Invariant($"### side={side} round={round} --scenario {scenario}"));
-            input.AppendLine($"RESULT scenario={scenario} security={security} sessions=1 --scenario {scenario}");
+            input.AppendLine(FormattableString.Invariant(
+                $"RESULT scenario={scenario} security={security} sessions=1 --scenario {scenario}"));
             input.Append(FormattableString.Invariant($"  client: {rateUnit}/s={rate}"));
             if (scenario == "native-counters")
             {
@@ -1186,7 +1190,7 @@ namespace Opc.Ua.Tools.Tests
             {
                 double ratio = expected == 0 ? 0 : (double)received / expected;
                 string percentage = ratio.ToString("P1", CultureInfo.InvariantCulture);
-                input.Append($" received/expected={percentage}");
+                input.Append(FormattableString.Invariant($" received/expected={percentage}"));
                 if (includeCounts)
                 {
                     input.Append(FormattableString.Invariant($" received={received} expected={expected}"));
@@ -1198,7 +1202,7 @@ namespace Opc.Ua.Tools.Tests
                 ? TimeSpan.FromTicks(serverCpuTicks.Value).TotalMilliseconds.ToString(
                     "F0", CultureInfo.InvariantCulture)
                 : "100";
-            input.Append($"  server: cpuMs={serverCpuMs}");
+            input.Append(FormattableString.Invariant($"  server: cpuMs={serverCpuMs}"));
             if (serverCpuTicks.HasValue)
             {
                 input.Append(FormattableString.Invariant($" cpuTicks={serverCpuTicks.Value}"));
@@ -1209,7 +1213,8 @@ namespace Opc.Ua.Tools.Tests
                 input.AppendLine("  client-process: pauseMs=4 contention=5");
             }
             input.AppendLine(FormattableString.Invariant($"  per-op: allocB=10 cpuUs={cpu:F6}  ({cpuUnit})"));
-            input.AppendLine($"  client-per-op: allocB=20 cpuUs=1.0  ({clientCpuUnit ?? cpuUnit})");
+            input.AppendLine(FormattableString.Invariant(
+                $"  client-per-op: allocB=20 cpuUs=1.0  ({clientCpuUnit ?? cpuUnit})"));
             if (exitCode.HasValue)
             {
                 input.AppendLine(FormattableString.Invariant($"EXIT code={exitCode.Value}"));

@@ -102,8 +102,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             factory.Setup(owner => owner.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IAsyncNodeManager>(probe.Object));
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
-                factory.Object, null, ct).ConfigureAwait(false);
+            LifecycleResult publication = await m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(factory.Object)], ct).ConfigureAwait(false);
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
             var converter = new Mock<IWotDocumentConverter>(MockBehavior.Strict);
             converter.Setup(value => value.ConvertAsync(
                 It.IsAny<WotResource>(), It.IsAny<ByteString>(), It.IsAny<WotRegistrySnapshot>(),
@@ -171,11 +174,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_failDecision = false;
                 objects.RemoveReference(Ua.ReferenceTypeIds.Organizes, false, Ua.ObjectIds.ViewsFolder);
                 using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                await using IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration)], cleanup.Token).ConfigureAwait(false);
-                NodeManagerBatchResult removed = await removal.CommitAsync(_ => default, cleanup.Token)
+                ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+                await using ILifecycleWriter writer = await capture.BeginAsync(cleanup.Token).ConfigureAwait(false);
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                    current => ReferenceEquals(current, registration)), Is.True);
+                await using IPreparedChanges removal = await writer.PrepareAsync(
+                    [LifecycleChange.Remove(registration!.Slot)], cleanup.Token).ConfigureAwait(false);
+                LifecycleResult removed = await removal.CommitAsync(_ => default, cleanup.Token)
                     .ConfigureAwait(false);
-                await removed.Retirement.WaitAsync(cleanup.Token).ConfigureAwait(false);
+                await removed.Retired.WaitAsync(cleanup.Token).ConfigureAwait(false);
             }
         }
 

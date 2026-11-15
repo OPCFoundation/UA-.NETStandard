@@ -58,6 +58,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
+            ThrowIfNamespaceRegistrationFromDecision(serving: false);
             IAsyncNodeManager? preparingNodeManager = GetPreparingNodeManager(nodeManager);
             ChangePreparer.StagingServer? staging =
                 ChangePreparer.GetServer(preparingNodeManager ?? nodeManager);
@@ -159,30 +160,29 @@ namespace Opc.Ua.Server
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Applies a serving alias registration through the shared namespace reservation merge.
+        /// </summary>
         private async ValueTask RegisterNamespaceManagerCoreAsync(
             string namespaceUri,
             IAsyncNodeManager nodeManager,
             bool visible,
             CancellationToken cancellationToken)
         {
-            await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                int index = Server.NamespaceUris.GetIndexOrAppend(namespaceUri);
-                m_nodeManagers.RegisterNamespace(index, nodeManager, visible);
-            }
-            finally
-            {
-                m_namespaceRegistrationSemaphore.Release();
-            }
+            await ChangeNamespaceRegistrationAsync(
+                namespaceUri, nodeManager, register: true, visible, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Unstages private aliases or applies serving alias removal through the shared reservation merge.
+        /// </summary>
         private async ValueTask<bool> UnregisterNamespaceManagerCoreAsync(
             string namespaceUri,
             IAsyncNodeManager? asyncNodeManager,
             INodeManager? nodeManager,
             CancellationToken cancellationToken)
         {
+            ThrowIfNamespaceRegistrationFromDecision(serving: false);
             IAsyncNodeManager candidate = asyncNodeManager ?? nodeManager!.ToAsyncNodeManager();
             ChangePreparer.StagingServer? staging =
                 ChangePreparer.GetServer(GetPreparingNodeManager(candidate) ?? candidate);
@@ -192,19 +192,8 @@ namespace Opc.Ua.Server
             }
 
             ThrowIfNamespaceRegistrationFromDecision();
-            await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                int namespaceIndex = Server.NamespaceUris.GetIndex(namespaceUri);
-                return namespaceIndex >= 0 && m_nodeManagers.UnregisterNamespace(
-                    namespaceIndex,
-                    asyncNodeManager,
-                    nodeManager);
-            }
-            finally
-            {
-                m_namespaceRegistrationSemaphore.Release();
-            }
+            return await ChangeNamespaceRegistrationAsync(
+                namespaceUri, candidate, register: false, visible: true, cancellationToken).ConfigureAwait(false);
         }
     }
 

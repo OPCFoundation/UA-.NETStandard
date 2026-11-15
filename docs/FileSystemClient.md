@@ -467,13 +467,23 @@ release starts asynchronous cursor cleanup and does not wait for incomplete
 cleanup to finish. Provider failures during enumeration are reported rather
 than returned as an empty directory.
 
-The host waits for recorded cursor cleanups before deleting the address space,
-including cleanups recorded while it waits. A cleanup recorded after the host
-finds its tracking list empty is not included in the deletion wait.
+The host registers each cursor before opening it. Address-space deletion closes
+new cursor admission and waits for registered cursors and their cleanup before
+closing the node manager's file handles. Direct node-manager disposal can
+request file-handle shutdown while cursor cleanup is still pending. If cursor
+disposal fails, the host retains the exact
+cursor and error and does not retry disposal. Deletion reports the failure and
+leaves the nodes in place until an authorized host verifies cleanup through
+[NodeManager cleanup recovery](NodeManagers.md#recovering-retained-cleanup).
+Active browsers must receive distinct enumerator instances, including across
+mounts. A second browser is rejected if the provider returns an enumerator
+that is still active or retained after failed cleanup; it does not dispose
+the first browser's enumerator.
 
-If cursor disposal fails during cleanup started by synchronous release, the
-failure is logged and the cursor is not retried. The continuation release and
-the host's tracked cleanup task do not report that failure.
+Synchronous continuation release cannot report an asynchronous cleanup
+failure; it is logged and remains available to the host's recovery service.
+If the node manager's bounded disposal wait expires, `NodeManagerCleanupDeferredException`
+provides a completion task for the still-owned cleanup.
 
 Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
 validates the decoded provider path. Separator-only root aliases resolve to

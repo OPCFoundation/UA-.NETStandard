@@ -153,7 +153,7 @@ namespace Opc.Ua.WotCon.Server
             node.GetChildren(SystemContext, children);
             foreach (BaseInstanceState child in children)
             {
-                PredefinedNodes.TryRemove(child.NodeId, out _);
+                PredefinedNodes.TryRemove(child.NodeId, child);
             }
 
             node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);

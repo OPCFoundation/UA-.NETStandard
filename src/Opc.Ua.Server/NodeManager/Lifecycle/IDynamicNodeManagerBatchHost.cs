@@ -109,12 +109,159 @@ namespace Opc.Ua.Server
         /// </summary>
         internal bool IsActive => Volatile.Read(ref m_active) != 0;
 
+        /// <summary>
+        /// Attempts to borrow this callback's admission without waiting for another child.
+        /// </summary>
+        /// <param name="capability">The capability required by the nested operation.</param>
+        /// <returns>A lease, or null when the callback is closed or another child owns its admission.</returns>
+        internal Borrow? TryBorrow(NodeManagerAdmissionCapability capability)
+        {
+            if (!TryStartBorrow(capability))
+            {
+                return null;
+            }
+            bool admitted = false;
+            try
+            {
+                admitted = m_childAdmission.Wait(0);
+                return admitted ? CompleteBorrow() : null;
+            }
+            finally
+            {
+                if (!admitted)
+                {
+                    ReleaseBorrow(releaseAdmission: false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Waits for exclusive child admission while the callback remains active.
+        /// </summary>
+        /// <param name="capability">The capability required by the nested operation.</param>
+        /// <param name="cancellationToken">Cancels the wait for child admission.</param>
+        /// <returns>A lease, or null if the callback has closed.</returns>
+        internal async ValueTask<Borrow?> BorrowAsync(
+            NodeManagerAdmissionCapability capability,
+            CancellationToken cancellationToken)
+        {
+            if (!TryStartBorrow(capability))
+            {
+                return null;
+            }
+            bool admitted = false;
+            try
+            {
+                await m_childAdmission.WaitAsync(cancellationToken).ConfigureAwait(false);
+                admitted = true;
+                return CompleteBorrow();
+            }
+            finally
+            {
+                if (!admitted)
+                {
+                    ReleaseBorrow(releaseAdmission: false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retains child admission before a wait can race with permit disposal.
+        /// </summary>
+        private bool TryStartBorrow(NodeManagerAdmissionCapability capability)
+        {
+            lock (m_gate)
+            {
+                if (m_active == 0 ||
+                    capability == NodeManagerAdmissionCapability.None ||
+                    (Capabilities & capability) != capability)
+                {
+                    return false;
+                }
+                m_borrows++;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Transfers accepted admission to a child only while the callback remains active.
+        /// </summary>
+        private Borrow? CompleteBorrow()
+        {
+            lock (m_gate)
+            {
+                if (m_active != 0)
+                {
+                    return new Borrow(this);
+                }
+            }
+            ReleaseBorrow();
+            return null;
+        }
+
         /// <inheritdoc/>
         public ValueTask DisposeAsync()
         {
-            Volatile.Write(ref m_active, 0);
+            Task disposal;
+            lock (m_gate)
+            {
+                Volatile.Write(ref m_active, 0);
+                if (m_disposal is null)
+                {
+                    if (m_borrows == 0)
+                    {
+                        m_childAdmission.Dispose();
+                        m_disposal = Task.CompletedTask;
+                    }
+                    else
+                    {
+                        m_drained ??= new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        m_disposal = DisposeChildAdmissionAsync(m_drained.Task);
+                    }
+                }
+                disposal = m_disposal;
+            }
             RestoreContext();
-            return default;
+            return new ValueTask(disposal);
+        }
+
+        /// <summary>
+        /// Disposes the semaphore after both borrowed admissions and waiting children have exited.
+        /// </summary>
+        private async Task DisposeChildAdmissionAsync(Task drain)
+        {
+            await drain.ConfigureAwait(false);
+            m_childAdmission.Dispose();
+        }
+
+        /// <summary>
+        /// Owns one nested operation's use of a callback capability.
+        /// </summary>
+        internal sealed class Borrow : IDisposable
+        {
+            /// <summary>
+            /// Creates an admission borrow for its exact callback permit.
+            /// </summary>
+            /// <param name="owner">The permit that granted the capability.</param>
+            internal Borrow(NodeManagerCallbackPermit owner)
+            {
+                m_owner = owner;
+                Capabilities = owner.Capabilities;
+            }
+
+            /// <summary>
+            /// Gets the complete admission retained for the nested operation.
+            /// </summary>
+            internal NodeManagerAdmissionCapability Capabilities { get; }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_owner, null)?.ReleaseBorrow();
+            }
+
+            private NodeManagerCallbackPermit? m_owner;
         }
 
         private void RestoreContext()
@@ -125,8 +272,41 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Releases one accepted child after its wait or borrowed operation has stopped using the semaphore.
+        /// </summary>
+        /// <param name="releaseAdmission">Whether the child acquired the semaphore.</param>
+        private void ReleaseBorrow(bool releaseAdmission = true)
+        {
+            if (releaseAdmission)
+            {
+                m_childAdmission.Release();
+            }
+            TaskCompletionSource<bool>? drained = null;
+            lock (m_gate)
+            {
+                m_borrows--;
+                if (m_borrows == 0)
+                {
+                    drained = m_drained;
+                    m_drained = null;
+                }
+            }
+            drained?.TrySetResult(true);
+        }
+
         private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
+        private readonly System.Threading.Lock m_gate = new();
+        private readonly SemaphoreSlim m_childAdmission = new(1, 1);
+        private TaskCompletionSource<bool>? m_drained;
+
+        /// <summary>The single shared completion of permit disposal.</summary>
+        private Task? m_disposal;
+
         private int m_active = 1;
+
+        /// <summary>Counts accepted children, including pending semaphore waits.</summary>
+        private int m_borrows;
     }
 
     /// <summary>

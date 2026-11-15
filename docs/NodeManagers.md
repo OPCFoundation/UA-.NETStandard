@@ -42,6 +42,7 @@ a server yet, start with [Getting started](GettingStarted.md).
   - [Runtime registration](#runtime-registration)
     - [Lifecycle change sets](#lifecycle-change-sets)
     - [Preparation, decision and abort](#preparation-decision-and-abort)
+    - [Recovering retained cleanup](#recovering-retained-cleanup)
     - [Capturing inputs and validating candidates](#capturing-inputs-and-validating-candidates)
     - [Publishing typed metadata](#publishing-typed-metadata)
     - [Historian registration ownership](#historian-registration-ownership)
@@ -683,6 +684,14 @@ node's data takes the node's own locks instead, so the two never interlock. This
 convention rather than by the compiler, so the rule is: if you feel the need to lock a node, the
 operation you want is missing from `NodeState` — add it there.
 
+The `PredefinedNodes` index and the async manager's `RootNotifiers` index
+support concurrent direct writes. Their
+`TryRemove(nodeId, node)` and `TryUpdate(nodeId, replacement, node)` methods
+only change the entry if it still contains that exact node instance; a
+different node with the same NodeId is retained even if the nodes compare
+equal. Index operations do not make a transaction of the node's children,
+references, or the rest of the address space.
+
 | You want | Use |
 | --- | --- |
 | A consistent read of one attribute | `ReadAttribute` / `ReadAttributeAsync` — already guarded |
@@ -949,6 +958,9 @@ When historization inherits a binding owned by the predecessor generation, the l
 retains that binding under the candidate owner while replacement readiness runs. Candidate
 changes can replace or remove it; successful readiness publishes the candidate's complete
 binding set.
+A manager that only borrows an already serving historian binding does not need
+its own readiness callback. Explicit candidate registrations still require
+readiness, even when they use an existing provider instance.
 Alias-name contributors and other serving-service registrations belong in readiness.
 The reference model loads its nodes privately, then registers and seeds its historian
 during its awaited readiness callback and refreshes the server capability rollup. GDS alias aggregation likewise starts after
@@ -1008,9 +1020,10 @@ Request routing remains owned by the explicit `OperationContext` view.
 | --- | --- | --- |
 | `LifecycleWriter` decision scope | Rejects nested lifecycle operations during the durable decision, including spawned work. The decision's `finally` block revokes the scope before restoring its predecessor. | An active flag; no manager or generation |
 | `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access, restores the preceding scope only if it is still current, and clears the server, generation and parent references. | Server and generation references only while active |
-| `MasterNodeManager` callback permit | Allows nested publication to reuse the capabilities currently held by a manager callback. Disposal revokes the permit; an escaped preparation must reacquire each missing capability. | Capability flags, the preceding permit and its execution-context slot; no manager or generation |
+| `MasterNodeManager` callback permit | Allows nested publication to borrow the capabilities currently held by a manager callback. Disposal rejects new borrows and waits for existing borrows before the callback releases its host admission; later operations must reacquire admission. | Capability flags, borrow accounting, the preceding permit and its execution-context slot; no manager or generation |
 | `MasterNodeManager` current decision | Rejects namespace and node-management writes from the callback whose decision they would otherwise wait for. Releasing the reservation completes its marker and clears the current slot. | A completion task with no manager or generation payload |
-| `MasterNodeManager` namespace publication | Rejects serving namespace changes from callbacks while lifecycle publication holds the namespace reservation, including during the durable decision. Releasing the reservation completes its marker and restores the preceding slot, on success or failure. | A completion task with no manager or generation payload |
+| `MasterNodeManager` namespace publication | Rejects serving namespace changes from publication callbacks and both staged and serving changes from the durable decision callback. Other flows can publish unrelated aliases into the serving and exact reserved successor images; conflicting aliases await release. Releasing the reservation completes its marker and restores the preceding slot, on success or failure. | A completion task with no manager or generation payload |
+| Node registration, AddNodes, adapter notification and NodeVersion guards | Suppresses nested notifications or reserves a request's NodeId only while the owning operation is active. Disposal revokes the value in captured contexts, including on failure. An ended inner guard can fall back to a still-active enclosing operation. | A Boolean or NodeId, an active flag and preceding guard; no manager or generation |
 
 When an intermediate readiness scope is disposed while a descendant remains active,
 it clears its link to the grandparent. The descendant cannot reach the grandparent's
@@ -1066,7 +1079,9 @@ completed, the failed stop still withdraws them in a separate application-only s
 retry does not replay it.
 A failed retirement retains unfinished cleanup and the server internals for retry. `StopAsync`
 and `DisposeAsync` report the failure; retry the failed operation to finish remaining stages.
-Successful deletion and disposal callbacks are not repeated. An explicit call to hosted
+Successful deletion and disposal callbacks are not repeated. A failed manager disposal or a
+participant that retains a failed resource requires [verified cleanup recovery](#recovering-retained-cleanup);
+retrying server shutdown alone does not repeat the failed disposal. An explicit call to hosted
 `MasterNodeManager.ShutdownAsync` defensively joins the same stop attempt as `ServerBase.StopAsync`,
 including transport closure and failure propagation. Ordinary server stop drives the lifecycle
 directly; it does not route through this master entry point.
@@ -1163,10 +1178,8 @@ application NodeManagers, including those composed before startup. It excludes t
 configuration and core managers. A control plane can remove those application managers or, if they implement
 `INodeManagerReloadParticipant`, reload them.
 
-Use the server's `NodeManagerLifecycle` provider. Additional `NodeManagerLifecycle(server)`
-handles forward to that same owner; they do not create independent registration collections.
-Disposing an additional handle rejects new operations through it without disposing the server's
-writer or its generations. The server remains responsible for completing retirement.
+Use `server.NodeManagerLifecycle` directly, or resolve `INodeManagerLifecycle` from
+hosted DI. The server owns the lifecycle and remains responsible for completing retirement.
 
 `registration.Slot` is the stable handle shared by every generation of that logical registration.
 Use `TryGetCurrent` to capture the current manager and generation together; it returns `false` after
@@ -1185,7 +1198,7 @@ if (slot.TryGetCurrent(out NodeManagerSlotSnapshot current))
 `INodeManagerLifecycle` is a host control-plane API. Lifecycle mutations publish without waiting
 for requests that pinned a retired generation. `CommitAsync` returns after publication and reconciliation,
 without waiting for in-flight generation admissions to drain.
-Use `LifecycleResult.Retired` (or the compatibility `NodeManagerBatchResult.Retirement`) when the caller needs retirement
+Use `LifecycleResult.Retired` when the caller needs retirement
 completion. A post-commit `CleanupFailure` does not undo a removal: its registration is already
 unpublished, and the retirement task carries the eventual cleanup outcome. Do not await retirement from
 the callback or request whose own view or generation admission must drain.
@@ -1200,8 +1213,11 @@ execute. Session closing acquires address-space and server-lifecycle admission t
 dispatch, so it cannot hold one admission while an unrelated node-management callback holds
 the other. A callback can await nested lifecycle publication using its inherited capabilities;
 the host does not lend admission from another callback based on a waiting task.
-Child tasks started by a callback must finish before the callback returns. Captured capabilities
-expire when the callback exits; a later operation must acquire ordinary host admission.
+Child tasks started by a callback must finish before the callback returns. The host serializes
+siblings borrowing the same callback admission and waits for operations already admitted before
+releasing it. An admitted child retains its inherited capabilities for its own nested callbacks.
+A nested operation must not wait for the callback's own completion. Captured capabilities expire
+when the callback exits; a later operation must acquire ordinary host admission.
 
 A lifecycle operation validates the replacement address space before its client-visible commit and
 rolls back on preparation failure. Failures after publication, including readiness, can leave a live
@@ -1284,58 +1300,97 @@ The decision callback runs once and cannot re-enter lifecycle mutation.
 If its external outcome is uncertain, resolve that uncertainty before starting
 another transaction.
 
+If the durable decision succeeds but routing publication fails, the lifecycle
+rejects further mutations with a restart-required error, including mutations
+through writers acquired before the failure. The last successfully published
+view continues serving requests. The lifecycle retains the unpublished
+candidates until orderly shutdown and cleans them through its private-cleanup
+owner. Disposing the prepared unit does not abort those candidates or repeat the
+decision. A false `IsCommitted` is therefore not permission to retry a durable
+decision; stop and restart the server before making further lifecycle changes.
+
 Dispose a committed prepared unit as well, normally through `await using`. A
 successful commit or disposal releases the underlying provider while preserving
-the candidate metadata, `Slots` and `IsCommitted` facts. If provider cleanup
-throws, the adapter reports the failure and retains the provider for a later
-disposal attempt.
+the candidate metadata, `Slots` and `IsCommitted` facts. If a custom provider's
+cleanup throws, the adapter reports the failure and retains that provider for a
+later disposal attempt. For the built-in provider, the lifecycle retains
+unresolved cleanup and the adapter retains the original failure without
+repeating the cleanup callbacks.
 
 The built-in prepared unit gives its abort and immediate manager-disposal attempt
 one owner. Concurrent disposal calls await that attempt and observe its outcome.
 Later calls do not replay those callbacks, even if address-space teardown failed.
 
-Concurrent disposal of a candidate-owned historian builder also shares its active
-capture drain and the original failure. Existing capture handlers are detached
-before that drain. New capture registrations have a later disposal attempt of
-their own. A drain timeout is reported to waiting callers while the consumer
-retains an in-flight provider until it returns.
+When a private candidate was explicitly registered as a conformance contributor, abort leaves
+that registration in place. `NodeManagerCleanupDeferredException.Completion` represents the
+eventual physical cleanup. The registration owner must unregister the contributor; no new
+aggregate reads are then admitted, and cleanup waits for reads already using it. The completion
+task reports a cleanup failure if one occurs. Retrying an unsafe abort or disposal callback is
+not implied by releasing the registration.
+
+Disposal of a candidate-owned historian builder is terminal. It detaches existing
+capture handlers before draining and rejects new capture registrations once
+disposal starts. Concurrent and later disposal calls report the same outcome,
+even if a timed-out consumer subsequently exits. That consumer retains its
+provider until it returns.
 
 The internal publication invocation excludes further preparation when disposal
 starts and retains shutdown admission until every admitted transaction has had
 its cleanup attempt. Callers already waiting for that attempt receive the same
 aggregated failure; a later disposal call does not invoke those callbacks again.
 This does not retry failed private-candidate destruction.
+When an explicitly abandoned unit finishes physical cleanup, an active writer
+releases its reference to that unit. Pending or failed cleanup stays retained,
+and an earlier disposal failure remains reportable when the writer is disposed.
 
 `LifecycleResult.Registrations` and `PublishedSlots` hold slots and record
 generation metadata. A slot retains its currently published generation, which
 may differ from the recorded generation, and any unresolved subscription items.
-The registration snapshot's references to its registration and NodeManager are
-weak; `TryGetNodeManager` resolves the recorded manager while that reference is
-still available.
+The registration snapshot's references to its registration, generation, and
+NodeManager are weak; `TryGetNodeManager` resolves the recorded manager while
+that reference is still available.
 
 `TryGetRegistration` returns the original registration if its weak reference
-resolves. Otherwise, if the manager is available, the current implementation
-reconstructs a handle from its generation association without checking the slot
-or manager against the snapshot. It throws `InvalidOperationException` if the
-current generation number differs from the snapshot's number. Retain the
-original handle when its exact identity matters. The legacy
-`NodeManagerBatchResult` continues to expose strong registration and slot
-snapshots during the compatibility period.
+resolves. Otherwise, it reconstructs a handle only while the original generation
+and manager are available. Reusing the manager for another generation does not
+rebind the snapshot; if the original generation is no longer available, the
+method returns `false`. Snapshot equality compares the slot, identifier, and
+generation number, not the exact prepared generation instance.
 
-Lifecycle registration reserves a resource identity across standard adapters
-and custom facades that expose the same synchronous manager. Standard adapters
-normalize to the underlying manager, while distinct custom facades can have
-separate generation identities. Registration can associate a facade with an
-existing resource generation without changing that generation's owner. An
-addition is rejected when the resource's reserved generation is retiring; a
-live resource cannot be assigned to another slot. Converting a native
-asynchronous manager through a synchronous adapter preserves its generation
-identity.
+Lifecycle registration reserves the exact logical NodeManager identity.
+Transparent stack adapters preserve that identity, including a synchronous
+round trip; adapter subclasses and custom facades remain independent owners.
+Distinct facades, including a registered raw manager, can concurrently share a
+physical resource without sharing generations or replacing each other's routes.
+An earlier unregistered or unpublished owner never becomes the generation of a
+newly published facade.
 
-If a resource already has a generation owned by another instance, source
-admission can reject a newly published facade's bound event and data emissions.
-All-events dispatch can also select the earlier owner. Avoid publishing a custom
-facade after another instance has acquired the resource generation.
+When a routing view contains distinct visible owners of the same resource, an
+unbound emission from that resource is rejected. An emission already bound to
+an exact visible generation can continue through that generation; standard
+adapters for the same owner remain aliases. An explicit binding to a published
+generation also authorizes the raw resource and its transparent aliases, but
+not another custom facade. It never redirects an old generation token to a
+new generation.
+
+Physical ownership is separate from routing identity. Retiring one facade closes
+its admission without stopping a producer still needed by another live or
+prepared owner. Cleanup retains opaque facade ownership and waits for every
+shared owner to close; it stops producers before joining admitted work, and
+serializes destruction after all shared request and verification admissions
+drain. An abandoned private candidate can therefore report deferred cleanup
+while another owner remains live. Each failed disposal keeps its original
+failure until the exact trusted verification and confirmation complete.
+An accepted factory result reserves physical ownership before its generation
+is assigned, so retirement cannot enter that preparation gap. A factory result
+using a retiring or cleaned resource is rejected before ownership transfers;
+the lifecycle does not guess that a new facade may safely dispose that resource.
+
+Successful cleanup releases candidate metadata and physical associations without
+disposing an independently borrowed resource. Logical and physical tombstones
+still reject reuse; they do not keep a cleaned candidate or server alive through
+a caller-held borrowed resource. A tentative retirement can be restored only
+before physical cleanup starts and after its admitted work has drained.
 
 The routing swap commits the transaction. A later callback failure cannot
 abort it. Retain `LifecycleResult` and retry unfinished
@@ -1345,6 +1400,99 @@ abort it. Retain `LifecycleResult` and retry unfinished
 `Retired` completes independently after retired generations drain and cleanup
 finishes. `RetirementStatus` distinguishes pending, completed,
 completed-with-failure and canceled retirement.
+
+#### Recovering retained cleanup
+
+A NodeManager can implement `INodeManagerCleanupParticipant` to retain an exact resource
+whose disposal failed. The participant keeps the resource and original exception private,
+assigns an opaque failure identifier, and reports a bounded description. It must not repeat
+the failed disposal merely because shutdown or recovery is requested. Confirmation removes
+only the matching retained failure; other failures continue to block cleanup.
+The lifecycle also retains a failed manager-disposal attempt. For a transparent
+stack adapter, verification receives the wrapped disposal target; a custom facade
+remains the resource to verify.
+Each participant returns a stable snapshot whose backing storage is not changed by later
+registry updates. The host revokes each participant capability when its callback returns or
+throws, before inspecting the returned snapshot or confirmation outcome. It copies and validates
+the snapshot before using it.
+Discovery and confirmation must remain available until lifecycle cleanup finishes, including
+after the manager's disposal callback returns. During published retirement and private-candidate
+cleanup, the lifecycle checks for retained failures before producer preparation and after
+its outer cleanup stages. A callback must also stop its own later cleanup steps if one of its
+internal steps retains a failure.
+
+The host configures trusted `INodeManagerCleanupAuthorization`, `INodeManagerCleanupVerifier`,
+and `INodeManagerCleanupAudit` adapters before the server starts or becomes accessible. With
+the generic host, register those adapters in dependency injection before building the host.
+For a directly constructed `StandardServer`, construct `NodeManagerCleanupRecovery` with the
+server and adapters before starting it. The authority is fixed for that server once bound;
+starting without recovery configuration does not permit installing adapters later.
+
+The authorization adapter authenticates the current host request and authorizes each operation.
+The verifier receives a `NodeManagerCleanupResource` containing the exact synchronous or
+asynchronous resource and must establish that it was actually cleaned up. Use
+`TryGetDisposable` or `TryGetAsyncDisposable` to identify the disposal path and retrieve
+the original resource. Authentication, a resource name, or an operator assertion alone is not proof.
+The host retains the generation until verification returns. The verifier must honor
+cancellation, must not retain the resource after it returns, and must not await cleanup of
+that generation from its callback. Confirmation or reconciliation for the same generation
+is rejected in the verification execution context while verification is active.
+The audit adapter must persist each record before returning and remain available for recovery
+after a failed stop. The host can resolve `INodeManagerCleanupRecovery` and expose its
+operations through an appropriately protected operator interface. Given the resolved
+`recovery` service and a request cancellation token:
+
+```csharp
+NodeManagerCleanupDiscoveryResult discovery =
+    await recovery.DiscoverDetailedAsync(cancellationToken);
+ArrayOf<RetainedNodeManagerCleanupFailure> failures = discovery.Failures;
+ArrayOf<NodeManagerCleanupDiscoveryIssue> issues = discovery.Issues;
+ArrayOf<NodeManagerCleanupFailureHandle> pending =
+    await recovery.DiscoverPendingConfirmationsAsync(cancellationToken);
+```
+
+These snapshots require authorization and audit. Detailed discovery returns available failures even when
+a participant cannot be inspected, with an opaque generation or participant identifier and a typed issue.
+An issue is not evidence that the affected participant has no failures; cleanup cannot treat an uninspectable
+participant as empty. A generation with closed recovery admission may already be undergoing cleanup.
+The host records a partial discovery outcome. `DiscoverAsync` instead throws if the snapshot is incomplete.
+Failure descriptions contain no resource
+reference or exception. The host exposes the known `DirectoryCursor`, `CompanionResource`,
+`HistoryContinuation`, `NodeManager`, and `RetiredConsumer` kinds, replaces other kinds with `Resource`, omits
+names, and retains only the status code bits without participant-supplied status text or flags. Pending confirmation
+discovery returns opaque handles only. A snapshot can become stale. If a generation has closed recovery
+admission, retry its discovery after the active cleanup operation completes.
+
+After an authorized operator selects a failure, `ConfirmAsync` verifies its exact resource
+and records the request and successful verification before asking the participant to clear
+it. Verification calls can overlap, but once a verified request reserves confirmation, new
+verifications for that generation are rejected and confirmation waits for admitted verifiers
+to exit. Reconciliation also waits for admitted verifiers before inspecting retained failures.
+Cancelling either wait does not clear the failure. If the confirmation outcome cannot
+be observed, or if auditing or resumption fails after
+the participant cleared the failure, the handle remains available through pending
+confirmation discovery while evidence is retained. Rediscover the failures: if the same
+failure remains, confirmation requires fresh verification; if it is absent, use
+`ReconcileAsync` with the pending handle. Reconciliation requires fresh authorization and
+audit, and other retained failures must also be addressed. Discovery itself does not grant
+confirmation or reconciliation authority.
+
+If another failure appears while an audited confirmation is waiting for retirement, the
+host can confirm that failure without discarding the earlier confirmation. The earlier offer
+is held while the new operation runs. If that operation does not establish a safe outcome,
+the earlier handle remains discoverable and must be reconciled before cleanup can resume.
+
+An audit record of `Succeeded` for confirmation or reconciliation records that the relevant
+checks completed; it is written before cleanup resumption and does not report physical
+retirement. A later resumption failure can produce `ResumptionFailed` or a
+`NodeManagerCleanupPostConfirmationException`. Check pending discovery rather than assuming
+the participant was rolled back or that cleanup remains unfinished. Observe the retirement
+or deferred-cleanup completion separately. Those original outcomes are not rewritten when
+later recovery succeeds.
+
+The original cleanup exception is retained to preserve its identity. An exception, result,
+task, or prepared unit retained by application code can therefore keep referenced resources
+alive even after the lifecycle releases its own references.
 
 #### Capturing inputs and validating candidates
 
@@ -1619,6 +1767,12 @@ continuation-point store. A resume after the checked generation's gate closes re
 but a later page resolves target nodes through that request's current view. The Session's current
 permissions are checked on every page, and another Session cannot consume its token.
 
+With the built-in Session store, a history-read scope can transfer its restored point only
+while the NodeManager callback is active. A captured asynchronous context cannot restore that
+point from an expired scope or use that scope to claim a newer point with the same token.
+Complete work using a restored point before the callback returns; retaining the point alone
+does not extend the issuing generation's admission.
+
 Retirement waits for request-view epochs and generation-gated background work, not saved
 continuation points. The built-in Session store invalidates saved cursors during retirement.
 Releasing a point, cache eviction, cancellation, or Session close also disposes their cursor
@@ -1664,8 +1818,7 @@ server facade with private namespace tables, a type overlay and an encodeable bu
 supplied server (including contexts copied from it), not a previously captured serving server, when
 registering candidate metadata. Staging never changes the serving namespace indexes or registrations.
 Prepared transactions, publication capture, and validation are part of this canonical lifecycle
-contract. `INodeManagerBatchLifecycle` and `INodeManagerPublicationLifecycle` remain compatibility
-markers; callers do not need to downcast the lifecycle to discover those operations.
+contract; callers do not downcast the lifecycle to discover those operations.
 
 Use typed service-provider interfaces on the supplied server rather than casting it to
 `ServerInternalData`. For example, `IConformanceUnitsManagerProvider` exposes the shared
@@ -1749,9 +1902,22 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
   corresponding information for the current view. A nested lifecycle change during reconciliation
   or readiness can advance the current view without changing the original result's revision or slot set.
 - Before the durable decision callback runs, the batch reserves the serving routing revision.
-  Public namespace registration and unregistration wait until the reservation is released;
-  private staged registrations do not enter the serving image. Namespace changes initiated by
-  the decision callback itself are rejected instead of waiting on their own reservation.
+  Public namespace registration and unregistration from other flows proceed during a pending decision
+  when their namespace and manager lifetime are unrelated to the batch. Those mutations update the
+  serving routes immediately and are mirrored only into that exact reserved successor, preserving
+  route order and existing reader images. Changes to a namespace served by the batch, or to a manager
+  being added, replaced, removed or made visible, wait until that reservation is released.
+  Both synchronous compatibility APIs and asynchronous namespace APIs use this admission rule;
+  cancellation of an asynchronous wait does not release the batch or other waiters.
+  Private staged registrations do not enter the serving image during preparation. Namespace changes
+  initiated by the durable decision callback itself, including staged changes, are rejected instead
+  of waiting on their own reservation.
+  Registering a previously unknown unrelated URI appends it after the batch's reserved namespace
+  indices. To preserve those indices, the reserved URI suffix becomes permanent before that append,
+  even if the decision later fails or is cancelled; candidate routes and managers remain unpublished.
+  Existing URI registrations and unregistrations do not materialize the reserved suffix.
+  A namespace mutation before reservation still invalidates prepared work; this rule is not an
+  implicit rebase of stale batches or other publication invocations.
   Other routing writers fail with `InvalidOperationException` while it is held; readers are
   unaffected. Retry those writers after it releases. A noncommit or cancellation releases only
   that batch's reservation.
@@ -1819,12 +1985,9 @@ transactional.
 begins ownership of the invocation, and `IsCurrent` reports whether the revisions still match. A stale
 invocation must be disposed and recaptured. Units are prepared with
 `ILifecycleWriter.PrepareAsync` and follow the same decision and cleanup contracts.
-`SupportsPreparedPublication` and `SupportsPublicationIsolation` report whether the attached host
-supports the corresponding transaction operations.
-
-Providers and exact-generation consumers can continue to use
-`INodeManagerLifecycle.CapturePublication` and `INodeManagerPublication.PrepareAsync`;
-the slot-targeted API adapts that same transaction rather than introducing a second writer.
+Providers implement this capture and preparation contract directly. An unsupported
+operation rejects before factories or durable decisions run; there is no fallback
+that drops isolation.
 
 The invocation retains a lifecycle operation across its units, so shutdown waits
 for it. It does not reserve the mutation writer while factories or reconciliation
@@ -1832,50 +1995,26 @@ callbacks run. Another publication can make its captured revisions stale.
 Disposal aborts remaining units, reports cleanup failures and releases operation
 ownership.
 
-#### Retained lifecycle API
+#### Lifecycle interfaces
 
-The slot-targeted operations use the existing provider contract. The following
-public surfaces remain available during the compatibility period; removing them
-requires a later breaking release.
+The lifecycle has one capture, writer, preparation and committed-result path.
+The following interfaces carry its publication and ownership guarantees:
 
 | Surface | Current responsibility | Consumer guidance |
 |---|---|---|
-| `INodeManagerLifecycle.SupportsPreparedPublication` | Reports whether the host supports unpublished prepared units. | Check before offering prepared changes through a custom provider. |
-| `INodeManagerLifecycle.SupportsPublicationIsolation` | Reports captured-revision publication support. The default provider requires a dynamic batch host and an `EncodeableFactory`; WoT uses the value to advertise supported atomicities. | Keep the capability check when capturing inputs across publication units. The property does not reserve the writer. |
-| `INodeManagerPublicationLifecycle` and `INodeManagerBatchLifecycle` | Compatibility marker interfaces; their transaction members are on `INodeManagerLifecycle`. | Use `INodeManagerLifecycle` directly rather than downcasting to a marker. |
-| `NodeManagerLifecycle(StandardServer)` | Creates an additional handle forwarding publication to the server's canonical lifecycle owner. Disposing this handle rejects new operations through it without disposing serving generations. | Prefer `StandardServer.NodeManagerLifecycle` or the injected `INodeManagerLifecycle`; constructing a handle does not create an independent publication domain. |
-| `ISyncNodeManagerReadinessNotification` | Allows an adapted synchronous manager to receive `OnServerReady`. The adapter prefers `INodeManagerReadinessNotification` when both are implemented. | New managers implement the awaited readiness interface. Existing synchronous callbacks remain supported. |
-| `IPreparedNodeManagerBatch`, `NodeManagerBatchResult` and exact-generation changes | Preserve the provider boundary and strong registration handles for existing consumers. | Use `IPreparedChanges`, `LifecycleChange` and `LifecycleResult` for slot-targeted application code; retain a legacy handle explicitly when strong ownership is required. |
+| `INodeManagerLifecycle` | Exposes live slots and registrations, captures revisions, and prepares transactions. | Use `StandardServer.NodeManagerLifecycle` or the injected provider. Live registration inspection holds strong handles. |
+| `ILifecycleCapture` and `ILifecycleWriter` | Preserve captured revisions across sequential prepared units. | Capture before reading application inputs or checking an exact registration. A stale writer rejects preparation before factory effects. |
+| `IPreparedChanges` | Owns unpublished candidates and immutable read metadata until commit or disposal. | Commit once or dispose; terminal completion releases the preparation payload. |
+| `LifecycleResult` | Reports the committed revision, weak registration snapshots, reconciliation issues and independent retirement. | Handle `CleanupFailure` without replaying the durable decision. Join `Retired` only outside callbacks whose admissions must drain. |
+| `INodeManagerReadinessNotification` | Completes readiness for native and adapted classic managers through one awaited callback. | Classic managers can perform synchronous initialization and return a completed `ValueTask`; see the [readiness migration](MigrationGuide.md#migrating-classic-manager-readiness-callbacks). |
 | `INodeManagerReadImage`, `INodeManagerReadImageSource` and `NodeManagerReadImageExtensions` | Select immutable application state through the request's routing view, or live state without a request pin. A pinned view with no image for an owner does not fall back to newer live state. | Use the context-aware `GetReadImage` and `GetNodeManagers` extensions for request work. Bind new metadata through the [prepared unit](#publishing-typed-metadata); account for any strong references the image holds to its exact `Owner`. |
-| Add/reload/remove extensions and `callerContext` overloads | Forward convenience operations through prepared transactions. The context arguments are ignored. | Use change sets for new code. `ShadowReloadAsync` uses the `Migrate` transition rather than retaining existing subscribers on the old manager. |
-| `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, `NodeManagerRemovalCommittedException` and `INodeManagerCommittedFailure` | Report failures after publication and expose the committed result when supplied. The exceptions retain their strong registration handles. | Inspect `CommittedResult` when present before attempting recovery. Do not repeat the durable decision; retaining the exception can retain its manager after retirement. |
 
-**Binary compatibility is not yet resolved.** Version 2.0.1 declared the
-add, reload, shadow reload, immediate reload and remove overloads as instance
-members of `INodeManagerLifecycle` and `NodeManagerLifecycle`. The current
-extensions do not satisfy references to those members in an existing binary.
-Recompiled callers can use the extensions, but custom lifecycle providers also
-need to implement the current interface's revision, slot, capability and
-transaction members. The release-compatibility disposition remains open.
-
-The 2.0.1 implementation checked `callerContext` when deciding whether a request
-callback could enter lifecycle work; the current extensions ignore that argument.
-The public `NodeManagerLifecycle(StandardServer)` signature remains, but an
-additional handle now forwards to the server's canonical registration owner
-instead of maintaining its own registration collection. The batch and publication
-markers and `ISyncNodeManagerReadinessNotification` were not declared or
-forwarded by the 2.0.1 Server assembly on net48 or net10.0. Compatibility with
-consumers of later previews has not been assessed.
-
-The 2.0.1 `RuntimeNodeSetLifecycleExtensions` methods
-`AddRuntimeNodeSetAsync`, `ReloadRuntimeNodeSetAsync`,
-`ShadowReloadRuntimeNodeSetAsync` and `ImmediateReloadRuntimeNodeSetAsync` remain
-available but are obsolete. The add and reload overloads accepting
-`callerContext` ignore it. `ShadowReloadRuntimeNodeSetAsync` uses the `Migrate`
-transition instead of keeping the previous generation serving existing
-MonitoredItems for their subscription lifetime. Use `LifecycleChange` with
-`RuntimeNodeSetNodeManagerFactory` for new code; see
+Use `LifecycleChange` with `RuntimeNodeSetNodeManagerFactory` to publish runtime
+NodeSets; see
 [Runtime NodeSets](RuntimeNodeSets.md#startup-and-live-lifecycle-semantics).
+The removed 2.x batch, publication, forwarding and committed-exception
+interfaces require source migration and recompilation; see the
+[migration guide](MigrationGuide.md#migrating-the-2x-nodemanager-lifecycle).
 
 `RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback` and
 `RuntimeNodeSetNodeManagerFactory.AllowLifecycleFromRequestCallback` were
@@ -1892,20 +2031,14 @@ not invoke an equivalent invalidation method on custom
 `RemoveForManager` in 2.0.1. The compatibility disposition for these members
 and providers remains open.
 
-This inventory does not make the legacy handles non-owning. A
-`NodeManagerRegistration`, `NodeManagerSlotSnapshot` or legacy batch result can
+These interfaces do not make explicit inspection handles non-owning. A
+`NodeManagerRegistration` or `NodeManagerSlotSnapshot` can
 retain a retired manager after cleanup. Modern result metadata uses
 `NodeManagerRegistrationSnapshot` and `NodeManagerGenerationSnapshot` instead;
 their slots can retain current generations and unresolved subscription items.
 Callers must also account for references carried by their own exception types,
 exception data and callbacks; exposing an exception does not detach its object
 graph.
-
-`INodeManagerCommittedFailure.CommittedResult` can be `null`: the legacy add and
-reload exception constructors accept a registration and failure without a
-transaction result. Those exceptions still describe a committed generation.
-When a result is available, use its reconciliation and retirement contracts;
-the exception's registration remains a separate strong reference.
 
 Retaining a read image that holds its `Owner` strongly, or a caller-held array of
 managers, can retain retired managers independently of the request's routing pin.

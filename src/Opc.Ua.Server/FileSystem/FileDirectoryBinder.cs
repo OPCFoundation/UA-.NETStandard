@@ -232,6 +232,18 @@ namespace Opc.Ua.Server.FileSystem
             public bool UsesVirtualDirectoryBrowsing => false;
 
             /// <inheritdoc/>
+            public void RegisterDirectoryCursor(DirectoryCursorOwnership ownership)
+            {
+                throw new InvalidOperationException("Materialized bindings do not create directory cursors.");
+            }
+
+            /// <inheritdoc/>
+            public void CompleteDirectoryCursor(DirectoryCursorOwnership ownership)
+            {
+                throw new InvalidOperationException("Materialized bindings do not create directory cursors.");
+            }
+
+            /// <inheritdoc/>
             /// <remarks>
             /// Materialized bindings never create virtual directory cursors, so there is nothing to join.
             /// </remarks>

@@ -104,6 +104,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     .ApplyViewAsync(request, applyOmissions, cancellationToken)
                     .ConfigureAwait(false);
                 var all = new List<string>(request.Plan.Omissions.Count + applyOmissions.Count);
+                if (m_initializationFailure is { } failure)
+                {
+                    all.Add("The View owner is live, but reconciliation is pending: " + failure.Message);
+                }
                 for (int i = 0; i < request.Plan.Omissions.Count; i++)
                 {
                     all.Add(request.Plan.Omissions[i]);
@@ -179,22 +183,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 .PrepareAsync([LifecycleChange.Add(factory)], cancellationToken)
                 .ConfigureAwait(false);
             await using var preparedLifetime = prepared.ConfigureAwait(false);
-            LifecycleResult result = await prepared
-                .CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
-            if (!result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration) ||
-                registration is null)
-            {
-                throw new InvalidOperationException("The committed projection-view registration is no longer available.");
-            }
-            m_registration = registration;
-            m_manager = factory.Created ?? throw new InvalidOperationException(
+            WotProjectionViewNodeManager candidate = factory.Created ?? throw new InvalidOperationException(
                 "The projection-view NodeManager factory did not create a NodeManager.");
+            LifecycleResult result = await prepared
+                .CommitAsync(static _ => default, () => m_manager = candidate, cancellationToken).ConfigureAwait(false);
             if (result.CleanupFailure is { } failure)
             {
-                throw new NodeManagerAddCommittedException(
-                    m_registration, result, "The WoT view is live, but reconciliation failed.", failure);
+                m_initializationFailure = failure;
             }
-            return m_manager;
+            return candidate;
         }
 
         private static string JoinOmissions(ArrayOf<string> omissions)
@@ -216,7 +213,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly Dictionary<NodeId, WotViewProjectionHandle> m_live = new();
         private WotProjectionViewNodeManager? m_manager;
-        private NodeManagerRegistration? m_registration;
+
+        /// <summary>The native owner's post-publication initialization diagnostic.</summary>
+        private Exception? m_initializationFailure;
 
         /// <summary>
         /// The single-use factory that creates the shared projection-view NodeManager

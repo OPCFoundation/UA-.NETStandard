@@ -76,10 +76,10 @@ namespace Opc.Ua.History.Tests
             };
 
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
-            await using IPreparedNodeManagerBatch prepared = await m_server.NodeManagerLifecycle
-                .PrepareAsync([NodeManagerBatchChange.Add(new EventHistoryNodeManagerFactory())])
+            await using IPreparedChanges prepared = await m_server.NodeManagerLifecycle
+                .PrepareAsync([LifecycleChange.Add(new EventHistoryNodeManagerFactory())])
                 .ConfigureAwait(false);
-            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
 
             m_clientFixture = new ClientFixture(telemetry: m_telemetry);

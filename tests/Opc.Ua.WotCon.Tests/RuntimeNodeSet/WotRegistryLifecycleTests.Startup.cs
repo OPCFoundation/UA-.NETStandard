@@ -58,8 +58,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         [TestCase(true)]
         public async Task StoredRegistryMaterializesBeforeRegistrationReturnsAsync(bool populated)
         {
-            await m_server.NodeManagerLifecycle.RemoveAsync(
-                m_registryRegistration, callerContext: null).ConfigureAwait(false);
+            await RemoveRegistryAndRetireAsync(m_registryRegistration, CancellationToken.None).ConfigureAwait(false);
             m_coordinator.Dispose();
             m_registry.Dispose();
             int registrationsBefore = m_server.NodeManagerLifecycle.Registrations.Count;
@@ -91,8 +90,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 m_registry, host, documentConverter: new SensorConverter());
             var factory = new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            m_registryRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory, callerContext: null, cancellation.Token).ConfigureAwait(false);
+            m_registryRegistration = RequireStartupRegistration(await m_server.NodeManagerLifecycle
+                .ApplyAsync([LifecycleChange.Add(factory)], cancellation.Token).ConfigureAwait(false));
 
             Assert.That(host.DeadlineExpired, Is.False,
                 "Startup must not wait for its own lifecycle registration gate.");
@@ -198,7 +197,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             /// </summary>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
+            public ValueTask<LifecycleResult?> RemoveAsync(
+                WotProjectionHandle handle, CancellationToken cancellationToken = default)
             {
                 return inner.RemoveAsync(handle, cancellationToken);
             }
@@ -348,6 +348,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 /// Gets the cleanup failure for <c>DeadlinePublication</c>.
                 /// </summary>
                 public Exception? CleanupFailure => inner.CleanupFailure;
+
+                /// <inheritdoc/>
+                public Task Retired => inner.Retired;
 
                 public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
                 {

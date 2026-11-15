@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -64,7 +65,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                 It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(manager.Object);
-            await m_server.NodeManagerLifecycle.AddAsync(factory.Object, null).ConfigureAwait(false);
+            RequireRegistration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                factory.Object), CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
             try
             {
                 await m_server.ShutdownInternalsAsync().AsTask()
@@ -105,8 +109,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                 It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(manager.Object);
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory.Object, null).ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                factory.Object), CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult1.Registrations[0]);
             Assert.That(registration.Identity.Gate.TryEnter(out admission), Is.True);
             Task shutdown = RunWithoutExecutionContext(() => m_server.ShutdownInternalsAsync().AsTask());
             try
@@ -124,34 +130,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Additional lifecycle handles cannot hide serving generations from the server's shutdown owner.
+        /// Repeated lifecycle acquisition returns the server's single generation and shutdown owner.
         /// </summary>
         [Test]
         public async Task AdditionalLifecycleHandleUsesServerGenerationOwnerAsync()
         {
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
-            using var handle = new NodeManagerLifecycle(m_server);
+            var handle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? manager = null;
-            NodeManagerRegistration registration = await handle.AddAsync(
-                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, value => manager = value), null)
-                .ConfigureAwait(false);
+            LifecycleResult added = await handle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, value => manager = value))]).ConfigureAwait(false);
+            Assert.That(added.Issues, Is.Empty);
+            NodeManagerRegistration registration = RequireRegistration(added.Registrations[0]);
             AssertLifecycleValue(manager);
             try
             {
                 Assert.That(lifecycle.Registrations.ToArray(), Does.Contain(registration));
                 Assert.That(handle.Registrations.ToArray(), Does.Contain(registration));
-                handle.Dispose();
-                Assert.That(handle.IsShuttingDown, Is.True);
+                Assert.That(handle, Is.SameAs(lifecycle));
+                Assert.That(typeof(NodeManagerLifecycle).GetConstructors(), Is.Empty);
+                Assert.That(handle.IsShuttingDown, Is.False);
                 Assert.That(lifecycle.IsShuttingDown, Is.False);
-                await Assert.ThatAsync(
-                    () => handle.PrepareAsync([NodeManagerBatchChange.Remove(registration)]).AsTask(),
-                    Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
                 await m_server.ShutdownInternalsAsync().AsTask()
                     .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(lifecycle.Registrations.Count, Is.Zero);
                 Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
                 Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(manager.DisposeCount, Is.EqualTo(1));
+                Assert.That(handle.IsShuttingDown, Is.True);
                 AssertServerInternalsDisposed();
             }
             finally
@@ -167,9 +174,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ServerShutdownDeliversSessionClosingBeforeGenerationRetirementAsync()
         {
             TrackingLifecycleNodeManager? manager = null;
-            await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, value => manager = value), null)
-                .ConfigureAwait(false);
+            RequireRegistration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                kFirstRegistrationValue, value => manager = value)), CancellationToken.None).ConfigureAwait(
+                false)).Registrations[0]);
             AssertLifecycleValue(manager);
             ISession session = m_server.CurrentInstance.SessionManager.GetSession(
                 m_requestHeader.AuthenticationToken)!;
@@ -197,9 +207,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ShutdownFreezePreservesServingAdmissionsUntilRemovalAsync()
         {
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, _ => { }), null)
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult2 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                kFirstRegistrationValue, _ => { })), CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult2.Registrations[0]);
             await lifecycle.BeginShutdownAsync(m_server.CurrentInstance).ConfigureAwait(false);
             GenerationGate.Lease? admission = null;
             try
@@ -208,7 +220,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(registration.Identity.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
                 Assert.That(registration.Identity.Gate.TryEnter(out admission), Is.True);
                 await Assert.ThatAsync(
-                    () => lifecycle.PrepareAsync([NodeManagerBatchChange.Remove(registration)]).AsTask(),
+                    async () =>
+                    {
+                        await using ILifecycleWriter writer = await LifecycleInspection.Capture(
+                            lifecycle, registration).BeginAsync(CancellationToken.None).ConfigureAwait(false);
+                        await using IPreparedChanges prepared = await writer.PrepareAsync(
+                            [LifecycleChange.Remove(registration.Slot)]).ConfigureAwait(false);
+                    },
                     Throws.InvalidOperationException.With.Message.Contains("shutting down")).ConfigureAwait(false);
             }
             finally
@@ -228,9 +246,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? manager = null;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, value => manager = value), null)
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult3 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                kFirstRegistrationValue, value => manager = value)), CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult3.Registrations[0]);
             AssertLifecycleValue(manager);
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             Assert.That(registration.Identity.Gate.TryEnter(out GenerationGate.Lease? admission), Is.True);
@@ -264,17 +284,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? manager = null;
-            await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, value => manager = value), null)
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult4 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                kFirstRegistrationValue, value => manager = value)), CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult4.Registrations[0]);
             AssertLifecycleValue(manager);
             TrackingLifecycleNodeManager? independent = null;
-            await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+            RequireRegistration(
+                (await CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                 kSecondRegistrationValue, value => independent = value,
-                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownIndependent"), null).ConfigureAwait(false);
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownIndependent")),
+                CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
             AssertLifecycleValue(independent);
             IServerInternal server = m_server.CurrentInstance;
             var core = server.NodeManager.CoreNodeManager;
+            bool confirmed = false;
             if (failDisposal)
             {
                 manager.DisposeFailuresRemaining = 1;
@@ -296,10 +321,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(independent.DisposeCount, Is.EqualTo(1));
                 Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(manager.DisposeCount, Is.EqualTo(failDisposal ? 1 : 0));
-                await m_server.ShutdownInternalsAsync().AsTask()
-                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                if (failDisposal)
+                {
+                    await Assert.ThatAsync(
+                        () => m_server.ShutdownInternalsAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)),
+                        Throws.TypeOf<AggregateException>()).ConfigureAwait(false);
+                    Assert.That(manager.DisposeCount, Is.EqualTo(1));
+                    Assert.That(manager.DisposalCompleted.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                    await ConfirmFixtureManagerCleanupAsync(registration.Identity, resource =>
+                        resource.TryGetAsyncDisposable(out IAsyncDisposable? retained) &&
+                        ReferenceEquals(retained, manager) &&
+                        manager.DisposalCompleted.Status == TaskStatus.RanToCompletion).ConfigureAwait(false);
+                    confirmed = true;
+                }
+                else
+                {
+                    await m_server.ShutdownInternalsAsync().AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
                 Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(failDisposal ? 1 : 2));
-                Assert.That(manager.DisposeCount, Is.EqualTo(failDisposal ? 2 : 1));
+                Assert.That(manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(independent.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(independent.DisposeCount, Is.EqualTo(1));
                 Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
@@ -307,12 +348,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
+                if (failDisposal && !confirmed &&
+                    lifecycle.GetRetirementFailure(registration.Identity) is not null)
+                {
+                    await ConfirmFixtureManagerCleanupAsync(registration.Identity, resource =>
+                        resource.TryGetAsyncDisposable(out IAsyncDisposable? retained) &&
+                        ReferenceEquals(retained, manager) &&
+                        manager.DisposalCompleted.Status == TaskStatus.RanToCompletion).ConfigureAwait(false);
+                }
                 await FinishShutdownTestAsync().ConfigureAwait(false);
             }
         }
 
         /// <summary>
-        /// Failed shutdown publication notifications cannot skip independent application cleanup or retire dependencies.
+        /// Failed shutdown publication notifications cannot skip independent application cleanup
+        /// or retire dependencies.
         /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
@@ -337,12 +387,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                    kFirstRegistrationValue, value => manager = value), timeout.Token).ConfigureAwait(false);
-                await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                RequireRegistration(
+                    (await CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, value => manager = value)), timeout.Token).ConfigureAwait(
+                        false)).Registrations[0]);
+                RequireRegistration(
+                    (await CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, value => independent = value,
-                    "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownPostSwapIndependent"),
-                    timeout.Token).ConfigureAwait(false);
+                    "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownPostSwapIndependent")),
+                    timeout.Token).ConfigureAwait(false)).Registrations[0]);
                 AssertLifecycleValue(manager);
                 AssertLifecycleValue(independent);
                 manager.DeleteAddressSpaceFailuresRemaining = failCleanup ? 1 : 0;
@@ -423,16 +476,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IServerInternal server = m_server.CurrentInstance;
             TrackingLifecycleNodeManager? manager = null;
-            IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
-                    kFirstRegistrationValue, value => manager = value))], null, timeout.Token)
+            IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, value => manager = value))], timeout.Token)
                 .ConfigureAwait(false);
             AssertLifecycleValue(manager);
             var failure = new IOException("The committed publication callback failed.");
             bool drainedWithoutDisposal;
             try
             {
-                NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, () =>
+                LifecycleResult result = await prepared.CommitAsync(_ => default, () =>
                 {
                     if (failPublication)
                     {
@@ -457,14 +510,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await prepared.DisposeAsync().ConfigureAwait(false);
                 }
                 Task shutdown = lifecycle.BeginShutdownAsync(server, timeout.Token).AsTask();
-                drainedWithoutDisposal = await Task.WhenAny(shutdown, Task.Delay(TimeSpan.FromSeconds(20), timeout.Token))
+                drainedWithoutDisposal = await Task.WhenAny(
+                    shutdown, Task.Delay(TimeSpan.FromSeconds(20), timeout.Token))
                     .ConfigureAwait(false) == shutdown;
                 await prepared.DisposeAsync().ConfigureAwait(false);
                 await prepared.DisposeAsync().ConfigureAwait(false);
                 await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(manager.DisposeCount, Is.Zero, "Disposing the committed owner must not undo publication.");
                 Assert.That(GetBranchRegistration(lifecycle, result.Registrations[0].Id),
-                    Is.SameAs(result.Registrations[0]));
+                    Is.SameAs(RequireRegistration(result.Registrations[0])));
             }
             finally
             {
@@ -487,9 +541,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IServerInternal server = m_server.CurrentInstance;
             TrackingLifecycleNodeManager? candidate = null;
-            IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
-                    kFirstRegistrationValue, value => candidate = value))], null, timeout.Token)
+            IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, value => candidate = value))], timeout.Token)
                 .ConfigureAwait(false);
             AssertLifecycleValue(candidate);
             try
@@ -532,21 +586,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// A successful durable decision must not turn a pre-swap publication failure into candidate abort.
+        /// A post-decision publication failure retains the candidate and blocks changes until shutdown.
         /// </summary>
         [Test]
         public async Task DurableDecisionBeforeRoutingFailureDoesNotAbortCandidateAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            await using ILifecycleWriter retainedWriter =
+                await LifecycleChangeExtensions.BeginAsync(lifecycle, cancellationToken: timeout.Token)
+                    .ConfigureAwait(false);
             TrackingLifecycleNodeManager? candidate = null;
             var expected = new IOException("Injected failure after the durable decision.");
             bool decisionCompleted = false;
-            IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
-                    kFirstRegistrationValue, value => candidate = value))], null, timeout.Token)
+            bool shutdownCompleted = false;
+            IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, value => candidate = value))], timeout.Token)
                 .ConfigureAwait(false);
             AssertLifecycleValue(candidate);
+            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+            NodeManagerRoutingTable.RoutingSnapshot publishedView = host.RoutingRevision;
             m_server.HostBoundary.Publication = async (plan, _) =>
             {
                 await plan.Commit.DecideAsync(timeout.Token).ConfigureAwait(false);
@@ -573,23 +633,75 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     "The serving routing view did not reach its publication commit point.");
                 Assert.That(candidate!.DeleteAddressSpaceCount, Is.Zero);
                 Assert.That(candidate.DisposeCount, Is.Zero);
+                Assert.That(host.RoutingRevision, Is.SameAs(publishedView));
+                Assert.That(retainedWriter.IsCurrent, Is.False);
+                DataValue serving = await ReadValueAsync(VariableIds.Server_ServerStatus_State)
+                    .ConfigureAwait(false);
+                Assert.That(serving.StatusCode, Is.EqualTo(StatusCodes.Good),
+                    "A failed lifecycle must not stop the last successfully published view from serving requests.");
 
                 await prepared.DisposeAsync().ConfigureAwait(false);
 
                 Assert.That(candidate.DeleteAddressSpaceCount, Is.Zero);
                 Assert.That(candidate.DisposeCount, Is.Zero,
                     "A candidate covered by the successful durable decision must not be aborted.");
+
+                m_server.HostBoundary.Publication = null;
+                var rejectedFactory = new CountingNodeManagerFactory(
+                    [kSecondModelNamespaceUri],
+                    (_, _, _) => throw new InvalidOperationException("The new candidate factory must not run."));
+                InvalidOperationException? rejected = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await lifecycle.ApplyAsync([LifecycleChange.Add(rejectedFactory)], timeout.Token)
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(rejectedFactory.CreateCount, Is.Zero);
+                Assert.That(rejected!.Message, Does.Contain("restart").IgnoreCase);
+                InvalidOperationException? rejectedWriter =
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await retainedWriter.PrepareAsync(
+                            [LifecycleChange.Add(rejectedFactory)], timeout.Token).ConfigureAwait(false))
+                        .ConfigureAwait(false);
+                Assert.That(rejectedWriter!.Message, Does.Contain("restart").IgnoreCase);
+                Assert.That(rejectedFactory.CreateCount, Is.Zero);
+                Assert.That(candidate.DeleteAddressSpaceCount, Is.Zero);
+                Assert.That(candidate.DisposeCount, Is.Zero);
+
+                await retainedWriter.DisposeAsync().ConfigureAwait(false);
+                await m_server.ShutdownInternalsAsync(timeout.Token).ConfigureAwait(false);
+                shutdownCompleted = true;
+                Assert.That(candidate.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(candidate.DisposeCount, Is.EqualTo(1));
+                AssertServerInternalsDisposed();
             }
             finally
             {
                 m_server.HostBoundary.Publication = null;
+                await retainedWriter.DisposeAsync().ConfigureAwait(false);
                 await prepared.DisposeAsync().ConfigureAwait(false);
-                if (candidate is not null)
+                using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                if (!shutdownCompleted)
                 {
-                    await candidate.DeleteAddressSpaceAsync(timeout.Token).ConfigureAwait(false);
-                    await candidate.DisposeAsync().ConfigureAwait(false);
+                    m_requestHeader = null!;
+                    await m_server.ShutdownInternalsAsync(cleanupTimeout.Token).ConfigureAwait(false);
+                    shutdownCompleted = true;
+                }
+                try
+                {
+                    if (candidate is not null && candidate.DisposeCount == 0)
+                    {
+                        if (candidate.DeleteAddressSpaceCount == 0)
+                        {
+                            await candidate.DeleteAddressSpaceAsync(cleanupTimeout.Token).ConfigureAwait(false);
+                        }
+                        await candidate.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    await FinishShutdownTestAsync().ConfigureAwait(false);
                 }
             }
+            Assert.That(candidate!.DeleteAddressSpaceCount, Is.EqualTo(1));
+            Assert.That(candidate.DisposeCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -616,10 +728,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return new ValueTask<IAsyncNodeManager>(manager);
                 });
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
-            IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], null, timeout.Token).ConfigureAwait(false);
+            IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(manager);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
+            Task<LifecycleResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
             Task? disposal = null;
             Task? shutdown = null;
             try
@@ -665,12 +777,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? manager = null;
-            IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
-                    kFirstRegistrationValue, value => manager = value))], null, timeout.Token)
+            IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, value => manager = value))], timeout.Token)
                 .ConfigureAwait(false);
             AssertLifecycleValue(manager);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async _ =>
+            Task<LifecycleResult> commit = prepared.CommitAsync(async _ =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -685,7 +797,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(manager.DisposeCount, Is.Zero);
 
                 release.TrySetResult(true);
-                NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(prepared.IsCommitted, Is.True);
                 Assert.That(result.Registrations.Count, Is.EqualTo(1));
                 await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);

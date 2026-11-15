@@ -96,10 +96,14 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            NodeManagerReadinessScope? parent = Interlocked.Exchange(ref m_parent, null);
+            // Normal unwinding restores captured parent access; out-of-order disposal detaches descendants.
             if (ReferenceEquals(s_current.Value, this))
             {
-                s_current.Value = parent;
+                s_current.Value = m_parent;
+            }
+            else
+            {
+                Interlocked.Exchange(ref m_parent, null);
             }
             Interlocked.Exchange(ref m_server, null);
             Interlocked.Exchange(ref m_generation, null);

@@ -3949,6 +3949,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Seals cleanup recovery configuration before overridable startup callbacks run.
+        /// </summary>
+        internal sealed override void SealStartupBindings()
+        {
+            m_nodeManagerLifecycle.SealCleanupAuthority();
+        }
+
+        /// <summary>
         /// Called before the server starts.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
@@ -5757,7 +5765,7 @@ namespace Opc.Ua.Server
             [
                 .. m_asyncNodeManagerFactories,
                 .. m_nodeManagerFactories.Select(
-                    static factory => new NodeManagerLifecycleExtensions.SyncFactoryAdapter(factory))
+                    static factory => new LifecycleChangeExtensions.SyncFactoryAdapter(factory))
             ];
         }
 

@@ -143,6 +143,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManager replacement = CreateManager();
             table.Replace(original.Object, replacement, BatchNamespaceIndexes);
             Task stopping = generation.PrepareForShutdownAsync();
+            NodeManagerRoutingTable.RoutingSnapshot before = table.Revision;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -153,6 +154,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 Assert.That(() => table.Replace(replacement, original.Object, BatchNamespaceIndexes),
                     Throws.InvalidOperationException.With.Message.Contains("retired"));
+                Assert.That(table.Revision, Is.SameAs(before));
+                Assert.That(NodeManagerGenerationRegistry.GetOrCreate(original.Object), Is.SameAs(generation));
                 Assert.That(table.Revision.VisibleNodeManagers, Does.Contain(replacement));
                 Assert.That(table.Revision.VisibleNodeManagers, Does.Not.Contain(original.Object));
                 Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
@@ -162,6 +165,67 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 release.TrySetResult(true);
                 await stopping.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A replacement factory cannot revive a retired instance even before any producer-shutdown attempt.
+        /// </summary>
+        [Test]
+        public void ReplacementRejectsRetiredGenerationBeforeProducerShutdown()
+        {
+            var original = new Mock<IAsyncNodeManager>();
+            Mock<INodeManagerShutdown> shutdown = original.As<INodeManagerShutdown>();
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            table.Add(original.Object, BatchNamespaceIndexes);
+            NodeManagerGeneration retired = table.GetGeneration(original.Object);
+            IAsyncNodeManager replacement = CreateManager();
+            table.Replace(original.Object, replacement, BatchNamespaceIndexes);
+            NodeManagerRoutingTable.RoutingSnapshot before = table.Revision;
+            NodeManagerGeneration current = table.GetGeneration(replacement);
+            Assert.That(retired.IsQuiescent, Is.True);
+
+            Assert.That(() => table.Replace(replacement, original.Object, BatchNamespaceIndexes),
+                Throws.InvalidOperationException.With.Message.Contains("retired"));
+
+            Assert.That(table.Revision, Is.SameAs(before));
+            Assert.That(retired.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+            Assert.That(current.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(current.Slot.Current, Is.SameAs(current));
+            shutdown.Verify(value => value.PrepareForShutdownAsync(), Times.Never);
+        }
+
+        /// <summary>
+        /// Explicit rollback preserves the removed identity and rejects restoration until its admitted work drains.
+        /// </summary>
+        [Test]
+        public void RestoreRejectsRemovedGenerationUntilAdmittedWorkDrains()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager manager = CreateManager();
+            table.Add(manager, BatchNamespaceIndexes);
+            NodeManagerGeneration generation = table.GetGeneration(manager);
+            Assert.That(generation.Gate.TryEnter(out GenerationGate.Lease? admission), Is.True);
+            try
+            {
+                NodeManagerRoutingTable.NodeManagerRoutingPosition position = table.RemoveAndCapturePosition(manager);
+                NodeManagerRoutingTable.RoutingSnapshot before = table.Revision;
+                Assert.That(() => table.Restore(manager, position),
+                    Throws.InvalidOperationException.With.Message.Contains("before its work drains"));
+                Assert.That(table.Revision, Is.SameAs(before));
+                Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+                Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1));
+
+                admission!.Dispose();
+                table.Restore(manager, position);
+                Assert.That(table.GetGeneration(manager), Is.SameAs(generation));
+                Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(generation.Slot.Current, Is.SameAs(generation));
+                AssertSingleManagerRoute(table.NamespaceManagers, 2, manager);
+            }
+            finally
+            {
+                admission?.Dispose();
             }
         }
 

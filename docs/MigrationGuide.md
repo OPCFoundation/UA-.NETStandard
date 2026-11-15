@@ -24,6 +24,8 @@ covers cross-cutting changes.
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
+- [Migrating the 2.x NodeManager lifecycle](#migrating-the-2x-nodemanager-lifecycle)
+- [Migrating classic-manager readiness callbacks](#migrating-classic-manager-readiness-callbacks)
 - [Migrating custom NodeManager interfaces](#migrating-custom-nodemanager-interfaces)
 - [Migrating NodeManager registration and runtime creation](#migrating-nodemanager-registration-and-runtime-creation)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
@@ -76,6 +78,125 @@ for use in any repository:
 copilot plugin marketplace add OPCFoundation/UA-.NETStandard
 copilot plugin install opcua-v20-migration@opcua-dotnet
 ```
+
+## Migrating the 2.x NodeManager lifecycle
+
+**Breaking change for 2.x consumers:** the superseded batch, publication and
+single-operation lifecycle interfaces have been removed. These interfaces were
+not part of released 1.5.378. Existing binaries compiled against the removed
+2.x members must be migrated and recompiled; extension methods do not provide
+binary compatibility with removed instance members.
+
+| Removed surface | Replacement |
+| --- | --- |
+| `INodeManagerBatchLifecycle`, `IPreparedNodeManagerBatch`, `NodeManagerBatchChange`, `NodeManagerBatchResult` | `INodeManagerLifecycle`, `IPreparedChanges`, `LifecycleChange`, `LifecycleResult` |
+| `INodeManagerPublicationLifecycle`, `INodeManagerPublicationCapture`, `INodeManagerPublication`, `INodeManagerValidationPublication` | `ILifecycleCapture` and `ILifecycleWriter`, obtained through `CaptureChanges()` |
+| `SupportsPreparedPublication`, `SupportsPublicationIsolation`, `CapturePublication()` on the lifecycle | Implement the modern capture and preparation contract; reject unsupported operations before factory or durable effects |
+| Lifecycle `AddAsync`, `ReloadAsync`, `ShadowReloadAsync`, `ImmediateReloadAsync`, `RemoveAsync` and lifecycle-only `callerContext` overloads | Prepare slot-targeted changes and commit their owner |
+| `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, `NodeManagerRemovalCommittedException`, `INodeManagerCommittedFailure` | Inspect the returned `LifecycleResult.CleanupFailure`, `Issues` and `Retired` separately |
+| `NodeManagerLifecycle(StandardServer)` | Use `server.NodeManagerLifecycle`, or resolve `INodeManagerLifecycle` from hosted DI |
+| `RuntimeNodeSetLifecycleExtensions` | Prepare a `LifecycleChange` using `RuntimeNodeSetNodeManagerFactory` |
+| Separate synchronous readiness | Implement the existing TAP readiness contract; see [classic-manager readiness](#migrating-classic-manager-readiness-callbacks) |
+
+Use `LifecycleChange.Add(factory)`, `Reload(slot, factory, transitionMode)` and
+`Remove(slot)`. Choose `Migrate` to move compatible monitored items to the new
+generation, or `Invalidate` to invalidate them. Neither transition keeps the
+old generation available for new work. The released `IStandardServer`
+factory-list `AddNodeManager` and `RemoveNodeManager` contracts are not these
+dynamic lifecycle methods and remain available.
+
+Their presence does not establish compatibility with every released provider.
+In 1.5.378.182, both factory interfaces' `NamespacesUris` property returns
+`StringCollection`; existing 2.x interfaces return `ArrayOf<string>`. That
+pre-existing provider-contract change is separate from the removed transaction
+interfaces above. Recompiling a provider for the current interface is not a
+binary-compatibility check against the released interface.
+
+A retained registration names an exact generation, whereas its slot follows
+later replacements. Capture before checking the registration, then prepare on
+that capture; do not convert an old registration to its slot and recapture
+after the check:
+
+```csharp
+INodeManagerLifecycle lifecycle = server.NodeManagerLifecycle;
+ILifecycleCapture capture = lifecycle.CaptureChanges();
+if (!expected.Slot.TryGetCurrent(out NodeManagerSlotSnapshot current) ||
+    !ReferenceEquals(current.NodeManager, expected.NodeManager) ||
+    current.Generation != expected.Generation)
+{
+    throw new InvalidOperationException("The expected generation is no longer current.");
+}
+
+await using ILifecycleWriter writer = await capture.BeginAsync(cancellationToken);
+await using IPreparedChanges changes = await writer.PrepareAsync(
+    [LifecycleChange.Reload(expected.Slot, replacementFactory)],
+    cancellationToken);
+LifecycleResult result = await changes.CommitAsync(decideAsync, cancellationToken);
+```
+
+Stale captured work rejects before factory or durable effects; it does not
+rebase or retry automatically. A returned result describes an already published
+change even if `CleanupFailure` is non-null. Retry unfinished reconciliation
+through `RetryReconciliationAsync`, not by replaying the durable decision.
+`Retired` reports physical retirement independently. Do not await it from a
+callback whose own generation admission must drain.
+
+Prepared and committed registration snapshots are weak. Use
+`TryGetRegistration` or `TryGetNodeManager` while the recorded owner is
+available. Live `lifecycle.Registrations` inspection handles remain strong;
+retain them only when that ownership is intentional. See
+[NodeManagers](NodeManagers.md#runtime-registration) for transaction,
+retention and shutdown behavior.
+
+### WoT projection hosts
+
+`IWotProjectionHost.RemoveAsync` now returns `ValueTask<LifecycleResult?>`.
+For native lifecycle removal, inspect the committed result's `CleanupFailure`
+and `Retired` instead of catching a removed committed-exception type. A returned
+native result means removal is already published; a reconciliation or
+retirement failure does not authorize replay. The convenience method joins
+retirement; use prepared publication to observe it independently.
+
+A null result means no native result was supplied, not that no work occurred.
+Custom immediate providers complete under their own contract and can return
+null; the stock host also returns null when shutdown owns cleanup. Custom host
+implementations must update their return type.
+
+`IWotPreparedProjectionPublication` implementations must forward the real
+`Retired` task for their prepared operation. Return `Task.CompletedTask` only
+when no physical retirement remains. Stock add/reload and View convenience
+handles report post-publication initialization or reconciliation diagnostics
+through their existing warnings, without throwing an uncommitted-looking
+failure after publication.
+
+Replace the removed `WotProjectionRetirementPolicy.Graceful` and `Immediate`
+aliases with `Migrate` and `Invalidate` respectively.
+
+## Migrating classic-manager readiness callbacks
+
+**Breaking change for 2.x preview consumers:** the superseded
+`ISyncNodeManagerReadinessNotification` interface has been removed. It was not
+part of the 1.5.378 contract. Classic `INodeManager` implementations remain
+supported through `AsyncNodeManagerAdapter`; implement
+`INodeManagerReadinessNotification` for their readiness callback.
+
+Use `ValueTask OnServerReadyAsync(CancellationToken cancellationToken)` instead
+of `void OnServerReady()`. A callback with only synchronous initialization can
+check the token, perform that initialization and return `default`. A callback
+with asynchronous work must await it. Do not block on an asynchronous operation
+to preserve the former void method.
+
+```csharp
+public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+{
+    cancellationToken.ThrowIfCancellationRequested();
+    InitializeSynchronousResources();
+    return default;
+}
+```
+
+The adapter forwards the token to the participant. The participant is
+responsible for observing cancellation before beginning initialization.
 
 ## Migrating custom node write overrides
 
@@ -578,6 +699,15 @@ Subclasses overriding the old monitored-item transfer methods must move their
 overrides to the options-taking methods used by server dispatch. See
 [custom NodeManager interface changes](migrate/2.0.x/node-states.md#custom-nodemanager-interface-changes)
 for the affected methods and deferred initial-value behavior.
+
+The protected `PredefinedNodes` property on `CustomNodeManager2` and
+`AsyncCustomNodeManager`, and the protected `RootNotifiers` property on
+`AsyncCustomNodeManager`, now return `PredefinedNodeDictionary` instead of
+`NodeIdDictionary<NodeState>`. These are binary-breaking changes: recompile
+subclasses and update explicit dictionary types. The indexer and common lookup
+and mutation methods remain available, but the new type is not a
+`ConcurrentDictionary`. Conditional removal and update compare the stored
+node by reference, rather than calling its `Equals` method.
 
 ## Migrating NodeManager registration and runtime creation
 

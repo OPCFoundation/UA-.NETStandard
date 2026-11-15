@@ -551,22 +551,22 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void RegisterPendingRotation(NodeId certificateType, Certificate oldCertificateWithKey)
         {
-            List<PendingCertificateRotation>? collector = m_activeRotationCollector.Value;
-            if (collector == null)
+            lock (m_pendingApplyChangesLock)
             {
-                // Not reachable through the standard ApplyChanges method
-                // handler, which always sets the collector before running
-                // the coordinator's commit loop; nothing to correlate this
-                // rotation with.
-                return;
-            }
+                List<PendingCertificateRotation>? collector =
+                    NodeManagerAmbientScope<RotationCollector>.GetValue(m_activeRotationCollector).Rotations;
+                if (collector == null)
+                {
+                    return;
+                }
 
-            using var rotationCopy = Certificate.FromRawData(oldCertificateWithKey.RawData);
-            collector.Add(new PendingCertificateRotation
-            {
-                OldCertificate = rotationCopy.AddRef(),
-                CertificateType = certificateType
-            });
+                using var rotationCopy = Certificate.FromRawData(oldCertificateWithKey.RawData);
+                collector.Add(new PendingCertificateRotation
+                {
+                    OldCertificate = rotationCopy.AddRef(),
+                    CertificateType = certificateType
+                });
+            }
         }
 
         /// <summary>

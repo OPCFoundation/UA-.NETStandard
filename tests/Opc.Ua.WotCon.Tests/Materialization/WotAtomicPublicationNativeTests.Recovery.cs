@@ -37,9 +37,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -159,10 +161,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             coordinator.Event += (_, change) => events.Add(change);
             int owners = restarted.Lifecycle.Registrations.Count;
 
-            await Assert.ThatAsync(async () => await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator),
-                callerContext: null).ConfigureAwait(false),
-                Throws.InstanceOf<Opc.Ua.Server.NodeManagerAddCommittedException>()).ConfigureAwait(false);
+            LifecycleResult recovery = await restarted.Lifecycle.ApplyAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                    new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))])
+                .ConfigureAwait(false);
+            Assert.That(recovery.CleanupFailure, Is.Not.Null);
+            Assert.That(recovery.Registrations.Count, Is.EqualTo(1));
 
             Assert.That(restarted.Lifecycle.Registrations.Count, Is.EqualTo(owners + 1),
                 "Only the already-committed parent registry remains; recovery candidates must be aborted.");
@@ -239,9 +243,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var events = new List<WotMaterializationEventArgs>();
             coordinator.Event += (_, change) => events.Add(change);
 
-            await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await restarted.Lifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))]).ConfigureAwait(false);
 
             Assert.That(coordinator.Generation, Is.EqualTo(1u));
             Assert.That(registry.Current.Generation, Is.EqualTo(expected.Generation));
@@ -289,9 +292,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             using var registry = new WotRegistryService(store);
             using var coordinator = new WotMaterializationCoordinator(registry, restarted.Host);
 
-            await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await restarted.Lifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))]).ConfigureAwait(false);
 
             Assert.That(coordinator.Generation, Is.EqualTo(5u));
             Assert.That(coordinator.CommittedPublication.RefreshGeneration, Is.EqualTo(5u));
@@ -356,9 +358,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var events = new List<WotMaterializationEventArgs>();
             restoredCoordinator.Event += (_, change) => events.Add(change);
 
-            await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, restoredRegistry, restoredCoordinator),
-                callerContext: null).ConfigureAwait(false);
+            await restarted.Lifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, restoredRegistry, restoredCoordinator))])
+                .ConfigureAwait(false);
 
             Assert.That(restoredCoordinator.Generation, Is.EqualTo(1u));
             Assert.That(restoredRegistry.Current.Generation, Is.EqualTo(committed.Generation));

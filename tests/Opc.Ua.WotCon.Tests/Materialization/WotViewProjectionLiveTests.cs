@@ -105,7 +105,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_registry, projectionHost, documentConverter: new FakeWotDocumentConverter());
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
             await m_server.NodeManagerLifecycle
-                .AddAsync(factory, callerContext: null)
+                .ApplyAsync([LifecycleChange.Add(factory)])
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;

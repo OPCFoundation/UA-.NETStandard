@@ -733,20 +733,17 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="replacement">The byte string.</param>
             /// <param name="factory">The async node manager factory.</param>
-            /// <exception cref="NodeManagerRemovalCommittedException">
-            /// Removal committed, but reconciliation failed before the replacement was created.
-            /// </exception>
             public async Task RestartManagerAsync(
                 ByteString replacement = default, IAsyncNodeManagerFactory? factory = null)
             {
-                await using IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(m_registration)]).ConfigureAwait(false);
-                LifecycleResult result = (await removal.CommitAsync(static _ => default)
-                    .ConfigureAwait(false)).CommittedResult;
-                if (result.CleanupFailure is { } failure)
-                {
-                    throw new NodeManagerRemovalCommittedException(m_registration, result, failure);
-                }
+                ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+                await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                    current => ReferenceEquals(current, m_registration)), Is.True);
+                await using IPreparedChanges removal = await writer.PrepareAsync(
+                    [LifecycleChange.Remove(m_registration.Slot)]).ConfigureAwait(false);
+                LifecycleResult result = await removal.CommitAsync(static _ => default).ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
                 await result.Retired.ConfigureAwait(false);
                 if (!replacement.IsNull)
                 {
@@ -763,9 +760,13 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 Recorder = new RecordingConverter(this);
                 Options.DocumentConverter = Recorder;
-                m_registration = factory is null
-                    ? await m_server.NodeManagerLifecycle.AddAsync(new WotConnectivityNodeManagerFactory(Options), null)
-                    : await m_server.NodeManagerLifecycle.AddAsync(factory, null);
+                LifecycleResult added = await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(factory ?? new WotConnectivityNodeManagerFactory(Options).AsAsync())])
+                    .ConfigureAwait(false);
+                Assert.That(added.CleanupFailure, Is.Null);
+                Assert.That(added.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                m_registration = registration!;
             }
 
             public async ValueTask DisposeAsync()
@@ -840,13 +841,14 @@ namespace Opc.Ua.WotCon.Tests
                     SecurityNone = false
                 };
                 m_server = await m_serverFixture.StartAsync(m_directory);
-                await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(new RuntimeNodeSetOptions
+                await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
                 {
                     Sources = [RuntimeNodeSetSource.FromStream("R42Model",
                         _ => new ValueTask<Stream>(new MemoryStream(
                             Encoding.UTF8.GetBytes(modelXml ?? s_model), false)),
                         modelNamespaces.IsNull ? [ModelUri] : modelNamespaces)]
-                }, null);
+                }))]);
                 Recorder = new RecordingConverter(this);
                 Options = new WotConnectivityServerOptions
                 {
@@ -880,7 +882,12 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     factory = new WotConnectivityNodeManagerFactory(Options);
                 }
-                m_registration = await m_server.NodeManagerLifecycle.AddAsync(factory, null);
+                LifecycleResult publication = await m_server.NodeManagerLifecycle
+                    .ApplyAsync([LifecycleChange.Add(factory.AsAsync())]).ConfigureAwait(false);
+                Assert.That(publication.CleanupFailure, Is.Null);
+                Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                m_registration = registration!;
                 m_clientFixture = new ClientFixture(false, false, telemetry);
                 await m_clientFixture.LoadClientConfigurationAsync(m_directory);
                 Session = await m_clientFixture.ConnectAsync(

@@ -32,10 +32,13 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
+using Opc.Ua.Server.Tests.NodeManager;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 {
@@ -99,10 +102,19 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Test]
         public async Task DerivedStructureInAnotherNamespaceStartsWithTheBaseFieldsAsync()
         {
-            await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kBaseNamespaceUri, BuildBaseXml()), null).ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kDerivedNamespaceUri, BuildDerivedXml()), null).ConfigureAwait(false);
+            LifecycleInspection.Registration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(
+                kBaseNamespaceUri, BuildBaseXml()))), CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
+            LifecycleInspection.Registration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(
+                kDerivedNamespaceUri, BuildDerivedXml()))), CancellationToken.None).ConfigureAwait(
+                false)).Registrations[0]);
 
             IServerInternal server = m_server.CurrentInstance;
             ushort baseNs = checked((ushort)server.NamespaceUris.GetIndex(kBaseNamespaceUri));

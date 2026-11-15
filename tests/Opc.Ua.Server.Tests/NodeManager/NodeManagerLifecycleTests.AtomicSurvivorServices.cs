@@ -35,6 +35,7 @@ using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -61,11 +62,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? original = null;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, manager => original = manager),
-                null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                101, manager => original = manager)), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult1.Registrations[0]);
             AssertLifecycleValue(original);
             NodeId nodeId = new(events ? kRootNodeId : kValueNodeId, original.NamespaceIndexes[0]);
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
@@ -83,19 +86,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 null, subscriptionId, TimestampsToReturn.Both, [request], timeout.Token).ConfigureAwait(false);
             Assert.That(created.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             uint itemId = created.Results[0].MonitoredItemId;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [
+            await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await exactWriter1.PrepareAsync([
                     replace
-                        ? NodeManagerBatchChange.Replace(registration,
-                            CreateTrackingNodeManagementFactory(202, _ => { }), true)
-                        : NodeManagerBatchChange.Remove(registration)
-                ], null, timeout.Token).ConfigureAwait(false);
+                        ? LifecycleChange.Replace(
+                            registration.Slot, CreateTrackingNodeManagementFactory(
+                            202, _ => { }), NodeManagerMonitoredItemTransitionMode.Invalidate)
+                        : LifecycleChange.Remove(registration.Slot)
+                ], timeout.Token).ConfigureAwait(false);
             try
             {
-                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
+                LifecycleResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
+                await exactWriter1.DisposeAsync().ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
-                await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await committed.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(original.DisposeCount, Is.EqualTo(1));
                 original.ValidateNodeCallback = (_, _, _) =>
                     throw new InvalidOperationException("A survivor service re-entered its retired source.");
@@ -204,9 +210,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateNodeManagementFactory(101, range), null, timeout.Token).ConfigureAwait(false);
+            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            LifecycleResult publicationResult2 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateNodeManagementFactory(101, range)), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult2.Registrations[0]);
             var manager = (AsyncCustomNodeManager)registration.NodeManager;
             NodeId valueId = new(kValueNodeId, manager.NamespaceIndexes[0]);
             BaseVariableState variable = RequireLifecycleValue(manager.Find(valueId) as BaseVariableState);
@@ -222,13 +230,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await CheckFiltersAsync().ConfigureAwait(false);
-                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration)], null, timeout.Token)
+                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await exactWriter2.PrepareAsync(
+                    [LifecycleChange.Remove(registration.Slot)], timeout.Token)
                     .ConfigureAwait(false);
-                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
+                LifecycleResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
+                await exactWriter2.DisposeAsync().ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
-                await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await committed.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(manager.Find(valueId), Is.Null);
                 await CheckFiltersAsync().ConfigureAwait(false);
             }

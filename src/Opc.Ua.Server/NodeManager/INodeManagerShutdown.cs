@@ -39,7 +39,10 @@ namespace Opc.Ua.Server
     {
         /// <summary>
         /// Stops admission and drains accepted work while session notifications and
-        /// the address space are still available. Repeated calls join the same work.
+        /// the address space are still available. The lifecycle joins an in-flight
+        /// attempt and may invoke the hook again after a failure. Implementations must
+        /// retain unresolved cleanup failures and avoid repeating cleanup that is not
+        /// safe to retry.
         /// </summary>
         ValueTask PrepareForShutdownAsync();
     }

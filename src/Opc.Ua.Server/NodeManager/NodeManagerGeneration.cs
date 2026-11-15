@@ -203,7 +203,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The immutable identity and lifetime gate for one node-manager instance.
     /// </summary>
-    internal sealed class NodeManagerGeneration
+    internal sealed class NodeManagerGeneration : INodeManagerCleanupParticipant
     {
         /// <summary>
         /// Initializes a generation.
@@ -212,22 +212,27 @@ namespace Opc.Ua.Server
         /// <param name="number">The generation number within the slot.</param>
         /// <param name="nodeManager">The wrapped node manager.</param>
         /// <param name="state">The initial lifecycle state.</param>
+        /// <param name="resourceOwnership">The reserved physical arbiter, or null for an isolated generation.</param>
         internal NodeManagerGeneration(
             NodeManagerSlot slot,
             long number,
             IAsyncNodeManager nodeManager,
-            NodeManagerGenerationState state)
+            NodeManagerGenerationState state,
+            NodeManagerGenerationRegistry.ResourceLifetime? resourceOwnership = null)
         {
             Slot = slot ?? throw new ArgumentNullException(nameof(slot));
             Number = number;
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
-            Gate = new GenerationGate(state);
+            ResourceOwnership = resourceOwnership ?? new NodeManagerGenerationRegistry.ResourceLifetime();
+            Gate = new GenerationGate(state, stateChanged: ResourceOwnership.NotifyStateChanged);
+            CleanupRecoveryGate = new GenerationGate(NodeManagerGenerationState.Live);
             Reference = new NodeManagerGenerationReference(this);
             SessionBindings = new ConcurrentDictionary<NodeId, GenerationSessionBindingRecord>();
             MonitoredItems = new ConcurrentDictionary<IMonitoredItem, ISubscription>(
                 MonitoredItemReferenceComparer.Instance);
             EventBindings = new ConcurrentDictionary<IEventMonitoredItem, GenerationEventBindingRecord>(
                 MonitoredItemReferenceComparer.Instance);
+            ResourceOwnership.Add(this);
         }
 
         /// <summary>
@@ -249,6 +254,21 @@ namespace Opc.Ua.Server
         /// Gets the gate for background work that reaches the manager outside a pinned request.
         /// </summary>
         internal GenerationGate Gate { get; }
+
+        /// <summary>
+        /// Gets the physical ownership arbiter shared by otherwise independent logical generations.
+        /// </summary>
+        internal NodeManagerGenerationRegistry.ResourceLifetime ResourceOwnership { get; }
+
+        /// <summary>
+        /// Gets the opaque identity used to address cleanup failures on this exact generation.
+        /// </summary>
+        internal Guid CleanupRecoveryId { get; } = Guid.NewGuid();
+
+        /// <summary>
+        /// Admits short cleanup-recovery calls until a physical cleanup attempt begins.
+        /// </summary>
+        internal GenerationGate CleanupRecoveryGate { get; }
 
         /// <summary>
         /// Gets the weak generation token safe to retain in continuations.
@@ -634,12 +654,11 @@ namespace Opc.Ua.Server
         {
             lock (m_retirementResourcesLock)
             {
-                if (m_shutdownPreparation is not null)
+                if (m_shutdownPreparation is not null || !IsQuiescent)
                 {
                     return false;
                 }
-                Gate.Restore();
-                return true;
+                return ResourceOwnership.TryRestore(this);
             }
         }
 
@@ -780,32 +799,187 @@ namespace Opc.Ua.Server
         {
             lock (m_retirementResourcesLock)
             {
+                if (m_retirementResources is not null)
+                {
+                    foreach (RetiredConsumer current in m_retirementResources)
+                    {
+                        if (current.Resource.TryGetDisposable(out IDisposable? retained) &&
+                            ReferenceEquals(retained, resource))
+                        {
+                            // Only the synchronous callback selected by reclamation may bypass the transfer.
+                            return current.DisposingThreadId != Environment.CurrentManagedThreadId;
+                        }
+                    }
+                }
                 if (m_retirementResourcesSealed ||
                     Gate.State is not (NodeManagerGenerationState.Retiring or NodeManagerGenerationState.Aborted) ||
-                    Gate.WaitForDrainAsync().IsCompleted)
+                    IsQuiescent)
                 {
                     return false;
                 }
                 m_retirementResources ??= [];
-                foreach (IDisposable current in m_retirementResources)
-                {
-                    if (ReferenceEquals(current, resource))
-                    {
-                        return true;
-                    }
-                }
-                m_retirementResources.Add(resource);
+                m_retirementResources.Add(new RetiredConsumer(NodeManagerCleanupResource.FromDisposable(resource)));
                 return true;
             }
         }
 
         /// <summary>
+        /// Admits the reclaimer's selected synchronous disposal callback once for a transferred consumer.
+        /// </summary>
+        /// <param name="resource">The exact transferred consumer.</param>
+        /// <returns>Whether this call owns the selected disposal callback.</returns>
+        internal bool TryEnterRetiredConsumerDisposal(IDisposable resource)
+        {
+            lock (m_retirementResourcesLock)
+            {
+                if (m_retirementResources is not null)
+                {
+                    foreach (RetiredConsumer current in m_retirementResources)
+                    {
+                        if (current.Resource.TryGetDisposable(out IDisposable? retained) &&
+                            ReferenceEquals(retained, resource) &&
+                            current.DisposingThreadId == Environment.CurrentManagedThreadId &&
+                            !current.CallbackEntered)
+                        {
+                            current.CallbackEntered = true;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Retains a failed continuation cleanup and its session until verified recovery completes.
+        /// </summary>
+        /// <param name="resource">The exact continuation whose disposal failed.</param>
+        /// <param name="failure">The original disposal failure.</param>
+        /// <param name="onConfirmed">Releases the session's ownership after verified cleanup.</param>
+        internal void RetainHistoryCleanupFailure(
+            IDisposable resource,
+            Exception failure,
+            Func<Action?> onConfirmed)
+        {
+            lock (m_retirementResourcesLock)
+            {
+                m_retirementResources ??= [];
+                m_retirementResources.Add(new RetiredConsumer(NodeManagerCleanupResource.FromDisposable(resource))
+                {
+                    Failure = failure,
+                    ResourceKind = "HistoryContinuation",
+                    OnConfirmed = onConfirmed
+                });
+            }
+        }
+
+        /// <summary>
+        /// Retains the exact manager before starting its disposal.
+        /// </summary>
+        /// <param name="resource">The manager being disposed.</param>
+        /// <param name="onCompleted">Marks the disposal stage complete after verified cleanup.</param>
+        /// <returns>The registered disposal attempt.</returns>
+        internal RetiredConsumer BeginManagerCleanup(
+            NodeManagerCleanupResource resource,
+            Action onCompleted)
+        {
+            if (resource.IsEmpty)
+            {
+                throw new ArgumentException("The manager resource is required.", nameof(resource));
+            }
+            if (onCompleted is null)
+            {
+                throw new ArgumentNullException(nameof(onCompleted));
+            }
+            var attempt = new RetiredConsumer(resource)
+            {
+                ResourceKind = "NodeManager",
+                ManagerDisposalInProgress = true,
+                OnConfirmed = () =>
+                {
+                    onCompleted();
+                    return null;
+                }
+            };
+            lock (m_retirementResourcesLock)
+            {
+                m_retirementResources ??= [];
+                m_retirementResources.Add(attempt);
+            }
+            return attempt;
+        }
+
+        /// <summary>
+        /// Owns a failed private abort until full cleanup of the exact manager has been verified.
+        /// Managers without a disposal resource remain discoverable but cannot be confirmed through this seam.
+        /// </summary>
+        /// <param name="resource">The exact manager disposal target, if it has one.</param>
+        /// <param name="failure">The original private abort failure.</param>
+        /// <param name="onConfirmed">Marks abort and disposal complete, without replaying either callback.</param>
+        internal void RetainPrivateAbortFailure(
+            NodeManagerCleanupResource resource,
+            Exception failure,
+            Action onConfirmed)
+        {
+            if (failure is null)
+            {
+                throw new ArgumentNullException(nameof(failure));
+            }
+            if (onConfirmed is null)
+            {
+                throw new ArgumentNullException(nameof(onConfirmed));
+            }
+            var retained = new RetiredConsumer(resource)
+            {
+                Failure = failure,
+                ResourceKind = "NodeManager",
+                ResourceName = "PrivateAbortAndManagerDisposal",
+                OnConfirmed = () =>
+                {
+                    onConfirmed();
+                    return null;
+                }
+            };
+            lock (m_retirementResourcesLock)
+            {
+                m_retirementResources ??= [];
+                m_retirementResources.Add(retained);
+            }
+        }
+
+        /// <summary>
+        /// Completes a manager disposal attempt or retains its original failure.
+        /// </summary>
+        /// <param name="attempt">The exact registered disposal attempt.</param>
+        /// <param name="failure">The disposal failure, or null when disposal succeeded.</param>
+        internal void CompleteManagerCleanup(RetiredConsumer attempt, Exception? failure)
+        {
+            lock (m_retirementResourcesLock)
+            {
+                List<RetiredConsumer>? resources = m_retirementResources;
+                if (resources is null || !resources.Contains(attempt) || !attempt.ManagerDisposalInProgress)
+                {
+                    throw new InvalidOperationException("The manager cleanup attempt is no longer owned.");
+                }
+                attempt.ManagerDisposalInProgress = false;
+                if (failure is null)
+                {
+                    resources.Remove(attempt);
+                }
+                else
+                {
+                    attempt.Failure = failure;
+                }
+            }
+        }
+
+        /// <summary>
         /// Disposes retired consumers after the generation's existing epochs and gate have drained.
-        /// Failed resources remain owned for the next reclamation attempt.
+        /// A failed resource remains owned until its cleanup has been verified.
         /// </summary>
         internal void DisposeRetiredResources()
         {
-            IDisposable[] resources;
+            RetiredConsumer[] resources;
             lock (m_retirementResourcesLock)
             {
                 if (!IsQuiescent)
@@ -815,14 +989,203 @@ namespace Opc.Ua.Server
                 m_retirementResourcesSealed = true;
                 resources = m_retirementResources?.ToArray() ?? [];
             }
-            foreach (IDisposable resource in resources)
+            foreach (RetiredConsumer resource in resources)
             {
-                resource.Dispose();
                 lock (m_retirementResourcesLock)
                 {
-                    m_retirementResources!.RemoveAt(0);
+                    if (!m_retirementResources!.Contains(resource))
+                    {
+                        continue;
+                    }
+                    if (resource.Failure is { } failure)
+                    {
+                        ExceptionDispatchInfo.Capture(failure).Throw();
+                    }
+                    if (resource.DisposingThreadId != 0 || resource.ManagerDisposalInProgress)
+                    {
+                        throw new InvalidOperationException("The retired consumer is already being disposed.");
+                    }
+                    resource.DisposingThreadId = Environment.CurrentManagedThreadId;
+                }
+                try
+                {
+                    if (!resource.Resource.TryGetDisposable(out IDisposable? disposable))
+                    {
+                        throw new InvalidOperationException("The retired consumer has no synchronous disposal.");
+                    }
+                    disposable.Dispose();
+                }
+                catch (Exception failure)
+                {
+                    lock (m_retirementResourcesLock)
+                    {
+                        resource.DisposingThreadId = 0;
+                        resource.Failure = failure;
+                    }
+                    throw;
+                }
+                lock (m_retirementResourcesLock)
+                {
+                    resource.DisposingThreadId = 0;
+                    m_retirementResources!.Remove(resource);
+                }
+                NodeManagerCleanupRecovery.EnsureNoRetainedFailures(this);
+            }
+        }
+
+        /// <inheritdoc/>
+        ArrayOf<NodeManagerCleanupFailure> INodeManagerCleanupParticipant.GetCleanupFailures(
+            NodeManagerCleanupAccess access)
+        {
+            if (access is null)
+            {
+                throw new ArgumentNullException(nameof(access));
+            }
+            lock (m_retirementResourcesLock)
+            {
+                if (!access.IsAuthorizedFor(this))
+                {
+                    throw new UnauthorizedAccessException("The cleanup discovery capability is invalid.");
+                }
+                var failures = new List<NodeManagerCleanupFailure>();
+                if (m_retirementResources is not null)
+                {
+                    foreach (RetiredConsumer resource in m_retirementResources)
+                    {
+                        if (resource.Failure is not null)
+                        {
+                            failures.Add(new NodeManagerCleanupFailure(
+                                resource.Id,
+                                resource.ResourceKind,
+                                resource.ResourceName,
+                                StatusCodes.BadUnexpectedError));
+                        }
+                    }
+                }
+                return new ArrayOf<NodeManagerCleanupFailure>(failures.ToArray());
+            }
+        }
+
+        /// <inheritdoc/>
+        NodeManagerCleanupResource INodeManagerCleanupParticipant.GetCleanupResource(
+            NodeManagerCleanupVerification verification)
+        {
+            if (verification is null)
+            {
+                throw new ArgumentNullException(nameof(verification));
+            }
+            lock (m_retirementResourcesLock)
+            {
+                if (!verification.TryConsume(this, out Guid id))
+                {
+                    throw new InvalidOperationException("The cleanup verification capability is invalid.");
+                }
+                RetiredConsumer? resource = m_retirementResources?.Find(
+                    candidate => candidate.Id == id && candidate.Failure is not null &&
+                        candidate.DisposingThreadId == 0 && !candidate.ConfirmationInProgress);
+                if (resource is null)
+                {
+                    throw new InvalidOperationException("The retained consumer was not found.");
+                }
+                return resource.Resource;
+            }
+        }
+
+        /// <inheritdoc/>
+        void INodeManagerCleanupParticipant.ConfirmCleanup(NodeManagerCleanupConfirmation confirmation)
+        {
+            if (confirmation is null)
+            {
+                throw new ArgumentNullException(nameof(confirmation));
+            }
+            RetiredConsumer resource;
+            lock (m_retirementResourcesLock)
+            {
+                if (!confirmation.TryConsume(this, out Guid id))
+                {
+                    throw new InvalidOperationException("The cleanup confirmation capability is invalid.");
+                }
+                resource = m_retirementResources?.Find(
+                    candidate => candidate.Id == id && candidate.Failure is not null &&
+                        candidate.DisposingThreadId == 0 && !candidate.ConfirmationInProgress)
+                    ?? throw new InvalidOperationException("The retained consumer was not found.");
+                resource.ConfirmationInProgress = true;
+            }
+            try
+            {
+                Action? notification = resource.OnConfirmed?.Invoke();
+                lock (m_retirementResourcesLock)
+                {
+                    if (m_retirementResources?.Remove(resource) != true)
+                    {
+                        throw new InvalidOperationException("The retained consumer was not found.");
+                    }
+                }
+                notification?.Invoke();
+            }
+            finally
+            {
+                lock (m_retirementResourcesLock)
+                {
+                    resource.ConfirmationInProgress = false;
                 }
             }
+        }
+
+        /// <summary>
+        /// Retains one resource and the original failure of its single disposal attempt.
+        /// </summary>
+        internal sealed class RetiredConsumer(NodeManagerCleanupResource resource)
+        {
+            /// <summary>
+            /// Gets the opaque identity of this retained consumer.
+            /// </summary>
+            internal Guid Id { get; } = Guid.NewGuid();
+
+            /// <summary>
+            /// Gets the exact consumer owned by this generation.
+            /// </summary>
+            internal NodeManagerCleanupResource Resource { get; } = resource;
+
+            /// <summary>
+            /// Gets or sets the thread running the synchronous disposal callback, or zero when it is not running.
+            /// </summary>
+            internal int DisposingThreadId { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the selected callback has entered the consumer's disposal path.
+            /// </summary>
+            internal bool CallbackEntered { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the manager's disposal attempt has not yet finished.
+            /// </summary>
+            internal bool ManagerDisposalInProgress { get; set; }
+
+            /// <summary>
+            /// Gets or sets the original failure when cleanup did not complete.
+            /// </summary>
+            internal Exception? Failure { get; set; }
+
+            /// <summary>
+            /// Gets or sets the bounded description used for discovery.
+            /// </summary>
+            internal string ResourceKind { get; set; } = "RetiredConsumer";
+
+            /// <summary>
+            /// Gets or sets the bounded dependent-stage description used for discovery.
+            /// </summary>
+            internal string? ResourceName { get; set; }
+
+            /// <summary>
+            /// Gets or sets the owner release and deferred notification for verified cleanup.
+            /// </summary>
+            internal Func<Action?>? OnConfirmed { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the confirmed owner release is in progress.
+            /// </summary>
+            internal bool ConfirmationInProgress { get; set; }
         }
 
         /// <summary>
@@ -865,10 +1228,14 @@ namespace Opc.Ua.Server
         /// <param name="item">The item to retry, or null to drain the entire generation.</param>
         /// <param name="ct">Cancels provider cleanup.</param>
         /// <param name="joinActiveCleanup">Whether independent reclamation may join work already running.</param>
+        /// <param name="checkRetainedFailures">
+        /// Whether to check for participant failures between releases. Recovery admission must be closed and drained.
+        /// </param>
         internal async ValueTask CompleteSourceReleasesAsync(
             IMonitoredItem? item,
             CancellationToken ct,
-            bool joinActiveCleanup = false)
+            bool joinActiveCleanup = false,
+            bool checkRetainedFailures = false)
         {
             GenerationSourceRelease[] releases;
             lock (m_sourceReleasesLock)
@@ -896,25 +1263,41 @@ namespace Opc.Ua.Server
             List<Exception>? failures = null;
             foreach (GenerationSourceRelease release in releases)
             {
+                bool completed = false;
                 try
                 {
                     await release.CompleteAsync(joinActiveCleanup, ct).ConfigureAwait(false);
+                    completed = true;
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException &&
                     !(failure is OperationCanceledException && ct.IsCancellationRequested))
                 {
                     (failures ??= []).Add(failure);
-                    continue;
                 }
-                lock (m_sourceReleasesLock)
+                if (completed)
                 {
-                    if (m_sourceReleases.TryGetValue(release.Item, out List<GenerationSourceRelease>? pending))
+                    lock (m_sourceReleasesLock)
                     {
-                        pending.Remove(release);
-                        if (pending.Count == 0)
+                        if (m_sourceReleases.TryGetValue(release.Item, out List<GenerationSourceRelease>? pending))
                         {
-                            m_sourceReleases.Remove(release.Item);
+                            pending.Remove(release);
+                            if (pending.Count == 0)
+                            {
+                                m_sourceReleases.Remove(release.Item);
+                            }
                         }
+                    }
+                }
+                if (checkRetainedFailures)
+                {
+                    try
+                    {
+                        NodeManagerCleanupRecovery.EnsureNoRetainedFailures(this);
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException && failures is not null)
+                    {
+                        failures.Add(failure);
+                        break;
                     }
                 }
             }
@@ -927,6 +1310,379 @@ namespace Opc.Ua.Server
                 throw new AggregateException("Monitored-item source-provider cleanup failed.", failures);
             }
         }
+
+        /// <summary>
+        /// Gets the opaque identity of one cleanup participant in this exact generation.
+        /// </summary>
+        /// <param name="participant">The participant whose failure registry is being addressed.</param>
+        /// <returns>A stable identity for this participant within the generation.</returns>
+        internal Guid GetCleanupParticipantId(INodeManagerCleanupParticipant participant)
+        {
+            return m_cleanupParticipants.GetValue(
+                participant,
+                static _ => new CleanupParticipantIdentity()).Id;
+        }
+
+        /// <summary>
+        /// Admits verification before an exclusive confirmation or reconciliation begins.
+        /// </summary>
+        /// <returns>Whether the exact resource can be captured for verification.</returns>
+        internal bool TryBeginCleanupVerification()
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                if (m_cleanupRecoveryInProgress || m_claimedCleanupConfirmation is not null)
+                {
+                    return false;
+                }
+                m_activeCleanupVerifications++;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Releases one verification after the verifier has stopped using the resource.
+        /// </summary>
+        internal void EndCleanupVerification()
+        {
+            TaskCompletionSource<bool>? drained = null;
+            lock (m_cleanupConfirmationLock)
+            {
+                if (m_activeCleanupVerifications == 0)
+                {
+                    throw new InvalidOperationException("No cleanup verification is active.");
+                }
+                if (--m_activeCleanupVerifications == 0)
+                {
+                    drained = m_cleanupVerificationsDrained;
+                    m_cleanupVerificationsDrained = null;
+                }
+            }
+            drained?.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Waits for verifiers admitted before the current exclusive recovery operation.
+        /// </summary>
+        /// <returns>A task that completes after those verifiers have exited.</returns>
+        internal Task WaitForCleanupVerificationsAsync()
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                if (!m_cleanupRecoveryInProgress)
+                {
+                    throw new InvalidOperationException("Cleanup recovery has not been admitted.");
+                }
+                return m_activeCleanupVerifications == 0
+                    ? Task.CompletedTask
+                    : (m_cleanupVerificationsDrained ??= new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+            }
+        }
+
+        /// <summary>
+        /// Admits one confirmation or reconciliation at a time for this generation.
+        /// </summary>
+        internal bool TryBeginCleanupRecovery()
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                if (m_cleanupRecoveryInProgress ||
+                    m_claimedCleanupConfirmation is not null)
+                {
+                    return false;
+                }
+                m_cleanupRecoveryInProgress = true;
+                if (m_offeredCleanupConfirmation is not null)
+                {
+                    m_cleanupOfferSuspended = true;
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether a verified confirmation is still owned by recovery or a cleanup worker.
+        /// </summary>
+        internal bool HasPendingCleanupConfirmation => Volatile.Read(ref m_pendingCleanupConfirmationCount) != 0;
+
+        /// <summary>
+        /// Gets whether a cleanup worker may attempt to claim the pending confirmation.
+        /// </summary>
+        internal bool CanAttemptCleanup
+        {
+            get
+            {
+                lock (m_cleanupConfirmationLock)
+                {
+                    return m_pendingCleanupConfirmations.Count == 0 ||
+                        (m_pendingCleanupConfirmations.Count == 1 &&
+                            m_offeredCleanupConfirmation is not null &&
+                            !m_cleanupOfferSuspended);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ends the current confirmation or reconciliation admission.
+        /// </summary>
+        internal void EndCleanupRecovery()
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                m_cleanupRecoveryInProgress = false;
+            }
+        }
+
+        /// <summary>
+        /// Retains evidence that the trusted verifier succeeded before confirmation was consumed.
+        /// </summary>
+        /// <remarks>The caller must hold this generation's recovery admission.</remarks>
+        /// <param name="handle">The exact participant and failure that were verified.</param>
+        internal void RememberCleanupConfirmation(NodeManagerCleanupFailureHandle handle)
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                if (m_pendingCleanupConfirmations.Add(handle))
+                {
+                    Volatile.Write(ref m_pendingCleanupConfirmationCount, m_pendingCleanupConfirmations.Count);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Finds evidence retained for this exact generation, participant and failure.
+        /// </summary>
+        /// <remarks>The caller must hold this generation's recovery admission.</remarks>
+        /// <param name="handle">The failure whose evidence is being checked.</param>
+        /// <returns>Whether evidence remains available for reconciliation.</returns>
+        internal bool HasCleanupConfirmation(NodeManagerCleanupFailureHandle handle)
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                return m_pendingCleanupConfirmations.Contains(handle);
+            }
+        }
+
+        /// <summary>
+        /// Captures the opaque confirmations still retained for this generation.
+        /// </summary>
+        /// <returns>A detached snapshot that does not contain resources or exceptions.</returns>
+        internal NodeManagerCleanupFailureHandle[] SnapshotCleanupConfirmations()
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                return [.. m_pendingCleanupConfirmations];
+            }
+        }
+
+        /// <summary>
+        /// Removes one confirmation whose outcome has been resolved.
+        /// </summary>
+        /// <remarks>The caller must hold this generation's recovery admission.</remarks>
+        /// <param name="handle">The failure whose evidence is no longer needed.</param>
+        internal void ForgetCleanupConfirmation(NodeManagerCleanupFailureHandle handle)
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                if (m_pendingCleanupConfirmations.Remove(handle))
+                {
+                    Volatile.Write(ref m_pendingCleanupConfirmationCount, m_pendingCleanupConfirmations.Count);
+                }
+                m_auditedCleanupConfirmations.Remove(handle);
+                if (m_offeredCleanupConfirmation == handle)
+                {
+                    m_offeredCleanupConfirmation = null;
+                    m_cleanupOfferSuspended = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolves one audited confirmation or offers it to the cleanup worker that will own its outcome.
+        /// </summary>
+        /// <param name="handle">The verified and audited failure.</param>
+        /// <param name="otherFailures">Whether another participant still reports a retained failure.</param>
+        /// <returns>Whether cleanup can be resumed for this confirmation.</returns>
+        internal bool OfferCleanupConfirmation(NodeManagerCleanupFailureHandle handle, bool otherFailures)
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                if (!m_pendingCleanupConfirmations.Contains(handle) ||
+                    (m_offeredCleanupConfirmation is not null && !m_cleanupOfferSuspended) ||
+                    m_claimedCleanupConfirmation is not null)
+                {
+                    throw new InvalidOperationException("The cleanup confirmation is no longer available.");
+                }
+                m_offeredCleanupConfirmation = null;
+                m_cleanupOfferSuspended = false;
+                m_auditedCleanupConfirmations.Add(handle);
+                if (otherFailures)
+                {
+                    return false;
+                }
+                m_auditedCleanupConfirmations.Remove(handle);
+                foreach (NodeManagerCleanupFailureHandle resolved in m_auditedCleanupConfirmations)
+                {
+                    m_pendingCleanupConfirmations.Remove(resolved);
+                }
+                m_auditedCleanupConfirmations.Clear();
+                m_auditedCleanupConfirmations.Add(handle);
+                if (m_pendingCleanupConfirmations.Count != 1)
+                {
+                    m_pendingCleanupConfirmations.Remove(handle);
+                    m_auditedCleanupConfirmations.Remove(handle);
+                    Volatile.Write(ref m_pendingCleanupConfirmationCount, m_pendingCleanupConfirmations.Count);
+                    return false;
+                }
+                Volatile.Write(ref m_pendingCleanupConfirmationCount, m_pendingCleanupConfirmations.Count);
+                m_offeredCleanupConfirmation = handle;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Withdraws an offered confirmation if no cleanup worker has claimed it.
+        /// </summary>
+        /// <param name="handle">The confirmation whose resumption request failed.</param>
+        internal void WithdrawCleanupConfirmationOffer(NodeManagerCleanupFailureHandle handle)
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                if (m_offeredCleanupConfirmation == handle)
+                {
+                    m_offeredCleanupConfirmation = null;
+                    m_cleanupOfferSuspended = false;
+                    m_auditedCleanupConfirmations.Remove(handle);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retains an unclaimed offer after a cleanup attempt fails, requiring reconciliation before reuse.
+        /// </summary>
+        internal void InvalidateOfferedCleanupConfirmation()
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                if (m_offeredCleanupConfirmation is { } offered)
+                {
+                    m_offeredCleanupConfirmation = null;
+                    m_cleanupOfferSuspended = false;
+                    m_auditedCleanupConfirmations.Remove(offered);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Claims an audited confirmation after recovery admission has closed and drained.
+        /// </summary>
+        /// <param name="handle">The claimed confirmation, or null when no confirmation was pending.</param>
+        /// <returns>Whether this worker may continue physical cleanup.</returns>
+        internal bool TryClaimCleanupConfirmation(out NodeManagerCleanupFailureHandle? handle)
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                handle = null;
+                if (m_pendingCleanupConfirmations.Count == 0)
+                {
+                    return true;
+                }
+                if (m_pendingCleanupConfirmations.Count != 1 ||
+                    m_offeredCleanupConfirmation is not { } offered ||
+                    m_cleanupOfferSuspended ||
+                    m_claimedCleanupConfirmation is not null ||
+                    !m_pendingCleanupConfirmations.Contains(offered))
+                {
+                    return false;
+                }
+                m_offeredCleanupConfirmation = null;
+                m_claimedCleanupConfirmation = offered;
+                handle = offered;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Completes or returns a claimed confirmation before recovery admission reopens.
+        /// </summary>
+        /// <param name="handle">The exact confirmation claimed by the worker.</param>
+        /// <param name="completed">Whether physical cleanup of this generation finished.</param>
+        /// <param name="allowRetry">Whether a deferred worker may claim it again without reconciliation.</param>
+        internal void FinishCleanupConfirmationClaim(
+            NodeManagerCleanupFailureHandle handle,
+            bool completed,
+            bool allowRetry = false)
+        {
+            lock (m_cleanupConfirmationLock)
+            {
+                if (m_claimedCleanupConfirmation != handle)
+                {
+                    throw new InvalidOperationException("The cleanup confirmation claim is no longer owned.");
+                }
+                if (completed)
+                {
+                    m_pendingCleanupConfirmations.Remove(handle);
+                    m_auditedCleanupConfirmations.Remove(handle);
+                    Volatile.Write(ref m_pendingCleanupConfirmationCount, m_pendingCleanupConfirmations.Count);
+                }
+                else if (allowRetry)
+                {
+                    m_offeredCleanupConfirmation = handle;
+                    m_cleanupOfferSuspended = false;
+                }
+                else
+                {
+                    m_auditedCleanupConfirmations.Remove(handle);
+                }
+                m_claimedCleanupConfirmation = null;
+            }
+        }
+
+        /// <summary>
+        /// Stores a participant identifier without retaining the participant independently of its owner.
+        /// </summary>
+        private sealed class CleanupParticipantIdentity
+        {
+            /// <summary>
+            /// Gets the participant identifier.
+            /// </summary>
+            internal Guid Id { get; } = Guid.NewGuid();
+        }
+
+        /// <summary>Keeps stable participant identities without extending participant lifetimes.</summary>
+        private readonly ConditionalWeakTable<INodeManagerCleanupParticipant, CleanupParticipantIdentity>
+            m_cleanupParticipants = new();
+
+        /// <summary>Retains only opaque identities for unresolved verified confirmations.</summary>
+        private readonly HashSet<NodeManagerCleanupFailureHandle> m_pendingCleanupConfirmations = [];
+
+        /// <summary>Identifies confirmations whose effects and outcomes have already been audited.</summary>
+        private readonly HashSet<NodeManagerCleanupFailureHandle> m_auditedCleanupConfirmations = [];
+
+        /// <summary>Serializes confirmation evidence and cleanup-worker ownership.</summary>
+        private readonly Lock m_cleanupConfirmationLock = new();
+
+        /// <summary>Counts verifiers admitted before an exclusive recovery operation.</summary>
+        private int m_activeCleanupVerifications;
+
+        /// <summary>Completes when the admitted verifiers have exited.</summary>
+        private TaskCompletionSource<bool>? m_cleanupVerificationsDrained;
+
+        /// <summary>Serializes state transitions for this generation's recovery evidence.</summary>
+        private bool m_cleanupRecoveryInProgress;
+
+        /// <summary>Identifies an audited confirmation offered to a cleanup worker.</summary>
+        private NodeManagerCleanupFailureHandle? m_offeredCleanupConfirmation;
+
+        /// <summary>Blocks an existing offer while another recovery outcome is unresolved.</summary>
+        private bool m_cleanupOfferSuspended;
+
+        /// <summary>Identifies the confirmation owned by the active cleanup worker.</summary>
+        private NodeManagerCleanupFailureHandle? m_claimedCleanupConfirmation;
+
+        /// <summary>Publishes the pending-evidence state to cleanup workers.</summary>
+        private int m_pendingCleanupConfirmationCount;
 
         /// <summary>Protects epoch registration, which occurs only while publishing views.</summary>
         private readonly Lock m_epochLock = new();
@@ -960,7 +1716,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_retirementResourcesLock = new();
 
         /// <summary>Consumers awaiting physical reclamation, not additional lifetime admissions.</summary>
-        private List<IDisposable>? m_retirementResources;
+        private List<RetiredConsumer>? m_retirementResources;
 
         /// <summary>Whether reclamation has assumed exclusive responsibility for pending disposals.</summary>
         private bool m_retirementResourcesSealed;
@@ -1211,10 +1967,10 @@ namespace Opc.Ua.Server
         /// Determines whether this token identifies the supplied generation.
         /// </summary>
         /// <param name="generation">The generation to compare.</param>
-        /// <returns><c>true</c> when slot and generation numbers match.</returns>
+        /// <returns><c>true</c> when the generation created this token.</returns>
         internal bool Identifies(NodeManagerGeneration generation)
         {
-            return SlotId == generation.Slot.Id && Number == generation.Number;
+            return ReferenceEquals(this, generation.Reference);
         }
 
         /// <summary>Weakly references the generation without keeping it or its manager alive.</summary>
@@ -1253,10 +2009,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Resolves a generation by its normalized lookup key, creating a live generation if the key has no entry.
+        /// Resolves an exact logical owner, creating a live legacy generation only for a new identity.
         /// </summary>
         /// <remarks>
-        /// An existing entry is returned without checking its gate state or whether the supplied manager is its owner.
+        /// Transparent stack aliases share an association. A terminal association never creates a new generation.
         /// </remarks>
         /// <param name="nodeManager">The manager to resolve.</param>
         /// <returns>The entry for the normalized lookup key.</returns>
@@ -1267,7 +2023,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
             IAsyncNodeManager identity = GetGenerationIdentity(nodeManager);
-            IAsyncNodeManager resource = GetIdentity(nodeManager);
+            ResourceLifetime resource = GetResourceOwnership(nodeManager);
             lock (s_lock)
             {
                 return GetOrCreateCore(nodeManager, identity, resource);
@@ -1275,19 +2031,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Resolves a recorded non-live resource generation for the resource itself, or uses the normalized lookup.
+        /// Resolves an unregistered source without assigning it another facade's generation.
         /// </summary>
         internal static NodeManagerGeneration GetOrCreateSource(IAsyncNodeManager nodeManager)
         {
             IAsyncNodeManager identity = GetGenerationIdentity(nodeManager);
-            IAsyncNodeManager resource = GetIdentity(nodeManager);
+            ResourceLifetime resource = GetResourceOwnership(nodeManager);
             lock (s_lock)
             {
-                if (ReferenceEquals(resource, nodeManager) &&
-                    s_resourceGenerations.TryGetValue(resource, out NodeManagerGeneration? generation) &&
-                    generation.Gate.State != NodeManagerGenerationState.Live)
+                if (s_generations.TryGetValue(identity, out GenerationAssociation? association))
                 {
-                    return generation;
+                    return association.Get();
+                }
+                if (resource.HasOwners)
+                {
+                    throw new InvalidOperationException(
+                        "The unregistered source cannot select another logical owner's generation.");
                 }
                 return GetOrCreateCore(nodeManager, identity, resource);
             }
@@ -1304,7 +2063,12 @@ namespace Opc.Ua.Server
             IAsyncNodeManager identity = GetGenerationIdentity(nodeManager);
             lock (s_lock)
             {
-                return s_generations.TryGetValue(identity, out generation);
+                if (s_generations.TryGetValue(identity, out GenerationAssociation? association))
+                {
+                    return association.TryGet(out generation);
+                }
+                generation = null;
+                return false;
             }
         }
 
@@ -1327,51 +2091,39 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(replacement));
             }
             IAsyncNodeManager identity = GetGenerationIdentity(replacement);
-            IAsyncNodeManager resource = GetIdentity(replacement);
+            ResourceLifetime resource = GetResourceOwnership(replacement);
             lock (s_lock)
             {
-                if (s_resourceGenerations.TryGetValue(resource, out NodeManagerGeneration? existing))
+                if (s_generations.TryGetValue(identity, out GenerationAssociation? association))
                 {
+                    NodeManagerGeneration existing = association.Get();
                     if (ReferenceEquals(existing.Slot, current.Slot) &&
+                        existing.Number == current.Number + 1 &&
                         existing.Gate.State == NodeManagerGenerationState.Prepared)
                     {
-                        AssociateGeneration(identity, resource, existing);
                         return existing;
+                    }
+                    if (existing.Gate.State is NodeManagerGenerationState.Retiring or
+                        NodeManagerGenerationState.Disposed)
+                    {
+                        throw new InvalidOperationException(
+                            "A retired NodeManager instance cannot be reused as a replacement.");
                     }
                     if (existing.Gate.State == NodeManagerGenerationState.Live)
                     {
                         throw new InvalidOperationException(
                             "A live manager cannot be assigned to another generation slot.");
                     }
-                    if (existing.Gate.State == NodeManagerGenerationState.Retiring &&
-                        ReferenceEquals(existing.Slot, current.Slot))
-                    {
-                        if (existing.TryRestoreBeforeShutdown())
-                        {
-                            AssociateGeneration(identity, resource, existing);
-                            return existing;
-                        }
-                        throw new InvalidOperationException(
-                            "A retired NodeManager instance cannot be reused as a replacement.");
-                    }
-                    if (existing.Gate.State == NodeManagerGenerationState.Disposed ||
-                        (existing.Gate.State == NodeManagerGenerationState.Retiring &&
-                            !ReferenceEquals(existing.Slot, current.Slot)))
-                    {
-                        throw new InvalidOperationException(
-                            "A retired NodeManager instance cannot be reused as a replacement.");
-                    }
-                    if (existing.Gate.State == NodeManagerGenerationState.Prepared)
-                    {
-                        existing.Gate.Abort();
-                    }
+                    throw new InvalidOperationException(
+                        "A NodeManager identity cannot be assigned to another generation.");
                 }
                 var generation = new NodeManagerGeneration(
                     current.Slot,
                     current.Number + 1,
                     replacement,
-                    NodeManagerGenerationState.Prepared);
-                AssociateGeneration(identity, resource, generation);
+                    NodeManagerGenerationState.Prepared,
+                    resource);
+                AssociateGeneration(identity, generation);
                 return generation;
             }
         }
@@ -1388,32 +2140,24 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
             IAsyncNodeManager identity = GetGenerationIdentity(nodeManager);
-            IAsyncNodeManager resource = GetIdentity(nodeManager);
+            ResourceLifetime resource = GetResourceOwnership(nodeManager);
             lock (s_lock)
             {
-                if (s_resourceGenerations.TryGetValue(resource, out NodeManagerGeneration? existing))
+                if (s_generations.TryGetValue(identity, out GenerationAssociation? association))
                 {
-                    if (existing.Gate.State == NodeManagerGenerationState.Prepared)
-                    {
-                        AssociateGeneration(identity, resource, existing);
-                        return existing;
-                    }
+                    NodeManagerGeneration existing = association.Get();
                     if (existing.Gate.State is NodeManagerGenerationState.Retiring or
-                        NodeManagerGenerationState.Disposed)
+                        NodeManagerGenerationState.Disposed or NodeManagerGenerationState.Aborted)
                     {
                         throw new InvalidOperationException(
                             "A retired NodeManager instance cannot be registered again.");
                     }
-                    if (existing.Gate.State != NodeManagerGenerationState.Aborted)
-                    {
-                        AssociateGeneration(identity, resource, existing);
-                        return existing;
-                    }
+                    return existing;
                 }
                 var slot = new NodeManagerSlot();
                 var generation = new NodeManagerGeneration(
-                    slot, 1, nodeManager, NodeManagerGenerationState.Prepared);
-                AssociateGeneration(identity, resource, generation);
+                    slot, 1, nodeManager, NodeManagerGenerationState.Prepared, resource);
+                AssociateGeneration(identity, generation);
                 return generation;
             }
         }
@@ -1423,45 +2167,50 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodeManager">The manager to normalize for generation lookup.</param>
         /// <returns>The normalized lookup key.</returns>
-        private static IAsyncNodeManager GetGenerationIdentity(IAsyncNodeManager nodeManager)
+        internal static IAsyncNodeManager GetGenerationIdentity(IAsyncNodeManager nodeManager)
         {
-            if (nodeManager is not AsyncNodeManagerAdapter adapter)
+            if (!IsStandardAdapter(nodeManager))
             {
                 return nodeManager;
             }
-            if (adapter.SyncNodeManager is SyncNodeManagerAdapter synchronous)
+            var adapter = (AsyncNodeManagerAdapter)nodeManager;
+            if (adapter.SyncNodeManager.GetType() == typeof(SyncNodeManagerAdapter))
             {
+                var synchronous = (SyncNodeManagerAdapter)adapter.SyncNodeManager;
                 return GetGenerationIdentity(synchronous.AsyncNodeManager);
             }
             return adapter.SyncNodeManager.ToAsyncNodeManager();
         }
 
         /// <summary>
-        /// Associates an accepted registration facade with the generation reserved for its physical resource.
+        /// Identifies the stack's transparent async adapter without treating subclasses as aliases.
         /// </summary>
-        /// <param name="identity">The normalized generation-lookup key.</param>
-        /// <param name="resource">The physical resource identity.</param>
-        /// <param name="generation">The accepted generation.</param>
-        private static void AssociateGeneration(
-            IAsyncNodeManager identity,
-            IAsyncNodeManager resource,
-            NodeManagerGeneration generation)
+        internal static bool IsStandardAdapter(IAsyncNodeManager nodeManager)
         {
-            s_generations.Remove(identity);
-            s_generations.Add(identity, generation);
-            s_resourceGenerations.Remove(resource);
-            s_resourceGenerations.Add(resource, generation);
+            return nodeManager.GetType() == typeof(AsyncNodeManagerAdapter);
         }
 
         /// <summary>
-        /// Tests resource identity without creating a generation or taking the registry writer lock.
+        /// Associates an exact logical owner and its transparent aliases with one generation.
+        /// </summary>
+        /// <param name="identity">The normalized generation-lookup key.</param>
+        /// <param name="generation">The accepted generation.</param>
+        private static void AssociateGeneration(
+            IAsyncNodeManager identity,
+            NodeManagerGeneration generation)
+        {
+            s_generations.Add(identity, new GenerationAssociation(generation));
+        }
+
+        /// <summary>
+        /// Compares logical owners, including only transparent stack aliases.
         /// </summary>
         /// <param name="left">The first facade.</param>
         /// <param name="right">The second facade.</param>
-        /// <returns>Whether both facades identify the same generation resource.</returns>
+        /// <returns>Whether both facades identify the same logical owner.</returns>
         internal static bool HasSameIdentity(IAsyncNodeManager left, IAsyncNodeManager right)
         {
-            return ReferenceEquals(left, right) || ReferenceEquals(GetIdentity(left), GetIdentity(right));
+            return HasSameGenerationIdentity(left, right);
         }
 
         /// <summary>
@@ -1501,19 +2250,586 @@ namespace Opc.Ua.Server
         private static NodeManagerGeneration GetOrCreateCore(
             IAsyncNodeManager nodeManager,
             IAsyncNodeManager identity,
-            IAsyncNodeManager resource)
+            ResourceLifetime resource)
         {
-            if (s_generations.TryGetValue(identity, out NodeManagerGeneration? generation))
+            if (s_generations.TryGetValue(identity, out GenerationAssociation? association))
             {
-                return generation;
+                return association.Get();
             }
             var slot = new NodeManagerSlot();
-            generation = new NodeManagerGeneration(
-                slot, 1, nodeManager, NodeManagerGenerationState.Live);
-            s_generations.Add(identity, generation);
-            s_resourceGenerations.GetValue(resource, _ => generation);
+            var generation = new NodeManagerGeneration(
+                slot, 1, nodeManager, NodeManagerGenerationState.Live, resource);
+            AssociateGeneration(identity, generation);
             slot.Publish(generation);
             return generation;
+        }
+
+        /// <summary>
+        /// Gets the lifetime arbiter for a physical resource, without conflating its logical owners.
+        /// </summary>
+        internal static ResourceLifetime GetResourceOwnership(IAsyncNodeManager manager)
+        {
+            return s_resources.GetValue(GetIdentity(manager), static _ => new ResourceLifetime());
+        }
+
+        /// <summary>
+        /// Retains an accepted factory candidate before its registration slot and generation are assigned.
+        /// Rejects reused terminal or live logical identities without guessing disposal ownership.
+        /// </summary>
+        internal static void ReserveCandidate(IAsyncNodeManager manager)
+        {
+            IAsyncNodeManager identity = GetGenerationIdentity(manager);
+            ResourceLifetime resource = GetResourceOwnership(manager);
+            lock (s_lock)
+            {
+                if (s_generations.TryGetValue(identity, out GenerationAssociation? association))
+                {
+                    if (!association.TryGet(out NodeManagerGeneration? existing) ||
+                        existing!.Gate.State != NodeManagerGenerationState.Prepared)
+                    {
+                        throw new NodeManagerAlreadyRegisteredException();
+                    }
+                    return;
+                }
+                resource.ReserveCandidate(manager);
+            }
+        }
+
+        /// <summary>
+        /// Rejects cleanup that would release another exact logical owner's association.
+        /// </summary>
+        internal static void ValidateCleanupAssociation(NodeManagerGeneration generation)
+        {
+            lock (s_lock)
+            {
+                GetCleanupAssociation(generation);
+            }
+        }
+
+        /// <summary>
+        /// Releases terminal associations only after exact, verified cleanup has succeeded.
+        /// Tombstones retain identity and reject resurrection without retaining the manager or server.
+        /// </summary>
+        internal static void CompleteCleanup(NodeManagerGeneration generation)
+        {
+            lock (s_lock)
+            {
+                GenerationAssociation? association = GetCleanupAssociation(generation);
+                if (!generation.IsQuiescent ||
+                    generation.Gate.State is not (NodeManagerGenerationState.Retiring or
+                        NodeManagerGenerationState.Aborted))
+                {
+                    throw new InvalidOperationException("Only a quiescent terminal generation can release ownership.");
+                }
+                if (generation.Gate.State == NodeManagerGenerationState.Retiring)
+                {
+                    generation.Gate.DisposeGeneration();
+                }
+                generation.Slot.Unpublish(generation);
+                association?.Release();
+                generation.ResourceOwnership.Complete(generation);
+            }
+            ChangePreparer.Release(generation.NodeManager);
+        }
+
+        /// <summary>
+        /// Checks the current association before mutating a terminal gate or releasing resource ownership.
+        /// </summary>
+        private static GenerationAssociation? GetCleanupAssociation(NodeManagerGeneration generation)
+        {
+            IAsyncNodeManager identity = GetGenerationIdentity(generation.NodeManager);
+            if (s_generations.TryGetValue(identity, out GenerationAssociation? association))
+            {
+                association.ValidateOwner(generation);
+            }
+            return association;
+        }
+
+        /// <summary>
+        /// Retains an active generation, then only a non-owning terminal token and its tombstone.
+        /// </summary>
+        private sealed class GenerationAssociation(NodeManagerGeneration generation)
+        {
+            /// <summary>
+            /// Resolves the retained generation or rejects a collected terminal identity.
+            /// </summary>
+            internal NodeManagerGeneration Get()
+            {
+                return TryGet(out NodeManagerGeneration? current)
+                    ? current!
+                    : throw new InvalidOperationException("A cleaned NodeManager identity cannot be reused.");
+            }
+
+            /// <summary>
+            /// Resolves a generation without recreating a collected terminal identity.
+            /// </summary>
+            internal bool TryGet(out NodeManagerGeneration? current)
+            {
+                current = m_owner;
+                return current is not null || m_reference.TryGetGeneration(out current);
+            }
+
+            /// <summary>
+            /// Releases the validated lifetime owner while preserving the existing exact generation token.
+            /// </summary>
+            internal void Release()
+            {
+                m_owner = null;
+            }
+
+            /// <summary>
+            /// Checks an exact cleanup owner without changing either its association or gate.
+            /// </summary>
+            internal void ValidateOwner(NodeManagerGeneration owner)
+            {
+                if (!ReferenceEquals(m_owner, owner))
+                {
+                    throw new InvalidOperationException("The cleanup association has changed.");
+                }
+            }
+
+            /// <summary>The authoritative lifetime owner before completed cleanup.</summary>
+            private NodeManagerGeneration? m_owner = generation;
+
+            /// <summary>The existing non-owning generation token; the association itself remains a tombstone.</summary>
+            private readonly NodeManagerGenerationReference m_reference = generation.Reference;
+        }
+
+        /// <summary>
+        /// Owns physical cleanup eligibility, shared admissions and verification dependencies.
+        /// Opaque facades retain independent cleanup ownership until every owner has closed and drained.
+        /// </summary>
+        internal sealed class ResourceLifetime : IDisposable
+        {
+            /// <summary>
+            /// Gets whether physical cleanup has sealed new registrations and restoration.
+            /// </summary>
+            internal bool CleanupStarted
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return m_cleanupStarted;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets whether more than one logical owner still needs the physical resource.
+            /// </summary>
+            internal bool IsShared
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return m_owners.Count + m_candidates.Count > 1;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets whether an unregistered source would compete with an existing logical owner.
+            /// </summary>
+            internal bool HasOwners
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return m_owners.Count != 0 || m_candidates.Count != 0 || m_cleanupStarted;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets whether a quiescent caller can join cleanup without waiting for a still-live shared owner.
+            /// </summary>
+            internal bool IsCleanupReady
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return m_candidates.Count == 0 && m_owners.All(static current =>
+                            current.Gate.State is NodeManagerGenerationState.Retiring or
+                                NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets whether offered shared evidence can resume a cleanup blocked by another logical owner.
+            /// </summary>
+            internal bool HasReadyCleanupConfirmation
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return m_owners.Any(static current =>
+                            current.HasPendingCleanupConfirmation && current.CanAttemptCleanup);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Disposes synchronization only after terminal ownership and every cleanup admission have drained.
+            /// An active lease or pending waiter owns the deferred disposal until its exact exit.
+            /// </summary>
+            public void Dispose()
+            {
+                lock (m_sync)
+                {
+                    if (!m_cleanupStarted || m_owners.Count != 0 || m_candidates.Count != 0)
+                    {
+                        throw new InvalidOperationException(
+                            "Physical synchronization cannot be disposed before its owners complete cleanup.");
+                    }
+                    if (m_cleanupDisposed || m_cleanupAdmissions != 0)
+                    {
+                        return;
+                    }
+                    m_cleanup.Dispose();
+                    m_cleanupDisposed = true;
+                }
+            }
+
+            /// <summary>
+            /// Restores an exact tentative retirement atomically with the physical cleanup decision.
+            /// </summary>
+            internal bool TryRestore(NodeManagerGeneration owner)
+            {
+                lock (m_sync)
+                {
+                    if (m_cleanupStarted || !m_owners.Contains(owner))
+                    {
+                        return false;
+                    }
+                    owner.Gate.Restore();
+                    return true;
+                }
+            }
+
+            /// <summary>
+            /// Reserves ownership before the logical generation can be published.
+            /// </summary>
+            internal void Add(NodeManagerGeneration owner)
+            {
+                lock (m_sync)
+                {
+                    int candidateIndex = m_candidates.FindIndex(
+                        candidate => ReferenceEquals(candidate, owner.NodeManager));
+                    if (m_cleanupStarted ||
+                        candidateIndex < 0 &&
+                        m_owners.Count != 0 && m_owners.All(static current =>
+                            current.Gate.State is NodeManagerGenerationState.Retiring or
+                                NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed))
+                    {
+                        throw new InvalidOperationException(
+                            "A retiring or cleaned physical resource cannot be reused.");
+                    }
+                    m_owners.Add(owner);
+                    if (candidateIndex >= 0)
+                    {
+                        m_candidates.RemoveAt(candidateIndex);
+                    }
+                    NotifyStateChanged();
+                }
+            }
+
+            /// <summary>
+            /// Owns a private factory result until generation assignment consumes this physical reservation.
+            /// </summary>
+            internal void ReserveCandidate(IAsyncNodeManager candidate)
+            {
+                lock (m_sync)
+                {
+                    if (m_cleanupStarted || m_candidates.Any(current => ReferenceEquals(current, candidate)) ||
+                        m_candidates.Count == 0 && m_owners.Count != 0 && m_owners.All(static current =>
+                            current.Gate.State is NodeManagerGenerationState.Retiring or
+                                NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed))
+                    {
+                        throw new NodeManagerAlreadyRegisteredException();
+                    }
+                    m_candidates.Add(candidate);
+                    NotifyStateChanged();
+                }
+            }
+
+            /// <summary>
+            /// Wakes physical cleanup when an owner closes admission.
+            /// </summary>
+            internal void NotifyStateChanged()
+            {
+                TaskCompletionSource<bool>? changed;
+                lock (m_sync)
+                {
+                    changed = m_changed;
+                    m_changed = null;
+                }
+                changed?.TrySetResult(true);
+            }
+
+            /// <summary>
+            /// Serializes destructive callbacks only after all logical owners close admission.
+            /// No provider callback runs while a synchronous state lock is held.
+            /// The caller owns its closed recovery gate and releases this lease after handling its cleanup outcome.
+            /// </summary>
+            internal async ValueTask<CleanupLease> EnterCleanupAsync(NodeManagerGeneration owner)
+            {
+                lock (m_sync)
+                {
+                    if (!m_owners.Contains(owner))
+                    {
+                        throw new InvalidOperationException(
+                            "Physical cleanup ownership is no longer retained.");
+                    }
+                    m_cleanupAdmissions = checked(m_cleanupAdmissions + 1);
+                }
+                bool acquired = false;
+                CleanupLease? lease = null;
+                try
+                {
+                    while (true)
+                    {
+                        Task changed;
+                        lock (m_sync)
+                        {
+                            if (!m_owners.Contains(owner))
+                            {
+                                throw new InvalidOperationException(
+                                    "Physical cleanup ownership is no longer retained.");
+                            }
+                            if (m_candidates.Count == 0 && m_owners.All(static current =>
+                                current.Gate.State is NodeManagerGenerationState.Retiring or
+                                    NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed))
+                            {
+                                m_cleanupStarted = true;
+                                break;
+                            }
+                            changed = (m_changed ??= new TaskCompletionSource<bool>(
+                                TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+                        }
+                        await changed.ConfigureAwait(false);
+                    }
+                    await m_cleanup.WaitAsync().ConfigureAwait(false);
+                    acquired = true;
+                    NodeManagerGeneration[] owners;
+                    lock (m_sync)
+                    {
+                        if (!m_owners.Contains(owner))
+                        {
+                            throw new InvalidOperationException(
+                                "Physical cleanup ownership is no longer retained.");
+                        }
+                        owners = [.. m_owners];
+                    }
+                    lease = new CleanupLease(this, owner, owners);
+                    await lease.CloseRecoveryAsync().ConfigureAwait(false);
+                    return lease;
+                }
+                catch
+                {
+                    if (lease is null)
+                    {
+                        ExitCleanup(acquired);
+                    }
+                    else
+                    {
+                        lease.Dispose();
+                    }
+                    throw;
+                }
+            }
+
+            /// <summary>
+            /// Drops only the exact completed owner, leaving an irreversible physical tombstone.
+            /// </summary>
+            internal void Complete(NodeManagerGeneration owner)
+            {
+                bool completed;
+                lock (m_sync)
+                {
+                    if (!m_cleanupStarted || !owner.IsQuiescent || !m_owners.Remove(owner))
+                    {
+                        throw new InvalidOperationException("Physical cleanup has not completed for this owner.");
+                    }
+                    completed = m_owners.Count == 0 && m_candidates.Count == 0;
+                }
+                NotifyStateChanged();
+                if (completed)
+                {
+                    Dispose();
+                }
+            }
+
+            /// <summary>
+            /// Releases synchronization before ending its admission, so pending waiters cannot race disposal.
+            /// </summary>
+            private void ExitCleanup(bool acquired)
+            {
+                if (acquired)
+                {
+                    m_cleanup.Release();
+                }
+                bool completed;
+                lock (m_sync)
+                {
+                    m_cleanupAdmissions--;
+                    completed = m_cleanupStarted && m_owners.Count == 0 &&
+                        m_candidates.Count == 0 && m_cleanupAdmissions == 0;
+                }
+                if (completed)
+                {
+                    Dispose();
+                }
+            }
+
+            /// <summary>
+            /// Keeps sibling recovery admissions closed throughout an exclusive physical cleanup attempt.
+            /// </summary>
+            internal sealed class CleanupLease(
+                ResourceLifetime resource,
+                NodeManagerGeneration cleanupOwner,
+                NodeManagerGeneration[] owners) : IDisposable
+            {
+                /// <summary>
+                /// Gets whether a sibling confirmation prevented this physical cleanup attempt.
+                /// </summary>
+                internal bool ConfirmationPending { get; private set; }
+
+                /// <summary>
+                /// Excludes shared verifiers and transfers the fully drained owner gate to the caller.
+                /// Entry failure leaves every closed gate owned by this lease for rollback.
+                /// </summary>
+                internal async ValueTask CloseRecoveryAsync()
+                {
+                    while (m_closedRecoveryCount < owners.Length)
+                    {
+                        NodeManagerGeneration current = owners[m_closedRecoveryCount];
+                        current.CleanupRecoveryGate.Retire();
+                        m_closedRecoveryCount++;
+                        await current.CleanupRecoveryGate.WaitForDrainAsync().ConfigureAwait(false);
+                    }
+                    m_ownerRecoveryTransferred = true;
+                }
+
+                /// <summary>
+                /// Claims sibling evidence and stops producers before joining the work they may release.
+                /// The caller already owns its exact confirmation; siblings keep evidence for their own cleanup.
+                /// </summary>
+                internal async ValueTask PrepareForShutdownAsync(NodeManagerGeneration owner)
+                {
+                    var claims = new List<(NodeManagerGeneration Generation, NodeManagerCleanupFailureHandle Handle)>();
+                    bool completed = false;
+                    try
+                    {
+                        foreach (NodeManagerGeneration current in owners)
+                        {
+                            if (!ReferenceEquals(current, owner))
+                            {
+                                if (!current.TryClaimCleanupConfirmation(out NodeManagerCleanupFailureHandle? claim))
+                                {
+                                    ConfirmationPending = true;
+                                    throw new InvalidOperationException(
+                                        "A shared owner's cleanup confirmation is not ready.");
+                                }
+                                if (claim is { } handle)
+                                {
+                                    claims.Add((current, handle));
+                                }
+                            }
+                            NodeManagerCleanupRecovery.EnsureNoRetainedFailures(current);
+                        }
+                        foreach (NodeManagerGeneration current in owners)
+                        {
+                            await current.PrepareForShutdownAsync().ConfigureAwait(false);
+                            NodeManagerCleanupRecovery.EnsureNoRetainedFailures(current);
+                        }
+                        completed = true;
+                    }
+                    finally
+                    {
+                        foreach ((NodeManagerGeneration generation, NodeManagerCleanupFailureHandle handle) in claims)
+                        {
+                            generation.FinishCleanupConfirmationClaim(
+                                handle, completed: false, allowRetry: completed || ConfirmationPending);
+                        }
+                    }
+                }
+
+                /// <summary>
+                /// Joins all shared physical admissions before deletion, abort or disposal.
+                /// </summary>
+                internal async ValueTask WaitForQuiescenceAsync()
+                {
+                    foreach (NodeManagerGeneration current in owners)
+                    {
+                        await current.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false);
+                        NodeManagerCleanupRecovery.EnsureNoRetainedFailures(current);
+                    }
+                }
+
+                /// <inheritdoc/>
+                public void Dispose()
+                {
+                    if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                    {
+                        return;
+                    }
+                    try
+                    {
+                        for (int index = 0; index < m_closedRecoveryCount; index++)
+                        {
+                            NodeManagerGeneration current = owners[index];
+                            if ((!m_ownerRecoveryTransferred || !ReferenceEquals(current, cleanupOwner)) &&
+                                current.CleanupRecoveryGate.State == NodeManagerGenerationState.Retiring)
+                            {
+                                current.CleanupRecoveryGate.Restore();
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        resource.ExitCleanup(acquired: true);
+                    }
+                }
+
+                /// <summary>The prefix of the existing owner snapshot closed by this exact attempt.</summary>
+                private int m_closedRecoveryCount;
+
+                /// <summary>Whether the caller owns its drained recovery gate rather than this lease.</summary>
+                private bool m_ownerRecoveryTransferred;
+
+                /// <summary>Ensures this lease releases its physical cleanup admission exactly once.</summary>
+                private int m_disposed;
+            }
+
+            /// <summary>Serializes ownership changes, never provider callbacks.</summary>
+            private readonly Lock m_sync = new();
+
+            /// <summary>Retains active and failed cleanup owners and their verification dependencies.</summary>
+            private readonly List<NodeManagerGeneration> m_owners = [];
+
+            /// <summary>Owns accepted private factory results until their exact generations are assigned.</summary>
+            private readonly List<IAsyncNodeManager> m_candidates = [];
+
+            /// <summary>Serializes physical cleanup attempts across independent logical generations.</summary>
+            private readonly SemaphoreSlim m_cleanup = new(1, 1);
+
+            /// <summary>Wakes workers when logical admission changes.</summary>
+            private TaskCompletionSource<bool>? m_changed;
+
+            /// <summary>Irreversibly seals the physical resource before any cleanup callback starts.</summary>
+            private bool m_cleanupStarted;
+
+            /// <summary>Counts active leases and pending cleanup calls, including logical and semaphore waiters.</summary>
+            private int m_cleanupAdmissions;
+
+            /// <summary>Records disposal without removing the physical resource's terminal tombstone.</summary>
+            private bool m_cleanupDisposed;
         }
 
         /// <summary>Serializes generation identity changes on writer paths.</summary>
@@ -1527,10 +2843,10 @@ namespace Opc.Ua.Server
 #endif
 
         /// <summary>Maps a normalized lookup key to the associated generation.</summary>
-        private static readonly ConditionalWeakTable<IAsyncNodeManager, NodeManagerGeneration> s_generations = new();
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, GenerationAssociation> s_generations = new();
 
-        /// <summary>Prevents a facade from registering a physical resource in incompatible generations.</summary>
-        private static readonly ConditionalWeakTable<IAsyncNodeManager, NodeManagerGeneration> s_resourceGenerations =
+        /// <summary>Arbitrates physical lifetime without assigning one facade's identity to another.</summary>
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, ResourceLifetime> s_resources =
             new();
 
         /// <summary>Scopes restored ownerless items to the lifetime and identity of their server.</summary>
@@ -1547,10 +2863,15 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="state">The initial state.</param>
         /// <param name="active">The admission counter, or null to create one.</param>
-        internal GenerationGate(NodeManagerGenerationState state, StripedCounter? active = null)
+        /// <param name="stateChanged">The private notification for physical cleanup eligibility.</param>
+        internal GenerationGate(
+            NodeManagerGenerationState state,
+            StripedCounter? active = null,
+            Action? stateChanged = null)
         {
             m_state = (int)state;
             m_active = active ?? new StripedCounter();
+            m_stateChanged = stateChanged;
         }
 
         /// <summary>
@@ -1625,6 +2946,7 @@ namespace Opc.Ua.Server
                 Volatile.Write(ref m_state, (int)NodeManagerGenerationState.Retiring);
             }
             CompleteDrainIfReady();
+            m_stateChanged?.Invoke();
         }
 
         /// <summary>
@@ -1646,6 +2968,7 @@ namespace Opc.Ua.Server
                 m_drained = null;
                 m_drainCompleted = false;
             }
+            m_stateChanged?.Invoke();
         }
 
         /// <summary>
@@ -1678,6 +3001,7 @@ namespace Opc.Ua.Server
                 throw new InvalidOperationException("Only a prepared generation can be aborted.");
             }
             CompleteDrainIfReady();
+            m_stateChanged?.Invoke();
         }
 
         /// <summary>
@@ -1714,6 +3038,7 @@ namespace Opc.Ua.Server
                 throw new InvalidOperationException(
                     $"Cannot transition a generation from {(NodeManagerGenerationState)previous} to {next}.");
             }
+            m_stateChanged?.Invoke();
         }
 
         internal void Exit(int slot)
@@ -1822,6 +3147,9 @@ namespace Opc.Ua.Server
 
         /// <summary>The current generation state.</summary>
         private int m_state;
+
+        /// <summary>Notifies the private physical arbiter when lifecycle admission changes.</summary>
+        private readonly Action? m_stateChanged;
     }
 
     /// <summary>
@@ -1871,18 +3199,18 @@ namespace Opc.Ua.Server
         internal long ActiveCount => m_active.Count;
 
         /// <summary>
-        /// Waits for all request pins to leave this view.
+        /// Waits for this view to close and for all admitted request pins to leave.
         /// </summary>
-        /// <returns>A task that completes when the active pin count is zero.</returns>
+        /// <returns>A task that completes when the closed view has no active pins.</returns>
         internal Task WaitForDrainAsync()
         {
-            if (HasNoActivePins)
+            if (IsDrained)
             {
                 return Task.CompletedTask;
             }
             lock (m_waitLock)
             {
-                if (HasNoActivePins)
+                if (IsDrained)
                 {
                     return Task.CompletedTask;
                 }

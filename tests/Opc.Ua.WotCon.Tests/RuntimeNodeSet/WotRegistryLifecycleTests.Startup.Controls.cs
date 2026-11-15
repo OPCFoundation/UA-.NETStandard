@@ -71,7 +71,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             (int baseline, DeadlineProjectionHost host, _) =
                 await PrepareControlledStartupAsync(runtime).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            Task<NodeManagerRegistration> startup = AddStoredRegistryAsync(cancellation.Token);
+            Task<LifecycleResult> startup = AddStoredRegistryAsync(cancellation.Token);
             try
             {
                 await runtime.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -82,10 +82,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 preparationCancellation.Cancel();
             }
 
-            NodeManagerAddCommittedException failure = (await Assert.ThrowsAsync<NodeManagerAddCommittedException>(
-                async () => await startup.ConfigureAwait(false)))!;
-            Assert.That(failure.Registration, Is.SameAs(m_registryRegistration));
-            Assert.That(failure.InnerException, Is.InstanceOf<OperationCanceledException>());
+            LifecycleResult result = await startup.ConfigureAwait(false);
+            Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? committed), Is.True);
+            Assert.That(committed, Is.SameAs(m_registryRegistration));
+            Assert.That(result.CleanupFailure, Is.InstanceOf<OperationCanceledException>());
             Assert.That(cancellation.IsCancellationRequested, Is.False);
             Assert.That(runtime.ReceivedToken.IsCancellationRequested, Is.True);
             Assert.That(host.DeadlineExpired, Is.False);
@@ -110,11 +110,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             WotRegistrySnapshot before = m_registry.Current;
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
-            NodeManagerAddCommittedException failure = (await Assert.ThrowsAsync<NodeManagerAddCommittedException>(
-                async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false)))!;
-            Assert.That(failure.InnerException, Is.SameAs(runtime.Failure));
+            LifecycleResult result = await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.SameAs(runtime.Failure));
             m_registryRegistration = FindStartupRegistryRegistration();
-            Assert.That(failure.Registration, Is.SameAs(m_registryRegistration));
+            Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? committed), Is.True);
+            Assert.That(committed, Is.SameAs(m_registryRegistration));
             Assert.That(host.AddCalls, Is.EqualTo(1));
             Assert.That(host.DeadlineExpired, Is.False);
             Assert.That(runtime.Entered.Task.IsCompleted, Is.True,
@@ -147,14 +147,13 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 await PrepareControlledStartupAsync(converter: converter).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
-            NodeManagerAddCommittedException failure = (await Assert.ThrowsAsync<NodeManagerAddCommittedException>(
-                async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false)))!;
-
-            Assert.That(failure.InnerException, Is.InstanceOf<ServiceResultException>());
-            Assert.That(((ServiceResultException)failure.InnerException!).StatusCode,
+            LifecycleResult result = await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.InstanceOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)result.CleanupFailure!).StatusCode,
                 Is.EqualTo(StatusCodes.BadConfigurationError));
             m_registryRegistration = FindStartupRegistryRegistration();
-            Assert.That(failure.Registration, Is.SameAs(m_registryRegistration));
+            Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? committed), Is.True);
+            Assert.That(committed, Is.SameAs(m_registryRegistration));
             Assert.That(host.AddCalls, Is.Zero, "Failed conversion must not attempt native publication.");
             Assert.That(host.DeadlineExpired, Is.False);
             Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(baseline + 1));
@@ -174,7 +173,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             (int baseline, DeadlineProjectionHost host, RemovalDeadlineProjectionHost cleanup) =
                 await PrepareControlledStartupAsync().ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            m_registryRegistration = await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false);
+            m_registryRegistration = RequireStartupRegistration(
+                await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false));
             Assert.That(host.AddCalls, Is.EqualTo(1));
             Assert.That(StartupResource().LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
             await AssertStartupSensorAsync(readable: true).ConfigureAwait(false);
@@ -197,7 +197,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             (int baseline, DeadlineProjectionHost host, RemovalDeadlineProjectionHost cleanup) =
                 await PrepareControlledStartupAsync(runtime).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            Task<NodeManagerRegistration> startup = AddStoredRegistryAsync(cancellation.Token);
+            Task<LifecycleResult> startup = AddStoredRegistryAsync(cancellation.Token);
             try
             {
                 await runtime.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -210,16 +210,16 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 {
                     if (reload)
                     {
-                        await m_server.NodeManagerLifecycle.ReloadAsync(
-                            m_registryRegistration,
-                            new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator),
-                            callerContext: null,
+                        await m_server.NodeManagerLifecycle.ApplyAsync(
+                            [LifecycleChange.Reload(m_registryRegistration.Slot,
+                                new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator))],
                             conflictDeadline.Token).ConfigureAwait(false);
                     }
                     else
                     {
-                        await m_server.NodeManagerLifecycle.RemoveAsync(
-                            m_registryRegistration, callerContext: null, conflictDeadline.Token).ConfigureAwait(false);
+                        await m_server.NodeManagerLifecycle.ApplyAsync(
+                            [LifecycleChange.Remove(m_registryRegistration.Slot)], conflictDeadline.Token)
+                            .ConfigureAwait(false);
                     }
                 }))!;
                 Assert.That(failure.Message, Does.Contain("completing readiness"));
@@ -229,7 +229,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             finally
             {
                 runtime.Release.TrySetResult(true);
-                m_registryRegistration = await startup.ConfigureAwait(false);
+                m_registryRegistration = RequireStartupRegistration(await startup.ConfigureAwait(false));
             }
 
             Assert.That(host.DeadlineExpired, Is.False);
@@ -266,7 +266,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(),
                     It.IsAny<CancellationToken>())).Returns(new ValueTask<IAsyncNodeManager>(readyOwner));
-                await m_server.NodeManagerLifecycle.AddAsync(readyFactory.Object, callerContext: null)
+                await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(readyFactory.Object)])
                     .ConfigureAwait(false);
                 var readyObject = new BaseObjectState(null)
                 {
@@ -298,7 +298,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Assert.That(Interlocked.Exchange(ref readyCalls, 0), Is.EqualTo(1));
             }
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            Task<NodeManagerRegistration> startup = AddStoredRegistryAsync(cancellation.Token);
+            Task<LifecycleResult> startup = AddStoredRegistryAsync(cancellation.Token);
             NodeId registryId = NodeId.Null;
             NodeId refreshId = NodeId.Null;
             StatusCode startupCallStatus = StatusCodes.BadUnexpectedError;
@@ -378,7 +378,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             finally
             {
                 runtime.Release.TrySetResult(true);
-                m_registryRegistration = await startup.ConfigureAwait(false);
+                m_registryRegistration = RequireStartupRegistration(await startup.ConfigureAwait(false));
             }
 
             Assert.That(host.DeadlineExpired, Is.False);
@@ -514,7 +514,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             (int baseline, _, _) = await PrepareControlledStartupAsync().ConfigureAwait(false);
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            m_registryRegistration = await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false);
+            m_registryRegistration = RequireStartupRegistration(
+                await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false));
             await AssertStartupSensorAsync(readable: true).ConfigureAwait(false);
             await CloseActiveSessionAsync().ConfigureAwait(false);
             await m_server.StopAsync(cancellation.Token).ConfigureAwait(false);
@@ -532,7 +533,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(m_server.NodeManagerLifecycle, Is.SameAs(lifecycle),
                 "Injected lifecycle references must remain valid when their server is restarted.");
             Assert.That(lifecycle.IsShuttingDown, Is.False);
-            m_registryRegistration = await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false);
+            m_registryRegistration = RequireStartupRegistration(
+                await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false));
             (m_requestHeader, m_secureChannelContext) = await m_server
                 .CreateAndActivateSessionAsync(TestContext.CurrentContext.Test.Name).ConfigureAwait(false);
             m_requestHeader.Timestamp = DateTimeUtc.Now;
@@ -589,11 +591,21 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(StartupResource().DefaultVersion!.HasContent, Is.True);
         }
 
-        private Task<NodeManagerRegistration> AddStoredRegistryAsync(CancellationToken cancellationToken)
+        private Task<LifecycleResult> AddStoredRegistryAsync(CancellationToken cancellationToken)
         {
-            return m_server.NodeManagerLifecycle.AddAsync(
-                new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator),
-                callerContext: null, cancellationToken).AsTask();
+            return m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator))],
+                cancellationToken).AsTask();
+        }
+
+        /// <summary>
+        /// Inspects the weak native outcome before retaining a startup fixture's exact owner.
+        /// </summary>
+        private static NodeManagerRegistration RequireStartupRegistration(LifecycleResult result)
+        {
+            Assert.That(result.CleanupFailure, Is.Null);
+            Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration), Is.True);
+            return registration!;
         }
 
         private NodeManagerRegistration FindStartupRegistryRegistration()
@@ -654,7 +666,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             var host = new DeadlineProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host, documentConverter: new SensorConverter());
-            m_registryRegistration = await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false);
+            m_registryRegistration = RequireStartupRegistration(
+                await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false));
             Assert.That(m_registryRegistration.Id, Is.Not.EqualTo(previous.Id));
             Assert.That(m_registryRegistration.Generation, Is.EqualTo(1));
             Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(baseline + 2));
@@ -670,13 +683,17 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         private async Task RemoveRegistryAndRetireAsync(
             NodeManagerRegistration registration, CancellationToken cancellationToken)
         {
-            IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration)], cancellationToken).ConfigureAwait(false);
+            ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+            await using ILifecycleWriter writer = await capture.BeginAsync(cancellationToken).ConfigureAwait(false);
+            Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                current => ReferenceEquals(current, registration)), Is.True);
+            IPreparedChanges removal = await writer.PrepareAsync(
+                [LifecycleChange.Remove(registration.Slot)], cancellationToken).ConfigureAwait(false);
             await using var removalLifetime = removal.ConfigureAwait(false);
-            NodeManagerBatchResult result = await removal.CommitAsync(static _ => default, cancellationToken)
+            LifecycleResult result = await removal.CommitAsync(static _ => default, cancellationToken)
                 .ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
-            await result.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await result.Retired.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         private async Task<ReferenceServer> StartStoredInitialServerAsync(
@@ -957,7 +974,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             /// </summary>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public async ValueTask RemoveAsync(
+            public async ValueTask<LifecycleResult?> RemoveAsync(
                 WotProjectionHandle handle, CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_removeCalls);
@@ -965,7 +982,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 deadline.CancelAfter(TimeSpan.FromSeconds(5));
                 try
                 {
-                    await inner.RemoveAsync(handle, deadline.Token).ConfigureAwait(false);
+                    return await inner.RemoveAsync(handle, deadline.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (
                     deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)

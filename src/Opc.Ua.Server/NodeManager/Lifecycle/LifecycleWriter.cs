@@ -77,9 +77,25 @@ namespace Opc.Ua.Server
             {
                 throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
             }
+            if (m_publicationFailed)
+            {
+                throw new InvalidOperationException(
+                    "The NodeManager lifecycle failed after a durable decision; restart the server to recover.");
+            }
             if (m_shuttingDown)
             {
                 throw new InvalidOperationException("The NodeManager lifecycle is shutting down.");
+            }
+        }
+
+        /// <summary>
+        /// Excludes further mutations after a durable decision could not publish its routing image.
+        /// </summary>
+        internal void MarkPublicationFailed()
+        {
+            lock (m_state)
+            {
+                m_publicationFailed = true;
             }
         }
 
@@ -97,6 +113,7 @@ namespace Opc.Ua.Server
                 }
                 if (!m_shuttingDown)
                 {
+                    EnsureRunning();
                     return;
                 }
                 if (m_shutdownPrepared || m_activeOperations != 0 || m_activeShutdownMethods != 0)
@@ -105,6 +122,7 @@ namespace Opc.Ua.Server
                         "The previous NodeManager lifecycle shutdown did not complete.");
                 }
                 reset();
+                m_publicationFailed = false;
                 m_shuttingDown = false;
             }
         }
@@ -286,29 +304,103 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Immutable revisions checked before preparation and again before the durable publication decision.
+        /// Non-owning revision evidence checked before preparation and the durable publication decision.
         /// </summary>
-        internal sealed record PublicationRevision(
-            LifecycleWriter Owner,
-            IServerInternal Server,
-            IDynamicNodeManagerHost OwnerHost,
-            NodeManagerRoutingTable.RoutingSnapshot RoutingRevision,
-            TypeTable Types,
-            long TypeRevision,
-            EncodeableFactory Factory,
-            long FactoryRevision)
+        internal sealed class PublicationRevision
         {
+            /// <summary>
+            /// Records exact serving identities without extending server or superseded image lifetimes.
+            /// </summary>
+            internal PublicationRevision(
+                LifecycleWriter owner,
+                IServerInternal server,
+                IDynamicNodeManagerHost host,
+                NodeManagerRoutingTable.RoutingSnapshot routingRevision,
+                TypeTable types,
+                long typeRevision,
+                EncodeableFactory factory,
+                long factoryRevision)
+            {
+                Owner = owner;
+                m_server = new WeakReference<IServerInternal>(server);
+                m_host = new WeakReference<IDynamicNodeManagerHost>(host);
+                m_routingRevision = new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(routingRevision);
+                m_types = new WeakReference<TypeTable>(types);
+                m_factory = new WeakReference<EncodeableFactory>(factory);
+                m_typeRevision = typeRevision;
+                m_factoryRevision = factoryRevision;
+            }
+
+            /// <summary>
+            /// Gets the synchronization owner, which holds no server or candidate ownership.
+            /// </summary>
+            internal LifecycleWriter Owner { get; }
+
+            /// <summary>
+            /// Gets the server only while its original identity remains available.
+            /// </summary>
+            internal IServerInternal Server => m_server.TryGetTarget(out IServerInternal? server)
+                ? server
+                : throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
+
+            /// <summary>
+            /// Gets the exact original host without recapturing serving evidence.
+            /// </summary>
+            internal IDynamicNodeManagerHost OwnerHost => m_host.TryGetTarget(out IDynamicNodeManagerHost? host)
+                ? host
+                : throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
+
+            /// <summary>
+            /// Checks server incarnation without recapturing any routing or metadata evidence.
+            /// </summary>
+            internal bool MatchesServer(IServerInternal server)
+            {
+                return m_server.TryGetTarget(out IServerInternal? captured) && ReferenceEquals(captured, server) &&
+                    m_host.TryGetTarget(out IDynamicNodeManagerHost? host) && ReferenceEquals(server.NodeManager, host);
+            }
+
             /// <summary>
             /// Checks routing, type and encodeable revisions together.
             /// </summary>
             internal bool IsCurrent()
             {
-                _ = ((EncodeableFactory)Server.Factory).CaptureSnapshot(
+                if (Owner.m_publicationFailed ||
+                    !m_server.TryGetTarget(out IServerInternal? server) ||
+                    !m_host.TryGetTarget(out IDynamicNodeManagerHost? host) ||
+                    !m_routingRevision.TryGetTarget(out NodeManagerRoutingTable.RoutingSnapshot? routing) ||
+                    !m_types.TryGetTarget(out TypeTable? types) ||
+                    !m_factory.TryGetTarget(out EncodeableFactory? expectedFactory) ||
+                    server.Factory is not EncodeableFactory currentFactory)
+                {
+                    return false;
+                }
+                _ = currentFactory.CaptureSnapshot(
                     out EncodeableFactory factory, out long factoryRevision);
-                return ReferenceEquals(OwnerHost.RoutingRevision, RoutingRevision) &&
-                    Server.TypeTree.IsCurrentSnapshot(Types, TypeRevision) &&
-                    ReferenceEquals(factory, Factory) && factoryRevision == FactoryRevision;
+                return ReferenceEquals(host.RoutingRevision, routing) &&
+                    server.TypeTree.IsCurrentSnapshot(types, m_typeRevision) &&
+                    ReferenceEquals(factory, expectedFactory) && factoryRevision == m_factoryRevision;
             }
+
+            /// <summary>The server identity, without lifetime ownership.</summary>
+            private readonly WeakReference<IServerInternal> m_server;
+
+            /// <summary>The host identity, without lifetime ownership.</summary>
+            private readonly WeakReference<IDynamicNodeManagerHost> m_host;
+
+            /// <summary>The original routing image, without retaining its generations.</summary>
+            private readonly WeakReference<NodeManagerRoutingTable.RoutingSnapshot> m_routingRevision;
+
+            /// <summary>The original type image, without retaining superseded types.</summary>
+            private readonly WeakReference<TypeTable> m_types;
+
+            /// <summary>The original factory image, without retaining superseded types.</summary>
+            private readonly WeakReference<EncodeableFactory> m_factory;
+
+            /// <summary>The original type-table revision.</summary>
+            private readonly long m_typeRevision;
+
+            /// <summary>The original factory revision.</summary>
+            private readonly long m_factoryRevision;
         }
 
         /// <summary>
@@ -377,10 +469,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Owns an invocation's optimistic revision, sequential preparation and prepared transaction disposal.
         /// </summary>
-        internal sealed class PublicationSession(
-            LifecycleWriter owner,
-            PublicationRevision revision) : IAsyncDisposable
+        internal sealed class PublicationSession : IAsyncDisposable
         {
+            /// <summary>
+            /// Owns writer admission until terminal disposal, retaining only private synchronization afterward.
+            /// </summary>
+            internal PublicationSession(LifecycleWriter owner, PublicationRevision revision)
+            {
+                m_state = owner.m_state;
+                m_revision = revision;
+                m_operation = owner.EnterOperation();
+            }
+
             /// <summary>
             /// Gets whether this invocation's expected serving revisions remain current.
             /// </summary>
@@ -388,9 +488,9 @@ namespace Opc.Ua.Server
             {
                 get
                 {
-                    lock (owner.m_state)
+                    lock (m_state)
                     {
-                        return !m_closing && m_revision.IsCurrent();
+                        return !m_closing && Revision.IsCurrent();
                     }
                 }
             }
@@ -398,11 +498,12 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Rejects stale captured evidence under mutation ownership before preparation or a durable decision.
             /// </summary>
-            internal void ValidateRevision()
+            internal void ValidateRevision(IServerInternal? server = null)
             {
-                lock (owner.m_state)
+                lock (m_state)
                 {
-                    if (!m_revision.IsCurrent())
+                    PublicationRevision revision = Revision;
+                    if (!revision.IsCurrent() || server is not null && !revision.MatchesServer(server))
                     {
                         throw new InvalidOperationException(
                             "The publication invocation conflicts with a newer address-space revision.");
@@ -411,15 +512,31 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Checks the lifecycle's current server incarnation as well as captured serving revisions.
+            /// </summary>
+            internal bool IsCurrentFor(INodeManagerLifecycleHost host)
+            {
+                if (Volatile.Read(ref m_closing))
+                {
+                    return false;
+                }
+                IServerInternal server = host.CurrentInstance;
+                lock (m_state)
+                {
+                    return !m_closing && Revision.MatchesServer(server) && Revision.IsCurrent();
+                }
+            }
+
+            /// <summary>
             /// Observes only this invocation's successful publication, immediately after its swap under the writer.
             /// </summary>
             internal void AdvanceRevision()
             {
-                lock (owner.m_state)
+                lock (m_state)
                 {
-                    m_revision = owner.CaptureRevisionCore(
-                        m_revision.Server, m_revision.OwnerHost,
-                        (EncodeableFactory)m_revision.Server.Factory);
+                    PublicationRevision revision = Revision;
+                    m_revision = revision.Owner.CaptureRevisionCore(
+                        revision.Server, revision.OwnerHost, (EncodeableFactory)revision.Server.Factory);
                 }
             }
 
@@ -429,40 +546,80 @@ namespace Opc.Ua.Server
             internal Task Finished => m_finished.Task;
 
             /// <summary>
+            /// Gets active revision ownership, including while admitted work drains during disposal.
+            /// </summary>
+            private PublicationRevision Revision =>
+                m_revision ?? throw new ObjectDisposedException(nameof(ILifecycleWriter));
+
+            /// <summary>
             /// Prepares one transaction while preventing overlapping preparation or premature disposal.
             /// </summary>
             /// <typeparam name="T">The prepared transaction type.</typeparam>
             internal async ValueTask<T> PrepareAsync<T>(Func<ValueTask<T>> prepare)
                 where T : IAsyncDisposable
             {
-                owner.ThrowIfDecisionCallbackActive();
-                lock (owner.m_state)
+                TaskCompletionSource<bool> preparation;
+                lock (m_state)
                 {
+                    LifecycleWriter owner = Revision.Owner;
+                    owner.ThrowIfDecisionCallbackActive();
                     owner.EnsureRunning();
                     if (m_closing)
                     {
-                        throw new ObjectDisposedException(nameof(INodeManagerPublication));
+                        throw new ObjectDisposedException(nameof(ILifecycleWriter));
                     }
                     ValidateRevision();
-                    if (m_preparing)
+                    if (m_prepared is not null)
                     {
                         throw new InvalidOperationException("Prepare invocation units sequentially.");
                     }
-                    m_preparing = true;
-                    m_prepared = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    preparation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_prepared = preparation;
                 }
                 try
                 {
                     T batch = await prepare().ConfigureAwait(false);
-                    m_batches.Add(batch);
+                    lock (m_state)
+                    {
+                        m_batches.Add(batch);
+                    }
                     return batch;
                 }
                 finally
                 {
-                    lock (owner.m_state)
+                    lock (m_state)
                     {
-                        m_preparing = false;
-                        m_prepared.TrySetResult(true);
+                        m_prepared = null;
+                        preparation.TrySetResult(true);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Releases an exact consumed unit after publication or transfer to lifecycle-owned cleanup.
+            /// </summary>
+            /// <param name="batch">The prepared unit whose cleanup finished.</param>
+            /// <param name="failure">An earlier disposal failure that the invocation must still report.</param>
+            internal void ReleaseCompletedBatch(IAsyncDisposable batch, Exception? failure = null)
+            {
+                lock (m_state)
+                {
+                    if (m_closing)
+                    {
+                        return;
+                    }
+                    bool found = false;
+                    for (int index = m_batches.Count - 1; index >= 0; index--)
+                    {
+                        if (ReferenceEquals(m_batches[index], batch))
+                        {
+                            m_batches.RemoveAt(index);
+                            found = true;
+                        }
+                    }
+                    if (found && failure is not null)
+                    {
+                        (m_completedDisposalFailures ??= []).Add(failure);
                     }
                 }
             }
@@ -470,21 +627,18 @@ namespace Opc.Ua.Server
             /// <inheritdoc/>
             public async ValueTask DisposeAsync()
             {
-                owner.ThrowIfDecisionCallbackActive();
                 Task? prepared;
                 bool ownsDisposal;
-                lock (owner.m_state)
+                lock (m_state)
                 {
+                    m_revision?.Owner.ThrowIfDecisionCallbackActive();
                     ownsDisposal = !m_closing;
                     m_closing = true;
-                    prepared = m_preparing ? m_prepared.Task : null;
+                    prepared = m_prepared?.Task;
                 }
                 if (!ownsDisposal)
                 {
-                    if (!Finished.IsCompleted)
-                    {
-                        await Finished.ConfigureAwait(false);
-                    }
+                    await Finished.ConfigureAwait(false);
                     return;
                 }
                 Exception? cleanupFailure = null;
@@ -494,7 +648,8 @@ namespace Opc.Ua.Server
                     {
                         await prepared.ConfigureAwait(false);
                     }
-                    var failures = new List<Exception>();
+                    // Closing excludes further releases, so disposal now owns the retained failure list.
+                    List<Exception> failures = m_completedDisposalFailures ?? [];
                     foreach (IAsyncDisposable batch in m_batches)
                     {
                         try
@@ -515,9 +670,19 @@ namespace Opc.Ua.Server
                 {
                     cleanupFailure = failure;
                 }
+                catch (OutOfMemoryException failure)
+                {
+                    cleanupFailure = failure;
+                    throw;
+                }
                 finally
                 {
-                    m_batches.Clear();
+                    lock (m_state)
+                    {
+                        m_batches.Clear();
+                        m_completedDisposalFailures?.Clear();
+                        m_revision = null;
+                    }
                     m_operation.Dispose();
                     if (cleanupFailure is null)
                     {
@@ -531,25 +696,27 @@ namespace Opc.Ua.Server
                 await Finished.ConfigureAwait(false);
             }
 
-            /// <summary>Transactions retained until invocation disposal.</summary>
+            /// <summary>Transactions retained until their cleanup or invocation disposal.</summary>
             private readonly List<IAsyncDisposable> m_batches = [];
 
+            /// <summary>Earlier disposal failures retained after their units finish physical cleanup.</summary>
+            private List<Exception>? m_completedDisposalFailures;
+
             /// <summary>Expected serving metadata, advanced only by this invocation's own publication.</summary>
-            private PublicationRevision m_revision = revision;
+            private PublicationRevision? m_revision;
 
             /// <summary>Outcome shared by callers joining the active cleanup attempt.</summary>
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>Completion of the currently admitted preparation.</summary>
-            private TaskCompletionSource<bool> m_prepared =
-                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private TaskCompletionSource<bool>? m_prepared;
 
             /// <summary>The operation admitted and owned by this invocation until its cleanup finishes.</summary>
-            private readonly OperationLifetime m_operation = owner.EnterOperation();
+            private readonly OperationLifetime m_operation;
 
-            /// <summary>Whether a transaction is being prepared.</summary>
-            private bool m_preparing;
+            /// <summary>Private synchronization that remains usable after writer ownership is released.</summary>
+            private readonly Lock m_state;
 
             /// <summary>Whether disposal has excluded further preparation.</summary>
             private bool m_closing;
@@ -683,5 +850,8 @@ namespace Opc.Ua.Server
 
         /// <summary>Whether shutdown has excluded new admission.</summary>
         private volatile bool m_shuttingDown;
+
+        /// <summary>Whether a durable decision failed to install its routing image.</summary>
+        private volatile bool m_publicationFailed;
     }
 }

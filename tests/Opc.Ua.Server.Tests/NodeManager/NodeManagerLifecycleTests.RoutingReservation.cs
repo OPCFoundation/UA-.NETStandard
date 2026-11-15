@@ -31,10 +31,12 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Tests;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -46,14 +48,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedBatchDoesNotRevertAcceptedNamespaceRemovalAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            NodeManagerRegistration survivor = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue))), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration survivor = RequireRegistration(publicationResult1.Registrations[0]);
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))],
-                null, timeout.Token)
+            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
                 .ConfigureAwait(false);
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -73,7 +77,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            Task<LifecycleResult> commit = prepared.CommitAsync(async token =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -81,14 +85,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Task<bool>? removal = null;
             BrowseResult during;
             bool routedDuring;
-            NodeManagerBatchResult result;
+            LifecycleResult result;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 removal = Task.Run(() => master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager));
-                await Task.Delay(250, timeout.Token).ConfigureAwait(false);
-                Assert.That(removal.IsCompleted, Is.False,
-                    "A namespace write waits for the pending publication decision instead of changing the route.");
+                Assert.That(await removal.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false),
+                    Is.True, "An unrelated surviving route must make progress while the decision is held.");
+                Assert.That(commit.IsCompleted, Is.False);
                 routedDuring = master.NamespaceManagers.ContainsKey(valueId.NamespaceIndex);
                 during = await BrowseAsync().ConfigureAwait(false);
             }
@@ -104,11 +108,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(prepared.IsCommitted, Is.True);
                 Assert.That(result.CleanupFailure, Is.Null);
                 Assert.That(accepted, Is.True, "The surviving manager owns this namespace route.");
-                Assert.That(routedDuring, Is.True);
+                Assert.That(routedDuring, Is.False);
                 Assert.That(master.NamespaceManagers.ContainsKey(valueId.NamespaceIndex),
                     Is.False, "The exact surviving namespace route must not be resurrected.");
-                Assert.That(during.StatusCode, Is.EqualTo(StatusCodes.Good),
-                    "The waiting write has no route effect before the decision completes.");
+                Assert.That(during.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown),
+                    "The unrelated route removal is authoritative before the other unit commits.");
                 Assert.That(after.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown),
                     "A successful namespace removal must not be silently undone by prepared publication.");
             }
@@ -144,18 +148,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedBatchRejectsNamespaceRoutingChangesBeforeDecisionAsync(bool register)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            NodeManagerRegistration survivor = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult publicationResult2 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue))), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration survivor = RequireRegistration(publicationResult2.Registrations[0]);
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             if (register)
             {
                 Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);
             }
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))],
-                null, timeout.Token)
+            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
                 .ConfigureAwait(false);
             if (register)
             {
@@ -194,27 +200,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true, "Reject")]
         [TestCase(false, "Cancel")]
         [TestCase(true, "Cancel")]
-        public async Task PreparedBatchSerializesNamespaceWritesUntilDecisionCompletesAsync(bool register, string outcome)
+        public async Task PreparedBatchSerializesNamespaceWritesUntilDecisionCompletesAsync(
+            bool register, string outcome)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var decisionCancellation = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
-            NodeManagerRegistration survivor = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult publicationResult3 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue))), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration survivor = RequireRegistration(publicationResult3.Registrations[0]);
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
-            if (register)
+            const string conflictingUri = kSecondModelNamespaceUri;
+            m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(conflictingUri);
+            if (!register)
             {
-                Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);
+                master.RegisterNamespaceManager(conflictingUri, survivor.NodeManager);
             }
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))],
-                null, timeout.Token)
+            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
                 .ConfigureAwait(false);
-            int namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            int namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(conflictingUri);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            Task<LifecycleResult> commit = prepared.CommitAsync(async token =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -255,34 +266,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 else
                 {
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
             }
             Assert.That(prepared.IsCommitted, Is.EqualTo(outcome == "Commit"));
             await pendingMutation!.WaitAsync(timeout.Token).ConfigureAwait(false);
-            Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.EqualTo(register));
+            Assert.That(HasSurvivorRoute(), Is.EqualTo(register));
             if (register)
             {
-                Assert.That(master.NamespaceManagers[namespaceIndex], Is.EqualTo(new[] { survivor.NodeManager }));
+                Assert.That(master.NamespaceManagers[namespaceIndex], Does.Contain(survivor.NodeManager));
             }
             await prepared.DisposeAsync().ConfigureAwait(false);
             await prepared.DisposeAsync().ConfigureAwait(false);
-            Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.EqualTo(register),
+            Assert.That(HasSurvivorRoute(), Is.EqualTo(register),
                 "Aborted or committed owner cleanup must not undo a later successful namespace write.");
-            master.RegisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager);
-            Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);
-            master.RegisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager);
+            master.RegisterNamespaceManager(conflictingUri, survivor.NodeManager);
+            Assert.That(master.UnregisterNamespaceManager(conflictingUri, survivor.NodeManager), Is.True);
+            master.RegisterNamespaceManager(conflictingUri, survivor.NodeManager);
+
+            bool HasSurvivorRoute()
+            {
+                return master.NamespaceManagers.TryGetValue(namespaceIndex, out var owners) &&
+                    owners.Contains(survivor.NodeManager);
+            }
 
             void Mutate()
             {
                 if (register)
                 {
-                    master.RegisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager);
+                    master.RegisterNamespaceManager(conflictingUri, survivor.NodeManager);
                 }
                 else
                 {
-                    Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);
+                    Assert.That(master.UnregisterNamespaceManager(conflictingUri, survivor.NodeManager), Is.True);
                 }
             }
         }
@@ -296,8 +313,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedBatchAllowsNamespaceWritesInCommittedCallbacksAsync(bool reconcile, bool register)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            NodeManagerRegistration survivor = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult publicationResult4 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue))), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration survivor = RequireRegistration(publicationResult4.Registrations[0]);
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             if (register)
             {
@@ -308,13 +328,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? candidate = null;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, manager => candidate = manager, kSecondModelNamespaceUri))],
-                null,
-                timeout.Token).ConfigureAwait(false);
+                        timeout.Token).ConfigureAwait(false);
             TrackingLifecycleNodeManager candidateManager = candidate ??
                 throw new AssertionException("The prepared callback generation was not created.");
             int mutations = 0;
@@ -326,7 +345,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return default;
                 };
             }
-            NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, () =>
+            LifecycleResult result = await prepared.CommitAsync(_ => default, () =>
             {
                 if (!reconcile)
                 {

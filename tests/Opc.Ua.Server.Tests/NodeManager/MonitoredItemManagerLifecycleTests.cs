@@ -667,6 +667,522 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// A deleted node invalidates only items bound to its exact generation.
+        /// </summary>
+        [Test]
+        public async Task MonitoredNodeDeletedMaskDistinguishesSameNumberCandidatesAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                INodeManager resource = Mock.Of<INodeManager>();
+                var earlierManager = new Mock<IAsyncNodeManager>();
+                var manager = new Mock<IAsyncNodeManager>();
+                earlierManager.SetupGet(value => value.SyncNodeManager).Returns(resource);
+                manager.SetupGet(value => value.SyncNodeManager).Returns(resource);
+                NodeManagerGeneration predecessor =
+                    NodeManagerGenerationRegistry.CreateAddition(Mock.Of<IAsyncNodeManager>());
+                NodeManagerGeneration earlier = NodeManagerGenerationRegistry.CreateReplacement(
+                    predecessor, earlierManager.Object);
+                NodeManagerGeneration current = NodeManagerGenerationRegistry.CreateReplacement(
+                    predecessor, manager.Object);
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("SameNumberCandidates", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                using MonitoredItem earlierItem = CreateMonitoredItem(
+                    server.Object, earlierManager.Object, new object(), node.NodeId, id: 2, sourceGeneration: earlier);
+                Assert.That(earlierItem.Generation, Is.SameAs(earlier.Reference));
+                earlier.Gate.Abort();
+                current.Gate.Activate();
+                using MonitoredItem currentItem = CreateMonitoredItem(
+                    server.Object, manager.Object, new object(), node.NodeId, id: 3, sourceGeneration: current);
+                await using var monitoredNode = new MonitoredNode2(manager.Object, server.Object, node);
+                monitoredNode.Add((IDataChangeMonitoredItem2)earlierItem);
+                monitoredNode.Add((IDataChangeMonitoredItem2)currentItem);
+                try
+                {
+                    Assert.That(current.Slot, Is.SameAs(earlier.Slot));
+                    Assert.That(current.Number, Is.EqualTo(earlier.Number));
+                    Assert.That(current, Is.Not.SameAs(earlier));
+                    Assert.That(current.NodeManager, Is.Not.SameAs(earlier.NodeManager));
+                    Assert.That(current.ResourceOwnership, Is.SameAs(earlier.ResourceOwnership));
+                    Assert.That(currentItem.Generation, Is.SameAs(current.Reference));
+                    Assert.That(monitoredNode.Generation, Is.SameAs(current.Reference));
+
+                    await monitoredNode.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext,
+                        node,
+                        NodeStateChangeMasks.Deleted).ConfigureAwait(false);
+
+                    Assert.That(((IMonitoredItemGenerationBinding)earlierItem).IsDeleted, Is.False);
+                    Assert.That(((IMonitoredItemGenerationBinding)currentItem).IsDeleted, Is.True);
+                }
+                finally
+                {
+                    monitoredNode.Remove((IDataChangeMonitoredItem2)earlierItem);
+                    monitoredNode.Remove((IDataChangeMonitoredItem2)currentItem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A semantic resample rejects an item from a different generation with matching metadata.
+        /// </summary>
+        /// <remarks>
+        /// Exact validation counts require one process-wide role-permission epoch, as in the permission-cache tests.
+        /// </remarks>
+        [Test]
+        [NonParallelizable]
+        public async Task SemanticResampleDistinguishesSameNumberCandidatesAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+            {
+                INodeManager resource = Mock.Of<INodeManager>();
+                var earlierManager = new Mock<IAsyncNodeManager>();
+                var manager = new Mock<IAsyncNodeManager>();
+                earlierManager.SetupGet(value => value.SyncNodeManager).Returns(resource);
+                manager.SetupGet(value => value.SyncNodeManager).Returns(resource);
+                manager.Setup(value => value.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<NodeId>(), It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadUserAccessDenied)));
+                NodeManagerGeneration predecessor =
+                    NodeManagerGenerationRegistry.CreateAddition(Mock.Of<IAsyncNodeManager>());
+                NodeManagerGeneration earlier =
+                    NodeManagerGenerationRegistry.CreateReplacement(predecessor, earlierManager.Object);
+                NodeManagerGeneration current =
+                    NodeManagerGenerationRegistry.CreateReplacement(predecessor, manager.Object);
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("SameNumberSemanticResample", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                using MonitoredItem earlierItem = CreateMonitoredItem(
+                    server.Object, earlierManager.Object, new object(), node.NodeId, id: 2, sourceGeneration: earlier);
+                Assert.That(earlierItem.Generation, Is.SameAs(earlier.Reference));
+                earlier.Gate.Abort();
+                current.Gate.Activate();
+                using MonitoredItem currentItem = CreateMonitoredItem(
+                    server.Object, manager.Object, new object(), node.NodeId, id: 3, sourceGeneration: current);
+                await using var monitoredNode = new MonitoredNode2(manager.Object, server.Object, node);
+                monitoredNode.Add((IDataChangeMonitoredItem2)earlierItem);
+                monitoredNode.Add((IDataChangeMonitoredItem2)currentItem);
+                try
+                {
+                    Assert.That(current.Slot, Is.SameAs(earlier.Slot));
+                    Assert.That(current.Number, Is.EqualTo(earlier.Number));
+                    Assert.That(current, Is.Not.SameAs(earlier));
+                    Assert.That(current.NodeManager, Is.Not.SameAs(earlier.NodeManager));
+                    Assert.That(current.ResourceOwnership, Is.SameAs(earlier.ResourceOwnership));
+                    Assert.That(currentItem.Generation, Is.SameAs(current.Reference));
+                    Assert.That(monitoredNode.Generation, Is.SameAs(current.Reference));
+
+                    Assert.That(monitoredNode.TryQueueSemanticResample(node, earlierItem), Is.True);
+                    await monitoredNode.WaitForPendingNotificationsAsync(timeout.Token).ConfigureAwait(false);
+                    earlierManager.Verify(value => value.ValidateRolePermissionsAsync(
+                        It.IsAny<OperationContext>(), node.NodeId, PermissionType.Read,
+                        It.IsAny<CancellationToken>()), Times.Never);
+                    manager.Verify(value => value.ValidateRolePermissionsAsync(
+                        It.IsAny<OperationContext>(), node.NodeId, PermissionType.Read,
+                        It.IsAny<CancellationToken>()), Times.Never);
+                    Assert.That(earlierItem.IsReadyToPublish, Is.False);
+
+                    Assert.That(monitoredNode.TryQueueSemanticResample(node, currentItem), Is.True);
+                    await monitoredNode.WaitForPendingNotificationsAsync(timeout.Token).ConfigureAwait(false);
+                    manager.Verify(value => value.ValidateRolePermissionsAsync(
+                        It.IsAny<OperationContext>(), node.NodeId, PermissionType.Read,
+                        It.IsAny<CancellationToken>()), Times.Once);
+                    using var context = new OperationContext(currentItem);
+                    var notifications = new Queue<MonitoredItemNotification>();
+                    currentItem.Publish(
+                        context, notifications, new Queue<DiagnosticInfo>(), 10,
+                        server.Object.Telemetry.CreateLogger<MonitoredItemManagerLifecycleTests>());
+                    Assert.That(notifications, Has.Count.EqualTo(1));
+                    Assert.That(notifications.Dequeue().Value.StatusCode.CodeBits,
+                        Is.EqualTo(StatusCodes.BadUserAccessDenied.CodeBits));
+                }
+                finally
+                {
+                    monitoredNode.Remove((IDataChangeMonitoredItem2)earlierItem);
+                    monitoredNode.Remove((IDataChangeMonitoredItem2)currentItem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A delayed deletion callback cannot invalidate a replacement node's binding.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task MonitoredNodeDeletedMaskIgnoresReboundNodeAsync(bool eventItem, bool useNodeSetter)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
+                var nodeId = new NodeId("ReboundDeletedMask", 1);
+                NodeState original = eventItem
+                    ? new BaseObjectState(null) { NodeId = nodeId, EventNotifier = EventNotifiers.SubscribeToEvents }
+                    : new BaseDataVariableState(null) { NodeId = nodeId, DataType = DataTypeIds.Int32, Value = 1 };
+                NodeState replacement = eventItem
+                    ? new BaseObjectState(null) { NodeId = nodeId, EventNotifier = EventNotifiers.SubscribeToEvents }
+                    : new BaseDataVariableState(null) { NodeId = nodeId, DataType = DataTypeIds.Int32, Value = 2 };
+                using MonitoredItem item = eventItem
+                    ? CreateEventMonitoredItem(server.Object, manager, new object(), nodeId)
+                    : CreateMonitoredItem(server.Object, manager, new object(), nodeId);
+                await using var monitoredNode = new MonitoredNode2(manager, server.Object, original);
+                if (eventItem)
+                {
+                    monitoredNode.Add((IEventMonitoredItem)item);
+                }
+                else
+                {
+                    monitoredNode.Add((IDataChangeMonitoredItem2)item);
+                }
+                try
+                {
+                    if (useNodeSetter)
+                    {
+                        monitoredNode.Node = replacement;
+                    }
+                    else
+                    {
+                        Assert.That(ServiceResult.IsGood(monitoredNode.Rebind(manager, replacement)), Is.True);
+                    }
+                    await monitoredNode.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext,
+                        original,
+                        NodeStateChangeMasks.Deleted).ConfigureAwait(false);
+                    Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.False);
+
+                    await monitoredNode.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext,
+                        replacement,
+                        NodeStateChangeMasks.Deleted).ConfigureAwait(false);
+                    Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.True);
+                }
+                finally
+                {
+                    if (eventItem)
+                    {
+                        monitoredNode.Remove((IEventMonitoredItem)item);
+                    }
+                    else
+                    {
+                        monitoredNode.Remove((IDataChangeMonitoredItem2)item);
+                    }
+                    if (useNodeSetter)
+                    {
+                        original.OnStateChangedAsync = null;
+                        original.OnReportEventAsync = null;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returning to the same node instance does not revive an earlier deleted-source binding.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task DeletedSourceMarkRejectsReusedNodeBindingAsync(bool eventItem, bool useNodeSetter)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
+                var nodeId = new NodeId("ReusedDeletedSourceBinding", 1);
+                NodeState original = eventItem
+                    ? new BaseObjectState(null) { NodeId = nodeId, EventNotifier = EventNotifiers.SubscribeToEvents }
+                    : new BaseDataVariableState(null) { NodeId = nodeId, DataType = DataTypeIds.Int32, Value = 1 };
+                NodeState replacement = eventItem
+                    ? new BaseObjectState(null) { NodeId = nodeId, EventNotifier = EventNotifiers.SubscribeToEvents }
+                    : new BaseDataVariableState(null) { NodeId = nodeId, DataType = DataTypeIds.Int32, Value = 2 };
+                using MonitoredItem item = eventItem
+                    ? CreateEventMonitoredItem(server.Object, manager, new object(), nodeId)
+                    : CreateMonitoredItem(server.Object, manager, new object(), nodeId);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+                await using var monitoredNode = new MonitoredNode2(manager, server.Object, original);
+                if (eventItem)
+                {
+                    monitoredNode.Add((IEventMonitoredItem)item);
+                }
+                else
+                {
+                    monitoredNode.Add((IDataChangeMonitoredItem2)item);
+                }
+                try
+                {
+                    Assert.That(monitoredNode.Generation, Is.SameAs(generation.Reference));
+                    MonitoredNode2.NodeBinding previous = monitoredNode.CaptureNodeBinding();
+                    if (useNodeSetter)
+                    {
+                        monitoredNode.Node = replacement;
+                        monitoredNode.Node = original;
+                    }
+                    else
+                    {
+                        Assert.That(ServiceResult.IsGood(monitoredNode.Rebind(manager, replacement)), Is.True);
+                        Assert.That(ServiceResult.IsGood(monitoredNode.Rebind(manager, original)), Is.True);
+                    }
+                    Assert.That(monitoredNode.Generation, Is.SameAs(generation.Reference));
+                    MonitoredNode2.NodeBinding current = monitoredNode.CaptureNodeBinding();
+                    Assert.That(current, Is.Not.SameAs(previous));
+                    Assert.That(item.TryMarkDeletedSource(
+                        generation.Reference, monitoredNode, previous, item.Id, eventItem, out _, out _), Is.False);
+                    Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.False);
+                    Assert.That(item.TryMarkDeletedSource(
+                        generation.Reference, monitoredNode, current, item.Id, eventItem,
+                        out long revision, out NodeManagerGenerationReference? source), Is.True);
+                    item.QueueDeletedSourceStatus(revision, source, monitoredNode, current);
+                    Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.True);
+                    if (!eventItem)
+                    {
+                        using var context = new OperationContext(item);
+                        var notifications = new Queue<MonitoredItemNotification>();
+                        item.Publish(
+                            context, notifications, new Queue<DiagnosticInfo>(), 10,
+                            server.Object.Telemetry.CreateLogger<MonitoredItemManagerLifecycleTests>());
+                        Assert.That(notifications, Has.Count.EqualTo(1));
+                        Assert.That(notifications.Dequeue().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    }
+                }
+                finally
+                {
+                    if (eventItem)
+                    {
+                        monitoredNode.Remove((IEventMonitoredItem)item);
+                    }
+                    else
+                    {
+                        monitoredNode.Remove((IDataChangeMonitoredItem2)item);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// A pending deletion status does not follow a reused owner binding unless the source was released.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task DeletedSourceStatusDoesNotFollowReusedNodeBindingAsync(bool useNodeSetter, bool release)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
+                var nodeId = new NodeId("ReusedDeletedStatusBinding", 1);
+                var original = new BaseDataVariableState(null)
+                {
+                    NodeId = nodeId,
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                var replacement = new BaseDataVariableState(null)
+                {
+                    NodeId = nodeId,
+                    DataType = DataTypeIds.Int32,
+                    Value = 2
+                };
+                using MonitoredItem item = CreateMonitoredItem(server.Object, manager, new object(), nodeId);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+                var itemBinding = (IMonitoredItemGenerationBinding)item;
+                await using var monitoredNode = new MonitoredNode2(manager, server.Object, original);
+                monitoredNode.Add((IDataChangeMonitoredItem2)item);
+                try
+                {
+                    Assert.That(monitoredNode.Generation, Is.SameAs(generation.Reference));
+                    MonitoredNode2.NodeBinding previous = monitoredNode.CaptureNodeBinding();
+                    Assert.That(item.TryMarkDeletedSource(
+                        generation.Reference, monitoredNode, previous, item.Id, isEvent: false,
+                        out long revision, out NodeManagerGenerationReference? source), Is.True);
+                    if (useNodeSetter)
+                    {
+                        monitoredNode.Node = replacement;
+                        monitoredNode.Node = original;
+                    }
+                    else
+                    {
+                        Assert.That(ServiceResult.IsGood(monitoredNode.Rebind(manager, replacement)), Is.True);
+                        Assert.That(ServiceResult.IsGood(monitoredNode.Rebind(manager, original)), Is.True);
+                    }
+                    if (release)
+                    {
+                        Assert.That(itemBinding.TryClearSource(revision), Is.True);
+                        itemBinding.Invalidate(terminal: false);
+                    }
+                    item.QueueDeletedSourceStatus(revision, source, monitoredNode, previous);
+
+                    using var context = new OperationContext(item);
+                    var notifications = new Queue<MonitoredItemNotification>();
+                    item.Publish(
+                        context, notifications, new Queue<DiagnosticInfo>(), 10,
+                        server.Object.Telemetry.CreateLogger<MonitoredItemManagerLifecycleTests>());
+                    Assert.That(notifications, Has.Count.EqualTo(release ? 1 : 0));
+                    if (release)
+                    {
+                        Assert.That(notifications.Dequeue().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    }
+                    else
+                    {
+                        await monitoredNode.OnMonitoredNodeChangedAsync(
+                            server.Object.DefaultSystemContext,
+                            original,
+                            NodeStateChangeMasks.Deleted).ConfigureAwait(false);
+                        item.Publish(
+                            context, notifications, new Queue<DiagnosticInfo>(), 10,
+                            server.Object.Telemetry.CreateLogger<MonitoredItemManagerLifecycleTests>());
+                        Assert.That(notifications, Has.Count.EqualTo(1));
+                        Assert.That(notifications.Dequeue().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    }
+                }
+                finally
+                {
+                    monitoredNode.Remove((IDataChangeMonitoredItem2)item);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A queued lost-node status belongs only to the source incarnation that was marked deleted.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task DeletedSourceStatusDoesNotFollowRebindingAsync(bool rebind, bool release)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("DeletedSourceRevision", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, manager, new object(), node.NodeId);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+                var binding = (IMonitoredItemGenerationBinding)item;
+                await using var monitoredNode = new MonitoredNode2(manager, server.Object, node);
+                monitoredNode.Add((IDataChangeMonitoredItem2)item);
+                try
+                {
+                    Assert.That(monitoredNode.Generation, Is.SameAs(generation.Reference));
+                    MonitoredNode2.NodeBinding nodeBinding = monitoredNode.CaptureNodeBinding();
+                    Assert.That(item.TryMarkDeletedSource(
+                        generation.Reference, monitoredNode, nodeBinding, item.Id, isEvent: false,
+                        out long revision, out NodeManagerGenerationReference? source), Is.True);
+                    Assert.That(binding.IsDeleted, Is.True);
+                    if (rebind)
+                    {
+                        Assert.That(
+                            binding.TryBindSource(revision, manager, new object(), out long replacement),
+                            Is.True);
+                        Assert.That(replacement, Is.Not.EqualTo(revision));
+                    }
+                    else if (release)
+                    {
+                        Assert.That(binding.TryClearSource(revision), Is.True);
+                        binding.Invalidate(terminal: false);
+                    }
+
+                    item.QueueDeletedSourceStatus(revision, source, monitoredNode, nodeBinding);
+                    var notifications = new Queue<MonitoredItemNotification>();
+                    using var context = new OperationContext(item);
+                    item.Publish(
+                        context,
+                        notifications,
+                        new Queue<DiagnosticInfo>(),
+                        10,
+                        server.Object.Telemetry.CreateLogger<MonitoredItemManagerLifecycleTests>());
+                    Assert.That(notifications, Has.Count.EqualTo(rebind ? 0 : 1));
+                    if (!rebind)
+                    {
+                        Assert.That(
+                            notifications.Dequeue().Value.StatusCode,
+                            Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    }
+                    Assert.That(binding.IsDeleted, Is.EqualTo(!rebind));
+                }
+                finally
+                {
+                    monitoredNode.Remove((IDataChangeMonitoredItem2)item);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Another lost-node notification satisfies a pending source deletion without a duplicate.
+        /// </summary>
+        [Test]
+        public async Task DeletedSourceStatusIsNotRepeatedAfterAnotherNotificationAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("DeletedSourceAlreadyReported", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, manager, new object(), node.NodeId);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+                var binding = (IMonitoredItemGenerationBinding)item;
+                await using var monitoredNode = new MonitoredNode2(manager, server.Object, node);
+                monitoredNode.Add((IDataChangeMonitoredItem2)item);
+                try
+                {
+                    Assert.That(monitoredNode.Generation, Is.SameAs(generation.Reference));
+                    MonitoredNode2.NodeBinding nodeBinding = monitoredNode.CaptureNodeBinding();
+                    Assert.That(item.TryMarkDeletedSource(
+                        generation.Reference, monitoredNode, nodeBinding, item.Id, isEvent: false,
+                        out long revision, out NodeManagerGenerationReference? source), Is.True);
+                    binding.EnsureLostNodeNotification();
+
+                    var notifications = new Queue<MonitoredItemNotification>();
+                    using var context = new OperationContext(item);
+                    var logger = server.Object.Telemetry.CreateLogger<MonitoredItemManagerLifecycleTests>();
+                    item.Publish(context, notifications, new Queue<DiagnosticInfo>(), 10, logger);
+                    Assert.That(notifications, Has.Count.EqualTo(1));
+                    Assert.That(notifications.Dequeue().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+
+                    item.QueueDeletedSourceStatus(revision, source, monitoredNode, nodeBinding);
+                    item.Publish(context, notifications, new Queue<DiagnosticInfo>(), 10, logger);
+                    Assert.That(notifications, Is.Empty);
+                }
+                finally
+                {
+                    monitoredNode.Remove((IDataChangeMonitoredItem2)item);
+                }
+            }
+        }
+
         [TestCase(ManagerPath.AsyncMonitoredNode)]
         [TestCase(ManagerPath.AsyncSamplingGroup)]
         [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
@@ -2744,6 +3260,35 @@ namespace Opc.Ua.Server.Tests
                         Is.EqualTo(StatusCodes.BadInvalidState));
                 }
             }
+        }
+
+        /// <summary>
+        /// Empty retirement needs no source implementation, but an owned item still requires one.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetirementWithoutSourceRequiresEmptyInventoryAsync(bool ownsItem)
+        {
+            var server = new Mock<IServerInternal>();
+            var manager = new Mock<IAsyncNodeManager>();
+            IMonitoredItem item = Mock.Of<IMonitoredItem>();
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+            if (ownsItem)
+            {
+                generation.MonitoredItems.TryAdd(item, Mock.Of<ISubscription>());
+                NotSupportedException? failure = await Assert.ThrowsAsync<NotSupportedException>(
+                    async () => await NodeManagerLifecycle.DetachActiveMonitoredItemsAsync(
+                        server.Object, manager.Object).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure?.Message,
+                    Is.EqualTo("The NodeManager does not support monitored-item transitions."));
+            }
+            else
+            {
+                await NodeManagerLifecycle.DetachActiveMonitoredItemsAsync(server.Object, manager.Object)
+                    .ConfigureAwait(false);
+            }
+            Assert.That(generation.MonitoredItems.ContainsKey(item), Is.EqualTo(ownsItem));
+            Assert.That(generation.MonitoredItems, Has.Count.EqualTo(ownsItem ? 1 : 0));
         }
 
         /// <summary>
@@ -5230,7 +5775,8 @@ namespace Opc.Ua.Server.Tests
             object managerHandle,
             NodeId nodeId,
             uint id = 2,
-            bool durable = false)
+            bool durable = false,
+            NodeManagerGeneration? sourceGeneration = null)
         {
             var identity = new Mock<IUserIdentity>();
             var session = new Mock<ISession>();
@@ -5263,7 +5809,9 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 10,
                 discardOldest: true,
                 sourceSamplingInterval: 1000,
-                createDurable: durable)
+                createDurable: durable,
+                timeProvider: null,
+                sourceGeneration: sourceGeneration)
             {
                 SubscriptionCallback = subscription.Object
             };

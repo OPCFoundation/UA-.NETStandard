@@ -182,7 +182,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly List<IAsyncNodeManager> m_candidates = [];
-        private readonly HashSet<IAsyncNodeManager> m_removed = [];
+        private readonly HashSet<IAsyncNodeManager> m_removed = new(RefEqualityComparer.Default);
         private IServerInternal? m_server;
         private bool m_bound;
     }

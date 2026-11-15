@@ -290,9 +290,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         bool IsCommitted { get; }
 
         /// <summary>
-        /// Gets a post-publication readiness/retirement reconciliation failure.
+        /// Gets a post-publication reconciliation failure. Physical retirement is observed through
+        /// <see cref="Retired"/> and does not delay publication.
         /// </summary>
         Exception? CleanupFailure { get; }
+
+        /// <summary>
+        /// Gets independent physical retirement after commit. Publication does not wait for generation drain.
+        /// </summary>
+        Task Retired { get; }
 
         /// <summary>
         /// Binds native metadata to the same captured routing image before the publication decision.

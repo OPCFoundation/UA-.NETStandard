@@ -247,13 +247,15 @@ namespace Opc.Ua.Server.Tests.Historian
             }
 
             WaitHandle? handle = null;
+            TimeoutException? observedTimeout = null;
             try
             {
                 CancellationToken token = await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 handle = token.WaitHandle;
                 Task disposing = capture.DisposeAsync().AsTask();
                 clock.Advance(TimeSpan.FromSeconds(5));
-                await Assert.ThrowsAsync<TimeoutException>(async () => await disposing.ConfigureAwait(false));
+                observedTimeout = await Assert.ThrowsAsync<TimeoutException>(
+                    async () => await disposing.ConfigureAwait(false));
                 Assert.That(token.IsCancellationRequested, Is.True);
                 Assert.That(handle.SafeWaitHandle.IsClosed, Is.False,
                     "An in-flight provider still owns access to the cancellation token's resources.");
@@ -261,8 +263,15 @@ namespace Opc.Ua.Server.Tests.Historian
             finally
             {
                 release.TrySetResult(true);
-                await capture.DisposeAsync().ConfigureAwait(false);
+                if (observedTimeout is null)
+                {
+                    await capture.DisposeAsync().ConfigureAwait(false);
+                }
             }
+
+            TimeoutException? repeatedTimeout = await Assert.ThrowsAsync<TimeoutException>(
+                async () => await capture.DisposeAsync().ConfigureAwait(false));
+            Assert.That(repeatedTimeout, Is.SameAs(observedTimeout));
 
             for (int attempt = 0; attempt < 500 && !handle.SafeWaitHandle.IsClosed; attempt++)
             {

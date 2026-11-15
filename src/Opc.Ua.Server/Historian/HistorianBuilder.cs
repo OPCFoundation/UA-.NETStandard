@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server.Historian.InMemory;
@@ -50,6 +51,10 @@ namespace Opc.Ua.Server.Historian
     /// </example>
     public sealed class HistorianBuilder : IAsyncDisposable
     {
+        private static readonly ConditionalWeakTable<IHistorianProvider, ProviderCaptureState>
+            s_providerCaptureStates = new();
+        private static readonly Lock s_providerCaptureLock = new();
+
         /// <summary>
         /// Creates a new builder bound to the supplied server.
         /// </summary>
@@ -231,6 +236,10 @@ namespace Opc.Ua.Server.Historian
             lock (m_captureSinkLock)
             {
                 ThrowIfDisposing();
+                if (autoCapture && Provider is { } provider)
+                {
+                    DemandProviderCaptureAdmission(provider);
+                }
             }
 
             if (setHistorizing)
@@ -323,6 +332,10 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(systemContext));
             }
             EnsureProvider();
+            if (autoCapture)
+            {
+                DemandProviderCaptureAdmission(Provider!);
+            }
             if (m_provisionNodes && Provider is InMemoryHistorianProvider inMemory)
             {
                 inMemory.Register(
@@ -377,6 +390,7 @@ namespace Opc.Ua.Server.Historian
             lock (m_captureSinkLock)
             {
                 ThrowIfDisposing();
+                DemandProviderCaptureAdmission(Provider!);
                 for (int i = 0; i < m_eventCaptureHandlers.Count; i++)
                 {
                     if (ReferenceEquals(
@@ -398,7 +412,8 @@ namespace Opc.Ua.Server.Historian
                         m_server,
                         Provider!,
                         capabilities,
-                        captureOptions);
+                        captureOptions,
+                        cleanupStarted: CreateProviderCleanupStartedHandler(Provider!));
 #pragma warning restore CA2000
                     void handler(
                         ISystemContext context,
@@ -457,6 +472,7 @@ namespace Opc.Ua.Server.Historian
             lock (m_captureSinkLock)
             {
                 ThrowIfDisposing();
+                DemandProviderCaptureAdmission(Provider!);
                 EnsureRegisteredWithLifecycle();
                 ThrowIfDisposing();
                 m_captureConstructionCount++;
@@ -510,12 +526,137 @@ namespace Opc.Ua.Server.Historian
                 ThrowIfDisposing();
                 if (m_captureSink is null)
                 {
-                    var sink = new HistorianCaptureSink(Provider!, serverContext, options);
+                    var sink = new HistorianCaptureSink(
+                        Provider!,
+                        serverContext,
+                        options,
+                        cleanupStarted: CreateProviderCleanupStartedHandler(Provider!));
                     m_captureSinks.Add(sink);
                     m_captureSink ??= sink;
                 }
                 return m_captureSink;
             }
+        }
+
+        private Action<Task> CreateProviderCleanupStartedHandler(IHistorianProvider provider)
+        {
+            return consumer =>
+            {
+                lock (m_captureSinkLock)
+                {
+                    m_pendingProviderCleanupCount++;
+                    lock (s_providerCaptureLock)
+                    {
+                        ProviderCaptureState state = s_providerCaptureStates.GetValue(
+                            provider, static _ => new ProviderCaptureState());
+                        if (state.PendingCleanupCount == 0)
+                        {
+                            state.CleanupDrained = new TaskCompletionSource<bool>(
+                                TaskCreationOptions.RunContinuationsAsynchronously);
+                        }
+                        state.PendingCleanupCount++;
+                    }
+                }
+                _ = consumer.ContinueWith(
+                    static (completed, state) =>
+                    {
+                        _ = completed.Exception;
+                        var (owner, pendingProvider) = ((HistorianBuilder, IHistorianProvider))state!;
+                        owner.CompleteProviderCleanup(pendingProvider);
+                    },
+                    (this, provider),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            };
+        }
+
+        /// <summary>
+        /// Waits until all timed-out capture consumers for the provider have completed.
+        /// </summary>
+        /// <param name="provider">The provider whose capture cleanup is being observed.</param>
+        /// <returns>A task that completes when no timed-out consumer remains.</returns>
+        internal static Task WaitForProviderCaptureCleanupAsync(IHistorianProvider provider)
+        {
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            lock (s_providerCaptureLock)
+            {
+                return s_providerCaptureStates.TryGetValue(provider, out ProviderCaptureState? state) &&
+                    state.PendingCleanupCount != 0
+                    ? state.CleanupDrained!.Task
+                    : Task.CompletedTask;
+            }
+        }
+
+        private static void DemandProviderCaptureAdmission(IHistorianProvider provider)
+        {
+            lock (s_providerCaptureLock)
+            {
+                if (s_providerCaptureStates.TryGetValue(provider, out ProviderCaptureState? state) &&
+                    state.PendingCleanupCount != 0)
+                {
+                    throw new InvalidOperationException(
+                        "A historian capture pipeline is still cleaning up for this provider.");
+                }
+            }
+        }
+
+        private void CompleteProviderCleanup(IHistorianProvider provider)
+        {
+            bool unregister = false;
+            TaskCompletionSource<bool>? drained = null;
+            lock (m_captureSinkLock)
+            {
+                if (m_pendingProviderCleanupCount != 0)
+                {
+                    m_pendingProviderCleanupCount--;
+                }
+                lock (s_providerCaptureLock)
+                {
+                    if (s_providerCaptureStates.TryGetValue(provider, out ProviderCaptureState? state) &&
+                        state.PendingCleanupCount != 0 &&
+                        --state.PendingCleanupCount == 0)
+                    {
+                        drained = state.CleanupDrained;
+                        state.CleanupDrained = null;
+                    }
+                }
+                unregister = TakeLifecycleRegistrationIfDrained();
+            }
+            drained?.TrySetResult(true);
+            if (unregister)
+            {
+                (m_server as IHistorianBuilderRegistry)?.UnregisterHistorianBuilder(this);
+            }
+        }
+
+        private void MarkDisposalOutcomePublished()
+        {
+            bool unregister;
+            lock (m_captureSinkLock)
+            {
+                m_disposalOutcomePublished = true;
+                unregister = TakeLifecycleRegistrationIfDrained();
+            }
+            if (unregister)
+            {
+                (m_server as IHistorianBuilderRegistry)?.UnregisterHistorianBuilder(this);
+            }
+        }
+
+        private bool TakeLifecycleRegistrationIfDrained()
+        {
+            if (m_pendingProviderCleanupCount != 0 ||
+                !m_disposalOutcomePublished ||
+                !m_registeredWithLifecycle)
+            {
+                return false;
+            }
+            m_registeredWithLifecycle = false;
+            return true;
         }
 
         private void EnsureRegisteredWithLifecycle()
@@ -687,15 +828,16 @@ namespace Opc.Ua.Server.Historian
                         "One or more historian capture pipelines failed during shutdown.",
                         errors);
                 }
-                (m_server as IHistorianBuilderRegistry)?.UnregisterHistorianBuilder(this);
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
                 completion.TrySetException(failure);
                 _ = completion.Task.Exception;
+                MarkDisposalOutcomePublished();
                 throw;
             }
             completion.TrySetResult(true);
+            MarkDisposalOutcomePublished();
         }
 
         /// <summary>
@@ -728,6 +870,13 @@ namespace Opc.Ua.Server.Historian
             NodeStateReportEventHandler Handler,
             HistorianEventCapture Capture);
 
+        private sealed class ProviderCaptureState
+        {
+            public int PendingCleanupCount { get; set; }
+
+            public TaskCompletionSource<bool>? CleanupDrained { get; set; }
+        }
+
         private readonly List<CaptureHandlerRegistration> m_captureHandlers = [];
         private readonly List<EventCaptureHandlerRegistration> m_eventCaptureHandlers = [];
         private readonly List<HistorianCaptureSink> m_captureSinks = [];
@@ -736,9 +885,11 @@ namespace Opc.Ua.Server.Historian
         private int m_captureConstructionCount;
         private TaskCompletionSource<bool>? m_captureConstructionFinished;
         private bool m_registeredWithLifecycle;
+        private bool m_disposalOutcomePublished;
 
         /// <summary>The active capture-disposal attempt shared by concurrent callers.</summary>
         private TaskCompletionSource<bool>? m_disposalFinished;
+        private int m_pendingProviderCleanupCount;
 
         /// <summary>
         /// Ensures that <paramref name="variable"/> has an <c>Annotations</c>

@@ -46,6 +46,78 @@ namespace Opc.Ua.Server.Tests.Historian
         private const string kNamespaceUri = "urn:test:staged-historian";
 
         /// <summary>
+        /// Retirement permits private binding cleanup without restoring withdrawn bindings or changing a successor.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(0, true)]
+        [TestCase(1, false)]
+        [TestCase(1, true)]
+        [TestCase(2, false)]
+        [TestCase(2, true)]
+        public void RetiredBindingCleanupPreservesSuccessorAndBorrowedProvider(int kind, bool sameProvider)
+        {
+            using var borrowed = new BorrowedSingletonProvider();
+            var namespaceTable = new NamespaceTable();
+            ushort namespaceIndex = namespaceTable.GetIndexOrAppend(kNamespaceUri);
+            var nodeId = new NodeId("retired-node", namespaceIndex);
+            var namespaceNode = new NodeId("namespace-node", namespaceIndex);
+            var defaultNode = new NodeId("default-node", 0);
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            serving.RegisterDefault(borrowed, ownsProvider: false);
+            using var previous = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            using var successor = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var original = new TrackingProvider();
+            var replacement = sameProvider ? original : new TrackingProvider();
+            previous.RegisterForNode(nodeId, original);
+            previous.RegisterForNamespace(kNamespaceUri, original);
+            Assert.That(previous.ResolveForHistorization(defaultNode), Is.SameAs(borrowed));
+            previous.Publish();
+            Assert.That(previous.Retire(), Is.True);
+            successor.RegisterForNode(nodeId, replacement);
+            successor.RegisterForNamespace(kNamespaceUri, replacement);
+            successor.RegisterDefault(replacement);
+            successor.Publish();
+
+            if (kind == 0)
+            {
+                Assert.That(previous.UnregisterForNode(nodeId), Is.True);
+                Assert.That(previous.UnregisterForNode(nodeId), Is.False);
+            }
+            else if (kind == 1)
+            {
+                Assert.That(previous.UnregisterForNamespace(kNamespaceUri), Is.True);
+                Assert.That(previous.UnregisterForNamespace(kNamespaceUri), Is.False);
+            }
+            else
+            {
+                previous.ClearDefault();
+                previous.ClearDefault();
+            }
+
+            Assert.That(serving.Resolve(nodeId), Is.SameAs(replacement));
+            Assert.That(serving.Resolve(namespaceNode), Is.SameAs(replacement));
+            Assert.That(serving.Resolve(defaultNode), Is.SameAs(replacement));
+            Assert.That(() => previous.RegisterForNode(nodeId, original), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(() => previous.RegisterForNamespace(kNamespaceUri, original),
+                Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(() => previous.RegisterDefault(original), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(() => previous.Publish(), Throws.TypeOf<ObjectDisposedException>());
+            previous.Dispose();
+            Assert.That(() => previous.UnregisterForNode(nodeId), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(() => previous.UnregisterForNamespace(kNamespaceUri), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(() => previous.ClearDefault(), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(borrowed.DisposeCount, Is.Zero);
+            Assert.That(original.DisposeCount, Is.Zero);
+            Assert.That(replacement.DisposeCount, Is.Zero);
+            Assert.That(serving.Resolve(defaultNode), Is.SameAs(replacement));
+            successor.Dispose();
+            serving.Dispose();
+            Assert.That(original.DisposeCount, Is.EqualTo(1));
+            Assert.That(replacement.DisposeCount, Is.EqualTo(1));
+            Assert.That(borrowed.DisposeCount, Is.Zero);
+        }
+
+        /// <summary>
         /// Live exact-node registrations supersede scoped ownership without allowing its release to undo the successor.
         /// </summary>
         [TestCase(false)]
@@ -513,10 +585,14 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 Assert.That(candidate.HasRegistrations, Is.EqualTo(ownedServingBindings),
                     "Only bindings owned by a predecessor generation require candidate retention.");
+                Assert.That(candidate.RequiresReadiness, Is.False,
+                    "Retaining an already serving binding does not introduce new readiness work.");
                 RegisterExplicitProviders();
             }
             using (Assert.EnterMultipleScope())
             {
+                Assert.That(candidate.RequiresReadiness, Is.True,
+                    "Explicit candidate registrations still require readiness before publication.");
                 Assert.That(candidate.Resolve(nodeId), Is.SameAs(explicitNodeProvider));
                 Assert.That(candidate.Resolve(namespaceNodeId), Is.SameAs(explicitNamespaceProvider));
                 Assert.That(candidate.Resolve(defaultNodeId), Is.SameAs(explicitDefaultProvider));

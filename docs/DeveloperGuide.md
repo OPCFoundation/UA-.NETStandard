@@ -238,14 +238,20 @@ you need to exercise:
 | `PreparedNodeManagerTests` | Candidate identity, disposal and retained snapshots |
 | `LifecycleWriterTests` | Mutation ownership, publication sessions and shutdown drain |
 | `NodeManagerRoutingTableTests` | Routing images, reservations and candidate publication |
+| `ConformanceRoutingTests` | Visible conformance contributions and routed facade identity |
 | `NodeManagerGenerationTests` | Slot identity, ownership, admission, quiescence and deferred-event delivery |
 | `StripedCounterTests` | Entries across all stripes and cross-thread exits |
 | `GenerationGateTests` | Generation admission, retirement drain and view-epoch lifetimes |
 | `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
 | `NodeManagerLifecycleCompatibilityTests` | Argument guards, retries, prepared-owner cleanup, and retirement status |
+| `NodeManagerCleanupAuthorityTests` | Cleanup-recovery authority binding and adapter identity |
+| `NodeManagerCleanupRecoveryTests` | Participant snapshots and sanitized failure descriptions |
+| `NodeManagerCleanupResourceTests` | Exact synchronous and asynchronous verification resources |
+| `NodeManagerHistoryReadScopeTests` | Captured history-read scope and continuation ownership |
+| `HistoryReadContinuationDispatchTests` | History continuation dispatch and generation admission |
 | `GenerationReclaimerTests` | Physical retirement, cleanup retries and generation ownership |
 | `GenerationReconcilerTests` | Session binding, reconciliation retries and result ownership |
-| `NodeManagerCallbackPermitTests` | Callback capabilities and execution-context revocation |
+| `NodeManagerCallbackPermitTests` | Callback capabilities, execution-context revocation and borrowed-admission drain |
 | `NodeManagerReadinessScopeTests` | Initializer authority and captured-context revocation |
 | `NodeLookupReadinessRegressionTests` | Readiness-scoped lookup and pinned request routes |
 | `NodeManagerLegacyLookupScopeTests` | Pinned and expired routing views in legacy lookups |
@@ -266,11 +272,17 @@ $fixtures = @(
     'PreparedNodeManagerTests'
     'LifecycleWriterTests'
     'NodeManagerRoutingTableTests'
+    'ConformanceRoutingTests'
     'NodeManagerGenerationTests'
     'StripedCounterTests'
     'GenerationGateTests'
     'NodeManagerRegistrationTests'
     'NodeManagerLifecycleCompatibilityTests'
+    'NodeManagerCleanupAuthorityTests'
+    'NodeManagerCleanupRecoveryTests'
+    'NodeManagerCleanupResourceTests'
+    'NodeManagerHistoryReadScopeTests'
+    'HistoryReadContinuationDispatchTests'
     'GenerationReclaimerTests'
     'GenerationReconcilerTests'
     'NodeManagerCallbackPermitTests'

@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
@@ -77,7 +78,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task SlotChangeSetRejectsEmptyAndNullEntriesAsync()
         {
             await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
-            INodeManagerLifecycle lifecycle = harness.Lifecycle;
+            NodeManagerLifecycle lifecycle = harness.Lifecycle;
             long revision = lifecycle.Revision;
             NodeManagerRoutingTable.RoutingSnapshot routing =
                 ((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision;
@@ -105,7 +106,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task SlotChangeSetWriterRejectsUnexpectedRevisionAndCancellationAsync()
         {
             await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
-            INodeManagerLifecycle lifecycle = harness.Lifecycle;
+            NodeManagerLifecycle lifecycle = harness.Lifecycle;
             long revision = lifecycle.Revision;
             NodeManagerRoutingTable.RoutingSnapshot routing =
                 ((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision;
@@ -137,120 +138,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var host = new Mock<INodeManagerLifecycleHost>(MockBehavior.Strict);
             using var lifecycle = new NodeManagerLifecycle(host.Object, TimeProvider.System, null);
-            IAsyncNodeManagerFactory asyncFactory =
-                Mock.Of<IAsyncNodeManagerFactory>();
-            INodeManagerFactory syncFactory = Mock.Of<INodeManagerFactory>();
-
-            ArgumentNullException exception =
-                await Assert.ThrowsAsync<ArgumentNullException>(
-                    async () => await lifecycle
-                        .AddAsync((IAsyncNodeManagerFactory)null!, null)
-                        .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("factory"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .AddAsync((INodeManagerFactory)null!, null)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("factory"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ReloadAsync(
-                        null!,
-                        (IAsyncNodeManagerFactory)null!, null)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ReloadAsync(
-                        null!,
-                        (INodeManagerFactory)null!, null)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ReloadAsync(null!, asyncFactory, null)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("registration"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ReloadAsync(null!, syncFactory, null)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("registration"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ShadowReloadAsync(
-                        null!,
-                        (IAsyncNodeManagerFactory)null!)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ShadowReloadAsync(
-                        null!,
-                        (INodeManagerFactory)null!)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ShadowReloadAsync(null!, asyncFactory)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("registration"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ShadowReloadAsync(null!, syncFactory)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("registration"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ImmediateReloadAsync(null!, (IAsyncNodeManagerFactory)null!)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ImmediateReloadAsync(null!, (INodeManagerFactory)null!)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ImmediateReloadAsync(null!, asyncFactory)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("registration"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .ImmediateReloadAsync(null!, syncFactory)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("registration"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .RemoveAsync(null!, null)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("registration"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .BeginShutdownAsync(null!)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("server"));
-
-            exception = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await lifecycle
-                    .CompleteShutdownAsync(null!)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("server"));
+            Assert.That(() => LifecycleChange.Add(null!), Throws.ArgumentNullException
+                .With.Property(nameof(ArgumentException.ParamName)).EqualTo("factory"));
+            Assert.That(() => LifecycleChange.Replace(null!, Mock.Of<IAsyncNodeManagerFactory>()),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("slot"));
+            Assert.That(() => LifecycleChange.Replace(new NodeManagerSlot(), null!),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("factory"));
+            Assert.That(() => LifecycleChange.Remove(null!), Throws.ArgumentNullException
+                .With.Property(nameof(ArgumentException.ParamName)).EqualTo("slot"));
+            Assert.That(() => ((INodeManagerFactory)null!).AsAsync(), Throws.ArgumentNullException);
+            await Assert.ThrowsAsync<ArgumentException>(async () => await lifecycle.PrepareAsync([])
+                .ConfigureAwait(false)).ConfigureAwait(false);
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await lifecycle.BeginShutdownAsync(null!)
+                .ConfigureAwait(false)).ConfigureAwait(false);
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await lifecycle.CompleteShutdownAsync(null!)
+                .ConfigureAwait(false)).ConfigureAwait(false);
             host.VerifyNoOtherCalls();
         }
 
@@ -262,17 +164,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task CompatibilityPreparationFailureIsNotRetriedAsync(bool routingConflict)
         {
             Exception failure = routingConflict
-                ? new NodeManagerRoutingConflictException("Preparation callback failed.")
-                : new SentinelException();
+                ? new NodeManagerRoutingConflictException("Preparation callback failed.") : new SentinelException();
             var lifecycle = new Mock<INodeManagerLifecycle>();
             lifecycle.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .Throws(failure);
-            await Assert.ThatAsync(() => lifecycle.Object.AddAsync(
-                CreateFactory())
-                .AsTask(), Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>())).Throws(failure);
+            await Assert.ThatAsync(() => lifecycle.Object.ApplyAsync([LifecycleChange.Add(CreateFactory())]).AsTask(),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
             lifecycle.Verify(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()), Times.Once);
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         /// <summary>
@@ -283,38 +182,45 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase("Provider")]
         public async Task CompatibilityCommitFailureIsNotReplayedAsync(string stage)
         {
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            Mock<IAsyncNodeManager> manager = NodeManagerLifecycleChangeSetCleanupTests.CreateManager(
+                "urn:test:native:irreversible:" + stage);
+            int factories = 0;
             int decisions = 0;
-            var prepared = new Mock<IPreparedNodeManagerBatch>();
-            Exception failure = stage == "Provider"
-                ? new InvalidOperationException("The address space changed while the batch was prepared.")
-                : new InvalidOperationException(
-                    "Routing conflict after an irreversible stage.",
-                    new NodeManagerRoutingConflictException(
-                        new NodeManagerRoutingConflictException("Routing conflict after an irreversible stage."),
-                        prepared.Object));
-            prepared.SetupGet(value => value.IsCommitted).Returns(stage == "Committed");
-            prepared.Setup(value => value.CommitAsync(
-                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
-                .Returns(async (Func<CancellationToken, ValueTask> decideAsync, CancellationToken token) =>
-                {
-                    if (stage == "Decision")
-                    {
-                        decisions++;
-                        await decideAsync(token).ConfigureAwait(false);
-                    }
-                    throw failure;
-                });
-            var lifecycle = new Mock<INodeManagerLifecycle>();
-            lifecycle.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(prepared.Object);
-            await Assert.ThatAsync(() => lifecycle.Object.AddAsync(
-                CreateFactory())
-                .AsTask(), Throws.Exception.SameAs(failure)).ConfigureAwait(false);
-            Assert.That(decisions, Is.EqualTo(stage == "Decision" ? 1 : 0));
-            lifecycle.Verify(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()), Times.Once);
-            prepared.Verify(value => value.DisposeAsync(), Times.Once);
+            var failure = new SentinelException("The irreversible stage failed.");
+            IAsyncNodeManagerFactory factory = NodeManagerLifecycleChangeSetCleanupTests.CreateFactory(manager,
+                () => { factories++; if (stage == "Provider") { throw failure; } });
+            if (stage == "Provider")
+            {
+                await Assert.ThatAsync(() => harness.Lifecycle.PrepareAsync([LifecycleChange.Add(factory)]).AsTask(),
+                    Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                Assert.That(factories, Is.EqualTo(1));
+                Assert.That(decisions, Is.Zero);
+                return;
+            }
+            await using IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(factory)])
+                .ConfigureAwait(false);
+            if (stage == "Decision")
+            {
+                await Assert.ThatAsync(() => prepared.CommitAsync(_ => { decisions++; throw failure; }).AsTask(),
+                    Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                await Assert.ThatAsync(() => prepared.CommitAsync(_ => { decisions++; return default; }).AsTask(),
+                    Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                Assert.That(prepared.IsCommitted, Is.False);
+            }
+            else
+            {
+                LifecycleResult result = await prepared.CommitAsync(_ => { decisions++; return default; },
+                    () => throw failure).ConfigureAwait(false);
+                LifecycleResult repeated = await prepared.CommitAsync(_ => { decisions++; return default; })
+                    .ConfigureAwait(false);
+                Assert.That(repeated, Is.SameAs(result));
+                Assert.That(prepared.IsCommitted, Is.True);
+                Assert.That(result.Issues[0].InitialFailure, Is.SameAs(failure));
+                Assert.That(result.Issues[0].Stage, Is.EqualTo(NodeManagerReconciliationStage.ApplicationState));
+            }
+            Assert.That(factories, Is.EqualTo(1));
+            Assert.That(decisions, Is.EqualTo(1));
         }
 
         /// <summary>
@@ -323,41 +229,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task CompatibilityConflictRetriesStopAtCancellationAsync()
         {
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
             using var cancellation = new CancellationTokenSource();
-            int attempts = 0;
-            var candidates = new List<Mock<IPreparedNodeManagerBatch>>();
-            var lifecycle = new Mock<INodeManagerLifecycle>();
-            lifecycle.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .Returns((ArrayOf<NodeManagerBatchChange> _, CancellationToken _) =>
-                {
-                    var prepared = new Mock<IPreparedNodeManagerBatch>();
-                    prepared.Setup(value => value.CommitAsync(
-                        It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
-                        .Returns((Func<CancellationToken, ValueTask> _, CancellationToken _) =>
-                        {
-                            if (++attempts == 2)
-                            {
-                                cancellation.Cancel();
-                            }
-                            throw new InvalidOperationException(
-                                "Independent routing publication.",
-                                new NodeManagerRoutingConflictException(
-                                    new NodeManagerRoutingConflictException("Independent routing publication."),
-                                    prepared.Object));
-                        });
-                    candidates.Add(prepared);
-                    return new ValueTask<IPreparedNodeManagerBatch>(prepared.Object);
-                });
-            await Assert.ThatAsync(() => lifecycle.Object.AddAsync(
-                CreateFactory(),
-                cancellation.Token).AsTask(), Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-            Assert.That(attempts, Is.EqualTo(2));
-            Assert.That(candidates, Has.Count.EqualTo(2));
-            foreach (Mock<IPreparedNodeManagerBatch> candidate in candidates)
-            {
-                candidate.Verify(value => value.DisposeAsync(), Times.Once);
-            }
+            Mock<IAsyncNodeManager> candidate = NodeManagerLifecycleChangeSetCleanupTests.CreateManager(
+                "urn:test:native:cancel-conflict");
+            int factories = 0;
+            await using IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(
+                NodeManagerLifecycleChangeSetCleanupTests.CreateFactory(candidate, () => factories++))])
+                .ConfigureAwait(false);
+            harness.Data.TypeTree.AddSubtype(new NodeId("cancel-conflict", 0), DataTypeIds.BaseDataType);
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            int decisions = 0;
+            await Assert.ThatAsync(() => prepared.CommitAsync(_ => { decisions++; return default; }, cancellation.Token)
+                .AsTask(), Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            await prepared.DisposeAsync().ConfigureAwait(false);
+            Assert.That(factories, Is.EqualTo(1));
+            Assert.That(decisions, Is.Zero);
+            candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
         }
 
         /// <summary>
@@ -366,25 +255,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task CompatibilityConflictDoesNotHideAbortFailureAsync()
         {
-            var failure = new SentinelException();
-            var prepared = new Mock<IPreparedNodeManagerBatch>();
-            prepared.Setup(value => value.CommitAsync(
-                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
-                .Throws(new InvalidOperationException(
-                    "Independent routing publication.",
-                    new NodeManagerRoutingConflictException(
-                        new NodeManagerRoutingConflictException("Independent routing publication."), prepared.Object)));
-            prepared.Setup(value => value.DisposeAsync()).Returns(new ValueTask(Task.FromException(failure)));
-            var lifecycle = new Mock<INodeManagerLifecycle>();
-            lifecycle.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(prepared.Object);
-            await Assert.ThatAsync(() => lifecycle.Object.AddAsync(
-                CreateFactory())
-                .AsTask(), Throws.Exception.SameAs(failure)).ConfigureAwait(false);
-            lifecycle.Verify(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()), Times.Once);
-            prepared.Verify(value => value.DisposeAsync(), Times.Once);
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            Mock<IAsyncNodeManager> candidate = NodeManagerLifecycleChangeSetCleanupTests.CreateManager(
+                "urn:test:native:conflict-abort");
+            var failure = new SentinelException("Candidate deletion failed.");
+            candidate.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>())).Throws(failure);
+            IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(
+                NodeManagerLifecycleChangeSetCleanupTests.CreateFactory(candidate))]).ConfigureAwait(false);
+            harness.Data.TypeTree.AddSubtype(new NodeId("conflict-abort", 0), DataTypeIds.BaseDataType);
+            AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(
+                async () => await prepared.CommitAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(observed!.Flatten().InnerExceptions, Does.Contain(failure));
+            Assert.That(
+                observed.Flatten().InnerExceptions.Any(value => value is OptimisticPublicationConflictException),
+                Is.True);
+            candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+            Assert.That(harness.Lifecycle.HasPendingShutdownCleanup, Is.True);
         }
 
         /// <summary>
@@ -395,20 +282,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [SetUICulture("en-us")]
         public async Task SlotChangeSetRejectsMalformedProviderAndDisposesPreparedOwnerAsync()
         {
-            var provider = new Mock<INodeManagerLifecycle>();
-            var prepared = new Mock<IPreparedNodeManagerBatch>();
-            prepared.SetupGet(value => value.Registrations).Returns([]);
-            provider.Setup(value => value.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(prepared.Object);
-            await Assert.ThatAsync(async () => await provider.Object.PrepareAsync(
-                [LifecycleChange.Add(CreateFactory())])
-                .ConfigureAwait(false),
-                Throws.InvalidOperationException.With.Message.Contains("candidate registrations"))
-                .ConfigureAwait(false);
-            prepared.Verify(value => value.DisposeAsync(), Times.Once);
-            prepared.Verify(value => value.CommitAsync(
-                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()), Times.Never);
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>())).ReturnsAsync((IAsyncNodeManager)null!);
+            long revision = harness.Lifecycle.Revision;
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await harness.Lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory.Object)]).ConfigureAwait(false)).ConfigureAwait(false);
+            factory.Verify(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(harness.Lifecycle.Revision, Is.EqualTo(revision));
+            Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
         }
 
         /// <summary>
@@ -419,35 +304,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [SetUICulture("en-us")]
         public async Task SlotChangeSetMalformedProviderCleanupFailurePreservesBothFailuresAsync()
         {
-            var cleanupFailure = new InvalidOperationException("Provider cleanup failed.");
-            var provider = new Mock<INodeManagerLifecycle>();
-            var prepared = new Mock<IPreparedNodeManagerBatch>();
-            prepared.SetupGet(value => value.Registrations).Returns([]);
-            prepared.Setup(value => value.DisposeAsync())
-                .Returns(new ValueTask(Task.FromException(cleanupFailure)));
-            provider.Setup(value => value.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(prepared.Object);
-
-            Exception? observed = null;
-            try
-            {
-                _ = await provider.Object.PrepareAsync(
-                    [LifecycleChange.Add(CreateFactory())])
-                    .ConfigureAwait(false);
-            }
-            catch (Exception failure)
-            {
-                observed = failure;
-            }
-
-            AssertAdapterCleanupFailures(
-                observed,
-                "The provider returned a different number of candidate registrations.",
-                cleanupFailure);
-            prepared.Verify(value => value.DisposeAsync(), Times.Once);
-            prepared.Verify(value => value.CommitAsync(
-                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()), Times.Never);
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            var preparationFailure = new SentinelException("Private preparation failed.");
+            var cleanupFailure = new SentinelException("Private cleanup failed.");
+            Mock<IAsyncNodeManager> candidate = NodeManagerLifecycleChangeSetCleanupTests.CreateManager(
+                "urn:test:native:preparation-cleanup");
+            candidate.Setup(value => value.CreateAddressSpaceAsync(
+                It.IsAny<System.Collections.Generic.IDictionary<
+                    NodeId, System.Collections.Generic.IList<IReference>>>(),
+                It.IsAny<CancellationToken>())).Throws(preparationFailure);
+            candidate.Setup(value => value.DeleteAddressSpaceAsync(
+                It.IsAny<CancellationToken>())).Throws(cleanupFailure);
+            AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(
+                    NodeManagerLifecycleChangeSetCleanupTests.CreateFactory(candidate))]).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            Assert.That(observed!.Flatten().InnerExceptions, Does.Contain(preparationFailure));
+            Assert.That(observed.Flatten().InnerExceptions, Does.Contain(cleanupFailure));
+            candidate.Verify(value => value.CreateAddressSpaceAsync(
+                It.IsAny<System.Collections.Generic.IDictionary<
+                    NodeId, System.Collections.Generic.IList<IReference>>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(harness.Lifecycle.HasPendingShutdownCleanup, Is.True);
         }
 
         /// <summary>
@@ -459,50 +338,48 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [SetUICulture("en-us")]
         public async Task SlotChangeSetReadImageAdapterPreservesFailuresAndDisposesOnceAsync(bool cleanupFails)
         {
-            const string ExpectedValidationFailure =
-                "A prepared read image owner has no registered NodeManager generation.";
-            var owner = new Mock<IAsyncNodeManager>().Object;
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            Mock<IAsyncNodeManager> candidate = NodeManagerLifecycleChangeSetCleanupTests.CreateManager(
+                "urn:test:native:metadata-cleanup");
+            var cleanupFailure = new SentinelException("Metadata candidate disposal failed.");
+            if (cleanupFails) { candidate.As<IDisposable>().Setup(value => value.Dispose()).Throws(cleanupFailure); }
             var image = new Mock<INodeManagerReadImage>();
-            image.SetupGet(value => value.Owner).Returns(owner);
-            var prepared = new Mock<IPreparedNodeManagerBatch>();
-            prepared.SetupGet(value => value.Registrations).Returns([]);
-            InvalidOperationException? cleanupFailure = cleanupFails
-                ? new InvalidOperationException("Read-image provider cleanup failed.")
-                : null;
-            prepared.Setup(value => value.DisposeAsync()).Returns(cleanupFailure is null
-                ? default
-                : new ValueTask(Task.FromException(cleanupFailure)));
-            var publication = new Mock<INodeManagerPublication>();
-            publication.Setup(value => value.PrepareReadImagesAsync(
-                It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(prepared.Object);
-
-            Exception? observed = null;
+            image.SetupGet(value => value.Owner).Returns(Mock.Of<IAsyncNodeManager>());
+            ILifecycleWriter writer = await harness.Lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
+            ArgumentException? validationFailure = null;
+            Exception? observed;
             try
             {
-                _ = await new LifecyclePublicationWriter(publication.Object)
-                    .PrepareReadImagesAsync([image.Object])
-                    .ConfigureAwait(false);
+                observed = await Assert.CatchAsync<Exception>(async () => await writer.ValidateAsync(
+                    [LifecycleChange.Add(NodeManagerLifecycleChangeSetCleanupTests.CreateFactory(candidate))],
+                    (prepared, _) =>
+                    {
+                        try { prepared.SetMetadata(image.Object); }
+                        catch (ArgumentException failure) { validationFailure = failure; throw; }
+                        return default;
+                    }).ConfigureAwait(false)).ConfigureAwait(false);
             }
-            catch (Exception failure)
+            finally
             {
-                observed = failure;
+                if (cleanupFails)
+                {
+                    AggregateException? writerFailure = await Assert.ThrowsAsync<AggregateException>(
+                        async () => await writer.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(writerFailure!.Flatten().InnerExceptions, Does.Contain(cleanupFailure));
+                }
+                else { await writer.DisposeAsync().ConfigureAwait(false); }
             }
-
-            if (cleanupFailure is null)
+            Assert.That(validationFailure, Is.Not.Null);
+            if (cleanupFails)
             {
-                Assert.That(observed, Is.TypeOf<InvalidOperationException>());
-                Assert.That(observed!.Message, Is.EqualTo(ExpectedValidationFailure));
+                Assert.That(observed, Is.TypeOf<AggregateException>());
+                Assert.That(((AggregateException)observed!).Flatten().InnerExceptions, Does.Contain(validationFailure));
+                Assert.That(((AggregateException)observed).Flatten().InnerExceptions, Does.Contain(cleanupFailure));
             }
-            else
-            {
-                AssertAdapterCleanupFailures(observed, ExpectedValidationFailure, cleanupFailure);
-            }
-            prepared.Verify(value => value.DisposeAsync(), Times.Once);
-            prepared.Verify(value => value.CommitAsync(
-                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()), Times.Never);
-            publication.Verify(value => value.PrepareReadImagesAsync(
-                It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()), Times.Once);
+            else { Assert.That(observed, Is.SameAs(validationFailure)); }
+            candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+            Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
         }
 
         /// <summary>
@@ -527,13 +404,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             foreach ((Task retirement, NodeManagerRetirementStatus status) in cases)
             {
                 var result = new LifecycleResult([], 3, null, 42, [], retirement);
-                var compatibility = new NodeManagerBatchResult(result, [], []);
+
                 Assert.That(result.RetirementStatus, Is.EqualTo(status));
-                Assert.That(compatibility.RetirementStatus, Is.EqualTo(status));
-                Assert.That(compatibility.CommittedResult, Is.SameAs(result));
-                Assert.That(compatibility.Retirement, Is.SameAs(result.Retired));
-                Assert.That(compatibility.Revision, Is.EqualTo(result.Revision));
-                Assert.That(compatibility.Retired, Is.EqualTo(result.RetiredCount));
+
+
+
+
+
             }
             Assert.That(failed.Exception, Is.Not.Null);
         }
@@ -571,24 +448,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(() => ((INodeManagerFactory)null!).AsAsync(), Throws.ArgumentNullException);
         }
 
-        /// <summary>
-        /// Asserts that adapter construction and its single cleanup attempt both remain observable.
-        /// </summary>
-        /// <param name="observed">The exception returned by the adapter.</param>
-        /// <param name="validationFailureMessage">The original adapter validation failure message.</param>
-        /// <param name="cleanupFailure">The cleanup failure that must be preserved.</param>
-        private static void AssertAdapterCleanupFailures(
-            Exception? observed,
-            string validationFailureMessage,
-            Exception cleanupFailure)
-        {
-            Assert.That(observed, Is.TypeOf<AggregateException>());
-            AggregateException aggregate = (AggregateException)observed!;
-            Assert.That(aggregate.InnerExceptions, Has.Count.EqualTo(2));
-            Assert.That(aggregate.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
-            Assert.That(aggregate.InnerExceptions[0].Message, Is.EqualTo(validationFailureMessage));
-            Assert.That(aggregate.InnerExceptions[1], Is.SameAs(cleanupFailure));
-        }
+
 
         /// <summary>
         /// Creates a factory passed through compatibility calls but never invoked by the mocked lifecycle.

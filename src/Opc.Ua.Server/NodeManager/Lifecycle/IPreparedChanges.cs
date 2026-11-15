@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,7 +39,7 @@ namespace Opc.Ua.Server
     public interface ILifecycleCapture
     {
         /// <summary>
-        /// Begins an independently owned writer on the captured evidence without recapturing revisions.
+        /// Begins an independently owned writer without recapturing revisions.
         /// A stale capture yields a stale writer that rejects preparation before factory effects.
         /// </summary>
         /// <param name="cancellationToken">Cancels admission.</param>
@@ -50,8 +48,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Owns optimistic revision evidence across sequential lifecycle change sets.
-    /// It does not reserve mutation admission while factories or reconciliation callbacks run.
+    /// Owns optimistic revision evidence across sequential change sets without excluding other writers.
     /// </summary>
     public interface ILifecycleWriter : IAsyncDisposable
     {
@@ -79,11 +76,11 @@ namespace Opc.Ua.Server
             ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Inspects a private candidate and validates its publication without changing the serving image.
-        /// The candidate cannot be committed and is disposed after inspection, including on failure.
+        /// Inspects and validates private candidates, then joins their cleanup without publishing.
+        /// A retained inspection view cannot commit or access candidates after inspection ends.
         /// </summary>
-        /// <param name="changes">The slot-targeted changes to validate.</param>
-        /// <param name="inspectAsync">Inspects candidates and binds metadata before validation.</param>
+        /// <param name="changes">The changes to validate.</param>
+        /// <param name="inspectAsync">Inspects candidates and binds metadata.</param>
         /// <param name="cancellationToken">Cancels preparation or validation.</param>
         /// <returns>Completion after validation and candidate cleanup.</returns>
         ValueTask ValidateAsync(
@@ -94,6 +91,7 @@ namespace Opc.Ua.Server
 
     /// <summary>
     /// Owns unpublished candidates and typed read metadata until commit or asynchronous abort.
+    /// Terminal units release their preparation payload; unresolved cleanup belongs to the lifecycle.
     /// </summary>
     public interface IPreparedChanges : IAsyncDisposable
     {
@@ -103,13 +101,8 @@ namespace Opc.Ua.Server
         ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <summary>
-        /// Gets snapshots of candidate registrations in addition/replacement order.
-        /// The snapshots hold weak references to their registrations and NodeManagers, but retain their slots.
+        /// Gets weak candidate registration snapshots in addition/replacement order.
         /// </summary>
-        /// <remarks>
-        /// The built-in prepared unit holds its provider until successful commit or disposal. A validation view
-        /// releases its borrowed provider when inspection ends.
-        /// </remarks>
         ArrayOf<NodeManagerRegistrationSnapshot> Registrations { get; }
 
         /// <summary>
@@ -118,25 +111,24 @@ namespace Opc.Ua.Server
         bool IsCommitted { get; }
 
         /// <summary>
-        /// Binds immutable metadata to a candidate or an unchanged live owner in the resulting view.
-        /// A replaced or removed owner cannot receive metadata. Each slot can be bound once before consumption.
+        /// Binds immutable metadata once per slot before consumption.
+        /// The exact owner must be a candidate or an unchanged live generation in the resulting view.
         /// </summary>
-        /// <param name="slot">The targeted slot, which must remain in the resulting view.</param>
+        /// <param name="slot">The slot that remains in the resulting view.</param>
         /// <param name="metadata">The generation-owned immutable image.</param>
         void SetMetadata(NodeManagerSlot slot, INodeManagerReadImage metadata);
 
         /// <summary>
-        /// Binds immutable metadata using its exact owner's existing slot identity.
-        /// The routing owner validates membership before the durable decision.
+        /// Binds immutable metadata using its exact owner's registered slot.
         /// </summary>
         /// <param name="metadata">The candidate or unchanged live owner's immutable image.</param>
         void SetMetadata(INodeManagerReadImage metadata);
 
         /// <summary>
-        /// Decides once and publishes once, then returns committed reconciliation and retirement status.
-        /// A null decision uses an in-memory decision. A stale unit is consumed before deciding, without retry.
+        /// Decides and publishes once, returning reconciliation and independent retirement status.
+        /// A null decision uses an in-memory decision. Stale work is consumed before deciding, without retry.
         /// </summary>
-        /// <param name="decideAsync">The external durable decision, or null for in-memory publication.</param>
+        /// <param name="decideAsync">The external durable decision, or null for an in-memory decision.</param>
         /// <param name="cancellationToken">Cancels before publication.</param>
         /// <returns>The authoritative committed result.</returns>
         ValueTask<LifecycleResult> CommitAsync(
@@ -144,11 +136,11 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Publishes prepared application state after the routing swap and before reconciliation.
-        /// Failure is a committed issue; the callback must be idempotent for explicitly requested retry.
+        /// Failure is a committed issue; this callback must be idempotent for explicitly requested retry.
         /// </summary>
         /// <param name="decideAsync">The durable decision, or null for an in-memory decision.</param>
         /// <param name="publishCommittedState">
-        /// The in-memory state publication, without I/O or a second decision.
+        /// The in-memory state publication, without I/O or another decision.
         /// </param>
         /// <param name="cancellationToken">Cancels before publication.</param>
         /// <returns>The authoritative committed result.</returns>
@@ -159,428 +151,252 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Retains the existing capture without acquiring operation ownership or recapturing evidence.
+    /// Selects how monitored items owned by a replaced NodeManager are handled.
     /// </summary>
-    /// <param name="capture">The provider's captured revision evidence.</param>
-    internal sealed class LifecycleCapture(INodeManagerPublicationCapture capture) : ILifecycleCapture
+    public enum NodeManagerMonitoredItemTransitionMode
     {
-        /// <inheritdoc/>
-        public async ValueTask<ILifecycleWriter> BeginAsync(CancellationToken cancellationToken = default)
-        {
-            return new LifecyclePublicationWriter(
-                await capture.BeginAsync(cancellationToken).ConfigureAwait(false));
-        }
+        /// <summary>
+        /// Move compatible items and invalidate items whose nodes are unavailable.
+        /// </summary>
+        Migrate,
+
+        /// <summary>
+        /// Invalidate monitored items owned by the retiring NodeManager.
+        /// </summary>
+        Invalidate
     }
 
     /// <summary>
-    /// Adapts existing publication ownership without adding another revision or lifetime owner.
+    /// Identifies a post-publication reconciliation stage.
     /// </summary>
-    /// <param name="publication">The existing owner.</param>
-    internal sealed class LifecyclePublicationWriter(INodeManagerPublication publication) : ILifecycleWriter
+    public enum NodeManagerReconciliationStage
     {
-        /// <inheritdoc/>
-        public bool IsCurrent => publication.IsCurrent;
+        /// <summary>
+        /// Prepared application state publication.
+        /// </summary>
+        ApplicationState,
 
-        /// <inheritdoc/>
-        public ValueTask<IPreparedChanges> PrepareAsync(
-            ArrayOf<LifecycleChange> changes, CancellationToken cancellationToken = default)
-        {
-            return publication.PrepareAsync(changes, cancellationToken);
-        }
+        /// <summary>
+        /// Cross-manager reference reconciliation.
+        /// </summary>
+        References,
 
-        /// <inheritdoc/>
-        public async ValueTask<IPreparedChanges> PrepareReadImagesAsync(
-            ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default)
-        {
-            ArrayOf<INodeManagerReadImage> captured = [.. images];
-            IPreparedNodeManagerBatch prepared = await publication.PrepareReadImagesAsync(
-                captured, cancellationToken).ConfigureAwait(false);
-            try
-            {
-                return new PreparedLifecycleChanges(prepared, captured);
-            }
-            catch (Exception failure) when (failure is not OutOfMemoryException)
-            {
-                await PreparedLifecycleChanges.DisposeAfterAdapterFailureAsync(prepared, failure).ConfigureAwait(false);
-                throw;
-            }
-        }
+        /// <summary>
+        /// Session and all-events bindings.
+        /// </summary>
+        Bindings,
 
-        /// <inheritdoc/>
-        public ValueTask ValidateAsync(
-            ArrayOf<LifecycleChange> changes,
-            Func<IPreparedChanges, CancellationToken, ValueTask> inspectAsync,
-            CancellationToken cancellationToken = default)
-        {
-            if (inspectAsync is null)
-            {
-                throw new ArgumentNullException(nameof(inspectAsync));
-            }
-            ArrayOf<LifecycleChange> captured = [.. changes];
-            return publication.ValidateAsync(
-                LifecycleChangeExtensions.ConvertChanges(captured), async (batch, token) =>
-                {
-                    var prepared = new PreparedLifecycleChanges(batch, captured, validationOnly: true);
-                    try
-                    {
-                        await inspectAsync(prepared, token).ConfigureAwait(false);
-                        prepared.ConsumeMetadata();
-                    }
-                    finally
-                    {
-                        prepared.Seal();
-                    }
-                }, cancellationToken);
-        }
+        /// <summary>
+        /// Monitored item recovery.
+        /// </summary>
+        MonitoredItems,
 
-        /// <inheritdoc/>
-        public ValueTask DisposeAsync()
-        {
-            return publication.DisposeAsync();
-        }
+        /// <summary>
+        /// Server readiness notification.
+        /// </summary>
+        Readiness,
+
+        /// <summary>
+        /// Identity policy notification.
+        /// </summary>
+        Identity,
+
+        /// <summary>
+        /// Namespace table notification.
+        /// </summary>
+        Namespaces,
+
+        /// <summary>
+        /// Model change event delivery.
+        /// </summary>
+        ModelChange,
+
+        /// <summary>
+        /// Semantic change event delivery.
+        /// </summary>
+        SemanticChange,
+
+        /// <summary>
+        /// An unexpected host publication completion failure.
+        /// </summary>
+        Publication,
+
+        /// <summary>
+        /// Independently owned retired-generation cleanup.
+        /// </summary>
+        Retirement,
+
+        /// <summary>
+        /// Server-wide historian capability and event notifier refresh.
+        /// </summary>
+        HistorianCapabilities
     }
 
     /// <summary>
-    /// Adapts prepared ownership while accumulating slot-checked metadata before the underlying unit is consumed.
+    /// An immutable snapshot of a pending or superseded reconciliation step.
     /// </summary>
-    internal sealed class PreparedLifecycleChanges : IPreparedChanges
+    public sealed class NodeManagerReconciliationIssue
     {
         /// <summary>
-        /// Captures changed slots and candidate registrations without a second lifecycle owner.
+        /// Creates an immutable issue snapshot.
         /// </summary>
-        /// <param name="prepared">The underlying unpublished owner.</param>
-        /// <param name="changes">The captured changes, in preparation order.</param>
-        /// <param name="validationOnly">Whether the owner is private inspection only.</param>
-        internal PreparedLifecycleChanges(
-            IPreparedNodeManagerBatch prepared, ArrayOf<LifecycleChange> changes, bool validationOnly = false)
+        internal NodeManagerReconciliationIssue(
+            NodeManagerReconciliationStage stage,
+            Exception initialFailure,
+            Exception currentFailure,
+            bool superseded,
+            bool retryable = true)
         {
-            m_prepared = prepared;
-            m_validationOnly = validationOnly;
-            int expectedCandidates = (changes.ToArray() ?? []).Count(change => change.Factory is not null);
-            if (prepared.Registrations.Count != expectedCandidates)
-            {
-                throw new InvalidOperationException(
-                    "The provider returned a different number of candidate registrations.");
-            }
-            int candidateIndex = 0;
-            Slots = (changes.ToArray() ?? []).Select(change =>
-            {
-                NodeManagerSlot? slot = change.Slot;
-                if (change.Factory is not null)
-                {
-                    slot = prepared.Registrations[candidateIndex++].Slot;
-                    if (change.Slot is { } target && !ReferenceEquals(slot, target))
-                    {
-                        throw new InvalidOperationException("The provider did not preserve the target slot.");
-                    }
-                }
-                return slot ?? throw new InvalidOperationException("A prepared change has no target slot.");
-            }).ToArrayOf();
-            m_registrations = (prepared.Registrations.ToArray() ?? [])
-                .Select(static registration => new NodeManagerRegistrationSnapshot(registration))
-                .ToArrayOf();
+            Stage = stage;
+            InitialFailure = initialFailure;
+            CurrentFailure = currentFailure;
+            IsSuperseded = superseded;
+            IsRetryable = retryable && !superseded;
         }
 
         /// <summary>
-        /// Captures slots for an already-bound metadata-only unit.
+        /// Gets the failed stage.
         /// </summary>
-        /// <param name="prepared">The underlying unpublished owner.</param>
-        /// <param name="images">The images already bound during preparation.</param>
-        internal PreparedLifecycleChanges(IPreparedNodeManagerBatch prepared, ArrayOf<INodeManagerReadImage> images)
+        public NodeManagerReconciliationStage Stage { get; }
+
+        /// <summary>
+        /// Gets the original failure, retained across retry attempts.
+        /// </summary>
+        public Exception InitialFailure { get; }
+
+        /// <summary>
+        /// Gets the latest failure.
+        /// </summary>
+        public Exception CurrentFailure { get; }
+
+        /// <summary>
+        /// Gets whether the owning generation or server was superseded.
+        /// </summary>
+        public bool IsSuperseded { get; }
+
+        /// <summary>
+        /// Gets whether reconciliation can retry this step, excluding physical retirement.
+        /// </summary>
+        public bool IsRetryable { get; }
+    }
+
+    /// <summary>
+    /// The authoritative committed revision with weak registration views and non-owning status tickets.
+    /// </summary>
+    public sealed class LifecycleResult
+    {
+        /// <summary>
+        /// Creates a committed result without retaining candidate or callback ownership.
+        /// </summary>
+        internal LifecycleResult(
+            ArrayOf<NodeManagerRegistrationSnapshot> registrations,
+            uint retired,
+            Exception? cleanupFailure,
+            long revision,
+            ArrayOf<NodeManagerSlot> slots,
+            Task retirement,
+            GenerationReconciler.Reconciliation? reconciliation = null,
+            ArrayOf<NodeManagerGenerationSnapshot> publishedSlots = default)
         {
-            m_prepared = prepared;
-            m_registrations = (prepared.Registrations.ToArray() ?? [])
-                .Select(static registration => new NodeManagerRegistrationSnapshot(registration))
-                .ToArrayOf();
-            Slots = (images.ToArray() ?? [])
-                .Select(static image =>
-                {
-                    if (!NodeManagerGenerationRegistry.TryGet(
-                        image.Owner, out NodeManagerGeneration? generation) ||
-                        generation is null)
-                    {
-                        throw new InvalidOperationException(
-                            "A prepared read image owner has no registered NodeManager generation.");
-                    }
-                    return generation.Slot;
-                }).ToArrayOf();
-            m_metadataBound = true;
+            Registrations = registrations;
+            RetiredCount = retired;
+            CleanupFailure = cleanupFailure;
+            Revision = revision;
+            Slots = slots;
+            PublishedSlots = publishedSlots;
+            Retired = retirement ?? throw new ArgumentNullException(nameof(retirement));
+            m_reconciliation = reconciliation;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Gets weak snapshots of committed additions and replacements.
+        /// </summary>
+        public ArrayOf<NodeManagerRegistrationSnapshot> Registrations { get; }
+
+        /// <summary>
+        /// Gets the number of old generations cleaned up before this result was created.
+        /// </summary>
+        public uint RetiredCount { get; }
+
+        /// <summary>
+        /// Gets the original post-commit failure, never an aborted publication.
+        /// </summary>
+        public Exception? CleanupFailure { get; }
+
+        /// <summary>
+        /// Gets the published routing revision.
+        /// </summary>
+        public long Revision { get; }
+
+        /// <summary>
+        /// Gets stable slots in the published view.
+        /// </summary>
         public ArrayOf<NodeManagerSlot> Slots { get; }
 
-        /// <inheritdoc/>
-        public ArrayOf<NodeManagerRegistrationSnapshot> Registrations
-        {
-            get
-            {
-                lock (m_state)
-                {
-                    return m_registrations;
-                }
-            }
-        }
-
-        /// <inheritdoc/>
-        public bool IsCommitted
-        {
-            get
-            {
-                lock (m_state)
-                {
-                    return m_prepared is { } prepared ? prepared.IsCommitted : m_committed;
-                }
-            }
-        }
-
-        /// <inheritdoc/>
-        public void SetMetadata(INodeManagerReadImage metadata)
-        {
-            if (metadata is null)
-            {
-                throw new ArgumentNullException(nameof(metadata));
-            }
-            if (metadata.Owner is not { } owner ||
-                !NodeManagerGenerationRegistry.TryGet(owner, out NodeManagerGeneration? generation) ||
-                generation is null)
-            {
-                throw new ArgumentException("Metadata has no registered generation owner.", nameof(metadata));
-            }
-            SetMetadata(generation.Slot, metadata);
-        }
+        /// <summary>
+        /// Gets generation snapshots at publication, unaffected by later slot replacement.
+        /// </summary>
+        public ArrayOf<NodeManagerGenerationSnapshot> PublishedSlots { get; }
 
         /// <summary>
-        /// Transfers prepared ownership to the adapter, disposing malformed provider results on failure.
+        /// Gets physical retirement completion, including earlier failed attempts after eventual cleanup.
         /// </summary>
-        /// <param name="prepared">The provider's unpublished owner.</param>
-        /// <param name="changes">The changes whose candidate slots must be captured.</param>
-        /// <returns>The adapter owning the prepared result.</returns>
-        internal static async ValueTask<IPreparedChanges> CreateAsync(
-            IPreparedNodeManagerBatch prepared, ArrayOf<LifecycleChange> changes)
-        {
-            try
-            {
-                return new PreparedLifecycleChanges(prepared, changes);
-            }
-            catch (Exception failure) when (failure is not OutOfMemoryException)
-            {
-                await DisposeAfterAdapterFailureAsync(prepared, failure).ConfigureAwait(false);
-                throw;
-            }
-        }
+        public Task Retired { get; }
 
         /// <summary>
-        /// Disposes a provider after adapter construction fails, preserving both failures if cleanup also fails.
+        /// Gets physical retirement completion independently of reconciliation.
         /// </summary>
-        /// <param name="prepared">The provider that could not be adapted.</param>
-        /// <param name="failure">The adapter construction or validation failure.</param>
-        internal static async ValueTask DisposeAfterAdapterFailureAsync(
-            IPreparedNodeManagerBatch prepared,
-            Exception failure)
+        public NodeManagerRetirementStatus RetirementStatus => Retired.Status switch
         {
-            try
-            {
-                await prepared.DisposeAsync().ConfigureAwait(false);
-            }
-            catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
-            {
-                throw new AggregateException(
-                    "Prepared lifecycle adapter construction and cleanup both failed.",
-                    failure,
-                    cleanupFailure);
-            }
-        }
-
-        /// <inheritdoc/>
-        public void SetMetadata(NodeManagerSlot slot, INodeManagerReadImage metadata)
-        {
-            if (slot is null)
-            {
-                throw new ArgumentNullException(nameof(slot));
-            }
-            if (metadata is null)
-            {
-                throw new ArgumentNullException(nameof(metadata));
-            }
-            lock (m_state)
-            {
-                if (m_consumed || m_metadataBound)
-                {
-                    throw new InvalidOperationException("Metadata cannot be changed after binding or consumption.");
-                }
-                NodeManagerRegistration? candidate =
-                    (GetPrepared().Registrations.ToArray() ?? []).FirstOrDefault(value => value.Slot == slot);
-                bool validOwner = candidate is not null
-                    ? ReferenceEquals(candidate.NodeManager, metadata.Owner)
-                    : !Slots.Contains(slot) && slot.TryGetCurrent(out NodeManagerSlotSnapshot current) &&
-                        ReferenceEquals(current.NodeManager, metadata.Owner);
-                if (!validOwner)
-                {
-                    throw new ArgumentException(
-                        "Metadata must belong to a candidate or unchanged live generation in this unit.",
-                        nameof(metadata));
-                }
-                if (!m_metadata.TryAdd(slot, metadata))
-                {
-                    throw new InvalidOperationException("Metadata is already bound for this slot.");
-                }
-            }
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<LifecycleResult> CommitAsync(
-            Func<CancellationToken, ValueTask>? decideAsync = null, CancellationToken cancellationToken = default)
-        {
-            return CommitCoreAsync(decideAsync, null, cancellationToken);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<LifecycleResult> CommitAsync(
-            Func<CancellationToken, ValueTask>? decideAsync,
-            Action publishCommittedState,
-            CancellationToken cancellationToken = default)
-        {
-            return CommitCoreAsync(decideAsync,
-                publishCommittedState ?? throw new ArgumentNullException(nameof(publishCommittedState)),
-                cancellationToken);
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask DisposeAsync()
-        {
-            Seal();
-            IPreparedNodeManagerBatch? prepared;
-            lock (m_state)
-            {
-                prepared = m_prepared;
-            }
-            if (prepared is null)
-            {
-                return;
-            }
-            await ReleasePreparedAsync(prepared).ConfigureAwait(false);
-        }
+            TaskStatus.RanToCompletion => NodeManagerRetirementStatus.Completed,
+            TaskStatus.Faulted => NodeManagerRetirementStatus.CompletedWithFailure,
+            TaskStatus.Canceled => NodeManagerRetirementStatus.Canceled,
+            _ => NodeManagerRetirementStatus.Pending
+        };
 
         /// <summary>
-        /// Prevents metadata mutation and releases a validation view's borrowed provider after inspection.
+        /// Gets current issues while preserving the initial commit failure in <see cref="CleanupFailure"/>.
         /// </summary>
-        internal void Seal()
-        {
-            lock (m_state)
-            {
-                m_consumed = true;
-                m_metadata.Clear();
-                if (m_validationOnly)
-                {
-                    m_prepared = null;
-                }
-            }
-        }
+        public ArrayOf<NodeManagerReconciliationIssue> Issues => m_reconciliation?.Issues ?? [];
 
         /// <summary>
-        /// Binds accumulated metadata once before commit or private publication validation.
+        /// Joins explicit retry of unfinished reconciliation, never factories, decisions or publication.
         /// </summary>
-        internal void ConsumeMetadata()
+        /// <param name="cancellationToken">Cancels this caller's wait, not admitted work.</param>
+        /// <returns>Completion of the shared attempt.</returns>
+        public ValueTask RetryReconciliationAsync(CancellationToken cancellationToken = default)
         {
-            lock (m_state)
-            {
-                if (m_consumed)
-                {
-                    throw new InvalidOperationException("The prepared changes have already been consumed.");
-                }
-                m_consumed = true;
-                if (m_metadata.Count != 0)
-                {
-                    GetPrepared().BindReadImages(m_metadata.Values.ToArrayOf());
-                }
-                m_metadata.Clear();
-            }
+            cancellationToken.ThrowIfCancellationRequested();
+            return m_reconciliation?.RetryAsync(cancellationToken) ?? default;
         }
+
+        /// <summary>The non-owning reconciliation status ticket.</summary>
+        private readonly GenerationReconciler.Reconciliation? m_reconciliation;
+    }
+
+    /// <summary>
+    /// Describes physical retirement completion, not publication outcome.
+    /// </summary>
+    public enum NodeManagerRetirementStatus
+    {
+        /// <summary>
+        /// An old generation is still waiting for drain or cleanup.
+        /// </summary>
+        Pending,
 
         /// <summary>
-        /// Binds accumulated metadata once and delegates decision/publication to the existing owner.
+        /// Every old generation was cleaned up without a failed attempt.
         /// </summary>
-        /// <param name="decideAsync">The durable decision, if any.</param>
-        /// <param name="publishCommittedState">The committed state callback, if any.</param>
-        /// <param name="cancellationToken">Cancels before publication.</param>
-        /// <returns>The underlying result's authoritative status owner.</returns>
-        /// <exception cref="InvalidOperationException">The prepared changes have already been consumed.</exception>
-        private async ValueTask<LifecycleResult> CommitCoreAsync(
-            Func<CancellationToken, ValueTask>? decideAsync,
-            Action? publishCommittedState,
-            CancellationToken cancellationToken)
-        {
-            if (m_validationOnly)
-            {
-                throw new InvalidOperationException("A validation candidate cannot be committed.");
-            }
-            ConsumeMetadata();
-            IPreparedNodeManagerBatch prepared = GetPrepared();
-            decideAsync ??= static _ => default;
-            NodeManagerBatchResult result = publishCommittedState is null
-                ? await prepared.CommitAsync(decideAsync, cancellationToken).ConfigureAwait(false)
-                : await prepared.CommitAsync(decideAsync, publishCommittedState, cancellationToken)
-                    .ConfigureAwait(false);
-            await ReleasePreparedAsync(prepared).ConfigureAwait(false);
-            return result.CommittedResult;
-        }
+        Completed,
 
         /// <summary>
-        /// Releases the provider while retaining candidate registration snapshots.
+        /// Every old generation was cleaned up, but an earlier attempt failed.
         /// </summary>
-        /// <param name="prepared">The provider to release.</param>
-        private async ValueTask ReleasePreparedAsync(IPreparedNodeManagerBatch prepared)
-        {
-            await prepared.DisposeAsync().ConfigureAwait(false);
-            lock (m_state)
-            {
-                if (ReferenceEquals(m_prepared, prepared))
-                {
-                    m_registrations = (prepared.Registrations.ToArray() ?? [])
-                        .Select(static registration => new NodeManagerRegistrationSnapshot(registration))
-                        .ToArrayOf();
-                    m_committed = prepared.IsCommitted;
-                    m_prepared = null;
-                }
-            }
-        }
+        CompletedWithFailure,
 
         /// <summary>
-        /// Gets the unpublished owner while this adapter has not completed disposal.
+        /// Retirement was canceled; cleanup completion is not established.
         /// </summary>
-        /// <exception cref="InvalidOperationException">The prepared changes have been disposed.</exception>
-        private IPreparedNodeManagerBatch GetPrepared()
-        {
-            lock (m_state)
-            {
-                return m_prepared ??
-                    throw new InvalidOperationException("The prepared changes have been disposed.");
-            }
-        }
-
-        /// <summary>The prepared lifetime owner until successful disposal.</summary>
-        private IPreparedNodeManagerBatch? m_prepared;
-
-        /// <summary>The candidate metadata retained after provider ownership is released.</summary>
-        private ArrayOf<NodeManagerRegistrationSnapshot> m_registrations;
-
-        /// <summary>Whether the disposed preparation crossed the publication commit point.</summary>
-        private bool m_committed;
-
-        /// <summary>Serializes local metadata binding with consumption.</summary>
-        private readonly Lock m_state = new();
-
-        /// <summary>The typed images awaiting one batch binding.</summary>
-        private readonly Dictionary<NodeManagerSlot, INodeManagerReadImage> m_metadata = [];
-
-        /// <summary>Whether the adapter has admitted commit or disposal.</summary>
-        private bool m_consumed;
-
-        /// <summary>Whether preparation already bound all metadata.</summary>
-        private readonly bool m_metadataBound;
-
-        /// <summary>Whether this candidate can only be inspected and validated.</summary>
-        private readonly bool m_validationOnly;
+        Canceled
     }
 }

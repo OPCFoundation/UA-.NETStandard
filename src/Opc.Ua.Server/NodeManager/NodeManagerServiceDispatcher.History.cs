@@ -58,6 +58,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             var results = new List<HistoryReadResult>(nodesToRead.Count);
+            HashSet<ByteString>? clientTokens = CaptureClientHistoryTokens(nodesToRead);
             SessionContinuationPoints? sessionContinuationPoints = !releaseContinuationPoints
                 ? context.Session?.ContinuationPoints as SessionContinuationPoints
                 : null;
@@ -67,14 +68,22 @@ namespace Opc.Ua.Server
             {
                 return await HistoryReadCoreAsync(
                     context, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead,
-                    results, cancellationToken).ConfigureAwait(false);
+                    clientTokens, historyRequest, results, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
-                ReleaseUnreturnedHistoryContinuationPoints(
-                    context, sessionContinuationPoints, historyRequest, nodesToRead, results);
-                ReleaseFailedHistoryResults(context, nodesToRead, results, failure);
+                List<Exception>? cleanupFailures = ReleaseUnreturnedHistoryContinuationPoints(
+                    context, sessionContinuationPoints, historyRequest, clientTokens, results);
+                if (cleanupFailures is not null)
+                {
+                    cleanupFailures.Insert(0, failure);
+                    throw new AggregateException("HistoryRead and continuation cleanup failed.", cleanupFailures);
+                }
                 throw;
+            }
+            finally
+            {
+                clientTokens = null;
             }
         }
 
@@ -132,6 +141,8 @@ namespace Opc.Ua.Server
         /// <param name="context">The operation context of the request.</param>
         /// <param name="holder">The session continuation points.</param>
         /// <param name="node">The node to read.</param>
+        /// <param name="clientTokens">The continuation points the client supplied for this request.</param>
+        /// <param name="historyRequest">The exact request owning saved points, or null for a release.</param>
         /// <param name="details">The details of the read.</param>
         /// <param name="timestampsToReturn">The timestamps to return.</param>
         /// <param name="release">Whether to release the continuation point.</param>
@@ -143,6 +154,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             SessionContinuationPoints holder,
             HistoryReadValueId node,
+            HashSet<ByteString>? clientTokens,
+            IDisposable? historyRequest,
             HistoryReadDetails details,
             TimestampsToReturn timestampsToReturn,
             bool release,
@@ -168,9 +181,9 @@ namespace Opc.Ua.Server
                         ? ServiceResult.Good
                         : StatusCodes.BadContinuationPointInvalid);
             }
-            IHistoryContinuationPoint? point = await holder.RestoreHistoryAsync(
+            using SessionContinuationPoints.HistoryReadScope use = await holder.RestoreHistoryReadAsync(
                 node.ContinuationPoint, cancellationToken).ConfigureAwait(false);
-            using SessionContinuationPoints.HistoryReadScope use = holder.BeginHistoryRead(node.ContinuationPoint, point);
+            holder.ActivateHistoryRead(use);
             var result = new HistoryReadResult();
             if (use.Point is null ||
                 (use.Point is HistorianContinuationState saved &&
@@ -179,20 +192,21 @@ namespace Opc.Ua.Server
                 return (result, StatusCodes.BadContinuationPointInvalid);
             }
             var state = use.Point as HistorianContinuationState;
-            NodeManagerGenerationReference? generationReference =
-                state?.Ownership.Generation ?? holder.GetHistoryGeneration(use.Point);
-            if (generationReference is null ||
-                !generationReference.TryGetGeneration(out NodeManagerGeneration? generation) ||
-                generation is null)
+            NodeManagerGeneration? generation = use.Generation;
+            if (generation is null)
             {
-                return (result, StatusCodes.BadContinuationPointInvalid);
+                NodeManagerGenerationReference? generationReference =
+                    state?.Ownership.Generation ?? holder.GetHistoryGeneration(use.Point);
+                if (generationReference is null ||
+                    !generationReference.TryGetGeneration(out generation) ||
+                    generation is null ||
+                    !use.TryAdmitGeneration(generation))
+                {
+                    return (result, StatusCodes.BadContinuationPointInvalid);
+                }
             }
-            using GenerationGate.Lease? generationLease = TryEnterHistoryContinuation(generation);
-            if (generationLease is null)
-            {
-                return (result, StatusCodes.BadContinuationPointInvalid);
-            }
-            using (generationLease)
+            Exception? admittedFailure = null;
+            try
             {
                 ServiceResult? error = await ValidateHistoryReadRequestAsync(context, node, cancellationToken)
                     .ConfigureAwait(false);
@@ -206,6 +220,9 @@ namespace Opc.Ua.Server
                 var errors = new List<ServiceResult> { ServiceResult.Good };
                 try
                 {
+                    IDisposable currentRequest = historyRequest ??
+                        throw new InvalidOperationException("The history request is unavailable.");
+                    using IDisposable historyDispatch = holder.BeginHistoryDispatch(currentRequest, generation);
                     await generation.NodeManager.HistoryReadAsync(
                         context,
                         details,
@@ -215,17 +232,48 @@ namespace Opc.Ua.Server
                         results,
                         errors,
                         cancellationToken).ConfigureAwait(false);
-                    if (node.Processed && results[0] is { ContinuationPoint.IsEmpty: false } page)
+                    if (node.Processed &&
+                        results[0] is { ContinuationPoint.IsEmpty: false } page &&
+                        !holder.TryBindHistoryResult(
+                            currentRequest, historyDispatch, page.ContinuationPoint, generation))
                     {
-                        holder.BindHistoryGeneration(page.ContinuationPoint, generation);
+                        return (new HistoryReadResult(), StatusCodes.BadContinuationPointInvalid);
                     }
                     return (results[0] ?? result, node.Processed ? errors[0] : StatusCodes.BadNodeIdUnknown);
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
-                    ReleaseFailedHistoryResults(context, [node], results, failure);
+                    ReportUnattributedHistoryResults(holder, clientTokens, results, failure);
                     throw;
                 }
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                admittedFailure = failure;
+                throw;
+            }
+            finally
+            {
+                DisposeHistoryReadScope(use, admittedFailure);
+            }
+        }
+
+        /// <summary>
+        /// Releases a resumed read without losing a failure from the admitted operation.
+        /// </summary>
+        private static void DisposeHistoryReadScope(
+            SessionContinuationPoints.HistoryReadScope use,
+            Exception? admittedFailure)
+        {
+            try
+            {
+                use.Dispose();
+            }
+            catch (Exception cleanupFailure) when (
+                admittedFailure is not null && cleanupFailure is not OutOfMemoryException)
+            {
+                throw new AggregateException(
+                    "HistoryRead and continuation cleanup failed.", admittedFailure, cleanupFailure);
             }
         }
 
@@ -240,36 +288,32 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Disposes the continuation points in already produced results after a failed request.
+        /// Reports result tokens whose exact ownership cannot be established after a failed request.
         /// </summary>
-        /// <param name="context">The operation context of the request.</param>
-        /// <param name="requested">
-        /// The operations of the request. A result that carries a continuation point the client supplied is kept,
-        /// since the client still holds it.
-        /// </param>
+        /// <param name="holder">The session continuation points.</param>
+        /// <param name="clientTokens">The continuation points the client still holds.</param>
         /// <param name="results">The results produced so far.</param>
         /// <param name="failure">The failure that aborted the request.</param>
-        private static void ReleaseFailedHistoryResults(
-            OperationContext context,
-            ArrayOf<HistoryReadValueId> requested,
+        /// <exception cref="AggregateException">
+        /// A result token is neither client-supplied nor recorded by the current request.
+        /// </exception>
+        private static void ReportUnattributedHistoryResults(
+            SessionContinuationPoints holder,
+            HashSet<ByteString>? clientTokens,
             List<HistoryReadResult> results,
             Exception failure)
         {
             List<Exception>? failures = null;
             foreach (HistoryReadResult? result in results)
             {
-                if (result is null || result.ContinuationPoint.IsEmpty || IsClientSupplied(requested, result))
+                if (result is null ||
+                    result.ContinuationPoint.IsEmpty ||
+                    IsClientSupplied(clientTokens, result) ||
+                    holder.IsSavedByCurrentHistoryRequest(result.ContinuationPoint))
                 {
                     continue;
                 }
-                try
-                {
-                    context.Session?.ContinuationPoints.RestoreHistory(result.ContinuationPoint)?.Dispose();
-                }
-                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
-                {
-                    (failures ??= [failure]).Add(cleanupFailure);
-                }
+                (failures ??= [failure]).Add(CreateUnattributedHistoryContinuationFailure());
             }
             if (failures is not null)
             {
@@ -277,16 +321,31 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static bool IsClientSupplied(ArrayOf<HistoryReadValueId> requested, HistoryReadResult result)
+        /// <summary>
+        /// Creates a failure for a result that cannot safely be released by token alone.
+        /// </summary>
+        private static InvalidOperationException CreateUnattributedHistoryContinuationFailure()
         {
+            return new InvalidOperationException(
+                "An unreturned history continuation could not be attributed to this request; no release was attempted.");
+        }
+
+        private static HashSet<ByteString>? CaptureClientHistoryTokens(ArrayOf<HistoryReadValueId> requested)
+        {
+            HashSet<ByteString>? tokens = null;
             for (int ii = 0; ii < requested.Count; ii++)
             {
-                if (requested[ii] != null && requested[ii].ContinuationPoint.Equals(result.ContinuationPoint))
+                if (requested[ii] is { ContinuationPoint.IsEmpty: false } node)
                 {
-                    return true;
+                    (tokens ??= []).Add(node.ContinuationPoint.Copy());
                 }
             }
-            return false;
+            return tokens;
+        }
+
+        private static bool IsClientSupplied(HashSet<ByteString>? clientTokens, HistoryReadResult result)
+        {
+            return clientTokens?.Contains(result.ContinuationPoint) == true;
         }
     }
 }

@@ -31,6 +31,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -57,9 +58,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
             HandoffProbe probe = ObserveHandoff(
                 preparedViews ? views : null, new StockViewSourceConverter());
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotResource source = await UpsertStockSourceAsync(false, thingModel).ConfigureAwait(false);
 
             WotRefreshResult initial = await m_coordinator.RefreshAsync(HandoffRequest("ordinary-correlation"))

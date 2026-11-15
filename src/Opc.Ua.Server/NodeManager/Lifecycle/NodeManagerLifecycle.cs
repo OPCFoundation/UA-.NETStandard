@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Schema;
@@ -43,20 +44,8 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
-    public sealed partial class NodeManagerLifecycle : INodeManagerPublicationLifecycle, IDisposable
+    public sealed partial class NodeManagerLifecycle : INodeManagerLifecycle, IDisposable
     {
-        /// <summary>
-        /// Creates a lifecycle provider for a directly constructed server.
-        /// </summary>
-        /// <remarks>
-        /// Additional handles forward publication to the server's single generation owner. Disposing a handle
-        /// prevents new operations through it but does not dispose the server's generations or writer.
-        /// </remarks>
-        public NodeManagerLifecycle(StandardServer server)
-            : this(server, TimeProvider.System)
-        {
-        }
-
         /// <summary>
         /// Creates the server-owned lifecycle provider with its time source.
         /// </summary>
@@ -77,7 +66,7 @@ namespace Opc.Ua.Server
             StandardServer server,
             TimeProvider timeProvider,
             Func<Func<bool>, LifecycleWriter>? writerFactory)
-            : this(server, timeProvider, writerFactory, server?.NodeManagerLifecycle as NodeManagerLifecycle)
+            : this((INodeManagerLifecycleHost)server, timeProvider, writerFactory)
         {
         }
 
@@ -87,18 +76,18 @@ namespace Opc.Ua.Server
         /// <param name="server">The server state and schema services.</param>
         /// <param name="timeProvider">The server's clock.</param>
         /// <param name="writerFactory">The factory receiving the owner's cleanup-completion policy.</param>
-        /// <param name="canonicalOwner">The canonical owner, or null when creating that owner.</param>
         internal NodeManagerLifecycle(
             INodeManagerLifecycleHost server,
             TimeProvider timeProvider,
-            Func<Func<bool>, LifecycleWriter>? writerFactory,
-            NodeManagerLifecycle? canonicalOwner = null)
+            Func<Func<bool>, LifecycleWriter>? writerFactory)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_reclaimer = new GenerationReclaimer(m_timeProvider);
-            m_canonicalOwner = canonicalOwner;
-            bool CanDispose() => m_reclaimer.Count == 0 && m_registrations.Count == 0;
+            var weakOwner = new WeakReference<NodeManagerLifecycle>(this);
+            bool CanDispose() => !weakOwner.TryGetTarget(out NodeManagerLifecycle? owner) ||
+                owner.m_reclaimer.Count == 0 && owner.m_registrations.Count == 0 &&
+                owner.PendingPrivateCleanupCount == 0;
 
             if (writerFactory is null)
             {
@@ -116,10 +105,6 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (m_canonicalOwner is { } owner)
-                {
-                    return owner.Registrations;
-                }
                 lock (m_registrationLock)
                 {
                     return new ArrayOf<NodeManagerRegistration>(
@@ -147,10 +132,6 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (m_canonicalOwner is { } owner)
-                {
-                    return owner.Slots;
-                }
                 lock (m_registrationLock)
                 {
                     return new ArrayOf<NodeManagerSlot>(
@@ -164,38 +145,158 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public bool IsShuttingDown => m_writer.IsShuttingDown || m_canonicalOwner?.IsShuttingDown == true;
-
-        /// <inheritdoc/>
-        public bool SupportsPreparedPublication =>
-            m_server.CurrentInstance.NodeManager is IDynamicNodeManagerBatchHost;
+        public bool IsShuttingDown => m_writer.IsShuttingDown;
 
         internal long ShutdownCleanupProgress =>
-            m_canonicalOwner?.ShutdownCleanupProgress ?? m_reclaimer.CleanupProgress;
+            m_reclaimer.CleanupProgress;
 
-        internal int RetiredNodeManagerCount => m_canonicalOwner?.RetiredNodeManagerCount ?? m_reclaimer.Count;
+        internal int RetiredNodeManagerCount => m_reclaimer.Count;
 
         /// <summary>
-        /// Gets whether any serving or retired generation still owns resources required from the server internals.
+        /// Gets the number of private batch cleanup owners still retaining candidates.
+        /// </summary>
+        private int PendingPrivateCleanupCount
+        {
+            get
+            {
+                lock (m_privateCleanupLock)
+                {
+                    return m_privateCleanups.Count;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Binds the host's exact recovery adapters once before the lifecycle is exposed.
+        /// </summary>
+        internal void BindCleanupAuthority(NodeManagerCleanupAuthority authority)
+        {
+            if (authority is null)
+            {
+                throw new ArgumentNullException(nameof(authority));
+            }
+            lock (m_cleanupAuthorityLock)
+            {
+                if (m_cleanupAuthority is null && !m_cleanupAuthoritySealed)
+                {
+                    m_cleanupAuthority = authority;
+                }
+                else if (m_cleanupAuthority is null || !m_cleanupAuthority.Matches(authority))
+                {
+                    throw new InvalidOperationException("The server's cleanup recovery authority is already bound.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Prevents installing recovery adapters after server startup begins.
+        /// </summary>
+        internal void SealCleanupAuthority()
+        {
+            lock (m_cleanupAuthorityLock)
+            {
+                m_cleanupAuthority ??= new NodeManagerCleanupAuthority(null, null, null);
+                m_cleanupAuthoritySealed = true;
+            }
+        }
+
+        /// <summary>
+        /// Requires the adapters configured by the owning host.
+        /// </summary>
+        internal void DemandCleanupAuthority(NodeManagerCleanupAuthority authority)
+        {
+            lock (m_cleanupAuthorityLock)
+            {
+                if (m_cleanupAuthority is null || !m_cleanupAuthority.Matches(authority))
+                {
+                    throw new UnauthorizedAccessException(
+                        "The cleanup recovery authority is not bound to this server.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets whether a serving or retired generation still requires the server internals.
         /// </summary>
         internal bool HasPendingShutdownCleanup
         {
             get
             {
-                if (m_canonicalOwner is { } owner)
-                {
-                    return owner.HasPendingShutdownCleanup;
-                }
                 lock (m_registrationLock)
                 {
-                    return m_registrations.Count != 0 || m_reclaimer.Count != 0;
+                    return m_registrations.Count != 0 ||
+                        m_reclaimer.Count != 0 || PendingPrivateCleanupCount != 0;
                 }
             }
         }
 
+        /// <summary>
+        /// Captures the published and retired generations still owned by this lifecycle.
+        /// </summary>
+        /// <returns>The owned generations, without transferring their cleanup ownership.</returns>
+        internal NodeManagerGeneration[] SnapshotCleanupGenerations()
+        {
+            NodeManagerGeneration[] registrations;
+            lock (m_registrationLock)
+            {
+                registrations = m_registrations.Values
+                    .Select(state => state.Registration.Identity)
+                    .ToArray();
+            }
+
+            NodeManagerGeneration[] privateCandidates;
+            lock (m_privateCleanupLock)
+            {
+                privateCandidates = m_privateCleanups
+                    .SelectMany(cleanup => cleanup.Candidates)
+                    .Select(candidate => candidate.Generation)
+                    .ToArray();
+            }
+
+            return registrations
+                .Concat(m_reclaimer.Snapshot().Select(retired => retired.Generation))
+                .Concat(privateCandidates)
+                .Distinct()
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Gets the first retirement failure retained for an exact generation.
+        /// </summary>
+        /// <param name="generation">The retired generation to inspect.</param>
+        /// <returns>The reported failure, or null if none has been reported.</returns>
+        internal Exception? GetRetirementFailure(NodeManagerGeneration generation)
+        {
+            return m_reclaimer.GetRetirementFailure(generation);
+        }
+
+        /// <summary>
+        /// Requests another eligible retirement attempt after a verified resource cleanup.
+        /// </summary>
+        /// <remarks>
+        /// During shutdown the server must resume its ordered shutdown instead of starting normal scheduling.
+        /// </remarks>
+        internal bool TryRetryCleanupAfterConfirmation()
+        {
+            if (IsShuttingDown)
+            {
+                return false;
+            }
+            m_reclaimer.RetryReady();
+            m_reclaimer.RetryConfirmed();
+            return !IsShuttingDown;
+        }
+
         internal void PrepareForStartup()
         {
-            m_writer.BeginStartup(m_reclaimer.BeginStartup);
+            m_writer.BeginStartup(() =>
+            {
+                if (PendingPrivateCleanupCount != 0)
+                {
+                    throw new InvalidOperationException("Private candidate cleanup is still retained.");
+                }
+                m_reclaimer.BeginStartup();
+            });
         }
 
         /// <inheritdoc/>
@@ -239,12 +340,6 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(server));
             }
-            if (m_canonicalOwner is { } owner)
-            {
-                await owner.BeginShutdownAsync(server, ct).ConfigureAwait(false);
-                return;
-            }
-
             Exception[] failures = await PrepareShutdownRegistrationsAsync(server, ct).ConfigureAwait(false);
             if (failures.Length != 0)
             {
@@ -340,7 +435,10 @@ namespace Opc.Ua.Server
             }
             try
             {
-                await generation.PrepareForShutdownAsync().ConfigureAwait(false);
+                if (!generation.ResourceOwnership.IsShared)
+                {
+                    await generation.PrepareForShutdownAsync().ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -367,12 +465,6 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(server));
             }
-            if (m_canonicalOwner is { } owner)
-            {
-                await owner.CompleteShutdownAsync(server, retireSystems, ct).ConfigureAwait(false);
-                return;
-            }
-
             Exception[] preparationFailures = await PrepareShutdownRegistrationsAsync(server, ct)
                 .ConfigureAwait(false);
             Task activeOperations = await m_writer.BeginShutdownAsync(ct).ConfigureAwait(false);
@@ -394,16 +486,54 @@ namespace Opc.Ua.Server
                     await m_writer.BeginShutdownCleanupAsync(ct).ConfigureAwait(false);
                 cleanupOwnership = shutdownCleanup;
                 m_reclaimer.StopScheduling();
-                ArrayOf<NodeManagerBatchChange> applications;
+                ArrayOf<LifecycleChange> applications;
                 lock (m_registrationLock)
                 {
                     applications = m_registrations.Values.Where(state => !state.IsSystem)
                         .Where(IsShutdownPrepared)
-                        .Select(state => NodeManagerBatchChange.Remove(state.Registration)).ToArrayOf();
+                        .Select(state => LifecycleChange.Remove(state.Registration.Slot)).ToArrayOf();
+                }
+                PrivateBatchCleanup[] decidedCandidates;
+                lock (m_privateCleanupLock)
+                {
+                    decidedCandidates = m_privateCleanups
+                        .Where(cleanup => cleanup.Stage == PrivateCleanupStage.WaitingForShutdown).ToArray();
+                    foreach (PrivateBatchCleanup cleanup in decidedCandidates)
+                    {
+                        cleanup.Stage = PrivateCleanupStage.Reserving;
+                    }
+                }
+                foreach (PrivateBatchCleanup cleanup in decidedCandidates)
+                {
+                    _ = await StartPrivateBatchCleanupAsync(server, cleanup).ConfigureAwait(false);
                 }
                 await CompleteShutdownBatchAsync(server, applications, shutdownCleanup, ct).ConfigureAwait(false);
+                Task? privateCleanup = CapturePrivateCleanupCompletion();
+                if (privateCleanup is not null)
+                {
+                    if (!privateCleanup.IsCompleted)
+                    {
+                        Exception? preparationFailure = preparationFailures.Length == 0
+                            ? null
+                            : new AggregateException(
+                                "One or more NodeManager shutdown preparations failed.",
+                                preparationFailures);
+                        throw new NodeManagerCleanupDeferredException(privateCleanup, preparationFailure);
+                    }
+                    try
+                    {
+                        await privateCleanup.ConfigureAwait(false);
+                    }
+                    catch (Exception failure) when (
+                        preparationFailures.Length != 0 && failure is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "Private cleanup and NodeManager shutdown preparation failed.",
+                            new[] { failure }.Concat(preparationFailures));
+                    }
+                }
 
-                ArrayOf<NodeManagerBatchChange> systems = [];
+                ArrayOf<LifecycleChange> systems = [];
                 if (retireSystems && m_reclaimer.Count == 0)
                 {
                     lock (m_registrationLock)
@@ -412,7 +542,7 @@ namespace Opc.Ua.Server
                         {
                             systems = m_registrations.Values.Where(state => state.IsSystem)
                                 .Where(IsShutdownPrepared)
-                                .Select(state => NodeManagerBatchChange.Remove(state.Registration)).ToArrayOf();
+                                .Select(state => LifecycleChange.Remove(state.Registration.Slot)).ToArrayOf();
                         }
                     }
                 }
@@ -434,7 +564,7 @@ namespace Opc.Ua.Server
 
         private async ValueTask CompleteShutdownBatchAsync(
             IServerInternal server,
-            ArrayOf<NodeManagerBatchChange> changes,
+            ArrayOf<LifecycleChange> changes,
             LifecycleWriter.ShutdownCleanup cleanupOwnership,
             CancellationToken ct)
         {
@@ -442,14 +572,14 @@ namespace Opc.Ua.Server
             if (changes.Count != 0)
             {
                 var shutdown = new ShutdownPublication(this, server, cleanupOwnership);
-                IPreparedNodeManagerBatch batch = await PrepareBatchAsync(
+                IPreparedChanges batch = await PrepareChangesAsync(
                     changes,
                     null,
                     CaptureLifecycleCallbackPermit(),
                     ct,
                     shutdown: shutdown).ConfigureAwait(false);
                 await using var lifetime = batch.ConfigureAwait(false);
-                NodeManagerBatchResult result = await batch.CommitAsync(static _ => default, ct).ConfigureAwait(false);
+                LifecycleResult result = await batch.CommitAsync(cancellationToken: ct).ConfigureAwait(false);
                 if (result.CleanupFailure is { } failure)
                 {
                     reconciliationFailure = new InvalidOperationException(
@@ -725,10 +855,7 @@ namespace Opc.Ua.Server
                 return m_registrations.TryGetValue(
                     registration.Id,
                     out RegistrationState? state) &&
-                    state.Registration.Generation == registration.Generation &&
-                    ReferenceEquals(
-                        state.Registration.NodeManager,
-                        registration.NodeManager);
+                    ReferenceEquals(state.Registration.Identity, registration.Identity);
             }
         }
 
@@ -773,10 +900,7 @@ namespace Opc.Ua.Server
                 if (!m_registrations.TryGetValue(
                     registration.Id,
                     out RegistrationState? state) ||
-                    state.Registration.Generation != registration.Generation ||
-                    !ReferenceEquals(
-                        state.Registration.NodeManager,
-                        registration.NodeManager))
+                    !ReferenceEquals(state.Registration.Identity, registration.Identity))
                 {
                     throw new InvalidOperationException(
                         "The registration is stale or is not owned by this lifecycle provider.");
@@ -792,22 +916,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static async ValueTask<MonitoredItemTransition>
-            PrepareMonitoredItemRemovalAsync(
-                IAsyncNodeManager nodeManager,
-                CancellationToken ct)
-        {
-            (INodeManagerMonitoredItemSource lifecycle, IReadOnlyList<IMonitoredItem> items) =
-                await GetOwnedMonitoredItemsAsync(nodeManager, ct)
-                    .ConfigureAwait(false);
-            return new MonitoredItemTransition(
-                lifecycle,
-                replacement: null,
-                compatibleItems: [],
-                deletedItems: items,
-                terminal: true);
-        }
-
         /// <summary>
         /// Detaches and invalidates monitored items left on a quiescent retired manager.
         /// </summary>
@@ -819,8 +927,9 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager)
         {
             MonitoredItemTransition monitoredItemTransition =
-                await PrepareMonitoredItemRemovalAsync(
+                await PrepareMonitoredItemTransitionAsync(
                     nodeManager,
+                    replacement: null,
                     CancellationToken.None).ConfigureAwait(false);
             List<Exception> failures = await monitoredItemTransition
                 .AdoptAsync(CancellationToken.None)
@@ -923,23 +1032,46 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Selects one generation-owned item inventory for migration or terminal removal without placeholder sources.
+        /// </summary>
         private static async ValueTask<MonitoredItemTransition>
             PrepareMonitoredItemTransitionAsync(
                 IAsyncNodeManager current,
-                IAsyncNodeManager replacement,
+                IAsyncNodeManager? replacement,
                 CancellationToken ct)
         {
-            (INodeManagerMonitoredItemSource currentLifecycle,
-                IReadOnlyList<IMonitoredItem> items) =
-                await GetOwnedMonitoredItemsAsync(current, ct)
-                    .ConfigureAwait(false);
-            if (items.Count == 0)
+            ct.ThrowIfCancellationRequested();
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(current);
+            var ownedItems = new HashSet<IMonitoredItem>(generation.MonitoredItems.Keys.Where(item =>
+                (item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
+                item is not IMonitoredItemGenerationBinding { IsSourceUnavailable: true }),
+                MonitoredItemReferenceComparer.Instance);
+            foreach (IMonitoredItem item in generation.CapturePendingSourceItems())
+            {
+                if ((item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
+                    item is IMonitoredItemGenerationBinding { IsRemoved: false, IsTerminal: false } binding &&
+                    binding.CaptureSource().Generation is null &&
+                    item.SubscriptionCallback is ISubscriptionMonitoredItemLifecycle subscription &&
+                    subscription.ContainsMonitoredItem(item))
+                {
+                    ownedItems.Add(item);
+                }
+            }
+            IMonitoredItem[] items = [.. ownedItems];
+            var currentLifecycle = current as INodeManagerMonitoredItemSource;
+            if (currentLifecycle is null && items.Length != 0)
+            {
+                throw new NotSupportedException("The NodeManager does not support monitored-item transitions.");
+            }
+            if (replacement is null || items.Length == 0)
             {
                 return new MonitoredItemTransition(
                     currentLifecycle,
                     replacement: null,
                     compatibleItems: [],
-                    deletedItems: []);
+                    deletedItems: items,
+                    terminal: replacement is null);
             }
             if (replacement is not INodeManagerMonitoredItemSource replacementLifecycle)
             {
@@ -947,7 +1079,7 @@ namespace Opc.Ua.Server
                     "The replacement NodeManager does not support monitored-item transitions.");
             }
 
-            var compatibleItems = new List<IMonitoredItem>(items.Count);
+            var compatibleItems = new List<IMonitoredItem>(items.Length);
             var deletedItems = new List<IMonitoredItem>();
             foreach (IMonitoredItem monitoredItem in items)
             {
@@ -989,44 +1121,6 @@ namespace Opc.Ua.Server
                 statusCode == StatusCodes.BadFilterOperandCountMismatch ||
                 statusCode == StatusCodes.BadFilterElementInvalid ||
                 statusCode == StatusCodes.BadFilterLiteralInvalid;
-        }
-
-        private static ValueTask<(
-            INodeManagerMonitoredItemSource Lifecycle,
-            IReadOnlyList<IMonitoredItem> Items)> GetOwnedMonitoredItemsAsync(
-                IAsyncNodeManager nodeManager,
-                CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
-            var ownedItems = new HashSet<IMonitoredItem>(generation.MonitoredItems.Keys.Where(item =>
-                (item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
-                item is not IMonitoredItemGenerationBinding { IsSourceUnavailable: true }),
-                MonitoredItemReferenceComparer.Instance);
-            foreach (IMonitoredItem item in generation.CapturePendingSourceItems())
-            {
-                if ((item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
-                    item is IMonitoredItemGenerationBinding { IsRemoved: false, IsTerminal: false } binding &&
-                    binding.CaptureSource().Generation is null &&
-                    item.SubscriptionCallback is ISubscriptionMonitoredItemLifecycle subscription &&
-                    subscription.ContainsMonitoredItem(item))
-                {
-                    ownedItems.Add(item);
-                }
-            }
-            IMonitoredItem[] items = [.. ownedItems];
-
-            if (nodeManager is not INodeManagerMonitoredItemSource nodeManagerLifecycle)
-            {
-                if (items.Length > 0)
-                {
-                    throw new NotSupportedException(
-                        "The NodeManager does not support monitored-item transitions.");
-                }
-                nodeManagerLifecycle = UnsupportedMonitoredItemLifecycle.Instance;
-            }
-            return new ValueTask<(INodeManagerMonitoredItemSource, IReadOnlyList<IMonitoredItem>)>(
-                (nodeManagerLifecycle, items));
         }
 
         private static ValueTask ResolveUnresolvedSourcesAsync(
@@ -1410,66 +1504,60 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static async ValueTask DisposeNodeManagerAsync(
-            IAsyncNodeManager nodeManager)
+        private async ValueTask DisposeNodeManagerAsync(
+            PrivateBatchCleanup cleanup,
+            PrivateCandidateCleanup candidate)
         {
-            ChangePreparer.Detach(nodeManager);
-            Exception? managerFailure = null;
-            if (nodeManager is IAsyncDisposable asyncDisposable)
+            if (!candidate.Detached)
             {
-                try
+                lock (m_privateCleanupLock)
                 {
-                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                    cleanup.Stage = PrivateCleanupStage.Disposal;
                 }
-                catch (Exception failure) when (failure is not OutOfMemoryException)
-                {
-                    managerFailure = failure;
-                }
+                ChangePreparer.Detach(candidate.Manager);
+                candidate.Detached = true;
             }
-            else if (nodeManager is IDisposable disposable)
+            CheckPrivateCleanupFailures(cleanup, candidate);
+            if (!candidate.ManagerDisposed)
             {
-                try
+                lock (m_privateCleanupLock)
                 {
-                    disposable.Dispose();
+                    cleanup.Stage = PrivateCleanupStage.Disposal;
                 }
-                catch (Exception failure) when (failure is not OutOfMemoryException)
+                await NodeManagerCleanupRecovery.DisposeManagerAsync(
+                    candidate.Manager,
+                    candidate.Generation,
+                    () =>
+                    {
+                        lock (m_privateCleanupLock)
+                        {
+                            candidate.ManagerDisposed = true;
+                            cleanup.Stage = PrivateCleanupStage.CompletedStage;
+                        }
+                    }).ConfigureAwait(false);
+            }
+            CheckPrivateCleanupFailures(cleanup, candidate);
+            if (!candidate.StagingDisposed)
+            {
+                lock (m_privateCleanupLock)
                 {
-                    managerFailure = failure;
+                    cleanup.Stage = PrivateCleanupStage.StagingDisposal;
                 }
+                await ChangePreparer.DisposeAsync(candidate.Manager).ConfigureAwait(false);
+                candidate.StagingDisposed = true;
             }
-            try
-            {
-                await ChangePreparer.DisposeAsync(nodeManager).ConfigureAwait(false);
-            }
-            catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
-            {
-                if (managerFailure is not null)
-                {
-                    throw new AggregateException(
-                        "NodeManager and candidate historian cleanup both failed.",
-                        managerFailure,
-                        cleanupFailure);
-                }
-                throw;
-            }
-            if (managerFailure is not null)
-            {
-                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(managerFailure).Throw();
-            }
+            CheckPrivateCleanupFailures(cleanup, candidate);
         }
 
-        private static async ValueTask<Exception?> TryDisposeNodeManagerAsync(
-            IAsyncNodeManager nodeManager)
+        private void CheckPrivateCleanupFailures(
+            PrivateBatchCleanup cleanup,
+            PrivateCandidateCleanup candidate)
         {
-            try
+            lock (m_privateCleanupLock)
             {
-                await DisposeNodeManagerAsync(nodeManager).ConfigureAwait(false);
-                return null;
+                cleanup.Stage = PrivateCleanupStage.CompletedStage;
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                return ex;
-            }
+            NodeManagerCleanupRecovery.EnsureNoRetainedFailures(candidate.Generation);
         }
 
         /// <summary>
@@ -1484,20 +1572,24 @@ namespace Opc.Ua.Server
             /// Creates a monitored item transition with the item sets selected during reload
             /// preparation.
             /// </summary>
-            /// <param name="current">The lifecycle endpoint for the retiring NodeManager.</param>
+            /// <param name="current">The retiring source, or null only for an empty transition.</param>
             /// <param name="replacement">The lifecycle endpoint for the replacement NodeManager, if any.</param>
             /// <param name="compatibleItems">Items that can be handed to the replacement NodeManager.</param>
             /// <param name="deletedItems">Items whose nodes disappeared during reload.</param>
             /// <param name="isOwnedBySubscription">Optional test hook that verifies subscription ownership.</param>
             /// <param name="terminal">Whether lost items require client-side recreation.</param>
             public MonitoredItemTransition(
-                INodeManagerMonitoredItemSource current,
+                INodeManagerMonitoredItemSource? current,
                 INodeManagerMonitoredItemSource? replacement,
                 IReadOnlyList<IMonitoredItem> compatibleItems,
                 IReadOnlyList<IMonitoredItem> deletedItems,
                 Func<IMonitoredItem, bool>? isOwnedBySubscription = null,
                 bool terminal = false)
             {
+                if (current is null && (compatibleItems.Count != 0 || deletedItems.Count != 0))
+                {
+                    throw new ArgumentNullException(nameof(current));
+                }
                 m_current = current;
                 m_replacement = replacement;
                 m_compatibleItems = compatibleItems;
@@ -1512,7 +1604,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    if (m_current.GetNotificationDrain(monitoredItem.NodeId) is { } drain)
+                    if (current!.GetNotificationDrain(monitoredItem.NodeId) is { } drain)
                     {
                         sourceMonitoredNodeDrains.Add(drain);
                     }
@@ -1570,7 +1662,7 @@ namespace Opc.Ua.Server
                     long sourceRevision = source.Revision;
                     try
                     {
-                        ServiceResult result = await m_current.ReleaseSourceAsync(
+                        ServiceResult result = await m_current!.ReleaseSourceAsync(
                             monitoredItem,
                             sourceRevision,
                             ct)
@@ -1713,7 +1805,8 @@ namespace Opc.Ua.Server
                     lifecycle.ContainsMonitoredItem(monitoredItem);
             }
 
-            private readonly INodeManagerMonitoredItemSource m_current;
+            /// <summary>The source owner, absent only for an empty transition.</summary>
+            private readonly INodeManagerMonitoredItemSource? m_current;
             private readonly INodeManagerMonitoredItemSource? m_replacement;
             private readonly IReadOnlyList<IMonitoredItem> m_compatibleItems;
             private readonly IReadOnlyList<IMonitoredItem> m_deletedItems;
@@ -1730,43 +1823,6 @@ namespace Opc.Ua.Server
 
             /// <summary>Whether the source consumers have already completed this transition's fences.</summary>
             private bool m_sourceNotificationsDrained;
-        }
-
-        private sealed class UnsupportedMonitoredItemLifecycle :
-            INodeManagerMonitoredItemSource
-        {
-            public static UnsupportedMonitoredItemLifecycle Instance { get; } = new();
-
-            public Func<CancellationToken, ValueTask>? GetNotificationDrain(NodeId nodeId)
-            {
-                return null;
-            }
-
-            public ValueTask<ServiceResult> ValidateSourceAsync(
-                IMonitoredItem monitoredItem,
-                CancellationToken cancellationToken = default)
-            {
-                return new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNotSupported));
-            }
-
-            public ValueTask<ServiceResult> ReleaseSourceAsync(
-                IMonitoredItem monitoredItem,
-                long sourceRevision,
-                CancellationToken cancellationToken = default)
-            {
-                return new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNotSupported));
-            }
-
-            public ValueTask<ServiceResult> AdoptSourceAsync(
-                IMonitoredItem monitoredItem,
-                MonitoredItemAdoption adoption,
-                CancellationToken cancellationToken = default)
-            {
-                return new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNotSupported));
-            }
         }
 
         private sealed class RegistrationState
@@ -1814,16 +1870,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
-            ArrayOf<NodeManagerBatchChange> changes,
+        public ValueTask<IPreparedChanges> PrepareAsync(
+            ArrayOf<LifecycleChange> changes,
             CancellationToken cancellationToken = default)
         {
-            if (m_canonicalOwner is { } owner)
+            if (changes.Count == 0)
             {
-                m_writer.EnsureRunning();
-                return owner.PrepareAsync(changes, cancellationToken);
+                throw new ArgumentException("A publication unit must contain at least one change.", nameof(changes));
             }
-            return PrepareBatchAsync(changes, null, CaptureLifecycleCallbackPermit(), cancellationToken);
+            return PrepareChangesAsync(changes, null, CaptureLifecycleCallbackPermit(), cancellationToken);
         }
 
         /// <summary>
@@ -1840,9 +1895,9 @@ namespace Opc.Ua.Server
         /// <param name="initial">The explicit startup capability, or null for runtime preparation.</param>
         /// <param name="shutdown">The explicit removal-only shutdown capability, or null.</param>
         /// <returns>The prepared batch, which must be disposed if it is not committed.</returns>
-        private async ValueTask<IPreparedNodeManagerBatch> PrepareBatchAsync(
-            ArrayOf<NodeManagerBatchChange> changes,
-            PublicationInvocation? publication,
+        private async ValueTask<IPreparedChanges> PrepareChangesAsync(
+            ArrayOf<LifecycleChange> changes,
+            LifecycleWriter.PublicationSession? publication,
             NodeManagerCallbackPermit? callbackPermit,
             CancellationToken cancellationToken,
             ArrayOf<INodeManagerReadImage> readImages = default,
@@ -1857,35 +1912,18 @@ namespace Opc.Ua.Server
             changes = [.. changes];
             readImages = [.. readImages];
             var identities = new HashSet<Guid>();
-            foreach (NodeManagerBatchChange change in changes)
+            foreach (LifecycleChange change in changes)
             {
                 if (change is null)
                 {
                     throw new ArgumentException("A publication change cannot be null.", nameof(changes));
                 }
-                Guid? targetId = change.TargetSlot?.Id ?? change.Current?.Id;
+                Guid? targetId = change.Slot?.Id;
                 if (targetId is { } id && !identities.Add(id))
                 {
                     throw new ArgumentException(
-                        change.TargetSlot is null
-                            ? "A registration occurs twice in the same unit."
-                            : "A slot occurs twice in the same unit.",
+                        "A slot occurs twice in the same unit.",
                         nameof(changes));
-                }
-                if (change.Current is { } current)
-                {
-                    RegistrationState state = GetCurrentState(
-                        current,
-                        shutdown is not null,
-                        allowRemovalAfterFailedReadiness: change.Factory is null);
-                    if (state.IsSystem && shutdown is null)
-                    {
-                        throw new InvalidOperationException("System slots can only be withdrawn by server shutdown.");
-                    }
-                }
-                if (change.TargetSlot is null && change.Factory is { } factory)
-                {
-                    ValidateFactoryRegistration(factory, change.Current);
                 }
             }
             if (shutdown is not null)
@@ -1917,16 +1955,16 @@ namespace Opc.Ua.Server
                 try
                 {
                     EnsurePublicationServer(server, host, initial, shutdown);
-                    publication?.Session.ValidateRevision();
+                    publication?.ValidateRevision(server);
                     var preparation = new ChangePreparer(server);
                     NodeManagerRoutingTable.RoutingSnapshot routingRevision = host.RoutingRevision;
                     IDataTypeDefinitionResolver? resolver = null;
                     int namespaceCount = server.NamespaceUris.Count;
                     for (int index = 0; index < changes.Count; index++)
                     {
-                        NodeManagerBatchChange change = changes[index];
-                        NodeManagerRegistration? target = change.Current;
-                        if (change.TargetSlot is { } slot)
+                        LifecycleChange change = changes[index];
+                        NodeManagerRegistration? target = null;
+                        if (change.Slot is { } slot)
                         {
                             lock (m_registrationLock)
                             {
@@ -1950,7 +1988,7 @@ namespace Opc.Ua.Server
                             throw new InvalidOperationException(
                                 "System slots can only be withdrawn by server shutdown.");
                         }
-                        if (change.TargetSlot is not null && change.Factory is { } slotFactory)
+                        if (change.Factory is { } slotFactory)
                         {
                             ValidateFactoryRegistration(slotFactory, target);
                         }
@@ -1969,7 +2007,7 @@ namespace Opc.Ua.Server
                     mutation.Dispose();
                     foreach (BatchEntry entry in entries)
                     {
-                        NodeManagerBatchChange change = entry.Change;
+                        LifecycleChange change = entry.Change;
                         RegistrationState? current = entry.Current;
                         cancellationToken.ThrowIfCancellationRequested();
                         if (change.Factory is null)
@@ -1985,6 +2023,7 @@ namespace Opc.Ua.Server
                         ChangePreparer.StagingServer stagingServer = ChangePreparer.GetServer(entry.Manager)!;
                         try
                         {
+                            ChangePreparer.ValidateHistorianReadiness(entry.Manager);
                             stagingServer.Attach(entry.Manager);
                             NodeManagerGeneration generation = current is null
                                 ? NodeManagerGenerationRegistry.CreateAddition(entry.Manager)
@@ -1993,13 +2032,20 @@ namespace Opc.Ua.Server
                             entry.Prepared = await host.PrepareAsync(
                                 entry.Manager, generation, current?.Prepared.NodeManager, cancellationToken)
                                 .ConfigureAwait(false);
+                            if (entry.Prepared.PreparationFailure is { } preparationFailure)
+                            {
+                                entry.Prepared.PreparationFailure = null;
+                                System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                                    .Capture(preparationFailure).Throw();
+                            }
                             await ValidateDataTypeCompatibilityAsync(stagingServer, entry.Manager, cancellationToken)
                                 .ConfigureAwait(false);
                             if (current is not null)
                             {
                                 if (current.Prepared.NodeManager is not INodeManagerReloadParticipant participant)
                                 {
-                                    throw new NotSupportedException("A batch replacement does not support safe reload.");
+                                    throw new NotSupportedException(
+                                        "A replacement does not support safe reload.");
                                 }
                                 entry.DroppedReferences =
                                 [
@@ -2040,15 +2086,19 @@ namespace Opc.Ua.Server
                             }
                         }
                     }
-                    var prepared = new PreparedBatch(
+                    var payload = new PreparationPayload(
                         this, server, host, entries, operation, namespaceCount, routingRevision,
                         preparation.TypeTree, preparation.OriginalTypes,
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
-                        preparation.FactoryRevision, resolver, validationOnly, preparation, publication?.Session,
+                        preparation.FactoryRevision, resolver, preparation, publication,
                         initial, shutdown, callbackPermit);
+                    var prepared = new PreparedChanges(payload, validationOnly);
                     if (readImages.Count != 0)
                     {
-                        prepared.BindReadImages(readImages);
+                        foreach (INodeManagerReadImage image in readImages)
+                        {
+                            prepared.SetMetadata(image);
+                        }
                     }
                     operation = null;
                     return prepared;
@@ -2057,7 +2107,7 @@ namespace Opc.Ua.Server
                 {
                     mutation.Dispose();
                     ReleaseAdmissions();
-                    Exception? cleanup = await AbortBatchEntriesAsync(host, entries)
+                    Exception? cleanup = await AbortBatchEntriesAsync(server, host, entries)
                         .ConfigureAwait(false);
                     if (cleanup is not null)
                     {
@@ -2096,8 +2146,8 @@ namespace Opc.Ua.Server
         /// <param name="publishCommittedState">The callback invoked after the committed image is installed, or
         /// null.</param>
         /// <returns>The committed result, or null for a validation candidate.</returns>
-        private async ValueTask<NodeManagerBatchResult?> CompleteBatchAsync(
-            PreparedBatch batch,
+        private async ValueTask<LifecycleResult?> CompleteChangesAsync(
+            PreparationPayload batch,
             Func<CancellationToken, ValueTask>? decideAsync,
             CancellationToken cancellationToken,
             Action? publishCommittedState = null)
@@ -2196,16 +2246,12 @@ namespace Opc.Ua.Server
                         }
                         if (decideAsync is not null)
                         {
-                            MonitoredItemTransition transition =
-                                entry.Change.TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate &&
-                                entry.Manager is { } replacement
-                                    ? await PrepareMonitoredItemTransitionAsync(
-                                        entry.Current.Prepared.NodeManager,
-                                        replacement,
-                                        cancellationToken).ConfigureAwait(false)
-                                    : await PrepareMonitoredItemRemovalAsync(
-                                        entry.Current.Prepared.NodeManager,
-                                        cancellationToken).ConfigureAwait(false);
+                            MonitoredItemTransition transition = await PrepareMonitoredItemTransitionAsync(
+                                entry.Current.Prepared.NodeManager,
+                                entry.Change.TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate
+                                    ? entry.Manager
+                                    : null,
+                                cancellationToken).ConfigureAwait(false);
                             monitoredItemTransitions.Add(transition);
                             retired[^1].Transition = transition;
                         }
@@ -2356,6 +2402,10 @@ namespace Opc.Ua.Server
                     batch.DecisionCommitted && !batch.IsCommitted &&
                     failure is not OutOfMemoryException)
                 {
+                    m_writer.MarkPublicationFailed();
+                    _ = await AbortBatchEntriesAsync(
+                        batch.Server, batch.Host, batch.Entries,
+                        deferUntilShutdown: true).ConfigureAwait(false);
                     throw new InvalidOperationException(
                         "The durable NodeManager decision succeeded, but routing publication failed before the " +
                         "serving view changed. Candidate cleanup was skipped; restart the server to recover.",
@@ -2386,6 +2436,18 @@ namespace Opc.Ua.Server
                         ConformanceUnitsManager: { } conformanceUnitsManager
                     })
                 {
+                    foreach (RetiredGeneration retirement in retired)
+                    {
+                        try
+                        {
+                            retirement.ConformanceDrain ??= conformanceUnitsManager.BeginNodeManagerCleanup(
+                                retirement.NodeManager, withdraw: true);
+                        }
+                        catch (Exception failure) when (failure is not OutOfMemoryException)
+                        {
+                            reconciliation.ReportOwnedFailure(NodeManagerReconciliationStage.Publication, failure);
+                        }
+                    }
                     await reconciliation.RunAsync(
                         NodeManagerReconciliationStage.Publication,
                         [],
@@ -2525,15 +2587,18 @@ namespace Opc.Ua.Server
                 {
                     completed = (uint)retired.Count(item => !m_reclaimer.Contains(item));
                 }
-                return new NodeManagerBatchResult(
+                return new LifecycleResult(
                     batch.Registrations, completed,
                     failures.Count == 0 ? null : new AggregateException(
                         "The batch committed; generation reconciliation remains pending.", failures),
                     lifecycleCommit.Revision,
-                    publishedSlots,
+                    new ArrayOf<NodeManagerSlot>(publishedSlots),
                     Task.WhenAll(retired.Select(item => item.Retirement)),
                     reconciliation.Ticket,
-                    publishedSlotSnapshots);
+                    (publishedSlotSnapshots.ToArray() ?? [])
+                        .Select(static snapshot =>
+                            new NodeManagerGenerationSnapshot(snapshot.Slot, snapshot.Generation))
+                        .ToArrayOf());
             }
             finally
             {
@@ -2581,7 +2646,7 @@ namespace Opc.Ua.Server
             /// <param name="reconciler">The generation checkpoint owner.</param>
             public LifecycleCommit(
                 NodeManagerLifecycle owner,
-                PreparedBatch batch,
+                PreparationPayload batch,
                 LifecycleWriter.Mutation mutation,
                 Func<CancellationToken, ValueTask>? decideAsync,
                 Dictionary<Guid, RegistrationState> registrations,
@@ -2625,7 +2690,7 @@ namespace Opc.Ua.Server
             /// <inheritdoc/>
             public async ValueTask DecideAsync(CancellationToken cancellationToken)
             {
-                m_batch.Publication?.ValidateRevision();
+                m_batch.Publication?.ValidateRevision(m_batch.Server);
                 await m_mutation.DecideAsync(m_decideAsync ??
                     throw new InvalidOperationException("A validation unit has no durable decision."),
                     cancellationToken).ConfigureAwait(false);
@@ -2704,7 +2769,7 @@ namespace Opc.Ua.Server
             private readonly NodeManagerLifecycle m_owner;
 
             /// <summary>The prepared unit.</summary>
-            private readonly PreparedBatch m_batch;
+            private readonly PreparationPayload m_batch;
 
             /// <summary>The decision's mutation admission.</summary>
             private readonly LifecycleWriter.Mutation m_mutation;
@@ -2734,45 +2799,460 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Aborts private candidates and disposes created managers in reverse preparation order.
+        /// Retains and aborts private candidates in reverse preparation order.
         /// </summary>
+        /// <param name="server">The server owning explicit conformance registrations.</param>
         /// <param name="host">The dynamic node manager host.</param>
         /// <param name="entries">The batch entries to abort.</param>
+        /// <param name="deferUntilShutdown">Retains decided candidates without aborting them before shutdown.</param>
         /// <returns>The aggregated cleanup failure, or null if the cleanup succeeded.</returns>
         private async ValueTask<Exception?> AbortBatchEntriesAsync(
+            IServerInternal server,
             IDynamicNodeManagerHost host,
-            List<BatchEntry> entries)
+            List<BatchEntry> entries,
+            bool deferUntilShutdown = false)
         {
-            var failures = new List<Exception>();
+            var candidates = new List<PrivateCandidateCleanup>();
             for (int index = entries.Count - 1; index >= 0; index--)
             {
                 BatchEntry entry = entries[index];
-                if (entry.Prepared is not null)
-                {
-                    try
-                    {
-                        await host.AbortAsync(entry.Prepared, CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception failure) when (failure is not OutOfMemoryException)
-                    {
-                        failures.Add(failure);
-                    }
-                }
                 if (entry.TakePrivateManager() is { } manager)
                 {
-                    NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+                    NodeManagerGeneration generation = entry.Prepared?.Generation ??
+                        (NodeManagerGenerationRegistry.TryGet(manager, out NodeManagerGeneration? reserved)
+                            ? reserved!
+                            : NodeManagerGenerationRegistry.CreateAddition(manager));
+                    candidates.Add(new PrivateCandidateCleanup(manager, entry.Prepared, generation));
+                }
+            }
+            if (candidates.Count == 0)
+            {
+                return null;
+            }
+
+            var cleanup = new PrivateBatchCleanup(host, candidates);
+            lock (m_privateCleanupLock)
+            {
+                if (deferUntilShutdown)
+                {
+                    cleanup.Stage = PrivateCleanupStage.WaitingForShutdown;
+                }
+                m_privateCleanups.Add(cleanup);
+            }
+            return deferUntilShutdown
+                ? null
+                : await StartPrivateBatchCleanupAsync(server, cleanup).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Starts owned private cleanup after its publication or shutdown policy permits destruction.
+        /// </summary>
+        private async ValueTask<Exception?> StartPrivateBatchCleanupAsync(
+            IServerInternal server,
+            PrivateBatchCleanup cleanup)
+        {
+            Task completion = cleanup.Completion.Task;
+            Task drain;
+            try
+            {
+                foreach (PrivateCandidateCleanup candidate in cleanup.Candidates)
+                {
+                    if (candidate.Generation.Gate.State == NodeManagerGenerationState.Prepared)
+                    {
+                        candidate.Generation.Gate.Abort();
+                    }
+                }
+                if (server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: { } conformance })
+                {
+                    var drains = new List<Task>(cleanup.Candidates.Count);
+                    foreach (PrivateCandidateCleanup candidate in cleanup.Candidates)
+                    {
+                        drains.Add(conformance.BeginNodeManagerCleanup(candidate.Manager, withdraw: false));
+                    }
+                    drain = Task.WhenAll(drains);
+                }
+                else
+                {
+                    drain = Task.CompletedTask;
+                }
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                lock (m_privateCleanupLock)
+                {
+                    cleanup.Completion.TrySetException(failure);
+                }
+                return new AggregateException("Unpublished batch cleanup failed.", failure);
+            }
+
+            lock (m_privateCleanupLock)
+            {
+                cleanup.Stage = PrivateCleanupStage.WaitingForConformance;
+            }
+            bool deferred = !drain.IsCompleted || cleanup.Candidates.Any(
+                static candidate => !candidate.Generation.ResourceOwnership.IsCleanupReady ||
+                    !candidate.Generation.IsQuiescent);
+            if (deferred && !ExecutionContext.IsFlowSuppressed())
+            {
+                ExecutionContext.SuppressFlow();
+                try
+                {
+                    _ = CompletePrivateBatchCleanupAsync(cleanup, drain);
+                }
+                finally
+                {
+                    ExecutionContext.RestoreFlow();
+                }
+            }
+            else
+            {
+                _ = CompletePrivateBatchCleanupAsync(cleanup, drain);
+            }
+            if (deferred)
+            {
+                return new NodeManagerCleanupDeferredException(completion);
+            }
+            try
+            {
+                await completion.ConfigureAwait(false);
+                return null;
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                return new AggregateException("Unpublished batch cleanup failed.", failure);
+            }
+        }
+
+        /// <summary>
+        /// Captures the physical completion of private batches still owned by this lifecycle.
+        /// </summary>
+        private Task<bool[]>? CapturePrivateCleanupCompletion()
+        {
+            lock (m_privateCleanupLock)
+            {
+                return m_privateCleanups.Count == 0
+                    ? null
+                    : Task.WhenAll(m_privateCleanups.Select(cleanup => cleanup.Completion.Task));
+            }
+        }
+
+        /// <summary>
+        /// Drains explicit reads before destroying any candidate or its staging dependencies.
+        /// </summary>
+        private async Task CompletePrivateBatchCleanupAsync(PrivateBatchCleanup cleanup, Task drain)
+        {
+            try
+            {
+                await drain.ConfigureAwait(false);
+                while (true)
+                {
+                    PrivateCandidateCleanup candidate;
+                    lock (m_privateCleanupLock)
+                    {
+                        if (cleanup.Candidates.Count == 0)
+                        {
+                            m_privateCleanups.Remove(cleanup);
+                            break;
+                        }
+                        candidate = cleanup.Candidates[0];
+                    }
+
+                    lock (m_privateCleanupLock)
+                    {
+                        cleanup.Stage = PrivateCleanupStage.ProducerShutdown;
+                    }
+                    await CompletePrivateCandidateCleanupAsync(cleanup, candidate).ConfigureAwait(false);
+                    lock (m_privateCleanupLock)
+                    {
+                        cleanup.Candidates.RemoveAt(0);
+                    }
+                }
+                lock (m_privateCleanupLock)
+                {
+                    cleanup.Completion.TrySetResult(true);
+                }
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                lock (m_privateCleanupLock)
+                {
+                    cleanup.Completion.TrySetException(failure);
+                }
+            }
+            catch (OutOfMemoryException failure)
+            {
+                cleanup.Completion.TrySetException(failure);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Cleans one private candidate while retaining its exact recovery admission and confirmation outcome.
+        /// </summary>
+        private async ValueTask CompletePrivateCandidateCleanupAsync(
+            PrivateBatchCleanup cleanup,
+            PrivateCandidateCleanup candidate)
+        {
+            NodeManagerGeneration generation = candidate.Generation;
+            GenerationGate recoveryGate = generation.CleanupRecoveryGate;
+            try
+            {
+                if (generation.Gate.State == NodeManagerGenerationState.Prepared)
+                {
+                    generation.Gate.Abort();
+                }
+                using NodeManagerGenerationRegistry.ResourceLifetime.CleanupLease physicalCleanup =
+                    await generation.ResourceOwnership.EnterCleanupAsync(generation).ConfigureAwait(false);
+                recoveryGate.Retire();
+                await recoveryGate.WaitForDrainAsync().ConfigureAwait(false);
+                if (!generation.TryClaimCleanupConfirmation(out NodeManagerCleanupFailureHandle? confirmationClaim))
+                {
+                    throw new InvalidOperationException(
+                        "A verified cleanup confirmation must be reconciled before private cleanup can continue.");
+                }
+                bool completed = false;
+                try
+                {
+                    NodeManagerCleanupRecovery.EnsureNoRetainedFailures(generation);
+                    await physicalCleanup.PrepareForShutdownAsync(generation).ConfigureAwait(false);
+                    NodeManagerCleanupRecovery.EnsureNoRetainedFailures(generation);
+                    await physicalCleanup.WaitForQuiescenceAsync().ConfigureAwait(false);
+                    if (!candidate.AbortCompleted)
+                    {
+                        if (candidate.AbortFailure is { } abortFailure)
+                        {
+                            ExceptionDispatchInfo.Capture(abortFailure).Throw();
+                        }
+                        lock (m_privateCleanupLock)
+                        {
+                            cleanup.Stage = PrivateCleanupStage.Abort;
+                        }
+                        if (candidate.Prepared is { } prepared)
+                        {
+                            try
+                            {
+                                await cleanup.Host.AbortAsync(prepared, CancellationToken.None).ConfigureAwait(false);
+                            }
+                            catch (Exception failure) when (failure is not OutOfMemoryException)
+                            {
+                                candidate.AbortFailure = failure;
+                                try
+                                {
+                                    NodeManagerCleanupRecovery.RetainPrivateAbortFailure(
+                                        candidate.Manager,
+                                        generation,
+                                        failure,
+                                        () =>
+                                        {
+                                            lock (m_privateCleanupLock)
+                                            {
+                                                candidate.AbortCompleted = true;
+                                                candidate.ManagerDisposed = true;
+                                                cleanup.Stage = PrivateCleanupStage.CompletedStage;
+                                            }
+                                        });
+                                }
+                                catch (Exception retentionFailure) when (retentionFailure is not OutOfMemoryException)
+                                {
+                                    throw new AggregateException(
+                                        "Private abort and cleanup failure retention failed.",
+                                        failure,
+                                        retentionFailure);
+                                }
+                                throw;
+                            }
+                        }
+                        candidate.AbortCompleted = true;
+                    }
                     if (generation.Gate.State == NodeManagerGenerationState.Prepared)
                     {
                         generation.Gate.Abort();
                     }
-                    Exception? failure = await TryDisposeNodeManagerAsync(manager).ConfigureAwait(false);
-                    if (failure is not null)
+                    CheckPrivateCleanupFailures(cleanup, candidate);
+                    await DisposeNodeManagerAsync(cleanup, candidate).ConfigureAwait(false);
+                    recoveryGate.DisposeGeneration();
+                    NodeManagerGenerationRegistry.CompleteCleanup(generation);
+                    completed = true;
+                }
+                finally
+                {
+                    if (confirmationClaim is { } confirmation)
                     {
-                        failures.Add(failure);
+                        generation.FinishCleanupConfirmationClaim(confirmation, completed);
                     }
                 }
             }
-            return failures.Count == 0 ? null : new AggregateException("Unpublished batch cleanup failed.", failures);
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                lock (m_privateCleanupLock)
+                {
+                    if (recoveryGate.State == NodeManagerGenerationState.Retiring)
+                    {
+                        try
+                        {
+                            recoveryGate.Restore();
+                        }
+                        catch (Exception restoreFailure) when (restoreFailure is not OutOfMemoryException)
+                        {
+                            throw new AggregateException(
+                                "Private cleanup and recovery admission failed.", failure, restoreFailure);
+                        }
+                    }
+                }
+                throw;
+            }
+            catch (OutOfMemoryException failure)
+            {
+                try
+                {
+                    if (recoveryGate.State == NodeManagerGenerationState.Retiring)
+                    {
+                        recoveryGate.Restore();
+                    }
+                }
+                finally
+                {
+                    cleanup.Completion.TrySetException(failure);
+                }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Resumes an exact confirmed private candidate only after a retryable or completed stage.
+        /// </summary>
+        internal async ValueTask ResumePrivateCleanupAfterConfirmationAsync(NodeManagerGeneration generation)
+        {
+            PrivateBatchCleanup? cleanup;
+            Task completion;
+            bool start = false;
+            lock (m_privateCleanupLock)
+            {
+                cleanup = m_privateCleanups.FirstOrDefault(current =>
+                    current.Candidates.Any(candidate => ReferenceEquals(candidate.Generation, generation)));
+                if (cleanup is null || cleanup.Stage is
+                    PrivateCleanupStage.WaitingForConformance or PrivateCleanupStage.WaitingForShutdown)
+                {
+                    return;
+                }
+                if (!ReferenceEquals(cleanup.Candidates[0].Generation, generation))
+                {
+                    throw new InvalidOperationException(
+                        "A preceding private candidate must finish cleanup before this candidate can resume.");
+                }
+                if (!cleanup.Completion.Task.IsCompleted)
+                {
+                    completion = cleanup.Completion.Task;
+                }
+                else
+                {
+                    if (cleanup.Stage is not (
+                        PrivateCleanupStage.ProducerShutdown or PrivateCleanupStage.CompletedStage))
+                    {
+                        throw new InvalidOperationException(
+                            "The failed private cleanup stage cannot safely be retried automatically.");
+                    }
+                    cleanup.Completion = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    completion = cleanup.Completion.Task;
+                    start = true;
+                }
+            }
+            if (start)
+            {
+                if (!ExecutionContext.IsFlowSuppressed())
+                {
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        _ = CompletePrivateBatchCleanupAsync(cleanup, Task.CompletedTask);
+                    }
+                }
+                else
+                {
+                    _ = CompletePrivateBatchCleanupAsync(cleanup, Task.CompletedTask);
+                }
+            }
+            await completion.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Identifies the current stage of private candidate cleanup.
+        /// </summary>
+        private enum PrivateCleanupStage
+        {
+            Reserving,
+            WaitingForShutdown,
+            WaitingForConformance,
+            ProducerShutdown,
+            Abort,
+            Disposal,
+            StagingDisposal,
+            CompletedStage
+        }
+
+        /// <summary>
+        /// Owns the unfinished candidates and physical cleanup result of one private batch.
+        /// </summary>
+        private sealed class PrivateBatchCleanup(
+            IDynamicNodeManagerHost host,
+            List<PrivateCandidateCleanup> candidates)
+        {
+            /// <summary>
+            /// Gets the host used for candidate abort.
+            /// </summary>
+            internal IDynamicNodeManagerHost Host { get; } = host;
+
+            /// <summary>
+            /// Gets the candidates still owned by this cleanup.
+            /// </summary>
+            internal List<PrivateCandidateCleanup> Candidates { get; } = candidates;
+
+            /// <summary>
+            /// Gets the completion of the complete physical cleanup.
+            /// </summary>
+            internal TaskCompletionSource<bool> Completion { get; set; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets or sets the current cleanup stage.
+            /// </summary>
+            internal PrivateCleanupStage Stage { get; set; }
+
+        }
+
+        /// <summary>
+        /// Retains one exact candidate, its prepared state, and its recovery identity.
+        /// </summary>
+        private sealed class PrivateCandidateCleanup(
+            IAsyncNodeManager manager,
+            PreparedNodeManager? prepared,
+            NodeManagerGeneration generation)
+        {
+            /// <summary>Gets the candidate retained by the cleanup owner.</summary>
+            internal IAsyncNodeManager Manager { get; } = manager;
+
+            /// <summary>Gets its prepared state, if preparation started.</summary>
+            internal PreparedNodeManager? Prepared { get; } = prepared;
+
+            /// <summary>Gets the candidate's recovery identity.</summary>
+            internal NodeManagerGeneration Generation { get; } = generation;
+
+            /// <summary>Gets or sets whether the private abort callback completed.</summary>
+            internal bool AbortCompleted { get; set; }
+
+            /// <summary>
+            /// Gets or sets the original abort failure, preventing unverified callback replay.
+            /// </summary>
+            internal Exception? AbortFailure { get; set; }
+
+            /// <summary>Gets or sets whether candidate metadata was detached.</summary>
+            internal bool Detached { get; set; }
+
+            /// <summary>Gets or sets whether manager disposal completed.</summary>
+            internal bool ManagerDisposed { get; set; }
+
+            /// <summary>Gets or sets whether staged resource disposal completed.</summary>
+            internal bool StagingDisposed { get; set; }
         }
 
         /// <summary>
@@ -2785,7 +3265,7 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="change">The requested change.</param>
             /// <param name="current">The registration state being replaced or retired, or null.</param>
-            public BatchEntry(NodeManagerBatchChange change, RegistrationState? current)
+            public BatchEntry(LifecycleChange change, RegistrationState? current)
             {
                 Change = change;
                 Current = current;
@@ -2794,7 +3274,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the requested change.
             /// </summary>
-            public NodeManagerBatchChange Change { get; }
+            public LifecycleChange Change { get; }
 
             /// <summary>
             /// Gets the registration state being replaced or retired, or null for an addition.
@@ -2828,7 +3308,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Transfers the private manager to the sole disposal caller, including after a failed abort.
             /// </summary>
-            /// <returns>The manager to dispose, or null after disposal ownership was transferred or published.</returns>
+            /// <returns>
+            /// The manager to dispose, or null after disposal ownership was transferred or published.
+            /// </returns>
             public IAsyncNodeManager? TakePrivateManager()
             {
                 return Prepared?.Published == true ? null : Interlocked.Exchange(ref m_manager, null);
@@ -2839,9 +3321,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Prepared publication unit that holds the lifecycle operation until it is committed or disposed.
+        /// Data owned by one preparation until publication or transfer to independent private cleanup.
         /// </summary>
-        private sealed class PreparedBatch : IPreparedNodeManagerBatch
+        private sealed class PreparationPayload
         {
             /// <summary>
             /// Creates a prepared batch.
@@ -2860,13 +3342,12 @@ namespace Opc.Ua.Server
             /// <param name="originalFactory">The published encodeable factory.</param>
             /// <param name="factoryRevision">The revision of the published factory.</param>
             /// <param name="resolver">The data type definition resolver, or null.</param>
-            /// <param name="validationOnly">Whether the batch is a validation candidate.</param>
             /// <param name="preparation">The explicit private staging metadata.</param>
             /// <param name="publication">The optimistic publication session, or null for a standalone batch.</param>
             /// <param name="initial">The explicit initial-publication capability, or null for runtime changes.</param>
             /// <param name="shutdown">The explicit shutdown publication capability, or null.</param>
             /// <param name="callbackPermit">The callback permit captured when preparation began, if any.</param>
-            public PreparedBatch(
+            public PreparationPayload(
                 NodeManagerLifecycle owner,
                 IServerInternal server,
                 IDynamicNodeManagerHost host,
@@ -2881,19 +3362,18 @@ namespace Opc.Ua.Server
                 EncodeableFactory originalFactory,
                 long factoryRevision,
                 IDataTypeDefinitionResolver? resolver,
-                bool validationOnly,
                 ChangePreparer preparation,
                 LifecycleWriter.PublicationSession? publication,
                 InitialPublication? initial,
                 ShutdownPublication? shutdown,
                 NodeManagerCallbackPermit? callbackPermit)
             {
-                m_owner = owner;
+                Owner = owner;
                 Preparation = preparation;
                 Server = server;
                 Host = host;
                 Entries = entries;
-                m_operation = operation;
+                Operation = operation;
                 NamespaceCount = namespaceCount;
                 RoutingRevision = routingRevision;
                 TypeTree = typeTree;
@@ -2903,14 +3383,23 @@ namespace Opc.Ua.Server
                 OriginalFactory = originalFactory;
                 FactoryRevision = factoryRevision;
                 Resolver = resolver;
-                IsValidationOnly = validationOnly;
                 Publication = publication;
                 Initial = initial;
                 Shutdown = shutdown;
                 CallbackPermit = callbackPermit;
                 Registrations = entries.Where(entry => entry.Next is not null)
-                    .Select(entry => entry.Next!.Registration).ToArrayOf();
+                    .Select(entry => new NodeManagerRegistrationSnapshot(entry.Next!.Registration)).ToArrayOf();
             }
+
+            /// <summary>
+            /// Gets the registration and cleanup owner while preparation is active.
+            /// </summary>
+            public NodeManagerLifecycle Owner { get; }
+
+            /// <summary>
+            /// Gets the operation transferred to this preparation.
+            /// </summary>
+            public OperationLifetime Operation { get; }
 
             /// <summary>
             /// Gets the explicit staging metadata owned by this preparation.
@@ -2940,7 +3429,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the registrations the batch publishes.
             /// </summary>
-            public ArrayOf<NodeManagerRegistration> Registrations { get; }
+            public ArrayOf<NodeManagerRegistrationSnapshot> Registrations { get; }
 
             /// <summary>
             /// Gets or sets whether the batch was committed.
@@ -2951,11 +3440,6 @@ namespace Opc.Ua.Server
             /// Gets or sets whether the durable decision succeeded before routing publication.
             /// </summary>
             public bool DecisionCommitted { get; set; }
-
-            /// <summary>
-            /// Gets whether the batch is a validation candidate that cannot be committed.
-            /// </summary>
-            public bool IsValidationOnly { get; }
 
             /// <summary>
             /// Gets the server the batch was prepared for.
@@ -3020,54 +3504,76 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the read images published together with the batch.
             /// </summary>
-            public ArrayOf<INodeManagerReadImage> ReadImages { get; private set; }
+            public ArrayOf<INodeManagerReadImage> ReadImages { get; set; }
 
             /// <summary>
-            /// Binds the read images that are published with the batch. This can be done once before the batch is
-            /// consumed.
+            /// Gets the slot-checked metadata awaiting consumption.
             /// </summary>
-            /// <param name="images">The read images to bind.</param>
-            public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
+            public Dictionary<NodeManagerSlot, INodeManagerReadImage> Metadata { get; } = [];
+        }
+
+        /// <summary>
+        /// Native transaction state with a single preparation payload and cached terminal cleanup outcome.
+        /// </summary>
+        private sealed class PreparedChanges : IPreparedChanges
+        {
+            /// <summary>
+            /// Takes ownership of private preparation data and captures non-owning inspection descriptors.
+            /// </summary>
+            public PreparedChanges(PreparationPayload payload, bool validationOnly)
             {
-                if (images.IsNull)
+                m_payload = payload;
+                m_validationOnly = validationOnly;
+                Registrations = payload.Registrations;
+                Slots = payload.Entries.Select(entry =>
+                    entry.Next?.Registration.Slot ?? entry.Current!.Registration.Slot).ToArrayOf();
+            }
+
+            /// <inheritdoc/>
+            public ArrayOf<NodeManagerSlot> Slots { get; private set; }
+
+            /// <inheritdoc/>
+            public ArrayOf<NodeManagerRegistrationSnapshot> Registrations { get; }
+
+            /// <inheritdoc/>
+            public bool IsCommitted
+            {
+                get
                 {
-                    throw new ArgumentNullException(nameof(images));
-                }
-                ArrayOf<INodeManagerReadImage> captured = [.. images];
-                lock (m_stateGate)
-                {
-                    if (m_state != 0 || m_readImagesBound)
+                    lock (m_state)
                     {
-                        throw new InvalidOperationException(
-                            "Read images must be bound once before consuming the batch.");
+                        return m_payload?.IsCommitted ?? m_committed;
                     }
-                    ReadImages = captured;
-                    m_readImagesBound = true;
                 }
             }
 
-            /// <summary>
-            /// Commits the batch.
-            /// </summary>
-            /// <param name="decideAsync">The durable decision callback.</param>
-            /// <param name="cancellationToken">The token used to cancel the operation.</param>
-            /// <returns>The committed result.</returns>
-            public ValueTask<NodeManagerBatchResult> CommitAsync(
-                Func<CancellationToken, ValueTask> decideAsync,
+            /// <inheritdoc/>
+            public void SetMetadata(INodeManagerReadImage metadata)
+            {
+                SetMetadataCore(null, metadata);
+            }
+
+            /// <inheritdoc/>
+            public void SetMetadata(NodeManagerSlot slot, INodeManagerReadImage metadata)
+            {
+                if (slot is null)
+                {
+                    throw new ArgumentNullException(nameof(slot));
+                }
+                SetMetadataCore(slot, metadata);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<LifecycleResult> CommitAsync(
+                Func<CancellationToken, ValueTask>? decideAsync = null,
                 CancellationToken cancellationToken = default)
             {
                 return CommitCoreAsync(decideAsync, null, cancellationToken);
             }
 
-            /// <summary>
-            /// Commits the batch and invokes a callback once the committed image is installed.
-            /// </summary>
-            /// <param name="decideAsync">The durable decision callback.</param>
-            /// <param name="publishCommittedState">The callback invoked after the commit.</param>
-            /// <param name="cancellationToken">The token used to cancel the operation.</param>
-            /// <returns>The committed result.</returns>
-            public ValueTask<NodeManagerBatchResult> CommitAsync(
-                Func<CancellationToken, ValueTask> decideAsync,
+            /// <inheritdoc/>
+            public ValueTask<LifecycleResult> CommitAsync(
+                Func<CancellationToken, ValueTask>? decideAsync,
                 Action publishCommittedState,
                 CancellationToken cancellationToken = default)
             {
@@ -3077,276 +3583,437 @@ namespace Opc.Ua.Server
                     cancellationToken);
             }
 
-            /// <summary>
-            /// Validates the batch without committing it.
-            /// </summary>
-            /// <param name="cancellationToken">The token used to cancel the operation.</param>
-            /// <returns>A task that completes when the validation finished.</returns>
-            public async ValueTask ValidateAsync(CancellationToken cancellationToken)
+            /// <inheritdoc/>
+            public ValueTask DisposeAsync()
             {
-                _ = await CompleteAsync(null, null, cancellationToken).ConfigureAwait(false);
+                PreparationPayload payload;
+                lock (m_state)
+                {
+                    m_payload?.Owner.ThrowIfDecisionCallbackActive();
+                    if (m_consumed)
+                    {
+                        return new ValueTask(m_finished.Task);
+                    }
+                    payload = m_payload ??
+                        throw new InvalidOperationException("The prepared changes have already been disposed.");
+                    m_consumed = true;
+                    m_inspectionEnded = true;
+                    payload.Metadata.Clear();
+                }
+                _ = AbortAsync(payload);
+                return new ValueTask(m_finished.Task);
             }
 
             /// <summary>
-            /// Rolls back the batch if it was not committed and releases its lifecycle operation.
+            /// Ends borrowed inspection access before validation or failure cleanup begins.
             /// </summary>
-            /// <returns>A task that completes when the cleanup finished.</returns>
-            public async ValueTask DisposeAsync()
+            internal void EndInspection()
             {
-                m_owner.ThrowIfDecisionCallbackActive();
+                lock (m_state)
+                {
+                    m_inspectionEnded = true;
+                }
+            }
 
-                int state;
-                lock (m_stateGate)
+            /// <summary>
+            /// Validates without deciding, then joins the same single cleanup attempt as disposal.
+            /// </summary>
+            internal ValueTask ValidateAsync(CancellationToken cancellationToken)
+            {
+                PreparationPayload? payload;
+                lock (m_state)
                 {
-                    state = Interlocked.CompareExchange(ref m_state, 2, 0);
-                }
-                if (state == 1)
-                {
-                    await m_finished.Task.ConfigureAwait(false);
-                }
-                TaskCompletionSource<bool> disposalFinished;
-                OperationLifetime? operation;
-                lock (m_stateGate)
-                {
-                    if (m_disposalFinished is { } current)
+                    if (!m_validationOnly)
                     {
-                        if (current.Task.IsCompleted)
-                        {
-                            return;
-                        }
-                        disposalFinished = current;
-                        operation = null;
+                        throw new InvalidOperationException("Only validation candidates can be validated.");
+                    }
+                    payload = m_consumed ? null : m_payload;
+                    if (payload is not null)
+                    {
+                        ConsumeMetadata(payload);
+                    }
+                }
+                return new ValueTask(payload is null
+                    ? RejectAfterDisposalAsync()
+                    : CompleteAsync(payload, null, null, cancellationToken));
+            }
+
+            /// <summary>
+            /// Resolves and validates one exact metadata owner before transaction consumption.
+            /// </summary>
+            private void SetMetadataCore(NodeManagerSlot? slot, INodeManagerReadImage metadata)
+            {
+                if (metadata is null)
+                {
+                    throw new ArgumentNullException(nameof(metadata));
+                }
+                lock (m_state)
+                {
+                    PreparationPayload payload = GetOpenPayload();
+                    payload.Owner.ThrowIfDecisionCallbackActive();
+                    if (metadata.Owner is not { } owner ||
+                        !NodeManagerGenerationRegistry.TryGet(owner, out NodeManagerGeneration? generation) ||
+                        generation is null || slot is not null && !ReferenceEquals(generation.Slot, slot))
+                    {
+                        throw new ArgumentException(
+                            "Metadata must identify the exact generation owner.", nameof(metadata));
+                    }
+                    slot ??= generation.Slot;
+                    RegistrationState? candidate = payload.Entries
+                        .FirstOrDefault(entry => ReferenceEquals(entry.Next?.Registration.Slot, slot))?.Next;
+                    bool validOwner;
+                    if (candidate is not null)
+                    {
+                        validOwner = ReferenceEquals(candidate.Registration.Identity, generation);
                     }
                     else
                     {
-                        operation = Interlocked.Exchange(ref m_operation, null);
-                        if (operation is null)
+                        lock (payload.Owner.m_registrationLock)
                         {
-                            return;
-                        }
-                        disposalFinished = m_disposalFinished = new TaskCompletionSource<bool>(
-                            TaskCreationOptions.RunContinuationsAsynchronously);
-                    }
-                }
-                if (operation is null)
-                {
-                    await disposalFinished.Task.ConfigureAwait(false);
-                    return;
-                }
-                Exception? cleanupFailure = null;
-                try
-                {
-                    if (!IsCommitted && !DecisionCommitted)
-                    {
-                        Exception? failure = await m_owner.AbortBatchEntriesAsync(
-                            Host, Entries).ConfigureAwait(false);
-                        if (failure is not null)
-                        {
-                            throw failure;
+                            validOwner = !payload.Entries.Any(entry =>
+                                    ReferenceEquals(entry.Current?.Registration.Slot, slot)) &&
+                                payload.RoutingRevision.Generations.Any(
+                                    current => ReferenceEquals(current, generation)) &&
+                                payload.Owner.m_registrations.TryGetValue(slot.Id, out RegistrationState? live) &&
+                                ReferenceEquals(live.Registration.Slot, slot) &&
+                                ReferenceEquals(live.Registration.Identity, generation);
                         }
                     }
-                }
-                catch (Exception failure) when (failure is not OutOfMemoryException)
-                {
-                    cleanupFailure = failure;
-                }
-                finally
-                {
-                    operation.Dispose();
-                    if (cleanupFailure is null)
+                    if (!validOwner)
                     {
-                        disposalFinished.TrySetResult(true);
+                        throw new ArgumentException(
+                            "Metadata must belong to a candidate or unchanged live generation in this unit.",
+                            nameof(metadata));
                     }
-                    else
+                    if (!payload.Metadata.TryAdd(slot, metadata))
                     {
-                        disposalFinished.TrySetException(cleanupFailure);
+                        throw new InvalidOperationException("Metadata is already bound for this slot.");
+                    }
+                    if (payload.Entries.Count == 0)
+                    {
+                        Slots = [.. Slots, slot];
                     }
                 }
-                await disposalFinished.Task.ConfigureAwait(false);
             }
 
-            private async ValueTask<NodeManagerBatchResult> CommitCoreAsync(
-                Func<CancellationToken, ValueTask> decideAsync,
-                Action? publishCommittedState,
-                CancellationToken cancellationToken)
-            {
-                if (decideAsync is null)
-                {
-                    throw new ArgumentNullException(nameof(decideAsync));
-                }
-                return await CompleteAsync(decideAsync, publishCommittedState, cancellationToken)
-                    .ConfigureAwait(false) ??
-                    throw new InvalidOperationException("A publication returned no committed result.");
-            }
-
-            private async ValueTask<NodeManagerBatchResult?> CompleteAsync(
+            /// <summary>
+            /// Admits one commit, with overlapping callers joining its result instead of replaying decisions.
+            /// </summary>
+            private ValueTask<LifecycleResult> CommitCoreAsync(
                 Func<CancellationToken, ValueTask>? decideAsync,
                 Action? publishCommittedState,
                 CancellationToken cancellationToken)
             {
-                m_owner.ThrowIfDecisionCallbackActive();
-
-                if (IsValidationOnly != (decideAsync is null))
+                PreparationPayload payload;
+                TaskCompletionSource<LifecycleResult> commitCompletion;
+                lock (m_state)
                 {
-                    throw new InvalidOperationException("A validation candidate cannot be committed.");
-                }
-                lock (m_stateGate)
-                {
-                    if (Interlocked.CompareExchange(ref m_state, 1, 0) != 0)
+                    m_payload?.Owner.ThrowIfDecisionCallbackActive();
+                    if (m_validationOnly)
                     {
-                        throw new InvalidOperationException("The prepared batch has already been consumed.");
+                        throw new InvalidOperationException("A validation candidate cannot be committed.");
                     }
+                    if (m_commitCompletion is { } completion)
+                    {
+                        return new ValueTask<LifecycleResult>(completion.Task);
+                    }
+                    if (m_consumed)
+                    {
+                        return new ValueTask<LifecycleResult>(RejectAfterDisposalAsync());
+                    }
+                    payload = GetOpenPayload();
+                    ConsumeMetadata(payload);
+                    commitCompletion = m_commitCompletion = new TaskCompletionSource<LifecycleResult>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
                 }
-                bool commitFailed = false;
+                _ = CompleteAsync(
+                    payload, decideAsync ?? (static _ => default), publishCommittedState, cancellationToken);
+                return new ValueTask<LifecycleResult>(commitCompletion.Task);
+            }
+
+            /// <summary>
+            /// Executes one commit or validation and releases preparation after publication or cleanup transfer.
+            /// </summary>
+            private async Task CompleteAsync(
+                PreparationPayload payload,
+                Func<CancellationToken, ValueTask>? decideAsync,
+                Action? publishCommittedState,
+                CancellationToken cancellationToken)
+            {
+                LifecycleResult? result = null;
+                Exception? executionFailure = null;
+                Exception? cleanupFailure = null;
                 try
                 {
                     try
                     {
-                        if (m_operation is null)
+                        result = await payload.Owner.CompleteChangesAsync(
+                            payload, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
+                        if (!m_validationOnly && result is null)
                         {
-                            throw new InvalidOperationException(
-                                "The prepared batch no longer owns its lifecycle operation.");
+                            throw new InvalidOperationException("A publication returned no committed result.");
                         }
-                        return await m_owner.CompleteBatchAsync(
-                            this, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
                     }
-                    catch (NodeManagerRoutingConflictException failure) when (
-                        !failure.IsBound && ReferenceEquals(failure.RoutingRevision, RoutingRevision))
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
                     {
-                        throw new InvalidOperationException(
-                            failure.Message, new NodeManagerRoutingConflictException(failure, this));
+                        executionFailure = failure;
                     }
-                    catch (OptimisticPublicationConflictException failure)
+                    if (!payload.IsCommitted && !payload.DecisionCommitted &&
+                        (m_validationOnly || executionFailure is not null))
                     {
-                        throw new InvalidOperationException(
-                            failure.Message, new NodeManagerPreparedConflictException(failure, this));
+                        cleanupFailure = await CleanupAsync(payload, waitForCleanup: m_validationOnly)
+                            .ConfigureAwait(false);
                     }
                 }
-                catch (Exception failure) when (
-                    decideAsync is not null && !IsCommitted && !DecisionCommitted &&
-                    failure is not OutOfMemoryException)
+                catch (OutOfMemoryException failure)
                 {
-                    commitFailed = true;
-                    Exception? cleanupFailure;
-                    try
+                    m_commitCompletion?.TrySetException(failure);
+                    m_finished.TrySetException(failure);
+                    if (m_validationOnly)
                     {
-                        cleanupFailure = await m_owner.AbortBatchEntriesAsync(Host, Entries).ConfigureAwait(false);
+                        throw;
                     }
-                    catch (Exception cleanup) when (cleanup is not OutOfMemoryException)
-                    {
-                        cleanupFailure = cleanup;
-                    }
-                    if (cleanupFailure is not null)
-                    {
-                        throw new AggregateException(
-                            "The prepared commit failed and candidate cleanup also failed.",
-                            failure,
-                            cleanupFailure);
-                    }
-                    throw;
+                    return;
                 }
-                finally
+                ReleasePayload(ref payload, cleanupFailure);
+                if (executionFailure is not null && cleanupFailure is not null)
                 {
-                    if (IsCommitted || DecisionCommitted || commitFailed)
+                    executionFailure = new AggregateException(
+                        m_validationOnly
+                            ? "Private validation and candidate cleanup both failed."
+                            : "The prepared commit failed and candidate cleanup also failed.",
+                        executionFailure, cleanupFailure);
+                }
+                if (m_validationOnly)
+                {
+                    if ((executionFailure ?? cleanupFailure) is { } failure)
                     {
-                        Interlocked.Exchange(ref m_operation, null)?.Dispose();
+                        ExceptionDispatchInfo.Capture(failure).Throw();
                     }
-                    Volatile.Write(ref m_state, 2);
-                    m_finished.TrySetResult(true);
+                }
+                else if (executionFailure is null)
+                {
+                    m_commitCompletion!.TrySetResult(result!);
+                }
+                else
+                {
+                    m_commitCompletion!.TrySetException(executionFailure);
                 }
             }
 
-            private readonly NodeManagerLifecycle m_owner;
-            private readonly Lock m_stateGate = new();
+            /// <summary>
+            /// Joins terminal cleanup before rejecting consumed commit or validation without replaying preparation.
+            /// </summary>
+            private async Task<LifecycleResult> RejectAfterDisposalAsync()
+            {
+                await m_finished.Task.ConfigureAwait(false);
+                throw new InvalidOperationException(m_validationOnly
+                    ? "The validation preparation has been consumed."
+                    : "The prepared changes have already been disposed.");
+            }
+
+            /// <summary>
+            /// Transfers candidates to lifecycle cleanup exactly once and caches its first outcome.
+            /// </summary>
+            private async Task AbortAsync(PreparationPayload payload)
+            {
+                Exception? failure;
+                try
+                {
+                    failure = await CleanupAsync(payload, waitForCleanup: m_validationOnly).ConfigureAwait(false);
+                }
+                catch (OutOfMemoryException fatal)
+                {
+                    m_finished.TrySetException(fatal);
+                    return;
+                }
+                ReleasePayload(ref payload, failure);
+            }
+
+            /// <summary>
+            /// Releases private resources through the existing lifecycle cleanup owner, retaining failed stages there.
+            /// </summary>
+            private static async ValueTask<Exception?> CleanupAsync(
+                PreparationPayload payload, bool waitForCleanup = false)
+            {
+                try
+                {
+                    Exception? failure = await payload.Owner.AbortBatchEntriesAsync(
+                        payload.Server, payload.Host, payload.Entries).ConfigureAwait(false);
+                    if (waitForCleanup && failure is NodeManagerCleanupDeferredException deferred)
+                    {
+                        await deferred.Completion.ConfigureAwait(false);
+                        return deferred.InnerException;
+                    }
+                    return failure;
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    return failure;
+                }
+            }
+
+            /// <summary>
+            /// Freezes metadata once under the transaction state gate.
+            /// </summary>
+            private void ConsumeMetadata(PreparationPayload payload)
+            {
+                m_consumed = true;
+                m_inspectionEnded = true;
+                payload.ReadImages = payload.Metadata.Values.ToArrayOf();
+                payload.Metadata.Clear();
+            }
+
+            /// <summary>
+            /// Drops all preparation, provider and server references before exposing terminal completion.
+            /// </summary>
+            private void ReleasePayload(ref PreparationPayload payload, Exception? cleanupFailure)
+            {
+                lock (m_state)
+                {
+                    m_committed = payload.IsCommitted;
+                    m_payload = null;
+                    payload.ReadImages = default;
+                }
+                OperationLifetime operation = payload.Operation;
+                LifecycleWriter.PublicationSession? publication = payload.Publication;
+                payload = null!;
+                operation.Dispose();
+                publication?.ReleaseCompletedBatch(this, cleanupFailure);
+                if (cleanupFailure is null)
+                {
+                    m_finished.TrySetResult(true);
+                }
+                else
+                {
+                    m_finished.TrySetException(cleanupFailure);
+                }
+            }
+
+            /// <summary>
+            /// Requires an unconsumed preparation whose inspection access has not ended.
+            /// </summary>
+            private PreparationPayload GetOpenPayload()
+            {
+                return !m_consumed && !m_inspectionEnded && m_payload is { } payload
+                    ? payload
+                    : throw new InvalidOperationException("The prepared changes have already been consumed.");
+            }
+
+            /// <summary>The private data retained only while this transaction owns preparation.</summary>
+            private PreparationPayload? m_payload;
+
+            /// <summary>The only transaction state gate.</summary>
+            private readonly Lock m_state = new();
+
+            /// <summary>The first disposal outcome shared with concurrent and later callers.</summary>
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            /// <summary>Completion shared only while this batch's abort disposal is in progress.</summary>
-            private TaskCompletionSource<bool>? m_disposalFinished;
+            /// <summary>The result of the one admitted commit, with no preparation or callback ownership.</summary>
+            private TaskCompletionSource<LifecycleResult>? m_commitCompletion;
 
-            private OperationLifetime? m_operation;
-            private int m_state;
-            private bool m_readImagesBound;
+            /// <summary>Whether publication crossed the routing commit point.</summary>
+            private bool m_committed;
+
+            /// <summary>Whether commit, validation or disposal has consumed preparation.</summary>
+            private bool m_consumed;
+
+            /// <summary>Whether inspection has relinquished metadata access.</summary>
+            private bool m_inspectionEnded;
+
+            /// <summary>Whether this unit admits validation only.</summary>
+            private readonly bool m_validationOnly;
         }
 
         /// <inheritdoc/>
-        public bool SupportsPublicationIsolation =>
-            SupportsPreparedPublication && m_server.CurrentInstance.Factory is EncodeableFactory;
-
-        /// <inheritdoc/>
-        public INodeManagerPublicationCapture CapturePublication()
+        public ILifecycleCapture CaptureChanges()
         {
-            if (m_canonicalOwner is { } owner)
-            {
-                m_writer.EnsureRunning();
-                return owner.CapturePublication();
-            }
             (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer();
-            return new PublicationCapture(this, m_writer.CaptureRevision(server, host));
+            return new LifecycleCapture(this, m_writer.CaptureRevision(server, host));
         }
 
         /// <summary>
         /// Begins independent publication ownership for captured serving revisions without excluding other callers.
         /// </summary>
-        /// <param name="capture">The capture the invocation belongs to.</param>
+        /// <param name="revision">The captured evidence, never recaptured by admission.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The publication invocation.</returns>
-        private PublicationInvocation BeginPublication(
-            PublicationCapture capture,
+        private PublicationWriter BeginWriter(
+            LifecycleWriter.PublicationRevision revision,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            EnsureSameRunningServer(capture.Revision.Server, capture.Revision.OwnerHost);
-            LifecycleWriter.PublicationSession session = m_writer.BeginPublication(capture.Revision);
-            return new PublicationInvocation(this, session);
+            LifecycleWriter.PublicationSession session = m_writer.BeginPublication(revision);
+            return new PublicationWriter(this, session);
         }
 
         /// <summary>
         /// Immutable record of the routing, type and factory revisions captured for a publication.
         /// </summary>
-        /// <param name="Owner">The lifecycle that created the capture.</param>
-        /// <param name="Revision">The writer-owned serving revision capture.</param>
-        private sealed record PublicationCapture(
-            NodeManagerLifecycle Owner,
-            LifecycleWriter.PublicationRevision Revision) : INodeManagerPublicationCapture
+        private sealed class LifecycleCapture : ILifecycleCapture
         {
+            /// <summary>
+            /// Captures non-owning provider and revision evidence without retaining a serving image.
+            /// </summary>
+            public LifecycleCapture(NodeManagerLifecycle owner, LifecycleWriter.PublicationRevision revision)
+            {
+                m_owner = new WeakReference<NodeManagerLifecycle>(owner);
+                m_revision = revision;
+            }
+
             /// <inheritdoc/>
-            public ValueTask<INodeManagerPublication> BeginAsync(
+            public ValueTask<ILifecycleWriter> BeginAsync(
                 CancellationToken cancellationToken = default)
             {
-                return new ValueTask<INodeManagerPublication>(
-                    Owner.BeginPublication(this, cancellationToken));
+                if (!m_owner.TryGetTarget(out NodeManagerLifecycle? owner))
+                {
+                    throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
+                }
+                return new ValueTask<ILifecycleWriter>(owner.BeginWriter(m_revision, cancellationToken));
             }
+
+            /// <summary>The non-owning lifecycle identity.</summary>
+            private readonly WeakReference<NodeManagerLifecycle> m_owner;
+
+            /// <summary>The non-owning captured serving evidence.</summary>
+            private readonly LifecycleWriter.PublicationRevision m_revision;
         }
 
         /// <summary>
         /// Optimistic publication that prepares and owns batches until it is disposed.
         /// </summary>
-        /// <param name="owner">The lifecycle that admitted the publication.</param>
-        /// <param name="session">The independently owned invocation and its expected serving revisions.</param>
-        private sealed class PublicationInvocation(
-            NodeManagerLifecycle owner,
-            LifecycleWriter.PublicationSession session) : INodeManagerValidationPublication
+        private sealed class PublicationWriter : ILifecycleWriter
         {
+            /// <summary>
+            /// Exposes the existing writer's publication session without a second admission owner.
+            /// </summary>
+            public PublicationWriter(NodeManagerLifecycle owner, LifecycleWriter.PublicationSession session)
+            {
+                m_owner = new WeakReference<NodeManagerLifecycle>(owner);
+                Session = session;
+            }
+
             /// <summary>
             /// Gets whether the invocation's expected serving revisions remain current.
             /// </summary>
-            public bool IsCurrent => Session.IsCurrent;
+            public bool IsCurrent => m_owner.TryGetTarget(out NodeManagerLifecycle? owner) &&
+                Session.IsCurrentFor(owner.m_server);
 
             /// <summary>
             /// Gets the independently owned invocation and its expected serving revisions.
             /// </summary>
-            public LifecycleWriter.PublicationSession Session { get; } = session;
+            private LifecycleWriter.PublicationSession Session { get; }
 
             /// <inheritdoc/>
-            public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
-                ArrayOf<NodeManagerBatchChange> changes, CancellationToken cancellationToken = default)
+            public ValueTask<IPreparedChanges> PrepareAsync(
+                ArrayOf<LifecycleChange> changes, CancellationToken cancellationToken = default)
             {
                 return PrepareCoreAsync(changes, default, cancellationToken);
             }
 
             /// <inheritdoc/>
-            public ValueTask<IPreparedNodeManagerBatch> PrepareReadImagesAsync(
+            public ValueTask<IPreparedChanges> PrepareReadImagesAsync(
                 ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default)
             {
                 if (images.Count == 0)
@@ -3358,8 +4025,8 @@ namespace Opc.Ua.Server
 
             /// <inheritdoc/>
             public async ValueTask ValidateAsync(
-                ArrayOf<NodeManagerBatchChange> changes,
-                Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspectAsync,
+                ArrayOf<LifecycleChange> changes,
+                Func<IPreparedChanges, CancellationToken, ValueTask> inspectAsync,
                 CancellationToken cancellationToken = default)
             {
                 if (inspectAsync is null)
@@ -3367,23 +4034,29 @@ namespace Opc.Ua.Server
                     throw new ArgumentNullException(nameof(inspectAsync));
                 }
 
-                IPreparedNodeManagerBatch batch = await PrepareCoreAsync(
+                var candidate = (PreparedChanges)await PrepareCoreAsync(
                     changes, default, cancellationToken, validationOnly: true)
                     .ConfigureAwait(false);
+                ValueTask inspection = default;
                 try
                 {
-                    if (batch is not PreparedBatch candidate)
+                    try
                     {
-                        throw new InvalidOperationException("Validation requires the captured lifecycle batch owner.");
+                        inspection = inspectAsync(candidate, cancellationToken);
+                        await inspection.ConfigureAwait(false);
                     }
-                    await inspectAsync(batch, cancellationToken).ConfigureAwait(false);
-                    await candidate.ValidateAsync(cancellationToken).ConfigureAwait(false);
+                    finally
+                    {
+                        inspectAsync = null!;
+                        inspection = default;
+                        candidate.EndInspection();
+                    }
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
                     try
                     {
-                        await batch.DisposeAsync().ConfigureAwait(false);
+                        await candidate.DisposeAsync().ConfigureAwait(false);
                     }
                     catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
                     {
@@ -3394,7 +4067,7 @@ namespace Opc.Ua.Server
                     }
                     throw;
                 }
-                await batch.DisposeAsync().ConfigureAwait(false);
+                await candidate.ValidateAsync(cancellationToken).ConfigureAwait(false);
             }
 
             /// <summary>
@@ -3405,15 +4078,21 @@ namespace Opc.Ua.Server
             /// <param name="cancellationToken">The token used to cancel the operation.</param>
             /// <param name="validationOnly">Whether the batch is a validation candidate.</param>
             /// <returns>The prepared batch.</returns>
-            private ValueTask<IPreparedNodeManagerBatch> PrepareCoreAsync(
-                ArrayOf<NodeManagerBatchChange> changes,
+            private ValueTask<IPreparedChanges> PrepareCoreAsync(
+                ArrayOf<LifecycleChange> changes,
                 ArrayOf<INodeManagerReadImage> images,
                 CancellationToken cancellationToken,
                 bool validationOnly = false)
             {
-                NodeManagerCallbackPermit? callbackPermit = owner.CaptureLifecycleCallbackPermit();
-                return Session.PrepareAsync(() => owner.PrepareBatchAsync(
-                    changes, this, callbackPermit, cancellationToken, images, validationOnly));
+                ArrayOf<LifecycleChange> capturedChanges = [.. changes];
+                ArrayOf<INodeManagerReadImage> capturedImages = [.. images];
+                return Session.PrepareAsync(() =>
+                {
+                    NodeManagerLifecycle owner = GetOwner();
+                    NodeManagerCallbackPermit? callbackPermit = owner.CaptureLifecycleCallbackPermit();
+                    return owner.PrepareChangesAsync(
+                        capturedChanges, Session, callbackPermit, cancellationToken, capturedImages, validationOnly);
+                });
             }
 
             /// <inheritdoc/>
@@ -3425,10 +4104,25 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    owner.ScheduleRetiredGenerationDrainCleanup();
+                    if (m_owner.TryGetTarget(out NodeManagerLifecycle? owner))
+                    {
+                        owner.ScheduleRetiredGenerationDrainCleanup();
+                    }
                 }
             }
 
+            /// <summary>
+            /// Resolves the lifecycle only while active preparation needs its services.
+            /// </summary>
+            private NodeManagerLifecycle GetOwner()
+            {
+                return m_owner.TryGetTarget(out NodeManagerLifecycle? owner)
+                    ? owner
+                    : throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
+            }
+
+            /// <summary>The non-owning lifecycle identity.</summary>
+            private readonly WeakReference<NodeManagerLifecycle> m_owner;
         }
 
 
@@ -3438,12 +4132,24 @@ namespace Opc.Ua.Server
         /// <summary>The clock used for lifecycle wait diagnostics and retry delays.</summary>
         private readonly TimeProvider m_timeProvider;
 
-        /// <summary>The server-owned coordinator, or null when this instance is that coordinator.</summary>
-        private readonly NodeManagerLifecycle? m_canonicalOwner;
-
         private readonly LifecycleWriter m_writer;
         private readonly Lock m_registrationLock = new();
         private Dictionary<Guid, RegistrationState> m_registrations = [];
+
+        /// <summary>Protects retained private cleanup owners and their candidate lists.</summary>
+        private readonly Lock m_privateCleanupLock = new();
+
+        /// <summary>Owns private batches until every candidate and staging dependency is disposed.</summary>
+        private readonly List<PrivateBatchCleanup> m_privateCleanups = [];
+
+        /// <summary>Protects the lifecycle's immutable host recovery binding.</summary>
+        private readonly Lock m_cleanupAuthorityLock = new();
+
+        /// <summary>The host's bound recovery adapters, or a denied binding after unconfigured startup.</summary>
+        private NodeManagerCleanupAuthority? m_cleanupAuthority;
+
+        /// <summary>Whether server startup has closed recovery configuration.</summary>
+        private bool m_cleanupAuthoritySealed;
 
         /// <summary>Owns retired generations independently of lifecycle publication.</summary>
         private readonly GenerationReclaimer m_reclaimer;

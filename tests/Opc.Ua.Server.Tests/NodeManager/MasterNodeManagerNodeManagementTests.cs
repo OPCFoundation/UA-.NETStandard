@@ -328,6 +328,206 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0].AddedNodeId, Is.EqualTo(requestedNodeId));
         }
 
+        /// <summary>
+        /// A nested AddNodes operation retains mutation admission after its callback returns.
+        /// </summary>
+        [Test]
+        [Category("Server")]
+        [Category("NodeManagerLifecycle")]
+        public async Task NestedAddNodesDrainsBorrowedCallbackAdmissionAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            using OperationContext nestedContext = harness.CreateContext(
+                RequestType.AddNodes, MessageSecurityMode.SignAndEncrypt);
+            AddNodesItem item = harness.CreateAddNodesItem();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeManagerCallbackPermit? outerPermit = null;
+            Task<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>? nested = null;
+            Task<INodeManagerBatchAdmission>? competing = null;
+            int calls = 0;
+
+            async Task<(ServiceResult result, NodeId addedNodeId)> OnAddNodeAsync(CancellationToken cancellationToken)
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    outerPermit = harness.Sut.CaptureLifecycleCallbackPermit() ??
+                        throw new InvalidOperationException("The outer callback has no admission permit.");
+                    nested = harness.Sut.AddNodesAsync(nestedContext, [item], cancellationToken).AsTask();
+                    await entered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                return (ServiceResult.Good, new NodeId("Added", harness.SourceNamespaceIndex));
+            }
+
+            harness.SourceManager
+                .Setup(manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddNodesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, AddNodesItem _, CancellationToken cancellationToken) =>
+                    new ValueTask<(ServiceResult result, NodeId addedNodeId)>(OnAddNodeAsync(cancellationToken)));
+
+            Task<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> outer =
+                harness.Sut.AddNodesAsync(harness.AddNodesContext, [item], timeout.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                NodeManagerCallbackPermit permit = outerPermit ??
+                    throw new InvalidOperationException("The outer callback did not capture its permit.");
+                while (permit.IsActive)
+                {
+                    timeout.Token.ThrowIfCancellationRequested();
+                    await Task.Yield();
+                }
+
+                ValueTask closing = permit.DisposeAsync();
+                Assert.That(closing.IsCompleted, Is.False);
+                Assert.That(outer.IsCompleted, Is.False);
+                Assert.That(nested, Is.Not.Null);
+                Assert.That(nested!.IsCompleted, Is.False);
+                competing = ((IDynamicNodeManagerBatchHost)harness.Sut)
+                    .AcquireCommitAdmissionAsync(null, timeout.Token).AsTask();
+                Assert.That(competing.IsCompleted, Is.False);
+
+                release.TrySetResult(true);
+                var nestedResult = await nested.WaitAsync(timeout.Token).ConfigureAwait(false);
+                var outerResult = await outer.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await closing.AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                using INodeManagerBatchAdmission acquired =
+                    await competing.WaitAsync(timeout.Token).ConfigureAwait(false);
+                competing = null;
+                Assert.That(nestedResult.results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(outerResult.results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(calls, Is.EqualTo(2));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (nested is not null)
+                {
+                    await nested.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                await outer.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await DisposePendingCommitAdmissionAsync(competing).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// An admitted AddNodes callback can re-enter lifecycle admission after its parent callback closes.
+        /// </summary>
+        [Test]
+        [Category("Server")]
+        [Category("NodeManagerLifecycle")]
+        public async Task NestedAddNodesKeepsParentLifecycleAdmissionAfterCallbackClosesAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var rescue = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            using OperationContext closeContext = harness.CreateContext(
+                RequestType.CloseSession, MessageSecurityMode.SignAndEncrypt);
+            using OperationContext addContext = harness.CreateContext(
+                RequestType.AddNodes, MessageSecurityMode.SignAndEncrypt);
+            AddNodesItem item = harness.CreateAddNodesItem();
+            var outerReady = new TaskCompletionSource<NodeManagerCallbackPermit>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var childReady = new TaskCompletionSource<NodeManagerCallbackPermit>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var descendantEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>? nested = null;
+
+            async Task OnSessionClosingAsync(CancellationToken cancellationToken)
+            {
+                NodeManagerCallbackPermit outer = harness.Sut.CaptureLifecycleCallbackPermit() ??
+                    throw new InvalidOperationException("The session callback has no admission permit.");
+                outerReady.TrySetResult(outer);
+                nested = harness.Sut.AddNodesAsync(addContext, [item], cancellationToken).AsTask();
+                await childReady.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            async Task<(ServiceResult result, NodeId addedNodeId)> OnAddNodeAsync(CancellationToken cancellationToken)
+            {
+                NodeManagerCallbackPermit child = harness.Sut.CaptureLifecycleCallbackPermit() ??
+                    throw new InvalidOperationException("The node callback has no admission permit.");
+                childReady.TrySetResult(child);
+                await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                using INodeManagerBatchAdmission descendant = await ((IDynamicNodeManagerBatchHost)harness.Sut)
+                    .AcquireCommitAdmissionAsync(child, cancellationToken).ConfigureAwait(false);
+                descendantEntered.TrySetResult(true);
+                return (ServiceResult.Good, new NodeId("Added", harness.SourceNamespaceIndex));
+            }
+
+            harness.SourceManager
+                .Setup(manager => manager.SessionClosingAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, NodeId _, bool _, CancellationToken cancellationToken) =>
+                    new ValueTask(OnSessionClosingAsync(cancellationToken)));
+            harness.SourceManager
+                .Setup(manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddNodesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, AddNodesItem _, CancellationToken cancellationToken) =>
+                    new ValueTask<(ServiceResult result, NodeId addedNodeId)>(OnAddNodeAsync(cancellationToken)));
+
+            Task close = harness.Sut.SessionClosingAsync(
+                closeContext, new NodeId("ClosingAdmission", 0), true, rescue.Token).AsTask();
+            try
+            {
+                NodeManagerCallbackPermit outer = await outerReady.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                NodeManagerCallbackPermit child = await childReady.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                while (outer.IsActive)
+                {
+                    timeout.Token.ThrowIfCancellationRequested();
+                    await Task.Yield();
+                }
+                Assert.That(close.IsCompleted, Is.False);
+                Assert.That(child.Capabilities, Is.EqualTo(
+                    NodeManagerAdmissionCapability.AddressSpaceMutation |
+                    NodeManagerAdmissionCapability.ServerLifecycle));
+
+                release.TrySetResult(true);
+                await descendantEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(nested, Is.Not.Null);
+                var result = await nested!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await close.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(result.results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                rescue.Cancel();
+                if (nested is not null)
+                {
+                    try
+                    {
+                        await nested.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (rescue.IsCancellationRequested)
+                    {
+                    }
+                }
+                try
+                {
+                    await close.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (rescue.IsCancellationRequested)
+                {
+                }
+            }
+        }
+
         [Test]
         public async Task AddNodesAsyncAuthorizationFailureFromOwnerIsPreservedAsync()
         {
@@ -2270,6 +2470,18 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<AddReferencesItem>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+
+        /// <summary>
+        /// Releases a competing admission retained when a nested callback assertion is interrupted.
+        /// </summary>
+        private static async Task DisposePendingCommitAdmissionAsync(Task<INodeManagerBatchAdmission>? pending)
+        {
+            if (pending is not null)
+            {
+                using INodeManagerBatchAdmission acquired =
+                    await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
         }
 
         private static void ReturnNullMetadata(Mock<IAsyncNodeManager> manager)

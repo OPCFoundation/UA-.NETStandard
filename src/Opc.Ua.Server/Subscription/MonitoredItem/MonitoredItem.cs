@@ -547,6 +547,10 @@ namespace Opc.Ua.Server
         private void SetLostNodeState(bool isDeleted)
         {
             m_isDeleted = isDeleted;
+            if (!isDeleted)
+            {
+                m_pendingDeletedSourceStatus = false;
+            }
 
             UpdateUnresolvedOwnership();
         }
@@ -835,6 +839,85 @@ namespace Opc.Ua.Server
             Invalidate(terminal);
         }
 
+        /// <summary>
+        /// Marks a node deleted only if the expected generation still owns the item.
+        /// </summary>
+        /// <param name="generation">The generation that reported the deletion.</param>
+        /// <param name="owner">The monitored-node owner that reported the deletion.</param>
+        /// <param name="binding">The captured monitored-node binding.</param>
+        /// <param name="itemId">The captured item identifier.</param>
+        /// <param name="isEvent">Whether the owner captured an event item.</param>
+        /// <param name="sourceRevision">The marked source's binding revision.</param>
+        /// <param name="sourceGeneration">The marked source's generation, if bound.</param>
+        /// <returns>Whether a new lost-node notification needs to be queued.</returns>
+        internal bool TryMarkDeletedSource(
+            NodeManagerGenerationReference generation,
+            MonitoredNode2 owner,
+            MonitoredNode2.NodeBinding binding,
+            uint itemId,
+            bool isEvent,
+            out long sourceRevision,
+            out NodeManagerGenerationReference? sourceGeneration)
+        {
+            lock (m_lock)
+            {
+                sourceRevision = m_sourceRevision;
+                sourceGeneration = Generation;
+                if (m_isDisposed ||
+                    !owner.IsCurrentDeletedSource(itemId, this, binding, generation, isEvent) ||
+                    (Generation is not null && !ReferenceEquals(Generation, generation)))
+                {
+                    return false;
+                }
+                if (m_isDeleted)
+                {
+                    SetLostNodeState(isDeleted: true);
+                    return m_pendingDeletedSourceStatus;
+                }
+                // Keep the provisional change local until the owner binding is checked again.
+                m_isDeleted = true;
+                if (!owner.IsCurrentDeletedSource(itemId, this, binding, generation, isEvent))
+                {
+                    m_isDeleted = false;
+                    return false;
+                }
+                m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
+                UpdateUnresolvedOwnership();
+                m_pendingDeletedSourceStatus = true;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Queues a marked deletion only while the same source remains lost.
+        /// </summary>
+        /// <param name="sourceRevision">The marked source's binding revision.</param>
+        /// <param name="sourceGeneration">The marked source's generation, if bound.</param>
+        /// <param name="owner">The monitored-node owner that reported the deletion.</param>
+        /// <param name="binding">The captured monitored-node binding.</param>
+        internal void QueueDeletedSourceStatus(
+            long sourceRevision,
+            NodeManagerGenerationReference? sourceGeneration,
+            MonitoredNode2 owner,
+            MonitoredNode2.NodeBinding binding)
+        {
+            lock (m_lock)
+            {
+                bool released = Generation is null && sourceGeneration is not null &&
+                    ReferenceEquals(m_releasedGeneration, sourceGeneration);
+                if (!m_isDisposed &&
+                    m_isDeleted &&
+                    m_pendingDeletedSourceStatus &&
+                    m_sourceRevision == sourceRevision &&
+                    (ReferenceEquals(Generation, sourceGeneration) ||
+                        released) &&
+                    (released || ReferenceEquals(owner.CaptureNodeBinding(), binding)))
+                {
+                    QueueNodeIdUnknown();
+                }
+            }
+        }
+
         /// <inheritdoc/>
         bool IMonitoredItemGenerationBinding.IsTerminal
         {
@@ -855,16 +938,29 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_isTerminal |= terminal;
-                if (m_isDeleted)
+                if (MarkDeleted(terminal))
                 {
-                    SetLostNodeState(isDeleted: true);
-                    return;
+                    QueueNodeIdUnknown();
                 }
-                m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
-                SetLostNodeState(isDeleted: true);
-                QueueNodeIdUnknown();
             }
+        }
+
+        /// <summary>
+        /// Records the lost-node state while the item lock is held.
+        /// </summary>
+        /// <param name="terminal">Whether future adoption is forbidden.</param>
+        /// <returns>Whether this is the first report of the lost node.</returns>
+        private bool MarkDeleted(bool terminal)
+        {
+            m_isTerminal |= terminal;
+            if (m_isDeleted)
+            {
+                SetLostNodeState(isDeleted: true);
+                return false;
+            }
+            m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
+            SetLostNodeState(isDeleted: true);
+            return true;
         }
 
         /// <inheritdoc/>
@@ -3384,6 +3480,7 @@ namespace Opc.Ua.Server
 
         private void QueueNodeIdUnknown()
         {
+            m_pendingDeletedSourceStatus = false;
             // a disabled item queues nothing (Part 4, 5.13.4.1); m_isDeleted is kept and
             // the notification is queued when the item leaves DISABLED.
             if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0 ||
@@ -3983,6 +4080,7 @@ namespace Opc.Ua.Server
 
         /// <summary>Weakly identifies the last released source for retrying its unfinished cleanup.</summary>
         private NodeManagerGenerationReference? m_releasedGeneration;
+        private bool m_pendingDeletedSourceStatus;
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;

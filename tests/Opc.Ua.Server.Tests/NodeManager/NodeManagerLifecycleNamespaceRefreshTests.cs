@@ -42,6 +42,7 @@ using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -147,10 +148,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Is.EqualTo(-1),
                     "the live namespace must not be known before the add");
 
-                NodeManagerRegistration registration = await m_server
-                    .NodeManagerLifecycle
-                    .AddRuntimeNodeSetAsync(CreateOptions(), null, ct)
+                LifecycleResult added = await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateOptions()))], ct)
                     .ConfigureAwait(false);
+                Assert.That(added.Issues, Is.Empty);
+                NodeManagerRegistration registration = LifecycleInspection.Registration(added.Registrations[0]);
 
                 ModelChangedEventArgs observed = await refreshed.Task
                     .WaitAsync(TimeSpan.FromSeconds(60), ct)
@@ -172,9 +174,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(resolved.NamespaceIndex, Is.EqualTo((ushort)liveIndex));
 
                 // A same-uri reload must not grow the table any further.
-                await m_server.NodeManagerLifecycle
-                    .ReloadRuntimeNodeSetAsync(registration, CreateOptions(), null, ct)
-                    .ConfigureAwait(false);
+                LifecycleInspection.Registration(
+                    (await CommitChangeAsync(
+                    LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, registration), LifecycleChange.Replace(
+                    registration.Slot, new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions())), ct).ConfigureAwait(false)).Registrations[0]);
                 await Task.Delay(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
 
                 Assert.That(session.NamespaceUris.Count,

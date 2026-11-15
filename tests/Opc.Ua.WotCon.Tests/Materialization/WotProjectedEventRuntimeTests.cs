@@ -1449,8 +1449,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 server.SetupGet(s => s.ConfigurationNodeManager).Returns(configurationManager.Object);
                 server.SetupGet(s => s.CoreNodeManager).Returns(core.Object);
                 Owner = new AliasServiceNodeManager(server.Object, context.NamespaceUris.GetString(nodes.Ns)!);
+#pragma warning disable CS0618 // Standalone dispatch needs this retained constructor. TODO: Migrate fixture construction.
                 m_master = new MasterNodeManager(server.Object,
                     new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() }, null, [Owner]);
+#pragma warning restore CS0618
                 server.SetupGet(s => s.NodeManager).Returns(m_master);
                 var identity = new RoleBasedIdentity(new UserIdentity("operator", []),
                     [Role.Operator], context.NamespaceUris);

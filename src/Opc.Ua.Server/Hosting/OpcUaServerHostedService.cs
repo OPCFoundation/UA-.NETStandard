@@ -265,7 +265,9 @@ namespace Opc.Ua.Server.Hosting
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
             m_services.GetService<ServerApplicationCertificateActivator>()?.Attach(m_server);
-            m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
+            StandardServer server = m_server;
+            m_nodeManagerLifecycle.Attach(
+                server.NodeManagerLifecycle, () => ResumeServerDisposalAsync(server));
             if (m_server is not DependencyInjectionStandardServer)
             {
                 OpcUaServerRegistrationStaging.Apply(m_server, m_services);
@@ -869,16 +871,36 @@ namespace Opc.Ua.Server.Hosting
                 }
 
                 INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                bool disposed = false;
                 try
                 {
                     m_server.Dispose();
                     m_server = null;
+                    disposed = true;
                 }
                 finally
                 {
-                    m_nodeManagerLifecycle.Detach(lifecycle);
+                    m_nodeManagerLifecycle.Detach(lifecycle, disposed);
                 }
             }
+        }
+
+        /// <summary>
+        /// Resumes a detached server's ordered disposal after a verified cleanup confirmation.
+        /// </summary>
+        /// <param name="server">The exact server retained by the host.</param>
+        /// <returns>A task that completes after server disposal finishes.</returns>
+        private async ValueTask ResumeServerDisposalAsync(StandardServer server)
+        {
+            await server.DisposeAsync().ConfigureAwait(false);
+            lock (m_serverDisposalLock)
+            {
+                if (ReferenceEquals(m_server, server))
+                {
+                    m_server = null;
+                }
+            }
+            m_nodeManagerLifecycle.Detach(server.NodeManagerLifecycle, disposed: true);
         }
     }
 

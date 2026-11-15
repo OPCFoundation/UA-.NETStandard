@@ -31,7 +31,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using static Opc.Ua.Server.NodeManagerGenerationRegistry;
@@ -535,9 +534,16 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "The previous NodeManager is already registered.");
                 }
-                NodeManagerGenerationRegistry.CreateReplacement(
-                    snapshot.GetGeneration(replacement),
-                    previous);
+                NodeManagerGeneration replacing = snapshot.GetGeneration(replacement);
+                if (!TryGet(previous, out NodeManagerGeneration? restoring) ||
+                    !ReferenceEquals(restoring!.Slot, replacing.Slot) ||
+                    restoring.Number + 1 != replacing.Number ||
+                    restoring.Gate.State != NodeManagerGenerationState.Retiring ||
+                    !restoring.TryRestoreBeforeShutdown())
+                {
+                    throw new InvalidOperationException(
+                        "The exact previous generation cannot be restored after cleanup or before its work drains.");
+                }
 
                 var managers = new List<IAsyncNodeManager>(
                     snapshot.NodeManagers);
@@ -703,6 +709,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Restores a previously removed NodeManager to its captured routing positions.
+        /// The exact generation must have drained, its slot must be unused, and physical cleanup must not have started.
         /// </summary>
         public void Restore(
             IAsyncNodeManager nodeManager,
@@ -726,6 +733,14 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException(
                         "The NodeManager is already registered.");
+                }
+                if (!TryGet(nodeManager, out NodeManagerGeneration? restoring) ||
+                    restoring!.Gate.State != NodeManagerGenerationState.Retiring ||
+                    restoring.Slot.Current is not null ||
+                    !restoring.TryRestoreBeforeShutdown())
+                {
+                    throw new InvalidOperationException(
+                        "The exact removed generation cannot be restored after cleanup or before its work drains.");
                 }
 
                 var managers = new List<IAsyncNodeManager>(snapshot.NodeManagers);
@@ -793,45 +808,11 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EnsureMutable();
-                RoutingSnapshot snapshot = m_snapshot;
-                Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
-                    CopyRoutes(snapshot.NamespaceManagers);
-                routes.TryGetValue(
-                    namespaceIndex,
-                    out IReadOnlyList<IAsyncNodeManager>? existing);
-                int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
-                IAsyncNodeManager registeredManager = managerIndex >= 0
-                    ? snapshot.NodeManagers[managerIndex]
-                    : nodeManager;
-                if (existing?.Any(manager =>
-                    HasSameIdentity(manager, registeredManager)) == true)
+                RoutingSnapshot? next = PrepareNamespaceRegistration(m_snapshot, namespaceIndex, nodeManager, visible);
+                if (next is not null)
                 {
-                    return;
+                    PublishSnapshot(next);
                 }
-                routes[namespaceIndex] = existing is null
-                    ? [registeredManager]
-                    : [.. existing, registeredManager];
-                IAsyncNodeManager[] hiddenNodeManagers =
-                [
-                    .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !HasSameIdentity(manager, registeredManager))
-                ];
-                if (!visible)
-                {
-                    hiddenNodeManagers =
-                    [
-                        .. hiddenNodeManagers,
-                        registeredManager
-                    ];
-                }
-
-                PublishSnapshot(new RoutingSnapshot(
-                    snapshot.NodeManagers,
-                    routes,
-                    hiddenNodeManagers,
-                    snapshot.TypeTree,
-                    snapshot.Factory,
-                    snapshot.ReadImages));
             }
         }
 
@@ -851,44 +832,83 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EnsureMutable();
-                RoutingSnapshot snapshot = m_snapshot;
-                if (!snapshot.NamespaceManagers.TryGetValue(
-                    namespaceIndex,
-                    out IReadOnlyList<IAsyncNodeManager>? existing))
+                RoutingSnapshot? next = PrepareNamespaceUnregistration(
+                    m_snapshot, namespaceIndex, asyncNodeManager, nodeManager);
+                if (next is null)
                 {
                     return false;
                 }
-
-                var updated = existing.ToList();
-                int removed = updated.RemoveAll(manager =>
-                    asyncNodeManager is not null
-                        ? HasSameIdentity(manager, asyncNodeManager)
-                        : manager.SyncNodeManager is { } syncNodeManager &&
-                            ReferenceEquals(syncNodeManager, nodeManager));
-                if (removed == 0)
-                {
-                    return false;
-                }
-
-                Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
-                    CopyRoutes(snapshot.NamespaceManagers);
-                if (updated.Count == 0)
-                {
-                    routes.Remove(namespaceIndex);
-                }
-                else
-                {
-                    routes[namespaceIndex] = [.. updated];
-                }
-                PublishSnapshot(new RoutingSnapshot(
-                    snapshot.NodeManagers,
-                    routes,
-                    snapshot.HiddenNodeManagers,
-                    snapshot.TypeTree,
-                    snapshot.Factory,
-                    snapshot.ReadImages));
+                PublishSnapshot(next);
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Prepares an alias addition without modifying its source routing image.
+        /// </summary>
+        private static RoutingSnapshot? PrepareNamespaceRegistration(
+            RoutingSnapshot snapshot,
+            int namespaceIndex,
+            IAsyncNodeManager nodeManager,
+            bool visible)
+        {
+            snapshot.NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<IAsyncNodeManager>? existing);
+            int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
+            IAsyncNodeManager registeredManager = managerIndex >= 0 ? snapshot.NodeManagers[managerIndex] : nodeManager;
+            if (existing?.Any(manager => HasSameIdentity(manager, registeredManager)) == true)
+            {
+                return null;
+            }
+            Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes = CopyRoutes(snapshot.NamespaceManagers);
+            routes[namespaceIndex] = existing is null ? [registeredManager] : [.. existing, registeredManager];
+            IAsyncNodeManager[] hiddenNodeManagers =
+            [
+                .. snapshot.HiddenNodeManagers.Where(manager => !HasSameIdentity(manager, registeredManager))
+            ];
+            if (!visible)
+            {
+                hiddenNodeManagers = [.. hiddenNodeManagers, registeredManager];
+            }
+            return new RoutingSnapshot(
+                snapshot.NodeManagers, routes, hiddenNodeManagers,
+                snapshot.TypeTree, snapshot.Factory, snapshot.ReadImages);
+        }
+
+        /// <summary>
+        /// Prepares an alias removal without modifying its source routing image.
+        /// </summary>
+        private static RoutingSnapshot? PrepareNamespaceUnregistration(
+            RoutingSnapshot snapshot,
+            int namespaceIndex,
+            IAsyncNodeManager? asyncNodeManager,
+            INodeManager? nodeManager)
+        {
+            if (!snapshot.NamespaceManagers.TryGetValue(
+                namespaceIndex, out IReadOnlyList<IAsyncNodeManager>? existing))
+            {
+                return null;
+            }
+            var updated = existing.ToList();
+            int removed = updated.RemoveAll(manager =>
+                asyncNodeManager is not null
+                    ? HasSameIdentity(manager, asyncNodeManager)
+                    : manager.SyncNodeManager is { } syncNodeManager && ReferenceEquals(syncNodeManager, nodeManager));
+            if (removed == 0)
+            {
+                return null;
+            }
+            Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes = CopyRoutes(snapshot.NamespaceManagers);
+            if (updated.Count == 0)
+            {
+                routes.Remove(namespaceIndex);
+            }
+            else
+            {
+                routes[namespaceIndex] = [.. updated];
+            }
+            return new RoutingSnapshot(
+                snapshot.NodeManagers, routes, snapshot.HiddenNodeManagers,
+                snapshot.TypeTree, snapshot.Factory, snapshot.ReadImages);
         }
 
         /// <summary>
@@ -1071,6 +1091,23 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the position of the exact registered manager, or -1 when it is absent.
+        /// </summary>
+        private static int IndexOfExact(
+            List<IAsyncNodeManager> managers,
+            IAsyncNodeManager manager)
+        {
+            for (int ii = 0; ii < managers.Count; ii++)
+            {
+                if (ReferenceEquals(managers[ii], manager))
+                {
+                    return ii;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
         /// Copies the namespace routes so a mutation can be applied without touching the snapshot
         /// that readers are currently using.
         /// </summary>
@@ -1172,17 +1209,18 @@ namespace Opc.Ua.Server
                 HiddenNodeManagers = hiddenNodeManagers;
                 TypeTree = typeTree?.CaptureImmutableSnapshot();
                 Factory = factory?.CaptureSnapshot(out _, out _);
+                IEqualityComparer<IAsyncNodeManager> ownerComparer = RefEqualityComparer.Default;
                 ReadImages = readImages is null
-                    ? new Dictionary<IAsyncNodeManager, INodeManagerReadImage>(ReadImageOwnerComparer.Instance)
+                    ? new Dictionary<IAsyncNodeManager, INodeManagerReadImage>(ownerComparer)
                     : readImages.Where(entry => Array.Exists(nodeManagers, owner => ReferenceEquals(owner, entry.Key)))
-                        .ToDictionary(entry => entry.Key, entry => entry.Value, ReadImageOwnerComparer.Instance);
+                        .ToDictionary(entry => entry.Key, entry => entry.Value, ownerComparer);
                 Generations = [.. nodeManagers.Select(NodeManagerGenerationRegistry.GetOrCreate)];
+                m_ambiguousVisibleResources = FindAmbiguousSourceResources(
+                    nodeManagers, Generations, hiddenNodeManagers, includeHidden: false);
+                m_ambiguousResources = hiddenNodeManagers.Length == 0
+                    ? m_ambiguousVisibleResources
+                    : FindAmbiguousSourceResources(nodeManagers, Generations, hiddenNodeManagers, includeHidden: true);
                 m_pendingReadiness = [.. Generations.Where(generation => generation.ReadinessPending)];
-                Epoch = new AddressSpaceEpoch();
-                foreach (NodeManagerGeneration generation in Generations)
-                {
-                    generation.RegisterViewEpoch(Epoch);
-                }
                 VisibleNodeManagers =
                 [
                     .. nodeManagers.Where(manager =>
@@ -1193,6 +1231,23 @@ namespace Opc.Ua.Server
                     CreateVisibleNamespaceManagers(
                         namespaceManagers,
                         hiddenNodeManagers);
+                Epoch = new AddressSpaceEpoch();
+                bool registered = false;
+                try
+                {
+                    foreach (NodeManagerGeneration generation in Generations)
+                    {
+                        generation.RegisterViewEpoch(Epoch);
+                    }
+                    registered = true;
+                }
+                finally
+                {
+                    if (!registered)
+                    {
+                        Epoch.Close();
+                    }
+                }
             }
 
             /// <summary>
@@ -1260,6 +1315,39 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Finds the registered owner for an exact manager or a transparent stack adapter.
+            /// </summary>
+            /// <param name="nodeManager">The manager or standard adapter to resolve.</param>
+            /// <returns>The exact registered owner, or null when it is absent.</returns>
+            internal IAsyncNodeManager? FindRegisteredOwner(IAsyncNodeManager nodeManager)
+            {
+                foreach (IAsyncNodeManager owner in NodeManagers)
+                {
+                    if (ReferenceEquals(owner, nodeManager))
+                    {
+                        return owner;
+                    }
+                }
+
+                IAsyncNodeManager? match = null;
+                foreach (IAsyncNodeManager owner in NodeManagers)
+                {
+                    if ((!IsStandardAdapter(owner) && !IsStandardAdapter(nodeManager)) ||
+                        !HasSameGenerationIdentity(owner, nodeManager))
+                    {
+                        continue;
+                    }
+                    if (match is not null)
+                    {
+                        throw new InvalidOperationException(
+                            "A standard adapter matches more than one registered NodeManager.");
+                    }
+                    match = owner;
+                }
+                return match;
+            }
+
+            /// <summary>
             /// Attempts to resolve a manager to its exact generation in this view.
             /// </summary>
             /// <param name="nodeManager">The manager in the view.</param>
@@ -1305,6 +1393,20 @@ namespace Opc.Ua.Server
                 bool includeHidden = false)
             {
                 generation = null;
+                HashSet<IAsyncNodeManager> ambiguous =
+                    includeHidden ? m_ambiguousResources : m_ambiguousVisibleResources;
+                if (ambiguous.Contains(nodeManager))
+                {
+                    return false;
+                }
+                if (IsStandardAdapter(nodeManager))
+                {
+                    IAsyncNodeManager resource = GetIdentity(nodeManager);
+                    if (ambiguous.Contains(resource) && HasSameGenerationIdentity(nodeManager, resource))
+                    {
+                        return false;
+                    }
+                }
                 for (int ii = 0; ii < NodeManagers.Length; ii++)
                 {
                     IAsyncNodeManager owner = NodeManagers[ii];
@@ -1318,7 +1420,7 @@ namespace Opc.Ua.Server
                         return false;
                     }
                 }
-                if (nodeManager is AsyncNodeManagerAdapter)
+                if (IsStandardAdapter(nodeManager))
                 {
                     for (int ii = 0; ii < NodeManagers.Length; ii++)
                     {
@@ -1326,19 +1428,29 @@ namespace Opc.Ua.Server
                         if ((includeHidden || !ContainsManager(HiddenNodeManagers, owner)) &&
                             HasSameGenerationIdentity(owner, nodeManager))
                         {
+                            if (generation is not null && !ReferenceEquals(generation, Generations[ii]))
+                            {
+                                generation = null;
+                                return false;
+                            }
                             generation = Generations[ii];
-                            return true;
                         }
                     }
+                    if (generation is not null)
+                    {
+                        return true;
+                    }
                 }
-                if (!ReferenceEquals(GetIdentity(nodeManager), nodeManager))
+                IAsyncNodeManager sourceResource = GetIdentity(nodeManager);
+                if (!HasSameGenerationIdentity(nodeManager, sourceResource))
                 {
                     return false;
                 }
+                IAsyncNodeManager? matchedOwner = null;
                 for (int ii = 0; ii < NodeManagers.Length; ii++)
                 {
                     IAsyncNodeManager owner = NodeManagers[ii];
-                    if (!ReferenceEquals(GetIdentity(owner), nodeManager))
+                    if (!ReferenceEquals(GetIdentity(owner), sourceResource))
                     {
                         continue;
                     }
@@ -1346,14 +1458,40 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    if (generation is not null)
+                    if (generation is not null &&
+                        (!ReferenceEquals(generation, Generations[ii]) ||
+                            matchedOwner is null ||
+                            !HasSameGenerationIdentity(matchedOwner, owner)))
                     {
                         generation = null;
                         return false;
                     }
                     generation = Generations[ii];
+                    matchedOwner = owner;
                 }
                 return generation is not null;
+            }
+
+            /// <summary>
+            /// Checks whether the exact generation or a standard alias remains visible in this view.
+            /// </summary>
+            /// <param name="generation">The generation already bound to the operation.</param>
+            /// <returns>Whether a visible owner carries that exact generation.</returns>
+            internal bool ContainsVisibleGenerationOwner(NodeManagerGeneration generation)
+            {
+                for (int ii = 0; ii < NodeManagers.Length; ii++)
+                {
+                    IAsyncNodeManager owner = NodeManagers[ii];
+                    if (!ContainsManager(HiddenNodeManagers, owner) &&
+                        ReferenceEquals(Generations[ii], generation) &&
+                        (ReferenceEquals(owner, generation.NodeManager) ||
+                            ((IsStandardAdapter(owner) || IsStandardAdapter(generation.NodeManager)) &&
+                                HasSameGenerationIdentity(owner, generation.NodeManager))))
+                    {
+                        return true;
+                    }
+                }
+                return false;
             }
 
             /// <summary>
@@ -1454,6 +1592,46 @@ namespace Opc.Ua.Server
                 }
                 return visibleRoutes;
             }
+
+            /// <summary>
+            /// Finds resources represented by distinct logical owners or conflicting generation bindings.
+            /// </summary>
+            private static HashSet<IAsyncNodeManager> FindAmbiguousSourceResources(
+                IAsyncNodeManager[] owners,
+                NodeManagerGeneration[] generations,
+                IAsyncNodeManager[] hidden,
+                bool includeHidden)
+            {
+                var firstOwners = new Dictionary<
+                    IAsyncNodeManager,
+                    (IAsyncNodeManager Owner, NodeManagerGeneration Generation)>(RefEqualityComparer.Default);
+                var ambiguous = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
+                for (int ii = 0; ii < owners.Length; ii++)
+                {
+                    IAsyncNodeManager owner = owners[ii];
+                    if (!includeHidden && ContainsManager(hidden, owner))
+                    {
+                        continue;
+                    }
+                    IAsyncNodeManager resource = GetIdentity(owner);
+                    if (!firstOwners.TryGetValue(resource, out var first))
+                    {
+                        firstOwners.Add(resource, (owner, generations[ii]));
+                    }
+                    else if (!ReferenceEquals(first.Generation, generations[ii]) ||
+                        !HasSameGenerationIdentity(first.Owner, owner))
+                    {
+                        ambiguous.Add(resource);
+                    }
+                }
+                return ambiguous;
+            }
+
+            /// <summary>The resources with more than one visible logical source.</summary>
+            private readonly HashSet<IAsyncNodeManager> m_ambiguousVisibleResources;
+
+            /// <summary>The resources with more than one source, including hidden owners.</summary>
+            private readonly HashSet<IAsyncNodeManager> m_ambiguousResources;
 
             /// <summary>The generations whose readiness was pending when this view was built.</summary>
             private readonly NodeManagerGeneration[] m_pendingReadiness;
@@ -1601,7 +1779,8 @@ namespace Opc.Ua.Server
         /// <returns>The prepared routes that can be reserved and published.</returns>
         /// <exception cref="InvalidOperationException">
         /// A candidate has been consumed, has lost its identity or is already registered;
-        /// a retirement is not registered; or a read image has no unique owner in the next view.
+        /// a candidate or predecessor is repeated; a retirement is not registered; or a read image
+        /// has no unique owner in the next view.
         /// </exception>
         internal PreparedRoutes PrepareBatch(
             ArrayOf<PreparedNodeManager> candidates,
@@ -1614,9 +1793,15 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 RoutingSnapshot current = m_snapshot;
-                HashSet<IAsyncNodeManager> removals = [.. removed];
-                HashSet<IAsyncNodeManager> publishing = [];
-                var replacements = new Dictionary<IAsyncNodeManager, IAsyncNodeManager>();
+                var removals = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
+                for (int index = 0; index < removed.Count; index++)
+                {
+                    removals.Add(current.FindRegisteredOwner(removed[index]) ??
+                        throw new InvalidOperationException("A batch retirement is not registered."));
+                }
+                var publishing = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
+                var publishingIdentities = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
+                var replacements = new Dictionary<IAsyncNodeManager, IAsyncNodeManager>(RefEqualityComparer.Default);
                 foreach (PreparedNodeManager candidate in candidates)
                 {
                     candidate.ValidateForPublication();
@@ -1624,22 +1809,24 @@ namespace Opc.Ua.Server
                     {
                         throw new InvalidOperationException("A candidate no longer owns its assigned generation.");
                     }
+                    if (!publishingIdentities.Add(GetGenerationIdentity(candidate.NodeManager)))
+                    {
+                        throw new InvalidOperationException("A batch candidate was supplied more than once.");
+                    }
                     publishing.Add(candidate.NodeManager);
                     if (candidate.ReplacedNodeManager is { } replaced)
                     {
-                        removals.Add(replaced);
-                        replacements.Add(replaced, candidate.NodeManager);
+                        IAsyncNodeManager owner = current.FindRegisteredOwner(replaced) ??
+                            throw new InvalidOperationException("A batch retirement is not registered.");
+                        removals.Add(owner);
+                        if (!replacements.TryAdd(owner, candidate.NodeManager))
+                        {
+                            throw new InvalidOperationException("A batch predecessor was supplied more than once.");
+                        }
                     }
-                    if (current.NodeManagers.Contains(candidate.NodeManager))
+                    if (current.FindRegisteredOwner(candidate.NodeManager) is not null)
                     {
                         throw new InvalidOperationException("A batch candidate is already registered.");
-                    }
-                }
-                foreach (IAsyncNodeManager removedManager in removals)
-                {
-                    if (Array.IndexOf(current.NodeManagers, removedManager) < 0)
-                    {
-                        throw new InvalidOperationException("A batch retirement is not registered.");
                     }
                 }
 
@@ -1664,6 +1851,7 @@ namespace Opc.Ua.Server
                 }
 
                 var routes = new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>();
+                var namespaceChanges = new HashSet<int>();
                 foreach (KeyValuePair<int, IReadOnlyList<IAsyncNodeManager>> route in current.NamespaceManagers)
                 {
                     IAsyncNodeManager[] retained =
@@ -1674,11 +1862,16 @@ namespace Opc.Ua.Server
                     {
                         routes.Add(route.Key, retained);
                     }
+                    if (retained.Length != route.Value.Count)
+                    {
+                        namespaceChanges.Add(route.Key);
+                    }
                 }
                 foreach (PreparedNodeManager candidate in candidates)
                 {
                     foreach (int index in resolveNamespaces(candidate.NodeManager).Distinct())
                     {
+                        namespaceChanges.Add(index);
                         routes.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? existing);
                         routes[index] = existing is null
                             ? [candidate.NodeManager]
@@ -1686,14 +1879,19 @@ namespace Opc.Ua.Server
                                 candidate.NodeManager];
                     }
                 }
-                foreach (int index in routes.Keys.ToArray())
+                // Unrelated alias order must not become an artificial publication conflict.
+                foreach (int index in namespaceChanges)
                 {
-                    routes[index] = [.. routes[index].OrderBy(manager => managers.IndexOf(manager))];
+                    if (routes.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? changed))
+                    {
+                        routes[index] = [.. changed.OrderBy(manager => IndexOfExact(managers, manager))];
+                    }
                 }
+                IEqualityComparer<IAsyncNodeManager> ownerComparer = RefEqualityComparer.Default;
                 Dictionary<IAsyncNodeManager, INodeManagerReadImage> images =
                     current.ReadImages.ToDictionary(
-                        entry => entry.Key, entry => entry.Value, ReadImageOwnerComparer.Instance);
-                var imageOwners = new HashSet<IAsyncNodeManager>(ReadImageOwnerComparer.Instance);
+                        entry => entry.Key, entry => entry.Value, ownerComparer);
+                var imageOwners = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
                 foreach (INodeManagerReadImage image in readImages)
                 {
                     if (image?.Owner is not { } owner || !managers.Any(manager => ReferenceEquals(manager, owner)))
@@ -1764,38 +1962,6 @@ namespace Opc.Ua.Server
         private PreparedRoutes? m_reservedRoutes;
 
         /// <summary>
-        /// Compares node manager read image owners by reference.
-        /// </summary>
-        private sealed class ReadImageOwnerComparer : IEqualityComparer<IAsyncNodeManager>
-        {
-            /// <summary>
-            /// Gets the singleton comparer.
-            /// </summary>
-            public static ReadImageOwnerComparer Instance { get; } = new();
-
-            /// <summary>
-            /// Determines whether two node managers are the same instance.
-            /// </summary>
-            /// <param name="left">The first node manager.</param>
-            /// <param name="right">The second node manager.</param>
-            /// <returns>True if both are the same instance.</returns>
-            public bool Equals(IAsyncNodeManager? left, IAsyncNodeManager? right)
-            {
-                return ReferenceEquals(left, right);
-            }
-
-            /// <summary>
-            /// Gets the reference-based hash code of a node manager.
-            /// </summary>
-            /// <param name="owner">The node manager.</param>
-            /// <returns>The hash code.</returns>
-            public int GetHashCode(IAsyncNodeManager owner)
-            {
-                return RuntimeHelpers.GetHashCode(owner);
-            }
-        }
-
-        /// <summary>
         /// Routing image prepared for a batch that can be reserved and then published.
         /// </summary>
         internal sealed class PreparedRoutes : IDisposable
@@ -1814,6 +1980,20 @@ namespace Opc.Ua.Server
                 m_owner = owner;
                 m_previous = previous;
                 m_next = next;
+                m_reservedNamespaces = new HashSet<int>(
+                    previous.NamespaceManagers.Keys.Concat(next.NamespaceManagers.Keys)
+                        .Where(index =>
+                            !previous.NamespaceManagers.TryGetValue(index, out var before) ||
+                            !next.NamespaceManagers.TryGetValue(index, out var after) ||
+                            !before.SequenceEqual(after, RefEqualityComparer.Default)));
+                m_changingManagers =
+                [
+                    .. previous.NodeManagers.Concat(next.NodeManagers).Where(manager =>
+                        !ContainsManager(previous.NodeManagers, manager) ||
+                        !ContainsManager(next.NodeManagers, manager) ||
+                        ContainsManager(previous.HiddenNodeManagers, manager) !=
+                            ContainsManager(next.HiddenNodeManagers, manager))
+                ];
             }
 
             /// <summary>
@@ -1834,7 +2014,7 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
-            /// Reserves the routing table for this publication so that no other routing change can interleave.
+            /// Reserves this routing transaction, permitting only explicit unrelated namespace reconciliation.
             /// </summary>
             public void Reserve()
             {
@@ -1851,6 +2031,74 @@ namespace Opc.Ua.Server
                     m_owner.EnsureMutable();
                     ValidatePublicationTransitions(m_previous, m_next);
                     m_owner.m_reservedRoutes = this;
+                }
+            }
+
+            /// <summary>
+            /// Checks whether an alias mutation touches a namespace or owner changed by this exact publication.
+            /// </summary>
+            internal bool ConflictsWithNamespace(int namespaceIndex, IAsyncNodeManager nodeManager)
+            {
+                lock (m_owner.m_lock)
+                {
+                    ValidateNamespaceMutation();
+                    return m_reservedNamespaces.Contains(namespaceIndex) ||
+                        m_changingManagers.Any(manager => HasSameIdentity(manager, nodeManager));
+                }
+            }
+
+            /// <summary>
+            /// Mirrors an allowed alias mutation into the serving image and this reserved successor only.
+            /// </summary>
+            internal bool ChangeNamespace(
+                int namespaceIndex,
+                IAsyncNodeManager nodeManager,
+                bool register,
+                bool visible)
+            {
+                lock (m_owner.m_lock)
+                {
+                    if (ConflictsWithNamespace(namespaceIndex, nodeManager))
+                    {
+                        throw new InvalidOperationException("The namespace mutation conflicts with this publication.");
+                    }
+                    RoutingSnapshot? serving = register
+                        ? PrepareNamespaceRegistration(m_previous, namespaceIndex, nodeManager, visible)
+                        : PrepareNamespaceUnregistration(m_previous, namespaceIndex, nodeManager, null);
+                    if (serving is null)
+                    {
+                        return false;
+                    }
+                    RoutingSnapshot successor;
+                    try
+                    {
+                        successor = (register
+                            ? PrepareNamespaceRegistration(m_next, namespaceIndex, nodeManager, visible)
+                            : PrepareNamespaceUnregistration(m_next, namespaceIndex, nodeManager, null)) ??
+                            throw new InvalidOperationException("The reserved namespace routes are inconsistent.");
+                    }
+                    catch
+                    {
+                        serving.Epoch.Close();
+                        throw;
+                    }
+                    try
+                    {
+                        ValidatePublicationTransitions(m_previous, serving);
+                        ValidatePublicationTransitions(m_previous, successor);
+                    }
+                    catch
+                    {
+                        serving.Epoch.Close();
+                        successor.Epoch.Close();
+                        throw;
+                    }
+                    RoutingSnapshot replaced = m_next;
+                    m_owner.PublishSnapshot(serving);
+                    m_previous = serving;
+                    m_next = successor;
+                    replaced.Epoch.Close();
+                    return true;
                 }
             }
 
@@ -1905,28 +2153,30 @@ namespace Opc.Ua.Server
             /// <inheritdoc/>
             public void Dispose()
             {
-                TaskCompletionSource<bool>? released;
-                lock (m_owner.m_lock)
-                {
-                    if (ReferenceEquals(m_owner.m_reservedRoutes, this))
-                    {
-                        m_owner.m_reservedRoutes = null;
-                    }
-                    m_disposed = true;
-                    released = m_released;
-                }
+                TaskCompletionSource<bool>? released = null;
                 try
                 {
-                    if (!m_published)
+                    lock (m_owner.m_lock)
                     {
-                        m_next.Epoch.Close();
-                        foreach (NodeManagerGeneration generation in m_next.Generations)
+                        if (m_disposed)
                         {
-                            if (!m_previous.Generations.Contains(generation) &&
-                                generation.Gate.State == NodeManagerGenerationState.Prepared)
+                            return;
+                        }
+                        try
+                        {
+                            if (!m_published)
                             {
-                                generation.Gate.Abort();
+                                m_next.Epoch.Close();
                             }
+                        }
+                        finally
+                        {
+                            if (ReferenceEquals(m_owner.m_reservedRoutes, this))
+                            {
+                                m_owner.m_reservedRoutes = null;
+                            }
+                            m_disposed = true;
+                            released = m_released;
                         }
                     }
                 }
@@ -1936,9 +2186,35 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Prevents alias reconciliation from accepting stale work or another publication's reservation.
+            /// </summary>
+            private void ValidateNamespaceMutation()
+            {
+                if (m_disposed || m_published || !ReferenceEquals(m_owner.m_reservedRoutes, this) ||
+                    !ReferenceEquals(m_owner.m_snapshot, m_previous))
+                {
+                    throw new InvalidOperationException("The routing publication has not been reserved.");
+                }
+            }
+
             private readonly NodeManagerRoutingTable m_owner;
-            private readonly RoutingSnapshot m_previous;
-            private readonly RoutingSnapshot m_next;
+
+            /// <summary>The serving image, advanced only by permitted mutations under this exact reservation.</summary>
+            private RoutingSnapshot m_previous;
+
+            /// <summary>
+            /// The preallocated successor containing the batch and every completed permitted alias mutation.
+            /// </summary>
+            private RoutingSnapshot m_next;
+
+            /// <summary>
+            /// Namespace routes changed by the prepared transaction, never by permitted alias mutations.
+            /// </summary>
+            private readonly HashSet<int> m_reservedNamespaces;
+
+            /// <summary>Owners whose lifetime or visibility changes in the prepared transaction.</summary>
+            private readonly IAsyncNodeManager[] m_changingManagers;
             private bool m_published;
             private bool m_disposed;
             private bool m_historianRegistrationsChanged;

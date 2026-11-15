@@ -39,6 +39,7 @@ using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 using Opc.Ua.Tests;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -56,12 +57,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var newProvider = new InMemoryHistorianProvider(
                 new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
             TrackingLifecycleNodeManager? originalManager = null;
-            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 CreateTrackingNodeManagementFactory(kGeneration1Value, manager =>
                 {
                     originalManager = manager;
                     manager.HistoryProvider = oldProvider;
-                }), null, timeout.Token).ConfigureAwait(false);
+                })), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration original = RequireRegistration(publicationResult1.Registrations[0]);
             AssertLifecycleValue(originalManager);
             NodeId nodeId = new(kValueNodeId, originalManager.NamespaceIndexes[0]);
             await SeedLifecycleHistoryAsync(originalManager, oldProvider, 101, timeout.Token).ConfigureAwait(false);
@@ -78,19 +81,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
                 Assert.That(m_server.CurrentInstance.SubscriptionManager.GetSubscriptions(), Is.Empty);
                 TrackingLifecycleNodeManager? replacement = null;
-                var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-                NodeManagerBatchResult retired;
-                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [
+                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                LifecycleResult retired;
+                await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using (IPreparedChanges prepared = await exactWriter1.PrepareAsync([
                         replace
-                            ? NodeManagerBatchChange.Replace(original, CreateTrackingNodeManagementFactory(
+                            ? LifecycleChange.Replace(original.Slot, CreateTrackingNodeManagementFactory(
                                 kGeneration2Value, manager =>
                                 {
                                     replacement = manager;
                                     manager.HistoryProvider = newProvider;
                                 }))
-                            : NodeManagerBatchChange.Remove(original)
-                    ], null, timeout.Token).ConfigureAwait(false))
+                            : LifecycleChange.Remove(original.Slot)
+                    ], timeout.Token).ConfigureAwait(false))
                 {
                     if (replace)
                     {
@@ -99,8 +103,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             .ConfigureAwait(false);
                     }
                     retired = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                    await exactWriter1.DisposeAsync().ConfigureAwait(false);
                 }
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 HistoryReadResult current = await ReadLifecycleHistoryAsync(
                     session, nodeId, ByteString.Empty, 0, false, timeout.Token).ConfigureAwait(false);
                 Assert.That(current.StatusCode, Is.EqualTo(replace ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown));
@@ -119,7 +124,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
                     Assert.That(stale.HistoryData.IsNull, Is.True);
-                    Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                    Assert.That(retired.Retired.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                     Assert.That(retired.CleanupFailure, Is.Null);
                 }
                 await originalManager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -169,10 +174,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     session, second.NodeId, ByteString.Empty, 1, false, timeout.Token).ConfigureAwait(false);
                 Assert.That(firstPoint.ContinuationPoint.IsEmpty, Is.False);
                 Assert.That(secondPoint.ContinuationPoint.IsEmpty, Is.False);
-                NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
+                LifecycleResult retired = await RetireBrowseDependenciesAsync(
                     [first.Registration, second.Registration, target.Registration, unrelated.Registration],
                     timeout.Token).ConfigureAwait(false);
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(retired.CleanupFailure, Is.Null);
                 HistoryReadResult firstStale = await ReadLifecycleHistoryAsync(
                     session, first.NodeId, firstPoint.ContinuationPoint, 1, false, timeout.Token)
@@ -247,9 +252,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 if (retireBeforeRead)
                 {
-                    NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
+                    LifecycleResult retired = await RetireBrowseDependenciesAsync(
                         [owner.Registration, target.Registration], timeout.Token).ConfigureAwait(false);
-                    await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                     HistoryReadResult stale = await ReadLifecycleHistoryAsync(
                         session, owner.NodeId, page.ContinuationPoint, 1, false, timeout.Token)
                         .ConfigureAwait(false);
@@ -261,8 +266,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                     return;
                 }
-                Task<NodeManagerBatchResult>? retirement = null;
-                NodeManagerBatchResult? retirementResult = null;
+                Task<LifecycleResult>? retirement = null;
+                LifecycleResult? retirementResult = null;
                 Task<HistoryReadResponse> pending = session.HistoryReadAsync(
                     new RequestHeader { TimeoutHint = 60_000 },
                     new ExtensionObject(CreateHistoryDetails(1)), TimestampsToReturn.Both, false,
@@ -286,7 +291,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await Task.Delay(TimeSpan.FromMilliseconds(100), timeout.Token).ConfigureAwait(false);
                     }
                     Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                    Assert.That(retirementResult.Retirement.IsCompleted, Is.False);
+                    Assert.That(retirementResult.Retired.IsCompleted, Is.False);
                     Assert.That(retirementResult.Revision, Is.GreaterThan(0));
                     Assert.That(retirementResult.Revision, Is.EqualTo(m_server.NodeManagerLifecycle.Revision));
                     NodeManagerSlot[] resultSlots = retirementResult.Slots.Memory.ToArray();
@@ -321,9 +326,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AssertHistorySample(response.Results[0], 102, 1, StatusCodes.UncertainDataSubNormal);
                 Assert.That(capturedSource, Is.True);
                 Assert.That(capturedTarget, Is.True);
-                Assert.That(retirementResult!.Retired, Is.Zero);
-                await retirementResult!.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(retirementResult.Retirement.IsCompleted, Is.True);
+                Assert.That(retirementResult!.RetiredCount, Is.Zero);
+                await retirementResult!.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(retirementResult.Retired.IsCompleted, Is.True);
                 await source.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.DisposeCount, Is.EqualTo(1));
@@ -465,9 +470,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 if (!shutdown)
                 {
-                    NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
+                    LifecycleResult retired = await RetireBrowseDependenciesAsync(
                         [owner.Registration, target.Registration], timeout.Token).ConfigureAwait(false);
-                    await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
                 Assert.That(holder.HasHistoryForManager(owner.Manager), Is.False);
                 Assert.That(holder.HasHistoryForManager(target.Manager), Is.False);
@@ -508,19 +513,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 HistoryReadResult page = await ReadLifecycleHistoryAsync(
                     session, owner.NodeId, ByteString.Empty, 1, false, timeout.Token).ConfigureAwait(false);
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
-                var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [
+                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, owner.Registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using (IPreparedChanges prepared = await exactWriter2.PrepareAsync([
                         replace
-                            ? NodeManagerBatchChange.Replace(owner.Registration,
-                                CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), true)
-                            : NodeManagerBatchChange.Remove(owner.Registration)
-                    ], null, timeout.Token).ConfigureAwait(false))
+                            ? LifecycleChange.Replace(
+                                owner.Registration.Slot, CreateTrackingNodeManagementFactory(
+                                kGeneration2Value, _ => { }), NodeManagerMonitoredItemTransitionMode.Invalidate)
+                            : LifecycleChange.Remove(owner.Registration.Slot)
+                    ], timeout.Token).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult retired = await prepared.CommitAsync(_ => default, timeout.Token)
+                    LifecycleResult retired = await prepared.CommitAsync(_ => default, timeout.Token)
                         .ConfigureAwait(false);
+                    await exactWriter2.DisposeAsync().ConfigureAwait(false);
                     Assert.That(retired.CleanupFailure, Is.Null);
-                    await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
                 Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
                 HistoryReadResult stale = await ReadLifecycleHistoryAsync(
@@ -556,18 +564,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 HistoryReadResult page = await ReadLifecycleHistoryAsync(
                     session, owner.NodeId, ByteString.Empty, 1, false, timeout.Token).ConfigureAwait(false);
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
-                NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
+                LifecycleResult retired = await RetireBrowseDependenciesAsync(
                     [target.Registration], timeout.Token).ConfigureAwait(false);
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(owner.Manager.DisposeCount, Is.Zero);
                 HistoryReadResult final = await ReadLifecycleHistoryAsync(
                     session, owner.NodeId, page.ContinuationPoint, 1, false, timeout.Token).ConfigureAwait(false);
                 AssertHistorySample(final, 102, 1, StatusCodes.UncertainDataSubNormal);
                 Assert.That(final.ContinuationPoint.IsEmpty, Is.True);
-                NodeManagerBatchResult sourceRetired = await RetireContinuationOwnerAsync(
+                LifecycleResult sourceRetired = await RetireContinuationOwnerAsync(
                     owner.Registration, timeout.Token).ConfigureAwait(false);
-                await sourceRetired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await sourceRetired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             }
             finally
@@ -665,9 +673,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()), Times.Once);
             cache.VerifyNoOtherCalls();
             savedContinuation?.Dispose();
-            NodeManagerBatchResult retired = await RetireContinuationOwnerAsync(
+            LifecycleResult retired = await RetireContinuationOwnerAsync(
                 owner.Registration, timeout.Token).ConfigureAwait(false);
-            await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
         }
 
@@ -705,9 +713,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(wrongOrigin.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
                 Assert.That(wrongOrigin.HistoryData.IsNull, Is.True);
                 Assert.That(owner.Manager.DisposeCount, Is.Zero);
-                NodeManagerBatchResult retired = await RetireContinuationOwnerAsync(
+                LifecycleResult retired = await RetireContinuationOwnerAsync(
                     owner.Registration, timeout.Token).ConfigureAwait(false);
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
                 HistoryReadResult stale = await ReadLifecycleHistoryAsync(
                     session, owner.NodeId, page.ContinuationPoint, 1, false, timeout.Token).ConfigureAwait(false);
@@ -780,9 +788,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(holder.HasHistoryForManager(first.Manager), Is.False,
                     "Undelivered pages must not retain owners after a failed service.");
                 Assert.That(holder.HasHistoryForManager(second.Manager), Is.False);
-                NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
+                LifecycleResult retired = await RetireBrowseDependenciesAsync(
                     [first.Registration, second.Registration], timeout.Token).ConfigureAwait(false);
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(first.Manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(second.Manager.DisposeCount, Is.EqualTo(1));
             }
@@ -797,74 +805,85 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Category("NativeTcp")]
         public async Task FirstHistoryPageInFlightAtRetirementStillRejectsItsSavedContinuationAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            using var data = new InMemoryHistorianProvider(
-                new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var owner = await AddHistoryOwnerAsync(data,
-                CreateHistoryProbe(data, async (_, _, token, ct) =>
-                {
-                    if (token.IsEmpty)
-                    {
-                        entered.TrySetResult(true);
-                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
-                    }
-                }), kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
-            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            using Opc.Ua.Client.ISession session = await client.ConnectAsync(
-                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
-                .ConfigureAwait(false);
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(owner.Registration)], null, timeout.Token)
-                .ConfigureAwait(false);
-            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task exactWriter3Disposal = Task.CompletedTask;
             try
             {
-                Task<HistoryReadResponse> pending = session.HistoryReadAsync(
-                    null, new ExtensionObject(CreateHistoryDetails(1)), TimestampsToReturn.Both, false,
-                    [new HistoryReadValueId { NodeId = owner.NodeId }], timeout.Token).AsTask();
-                Task<NodeManagerBatchResult>? committing = null;
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                using var data = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var owner = await AddHistoryOwnerAsync(data,
+                    CreateHistoryProbe(data, async (_, _, token, ct) =>
+                    {
+                        if (token.IsEmpty)
+                        {
+                            entered.TrySetResult(true);
+                            await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                        }
+                    }), kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+                await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+                await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+                using Opc.Ua.Client.ISession session = await client.ConnectAsync(
+                    new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
+                    .ConfigureAwait(false);
+                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                await using ILifecycleWriter exactWriter3 = await LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, owner.Registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await exactWriter3.PrepareAsync(
+                    [LifecycleChange.Remove(owner.Registration.Slot)], timeout.Token)
+                    .ConfigureAwait(false);
+                var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 try
                 {
-                    await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    committing = prepared.CommitAsync(
-                        _ => default, () => published.TrySetResult(true), timeout.Token).AsTask();
-                    await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    Assert.That(owner.Manager.DisposeCount, Is.Zero);
+                    Task<HistoryReadResponse> pending = session.HistoryReadAsync(
+                        null, new ExtensionObject(CreateHistoryDetails(1)), TimestampsToReturn.Both, false,
+                        [new HistoryReadValueId { NodeId = owner.NodeId }], timeout.Token).AsTask();
+                    Task<LifecycleResult>? committing = null;
+                    try
+                    {
+                        await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        committing = prepared.CommitAsync(
+                            _ => default, () => published.TrySetResult(true), timeout.Token).AsTask();
+                        exactWriter3Disposal = exactWriter3.DisposeAsync().AsTask();
+                        await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        Assert.That(owner.Manager.DisposeCount, Is.Zero);
+                    }
+                    finally
+                    {
+                        release.TrySetResult(true);
+                        await pending.ConfigureAwait(false);
+                        if (committing is not null)
+                        {
+                            await committing.ConfigureAwait(false);
+                        }
+                    }
+                    Assert.That(committing, Is.Not.Null);
+                    LifecycleResult retired = await committing.ConfigureAwait(false);
+                    Assert.That(retired.CleanupFailure, Is.Null);
+                    // Disposal runs in the background once the in-flight first page releases its generation pin.
+                    await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    HistoryReadResponse response = await pending.ConfigureAwait(false);
+                    HistoryReadResult page = response.Results[0];
+                    AssertHistorySample(page, 101, 0, StatusCodes.Good);
+                    Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
+                    Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
+                    HistoryReadResult final = await ReadLifecycleHistoryAsync(
+                        session, owner.NodeId, page.ContinuationPoint, 1, false, timeout.Token).ConfigureAwait(false);
+                    await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(final.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    Assert.That(final.HistoryData.IsNull, Is.True);
+                    Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
                 }
                 finally
                 {
                     release.TrySetResult(true);
-                    await pending.ConfigureAwait(false);
-                    if (committing is not null)
-                    {
-                        await committing.ConfigureAwait(false);
-                    }
+                    await session.CloseAsync(timeout.Token).ConfigureAwait(false);
                 }
-                Assert.That(committing, Is.Not.Null);
-                NodeManagerBatchResult retired = await committing.ConfigureAwait(false);
-                Assert.That(retired.CleanupFailure, Is.Null);
-                // Disposal runs in the background once the in-flight first page releases its generation pin.
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
-                HistoryReadResponse response = await pending.ConfigureAwait(false);
-                HistoryReadResult page = response.Results[0];
-                AssertHistorySample(page, 101, 0, StatusCodes.Good);
-                Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
-                Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
-                HistoryReadResult final = await ReadLifecycleHistoryAsync(
-                    session, owner.NodeId, page.ContinuationPoint, 1, false, timeout.Token).ConfigureAwait(false);
-                await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(final.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
-                Assert.That(final.HistoryData.IsNull, Is.True);
-                Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             }
             finally
             {
-                release.TrySetResult(true);
-                await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+                await exactWriter3Disposal.ConfigureAwait(false);
             }
         }
 
@@ -916,9 +935,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     timeout.Token).ConfigureAwait(false);
                 Assert.That(first.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(first.Results[0].ContinuationPoint.IsEmpty, Is.False);
-                NodeManagerBatchResult retired = await RetireContinuationOwnerAsync(
+                LifecycleResult retired = await RetireContinuationOwnerAsync(
                     owner.Registration, timeout.Token).ConfigureAwait(false);
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 HistoryReadResponse resumed = await session.HistoryReadAsync(
                     null, new ExtensionObject(new ReadEventDetails { Filter = filter }),
                     TimestampsToReturn.Source, false,
@@ -1096,15 +1115,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(ReadEventIds(first), Is.EqualTo(new[] { firstId }));
                 Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
-                var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [
-                        NodeManagerBatchChange.Replace(owner.Registration,
-                            CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), false)
-                    ], null, timeout.Token).ConfigureAwait(false))
+                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                await using ILifecycleWriter exactWriter4 = await LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, owner.Registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using (IPreparedChanges prepared = await exactWriter4.PrepareAsync([
+                        LifecycleChange.Replace(
+                            owner.Registration.Slot, CreateTrackingNodeManagementFactory(
+                            kGeneration2Value, _ => { }), NodeManagerMonitoredItemTransitionMode.Migrate)
+                    ], timeout.Token).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult replaced = await prepared.CommitAsync(_ => default, timeout.Token)
+                    LifecycleResult replaced = await prepared.CommitAsync(_ => default, timeout.Token)
                         .ConfigureAwait(false);
+                    await exactWriter4.DisposeAsync().ConfigureAwait(false);
                     Assert.That(replaced.CleanupFailure, Is.Null);
                 }
                 HistoryReadResult resumed = await ReadEventIdPageAsync(
@@ -1260,9 +1282,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(page.DataValues.Count, Is.EqualTo(1000));
                     reads[index].ContinuationPoint = first.Results[index].ContinuationPoint;
                 }
-                NodeManagerBatchResult retired = await RetireContinuationOwnerAsync(
+                LifecycleResult retired = await RetireContinuationOwnerAsync(
                     owner.Registration, timeout.Token).ConfigureAwait(false);
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await retired.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
                 HistoryReadResponse resumed = await session.HistoryReadAsync(
                     null, new ExtensionObject(new ReadProcessedDetails { AggregateType = aggregates }),
@@ -1416,12 +1438,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CancellationToken cancellationToken)
         {
             TrackingLifecycleNodeManager? manager = null;
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+            LifecycleResult publicationResult2 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 CreateTrackingNodeManagementFactory(kGeneration1Value, created =>
                 {
                     manager = created;
                     created.HistoryProvider = provider;
-                }, namespaceUri), null, cancellationToken).ConfigureAwait(false);
+                }, namespaceUri)), cancellationToken).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult2.Registrations[0]);
             AssertLifecycleValue(manager);
             await SeedLifecycleHistoryAsync(manager, data, 101, cancellationToken).ConfigureAwait(false);
             return (registration, manager, new NodeId(kValueNodeId, manager.NamespaceIndexes[0]));

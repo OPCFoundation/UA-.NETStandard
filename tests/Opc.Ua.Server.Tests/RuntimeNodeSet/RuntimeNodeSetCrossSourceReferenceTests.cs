@@ -33,11 +33,14 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
+using Opc.Ua.Server.Tests.NodeManager;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 {
@@ -158,8 +161,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 </UANodeSet>
                 """;
 
-            await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kSourceNamespaceUri, xml), null).ConfigureAwait(false);
+            LifecycleInspection.Registration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(
+                kSourceNamespaceUri, xml))), CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
 
             IServerInternal server = m_server.CurrentInstance;
             ushort ns = checked((ushort)server.NamespaceUris.GetIndex(kSourceNamespaceUri));
@@ -188,8 +195,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 """;
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                    CreateOptions(kSourceNamespaceUri, xml), null).ConfigureAwait(false));
+                async () => LifecycleInspection.Registration(
+                    (await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(
+                    kSourceNamespaceUri, xml))), CancellationToken.None).ConfigureAwait(false)).Registrations[0]));
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
             Assert.That(failure.Message, Does.Contain("cycle"));
@@ -234,8 +245,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                   </UAVariable>
                 </UANodeSet>
                 """;
-            await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kSourceNamespaceUri, xml), null).ConfigureAwait(false);
+            LifecycleInspection.Registration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(
+                kSourceNamespaceUri, xml))), CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
             IServerInternal server = m_server.CurrentInstance;
             ushort ns = checked((ushort)server.NamespaceUris.GetIndex(kSourceNamespaceUri));
             NodeState node = (await server.NodeManager.FindNodeInAddressSpaceAsync(new NodeId(2, ns))
@@ -308,18 +323,24 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
         private async Task AddTargetAsync()
         {
-            await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(
-                    CreateOptions(kTargetNamespaceUri, BuildTargetXml()), null)
-                .ConfigureAwait(false);
+            LifecycleInspection.Registration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(
+                kTargetNamespaceUri, BuildTargetXml()))), CancellationToken.None).ConfigureAwait(
+                false)).Registrations[0]);
         }
 
         private async Task AddSourceAsync()
         {
-            await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(
-                    CreateOptions(kSourceNamespaceUri, BuildSourceXml()), null)
-                .ConfigureAwait(false);
+            LifecycleInspection.Registration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(
+                kSourceNamespaceUri, BuildSourceXml()))), CancellationToken.None).ConfigureAwait(
+                false)).Registrations[0]);
         }
 
         private static RuntimeNodeSetOptions CreateOptions(string namespaceUri, string xml)

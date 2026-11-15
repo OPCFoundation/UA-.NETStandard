@@ -63,6 +63,27 @@ namespace Opc.Ua.Server.Historian
         internal bool HasRegistrations => m_candidateRegistry.CaptureRegistrations().Length != 0;
 
         /// <summary>
+        /// Gets whether preparation declared new bindings rather than retaining existing serving bindings.
+        /// </summary>
+        internal bool RequiresReadiness
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    foreach (HistorianProviderRegistration registration in m_candidateRegistry.CaptureRegistrations())
+                    {
+                        if (!IsRetainedRegistration(registration))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
         /// Gets whether the serving registry can atomically publish and remove candidate-owned bindings.
         /// </summary>
         internal bool SupportsOwnedRegistrations =>
@@ -160,11 +181,11 @@ namespace Opc.Ua.Server.Historian
         {
             lock (m_lock)
             {
-                EnsureMutable();
+                EnsureMutable(allowRetired: true);
                 EnsureOwnerSupportForMutation();
                 bool removed = m_candidateRegistry.UnregisterForNode(nodeId);
                 m_retainedNodeIds.Remove(nodeId);
-                UpdateServingRegistrations();
+                RefreshServingRegistrations();
                 return removed;
             }
         }
@@ -174,11 +195,11 @@ namespace Opc.Ua.Server.Historian
         {
             lock (m_lock)
             {
-                EnsureMutable();
+                EnsureMutable(allowRetired: true);
                 EnsureOwnerSupportForMutation();
                 bool removed = m_candidateRegistry.UnregisterForNamespace(namespaceUri);
                 m_retainedNamespaceUris.Remove(namespaceUri);
-                UpdateServingRegistrations();
+                RefreshServingRegistrations();
                 return removed;
             }
         }
@@ -188,11 +209,11 @@ namespace Opc.Ua.Server.Historian
         {
             lock (m_lock)
             {
-                EnsureMutable();
+                EnsureMutable(allowRetired: true);
                 EnsureOwnerSupportForMutation();
                 m_candidateRegistry.ClearDefault();
                 m_retainedDefault = false;
-                UpdateServingRegistrations();
+                RefreshServingRegistrations();
             }
         }
 
@@ -515,21 +536,27 @@ namespace Opc.Ua.Server.Historian
             var retained = new List<HistorianProviderRegistration>(registrations.Length);
             foreach (HistorianProviderRegistration registration in registrations)
             {
-                bool isRetained = registration.Kind switch
-                {
-                    HistorianProviderRegistrationKind.Node =>
-                        m_retainedNodeIds.Contains(registration.NodeId),
-                    HistorianProviderRegistrationKind.Namespace =>
-                        m_retainedNamespaceUris.Contains(registration.NamespaceUri!),
-                    HistorianProviderRegistrationKind.Default => m_retainedDefault,
-                    _ => false
-                };
-                if (isRetained)
+                if (IsRetainedRegistration(registration))
                 {
                     retained.Add(registration);
                 }
             }
             return [.. retained];
+        }
+
+        /// <summary>
+        /// Determines whether a binding retains an existing serving registration.
+        /// </summary>
+        private bool IsRetainedRegistration(HistorianProviderRegistration registration)
+        {
+            return registration.Kind switch
+            {
+                HistorianProviderRegistrationKind.Node => m_retainedNodeIds.Contains(registration.NodeId),
+                HistorianProviderRegistrationKind.Namespace =>
+                    m_retainedNamespaceUris.Contains(registration.NamespaceUri!),
+                HistorianProviderRegistrationKind.Default => m_retainedDefault,
+                _ => false
+            };
         }
 
         private void PublishOwnedRegistrations(HistorianProviderRegistration[] registrations)
@@ -655,9 +682,13 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
-        private void EnsureMutable()
+        /// <summary>
+        /// Rejects new publication work after retirement while allowing private cleanup until disposal.
+        /// </summary>
+        /// <param name="allowRetired">Whether the operation only removes this candidate's private bindings.</param>
+        private void EnsureMutable(bool allowRetired = false)
         {
-            if (m_disposed || m_retired)
+            if (m_disposed || (m_retired && !allowRetired))
             {
                 throw new ObjectDisposedException(nameof(StagedHistorianProviderRegistry));
             }

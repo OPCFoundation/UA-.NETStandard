@@ -14,7 +14,6 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -29,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,7 +38,7 @@ using NUnit.Framework;
 namespace Opc.Ua.Server.Tests.NodeManager
 {
     /// <summary>
-    /// Verifies conflict classification without retaining prepared owners or routing images.
+    /// Tests native conflict retention and no-replay semantics under the former compatibility case identities.
     /// </summary>
     [TestFixture]
     [Category("Server")]
@@ -47,79 +46,55 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public sealed class NodeManagerConflictExceptionTests
     {
-        /// <summary>
-        /// A retained bound conflict and its host failure do not own the batch, routing view, or manager.
-        /// </summary>
         [Test]
-        public void RoutingConflictReleasesBatchAndRoutingGraph()
+        public async Task RoutingConflictReleasesBatchAndRoutingGraph()
         {
-            (NodeManagerRoutingConflictException conflict,
-                WeakReference<IPreparedNodeManagerBatch> batch,
+            (InvalidOperationException conflict, WeakReference<IPreparedChanges> batch,
                 WeakReference<NodeManagerRoutingTable.RoutingSnapshot> snapshot,
-                WeakReference<IAsyncNodeManager> manager) = CreateRoutingRetentionControl();
-
+                WeakReference<IAsyncNodeManager> manager) = await CreateRetentionControlAsync(false)
+                .ConfigureAwait(false);
+            await Task.Yield();
             CollectTargets();
-
-            var host = (NodeManagerRoutingConflictException)conflict.InnerException!;
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(IsAlive(batch), Is.False);
-                Assert.That(IsAlive(snapshot), Is.False);
-                Assert.That(IsAlive(manager), Is.False);
-                Assert.That(conflict.IsBound, Is.True);
-                Assert.That(conflict.Batch, Is.Null);
-                Assert.That(conflict.RoutingRevision, Is.Null);
-                Assert.That(host.IsBound, Is.False);
-                Assert.That(host.Batch, Is.Null);
-                Assert.That(host.RoutingRevision, Is.Null);
-            }
+            Assert.That(IsAlive(batch), Is.False);
+            Assert.That(IsAlive(snapshot), Is.False);
+            Assert.That(IsAlive(manager), Is.False);
+            Assert.That(conflict, Is.TypeOf<NodeManagerRoutingConflictException>());
+            Assert.That(((NodeManagerRoutingConflictException)conflict).RoutingRevision, Is.Null);
             GC.KeepAlive(conflict);
         }
 
-        /// <summary>
-        /// A retained optimistic conflict does not own its prepared batch.
-        /// </summary>
         [Test]
-        public void PreparedConflictReleasesBatch()
+        public async Task PreparedConflictReleasesBatch()
         {
-            (NodeManagerPreparedConflictException conflict,
-                WeakReference<IPreparedNodeManagerBatch> batch) = CreatePreparedRetentionControl();
-
+            (InvalidOperationException conflict, WeakReference<IPreparedChanges> batch, _,
+                WeakReference<IAsyncNodeManager> manager) = await CreateRetentionControlAsync(true)
+                .ConfigureAwait(false);
+            await Task.Yield();
             CollectTargets();
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(IsAlive(batch), Is.False);
-                Assert.That(conflict.Batch, Is.Null);
-                Assert.That(conflict.InnerException, Is.TypeOf<OptimisticPublicationConflictException>());
-                Assert.That(conflict.Message, Is.EqualTo("Serving revision changed."));
-            }
+            Assert.That(IsAlive(batch), Is.False);
+            Assert.That(IsAlive(manager), Is.False);
+            Assert.That(conflict, Is.TypeOf<OptimisticPublicationConflictException>());
+            Assert.That(conflict.Message, Does.Contain("Serving types changed"));
             GC.KeepAlive(conflict);
         }
 
-        /// <summary>
-        /// A classified conflict rejects a missing routing view or prepared owner.
-        /// </summary>
         [Test]
         public void ConflictConstructorsRejectMissingIdentity()
         {
-            var host = new NodeManagerRoutingConflictException("Routing view changed.");
-            var failure = new OptimisticPublicationConflictException("Serving revision changed.");
-
-            Assert.That(
-                () => new NodeManagerRoutingConflictException(
-                    "Routing view changed.", (NodeManagerRoutingTable.RoutingSnapshot)null!),
+            Assert.That(() => new NodeManagerRoutingConflictException(
+                "Routing view changed.", (NodeManagerRoutingTable.RoutingSnapshot)null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("routingRevision"));
-            Assert.That(
-                () => new NodeManagerRoutingConflictException(host, null!),
-                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("batch"));
-            Assert.That(
-                () => new NodeManagerPreparedConflictException(failure, null!),
-                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("batch"));
+            Assert.That(typeof(NodeManagerRoutingConflictException)
+                .GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance),
+                Has.All.Matches<ConstructorInfo>(constructor =>
+                    constructor is not null && Array.TrueForAll(constructor.GetParameters(),
+                        parameter => parameter.ParameterType != typeof(IPreparedChanges))));
+            Assert.That(typeof(NodeManagerLifecycle).Assembly.GetType(
+                "Opc.Ua.Server.NodeManagerPreparedConflictException"), Is.Null);
         }
 
         /// <summary>
-        /// The compatibility adapter retries only a conflict bound to its current live candidate.
+        /// All former binding classifications now reject stale native work without an implicit retry.
         /// </summary>
         [TestCase("Routing", "Same")]
         [TestCase("Prepared", "Same")]
@@ -131,275 +106,195 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase("Prepared", "Unbound")]
         public async Task CompatibilityRetriesOnlyExactLiveOwnerAsync(string kind, string ownerState)
         {
-            var current = new Mock<IPreparedNodeManagerBatch>();
-            var retry = new Mock<IPreparedNodeManagerBatch>();
-            IPreparedNodeManagerBatch currentBatch = current.Object;
-            NodeManagerRoutingTable.RoutingSnapshot snapshot = CreateSnapshot(new Mock<IAsyncNodeManager>().Object);
-            IPreparedNodeManagerBatch? otherBatch = null;
-            InvalidOperationException marker;
-            if (ownerState == "Same")
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            var factory = new EqualFactory("urn:test:native-conflict:" + ownerState);
+            await using IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(factory)])
+                .ConfigureAwait(false);
+            if (kind == "Prepared")
             {
-                marker = CreateConflict(kind, currentBatch, snapshot);
-            }
-            else if (ownerState == "Different")
-            {
-                otherBatch = new Mock<IPreparedNodeManagerBatch>().Object;
-                marker = CreateConflict(kind, otherBatch, snapshot);
-            }
-            else if (ownerState == "Unbound")
-            {
-                marker = kind == "Routing"
-                    ? new NodeManagerRoutingConflictException("Routing view changed.", snapshot)
-                    : new NodeManagerPreparedConflictException("Serving revision changed.");
+                harness.Data.TypeTree.AddSubtype(
+                    new NodeId("native-conflict:" + ownerState, 0), DataTypeIds.BaseDataType);
             }
             else
             {
-                (marker, WeakReference<IPreparedNodeManagerBatch> former) =
-                    CreateCollectibleConflict(kind, snapshot);
-                CollectTargets();
-                Assert.That(IsAlive(former), Is.False);
+                var competing = new EqualFactory("urn:test:native-conflict:competing:" + ownerState);
+                LifecycleResult winner = await harness.Lifecycle.ApplyAsync([LifecycleChange.Add(competing)])
+                    .ConfigureAwait(false);
+                Assert.That(winner.Issues, Is.Empty);
+                if (ownerState == "Collected")
+                {
+                    LifecycleResult removed = await harness.Lifecycle.ApplyAsync(
+                        [LifecycleChange.Remove(winner.Registrations[0].Slot)]).ConfigureAwait(false);
+                    await removed.Retired.ConfigureAwait(false);
+                }
             }
-
-            IPreparedNodeManagerBatch? expectedOwner = ownerState switch
-            {
-                "Same" => currentBatch,
-                "Different" => otherBatch,
-                _ => null
-            };
-            Assert.That(GetConflictBatch(marker), Is.SameAs(expectedOwner));
-            if (marker is NodeManagerRoutingConflictException routing)
-            {
-                Assert.That(routing.IsBound, Is.EqualTo(ownerState != "Unbound"));
-                Assert.That(routing.RoutingRevision, Is.SameAs(snapshot));
-            }
-
-            var failure = new InvalidOperationException("The prepared candidate is stale.", marker);
-            current.SetupGet(value => value.IsCommitted).Returns(false);
-            current.Setup(value => value.CommitAsync(
-                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
-                .Throws(failure);
-            current.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
-
-            var manager = new Mock<IAsyncNodeManager>();
-            manager.SetupGet(value => value.NamespaceUris).Returns(["urn:opcua:tests:conflict"]);
-            var registration = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
-            var result = new NodeManagerBatchResult([registration], 0, null, 1, [], Task.CompletedTask);
-            retry.Setup(value => value.CommitAsync(
-                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeManagerBatchResult>(result));
-            retry.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
-            var lifecycle = new Mock<INodeManagerLifecycle>();
-            int preparations = 0;
-            lifecycle.Setup(value => value.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .Returns(() => new ValueTask<IPreparedNodeManagerBatch>(
-                    ++preparations == 1 ? currentBatch : retry.Object));
-            IAsyncNodeManagerFactory factory = new Mock<IAsyncNodeManagerFactory>().Object;
-
-            if (ownerState == "Same")
-            {
-                NodeManagerRegistration actual = await lifecycle.Object.AddAsync(factory).ConfigureAwait(false);
-                Assert.That(actual, Is.SameAs(registration));
-            }
-            else
-            {
-                await Assert.ThatAsync(
-                    () => lifecycle.Object.AddAsync(factory).AsTask(),
-                    Throws.Exception.SameAs(failure)).ConfigureAwait(false);
-            }
-
-            int expectedPreparations = ownerState == "Same" ? 2 : 1;
-            Assert.That(preparations, Is.EqualTo(expectedPreparations));
-            lifecycle.Verify(value => value.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()),
-                Times.Exactly(expectedPreparations));
-            current.Verify(value => value.DisposeAsync(), Times.Once);
-            retry.Verify(value => value.DisposeAsync(), ownerState == "Same" ? Times.Once : Times.Never);
-            GC.KeepAlive(currentBatch);
-            GC.KeepAlive(otherBatch);
-            GC.KeepAlive(snapshot);
-            GC.KeepAlive(marker);
+            long revision = harness.Lifecycle.Revision;
+            int decisions = 0;
+            InvalidOperationException? first = await Assert.CatchAsync<InvalidOperationException>(
+                async () => await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }).ConfigureAwait(false)).ConfigureAwait(false);
+            InvalidOperationException? second = await Assert.CatchAsync<InvalidOperationException>(
+                async () => await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(second, Is.SameAs(first));
+            Assert.That(first, kind == "Prepared"
+                ? Is.TypeOf<OptimisticPublicationConflictException>()
+                : Is.TypeOf<NodeManagerRoutingConflictException>());
+            Assert.That(decisions, Is.Zero);
+            Assert.That(factory.CreateCount, Is.EqualTo(1));
+            Assert.That(factory.DeleteCount, Is.EqualTo(1));
+            Assert.That(factory.DisposeCount, Is.EqualTo(1));
+            Assert.That(prepared.IsCommitted, Is.False);
+            Assert.That(harness.Lifecycle.Revision, Is.EqualTo(revision));
         }
 
-        /// <summary>
-        /// A prepared conflict does not replay a decision or a committed batch.
-        /// </summary>
         [TestCase("Decision")]
         [TestCase("Committed")]
         public async Task CompatibilityDoesNotReplayPreparedConflictAfterDecisionOrCommitAsync(string stage)
         {
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            var factory = new EqualFactory("urn:test:native-conflict:decision");
+            await using IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(factory)])
+                .ConfigureAwait(false);
+            var failure = new InvalidOperationException("The external decision failed.");
             int decisions = 0;
-            var prepared = new Mock<IPreparedNodeManagerBatch>();
-            var marker = new NodeManagerPreparedConflictException(
-                new OptimisticPublicationConflictException("Serving revision changed."), prepared.Object);
-            var failure = new InvalidOperationException(
-                "Serving revision changed after an irreversible stage.",
-                marker);
-            Assert.That(marker.Batch, Is.SameAs(prepared.Object));
-            prepared.SetupGet(value => value.IsCommitted).Returns(stage == "Committed");
-            prepared.Setup(value => value.CommitAsync(
-                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
-                .Returns(async (Func<CancellationToken, ValueTask> decideAsync, CancellationToken token) =>
-                {
-                    if (stage == "Decision")
+            if (stage == "Decision")
+            {
+                InvalidOperationException? first = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await prepared.CommitAsync(_ =>
                     {
                         decisions++;
-                        await decideAsync(token).ConfigureAwait(false);
-                    }
-                    throw failure;
-                });
-            var lifecycle = new Mock<INodeManagerLifecycle>();
-            lifecycle.Setup(value => value.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(prepared.Object);
-
-            await Assert.ThatAsync(
-                () => lifecycle.Object.AddAsync(new Mock<IAsyncNodeManagerFactory>().Object).AsTask(),
-                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
-            Assert.That(decisions, Is.EqualTo(stage == "Decision" ? 1 : 0));
-            lifecycle.Verify(value => value.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()), Times.Once);
-            prepared.Verify(value => value.DisposeAsync(), Times.Once);
+                        throw failure;
+                    }).ConfigureAwait(false)).ConfigureAwait(false);
+                InvalidOperationException? second = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await prepared.CommitAsync(_ =>
+                    {
+                        decisions++;
+                        return default;
+                    }).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(first, Is.SameAs(failure));
+                Assert.That(second, Is.SameAs(failure));
+                Assert.That(prepared.IsCommitted, Is.False);
+                Assert.That(factory.DeleteCount, Is.EqualTo(1));
+            }
+            else
+            {
+                LifecycleResult first = await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }).ConfigureAwait(false);
+                long revision = harness.Lifecycle.Revision;
+                LifecycleResult second = await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }).ConfigureAwait(false);
+                Assert.That(second, Is.SameAs(first));
+                Assert.That(prepared.IsCommitted, Is.True);
+                Assert.That(first.Issues, Is.Empty);
+                Assert.That(harness.Lifecycle.Revision, Is.EqualTo(revision));
+            }
+            Assert.That(decisions, Is.EqualTo(1));
+            Assert.That(factory.CreateCount, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// A bound conflict cannot be attributed to a distinct batch even if the batches compare equal.
-        /// </summary>
         [TestCase("Routing")]
         [TestCase("Prepared")]
         public async Task CompatibilityDoesNotRetryValueEqualDistinctOwnerAsync(string kind)
         {
-            NodeManagerRoutingTable.RoutingSnapshot snapshot = CreateSnapshot(new Mock<IAsyncNodeManager>().Object);
-            var current = new ValueEqualBatch();
-            var other = new ValueEqualBatch();
-            InvalidOperationException marker = CreateConflict(kind, other, snapshot);
-            var failure = new InvalidOperationException("Another candidate is stale.", marker);
-            current.Failure = failure;
-            var lifecycle = new Mock<INodeManagerLifecycle>();
-            lifecycle.Setup(value => value.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IPreparedNodeManagerBatch>(current));
-
-            Assert.That(current.Equals(other), Is.True);
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            var current = new EqualFactory("urn:test:native-conflict:equal:first");
+            var other = new EqualFactory("urn:test:native-conflict:equal:second");
+            Assert.That(current, Is.EqualTo(other));
             Assert.That(current, Is.Not.SameAs(other));
-            Assert.That(GetConflictBatch(marker), Is.SameAs(other));
-            await Assert.ThatAsync(
-                () => lifecycle.Object.AddAsync(new Mock<IAsyncNodeManagerFactory>().Object).AsTask(),
-                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
-
-            lifecycle.Verify(value => value.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()), Times.Once);
-            Assert.That(current.Disposals, Is.EqualTo(1));
-            GC.KeepAlive(other);
-            GC.KeepAlive(snapshot);
+            await using IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(current)])
+                .ConfigureAwait(false);
+            if (kind == "Prepared")
+            {
+                harness.Data.TypeTree.AddSubtype(new NodeId("equal-owner-conflict", 0), DataTypeIds.BaseDataType);
+            }
+            else
+            {
+                LifecycleResult winner = await harness.Lifecycle.ApplyAsync([LifecycleChange.Add(other)])
+                    .ConfigureAwait(false);
+                Assert.That(winner.Issues, Is.Empty);
+            }
+            int decisions = 0;
+            InvalidOperationException? conflict = await Assert.CatchAsync<InvalidOperationException>(
+                async () => await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(conflict, kind == "Prepared"
+                ? Is.TypeOf<OptimisticPublicationConflictException>()
+                : Is.TypeOf<NodeManagerRoutingConflictException>());
+            Assert.That(decisions, Is.Zero);
+            Assert.That(current.CreateCount, Is.EqualTo(1));
+            Assert.That(current.DeleteCount, Is.EqualTo(1));
+            Assert.That(current.DisposeCount, Is.EqualTo(1));
         }
 
         /// <summary>
-        /// Captures a routing conflict without returning a strong reference to its graph.
+        /// Returns only weak owner references and the original native failure after cleanup and recorder release.
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static (NodeManagerRoutingConflictException Conflict,
-            WeakReference<IPreparedNodeManagerBatch> Batch,
+        private static async Task<(InvalidOperationException Conflict, WeakReference<IPreparedChanges> Batch,
             WeakReference<NodeManagerRoutingTable.RoutingSnapshot> Snapshot,
-            WeakReference<IAsyncNodeManager> Manager) CreateRoutingRetentionControl()
+            WeakReference<IAsyncNodeManager> Manager)> CreateRetentionControlAsync(bool metadata)
         {
-            IAsyncNodeManager manager = new Mock<IAsyncNodeManager>().Object;
-            NodeManagerRoutingTable.RoutingSnapshot snapshot = CreateSnapshot(manager);
-            IPreparedNodeManagerBatch batch = new Mock<IPreparedNodeManagerBatch>().Object;
-            var host = new NodeManagerRoutingConflictException("Routing view changed.", snapshot);
-            var conflict = new NodeManagerRoutingConflictException(host, batch);
-
-            Assert.That(host.IsBound, Is.False);
-            Assert.That(host.Batch, Is.Null);
-            Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
-            Assert.That(conflict.IsBound, Is.True);
-            Assert.That(conflict.Batch, Is.SameAs(batch));
-            Assert.That(conflict.RoutingRevision, Is.SameAs(snapshot));
-            Assert.That(conflict.InnerException, Is.SameAs(host));
-            Assert.That(snapshot.NodeManagers[0], Is.SameAs(manager));
-
-            return (conflict, new WeakReference<IPreparedNodeManagerBatch>(batch),
-                new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(snapshot),
-                new WeakReference<IAsyncNodeManager>(manager));
-        }
-
-        /// <summary>
-        /// Captures an optimistic conflict without returning its prepared owner.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static (NodeManagerPreparedConflictException Conflict, WeakReference<IPreparedNodeManagerBatch> Batch)
-            CreatePreparedRetentionControl()
-        {
-            IPreparedNodeManagerBatch batch = new Mock<IPreparedNodeManagerBatch>().Object;
-            var original = new OptimisticPublicationConflictException("Serving revision changed.");
-            var conflict = new NodeManagerPreparedConflictException(original, batch);
-            Assert.That(conflict.Batch, Is.SameAs(batch));
-            Assert.That(conflict.InnerException, Is.SameAs(original));
-            return (conflict, new WeakReference<IPreparedNodeManagerBatch>(batch));
-        }
-
-        /// <summary>
-        /// Creates a conflict whose former owner can be collected while another candidate stays live.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static (InvalidOperationException Conflict, WeakReference<IPreparedNodeManagerBatch> Batch)
-            CreateCollectibleConflict(string kind, NodeManagerRoutingTable.RoutingSnapshot snapshot)
-        {
-            IPreparedNodeManagerBatch batch = new Mock<IPreparedNodeManagerBatch>().Object;
-            InvalidOperationException conflict = CreateConflict(kind, batch, snapshot);
-            Assert.That(GetConflictBatch(conflict), Is.SameAs(batch));
-            return (conflict, new WeakReference<IPreparedNodeManagerBatch>(batch));
-        }
-
-        /// <summary>
-        /// Creates either conflict kind with a specified owner.
-        /// </summary>
-        private static InvalidOperationException CreateConflict(
-            string kind,
-            IPreparedNodeManagerBatch batch,
-            NodeManagerRoutingTable.RoutingSnapshot snapshot)
-        {
-            return kind switch
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            var factory = new EqualFactory("urn:test:native-conflict:retention");
+            NodeManagerRoutingTable.RoutingSnapshot? routing =
+                ((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision;
+            var snapshot = new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(routing);
+            IPreparedChanges? prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(factory)])
+                .ConfigureAwait(false);
+            var owner = new WeakReference<IPreparedChanges>(prepared);
+            WeakReference<IAsyncNodeManager> manager = factory.Candidate!;
+            CollectTargets();
+            Assert.That(IsAlive(owner), Is.True);
+            Assert.That(IsAlive(manager), Is.True);
+            Assert.That(IsAlive(snapshot), Is.True);
+            if (metadata)
             {
-                "Routing" => new NodeManagerRoutingConflictException(
-                    new NodeManagerRoutingConflictException("Routing view changed.", snapshot), batch),
-                "Prepared" => new NodeManagerPreparedConflictException(
-                    new OptimisticPublicationConflictException("Serving revision changed."), batch),
-                _ => throw new ArgumentOutOfRangeException(nameof(kind))
-            };
-        }
-
-        /// <summary>
-        /// Gets the live owner from either conflict kind.
-        /// </summary>
-        private static IPreparedNodeManagerBatch? GetConflictBatch(InvalidOperationException conflict)
-        {
-            return conflict switch
+                harness.Data.TypeTree.AddSubtype(new NodeId("retention-conflict", 0), DataTypeIds.BaseDataType);
+            }
+            else
             {
-                NodeManagerRoutingConflictException routing => routing.Batch,
-                NodeManagerPreparedConflictException prepared => prepared.Batch,
-                _ => throw new ArgumentOutOfRangeException(nameof(conflict))
-            };
+                LifecycleResult winner = await harness.Lifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new EqualFactory("urn:test:native-conflict:retention:winner"))])
+                    .ConfigureAwait(false);
+                Assert.That(winner.Issues, Is.Empty);
+            }
+            InvalidOperationException failure = await Assert.CatchAsync<InvalidOperationException>(
+                async () => await prepared.CommitAsync().ConfigureAwait(false)).ConfigureAwait(false) ??
+                throw new AssertionException("The native unit did not report its conflict.");
+            Assert.That(failure, metadata
+                ? Is.TypeOf<OptimisticPublicationConflictException>()
+                : Is.TypeOf<NodeManagerRoutingConflictException>());
+            await prepared.DisposeAsync().ConfigureAwait(false);
+            Assert.That(factory.DeleteCount, Is.EqualTo(1));
+            Assert.That(factory.DisposeCount, Is.EqualTo(1));
+            harness.ReleaseHostRecorderReferences();
+            prepared = null;
+            routing = null;
+            return (failure, owner, snapshot, manager);
         }
 
         /// <summary>
-        /// Creates a routing image with a real generation for the supplied manager.
+        /// Collects outside the no-inline producer and weak-reference inspection frames.
         /// </summary>
-        private static NodeManagerRoutingTable.RoutingSnapshot CreateSnapshot(IAsyncNodeManager manager)
-        {
-            return new NodeManagerRoutingTable.RoutingSnapshot(
-                [manager],
-                new Dictionary<int, IReadOnlyList<IAsyncNodeManager>> { [2] = [manager] },
-                []);
-        }
-
-        /// <summary>
-        /// Runs bounded full collections after graph-creation frames have returned.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.NoInlining)]
         private static void CollectTargets()
         {
-            for (int attempt = 0; attempt < 5; attempt++)
+            for (int index = 0; index < 3; index++)
             {
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
@@ -408,7 +303,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Checks a weak target in a frame that cannot retain it across collection.
+        /// Tests weak reachability without keeping a retrieved target in the caller's frame.
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static bool IsAlive<T>(WeakReference<T> reference)
@@ -418,78 +313,60 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// A prepared batch whose value equality differs from its reference identity.
+        /// Keeps cleanup counters and weak candidates while testing value-equal distinct factory identities.
         /// </summary>
-        private sealed class ValueEqualBatch : IPreparedNodeManagerBatch
+        private sealed class EqualFactory(string uri) : IAsyncNodeManagerFactory
         {
-            /// <summary>
-            /// Gets or sets the failure returned when this batch commits.
-            /// </summary>
-            public InvalidOperationException? Failure { get; set; }
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => [uri];
 
             /// <summary>
-            /// Gets the number of disposal calls.
+            /// Gets the number of candidate creations.
             /// </summary>
-            public int Disposals { get; private set; }
+            public int CreateCount { get; private set; }
 
             /// <summary>
-            /// Gets the registrations produced by this batch.
+            /// Gets the number of address-space cleanup attempts.
             /// </summary>
-            public ArrayOf<NodeManagerRegistration> Registrations => [];
+            public int DeleteCount { get; private set; }
 
             /// <summary>
-            /// Gets whether the batch committed.
+            /// Gets the number of physical disposal attempts.
             /// </summary>
-            public bool IsCommitted => false;
+            public int DisposeCount { get; private set; }
 
             /// <summary>
-            /// Rejects unused read-image binding.
+            /// Gets the non-owning candidate inspection reference.
             /// </summary>
-            public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
-            {
-                throw new NotSupportedException();
-            }
+            public WeakReference<IAsyncNodeManager>? Candidate { get; private set; }
 
-            /// <summary>
-            /// Throws the configured conflict before the durable decision.
-            /// </summary>
-            public ValueTask<NodeManagerBatchResult> CommitAsync(
-                Func<CancellationToken, ValueTask> decideAsync,
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server, ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
             {
-                throw Failure ?? new InvalidOperationException("No conflict was configured.");
-            }
-
-            /// <summary>
-            /// Rejects the unused publication callback overload.
-            /// </summary>
-            public ValueTask<NodeManagerBatchResult> CommitAsync(
-                Func<CancellationToken, ValueTask> decideAsync,
-                Action publishCommittedState,
-                CancellationToken cancellationToken = default)
-            {
-                throw new NotSupportedException();
-            }
-
-            /// <summary>
-            /// Records release of the prepared owner.
-            /// </summary>
-            public ValueTask DisposeAsync()
-            {
-                Disposals++;
-                return default;
+                cancellationToken.ThrowIfCancellationRequested();
+                CreateCount++;
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.SetupGet(value => value.NamespaceUris).Returns([uri]);
+                manager.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                    .Callback((CancellationToken _) => DeleteCount++)
+                    .Returns(default(ValueTask));
+                manager.As<IDisposable>().Setup(value => value.Dispose()).Callback(() => DisposeCount++);
+                Candidate = new WeakReference<IAsyncNodeManager>(manager.Object);
+                return new ValueTask<IAsyncNodeManager>(manager.Object);
             }
 
             /// <inheritdoc/>
             public override bool Equals(object? obj)
             {
-                return obj is ValueEqualBatch;
+                return obj is EqualFactory;
             }
 
             /// <inheritdoc/>
             public override int GetHashCode()
             {
-                return 0;
+                return typeof(EqualFactory).GetHashCode();
             }
         }
     }

@@ -3462,6 +3462,73 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// A rotation can be retained during its apply callback, but not by work captured after that callback ends.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CertificateRotationCollectorExpiresAfterApplyAsync(bool escaped)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            IServerInternal serverInternal = m_server.CurrentInstance;
+            var coordinator = new PushConfigurationTransactionCoordinator(serverInternal.Telemetry);
+            using var manager = new ConfigurationNodeManager(
+                serverInternal, m_fixture.Config, serverInternal.Telemetry.CreateLogger<ConfigurationNodeManager>(),
+                timeProvider: null, coordinator, pendingKeyStore: null);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            ISystemContext context = CreateAdminContextForSession(sessionId);
+            var certificateType = new NodeId(Guid.NewGuid(), 1);
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=ScopedRotation " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var captured = new TaskCompletionSource<Task<long>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            coordinator.Stage(sessionId, new PushConfigurationOperation
+            {
+                AffectedCertificateType = certificateType,
+                CommitAsync = async _ =>
+                {
+                    Task<long> worker = Task.Run(async () =>
+                    {
+                        started.TrySetResult(true);
+                        await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        long before = Certificate.InstancesCreated;
+                        InvokeRegisterPendingRotation(manager, certificateType, certificate);
+                        return Certificate.InstancesCreated - before;
+                    });
+                    captured.TrySetResult(worker);
+                    await started.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (!escaped)
+                    {
+                        release.TrySetResult(true);
+                        await worker.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+            });
+            try
+            {
+                ServiceResult result = await InvokeApplyChangesAsync(manager, context).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                await manager.DrainPendingApplyChangesAsync(timeout.Token).ConfigureAwait(false);
+                release.TrySetResult(true);
+                Task<long> worker = await captured.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                long allocated = await worker.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(allocated, Is.EqualTo(escaped ? 0 : 1));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (captured.Task.Status == TaskStatus.RanToCompletion)
+                {
+                    Task<long> worker = await captured.Task.ConfigureAwait(false);
+                    await worker.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                await manager.DrainPendingApplyChangesAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task ConcurrentApplyChangesDoesNotDropTheSuccessfulCommitsRotationBookkeepingAsync()
         {
@@ -4098,7 +4165,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.CertificateRequest.Length, Is.GreaterThan(0));
         }
 
-        private static SessionSystemContext CreateAdminContext()
+        /// <summary>
+        /// Creates an administrative request using the running server's metadata.
+        /// </summary>
+        private ServerSystemContext CreateAdminContext()
         {
             return CreateContext(
                 UserTokenType.UserName,
@@ -4106,12 +4176,18 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.WellKnownRole_SecurityAdmin);
         }
 
-        private static SessionSystemContext CreateAnonymousContext()
+        /// <summary>
+        /// Creates an anonymous request using the running server's metadata.
+        /// </summary>
+        private ServerSystemContext CreateAnonymousContext()
         {
             return CreateContext(UserTokenType.Anonymous, MessageSecurityMode.SignAndEncrypt);
         }
 
-        private static SessionSystemContext CreateContext(
+        /// <summary>
+        /// Creates a request with the selected identity and the server's real audit type tables.
+        /// </summary>
+        private ServerSystemContext CreateContext(
             UserTokenType tokenType,
             MessageSecurityMode securityMode,
             params NodeId[] grantedRoles)
@@ -4128,11 +4204,7 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Call,
                 RequestLifetime.None,
                 identity.Object);
-            return new SessionSystemContext(operationContext, s_telemetry)
-            {
-                NamespaceUris = new NamespaceTable(),
-                ServerUris = new StringTable()
-            };
+            return new ServerSystemContext(m_server.CurrentInstance, operationContext);
         }
 
         /// <summary>
@@ -4141,7 +4213,7 @@ namespace Opc.Ua.Server.Tests
         /// always resolves to <see cref="NodeId.Null"/>) so cross-Session
         /// PushManagement transaction ownership can be exercised.
         /// </summary>
-        private static SessionSystemContext CreateAdminContextForSession(NodeId sessionId)
+        private ServerSystemContext CreateAdminContextForSession(NodeId sessionId)
         {
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
@@ -4161,11 +4233,7 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Call,
                 RequestLifetime.None,
                 session.Object);
-            return new SessionSystemContext(operationContext, s_telemetry)
-            {
-                NamespaceUris = new NamespaceTable(),
-                ServerUris = new StringTable()
-            };
+            return new ServerSystemContext(m_server.CurrentInstance, operationContext);
         }
     }
 }

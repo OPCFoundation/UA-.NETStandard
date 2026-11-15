@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -307,15 +308,41 @@ namespace Opc.Ua.Server
                     retired = ReplaceUserTokenNonce(null);
                     prepared = TakePreparedUserTokenNonce();
                 }
-                retired?.Dispose();
-                prepared?.Dispose();
-                m_continuationPoints.Clear();
-
+                List<Exception>? failures = null;
+                Cleanup(() => retired?.Dispose());
+                Cleanup(() => prepared?.Dispose());
+                Cleanup(m_continuationPoints.Clear);
                 IdentityToken = null!;
+                Cleanup(() => ClientCertificate?.Dispose());
+                Cleanup(() => m_clientIssuerCertificates?.Dispose());
+                try
+                {
+                    m_serverCertificate.Dispose();
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+                if (failures is { Count: 1 })
+                {
+                    ExceptionDispatchInfo.Capture(failures[0]).Throw();
+                }
+                if (failures is { Count: > 1 })
+                {
+                    throw new AggregateException("Session disposal failed.", failures);
+                }
 
-                ClientCertificate?.Dispose();
-                m_clientIssuerCertificates?.Dispose();
-                m_serverCertificate.Dispose();
+                void Cleanup(Action action)
+                {
+                    try
+                    {
+                        action();
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    {
+                        (failures ??= []).Add(failure);
+                    }
+                }
             }
         }
 

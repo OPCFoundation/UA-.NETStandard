@@ -43,7 +43,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class ChangePreparerTests
     {
         /// <summary>
-        /// A custom facade over a synchronous candidate resolves the same staging server as its adapter.
+        /// A custom facade resolves candidate metadata only after its exact staging claim is accepted.
         /// </summary>
         /// <remarks>
         /// MasterNodeManager uses this lookup to capture a private candidate's external references and to
@@ -64,6 +64,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             candidateFacade.SetupGet(value => value.SyncNodeManager).Returns(candidate);
             var servingFacade = new Mock<IAsyncNodeManager>();
             servingFacade.SetupGet(value => value.SyncNodeManager).Returns(serving);
+            Assert.That(ChangePreparer.GetServer(candidateFacade.Object), Is.Null,
+                "Sharing a synchronous resource does not claim another logical facade's staging metadata.");
+            staging.Attach(candidateFacade.Object);
+            await using ChangePreparer.StagingServer rejected = new ChangePreparer(server.Object).CreateServer();
+            Assert.That(() => rejected.Attach(candidateFacade.Object),
+                Throws.TypeOf<NodeManagerAlreadyRegisteredException>());
 
             Assert.Multiple(() =>
             {
@@ -72,7 +78,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(alternateAdapter, Is.Not.SameAs(adapter));
                 Assert.That(ChangePreparer.GetServer(alternateAdapter), Is.SameAs(staging));
                 Assert.That(ChangePreparer.GetServer(candidateFacade.Object), Is.SameAs(staging));
+                Assert.That(ChangePreparer.GetServer(candidateFacade.Object), Is.Not.SameAs(rejected));
                 Assert.That(staging.IsStaging, Is.True);
+                Assert.That(staging.IsDetached, Is.False);
                 Assert.That(staging.NamespaceUris.GetIndex(kStagedNamespaceUri), Is.GreaterThanOrEqualTo(0));
                 Assert.That(server.Object.NamespaceUris.GetIndex(kStagedNamespaceUri), Is.EqualTo(-1));
                 Assert.That(ChangePreparer.GetServer(serving.ToAsyncNodeManager()), Is.Null);

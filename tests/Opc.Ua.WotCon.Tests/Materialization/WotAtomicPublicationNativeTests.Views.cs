@@ -55,6 +55,46 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed partial class WotAtomicPublicationNativeTests
     {
         /// <summary>
+        /// Teardown removes canonical and source owners together, joins retirement, and preserves durable intent.
+        /// </summary>
+        [Test]
+        [Platform("Win")]
+        public async Task RemoveAllRetiresCanonicalAndSourceOwnersWithoutChangingDurableIntentAsync()
+        {
+            using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
+            HandoffProbe probe = await ConfigureStockViewsAsync(views).ConfigureAwait(false);
+            ArrayOf<NodeManagerRegistration> baseline = m_server.NodeManagerLifecycle.Registrations;
+            WotResource source = await UpsertStockSourceAsync(false).ConfigureAwait(false);
+            await AddStockViewAsync("child", false).ConfigureAwait(false);
+            WotRefreshResult activated = await m_coordinator.RefreshAsync(HandoffRequest("terminal-canonical-owner"))
+                .ConfigureAwait(false);
+            Assert.That(activated.Results.All(row => row.LoadState == WoTLoadStateEnum.Active), Is.True);
+            NodeId root = Root(m_registry.Current.FindResourceByXid(source.Xid)!);
+            NodeId view = StockView("child");
+            WotRegistrySnapshot durable = m_registry.Current;
+            int created = probe.RuntimeCreatedCount;
+            int publications = probe.PublicationCount;
+            long revision = m_server.NodeManagerLifecycle.Revision;
+
+            await m_coordinator.RemoveAllAsync().ConfigureAwait(false);
+
+            Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(revision + 1));
+            Assert.That(probe.PublicationCount, Is.EqualTo(publications + 1));
+            Assert.That(probe.RuntimeDisposedCount, Is.EqualTo(created));
+            Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(), Is.EquivalentTo(baseline.ToList()));
+            Assert.That(m_registry.Current, Is.SameAs(durable));
+            Assert.That((await ReadNodeClassAsync(root).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That((await ReadNodeClassAsync(view).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+
+            await m_coordinator.RemoveAllAsync().ConfigureAwait(false);
+            Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(revision + 1));
+            Assert.That(probe.RuntimeCreatedCount, Is.EqualTo(created));
+            Assert.That(probe.RuntimeDisposedCount, Is.EqualTo(created));
+        }
+
+        /// <summary>
         /// Verifies that prepared view di uses the registered owner and rejects immediate only aliases.
         /// </summary>
         /// <param name="immediateOnly">The immediate-only flag for this test case.</param>
@@ -594,8 +634,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                 };
             }
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                options, m_registry, m_coordinator), callerContext: null)
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                options, m_registry, m_coordinator))])
                 .ConfigureAwait(false);
             m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kStockViewNamespace);
             return probe;

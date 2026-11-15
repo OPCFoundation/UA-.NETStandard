@@ -842,7 +842,21 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             var timeProvider = new FakeTimeProvider();
-            IServerInternal server = CreateServerWithRegistry(timeProvider: timeProvider);
+            var builders = new List<HistorianBuilder>();
+            var unregistrationSignals =
+                new ConcurrentDictionary<HistorianBuilder, TaskCompletionSource<bool>>();
+            IServerInternal server = CreateServerWithRegistry(builders, timeProvider: timeProvider);
+            Mock<IHistorianBuilderRegistry> lifecycle = Mock.Get(server).As<IHistorianBuilderRegistry>();
+            lifecycle
+                .Setup(value => value.UnregisterHistorianBuilder(It.IsAny<HistorianBuilder>()))
+                .Callback<HistorianBuilder>(builder =>
+                {
+                    builders.Remove(builder);
+                    if (unregistrationSignals.TryGetValue(builder, out TaskCompletionSource<bool>? signal))
+                    {
+                        signal.TrySetResult(true);
+                    }
+                });
             (NodeManagerBuilder nodeBuilder, BaseDataVariableState variable) = CreateBuilderForServer(server);
             using var inner = new InMemoryHistorianProvider(new InMemoryHistorianOptions
             {
@@ -876,6 +890,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     }
                 });
             HistorianBuilder historian = nodeBuilder.UseHistorian().UseProvider(provider.Object);
+            var historianUnregistered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            unregistrationSignals[historian] = historianUnregistered;
             historian.Historize(variable, systemContext: nodeBuilder.Context,
                 captureOptions: new HistorianCaptureOptions
                 {
@@ -886,6 +903,8 @@ namespace Opc.Ua.Server.Tests.Historian
             variable.ClearChangeMasks(nodeBuilder.Context, includeChildren: false);
             Task? disposal = null;
             AggregateException? terminalFailure = null;
+            HistorianBuilder? successorHistorian = null;
+            BaseDataVariableState? successorVariable = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -919,6 +938,28 @@ namespace Opc.Ua.Server.Tests.Historian
                     terminalFailure = failure;
                     Assert.That(finished.Task.IsCompleted, Is.False,
                         "Timing out the drain must not claim that the provider has completed.");
+                    Assert.That(builders, Does.Contain(historian),
+                        "A builder with a live provider consumer must remain registered for server shutdown.");
+
+                    (NodeManagerBuilder _, BaseDataVariableState pendingVariable) =
+                        CreateBuilderForServer(server);
+                    pendingVariable.NodeId = new NodeId("successor-var", kNs);
+                    byte accessBefore = pendingVariable.AccessLevel;
+                    byte userAccessBefore = pendingVariable.UserAccessLevel;
+                    successorVariable = pendingVariable;
+                    successorHistorian = new HistorianBuilder(server);
+                    successorHistorian.UseProvider(provider.Object);
+                    Assert.That(
+                        () => successorHistorian.Historize(
+                            pendingVariable,
+                            systemContext: nodeBuilder.Context),
+                        Throws.TypeOf<InvalidOperationException>());
+                    Assert.That(pendingVariable.Historizing, Is.False);
+                    Assert.That(pendingVariable.AccessLevel, Is.EqualTo(accessBefore));
+                    Assert.That(pendingVariable.UserAccessLevel, Is.EqualTo(userAccessBefore));
+                    Assert.That(
+                        () => successorHistorian.CreateCaptureHandlerTargetReference(pendingVariable),
+                        Throws.TypeOf<InvalidOperationException>());
                 }
                 else
                 {
@@ -959,6 +1000,22 @@ namespace Opc.Ua.Server.Tests.Historian
                 }
             }
 
+            if (successorHistorian is not null && successorVariable is not null)
+            {
+                await HistorianBuilder.WaitForProviderCaptureCleanupAsync(provider.Object)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                await historianUnregistered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                successorHistorian.Historize(
+                    successorVariable,
+                    systemContext: nodeBuilder.Context,
+                    captureOptions: new HistorianCaptureOptions
+                    {
+                        BatchTarget = 1,
+                        BatchWindow = TimeSpan.Zero
+                    });
+                await successorHistorian.DisposeAsync().ConfigureAwait(false);
+            }
+
             provider.As<IHistorianDataProvider>().Verify(value => value.InsertAsync(
                 It.IsAny<HistorianOperationContext>(), variable.NodeId,
                 It.IsAny<ArrayOf<DataValue>>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -980,6 +1037,12 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 await VerifyEventCaptureTimeoutAsync().ConfigureAwait(false);
             }
+            else
+            {
+                await historianUnregistered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            Assert.That(builders, Is.Empty);
+            lifecycle.Verify(value => value.UnregisterHistorianBuilder(historian), Times.Once);
 
             async Task VerifyEventCaptureTimeoutAsync()
             {
@@ -987,6 +1050,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 var eventRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var eventFinished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var eventProvider = new Mock<IHistorianProvider>();
+                var eventHistorianUnregistered = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
                 eventProvider.As<IHistorianEventProvider>()
                     .Setup(value => value.UpdateEventsAsync(
                         It.IsAny<HistorianOperationContext>(), It.IsAny<NodeId>(),
@@ -1006,6 +1071,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         }
                     });
                 var eventHistorian = new HistorianBuilder(server);
+                    unregistrationSignals[eventHistorian] = eventHistorianUnregistered;
                 eventHistorian.UseProvider(eventProvider.Object);
                 var notifier = new BaseObjectState(null)
                 {
@@ -1039,6 +1105,13 @@ namespace Opc.Ua.Server.Tests.Historian
 
                 Task? eventDisposal = null;
                 AggregateException? terminalEventFailure = null;
+                var successorEventHistorian = new HistorianBuilder(server);
+                successorEventHistorian.UseProvider(eventProvider.Object);
+                var successorNotifier = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("successor-event-drain", kNs),
+                    BrowseName = new QualifiedName("successor-event-drain", kNs)
+                };
                 try
                 {
                     await eventEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -1065,6 +1138,19 @@ namespace Opc.Ua.Server.Tests.Historian
                         async () => await eventHistorian.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
                     Assert.That(repeatedFailure, Is.SameAs(failure));
                     Assert.That(eventFinished.Task.IsCompleted, Is.False);
+                    Assert.That(builders, Does.Contain(eventHistorian),
+                        "The timed-out event consumer must keep its builder registered.");
+
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await successorEventHistorian.HistorizeEventsAsync(
+                            successorNotifier,
+                            nodeBuilder.Context,
+                            installConfiguration: false,
+                            capabilities: HistorianNodeCapabilities.EventReadWrite with
+                            {
+                                EventTypes = [ObjectTypeIds.BaseEventType]
+                            }).ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(successorNotifier.EventNotifier, Is.Zero);
 
                     await notifier.ReportEventAsync(nodeBuilder.Context, reportedEvent, timeout.Token)
                         .ConfigureAwait(false);
@@ -1091,9 +1177,214 @@ namespace Opc.Ua.Server.Tests.Historian
                         await eventHistorian.DisposeAsync().ConfigureAwait(false);
                     }
                 }
+                await HistorianBuilder.WaitForProviderCaptureCleanupAsync(eventProvider.Object)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                await eventHistorianUnregistered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await successorEventHistorian.HistorizeEventsAsync(
+                    successorNotifier,
+                    nodeBuilder.Context,
+                    installConfiguration: false,
+                    capabilities: HistorianNodeCapabilities.EventReadWrite with
+                    {
+                        EventTypes = [ObjectTypeIds.BaseEventType]
+                    }).ConfigureAwait(false);
+                await successorEventHistorian.DisposeAsync().ConfigureAwait(false);
+                Assert.That(builders, Does.Not.Contain(eventHistorian));
+                lifecycle.Verify(value => value.UnregisterHistorianBuilder(eventHistorian), Times.Once);
                 eventProvider.As<IHistorianEventProvider>().Verify(value => value.UpdateEventsAsync(
                     It.IsAny<HistorianOperationContext>(), notifier.NodeId,
                     It.IsAny<ArrayOf<HistorianEventRecord>>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that provider capture admission stays closed until every timed-out consumer completes.
+        /// </summary>
+        [Test]
+        public async Task ProviderCaptureAdmissionWaitsForEveryTimedOutConsumerAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var timeProvider = new FakeTimeProvider();
+            IServerInternal server = CreateServerWithRegistry(timeProvider: timeProvider);
+            (NodeManagerBuilder firstNodeBuilder, BaseDataVariableState firstVariable) =
+                CreateBuilderForServer(server);
+            (NodeManagerBuilder secondNodeBuilder, BaseDataVariableState secondVariable) =
+                CreateBuilderForServer(server);
+            firstVariable.NodeId = new NodeId("first-pending-provider", kNs);
+            secondVariable.NodeId = new NodeId("second-pending-provider", kNs);
+
+            var entered = new TaskCompletionSource<bool>[]
+            {
+                new(TaskCreationOptions.RunContinuationsAsynchronously),
+                new(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            var release = new TaskCompletionSource<bool>[]
+            {
+                new(TaskCreationOptions.RunContinuationsAsynchronously),
+                new(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            var finished = new TaskCompletionSource<bool>[]
+            {
+                new(TaskCreationOptions.RunContinuationsAsynchronously),
+                new(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            int calls = 0;
+            var provider = new Mock<IHistorianProvider>();
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.InsertAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<ArrayOf<DataValue>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (
+                    HistorianOperationContext _,
+                    NodeId _,
+                    ArrayOf<DataValue> _,
+                    CancellationToken _) =>
+                {
+                    int slot = Interlocked.Increment(ref calls) - 1;
+                    entered[slot].TrySetResult(true);
+                    try
+                    {
+                        await release[slot].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        return new HistorianUpdateOutcome<DataValue>([StatusCodes.Good]);
+                    }
+                    finally
+                    {
+                        finished[slot].TrySetResult(true);
+                    }
+                });
+
+            var firstHistorian = new HistorianBuilder(server);
+            firstHistorian.UseProvider(provider.Object);
+            firstHistorian.Historize(
+                firstVariable,
+                systemContext: firstNodeBuilder.Context,
+                captureOptions: new HistorianCaptureOptions
+                {
+                    BatchTarget = 1,
+                    BatchWindow = TimeSpan.Zero
+                });
+            var secondHistorian = new HistorianBuilder(server);
+            secondHistorian.UseProvider(provider.Object);
+            secondHistorian.Historize(
+                secondVariable,
+                systemContext: secondNodeBuilder.Context,
+                captureOptions: new HistorianCaptureOptions
+                {
+                    BatchTarget = 1,
+                    BatchWindow = TimeSpan.Zero
+                });
+
+            firstVariable.Value = 1;
+            firstVariable.ClearChangeMasks(firstNodeBuilder.Context, includeChildren: false);
+            secondVariable.Value = 2;
+            secondVariable.ClearChangeMasks(secondNodeBuilder.Context, includeChildren: false);
+
+            Task? firstDisposal = null;
+            Task? secondDisposal = null;
+            AggregateException? firstTerminalFailure = null;
+            AggregateException? secondTerminalFailure = null;
+            try
+            {
+                await Task.WhenAll(entered[0].Task, entered[1].Task)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                Task firstDispose = firstHistorian.DisposeAsync().AsTask();
+                Task secondDispose = secondHistorian.DisposeAsync().AsTask();
+                firstDisposal = firstDispose;
+                secondDisposal = secondDispose;
+                timeProvider.Advance(TimeSpan.FromSeconds(5));
+
+                AggregateException? firstFailure = await Assert.CatchAsync<AggregateException>(
+                    () => firstDispose).ConfigureAwait(false);
+                AggregateException? secondFailure = await Assert.CatchAsync<AggregateException>(
+                    () => secondDispose).ConfigureAwait(false);
+                Assert.That(firstFailure!.InnerExceptions, Has.Some.TypeOf<TimeoutException>());
+                Assert.That(secondFailure!.InnerExceptions, Has.Some.TypeOf<TimeoutException>());
+                firstTerminalFailure = firstFailure;
+                secondTerminalFailure = secondFailure;
+
+                release[0].TrySetResult(true);
+                await finished[0].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                var blockedHistorian = new HistorianBuilder(server);
+                blockedHistorian.UseProvider(provider.Object);
+                var blockedVariable = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("still-pending-provider", kNs),
+                    BrowseName = new QualifiedName("still-pending-provider", kNs)
+                };
+                Assert.That(
+                    () => blockedHistorian.Historize(
+                        blockedVariable,
+                        systemContext: firstNodeBuilder.Context),
+                    Throws.TypeOf<InvalidOperationException>());
+                Assert.That(blockedVariable.Historizing, Is.False);
+                await blockedHistorian.DisposeAsync().ConfigureAwait(false);
+
+                release[1].TrySetResult(true);
+                await HistorianBuilder.WaitForProviderCaptureCleanupAsync(provider.Object)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                var successorHistorian = new HistorianBuilder(server);
+                successorHistorian.UseProvider(provider.Object);
+                var successorVariable = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("reopened-provider", kNs),
+                    BrowseName = new QualifiedName("reopened-provider", kNs)
+                };
+                successorHistorian.Historize(
+                    successorVariable,
+                    systemContext: firstNodeBuilder.Context);
+                await successorHistorian.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                release[0].TrySetResult(true);
+                release[1].TrySetResult(true);
+                if (entered[0].Task.IsCompleted)
+                {
+                    await finished[0].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                if (entered[1].Task.IsCompleted)
+                {
+                    await finished[1].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                foreach (Task? disposal in new[] { firstDisposal, secondDisposal })
+                {
+                    if (disposal is { IsCompleted: false })
+                    {
+                        await disposal.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                await VerifyDisposalResultAsync(firstHistorian, firstDisposal, firstTerminalFailure)
+                    .ConfigureAwait(false);
+                await VerifyDisposalResultAsync(secondHistorian, secondDisposal, secondTerminalFailure)
+                    .ConfigureAwait(false);
+            }
+
+            provider.As<IHistorianDataProvider>().Verify(value => value.InsertAsync(
+                It.IsAny<HistorianOperationContext>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<ArrayOf<DataValue>>(),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+
+            async Task VerifyDisposalResultAsync(
+                HistorianBuilder historian,
+                Task? disposal,
+                AggregateException? terminalFailure)
+            {
+                if (disposal is { IsFaulted: true })
+                {
+                    AggregateException? repeatedFailure = await Assert.CatchAsync<AggregateException>(
+                        async () => await historian.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                    if (terminalFailure is not null)
+                    {
+                        Assert.That(repeatedFailure, Is.SameAs(terminalFailure));
+                    }
+                }
+                else
+                {
+                    await historian.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 

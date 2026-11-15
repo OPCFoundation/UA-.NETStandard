@@ -56,7 +56,8 @@ namespace Opc.Ua.Server.FileSystem
     /// under <c>i=16314</c>.
     /// </para>
     /// </remarks>
-    public sealed class FileSystemNodeManager : AsyncCustomNodeManager, IFileSystemHost
+    public sealed class FileSystemNodeManager :
+        AsyncCustomNodeManager, IFileSystemHost, INodeManagerCleanupParticipant
     {
         /// <summary>
         /// Base URI used to build the namespace URI of a mounted
@@ -124,13 +125,124 @@ namespace Opc.Ua.Server.FileSystem
 
         bool IFileSystemHost.UsesVirtualDirectoryBrowsing => true;
 
+        void IFileSystemHost.RegisterDirectoryCursor(DirectoryCursorOwnership ownership)
+        {
+            lock (m_lock)
+            {
+                if (m_cursorAdmissionClosed || m_fileSystemDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(FileSystemNodeManager));
+                }
+                m_directoryCursors.RemoveAll(static cursor => cursor.IsReleased);
+                m_directoryCursors.Add(ownership);
+            }
+        }
+
+        void IFileSystemHost.CompleteDirectoryCursor(DirectoryCursorOwnership ownership)
+        {
+            lock (m_lock)
+            {
+                if (ownership.IsReleased)
+                {
+                    m_directoryCursors.Remove(ownership);
+                }
+            }
+        }
+
         void IFileSystemHost.TrackCursorCleanup(Task cleanup)
         {
             lock (m_lock)
             {
-                m_cursorCleanups.RemoveAll(static pending => pending.IsCompleted);
+                m_cursorCleanups.RemoveAll(static pending => pending.Status == TaskStatus.RanToCompletion);
                 m_cursorCleanups.Add(cleanup);
             }
+        }
+
+        /// <inheritdoc/>
+        ArrayOf<NodeManagerCleanupFailure> INodeManagerCleanupParticipant.GetCleanupFailures(
+            NodeManagerCleanupAccess access)
+        {
+            if (access is null)
+            {
+                throw new ArgumentNullException(nameof(access));
+            }
+            lock (m_lock)
+            {
+                if (!access.IsAuthorizedFor(this))
+                {
+                    throw new UnauthorizedAccessException("The cleanup discovery capability is invalid.");
+                }
+                var failures = new List<NodeManagerCleanupFailure>();
+                foreach (DirectoryCursorOwnership cursor in m_directoryCursors)
+                {
+                    if (cursor.TryGetFailure(out _, out _))
+                    {
+                        failures.Add(new NodeManagerCleanupFailure(
+                            cursor.Id, "DirectoryCursor", null, StatusCodes.BadUnexpectedError));
+                    }
+                }
+                return new ArrayOf<NodeManagerCleanupFailure>(failures.ToArray());
+            }
+        }
+
+        /// <inheritdoc/>
+        NodeManagerCleanupResource INodeManagerCleanupParticipant.GetCleanupResource(
+            NodeManagerCleanupVerification verification)
+        {
+            if (verification is null)
+            {
+                throw new ArgumentNullException(nameof(verification));
+            }
+            lock (m_lock)
+            {
+                if (!verification.TryConsume(this, out Guid id))
+                {
+                    throw new InvalidOperationException("The cleanup verification capability is invalid.");
+                }
+                foreach (DirectoryCursorOwnership cursor in m_directoryCursors)
+                {
+                    if (cursor.Id == id)
+                    {
+                        return cursor.GetCleanupResource();
+                    }
+                }
+                throw new InvalidOperationException("The retained directory cursor was not found.");
+            }
+        }
+
+        /// <inheritdoc/>
+        void INodeManagerCleanupParticipant.ConfirmCleanup(NodeManagerCleanupConfirmation confirmation)
+        {
+            if (confirmation is null)
+            {
+                throw new ArgumentNullException(nameof(confirmation));
+            }
+            TaskCompletionSource<bool>? changed = null;
+            bool confirmed = false;
+            lock (m_lock)
+            {
+                if (!confirmation.TryConsume(this, out Guid id))
+                {
+                    throw new InvalidOperationException("The cleanup confirmation capability is invalid.");
+                }
+                for (int index = 0; index < m_directoryCursors.Count; index++)
+                {
+                    DirectoryCursorOwnership cursor = m_directoryCursors[index];
+                    if (cursor.Id == id && cursor.TryConfirm())
+                    {
+                        m_directoryCursors.RemoveAt(index);
+                        changed = m_cursorFailuresChanged;
+                        m_cursorFailuresChanged = null;
+                        confirmed = true;
+                        break;
+                    }
+                }
+            }
+            if (!confirmed)
+            {
+                throw new InvalidOperationException("The retained directory cursor was not found.");
+            }
+            changed?.TrySetResult(true);
         }
 
         string IFileSystemHost.CombineProviderPath(string parent, string name)
@@ -266,8 +378,8 @@ namespace Opc.Ua.Server.FileSystem
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Deletion waits for recorded cursor cleanups, including those added while it waits.
-        /// A cleanup recorded after the host finds its tracking list empty is not included in that wait.
+        /// Deletion closes cursor admission and waits for every previously registered cursor.
+        /// A failed cursor remains retained until its cleanup is verified.
         /// </remarks>
         public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
@@ -349,16 +461,19 @@ namespace Opc.Ua.Server.FileSystem
         public override async ValueTask DisposeAsync()
         {
             Task cleanup = base.DisposeAsync().AsTask();
-            if (await Task.WhenAny(cleanup, Task.Delay(CloseTimeout)).ConfigureAwait(false) == cleanup)
+            if (await Task.WhenAny(cleanup, Task.Delay(CloseTimeout)).ConfigureAwait(false) == cleanup ||
+                cleanup.IsCompleted)
             {
                 await cleanup.ConfigureAwait(false);
+                return;
             }
+            throw new NodeManagerCleanupDeferredException(cleanup);
         }
 
         /// <inheritdoc/>
         protected override async ValueTask DisposeAsyncCore()
         {
-            await WaitForCursorCleanupsAsync().ConfigureAwait(false);
+            await WaitForCursorCleanupsAsync(waitForConfirmation: true).ConfigureAwait(false);
             FileHandle[] handles;
             lock (m_lock)
             {
@@ -375,24 +490,65 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <summary>
-        /// Waits for recorded cursor cleanup tasks, including tasks added while an earlier batch is awaited.
+        /// Closes cursor admission and waits for registered cursors and recorded cleanup tasks.
         /// </summary>
-        private async ValueTask WaitForCursorCleanupsAsync()
+        /// <param name="waitForConfirmation">Whether unresolved failures keep disposal pending.</param>
+        private async ValueTask WaitForCursorCleanupsAsync(bool waitForConfirmation = false)
         {
             while (true)
             {
                 Task[] pending;
+                var failures = new List<Exception>();
+                int retainedCursorFailures = 0;
                 lock (m_lock)
                 {
-                    m_cursorCleanups.RemoveAll(static cleanup => cleanup.IsCompleted);
-                    if (m_cursorCleanups.Count == 0)
+                    m_cursorAdmissionClosed = true;
+                    m_cursorCleanups.RemoveAll(static cleanup => cleanup.Status == TaskStatus.RanToCompletion);
+                    m_directoryCursors.RemoveAll(static cursor => cursor.IsReleased);
+                    var active = new List<Task>();
+                    foreach (Task cleanup in m_cursorCleanups)
                     {
-                        return;
+                        if (cleanup.IsFaulted)
+                        {
+                            failures.Add(cleanup.Exception!);
+                        }
+                        else if (cleanup.IsCanceled)
+                        {
+                            failures.Add(new TaskCanceledException(cleanup));
+                        }
+                        else
+                        {
+                            active.Add(cleanup);
+                        }
                     }
-                    pending = [.. m_cursorCleanups];
+                    foreach (DirectoryCursorOwnership cursor in m_directoryCursors)
+                    {
+                        if (cursor.TryGetFailure(out _, out Exception? failure) && failure is not null)
+                        {
+                            failures.Add(failure);
+                            retainedCursorFailures++;
+                        }
+                        else
+                        {
+                            active.Add(cursor.Completion);
+                        }
+                    }
+                    if (active.Count == 0 && retainedCursorFailures != 0 && waitForConfirmation)
+                    {
+                        active.Add((m_cursorFailuresChanged ??= new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously)).Task);
+                    }
+                    pending = [.. active];
                 }
-
-                await Task.WhenAll(pending).ConfigureAwait(false);
+                if (pending.Length == 0)
+                {
+                    if (failures.Count != 0)
+                    {
+                        throw new AggregateException("Directory cursor cleanup failed.", failures);
+                    }
+                    return;
+                }
+                await Task.WhenAny(pending).ConfigureAwait(false);
             }
         }
 
@@ -763,8 +919,11 @@ namespace Opc.Ua.Server.FileSystem
         /// Path identities of the Delete and Move mutations currently running; guarded by m_lock.
         /// </summary>
         private readonly List<string> m_mutations = [];
+        private readonly List<DirectoryCursorOwnership> m_directoryCursors = [];
         private readonly List<Task> m_cursorCleanups = [];
         private readonly Lock m_lock = new();
+        private TaskCompletionSource<bool>? m_cursorFailuresChanged;
+        private bool m_cursorAdmissionClosed;
         private bool m_fileSystemDisposed;
 
         /// <summary>

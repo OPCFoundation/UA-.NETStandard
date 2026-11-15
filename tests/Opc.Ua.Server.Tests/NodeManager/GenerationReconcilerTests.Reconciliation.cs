@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     successfulCallbacks++;
                 }).ConfigureAwait(false);
                 work.Seal();
-                var result = new NodeManagerBatchResult(
+                var result = new LifecycleResult(
                     [], 0, original, 1, [], Task.CompletedTask, work.Ticket);
                 Task retry = result.RetryReconciliationAsync().AsTask();
                 try

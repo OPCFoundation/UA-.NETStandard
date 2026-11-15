@@ -66,19 +66,6 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Synchronous counterpart of <see cref="INodeManagerReadinessNotification"/> for
-    /// <see cref="INodeManager"/> implementations. <see cref="AsyncNodeManagerAdapter"/> invokes it
-    /// when the wrapped manager implements it.
-    /// </summary>
-    public interface ISyncNodeManagerReadinessNotification
-    {
-        /// <summary>
-        /// Completes initialization once runtime lifecycle operations are available.
-        /// </summary>
-        void OnServerReady();
-    }
-
-    /// <summary>
     /// Readiness participation helpers for adapted and directly implemented managers.
     /// </summary>
     internal static class NodeManagerReadiness

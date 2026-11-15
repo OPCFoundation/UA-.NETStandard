@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System.Threading.Tasks;
+using System.Threading;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -46,8 +48,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task SecurityR44ShadowReloadReenableRechecksAcceptedIdentityOnExactSourceAsync(
             bool authorized)
         {
-            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateGenerationOptions(1), null).ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateGenerationOptions(1))), CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration original = RequireRegistration(publicationResult1.Registrations[0]);
             IServerInternal server = m_server.CurrentInstance;
             var owner = (AsyncCustomNodeManager)original.NodeManager;
             var nodeId = new NodeId(kValueNodeId, (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri));
@@ -75,9 +80,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             SetMonitoringModeResponse disabled = await services.SetMonitoringModeAsync(
                 m_requestHeader, subscriptionId, MonitoringMode.Disabled, [itemId]).ConfigureAwait(false);
             Assert.That(disabled.Results[0], Is.EqualTo(StatusCodes.Good));
-            NodeManagerRegistration replacement = await m_server.NodeManagerLifecycle.ShadowReloadRuntimeNodeSetAsync(
-                original, CreateGenerationOptions(2))
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult2 = await CommitChangeAsync(
+                LifecycleInspection.Capture(
+                m_server.NodeManagerLifecycle, original), LifecycleChange.Replace(
+                original.Slot, new RuntimeNodeSetNodeManagerFactory(
+                CreateGenerationOptions(2))), CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration replacement = LifecycleInspection.Registration(publicationResult2.Registrations[0]);
             Assert.That(replacement.NodeManager, Is.Not.SameAs(owner));
             var replacementOwner = (AsyncCustomNodeManager)replacement.NodeManager;
             var replacementHandle = (NodeHandle)(await replacementOwner.GetManagerHandleAsync(nodeId)

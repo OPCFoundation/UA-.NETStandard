@@ -339,9 +339,10 @@ namespace Opc.Ua.Server
             // transaction whose (uncommitted) targets a snapshot would report.
             var committedEffects = new PushConfigurationApplyEffects();
             ServiceResult result;
+            using var rotationScope = new NodeManagerAmbientScope<RotationCollector>(
+                m_activeRotationCollector, new RotationCollector(rotations));
             try
             {
-                m_activeRotationCollector.Value = rotations;
                 if (m_serverConfigurationOptions.PushAuthorization is IPushConfigurationCompletion completion)
                 {
                     if (m_coordinator is not IPushConfigurationTransactionCompletion transactionalCompletion)
@@ -367,7 +368,10 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_activeRotationCollector.Value = null;
+                lock (m_pendingApplyChangesLock)
+                {
+                    rotationScope.Dispose();
+                }
             }
 
             UpdateTransactionDiagnostics(context);
@@ -377,10 +381,7 @@ namespace Opc.Ua.Server
                 // The transaction failed and was reverse-compensated;
                 // nothing actually rotated, so any provisionally-recorded
                 // rotations must be discarded rather than scheduled.
-                foreach (PendingCertificateRotation rotation in rotations)
-                {
-                    rotation.OldCertificate?.Dispose();
-                }
+                DisposeRotations(rotations);
                 return result;
             }
 
@@ -701,7 +702,14 @@ namespace Opc.Ua.Server
             {
                 rotation.OldCertificate?.Dispose();
             }
+            rotations.Clear();
         }
+
+        /// <summary>
+        /// Carries the certificate references collected by an active apply callback.
+        /// </summary>
+        /// <param name="Rotations">The callback's collection, or null when no scope is active.</param>
+        private readonly record struct RotationCollector(List<PendingCertificateRotation>? Rotations);
 
         /// <summary>
         /// Captured payload for a single certificate-group rotation

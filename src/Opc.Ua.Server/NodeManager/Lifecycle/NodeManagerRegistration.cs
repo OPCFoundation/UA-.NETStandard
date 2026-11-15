@@ -67,8 +67,8 @@ namespace Opc.Ua.Server
     /// Describes a prepared or committed registration by its slot and generation metadata.
     /// </summary>
     /// <remarks>
-    /// References to the registration and NodeManager are weak. The snapshot holds its slot strongly,
-    /// and the slot retains its current generation and unresolved subscription items.
+    /// References to the registration, its generation and NodeManager are weak. The snapshot holds its
+    /// slot strongly, and the slot retains its current generation and unresolved subscription items.
     /// </remarks>
     public readonly record struct NodeManagerRegistrationSnapshot
     {
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server
             Generation = registration.Generation;
             NamespaceUris = registration.NamespaceUris;
             m_registration = new WeakReference<NodeManagerRegistration>(registration);
-            m_nodeManager = new WeakReference<IAsyncNodeManager>(registration.NodeManager);
+            m_references = new RegistrationReferences(registration);
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server
         /// <returns>True if the reference resolves; otherwise, false.</returns>
         public bool TryGetNodeManager(out IAsyncNodeManager? nodeManager)
         {
-            if (m_nodeManager is not null && m_nodeManager.TryGetTarget(out nodeManager))
+            if (m_references is not null && m_references.NodeManager.TryGetTarget(out nodeManager))
             {
                 return true;
             }
@@ -130,15 +130,12 @@ namespace Opc.Ua.Server
         /// Attempts to obtain a strong registration handle.
         /// </summary>
         /// <remarks>
-        /// Returns the original registration if its weak reference resolves. Otherwise, if the NodeManager is
-        /// available, the current implementation reconstructs a handle from its generation association without
-        /// checking the slot or manager against the snapshot. Keep the original handle if its exact identity matters.
+        /// Returns the original registration if its weak reference resolves. Otherwise, a handle is reconstructed
+        /// only while the original generation and NodeManager are available. Reassociation of the NodeManager
+        /// with another generation does not change the returned handle.
         /// </remarks>
         /// <param name="registration">The strong registration handle if available; otherwise, null.</param>
         /// <returns>True if a registration is returned; otherwise, false.</returns>
-        /// <exception cref="InvalidOperationException">
-        /// The current generation number differs from the snapshot.
-        /// </exception>
         public bool TryGetRegistration(out NodeManagerRegistration? registration)
         {
             if (m_registration is not null &&
@@ -147,9 +144,16 @@ namespace Opc.Ua.Server
                 registration = retainedRegistration;
                 return true;
             }
-            if (TryGetNodeManager(out IAsyncNodeManager? nodeManager) && nodeManager is not null)
+            if (m_references is not null &&
+                m_references.Generation.TryGetGeneration(out NodeManagerGeneration? identity) &&
+                identity is not null &&
+                ReferenceEquals(identity.Slot, Slot) &&
+                identity.Number == Generation &&
+                identity.Slot.Id == Id &&
+                TryGetNodeManager(out IAsyncNodeManager? nodeManager) &&
+                ReferenceEquals(identity.NodeManager, nodeManager))
             {
-                registration = new NodeManagerRegistration(Id, Generation, nodeManager);
+                registration = new NodeManagerRegistration(identity, NamespaceUris);
                 return true;
             }
             registration = null;
@@ -157,10 +161,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Determines whether two snapshots identify the same registration generation.
+        /// Determines whether two snapshots have the same slot, identifier and generation number.
         /// </summary>
+        /// <remarks>
+        /// Equality does not distinguish separate prepared generations with the same metadata.
+        /// </remarks>
         /// <param name="other">The snapshot to compare.</param>
-        /// <returns>Whether both snapshots identify the same generation.</returns>
+        /// <returns>Whether both snapshots have the same registration metadata.</returns>
         public bool Equals(NodeManagerRegistrationSnapshot other)
         {
             return ReferenceEquals(Slot, other.Slot) && Id == other.Id && Generation == other.Generation;
@@ -173,7 +180,33 @@ namespace Opc.Ua.Server
         }
 
         private readonly WeakReference<NodeManagerRegistration>? m_registration;
-        private readonly WeakReference<IAsyncNodeManager>? m_nodeManager;
+        private readonly RegistrationReferences? m_references;
+
+        /// <summary>
+        /// Keeps weak references to the original manager and generation without extending their lifetimes.
+        /// </summary>
+        private sealed class RegistrationReferences
+        {
+            /// <summary>
+            /// Captures the original registration's manager and generation.
+            /// </summary>
+            /// <param name="registration">The registration being described.</param>
+            internal RegistrationReferences(NodeManagerRegistration registration)
+            {
+                NodeManager = new WeakReference<IAsyncNodeManager>(registration.NodeManager);
+                Generation = registration.Identity.Reference;
+            }
+
+            /// <summary>
+            /// Gets the weak reference to the original manager.
+            /// </summary>
+            internal WeakReference<IAsyncNodeManager> NodeManager { get; }
+
+            /// <summary>
+            /// Gets the weak reference to the original generation.
+            /// </summary>
+            internal NodeManagerGenerationReference Generation { get; }
+        }
     }
 
     /// <summary>
@@ -181,18 +214,24 @@ namespace Opc.Ua.Server
     /// </summary>
     public sealed class NodeManagerRegistration
     {
+        /// <summary>
+        /// Creates a registration for the manager's associated generation.
+        /// </summary>
+        /// <param name="id">The identifier to assign to the generation's slot.</param>
+        /// <param name="generation">The expected generation number.</param>
+        /// <param name="nodeManager">The manager associated with the generation.</param>
         internal NodeManagerRegistration(
             Guid id,
             long generation,
             IAsyncNodeManager nodeManager)
         {
             NodeManagerGeneration identity = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
-            identity.Slot.SetRegistrationId(id);
             if (identity.Number != generation)
             {
                 throw new InvalidOperationException(
                     $"Expected node-manager generation {generation}, but the published identity is {identity.Number}.");
             }
+            identity.Slot.SetRegistrationId(id);
             Identity = identity;
             Slot = identity.Slot;
             Id = Slot.Id;
@@ -202,6 +241,21 @@ namespace Opc.Ua.Server
             NamespaceUris = namespaceUris is null
                 ? default
                 : new ArrayOf<string>(namespaceUris.ToArray());
+        }
+
+        /// <summary>
+        /// Reconstructs a handle from the original generation and its captured namespace metadata.
+        /// </summary>
+        /// <param name="identity">The exact generation represented by the handle.</param>
+        /// <param name="namespaceUris">The captured namespace metadata.</param>
+        internal NodeManagerRegistration(NodeManagerGeneration identity, ArrayOf<string> namespaceUris)
+        {
+            Identity = identity ?? throw new ArgumentNullException(nameof(identity));
+            Slot = identity.Slot;
+            Id = Slot.Id;
+            Generation = identity.Number;
+            NodeManager = identity.NodeManager;
+            NamespaceUris = namespaceUris;
         }
 
         /// <summary>

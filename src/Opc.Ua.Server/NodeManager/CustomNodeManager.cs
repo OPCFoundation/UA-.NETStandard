@@ -396,7 +396,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        protected PredefinedNodeDictionary PredefinedNodes { get; }
 
         /// <summary>
         /// The root notifiers for the node manager.
@@ -1548,7 +1548,7 @@ namespace Opc.Ua.Server
             NodeState node,
             List<LocalReference> referencesToRemove)
         {
-            if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+            if (!PredefinedNodes.TryRemove(node.NodeId, node))
             {
                 return;
             }
@@ -1941,6 +1941,7 @@ namespace Opc.Ua.Server
         public virtual void DeleteAddressSpace()
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
+            NodeState[] notifiers = RootNotifiers?.ToArray() ?? [];
             NodeState[] nodes = [.. PredefinedNodes.Values];
             ISystemContext context = SystemContext;
             List<LocalReference> referencesToRemove =
@@ -1961,11 +1962,10 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
-                if (!PredefinedNodes.ContainsKey(node.NodeId))
+                if (!PredefinedNodes.TryRemove(node.NodeId, node))
                 {
                     continue;
                 }
-                PredefinedNodes.Remove(node.NodeId);
 
                 OnNodeRemoved(node);
                 if (node is BaseTypeState type &&
@@ -1989,12 +1989,9 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (RootNotifiers != null)
+            foreach (NodeState notifier in notifiers)
             {
-                foreach (NodeState notifier in RootNotifiers.ToArray())
-                {
-                    RemoveRootNotifier(notifier);
-                }
+                RemoveRootNotifier(notifier);
             }
         }
 

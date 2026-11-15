@@ -52,12 +52,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public async Task PreparedRootNotifierReferencesRemainPrivateUntilPublicationOrAbortAsync(bool publish)
         {
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
             var factory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId);
-            NodeManagerBatchResult? result = null;
+            LifecycleResult? result = null;
 
-            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], null).ConfigureAwait(false))
+            await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)]).ConfigureAwait(false))
             {
                 LifecycleRootNotifierNodeManager candidate = RequireLifecycleValue(factory.Manager);
                 Assert.That(candidate.ServerReferenceExistsAfterCreation, Is.False);
@@ -84,23 +84,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task FailedRootNotifierReplacementKeepsServingReferenceAsync()
         {
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
             var originalFactory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId);
-            NodeManagerBatchResult original = await CommitRootNotifierAdditionAsync(
+            LifecycleResult original = await CommitRootNotifierAdditionAsync(
                 lifecycle,
                 originalFactory).ConfigureAwait(false);
-            NodeManagerRegistration registration = original.Registrations[0];
+            NodeManagerRegistration registration = RequireRegistration(original.Registrations[0]);
             NodeId notifierId = RequireLifecycleValue(originalFactory.Manager).RootNotifierId;
             Assert.That(HasServerNotifierReference(notifierId), Is.True);
 
             var replacementFactory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId);
             var failingFactory = new LifecycleFailingFactory();
-            await Assert.ThatAsync(() => lifecycle.PrepareAsync(
-                [
-                    NodeManagerBatchChange.Replace(registration, replacementFactory),
-                    NodeManagerBatchChange.Add(failingFactory)
-                ],
-                null).AsTask(), Throws.TypeOf<IOException>()).ConfigureAwait(false);
+            await Assert.ThatAsync(async () =>
+            {
+                await using ILifecycleWriter writer = await LifecycleInspection.Capture(
+                    lifecycle, registration).BeginAsync(CancellationToken.None).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await writer.PrepareAsync([
+                    LifecycleChange.Replace(registration.Slot, replacementFactory),
+                    LifecycleChange.Add(failingFactory)
+                ]).ConfigureAwait(false);
+            }, Throws.TypeOf<IOException>()).ConfigureAwait(false);
 
             LifecycleRootNotifierNodeManager candidate = RequireLifecycleValue(replacementFactory.Manager);
             Assert.That(candidate.ServerReferenceExistsAfterCreation, Is.True);
@@ -113,26 +116,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task RetiredSameIdRootNotifierCannotRemoveReplacementReferenceAsync()
         {
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
             var originalFactory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId);
-            NodeManagerBatchResult original = await CommitRootNotifierAdditionAsync(
+            LifecycleResult original = await CommitRootNotifierAdditionAsync(
                 lifecycle,
                 originalFactory).ConfigureAwait(false);
-            NodeManagerRegistration registration = original.Registrations[0];
+            NodeManagerRegistration registration = RequireRegistration(original.Registrations[0]);
             NodeId notifierId = RequireLifecycleValue(originalFactory.Manager).RootNotifierId;
 
             var replacementFactory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId);
-            NodeManagerBatchResult replacement;
-            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Replace(registration, replacementFactory)],
-                null).ConfigureAwait(false))
+            LifecycleResult replacement;
+            await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                m_server.NodeManagerLifecycle, registration).BeginAsync(CancellationToken.None).ConfigureAwait(false);
+            await using (IPreparedChanges prepared = await exactWriter1.PrepareAsync(
+                [LifecycleChange.Replace(registration.Slot, replacementFactory)]).ConfigureAwait(false))
             {
                 Assert.That(HasServerNotifierReference(notifierId), Is.True);
                 replacement = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                await exactWriter1.DisposeAsync().ConfigureAwait(false);
             }
 
             Assert.That(replacement.CleanupFailure, Is.Null);
-            await replacement.Retirement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await replacement.Retired.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             Assert.That(HasServerNotifierReference(notifierId), Is.True);
         }
 
@@ -142,14 +147,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <param name="lifecycle">The lifecycle provider.</param>
         /// <param name="factory">The root-notifier factory.</param>
         /// <returns>The committed batch result.</returns>
-        private async Task<NodeManagerBatchResult> CommitRootNotifierAdditionAsync(
-            INodeManagerBatchLifecycle lifecycle,
+        private async Task<LifecycleResult> CommitRootNotifierAdditionAsync(
+            INodeManagerLifecycle lifecycle,
             LifecycleRootNotifierFactory factory)
         {
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)],
-                null).ConfigureAwait(false);
-            NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)]).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
             return result;
         }

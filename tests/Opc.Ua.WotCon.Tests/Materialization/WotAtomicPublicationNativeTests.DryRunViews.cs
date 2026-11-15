@@ -615,9 +615,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             bool exactXid, bool acceptLast)
         {
             HandoffProbe probe = ObserveHandoff();
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotResource retired = await AddAsync("retired").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(HandoffRequest("before-version-preview")).ConfigureAwait(false);
             WotRegistryMutationResult versioned = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -682,9 +682,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             bool rejectEveryUnit, bool rejectFirstUnitOnly = false, bool exactRetiredVersion = false)
         {
             HandoffProbe probe = ObserveHandoff();
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotResource retired = await AddAsync("retired").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(HandoffRequest("before-split-preview")).ConfigureAwait(false);
             WotResource first = await AddAsync("first").ConfigureAwait(false);

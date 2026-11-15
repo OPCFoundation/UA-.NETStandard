@@ -394,7 +394,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.IsSupported(new QualifiedName("Host Unit")), Is.True);
             Assert.That(manager.IsSupported(new QualifiedName("Detached Unit")), Is.True);
             Assert.That(profiles.ToArray(), Is.EquivalentTo(
-                new[] { "urn:profile:replacement", "urn:profile:host", "urn:profile:detached" }));
+                s_replacementHostAndDetachedProfiles));
 
             Assert.That(manager.Unregister((IConformanceContributor)detached.Object), Is.True);
             Assert.That(manager.IsSupported(new QualifiedName("Detached Unit")), Is.False);
@@ -402,7 +402,7 @@ namespace Opc.Ua.Server.Tests
             await manager.PublishAsync().ConfigureAwait(false);
             Assert.That(manager.IsSupported(new QualifiedName("Replacement Unit")), Is.False);
             Assert.That(manager.IsSupported(new QualifiedName("Host Unit")), Is.True);
-            Assert.That(profiles.ToArray(), Is.EqualTo(new[] { "urn:profile:host" }));
+            Assert.That(profiles.ToArray(), Is.EqualTo(s_hostProfiles));
             Assert.That(manager.Unregister(host), Is.True);
         }
 
@@ -484,6 +484,13 @@ namespace Opc.Ua.Server.Tests
 
         private static readonly string[] s_expectedSortedUnitNames =
             ["Alpha Unit", "Mid Unit", "Zeta Unit"];
+
+        /// <summary>The profiles exposed by the replacement, host, and detached contributors.</summary>
+        private static readonly string[] s_replacementHostAndDetachedProfiles =
+            ["urn:profile:replacement", "urn:profile:host", "urn:profile:detached"];
+
+        /// <summary>The profile retained by the host after routed contributors are removed.</summary>
+        private static readonly string[] s_hostProfiles = ["urn:profile:host"];
 
         private sealed class MutableContributor : IConformanceContributor
         {

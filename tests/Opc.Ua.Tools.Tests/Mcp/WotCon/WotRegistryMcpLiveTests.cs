@@ -85,11 +85,11 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 AllowAnonymous = true,
                 RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
             };
-            await using (IPreparedNodeManagerBatch connectivity = await m_server.NodeManagerLifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new ConnectivityFactory(
+            await using (IPreparedChanges connectivity = await m_server.NodeManagerLifecycle.PrepareAsync(
+                [LifecycleChange.Add(new ConnectivityFactory(
                     new WotConnectivityServerOptions { ManagementAccess = policy }))]).ConfigureAwait(false))
             {
-                NodeManagerBatchResult result = await connectivity.CommitAsync(static _ => default)
+                LifecycleResult result = await connectivity.CommitAsync(static _ => default)
                     .ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
             }
@@ -115,8 +115,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 null, identities);
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
-            await using (IPreparedNodeManagerBatch registry = await m_server.NodeManagerLifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new WotRegistryNodeManagerFactory(
+            await using (IPreparedChanges registry = await m_server.NodeManagerLifecycle.PrepareAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
                     new WotRegistryServerOptions
                     {
                         AutoRefresh = false,
@@ -129,7 +129,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                         }
                     }, m_registry, m_coordinator))]).ConfigureAwait(false))
             {
-                NodeManagerBatchResult result = await registry.CommitAsync(static _ => default).ConfigureAwait(false);
+                LifecycleResult result = await registry.CommitAsync(static _ => default).ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
             }
 

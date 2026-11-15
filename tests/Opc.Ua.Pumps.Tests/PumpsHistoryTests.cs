@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -664,17 +665,20 @@ namespace Opc.Ua.Pumps.Tests
                 UriScheme = Utils.UriSchemeOpcTcp
             };
             string pki = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory, "pump-history", Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(), "pump-history", Guid.NewGuid().ToString("N"));
             FileSystemAssetConfigurationStore? identity = null;
+            bool shutdownCompleted = false;
+            ExceptionDispatchInfo? shutdownFailure = null;
             try
             {
                 StandardServer server = await fixture.StartAsync(pki);
-                await using IPreparedNodeManagerBatch prepared = await server.NodeManagerLifecycle
-                    .PrepareAsync([NodeManagerBatchChange.Add(new PumpsNodeManagerFactory())])
+                await using IPreparedChanges prepared = await server.NodeManagerLifecycle
+                    .PrepareAsync([LifecycleChange.Add(new PumpsNodeManagerFactory())])
                     .ConfigureAwait(false);
-                NodeManagerBatchResult added = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+                LifecycleResult added = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
                 Assert.That(added.CleanupFailure, Is.Null);
-                var manager = (PumpsNodeManager)added.Registrations[0].NodeManager;
+                Assert.That(added.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? published), Is.True);
+                var manager = (PumpsNodeManager)published!;
                 IPumpBuilder pump = await manager.CreatePumpAsync(
                     new QualifiedName("HistoricalPump", manager.InstanceNamespaceIndex));
                 pump.WithNameplate(new PumpNameplate
@@ -834,13 +838,34 @@ namespace Opc.Ua.Pumps.Tests
             }
             finally
             {
-                await fixture.StopAsync();
-                identity?.Dispose();
-                if (Directory.Exists(pki))
+                try
                 {
-                    Directory.Delete(pki, recursive: true);
+                    if (fixture.Server is { } activeServer)
+                    {
+                        using var shutdownTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                        await activeServer.StopAsync(shutdownTimeout.Token).ConfigureAwait(false);
+                    }
+                    shutdownCompleted = true;
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    shutdownFailure = ExceptionDispatchInfo.Capture(failure);
+                    TestContext.Error.WriteLine(failure);
+                }
+                finally
+                {
+                    await fixture.StopAsync().ConfigureAwait(false);
+                    if (shutdownCompleted)
+                    {
+                        identity?.Dispose();
+                        if (Directory.Exists(pki))
+                        {
+                            Directory.Delete(pki, recursive: true);
+                        }
+                    }
                 }
             }
+            shutdownFailure?.Throw();
         }
 
         /// <summary>

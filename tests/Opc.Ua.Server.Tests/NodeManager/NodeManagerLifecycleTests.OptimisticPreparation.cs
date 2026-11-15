@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -54,46 +55,53 @@ namespace Opc.Ua.Server.Tests.NodeManager
             long originalRevision = lifecycle.Revision;
             var firstCandidates = new List<IAsyncNodeManager>();
             var secondCandidates = new List<IAsyncNodeManager>();
-            Task<NodeManagerRegistration> first = lifecycle.AddAsync(
-                CreateFactory(kModelNamespaceUri, kFirstRegistrationValue, firstEntered, releaseFirst, firstCandidates),
-                timeout.Token)
-                .AsTask();
-            Task<NodeManagerRegistration> second = lifecycle.AddAsync(
+            Task<LifecycleResult> first = CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
                 CreateFactory(
-                    kSecondModelNamespaceUri, kSecondRegistrationValue, secondEntered, releaseSecond, secondCandidates),
-                timeout.Token).AsTask();
+                kModelNamespaceUri, kFirstRegistrationValue, firstEntered, releaseFirst, firstCandidates)),
+                timeout.Token);
+            Task<LifecycleResult> second = CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateFactory(
+                    kSecondModelNamespaceUri, kSecondRegistrationValue, secondEntered, releaseSecond,
+                        secondCandidates)), timeout.Token);
             try
             {
                 await Task.WhenAll(firstEntered.Task, secondEntered.Task).WaitAsync(timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(lifecycle.Revision, Is.EqualTo(originalRevision));
                 releaseFirst.TrySetResult(true);
-                NodeManagerRegistration firstRegistration = await first.WaitAsync(timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration firstRegistration = RequireRegistration(
+                    (await first.WaitAsync(timeout.Token).ConfigureAwait(false)).Registrations[0]);
                 Assert.That(releaseSecond.Task.IsCompleted, Is.False);
                 releaseSecond.TrySetResult(true);
-                NodeManagerRegistration secondRegistration = await second.WaitAsync(timeout.Token)
-                    .ConfigureAwait(false);
+                await Assert.ThrowsAsync<NodeManagerRoutingConflictException>(
+                    async () => await second.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(lifecycle.Registrations.ToList(), Does.Contain(firstRegistration));
-                    Assert.That(lifecycle.Registrations.ToList(), Does.Contain(secondRegistration));
-                    Assert.That(lifecycle.Revision, Is.EqualTo(originalRevision + 2));
+                    Assert.That(lifecycle.Revision, Is.EqualTo(originalRevision + 1));
                     Assert.That(firstCandidates, Has.Count.EqualTo(1));
-                    Assert.That(secondCandidates, Has.Count.EqualTo(2));
-                    Assert.That(NodeManagerGenerationRegistry.GetOrCreate(secondCandidates[0]).Gate.State,
-                        Is.EqualTo(NodeManagerGenerationState.Aborted));
-                    Assert.That(secondRegistration.Identity,
-                        Is.SameAs(NodeManagerGenerationRegistry.GetOrCreate(secondCandidates[1])));
+                    Assert.That(secondCandidates, Has.Count.EqualTo(1));
+                    Assert.That(lifecycle.Registrations.Contains(value =>
+                        ReferenceEquals(value.NodeManager, secondCandidates[0])), Is.False);
                 }
                 await AssertReadinessValueAsync(kModelNamespaceUri, kFirstRegistrationValue).ConfigureAwait(false);
-                await AssertReadinessValueAsync(kSecondModelNamespaceUri, kSecondRegistrationValue)
-                    .ConfigureAwait(false);
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri), Is.LessThan(0));
             }
             finally
             {
                 releaseFirst.TrySetResult(true);
                 releaseSecond.TrySetResult(true);
-                await Task.WhenAll(first, second).WaitAsync(timeout.Token).ConfigureAwait(false);
+                await first.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (second.IsCompleted)
+                {
+                    _ = second.Exception;
+                }
+                else
+                {
+                    await Assert.ThrowsAsync<NodeManagerRoutingConflictException>(
+                        async () => await second.WaitAsync(timeout.Token)
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                }
             }
 
             IAsyncNodeManagerFactory CreateFactory(
@@ -128,52 +136,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task CompatibilityRemovalCompletesAfterIndependentPublicationAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            NodeManagerRegistration original = await lifecycle.AddAsync(
-                new RuntimeNodeSetNodeManagerFactory(CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)),
-                timeout.Token).ConfigureAwait(false);
-            int preparations = 0;
-            var delayed = new Mock<INodeManagerLifecycle>();
-            delayed.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .Returns(async (ArrayOf<NodeManagerBatchChange> changes, CancellationToken token) =>
-                {
-                    IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(changes, token)
-                        .ConfigureAwait(false);
-                    if (Interlocked.Increment(ref preparations) == 1)
-                    {
-                        entered.TrySetResult(true);
-                        await release.Task.WaitAsync(token).ConfigureAwait(false);
-                    }
-                    return prepared;
-                });
-            Task removal = delayed.Object.RemoveAsync(original, timeout.Token).AsTask();
-            try
+            NodeManagerRegistration original = RequireRegistration((await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], timeout.Token)
+                .ConfigureAwait(false)).Registrations[0]);
+            await using ILifecycleWriter writer = await LifecycleInspection.Capture(lifecycle, original)
+                .BeginAsync(timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await writer.PrepareAsync(
+                [LifecycleChange.Remove(original.Slot)], timeout.Token).ConfigureAwait(false);
+            LifecycleResult independent = await lifecycle.ApplyAsync([LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(CreateOptions(kSecondModelNamespaceUri,
+                    kSecondRegistrationValue)))], timeout.Token).ConfigureAwait(false);
+            int decisions = 0;
+            await Assert.ThrowsAsync<NodeManagerRoutingConflictException>(async () => await prepared.CommitAsync(_ =>
             {
-                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                NodeManagerRegistration independent = await lifecycle.AddAsync(
-                    new RuntimeNodeSetNodeManagerFactory(
-                        CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)), timeout.Token)
-                    .ConfigureAwait(false);
-                Assert.That(removal.IsCompleted, Is.False);
-                release.TrySetResult(true);
-                await removal.WaitAsync(timeout.Token).ConfigureAwait(false);
-                using (Assert.EnterMultipleScope())
-                {
-                    Assert.That(lifecycle.Registrations.ToList(), Does.Not.Contain(original));
-                    Assert.That(lifecycle.Registrations.ToList(), Does.Contain(independent));
-                    Assert.That(preparations, Is.EqualTo(2));
-                }
-                await AssertReadinessValueAsync(kSecondModelNamespaceUri, kSecondRegistrationValue)
-                    .ConfigureAwait(false);
-            }
-            finally
-            {
-                release.TrySetResult(true);
-                await removal.WaitAsync(timeout.Token).ConfigureAwait(false);
-            }
+                decisions++;
+                return default;
+            }, timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(decisions, Is.Zero);
+            Assert.That(prepared.IsCommitted, Is.False);
+            Assert.That(lifecycle.Registrations.ToList(), Does.Contain(original));
+            Assert.That(
+                lifecycle.Registrations.ToList(), Does.Contain(RequireRegistration(independent.Registrations[0])));
+            Assert.That(lifecycle.Revision, Is.EqualTo(independent.Revision));
+            await AssertReadinessValueAsync(kSecondModelNamespaceUri, kSecondRegistrationValue).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -184,47 +171,42 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            long originalRevision = lifecycle.Revision;
-            var candidates = new List<IPreparedNodeManagerBatch>();
+            var inner = new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue));
+            var factory = new CountingNodeManagerFactory([kModelNamespaceUri], inner.CreateAsync);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration candidate = RequireRegistration(prepared.Registrations[0]);
             var independent = new List<NodeManagerRegistration>();
-            var proxy = new Mock<INodeManagerLifecycle>();
-            proxy.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .Returns(async (ArrayOf<NodeManagerBatchChange> changes, CancellationToken token) =>
-                {
-                    IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(changes, token)
-                        .ConfigureAwait(false);
-                    candidates.Add(prepared);
-                    if (candidates.Count <= 2)
-                    {
-                        independent.Add(await lifecycle.AddAsync(
-                            new RuntimeNodeSetNodeManagerFactory(CreateOptions(
-                                kSecondModelNamespaceUri + candidates.Count, kSecondRegistrationValue)), token)
-                            .ConfigureAwait(false));
-                    }
-                    return prepared;
-                });
-            NodeManagerRegistration registration = await proxy.Object.AddAsync(
-                new RuntimeNodeSetNodeManagerFactory(CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)),
-                timeout.Token).ConfigureAwait(false);
-            using (Assert.EnterMultipleScope())
+            for (int index = 0; index < 2; index++)
             {
-                Assert.That(candidates, Has.Count.EqualTo(3));
-                Assert.That(lifecycle.Revision, Is.EqualTo(originalRevision + 3));
-                Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
-                foreach (NodeManagerRegistration addition in independent)
-                {
-                    Assert.That(lifecycle.Registrations.ToList(), Does.Contain(addition));
-                }
-                for (int i = 0; i < 2; i++)
-                {
-                    Assert.That(candidates[i].IsCommitted, Is.False);
-                    Assert.That(candidates[i].Registrations[0].Identity.Gate.State,
-                        Is.EqualTo(NodeManagerGenerationState.Aborted));
-                }
-                Assert.That(candidates[2].IsCommitted, Is.True);
-                Assert.That(registration.Identity, Is.SameAs(candidates[2].Registrations[0].Identity));
+                LifecycleResult added = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kSecondModelNamespaceUri + index, kSecondRegistrationValue)))], timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(added.Issues, Is.Empty);
+                independent.Add(RequireRegistration(added.Registrations[0]));
             }
+            long revision = lifecycle.Revision;
+            int decisions = 0;
+            await Assert.ThrowsAsync<NodeManagerRoutingConflictException>(async () => await prepared.CommitAsync(_ =>
+            {
+                decisions++;
+                return default;
+            }, timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(decisions, Is.Zero);
+            Assert.That(factory.CreateCount, Is.EqualTo(1));
+            Assert.That(candidate.Identity.Gate.State, Is.EqualTo(NodeManagerGenerationState.Aborted));
+            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+            foreach (NodeManagerRegistration registration in independent)
+            {
+                Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
+            }
+            LifecycleResult retried = await lifecycle.ApplyAsync([LifecycleChange.Add(factory)], timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(retried.Issues, Is.Empty);
+            Assert.That(factory.CreateCount, Is.EqualTo(2));
+            Assert.That(retried.Revision, Is.EqualTo(revision + 1));
             await AssertReadinessValueAsync(kModelNamespaceUri, kFirstRegistrationValue).ConfigureAwait(false);
         }
 
@@ -257,8 +239,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return innerFactory.CreateAsync(server, configuration, token);
                 });
 
-            NodeManagerRegistration registration = await lifecycle.AddAsync(factory.Object, timeout.Token)
-                .ConfigureAwait(false);
+            await Assert.ThrowsAsync<OptimisticPublicationConflictException>(async () => await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(factoryCalls, Is.EqualTo(1));
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(factory.Object), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult1.Registrations[0]);
 
             using (Assert.EnterMultipleScope())
             {
@@ -293,27 +279,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CancellationToken token) =>
                 {
                     int attempt = Interlocked.Increment(ref factoryCalls);
-                    await lifecycle.AddAsync(
-                        new RuntimeNodeSetNodeManagerFactory(CreateOptions(
+                    RequireRegistration(
+                        (await CommitChangeAsync(
+                        lifecycle, LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateOptions(
                             kSecondModelNamespaceUri + ":Nested" + attempt,
-                            kSecondRegistrationValue)),
-                        token).ConfigureAwait(false);
+                            kSecondRegistrationValue))), token).ConfigureAwait(false)).Registrations[0]);
                     Interlocked.Increment(ref nestedPublications);
                     return await innerFactory.CreateAsync(server, configuration, token).ConfigureAwait(false);
                 });
 
             await Assert.ThatAsync(
-                () => lifecycle.AddAsync(factory.Object, timeout.Token).AsTask(),
-                Throws.TypeOf<InvalidOperationException>()
-                    .With.Message.EqualTo(
-                        "The compatibility mutation encountered 3 consecutive stale-publication conflicts."))
+                () => CommitChangeAsync(lifecycle, LifecycleChange.Add(factory.Object), timeout.Token),
+                Throws.TypeOf<NodeManagerRoutingConflictException>()
+                    .With.Message.EqualTo("The address space changed while the batch was prepared."))
                 .ConfigureAwait(false);
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(factoryCalls, Is.EqualTo(3));
-                Assert.That(nestedPublications, Is.EqualTo(3));
-                Assert.That(lifecycle.Registrations.Count, Is.EqualTo(registrationCount + 3));
+                Assert.That(factoryCalls, Is.EqualTo(1));
+                Assert.That(nestedPublications, Is.EqualTo(1));
+                Assert.That(lifecycle.Registrations.Count, Is.EqualTo(registrationCount + 1));
             }
         }
 
@@ -343,8 +328,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return innerFactory.CreateAsync(server, configuration, token);
                 });
 
-            NodeManagerRegistration registration = await lifecycle.AddAsync(factory.Object, timeout.Token)
-                .ConfigureAwait(false);
+            await Assert.ThrowsAsync<OptimisticPublicationConflictException>(async () => await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(factoryCalls, Is.EqualTo(1));
+            LifecycleResult publicationResult2 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(factory.Object), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult2.Registrations[0]);
 
             Assert.That(factoryCalls, Is.EqualTo(2));
             Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
@@ -381,8 +370,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return innerFactory.CreateAsync(server, configuration, token);
                 });
 
-            NodeManagerRegistration registration = await lifecycle.AddAsync(factory.Object, timeout.Token)
-                .ConfigureAwait(false);
+            await Assert.ThrowsAsync<OptimisticPublicationConflictException>(async () => await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(factoryCalls, Is.EqualTo(1));
+            LifecycleResult publicationResult3 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(factory.Object), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult3.Registrations[0]);
 
             Assert.That(factoryCalls, Is.EqualTo(2));
             Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
@@ -402,9 +395,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ownerFactory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(owner.Object);
-            await lifecycle.AddAsync(ownerFactory.Object, timeout.Token).ConfigureAwait(false);
-            await using IPreparedNodeManagerBatch nested = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+            RequireRegistration(
+                (await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                ownerFactory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
+            await using IPreparedChanges nested = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(kSecondModelNamespaceUri + ":Nested", kSecondRegistrationValue)))], timeout.Token)
                 .ConfigureAwait(false);
             if (!sameView)
@@ -419,6 +415,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
                 .Returns((NodeId _, CancellationToken token) => ResolveNestedAsync(token));
             var candidates = new List<IAsyncNodeManager>();
+            var candidateGenerations = new List<NodeManagerGeneration>();
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
@@ -428,27 +425,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     candidate.Setup(value => value.CreateAddressSpaceAsync(
                         It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
                         .Callback((IDictionary<NodeId, IList<IReference>> references, CancellationToken _) =>
+                        {
+                            candidateGenerations.Add(NodeManagerGenerationRegistry.GetOrCreate(candidate.Object));
                             references.Add(source,
-                                [new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(9912))]))
+                                [new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(9912))]);
+                        })
                         .Returns(default(ValueTask));
                     candidates.Add(candidate.Object);
                     return new ValueTask<IAsyncNodeManager>(candidate.Object);
                 });
             Exception? observed = await Assert.CatchAsync<Exception>(
-                () => lifecycle.AddAsync(factory.Object, timeout.Token).AsTask()).ConfigureAwait(false);
+                () => CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(factory.Object), timeout.Token)).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(nestedFailure, Is.TypeOf<InvalidOperationException>());
-                Assert.That(nestedFailure?.InnerException, Is.TypeOf<NodeManagerRoutingConflictException>());
+                Assert.That(nestedFailure, Is.TypeOf<NodeManagerRoutingConflictException>());
+                Assert.That(nestedFailure?.InnerException, Is.Null);
                 Assert.That(observed, Is.SameAs(nestedFailure));
                 Assert.That(ownerCalls, Is.EqualTo(1));
                 Assert.That(nestedDecisions, Is.Zero);
                 Assert.That(nested.IsCommitted, Is.False);
                 Assert.That(lifecycle.Revision, Is.EqualTo(expectedRevision));
                 Assert.That(candidates, Has.Count.EqualTo(1));
-                foreach (IAsyncNodeManager candidate in candidates)
+                Assert.That(candidateGenerations, Has.Count.EqualTo(candidates.Count));
+                foreach (NodeManagerGeneration generation in candidateGenerations)
                 {
-                    Assert.That(NodeManagerGenerationRegistry.GetOrCreate(candidate).Gate.State,
+                    Assert.That(generation.Gate.State,
                         Is.EqualTo(NodeManagerGenerationState.Aborted));
                 }
                 Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri), Is.EqualTo(-1));
@@ -485,9 +487,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             async ValueTask PublishIndependentAsync(CancellationToken token)
             {
-                await lifecycle.AddAsync(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kSecondModelNamespaceUri + ":Independent", kSecondRegistrationValue)), token)
-                    .ConfigureAwait(false);
+                RequireRegistration(
+                    (await CommitChangeAsync(lifecycle, LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(
+                        kSecondModelNamespaceUri + ":Independent", kSecondRegistrationValue))), token)
+                        .ConfigureAwait(false)).Registrations[0]);
             }
         }
 
@@ -501,8 +505,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                     kGeneration1Value, created => manager = created))], timeout.Token).ConfigureAwait(false);
             TrackingLifecycleNodeManager candidate = RequireLifecycleValue(manager);
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(candidate);
@@ -516,10 +520,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(generation.Slot.TryGetCurrent(out _), Is.False);
             if (publish)
             {
-                NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                LifecycleResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
-                Assert.That(result.Registrations[0].Identity, Is.SameAs(generation));
+                Assert.That(RequireRegistration(result.Registrations[0]).Identity, Is.SameAs(generation));
                 Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
                 admitted = generation.Gate.TryEnter(out stripe);
                 if (admitted)
@@ -557,9 +561,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(owner.Object);
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch initial = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(ownerFactory.Object)], timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult original = await initial.CommitAsync(_ => default, timeout.Token)
+            await using IPreparedChanges initial = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(ownerFactory.Object)], timeout.Token).ConfigureAwait(false);
+            LifecycleResult original = await initial.CommitAsync(_ => default, timeout.Token)
                 .ConfigureAwait(false);
             var source = new NodeId(9911, (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
             owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
@@ -575,29 +579,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(candidate.Object);
-            await using IPreparedNodeManagerBatch publication = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges publication = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
             int decisions = 0;
-            Task<NodeManagerBatchResult> pending = publication.CommitAsync(_ =>
+            Task<LifecycleResult> pending = publication.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
             }, cancellation.Token).AsTask();
-            NodeManagerBatchResult? independentResult = null;
+            LifecycleResult? independentResult = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                NodeManagerBatchChange change = outcome == "Stale"
-                    ? NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                LifecycleChange change = outcome == "Stale"
+                    ? LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kModelNamespaceUri + ":Independent", kSecondRegistrationValue)))
-                    : NodeManagerBatchChange.Remove(original.Registrations[0]);
-                await using IPreparedNodeManagerBatch independent =
+                    : LifecycleChange.Remove(original.Registrations[0].Slot);
+                await using IPreparedChanges independent =
                     await lifecycle.PrepareAsync([change], timeout.Token).ConfigureAwait(false);
                 independentResult = await independent.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
                 Assert.That(release.Task.IsCompleted, Is.False);
                 if (outcome != "Stale")
                 {
-                    Assert.That(independentResult.Retirement.IsCompleted, Is.False,
+                    Assert.That(independentResult.Retired.IsCompleted, Is.False,
                         "Reference discovery must keep its admitted owner alive.");
                     owner.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Never);
                 }
@@ -612,10 +616,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
                     outcome == "Cancel" ? Throws.InstanceOf<OperationCanceledException>() :
                     outcome == "Failure" ? Throws.TypeOf<SentinelException>() :
-                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                    Throws.TypeOf<NodeManagerRoutingConflictException>()).ConfigureAwait(false);
             }
-            NodeManagerBatchResult committed = RequireLifecycleValue(independentResult);
-            await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            LifecycleResult committed = RequireLifecycleValue(independentResult);
+            await committed.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(decisions, Is.Zero);
@@ -643,79 +647,93 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task MonitoredItemPreparationAllowsIndependentPublicationAndRejectsStaleCommitAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Mock<IAsyncNodeManager> original = CreateLifecycleNodeManager(kModelNamespaceUri);
-            original.As<INodeManagerMonitoredItemSource>();
-            original.As<INodeManagerReloadParticipant>()
-                .Setup(value => value.PrepareReloadAsync(
-                    It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
-            Mock<IAsyncNodeManager> replacement = CreateLifecycleNodeManager(kModelNamespaceUri);
-            Mock<INodeManagerMonitoredItemSource> incoming = replacement.As<INodeManagerMonitoredItemSource>();
-            incoming.Setup(value => value.ValidateSourceAsync(
-                It.IsAny<IMonitoredItem>(), It.IsAny<CancellationToken>()))
-                .Returns((IMonitoredItem _, CancellationToken token) => CheckCompatibilityAsync(token));
-            var factory = new Mock<IAsyncNodeManagerFactory>();
-            factory.Setup(value => value.CreateAsync(
-                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(original.Object);
-            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch addition = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult initial = await addition.CommitAsync(_ => default, timeout.Token)
-                .ConfigureAwait(false);
-            NodeManagerGeneration generation = initial.Registrations[0].Identity;
-            var monitoredItem = new Mock<IMonitoredItem>();
-            monitoredItem.SetupGet(value => value.NodeManager).Returns(original.Object);
-            monitoredItem.SetupGet(value => value.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
-            factory.Setup(value => value.CreateAsync(
-                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(replacement.Object);
-            await using IPreparedNodeManagerBatch reload = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Replace(initial.Registrations[0], factory.Object)], timeout.Token)
-                .ConfigureAwait(false);
-            generation.MonitoredItems[monitoredItem.Object] = new Mock<ISubscription>().Object;
-            int decisions = 0;
-            Task<NodeManagerBatchResult> pending = reload.CommitAsync(_ =>
-            {
-                decisions++;
-                return default;
-            }, timeout.Token).AsTask();
-            NodeManagerBatchResult? independentResult = null;
+            Task exactWriter1Disposal = Task.CompletedTask;
             try
             {
-                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await using IPreparedNodeManagerBatch independent = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                        CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Mock<IAsyncNodeManager> original = CreateLifecycleNodeManager(kModelNamespaceUri);
+                original.As<INodeManagerMonitoredItemSource>();
+                original.As<INodeManagerReloadParticipant>()
+                    .Setup(value => value.PrepareReloadAsync(
+                        It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+                Mock<IAsyncNodeManager> replacement = CreateLifecycleNodeManager(kModelNamespaceUri);
+                Mock<INodeManagerMonitoredItemSource> incoming = replacement.As<INodeManagerMonitoredItemSource>();
+                incoming.Setup(value => value.ValidateSourceAsync(
+                    It.IsAny<IMonitoredItem>(), It.IsAny<CancellationToken>()))
+                    .Returns((IMonitoredItem _, CancellationToken token) => CheckCompatibilityAsync(token));
+                var factory = new Mock<IAsyncNodeManagerFactory>();
+                factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(original.Object);
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                await using IPreparedChanges addition = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+                LifecycleResult initial = await addition.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
-                independentResult = await independent.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
-                Assert.That(release.Task.IsCompleted, Is.False);
+                NodeManagerGeneration generation = RequireRegistration(initial.Registrations[0]).Identity;
+                var monitoredItem = new Mock<IMonitoredItem>();
+                monitoredItem.SetupGet(value => value.NodeManager).Returns(original.Object);
+                monitoredItem.SetupGet(value => value.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
+                factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(replacement.Object);
+                await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, initial.Registrations[0]).BeginAsync(
+                    timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges reload = await exactWriter1.PrepareAsync(
+                    [LifecycleChange.Replace(initial.Registrations[0].Slot, factory.Object)], timeout.Token)
+                    .ConfigureAwait(false);
+                generation.MonitoredItems[monitoredItem.Object] = new Mock<ISubscription>().Object;
+                int decisions = 0;
+                Task<LifecycleResult> pending = reload.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }, timeout.Token).AsTask();
+                exactWriter1Disposal = exactWriter1.DisposeAsync().AsTask();
+                LifecycleResult? independentResult = null;
+                try
+                {
+                    await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await using IPreparedChanges independent = await lifecycle.PrepareAsync(
+                        [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                            CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
+                        .ConfigureAwait(false);
+                    independentResult = await independent.CommitAsync(
+                        _ => default, timeout.Token).ConfigureAwait(false);
+                    Assert.That(release.Task.IsCompleted, Is.False);
+                }
+                finally
+                {
+                    generation.MonitoredItems.TryRemove(monitoredItem.Object, out _);
+                    release.TrySetResult(true);
+                    await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
+                        Throws.TypeOf<NodeManagerRoutingConflictException>()).ConfigureAwait(false);
+                }
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(decisions, Is.Zero);
+                    Assert.That(reload.IsCommitted, Is.False);
+                    Assert.That(lifecycle.Revision, Is.EqualTo(RequireLifecycleValue(independentResult).Revision));
+                    Assert.That(
+                        lifecycle.Registrations.ToList(), Does.Contain(RequireRegistration(initial.Registrations[0])));
+                }
+                incoming.Verify(value => value.ValidateSourceAsync(
+                    monitoredItem.Object, It.IsAny<CancellationToken>()), Times.Once);
+
+                async ValueTask<ServiceResult> CheckCompatibilityAsync(CancellationToken token)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                }
             }
             finally
             {
-                generation.MonitoredItems.TryRemove(monitoredItem.Object, out _);
-                release.TrySetResult(true);
-                await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
-                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
-            }
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(decisions, Is.Zero);
-                Assert.That(reload.IsCommitted, Is.False);
-                Assert.That(lifecycle.Revision, Is.EqualTo(RequireLifecycleValue(independentResult).Revision));
-                Assert.That(lifecycle.Registrations.ToList(), Does.Contain(initial.Registrations[0]));
-            }
-            incoming.Verify(value => value.ValidateSourceAsync(
-                monitoredItem.Object, It.IsAny<CancellationToken>()), Times.Once);
-
-            async ValueTask<ServiceResult> CheckCompatibilityAsync(CancellationToken token)
-            {
-                entered.TrySetResult(true);
-                await release.Task.WaitAsync(token).ConfigureAwait(false);
-                return ServiceResult.Good;
+                await exactWriter1Disposal.ConfigureAwait(false);
             }
         }
 
@@ -729,28 +747,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             var originalFactory = new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(kModelNamespaceUri, kFirstRegistrationValue));
-            NodeManagerBatchResult? nestedResult = null;
+            LifecycleResult? nestedResult = null;
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken token) =>
                     CreateWithNestedPublicationAsync(server, configuration, token));
-            await using IPreparedNodeManagerBatch outer = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult committed = RequireLifecycleValue(nestedResult);
+            await using IPreparedChanges outer = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            LifecycleResult committed = RequireLifecycleValue(nestedResult);
             int decisions = 0;
             await Assert.ThatAsync(() => outer.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
-            }, timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            }, timeout.Token).AsTask(), Throws.TypeOf<NodeManagerRoutingConflictException>()).ConfigureAwait(false);
             await outer.DisposeAsync().ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(decisions, Is.Zero);
                 Assert.That(outer.IsCommitted, Is.False);
                 Assert.That(lifecycle.Revision, Is.EqualTo(committed.Revision));
-                Assert.That(lifecycle.Registrations.ToList(), Does.Contain(committed.Registrations[0]));
+                Assert.That(
+                    lifecycle.Registrations.ToList(), Does.Contain(RequireRegistration(committed.Registrations[0])));
                 Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri), Is.EqualTo(-1));
             }
             factory.Verify(value => value.CreateAsync(
@@ -761,8 +780,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             async ValueTask<IAsyncNodeManager> CreateWithNestedPublicationAsync(
                 IServerInternal server, ApplicationConfiguration configuration, CancellationToken token)
             {
-                await using IPreparedNodeManagerBatch nested = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                await using IPreparedChanges nested = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], token)
                     .ConfigureAwait(false);
                 nestedResult = await nested.CommitAsync(_ => default, token).ConfigureAwait(false);
@@ -781,8 +800,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var preparationCancellation = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            NodeManagerRegistration current = await lifecycle.AddRuntimeNodeSetAsync(
-                CreateGenerationOptions(generation: 1), null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult publicationResult4 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateGenerationOptions(generation: 1))), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration current = RequireRegistration(publicationResult4.Registrations[0]);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var factory = new Mock<IAsyncNodeManagerFactory>();
@@ -790,17 +812,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .Returns((IServerInternal _, ApplicationConfiguration _, CancellationToken token) =>
                     FailPreparationAsync(token));
-            Task<IPreparedNodeManagerBatch> pending = lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Replace(current, factory.Object)], preparationCancellation.Token).AsTask();
-            NodeManagerBatchResult? removed = null;
+            Task<IPreparedChanges> pending = lifecycle.PrepareAsync(
+                [LifecycleChange.Replace(current.Slot, factory.Object)], preparationCancellation.Token).AsTask();
+            LifecycleResult? removed = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(current)], timeout.Token).ConfigureAwait(false);
+                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, current).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges removal = await exactWriter2.PrepareAsync(
+                    [LifecycleChange.Remove(current.Slot)], timeout.Token).ConfigureAwait(false);
                 removed = await removal.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                await exactWriter2.DisposeAsync().ConfigureAwait(false);
                 Assert.That(removed.CleanupFailure, Is.Null);
-                Assert.That(removed.Retirement.IsCompleted, Is.False,
+                Assert.That(removed.Retired.IsCompleted, Is.False,
                     "The current participant must remain alive while its admitted preparation callback executes.");
             }
             finally
@@ -817,7 +842,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     cancel ? Throws.InstanceOf<OperationCanceledException>() : Throws.TypeOf<SentinelException>())
                     .ConfigureAwait(false);
             }
-            await RequireLifecycleValue(removed).Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await RequireLifecycleValue(removed).Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(lifecycle.Registrations.ToList(), Does.Not.Contain(current));
 
             async ValueTask<IAsyncNodeManager> FailPreparationAsync(CancellationToken token)
@@ -853,18 +878,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken token) =>
                     CreateDelayedAsync(server, configuration, token));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            Task<IPreparedNodeManagerBatch> pending = lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(delayedFactory.Object)], timeout.Token).AsTask();
-            IPreparedNodeManagerBatch? first = null;
-            NodeManagerBatchResult? published = null;
+            Task<IPreparedChanges> pending = lifecycle.PrepareAsync(
+                [LifecycleChange.Add(delayedFactory.Object)], timeout.Token).AsTask();
+            IPreparedChanges? first = null;
+            LifecycleResult? published = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 using var independentTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                await using IPreparedNodeManagerBatch independent = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                        CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))],
-                    independentTimeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges independent = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(
+                            kSecondModelNamespaceUri, kSecondRegistrationValue)))], independentTimeout.Token)
+                            .ConfigureAwait(false);
                 published = await independent.CommitAsync(_ => default, independentTimeout.Token).ConfigureAwait(false);
                 Assert.That(release.Task.IsCompleted, Is.False,
                     "The second publication must finish while the first factory remains blocked.");
@@ -880,8 +906,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
 
-            IPreparedNodeManagerBatch stale = RequireLifecycleValue(first);
-            NodeManagerBatchResult committed = RequireLifecycleValue(published);
+            IPreparedChanges stale = RequireLifecycleValue(first);
+            LifecycleResult committed = RequireLifecycleValue(published);
             await using (stale.ConfigureAwait(false))
             {
                 int decisions = 0;
@@ -889,7 +915,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     decisions++;
                     return default;
-                }, timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                }, timeout.Token).AsTask(), Throws.TypeOf<NodeManagerRoutingConflictException>()).ConfigureAwait(false);
                 Assert.That(stale.IsCommitted, Is.False);
                 Assert.That(decisions, Is.Zero, "A conflicting preparation must fail before any durable decision.");
             }
@@ -897,7 +923,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(factoryCalls, Is.EqualTo(1), "Conflict detection must not silently rerun a factory.");
                 Assert.That(lifecycle.Revision, Is.EqualTo(committed.Revision));
-                Assert.That(lifecycle.Registrations.ToList(), Does.Contain(committed.Registrations[0]));
+                Assert.That(
+                    lifecycle.Registrations.ToList(), Does.Contain(RequireRegistration(committed.Registrations[0])));
                 Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri), Is.EqualTo(-1));
             }
             await AssertReadinessValueAsync(kSecondModelNamespaceUri, kSecondRegistrationValue).ConfigureAwait(false);
@@ -935,8 +962,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ownerFactory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(owner.Object);
-            NodeManagerRegistration ownerRegistration = await lifecycle.AddAsync(ownerFactory.Object, timeout.Token)
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult5 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(ownerFactory.Object), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration ownerRegistration = RequireRegistration(publicationResult5.Registrations[0]);
 
             int ownerNamespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
             Assert.That(ownerNamespaceIndex, Is.GreaterThanOrEqualTo(0));
@@ -958,7 +986,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             int[] nestedDecisions = [0];
             NodeManagerRoutingTable.RoutingSnapshot?[] independentSnapshotCapture = [null];
             NodeManagerRoutingConflictException? nestedMarker = null;
-            WeakReference<IPreparedNodeManagerBatch>? nestedObserver = null;
+            WeakReference<IPreparedChanges>? nestedObserver = null;
             NodeManagerRoutingTable.RoutingSnapshot? publishedSnapshot = null;
             long publishedRevision = -1;
             int initialRegistrationCount = lifecycle.Registrations.Count;
@@ -967,11 +995,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(lifecycle.Revision, Is.EqualTo(initialRevision));
             Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
 
-            await using IPreparedNodeManagerBatch outer = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges outer = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
             Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
             Assert.That(lifecycle.Revision, Is.EqualTo(initialRevision));
-            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(candidate.Object).Gate.State,
+            NodeManagerGeneration candidateGeneration = NodeManagerGenerationRegistry.GetOrCreate(candidate.Object);
+            Assert.That(candidateGeneration.Gate.State,
                 Is.EqualTo(NodeManagerGenerationState.Prepared));
 
             owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
@@ -988,14 +1017,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(nestedMarker, Is.Not.Null);
                 Assert.That(observed, Is.SameAs(nestedMarker));
                 Assert.That(nestedObserver is not null && !IsNestedRoutingConflictOwnerAlive(nestedObserver), Is.True);
-                Assert.That(nestedMarker?.Batch, Is.Null);
-                Assert.That(nestedMarker?.IsBound, Is.True);
+                Assert.That(typeof(NodeManagerRoutingConflictException).GetProperty(
+                    "Batch", System.Reflection.BindingFlags.Instance |
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic), Is.Null);
                 Assert.That(nestedMarker?.RoutingRevision, Is.SameAs(snapshot));
                 Assert.That(ownerCalls, Is.EqualTo(1));
                 Assert.That(nestedDecisions[0], Is.Zero);
                 Assert.That(outerDecisions, Is.Zero);
                 Assert.That(outer.IsCommitted, Is.False);
-                Assert.That(NodeManagerGenerationRegistry.GetOrCreate(candidate.Object).Gate.State,
+                Assert.That(candidateGeneration.Gate.State,
                     Is.EqualTo(NodeManagerGenerationState.Aborted));
                 Assert.That(publishedSnapshot, Is.Not.Null);
                 Assert.That(publishedSnapshot, Is.Not.SameAs(snapshot));
@@ -1030,7 +1060,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     throw new SentinelException();
                 }
                 Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
-                (NodeManagerRoutingConflictException marker, WeakReference<IPreparedNodeManagerBatch> observer) =
+                (NodeManagerRoutingConflictException marker, WeakReference<IPreparedChanges> observer) =
                     await CreateCollectibleNestedRoutingConflictAsync(
                         lifecycle, host, snapshot, outer, nestedDecisions, independentSnapshotCapture, token)
                         .ConfigureAwait(false);
@@ -1051,9 +1081,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 CollectNestedRoutingConflictOwner(observer);
                 Assert.That(IsNestedRoutingConflictOwnerAlive(observer), Is.False,
-                    "The real nested prepared batch must be collected before its raw marker is thrown.");
-                Assert.That(marker.Batch, Is.Null);
-                Assert.That(marker.IsBound, Is.True);
+                    "The native nested owner must be collected before its routing diagnostic is thrown.");
+                Assert.That(marker.InnerException, Is.Null,
+                    "Native routing provenance does not wrap a second prepared-owner conflict.");
                 Assert.That(marker.RoutingRevision, Is.SameAs(snapshot));
                 Assert.That(host.RoutingRevision, Is.SameAs(independent));
                 Assert.That(lifecycle.Revision, Is.EqualTo(independentRevision));
@@ -1064,7 +1094,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// An unbound conflict for another routing view must also bypass the real batch's binding filter.
+        /// A foreign routing diagnostic must preserve its original view without rebinding or replay.
         /// </summary>
         [Test]
         public async Task UnboundRoutingConflictForDifferentViewIsNotReboundAsync()
@@ -1078,7 +1108,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ownerFactory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(owner.Object);
-            await lifecycle.AddAsync(ownerFactory.Object, timeout.Token).ConfigureAwait(false);
+            RequireRegistration(
+                (await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                ownerFactory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
 
             NodeManagerRoutingTable.RoutingSnapshot snapshot = host.RoutingRevision;
             Assert.That(snapshot, Is.Not.SameAs(foreignSnapshot));
@@ -1100,8 +1133,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(candidate.Object);
-            await using IPreparedNodeManagerBatch outer = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges outer = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            NodeManagerGeneration candidateGeneration = NodeManagerGenerationRegistry.GetOrCreate(candidate.Object);
             Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
 
             int decisions = 0;
@@ -1115,14 +1149,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(observed, Is.SameAs(foreignFailure));
-                Assert.That(foreignFailure.IsBound, Is.False);
-                Assert.That(foreignFailure.Batch, Is.Null);
+                Assert.That(foreignFailure.InnerException, Is.Null);
                 Assert.That(foreignFailure.RoutingRevision, Is.SameAs(foreignSnapshot));
                 Assert.That(decisions, Is.Zero);
                 Assert.That(outer.IsCommitted, Is.False);
                 Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
                 Assert.That(lifecycle.Revision, Is.EqualTo(snapshot.Revision));
-                Assert.That(NodeManagerGenerationRegistry.GetOrCreate(candidate.Object).Gate.State,
+                Assert.That(candidateGeneration.Gate.State,
                     Is.EqualTo(NodeManagerGenerationState.Aborted));
                 Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri), Is.EqualTo(-1));
             }
@@ -1133,39 +1166,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Produces a real bound nested conflict without returning its prepared owner or its completion tasks.
+        /// Produces a native nested routing conflict without returning its owner or completion tasks.
         /// </summary>
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static async Task<(
             NodeManagerRoutingConflictException Marker,
-            WeakReference<IPreparedNodeManagerBatch> Observer)> CreateCollectibleNestedRoutingConflictAsync(
+            WeakReference<IPreparedChanges> Observer)> CreateCollectibleNestedRoutingConflictAsync(
             INodeManagerLifecycle lifecycle,
             IDynamicNodeManagerBatchHost host,
             NodeManagerRoutingTable.RoutingSnapshot snapshot,
-            IPreparedNodeManagerBatch outer,
+            IPreparedChanges outer,
             int[] nestedDecisions,
             NodeManagerRoutingTable.RoutingSnapshot?[] independentSnapshotCapture,
             CancellationToken cancellationToken)
         {
             Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
-            ValueTask<IPreparedNodeManagerBatch> preparation = lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kSecondModelNamespaceUri + ":Nested", kSecondRegistrationValue)))],
-                cancellationToken);
-            IPreparedNodeManagerBatch? nested = await preparation.ConfigureAwait(false);
+            ValueTask<IPreparedChanges> preparation = lifecycle.PrepareAsync(
+                [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(
+                        kSecondModelNamespaceUri + ":Nested", kSecondRegistrationValue)))], cancellationToken);
+            IPreparedChanges? nested = await preparation.ConfigureAwait(false);
             preparation = default;
-            var observer = new WeakReference<IPreparedNodeManagerBatch>(nested);
+            var observer = new WeakReference<IPreparedChanges>(nested);
             NodeManagerRoutingConflictException? marker = null;
             NodeManagerRoutingTable.RoutingSnapshot? independentSnapshot = null;
             try
             {
                 Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
                 Assert.That(ReferenceEquals(nested, outer), Is.False);
-                NodeManagerRegistration independent = await lifecycle.AddAsync(
-                    new RuntimeNodeSetNodeManagerFactory(
-                        CreateOptions(kSecondModelNamespaceUri + ":Independent", kSecondRegistrationValue)),
-                    cancellationToken).ConfigureAwait(false);
+                LifecycleResult publicationResult6 = await CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(
+                            kSecondModelNamespaceUri + ":Independent", kSecondRegistrationValue))),
+                            cancellationToken).ConfigureAwait(false);
+                NodeManagerRegistration independent = RequireRegistration(publicationResult6.Registrations[0]);
                 independentSnapshot = host.RoutingRevision;
                 independentSnapshotCapture[0] = independentSnapshot;
                 Assert.That(independentSnapshot, Is.Not.SameAs(snapshot));
@@ -1173,7 +1208,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(lifecycle.Revision, Is.EqualTo(independentSnapshot.Revision));
                 Assert.That(lifecycle.Registrations.ToList(), Does.Contain(independent));
 
-                ValueTask<NodeManagerBatchResult> commit = nested.CommitAsync(_ =>
+                ValueTask<LifecycleResult> commit = nested.CommitAsync(_ =>
                 {
                     Interlocked.Increment(ref nestedDecisions[0]);
                     return default;
@@ -1185,9 +1220,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 catch (InvalidOperationException failure)
                 {
-                    Assert.That(failure, Is.TypeOf<InvalidOperationException>());
-                    Assert.That(failure.InnerException, Is.TypeOf<NodeManagerRoutingConflictException>());
-                    marker = (NodeManagerRoutingConflictException)failure.InnerException!;
+                    Assert.That(failure, Is.TypeOf<NodeManagerRoutingConflictException>());
+                    Assert.That(failure.InnerException, Is.Null);
+                    marker = (NodeManagerRoutingConflictException)failure;
                     AssertNestedRoutingConflictOwnership(marker, nested, snapshot);
                     Assert.That(nested.IsCommitted, Is.False);
                 }
@@ -1231,17 +1266,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void AssertNestedRoutingConflictOwnership(
             NodeManagerRoutingConflictException marker,
-            IPreparedNodeManagerBatch nested,
+            IPreparedChanges nested,
             NodeManagerRoutingTable.RoutingSnapshot snapshot)
         {
-            Assert.That(marker.IsBound, Is.True);
-            Assert.That(ReferenceEquals(marker.Batch, nested), Is.True);
+            Assert.That(nested.IsCommitted, Is.False);
+            Assert.That(typeof(NodeManagerRoutingConflictException).GetProperty(
+                "IsBound", System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic), Is.Null);
             Assert.That(marker.RoutingRevision, Is.SameAs(snapshot));
-            Assert.That(marker.InnerException, Is.TypeOf<NodeManagerRoutingConflictException>());
-            var hostFailure = (NodeManagerRoutingConflictException)marker.InnerException!;
-            Assert.That(hostFailure.IsBound, Is.False);
-            Assert.That(hostFailure.Batch, Is.Null);
-            Assert.That(hostFailure.RoutingRevision, Is.SameAs(snapshot));
+            Assert.That(marker.InnerException, Is.Null);
             GC.KeepAlive(nested);
         }
 
@@ -1250,7 +1283,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static void CollectNestedRoutingConflictOwner(WeakReference<IPreparedNodeManagerBatch> observer)
+        private static void CollectNestedRoutingConflictOwner(WeakReference<IPreparedChanges> observer)
         {
             for (int attempt = 0; attempt < 10; attempt++)
             {
@@ -1267,7 +1300,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static bool IsNestedRoutingConflictOwnerAlive(WeakReference<IPreparedNodeManagerBatch> observer)
+        private static bool IsNestedRoutingConflictOwnerAlive(WeakReference<IPreparedChanges> observer)
         {
             return observer.TryGetTarget(out _);
         }

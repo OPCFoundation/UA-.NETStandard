@@ -83,6 +83,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets the first reported cleanup failure for an exact retained generation.
+        /// </summary>
+        /// <param name="generation">The retired generation to inspect.</param>
+        /// <returns>The first failure, or null while no failure has been reported.</returns>
+        internal Exception? GetRetirementFailure(NodeManagerGeneration generation)
+        {
+            lock (m_sync)
+            {
+                return m_pending.FirstOrDefault(retired => ReferenceEquals(retired.Generation, generation))
+                    ?.RetirementFailure;
+            }
+        }
+
+        /// <summary>
         /// Reserves retirement storage before entering the publication decision.
         /// </summary>
         /// <param name="count">The number of generations the publication may retire.</param>
@@ -202,6 +216,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Starts confirmed retirements even when producer shutdown must release an admitted operation.
+        /// </summary>
+        internal void RetryConfirmed()
+        {
+            StartWorkers(onlyQuiescent: false, confirmedOnly: true);
+        }
+
+        /// <summary>
         /// Attempts already-quiescent generations, without waiting for unrelated drains or claimed cleanup.
         /// </summary>
         /// <param name="published">Newly retired records whose quiescent workers belong to this publication.</param>
@@ -216,7 +238,7 @@ namespace Opc.Ua.Server
                     // An observer may have started this publication's worker between activation and this call.
                     // Join only its quiescent records, never another publication's blocked destruction callback.
                     workers = workers.Concat(published
-                        .Where(item => item.Generation.IsQuiescent)
+                        .Where(item => item.Generation.IsQuiescent && item.Generation.ResourceOwnership.IsCleanupReady)
                         .Select(item => item.Worker)
                         .OfType<Task<Exception?>>())
                         .Distinct()
@@ -272,8 +294,9 @@ namespace Opc.Ua.Server
         /// Claims one worker per generation. A blocked drain or destruction never owns another generation's claim.
         /// </summary>
         /// <param name="onlyQuiescent">Whether to leave non-quiescent generations for background scheduling.</param>
+        /// <param name="confirmedOnly">Whether to retry only generations with offered confirmation evidence.</param>
         /// <returns>The workers started by this attempt, not workers already admitted by another caller.</returns>
-        private Task<Exception?>[] StartWorkers(bool onlyQuiescent)
+        private Task<Exception?>[] StartWorkers(bool onlyQuiescent, bool confirmedOnly = false)
         {
             lock (m_sync)
             {
@@ -286,8 +309,12 @@ namespace Opc.Ua.Server
                 {
                     if (!retired.Ready ||
                         retired.Worker is { IsCompleted: false } ||
-                        !onlyQuiescent && retired.LastAttemptFailed ||
-                        onlyQuiescent && !retired.Generation.IsQuiescent ||
+                        confirmedOnly && !retired.Generation.HasPendingCleanupConfirmation &&
+                            !retired.Generation.ResourceOwnership.HasReadyCleanupConfirmation ||
+                        !retired.Generation.CanAttemptCleanup ||
+                        !onlyQuiescent && !confirmedOnly && retired.LastAttemptFailed ||
+                        onlyQuiescent && (!retired.Generation.IsQuiescent ||
+                            !retired.Generation.ResourceOwnership.IsCleanupReady) ||
                         retired.AllowActiveMonitoredItems &&
                             NodeManagerLifecycle.HasActiveMonitoredItems(retired.Server, retired.NodeManager))
                     {
@@ -336,9 +363,52 @@ namespace Opc.Ua.Server
         /// <returns>The failure, if any, reported to the current cleanup caller and diagnostic log.</returns>
         private async Task<Exception?> ReclaimAsync(RetiredGeneration retired)
         {
+            bool recoveryAdmissionClosed = false;
+            bool confirmationPending = false;
+            bool associationValidated = false;
+            NodeManagerCleanupFailureHandle? confirmationClaim = null;
+            NodeManagerGenerationRegistry.ResourceLifetime.CleanupLease? physicalCleanup = null;
             try
             {
+                NodeManagerGenerationRegistry.ValidateCleanupAssociation(retired.Generation);
+                associationValidated = true;
                 Task? finalization = StartTransitionFinalization(retired);
+                if (retired.Server is IConformanceUnitsManagerProvider
+                    {
+                        ConformanceUnitsManager: { } conformance
+                    })
+                {
+                    retired.ConformanceDrain ??= conformance.BeginNodeManagerCleanup(
+                        retired.NodeManager, withdraw: true);
+                    await retired.ConformanceDrain.ConfigureAwait(false);
+                }
+                if (retired.AllowActiveMonitoredItems &&
+                    NodeManagerLifecycle.HasActiveMonitoredItems(retired.Server, retired.NodeManager))
+                {
+                    return null;
+                }
+                physicalCleanup = await retired.Generation.ResourceOwnership.EnterCleanupAsync(retired.Generation)
+                    .ConfigureAwait(false);
+                retired.Generation.CleanupRecoveryGate.Retire();
+                recoveryAdmissionClosed = true;
+                await retired.Generation.CleanupRecoveryGate.WaitForDrainAsync().ConfigureAwait(false);
+                if (!retired.Generation.TryClaimCleanupConfirmation(out confirmationClaim))
+                {
+                    confirmationPending = true;
+                    throw new InvalidOperationException("Cleanup confirmation is not ready for retirement.");
+                }
+                NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
+                await physicalCleanup.PrepareForShutdownAsync(retired.Generation).ConfigureAwait(false);
+                NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
+                if (confirmationClaim is { } preparedConfirmation)
+                {
+                    retired.Generation.FinishCleanupConfirmationClaim(
+                        preparedConfirmation, completed: false, allowRetry: true);
+                    confirmationClaim = null;
+                }
+                retired.Generation.CleanupRecoveryGate.Restore();
+                recoveryAdmissionClosed = false;
+
                 InvalidateContinuationPoints(retired.Server, retired.Generation);
                 await LifecycleWaitDiagnostics.WaitAsync(
                     retired.Generation.WaitForQuiescenceAsync(CancellationToken.None).AsTask(),
@@ -351,6 +421,7 @@ namespace Opc.Ua.Server
                             retired.Generation.GetQuiescenceWaitContext()))
                     .ConfigureAwait(false);
                 retired.RequestsDrained = true;
+                await physicalCleanup.WaitForQuiescenceAsync().ConfigureAwait(false);
                 if (finalization is not null)
                 {
                     await finalization.ConfigureAwait(false);
@@ -365,12 +436,32 @@ namespace Opc.Ua.Server
                     await migrate().ConfigureAwait(false);
                     retired.LateMonitoredItemsMigrated = true;
                 }
+                retired.Generation.CleanupRecoveryGate.Retire();
+                recoveryAdmissionClosed = true;
+                await retired.Generation.CleanupRecoveryGate.WaitForDrainAsync().ConfigureAwait(false);
+                if (!retired.Generation.TryClaimCleanupConfirmation(out confirmationClaim))
+                {
+                    confirmationPending = true;
+                    throw new InvalidOperationException("Cleanup confirmation is not ready for retirement.");
+                }
+                NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
                 await retired.Generation.CompleteSourceReleasesAsync(
-                    null, CancellationToken.None, joinActiveCleanup: true).ConfigureAwait(false);
+                    null, CancellationToken.None, joinActiveCleanup: true, checkRetainedFailures: true)
+                    .ConfigureAwait(false);
+                NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
                 retired.Generation.DisposeRetiredResources();
+                NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
                 if (await CleanupRetiredGenerationCoreAsync(retired.Server, retired.Host, retired)
                     .ConfigureAwait(false))
                 {
+                    retired.Generation.CleanupRecoveryGate.DisposeGeneration();
+                    recoveryAdmissionClosed = false;
+                    if (confirmationClaim is { } completedConfirmation)
+                    {
+                        retired.Generation.FinishCleanupConfirmationClaim(completedConfirmation, completed: true);
+                        confirmationClaim = null;
+                    }
+                    NodeManagerGenerationRegistry.CompleteCleanup(retired.Generation);
                     lock (m_sync)
                     {
                         m_pending.Remove(retired);
@@ -378,11 +469,52 @@ namespace Opc.Ua.Server
                     retired.CompleteRetirement();
                     RecordShutdownCleanupProgress();
                 }
+                else if (confirmationClaim is { } deferredConfirmation)
+                {
+                    retired.Generation.FinishCleanupConfirmationClaim(
+                        deferredConfirmation, completed: false, allowRetry: true);
+                    confirmationClaim = null;
+                }
                 return null;
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
-                retired.RecordRetirementFailure(failure);
+                confirmationPending |= physicalCleanup?.ConfirmationPending == true;
+                bool scheduleRetry = associationValidated && !confirmationPending;
+                if (recoveryAdmissionClosed && !confirmationPending)
+                {
+                    try
+                    {
+                        scheduleRetry = !NodeManagerCleanupRecovery.HasRetainedFailures(retired.Generation);
+                    }
+                    catch (Exception inspectionFailure) when (inspectionFailure is not OutOfMemoryException)
+                    {
+                        scheduleRetry = false;
+                        failure = new AggregateException(
+                            "Retired cleanup failed and retained failures could not be inspected.",
+                            failure,
+                            inspectionFailure);
+                    }
+                }
+                if (confirmationClaim is { } failedConfirmation)
+                {
+                    retired.Generation.FinishCleanupConfirmationClaim(
+                        failedConfirmation, completed: false, allowRetry: confirmationPending);
+                    confirmationClaim = null;
+                }
+                else if (!confirmationPending)
+                {
+                    retired.Generation.InvalidateOfferedCleanupConfirmation();
+                }
+                if (recoveryAdmissionClosed)
+                {
+                    retired.Generation.CleanupRecoveryGate.Restore();
+                    recoveryAdmissionClosed = false;
+                }
+                if (!confirmationPending)
+                {
+                    retired.RecordRetirementFailure(failure);
+                }
                 retired.Server.Telemetry.CreateLogger<GenerationReclaimer>().RetiredGenerationCleanupFailed(failure);
                 lock (m_sync)
                 {
@@ -394,8 +526,49 @@ namespace Opc.Ua.Server
                     // All callbacks have finished. Release the retry claim before scheduling another attempt.
                     retired.Worker = null;
                 }
-                ScheduleRetry(retired);
+                if (!confirmationPending &&
+                    retired.Generation.HasPendingCleanupConfirmation && retired.Generation.CanAttemptCleanup)
+                {
+                    // Confirmation may have arrived after admission reopened but before the worker released its claim.
+                    RetryConfirmed();
+                }
+                else if (scheduleRetry && retired.Generation.CanAttemptCleanup)
+                {
+                    ScheduleRetry(retired);
+                }
                 return failure;
+            }
+            catch (OutOfMemoryException failure)
+            {
+                if (confirmationClaim is null)
+                {
+                    retired.Generation.InvalidateOfferedCleanupConfirmation();
+                }
+                retired.RecordRetirementFailure(failure);
+                lock (m_sync)
+                {
+                    retired.LastAttemptFailed = true;
+                }
+                throw;
+            }
+            finally
+            {
+                try
+                {
+                    if (confirmationClaim is { } abandonedConfirmation)
+                    {
+                        retired.Generation.FinishCleanupConfirmationClaim(abandonedConfirmation, completed: false);
+                    }
+                    if (recoveryAdmissionClosed)
+                    {
+                        retired.Generation.CleanupRecoveryGate.Restore();
+                    }
+                }
+                finally
+                {
+                    // Keep sibling gates closed through failure handling, then release even retained worker tasks.
+                    Interlocked.Exchange(ref physicalCleanup, null)?.Dispose();
+                }
             }
         }
 
@@ -435,6 +608,7 @@ namespace Opc.Ua.Server
                 retired.RetryScheduled = false;
                 if (m_stopping || scheduleEpoch != m_scheduleEpoch ||
                     !retired.Ready || !m_pending.Contains(retired) ||
+                    !retired.Generation.CanAttemptCleanup ||
                     retired.Worker is { IsCompleted: false })
                 {
                     return;
@@ -497,12 +671,28 @@ namespace Opc.Ua.Server
             {
                 return;
             }
+            List<Exception>? failures = null;
             foreach (ISession session in sessions.GetSessions())
             {
-                if (session.ContinuationPoints is SessionContinuationPoints points)
+                try
                 {
-                    points.RemoveForGeneration(generation);
+                    if (session.ContinuationPoints is SessionContinuationPoints points)
+                    {
+                        points.RemoveForGeneration(generation);
+                    }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+            }
+            if (failures is { Count: 1 })
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures is { Count: > 1 })
+            {
+                throw new AggregateException("Session continuation cleanup for the NodeManager failed.", failures);
             }
         }
 
@@ -510,58 +700,34 @@ namespace Opc.Ua.Server
         /// Detaches staging metadata and disposes a reclaimed manager.
         /// </summary>
         /// <param name="nodeManager">The manager to dispose.</param>
+        /// <param name="generation">The generation retaining participant failures.</param>
         /// <param name="cleanup">The completed disposal stages retained across retries.</param>
         /// <returns>The asynchronous disposal.</returns>
         private async ValueTask DisposeNodeManagerAsync(
             IAsyncNodeManager nodeManager,
+            NodeManagerGeneration generation,
             RetirementCleanupState cleanup)
         {
             ChangePreparer.Detach(nodeManager);
-            Exception? managerFailure = null;
             if (!cleanup.ManagerDisposed)
             {
-                try
-                {
-                    if (nodeManager is IAsyncDisposable asyncDisposable)
+                await NodeManagerCleanupRecovery.DisposeManagerAsync(
+                    nodeManager,
+                    generation,
+                    () =>
                     {
-                        await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-                    }
-                    else if (nodeManager is IDisposable disposable)
-                    {
-                        disposable.Dispose();
-                    }
-                    cleanup.ManagerDisposed = true;
-                    RecordShutdownCleanupProgress();
-                }
-                catch (Exception failure) when (failure is not OutOfMemoryException)
-                {
-                    managerFailure = failure;
-                }
+                        cleanup.ManagerDisposed = true;
+                        RecordShutdownCleanupProgress();
+                    }).ConfigureAwait(false);
             }
-            try
+            NodeManagerCleanupRecovery.EnsureNoRetainedFailures(generation);
+            if (!cleanup.StagingDisposed)
             {
-                if (!cleanup.StagingDisposed)
-                {
-                    await ChangePreparer.DisposeAsync(nodeManager).ConfigureAwait(false);
-                    cleanup.StagingDisposed = true;
-                    RecordShutdownCleanupProgress();
-                }
+                await ChangePreparer.DisposeAsync(nodeManager).ConfigureAwait(false);
+                cleanup.StagingDisposed = true;
+                RecordShutdownCleanupProgress();
             }
-            catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
-            {
-                if (managerFailure is not null)
-                {
-                    throw new AggregateException(
-                        "NodeManager and candidate historian cleanup both failed.",
-                        managerFailure,
-                        cleanupFailure);
-                }
-                throw;
-            }
-            if (managerFailure is not null)
-            {
-                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(managerFailure).Throw();
-            }
+            NodeManagerCleanupRecovery.EnsureNoRetainedFailures(generation);
         }
 
         /// <summary>
@@ -621,6 +787,7 @@ namespace Opc.Ua.Server
                     cleanup.NotificationsFinalized = true;
                     RecordShutdownCleanupProgress();
                 }
+                NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
                 await host.GenerationReconciler.UnbindRetiredAsync(
                     retired.Generation,
                     unsubscribeAllEvents: false,
@@ -639,6 +806,7 @@ namespace Opc.Ua.Server
                 cleanup.Detached = true;
                 RecordShutdownCleanupProgress();
             }
+            NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
 
             if (!cleanup.ReferencesRemoved)
             {
@@ -654,6 +822,7 @@ namespace Opc.Ua.Server
                 cleanup.ReferencesRemoved = true;
                 RecordShutdownCleanupProgress();
             }
+            NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
 
             if (!cleanup.Destroyed)
             {
@@ -669,6 +838,7 @@ namespace Opc.Ua.Server
                 cleanup.Destroyed = true;
                 RecordShutdownCleanupProgress();
             }
+            NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
 
             if (!cleanup.DestroyedExternalReferencesRemoved)
             {
@@ -678,11 +848,12 @@ namespace Opc.Ua.Server
                 cleanup.DestroyedExternalReferencesRemoved = true;
                 RecordShutdownCleanupProgress();
             }
+            NodeManagerCleanupRecovery.EnsureNoRetainedFailures(retired.Generation);
 
             if (!cleanup.Disposed)
             {
                 host.ReleaseRetiringEventGeneration(retired.Generation);
-                await DisposeNodeManagerAsync(retired.NodeManager, cleanup).ConfigureAwait(false);
+                await DisposeNodeManagerAsync(retired.NodeManager, retired.Generation, cleanup).ConfigureAwait(false);
                 cleanup.Disposed = true;
                 RecordShutdownCleanupProgress();
             }
@@ -752,6 +923,11 @@ namespace Opc.Ua.Server
             /// Gets or sets whether a delayed retry has been scheduled.
             /// </summary>
             internal bool RetryScheduled { get; set; }
+
+            /// <summary>
+            /// Gets or sets the explicit conformance contributor read drain for this generation.
+            /// </summary>
+            internal Task? ConformanceDrain { get; set; }
 
             /// <summary>
             /// Gets or sets the number of failed attempts used to calculate retry backoff.
@@ -834,6 +1010,11 @@ namespace Opc.Ua.Server
             /// Gets the eventual result of retirement; individual failed attempts are reported by cleanup callers.
             /// </summary>
             public Task Retirement => m_retirementCompletion.Task;
+
+            /// <summary>
+            /// Gets the first failure reported by an attempt before physical retirement completes.
+            /// </summary>
+            internal Exception? RetirementFailure => Volatile.Read(ref m_retirementFailure);
 
             /// <summary>
             /// Publishes successful reclamation unless an earlier attempt already reported failure.

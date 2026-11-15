@@ -39,6 +39,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
@@ -49,6 +50,7 @@ using Opc.Ua.WotCon.Tests.Materialization;
 using Opc.Ua.XRegistry.Server;
 using Quickstarts.ReferenceServer;
 using INodeManagerLifecycle = Opc.Ua.Server.INodeManagerLifecycle;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -951,8 +953,8 @@ namespace Opc.Ua.WotCon.Tests
                 Options = m_services.GetRequiredService<WotRegistryServerOptions>();
                 Registry = (WotRegistryService)m_services.GetRequiredService<IWotRegistryService>();
                 Host = (PausableWotProjectionHost)m_services.GetRequiredService<IWotProjectionHost>();
-                await server.NodeManagerLifecycle.AddAsync(
-                    m_services.GetRequiredService<WotRegistryNodeManagerFactory>(), null);
+                await server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(m_services.GetRequiredService<WotRegistryNodeManagerFactory>())]);
                 m_clientFixture = new ClientFixture(false, false, telemetry);
                 await m_clientFixture.LoadClientConfigurationAsync(m_root);
                 m_session = await m_clientFixture.ConnectAsync(

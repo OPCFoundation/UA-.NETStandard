@@ -139,12 +139,11 @@ namespace Opc.Ua.Server
         private static bool IsBoundSource(NodeManagerGeneration generation, IAsyncNodeManager nodeManager)
         {
             return ReferenceEquals(generation.NodeManager, nodeManager) ||
-                (NodeManagerGenerationRegistry.TryGet(nodeManager, out NodeManagerGeneration? associated) &&
-                    ReferenceEquals(associated, generation)) ||
-                (nodeManager is AsyncNodeManagerAdapter &&
-                    NodeManagerGenerationRegistry.HasSameGenerationIdentity(generation.NodeManager, nodeManager)) ||
-                (ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(nodeManager), nodeManager) &&
-                    ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager), nodeManager));
+                NodeManagerGenerationRegistry.HasSameGenerationIdentity(generation.NodeManager, nodeManager) ||
+                (NodeManagerGenerationRegistry.HasSameGenerationIdentity(
+                    nodeManager, NodeManagerGenerationRegistry.GetIdentity(nodeManager)) &&
+                    ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager),
+                        NodeManagerGenerationRegistry.GetIdentity(nodeManager)));
         }
 
         /// <summary>
@@ -159,9 +158,16 @@ namespace Opc.Ua.Server
                 return false;
             }
             NodeManagerRoutingTable.RoutingSnapshot routing = m_nodeManagers.Revision;
-            if (routing.TryGetSourceGeneration(nodeManager, out NodeManagerGeneration? current))
+            if (routing.TryGetSourceGeneration(nodeManager, out NodeManagerGeneration? current) &&
+                ReferenceEquals(generation, current))
             {
-                return ReferenceEquals(generation, current);
+                return true;
+            }
+            if (NodeManagerGenerationRegistry.HasSameGenerationIdentity(
+                    nodeManager, NodeManagerGenerationRegistry.GetIdentity(nodeManager)) &&
+                routing.ContainsVisibleGenerationOwner(generation))
+            {
+                return true;
             }
             return ReferenceEquals(generation.NodeManager, nodeManager) &&
                 ReferenceEquals(generation.Slot.Current, generation) &&
@@ -192,26 +198,7 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            NodeManagerGeneration? generation;
-            if (generationReference is not null)
-            {
-                if (!generationReference.TryGetGeneration(out generation) ||
-                    generation is null ||
-                    !master.IsCurrentOrLegacyBoundSource(generation, nodeManager))
-                {
-                    return false;
-                }
-            }
-            else if (!master.m_nodeManagers.Revision.TryGetSourceGeneration(nodeManager, out generation))
-            {
-                return false;
-            }
-            if (!generation!.Gate.TryEnter(out int slot))
-            {
-                return false;
-            }
-            emission = new SourceEmissionAdmission(master, generation, slot, trackReadinessEvents: false);
-            return true;
+            return master.TryEnterSourceEmission(nodeManager, generationReference, false, out emission);
         }
 
         /// <summary>
@@ -256,34 +243,7 @@ namespace Opc.Ua.Server
                     master, nodeManager, generationReference, isGlobalServerEventSink, out emission);
             }
 
-            NodeManagerGeneration generation;
-            if (generationReference is not null)
-            {
-                if (!generationReference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) ||
-                    boundGeneration is null ||
-                    !master.IsCurrentOrLegacyBoundSource(boundGeneration, nodeManager))
-                {
-                    return false;
-                }
-                generation = boundGeneration;
-            }
-            else
-            {
-                if (!master.m_nodeManagers.Revision.TryGetSourceGeneration(
-                        nodeManager,
-                        out NodeManagerGeneration? currentGeneration))
-                {
-                    return false;
-                }
-                generation = currentGeneration!;
-            }
-            if (!generation.Gate.TryEnter(out int slot))
-            {
-                return false;
-            }
-
-            emission = new SourceEmissionAdmission(master, generation, slot);
-            return true;
+            return master.TryEnterSourceEmission(nodeManager, generationReference, true, out emission);
         }
 
         /// <summary>
@@ -304,19 +264,39 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            if (!master.m_nodeManagers.Revision.TryGetSourceGeneration(
-                    nodeManager,
-                    out NodeManagerGeneration? generation))
+            return master.TryEnterSourceEmission(nodeManager, null, false, out admission);
+        }
+
+        /// <summary>
+        /// Selects and admits one exact source generation for items, events and custom source creation.
+        /// Bound sources retain their identity; only unbound sources resolve through the current routing image.
+        /// </summary>
+        private bool TryEnterSourceEmission(
+            IAsyncNodeManager nodeManager,
+            NodeManagerGenerationReference? reference,
+            bool trackReadinessEvents,
+            out SourceEmissionAdmission? emission)
+        {
+            emission = null;
+            NodeManagerGeneration? generation;
+            if (reference is not null)
+            {
+                if (!reference.TryGetGeneration(out generation) ||
+                    generation is null ||
+                    !IsCurrentOrLegacyBoundSource(generation, nodeManager))
+                {
+                    return false;
+                }
+            }
+            else if (!m_nodeManagers.Revision.TryGetSourceGeneration(nodeManager, out generation))
             {
                 return false;
             }
-            NodeManagerGeneration currentGeneration = generation!;
-            if (!currentGeneration.Gate.TryEnter(out int slot))
+            if (!generation!.Gate.TryEnter(out int slot))
             {
                 return false;
             }
-            admission = new SourceEmissionAdmission(
-                master, currentGeneration, slot, trackReadinessEvents: false);
+            emission = new SourceEmissionAdmission(this, generation, slot, trackReadinessEvents);
             return true;
         }
 
@@ -467,7 +447,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets whether the originating callback still accepts child emissions.
             /// </summary>
-            internal bool IsActive => m_lease.IsActive;
+            internal bool IsActive => (Volatile.Read(ref m_captureState) & ClosedMask) == 0;
 
             /// <summary>
             /// Admits one refresh target without retaining a request context or an ambient source.
@@ -478,12 +458,23 @@ namespace Opc.Ua.Server
             internal bool TryCaptureForItem(IEventMonitoredItem item, out SourceEmissionAdmission? emission)
             {
                 emission = null;
-                MasterNodeManager? owner = Volatile.Read(ref m_owner);
-                IAsyncNodeManager? nodeManager = item.NodeManager;
-                return owner is not null && nodeManager is not null &&
-                    TryCapture(
-                        owner, nodeManager, (item as MonitoredItem)?.Generation,
-                        item.MonitoringAllEvents, out emission);
+                if (!TryEnterCapture())
+                {
+                    return false;
+                }
+                try
+                {
+                    MasterNodeManager? owner = Volatile.Read(ref m_owner);
+                    IAsyncNodeManager? nodeManager = item.NodeManager;
+                    return owner is not null && nodeManager is not null &&
+                        TryCaptureCore(
+                            owner, nodeManager, (item as MonitoredItem)?.Generation,
+                            item.MonitoringAllEvents, out emission);
+                }
+                finally
+                {
+                    ExitCapture();
+                }
             }
 
             /// <summary>
@@ -519,6 +510,49 @@ namespace Opc.Ua.Server
                 out SourceEmissionAdmission? emission)
             {
                 emission = null;
+                if (!TryEnterCapture())
+                {
+                    return false;
+                }
+                try
+                {
+                    return TryCaptureCore(owner, nodeManager, reference, globalSink, out emission);
+                }
+                finally
+                {
+                    ExitCapture();
+                }
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                while (true)
+                {
+                    int state = Volatile.Read(ref m_captureState);
+                    if ((state & ClosedMask) != 0)
+                    {
+                        return;
+                    }
+                    if (Interlocked.CompareExchange(ref m_captureState, state | ClosedMask, state) == state)
+                    {
+                        ExitCapture();
+                        return;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Validates and registers a child while the caller owns a capture claim.
+            /// </summary>
+            private bool TryCaptureCore(
+                MasterNodeManager owner,
+                IAsyncNodeManager nodeManager,
+                NodeManagerGenerationReference? reference,
+                bool globalSink,
+                out SourceEmissionAdmission? emission)
+            {
+                emission = null;
                 NodeManagerGeneration? generation = Volatile.Read(ref m_generation);
                 if (generation is null ||
                     !ReferenceEquals(Volatile.Read(ref m_owner), owner) ||
@@ -531,22 +565,68 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
-                emission = new SourceEmissionAdmission(
-                    owner, generation, slot, m_readinessEventId, m_readinessPending, m_tracksReadiness);
-                return true;
+                try
+                {
+                    emission = new SourceEmissionAdmission(
+                        owner, generation, slot, m_readinessEventId, m_readinessPending, m_tracksReadiness);
+                    return true;
+                }
+                catch
+                {
+                    generation.Gate.Exit(slot);
+                    throw;
+                }
             }
 
-            /// <inheritdoc/>
-            public void Dispose()
+            /// <summary>
+            /// Retains the parent admission while a child is validated and registered.
+            /// </summary>
+            private bool TryEnterCapture()
             {
-                NodeManagerGeneration? generation = Interlocked.Exchange(ref m_generation, null);
-                if (m_tracksReadiness && generation is not null)
+                while (true)
                 {
-                    generation.ReleaseSourceEmission(m_readinessEventId);
+                    int state = Volatile.Read(ref m_captureState);
+                    if ((state & ClosedMask) != 0)
+                    {
+                        return false;
+                    }
+                    if (state == int.MaxValue)
+                    {
+                        throw new InvalidOperationException("Too many concurrent source emission captures.");
+                    }
+                    if (Interlocked.CompareExchange(ref m_captureState, state + 1, state) == state)
+                    {
+                        return true;
+                    }
                 }
-                m_lease.Dispose();
-                Volatile.Write(ref m_owner, null);
             }
+
+            /// <summary>
+            /// Releases one capture or the origin's own claim after admission has closed.
+            /// </summary>
+            private void ExitCapture()
+            {
+                if (Interlocked.Decrement(ref m_captureState) != ClosedMask)
+                {
+                    return;
+                }
+                NodeManagerGeneration? generation = Interlocked.Exchange(ref m_generation, null);
+                try
+                {
+                    if (m_tracksReadiness && generation is not null)
+                    {
+                        generation.ReleaseSourceEmission(m_readinessEventId);
+                    }
+                }
+                finally
+                {
+                    m_lease.Dispose();
+                    Volatile.Write(ref m_owner, null);
+                }
+            }
+
+            /// <summary>The high bit closes capture admission; the remaining bits count active owners.</summary>
+            private const int ClosedMask = int.MinValue;
 
             /// <summary>The routing owner, released when the source callback finishes.</summary>
             private MasterNodeManager? m_owner;
@@ -565,6 +645,9 @@ namespace Opc.Ua.Server
 
             /// <summary>Whether this origin owns one readiness-drain admission.</summary>
             private readonly bool m_tracksReadiness;
+
+            /// <summary>The origin's own admission and any in-progress capture transitions.</summary>
+            private int m_captureState = 1;
         }
 
         /// <summary>

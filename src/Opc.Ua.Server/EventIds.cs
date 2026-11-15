@@ -139,6 +139,11 @@ namespace Opc.Ua
         public const int HistorianCaptureSink = 170;
 
         /// <summary>
+        /// Event identifier offset for history continuation restoration messages.
+        /// </summary>
+        public const int HistorianContinuationClaim = 750;
+
+        /// <summary>
         /// Event identifier offset for historian event filtering messages.
         /// </summary>
         public const int HistorianEventFilterTarget = 180;

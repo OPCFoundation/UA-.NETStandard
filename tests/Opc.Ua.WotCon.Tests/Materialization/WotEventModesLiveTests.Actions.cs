@@ -242,7 +242,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             nodes.Items![2] = ConditionEventType(1, Ua.ObjectTypeIds.AcknowledgeableConditionType.ToString());
             byte[] bytes = Serialize(nodes);
             NodeId methodId = NodeId.Null;
-            _ = await source.Server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(new RuntimeNodeSetOptions
+            _ = await source.Server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
             {
                 Sources =
                 [
@@ -292,7 +293,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     });
                     return null;
                 }
-            }, null, ct).ConfigureAwait(false);
+            }))], ct).ConfigureAwait(false);
             Assert.That(methodId.IsNull, Is.False);
             return methodId;
         }

@@ -253,7 +253,15 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public void Dispose()
         {
-            DisposeCore(null);
+            DisposeCore(null, delegateToSession: true);
+        }
+
+        /// <summary>
+        /// Disposes this copy through the session that already owns its cleanup.
+        /// </summary>
+        internal void DisposeForSession()
+        {
+            DisposeCore(null, delegateToSession: false);
         }
 
         /// <summary>
@@ -262,7 +270,7 @@ namespace Opc.Ua.Server.Historian
         /// <param name="attemptedOwner">The session continuation points that attempts to dispose the state.</param>
         internal void DisposeUnlessOwnedByAnotherSession(ISessionContinuationPoints attemptedOwner)
         {
-            DisposeCore(attemptedOwner);
+            DisposeCore(attemptedOwner, delegateToSession: false);
         }
 
         /// <summary>
@@ -327,9 +335,11 @@ namespace Opc.Ua.Server.Historian
         /// unless another session owns the continuation.
         /// </summary>
         /// <param name="attemptedOwner">The disposing session, or null to dispose unconditionally.</param>
-        private void DisposeCore(ISessionContinuationPoints? attemptedOwner)
+        /// <param name="delegateToSession">Whether a session owner must arbitrate an external disposal.</param>
+        private void DisposeCore(ISessionContinuationPoints? attemptedOwner, bool delegateToSession)
         {
             Action? releaseOwner;
+            SessionContinuationPoints? session = null;
             lock (m_lock)
             {
                 if (m_disposed ||
@@ -338,12 +348,28 @@ namespace Opc.Ua.Server.Historian
                 {
                     return;
                 }
-                m_disposed = true;
-                releaseOwner = m_ownerRelease;
-                m_ownerRelease = null;
-                m_sessionOwner = null;
-                Saved = false;
-                BufferedProcessedOutputs = null;
+                if (delegateToSession && m_sessionOwner is SessionContinuationPoints owner)
+                {
+                    session = owner;
+                    releaseOwner = null;
+                }
+                else
+                {
+                    m_disposed = true;
+                    releaseOwner = m_ownerRelease;
+                    m_ownerRelease = null;
+                    m_sessionOwner = null;
+                    Saved = false;
+                    BufferedProcessedOutputs = null;
+                }
+            }
+            if (session is not null)
+            {
+                if (!session.TryDisposeHistorianState(this))
+                {
+                    DisposeCore(session, delegateToSession: false);
+                }
+                return;
             }
             try
             {

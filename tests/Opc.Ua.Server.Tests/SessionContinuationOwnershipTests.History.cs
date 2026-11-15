@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Checks that history cleanup reports store and disposal failures and releases its owners.
+        /// Checks that history cleanup reports store and disposal failures and retains failed owners.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -231,7 +231,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(failures, Has.Exactly(1).SameAs(firstDisposalFailure));
                     Assert.That(failures, Has.Exactly(1).SameAs(secondStoreFailure));
                     Assert.That(failures, Has.Exactly(1).SameAs(secondDisposalFailure));
-                    Assert.That(holder.HasHistoryForManager(manager.Object), Is.False);
+                    Assert.That(holder.HasHistoryForManager(manager.Object), Is.True);
                     Assert.That(successful.BufferedProcessedOutputs, Is.Null);
                     Assert.That(successfulData.Count, Is.EqualTo(1));
                     Assert.That(released, Is.EqualTo(1));
@@ -243,10 +243,13 @@ namespace Opc.Ua.Server.Tests
             }
 
             holder.Clear();
+            first.Verify(value => value.Dispose(), Times.Once);
+            second.Verify(value => value.Dispose(), Times.Once);
             store.Verify(value => value.RemoveContinuationPoint(
                 It.IsAny<NodeId>(), ContinuationPointKind.History, successful.Id), Times.Once);
             using (Assert.EnterMultipleScope())
             {
+                Assert.That(holder.HasHistoryForManager(manager.Object), Is.True);
                 Assert.That(successfulData.Count, Is.EqualTo(1));
                 Assert.That(released, Is.EqualTo(1));
             }

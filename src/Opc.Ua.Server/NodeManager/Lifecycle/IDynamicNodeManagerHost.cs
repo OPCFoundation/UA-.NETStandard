@@ -57,7 +57,10 @@ namespace Opc.Ua.Server
         /// <param name="generation">The identity assigned before address-space callbacks.</param>
         /// <param name="replacedNodeManager">The exact predecessor, or null for an addition.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        /// <returns>The prepared NodeManager, which is the input to every later stage.</returns>
+        /// <returns>
+        /// The private candidate, including its original preparation failure when preparation started but failed.
+        /// The lifecycle must retain that candidate for abort cleanup before propagating the failure.
+        /// </returns>
         ValueTask<PreparedNodeManager> PrepareAsync(
             IAsyncNodeManager nodeManager,
             NodeManagerGeneration generation,
@@ -220,6 +223,12 @@ namespace Opc.Ua.Server
         /// Gets the predecessor retained only until this candidate's publication.
         /// </summary>
         public IAsyncNodeManager? ReplacedNodeManager => m_replacedNodeManager;
+
+        /// <summary>
+        /// Gets or sets the original failure after private preparation started.
+        /// The lifecycle retains this candidate for cleanup before rethrowing the failure.
+        /// </summary>
+        internal Exception? PreparationFailure { get; set; }
 
         /// <summary>
         /// Validates a private candidate before reserving publication.

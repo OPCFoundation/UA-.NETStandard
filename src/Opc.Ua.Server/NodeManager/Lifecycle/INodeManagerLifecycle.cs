@@ -41,10 +41,8 @@ namespace Opc.Ua.Server
     /// Its result describes the authoritative published revision, registrations, slots, post-commit
     /// failures, and asynchronous retirement. Dispose an uncommitted owner to release its candidates.
     /// Request callbacks use the same context-free transaction API as external callers.
-    /// Slot-based consumers use <see cref="LifecycleChangeExtensions.ApplyAsync"/> or
-    /// <see cref="LifecycleChangeExtensions.BeginAsync"/>. These are additive extensions, not required interface
-    /// members. Providers adopting these calls resolve <see cref="NodeManagerBatchChange.TargetSlot"/> during
-    /// preparation; the existing <see cref="PrepareAsync"/> member also preserves exact-generation changes.
+    /// Capture revisions before acquiring application inputs with <see cref="CaptureChanges"/>.
+    /// A writer advances its evidence only through its own commits; stale work never retries factories or decisions.
     /// </remarks>
     public interface INodeManagerLifecycle
     {
@@ -62,6 +60,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets a snapshot of live application registrations, including managers composed before startup.
         /// Built-in diagnostics, configuration, and core NodeManagers are excluded.
+        /// These inspection handles are strong; prepared and committed results expose weak snapshots.
         /// </summary>
         ArrayOf<NodeManagerRegistration> Registrations { get; }
 
@@ -72,20 +71,10 @@ namespace Opc.Ua.Server
         bool IsShuttingDown { get; }
 
         /// <summary>
-        /// Gets whether this lifecycle supports preparing an unpublished transaction.
-        /// </summary>
-        bool SupportsPreparedPublication { get; }
-
-        /// <summary>
-        /// Gets whether publication admission can be captured across multiple prepared units.
-        /// </summary>
-        bool SupportsPublicationIsolation { get; }
-
-        /// <summary>
         /// Captures the current routing, type, and factory revisions without reserving publication.
         /// </summary>
         /// <returns>The capture holding the observed revisions.</returns>
-        INodeManagerPublicationCapture CapturePublication();
+        ILifecycleCapture CaptureChanges();
 
         /// <summary>
         /// Prepares additions, replacements, and retirements without publishing them.
@@ -94,8 +83,8 @@ namespace Opc.Ua.Server
         /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
         /// <param name="cancellationToken">The token to cancel the operation.</param>
         /// <returns>The unpublished prepared unit.</returns>
-        ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
-            ArrayOf<NodeManagerBatchChange> changes,
+        ValueTask<IPreparedChanges> PrepareAsync(
+            ArrayOf<LifecycleChange> changes,
             CancellationToken cancellationToken = default);
     }
 }

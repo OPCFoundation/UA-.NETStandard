@@ -36,6 +36,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -390,8 +391,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                         It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
-                await server.NodeManagerLifecycle.AddAsync(factory.Object, null, CancellationToken.None)
-                    .ConfigureAwait(false);
+                LifecycleInspection.Registration(
+                    (await CommitChangeAsync(
+                    server.NodeManagerLifecycle, LifecycleChange.Add(
+                    factory.Object), CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
                 SystemLifetimeCore core = server.Core!;
                 SystemLifetimeSessions sessions = server.Sessions!;
                 sessions.ShutdownFailuresRemaining = 1;
@@ -515,11 +518,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ArrayOf<NodeManagerSlot> systems = ((IDynamicNodeManagerHost)master).SystemSlots;
                 for (int ii = 0; ii < systems.Count; ii++)
                 {
+                    await using ILifecycleWriter writer = await lifecycle.CaptureChanges().BeginAsync()
+                        .ConfigureAwait(false);
                     NodeManagerSlot slot = systems[ii];
                     NodeManagerGeneration generation = slot.Current!;
                     var registration = new NodeManagerRegistration(slot.Id, generation.Number, generation.NodeManager);
                     await Assert.ThatAsync(
-                        () => lifecycle.PrepareAsync([NodeManagerBatchChange.Remove(registration)]).AsTask(),
+                        () => writer.PrepareAsync([LifecycleChange.Remove(registration.Slot)]).AsTask(),
                         Throws.InvalidOperationException.With.Message.Contains("System slots")).ConfigureAwait(false);
                 }
                 if (cancelDrain)
@@ -617,7 +622,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
                     (ArrayOf<DataValue> values, _) = await server.CurrentInstance.NodeManager.ReadAsync(
                         context, 0, TimestampsToReturn.Both,
-                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        [new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }],
                         ct).ConfigureAwait(false);
                     Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                     var manager = new Mock<IAsyncNodeManager>();
@@ -627,7 +636,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                         It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(manager.Object);
-                    child = await server.NodeManagerLifecycle.AddAsync(factory.Object, null, ct).ConfigureAwait(false);
+                    LifecycleResult publicationResult1 = await CommitChangeAsync(
+                        server.NodeManagerLifecycle, LifecycleChange.Add(factory.Object), ct).ConfigureAwait(false);
+                    child = LifecycleInspection.Registration(publicationResult1.Registrations[0]);
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                     server.ValidateInitializerRequest();

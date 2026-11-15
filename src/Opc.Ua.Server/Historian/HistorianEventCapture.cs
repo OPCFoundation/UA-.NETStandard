@@ -43,12 +43,21 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Starts event capture using the provider's field capabilities and bounded queue options.
         /// </summary>
+        /// <param name="server">The server owning the capture pipeline.</param>
+        /// <param name="provider">The event historian provider.</param>
+        /// <param name="capabilities">The event fields and capabilities to capture.</param>
+        /// <param name="options">The bounded queue and batching options.</param>
+        /// <param name="timeProvider">The clock used for shutdown deadline scheduling.</param>
+        /// <param name="cleanupStarted">
+        /// Invoked when the provider consumer exceeds the shutdown deadline and remains active.
+        /// </param>
         public HistorianEventCapture(
             IServerInternal server,
             IHistorianProvider provider,
             HistorianNodeCapabilities capabilities,
             HistorianCaptureOptions? options = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            Action<Task>? cleanupStarted = null)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_provider = provider as IHistorianEventProvider ??
@@ -62,6 +71,7 @@ namespace Opc.Ua.Server.Historian
             m_timeProvider = timeProvider ??
                 (server as ITimeProviderProvider)?.TimeProvider ??
                 TimeProvider.System;
+            m_cleanupStarted = cleanupStarted;
             m_logger = server.Telemetry.CreateLogger<HistorianEventCapture>();
             m_fields = BuildCaptureFields(
                 capabilities.EventFields,
@@ -173,47 +183,76 @@ namespace Opc.Ua.Server.Historian
         /// A timeout cancels capture and is surfaced to the caller. Token resources remain alive
         /// until an in-flight provider completes; its eventual failure is still observed.
         /// </remarks>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            TaskCompletionSource<bool> completion;
+            bool ownsDisposal = false;
+            lock (m_disposalLock)
             {
-                return;
+                if (m_disposalFinished is null)
+                {
+                    if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                    {
+                        return default;
+                    }
+                    m_disposalFinished = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    ownsDisposal = true;
+                }
+                completion = m_disposalFinished;
             }
-            m_channel.Writer.TryComplete();
+            return ownsDisposal
+                ? DisposeCoreAsync(completion)
+                : new ValueTask(completion.Task);
+        }
+
+        private async ValueTask DisposeCoreAsync(TaskCompletionSource<bool> completion)
+        {
             try
             {
-                await m_consumer.WaitAsync(
-                    TimeSpan.FromSeconds(5),
-                    m_timeProvider).ConfigureAwait(false);
+                m_channel.Writer.TryComplete();
+                try
+                {
+                    await m_consumer.WaitAsync(
+                        TimeSpan.FromSeconds(5),
+                        m_timeProvider).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    m_logger.HistorianEventCaptureConsumerDidNotDrain();
+                    m_cleanupStarted?.Invoke(m_consumer);
+                    m_shutdownCts.Cancel();
+                    throw;
+                }
+                finally
+                {
+                    if (m_consumer.IsCompleted)
+                    {
+                        _ = m_consumer.Exception;
+                        m_shutdownCts.Dispose();
+                    }
+                    else
+                    {
+                        // The in-flight provider still owns the token until it completes.
+                        _ = m_consumer.ContinueWith(
+                            static (completed, state) =>
+                            {
+                                _ = completed.Exception;
+                                ((CancellationTokenSource)state!).Dispose();
+                            },
+                            m_shutdownCts,
+                            CancellationToken.None,
+                            TaskContinuationOptions.ExecuteSynchronously,
+                            TaskScheduler.Default);
+                    }
+                }
+                completion.TrySetResult(true);
             }
-            catch (TimeoutException)
+            catch (Exception failure)
             {
-                m_logger.HistorianEventCaptureConsumerDidNotDrain();
-                m_shutdownCts.Cancel();
+                completion.TrySetException(failure);
+                _ = completion.Task.Exception;
                 throw;
-            }
-            finally
-            {
-                if (m_consumer.IsCompleted)
-                {
-                    _ = m_consumer.Exception;
-                    m_shutdownCts.Dispose();
-                }
-                else
-                {
-                    // A timed-out provider still owns the token. This one-shot cleanup
-                    // only observes completion and disposes its source; it cannot capture this.
-                    _ = m_consumer.ContinueWith(
-                        static (completed, state) =>
-                        {
-                            _ = completed.Exception;
-                            ((CancellationTokenSource)state!).Dispose();
-                        },
-                        m_shutdownCts,
-                        CancellationToken.None,
-                        TaskContinuationOptions.ExecuteSynchronously,
-                        TaskScheduler.Default);
-                }
             }
         }
 
@@ -725,6 +764,9 @@ namespace Opc.Ua.Server.Historian
         private readonly Channel<CaptureEvent> m_channel;
         private readonly CancellationTokenSource m_shutdownCts;
         private readonly Task m_consumer;
+        private readonly Action<Task>? m_cleanupStarted;
+        private readonly Lock m_disposalLock = new();
+        private TaskCompletionSource<bool>? m_disposalFinished;
         private long m_droppedEvents;
         private long m_rejectedEvents;
         private int m_disposed;

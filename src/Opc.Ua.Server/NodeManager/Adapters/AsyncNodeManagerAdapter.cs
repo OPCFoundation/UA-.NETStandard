@@ -74,7 +74,9 @@ namespace Opc.Ua.Server
         IDisposable,
         IAsyncDisposable,
         INodeManagerMonitoredItemSource,
-        INodeManagerReadinessNotification
+        INodeManagerReadinessNotification,
+        INodeManagerReloadParticipant,
+        INodeManagerShutdown
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncNodeManagerAdapter"/> class.
@@ -130,7 +132,7 @@ namespace Opc.Ua.Server
         internal bool HasReadinessParticipant => SyncNodeManager switch
         {
             SyncNodeManagerAdapter adapter => adapter.HasReadinessParticipant,
-            INodeManagerReadinessNotification or ISyncNodeManagerReadinessNotification => true,
+            INodeManagerReadinessNotification => true,
             _ => false
         };
 
@@ -142,13 +144,34 @@ namespace Opc.Ua.Server
                 return participant.OnServerReadyAsync(cancellationToken);
             }
 
-            if (SyncNodeManager is ISyncNodeManagerReadinessNotification syncParticipant)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                syncParticipant.OnServerReady();
-            }
-
             return default;
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ArrayOf<LocalReference>> INodeManagerReloadParticipant.PrepareReloadAsync(
+            IAsyncNodeManager replacement,
+            CancellationToken ct)
+        {
+            if (replacement is null)
+            {
+                throw new ArgumentNullException(nameof(replacement));
+            }
+            INodeManagerReloadParticipant? participant =
+                SyncNodeManager.GetType() == typeof(SyncNodeManagerAdapter)
+                    ? ((SyncNodeManagerAdapter)SyncNodeManager).AsyncNodeManager as INodeManagerReloadParticipant
+                    : SyncNodeManager as INodeManagerReloadParticipant;
+            return participant is not null
+                ? participant.PrepareReloadAsync(replacement, ct)
+                : throw new NotSupportedException("The wrapped NodeManager does not support safe reload.");
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerShutdown.PrepareForShutdownAsync()
+        {
+            INodeManagerShutdown? participant = SyncNodeManager.GetType() == typeof(SyncNodeManagerAdapter)
+                ? ((SyncNodeManagerAdapter)SyncNodeManager).AsyncNodeManager as INodeManagerShutdown
+                : SyncNodeManager as INodeManagerShutdown;
+            return participant?.PrepareForShutdownAsync() ?? default;
         }
 
         /// <inheritdoc/>

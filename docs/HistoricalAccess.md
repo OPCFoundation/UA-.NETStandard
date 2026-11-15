@@ -193,11 +193,13 @@ provider. It configures provider routing and history access, including optional
 `Annotations` properties and asynchronous `HistoricalDataConfigurationType`
 installation.
 
-Register providers and configure historization after publication, in
-`INodeManagerReadinessNotification.OnServerReadyAsync`. Address-space creation
-can run against a private staging server, whose shared historian registry is
-unavailable. Creating nodes during preparation does not make that registry
-available.
+Register providers and configure new capture after publication, in
+`INodeManagerReadinessNotification.OnServerReadyAsync`. Registrations made
+during private address-space preparation are staged, not written to the serving
+registry, and become serving-owned after readiness. A plain fluent manager may
+borrow an already serving node, namespace or default binding without its own
+readiness callback. The lifecycle retains that binding for the borrowing
+generation; this does not exempt explicit new registrations from readiness.
 
 ```csharp
 using Opc.Ua.Server.Historian;
@@ -459,6 +461,15 @@ uses the optional `IHistorianProviderOwnershipRegistry` capability implemented b
 borrowed registration with `NotSupportedException`. Owning registration remains
 available on existing custom implementations. A borrowed registration does not
 revoke ownership acquired by an earlier owning registration of the same provider.
+
+A lifecycle-staged registry withdraws its serving bindings when its NodeManager
+generation retires. Resource cleanup can still unregister that generation's
+private node, namespace and default bindings until the staged registry is
+disposed. Those releases do not republish withdrawn bindings or alter a
+successor's registrations, including when both generations use the same
+provider. New registrations and publication remain rejected after retirement;
+all mutations are rejected after disposal. Removing a borrowed binding does not
+dispose its application-owned provider.
 
 ### Provider resolution order
 
@@ -763,6 +774,9 @@ can hold other strong references. Every resumed read through the default cache
 checks the caller's current permissions, and a continuation from a retired
 generation returns `BadContinuationPointInvalid`. For Annotations reads, the
 requested Property is remembered separately from the provider's source Variable.
+The history-read callback must finish using a restored point before it returns;
+retaining the point or a captured asynchronous context does not extend the
+issuing generation's lifetime.
 
 Clients use the continuation identifier returned by the latest response.
 Completion is indicated by an empty continuation identifier, not by the number
@@ -800,15 +814,21 @@ so the client must start a new `HistoryRead`.
 Resuming a continuation is an atomic claim. The dispatcher keeps the claimed
 state unchanged until it has durably saved a fresh successor. Provider,
 filtering, projection, encoding, cancellation, and successor-persistence
-failures restore the original continuation so the client can retry the same
-identifier. A successful page retires the old identifier, preserving
-single-use semantics.
+failures attempt to restore the original continuation so the client can retry
+the same identifier. If durable restoration fails but local restoration
+succeeds, the server logs a warning and the continuation remains available
+only in that session. If both attempts fail, both restoration errors are
+reported, together with the operation exception when one occurred. A
+successful page retires the old identifier, preserving single-use semantics.
 
 The shared continuation store gives each persisted envelope a distinct
-incarnation. Deferred cleanup conditionally deletes only that exact protected
-record, so a delayed cleanup cannot delete a restored continuation with the
-same identifier. Indeterminate save failures schedule the same conditional
-cleanup whether they were creating a record or replacing a claim marker.
+incarnation. Deferred deletion compares the protected record captured when
+cleanup was scheduled, so it does not delete a replacement written after
+scheduling. `ScheduleRemove` identifies a session and continuation ID, not a
+specific incarnation: a concurrent operation can replace the locally
+remembered incarnation before cleanup is scheduled. Indeterminate save
+failures schedule conditional cleanup whether they were creating a record or
+replacing a claim marker.
 
 The asynchronous release path claims the portable record before acknowledging
 release. Synchronous session teardown only schedules cleanup and is not a
@@ -1413,9 +1433,9 @@ Unexpected consumer termination remains an explicit error, and later discarded s
 Each capture pump owns one consumer task and a bounded channel; it does not spawn work per sample. Disposal closes
 the writer and drains the consumer for up to five seconds. A timeout cancels the pump and surfaces an error without
 starting further provider calls. An already-running provider must cooperate with cancellation; the framework cannot
-forcibly terminate it. Its token resources remain valid until it actually completes. A one-shot, static completion
-callback observes any late task failure and releases only the token source, without capturing the disposed pump,
-server, or request context. Normal graceful draining is preserved.
+forcibly terminate it. Until that consumer completes, the builder and provider remain retained, its token resources
+remain valid, and any late task failure is observed. Disposal is terminal: the builder rejects new capture
+registrations and later disposal calls report the original outcome, even after the consumer exits.
 
 ### What triggers a capture
 
