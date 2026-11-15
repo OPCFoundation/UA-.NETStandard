@@ -327,6 +327,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A monitored node transfers disposal before entering an override and cannot be rebound afterward.
         /// </summary>
+        // TODO: Remove this suppression when CA1849 recognizes synchronous-disposal contract controls.
+        [SuppressMessage(
+            "Reliability",
+            "CA1849:Call async methods when in an async method",
+            Justification = "The cases deliberately exercise both disposal entry points and synchronous reentry.")]
         [TestCase(false)]
         [TestCase(true)]
         public async Task RetiredMonitoredNodeDefersOverriddenDisposalAsync(bool disposeAsync)
@@ -384,6 +389,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A concurrent caller cannot enter an override while the reclaimer is running that override.
         /// </summary>
+        // TODO: Remove this suppression when CA1849 recognizes synchronous-disposal contract controls.
+        [SuppressMessage(
+            "Reliability",
+            "CA1849:Call async methods when in an async method",
+            Justification = "Synchronous disposal must reject concurrent entry while physical cleanup owns it.")]
         [Test]
         public async Task RetiredMonitoredNodeRejectsConcurrentDisposalAsync()
         {
