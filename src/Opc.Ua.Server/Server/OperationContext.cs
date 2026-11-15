@@ -327,10 +327,11 @@ namespace Opc.Ua.Server
         /// <param name="maxResponseBytes">The response size limit in bytes.</param>
         internal void StartResponseBudget(int maxResponseBytes)
         {
-            int start = maxResponseBytes <= 0 ? kNoResponseBudget :
-                maxResponseBytes == int.MaxValue ? int.MaxValue : maxResponseBytes + 1;
-            m_responseBudgetStart = start;
-            Volatile.Write(ref m_responseBudget, start);
+            // an unused budget is kept negated until the first charge.
+            Volatile.Write(
+                ref m_responseBudget,
+                maxResponseBytes <= 0 ? kNoResponseBudget :
+                maxResponseBytes == int.MaxValue ? -int.MaxValue : -(maxResponseBytes + 1));
         }
 
         /// <summary>
@@ -342,7 +343,7 @@ namespace Opc.Ua.Server
             get
             {
                 int current = Volatile.Read(ref m_responseBudget);
-                return current != kNoResponseBudget && current == m_responseBudgetStart;
+                return current < 0 && current != kResponseBudgetExceeded;
             }
         }
 
@@ -364,7 +365,11 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
-                long remaining = current - bytes;
+                if (bytes == 0)
+                {
+                    return true;
+                }
+                long remaining = (current < 0 ? -(long)current : current) - bytes;
                 int next = remaining < 1 ? kResponseBudgetExceeded : (int)remaining;
                 int observed = Interlocked.CompareExchange(ref m_responseBudget, next, current);
                 if (observed == current)
@@ -384,7 +389,8 @@ namespace Opc.Ua.Server
             {
                 int current = Volatile.Read(ref m_responseBudget);
                 return current == kNoResponseBudget ? -1 :
-                    current == kResponseBudgetExceeded ? 0 : current - 1L;
+                    current == kResponseBudgetExceeded ? 0 :
+                    current < 0 ? -(long)current - 1L : current - 1L;
             }
         }
 
@@ -1207,14 +1213,9 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// The response byte budget: <see cref="kNoResponseBudget"/>, the bytes left plus
-        /// one, or <see cref="kResponseBudgetExceeded"/>.
+        /// one (negated while nothing was charged), or <see cref="kResponseBudgetExceeded"/>.
         /// </summary>
         private int m_responseBudget;
-
-        /// <summary>
-        /// The value <see cref="m_responseBudget"/> started with.
-        /// </summary>
-        private int m_responseBudgetStart;
         private const int kNoResponseBudget = 0;
         private const int kResponseBudgetExceeded = int.MinValue;
         private StringTable? m_stringTable;

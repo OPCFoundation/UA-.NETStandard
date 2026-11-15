@@ -329,6 +329,33 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A started budget is unused until the first charge of a result; an empty charge
+        /// does not use it, and a context without a budget is never unused.
+        /// </summary>
+        [Test]
+        public void ResponseBudgetIsUnusedUntilTheFirstCharge()
+        {
+            using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+            Assert.That(context.ResponseBudgetUnused, Is.False);
+
+            context.StartResponseBudget(100);
+            Assert.That(context.ResponseBudgetUnused, Is.True);
+            Assert.That(context.ResponseBytesRemaining, Is.EqualTo(100));
+            Assert.That(context.TryChargeResponse(0), Is.True);
+            Assert.That(context.ResponseBudgetUnused, Is.True);
+            Assert.That(context.TryChargeResponse(10), Is.True);
+            Assert.That(context.ResponseBudgetUnused, Is.False);
+            Assert.That(context.ResponseBytesRemaining, Is.EqualTo(90));
+
+            context.StartResponseBudget(int.MaxValue);
+            Assert.That(context.ResponseBudgetUnused, Is.True);
+            Assert.That(context.ResponseBytesRemaining, Is.EqualTo(int.MaxValue - 1L));
+            Assert.That(context.TryChargeResponse(long.MaxValue), Is.False);
+            Assert.That(context.ResponseBudgetUnused, Is.False);
+            Assert.That(context.ResponseBudgetExceeded, Is.True);
+        }
+
+        /// <summary>
         /// Browses the parent three times with ten references per node, without a response
         /// budget, and returns the three continuation points and the largest page estimate.
         /// </summary>
