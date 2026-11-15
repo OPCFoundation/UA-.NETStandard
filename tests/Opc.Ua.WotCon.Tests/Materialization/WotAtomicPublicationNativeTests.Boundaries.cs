@@ -151,11 +151,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 else
                 {
-                    await Assert.ThatAsync(async () => await coordinator.RefreshAsync(
-                        HandoffRequest("real-reference-conflict"), ct).ConfigureAwait(false),
-                        Throws.TypeOf<InvalidOperationException>()
-                            .With.Message.EqualTo("Serving references changed during preparation."))
+                    InvalidOperationException? failure = await Assert.CatchAsync<InvalidOperationException>(
+                        async () => await coordinator.RefreshAsync(
+                            HandoffRequest("real-reference-conflict"), ct).ConfigureAwait(false))
                         .ConfigureAwait(false);
+                    Assert.That(failure!.GetType().FullName,
+                        Is.EqualTo("Opc.Ua.OptimisticPublicationConflictException"));
+                    Assert.That(failure.Message, Is.EqualTo("Serving references changed during preparation."));
                     Assert.That(coordinator.Generation, Is.Zero);
                     Assert.That(m_registry.Current, Is.SameAs(before));
                     Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,

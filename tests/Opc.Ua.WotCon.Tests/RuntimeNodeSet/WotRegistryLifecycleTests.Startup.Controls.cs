@@ -85,7 +85,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             LifecycleResult result = await startup.ConfigureAwait(false);
             Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? committed), Is.True);
             Assert.That(committed, Is.SameAs(m_registryRegistration));
-            Assert.That(result.CleanupFailure, Is.InstanceOf<OperationCanceledException>());
+            Assert.That(RequireStartupFailure(result), Is.InstanceOf<OperationCanceledException>());
             Assert.That(cancellation.IsCancellationRequested, Is.False);
             Assert.That(runtime.ReceivedToken.IsCancellationRequested, Is.True);
             Assert.That(host.DeadlineExpired, Is.False);
@@ -111,7 +111,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
             LifecycleResult result = await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false);
-            Assert.That(result.CleanupFailure, Is.SameAs(runtime.Failure));
+            Assert.That(RequireStartupFailure(result), Is.SameAs(runtime.Failure));
             m_registryRegistration = FindStartupRegistryRegistration();
             Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? committed), Is.True);
             Assert.That(committed, Is.SameAs(m_registryRegistration));
@@ -148,8 +148,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
             LifecycleResult result = await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false);
-            Assert.That(result.CleanupFailure, Is.InstanceOf<ServiceResultException>());
-            Assert.That(((ServiceResultException)result.CleanupFailure!).StatusCode,
+            Exception failure = RequireStartupFailure(result);
+            Assert.That(failure, Is.InstanceOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)failure).StatusCode,
                 Is.EqualTo(StatusCodes.BadConfigurationError));
             m_registryRegistration = FindStartupRegistryRegistration();
             Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? committed), Is.True);
@@ -606,6 +607,22 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(result.CleanupFailure, Is.Null);
             Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration), Is.True);
             return registration!;
+        }
+
+        /// <summary>
+        /// Checks the native readiness issue and retains its exact original failure rather than its result envelope.
+        /// </summary>
+        private static Exception RequireStartupFailure(LifecycleResult result)
+        {
+            Assert.That(result.CleanupFailure, Is.TypeOf<AggregateException>());
+            Assert.That(result.Issues.Count, Is.EqualTo(1));
+            NodeManagerReconciliationIssue issue = result.Issues[0];
+            Assert.That(issue.Stage, Is.EqualTo(NodeManagerReconciliationStage.Readiness));
+            Assert.That(issue.CurrentFailure, Is.SameAs(issue.InitialFailure));
+            var envelope = (AggregateException)result.CleanupFailure!;
+            Assert.That(envelope.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(envelope.InnerExceptions[0], Is.SameAs(issue.InitialFailure));
+            return issue.InitialFailure;
         }
 
         private NodeManagerRegistration FindStartupRegistryRegistration()
