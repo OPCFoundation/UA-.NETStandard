@@ -1275,8 +1275,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         bool hasRoute = namespaceRoutes.TryGetValue(
                             namespaceIndex,
                             out IReadOnlyList<IAsyncNodeManager>? route);
-                        if (namespaceRoutes.Count != 1 || !hasRoute ||
-                            route!.Count != 1 || !expectedManagers.Contains(route[0]))
+                        if (namespaceRoutes.Count != 1 ||
+                            !hasRoute ||
+                            route!.Count != 1 ||
+                            !expectedManagers.Contains(route[0]))
                         {
                             namespaceSnapshotFailures.Add(
                                 $"iteration {iteration}: hasRoute {hasRoute}, " +

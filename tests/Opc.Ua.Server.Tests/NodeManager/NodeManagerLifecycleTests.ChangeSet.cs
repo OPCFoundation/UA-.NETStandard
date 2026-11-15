@@ -1318,6 +1318,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Completed cleanup releases a candidate, while failed cleanup retains it without a retry.
         /// </summary>
+        /// <exception cref="AssertionException">The disposal task did not retain its failure.</exception>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CompletedPreparedDisposalTasksDoNotRetainPrivateCandidatesAsync(bool failCleanup)
@@ -1964,6 +1965,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Starts cleanup of a writer-owned candidate outside the collection assertion's stack.
         /// </summary>
+        /// <exception cref="AssertionException">Preparation did not create its candidate.</exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static async Task<(
             IPreparedChanges Prepared,

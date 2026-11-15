@@ -87,7 +87,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(typeof(NodeManagerRoutingConflictException)
                 .GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance),
                 Has.All.Matches<ConstructorInfo>(constructor =>
-                    constructor is not null && Array.TrueForAll(constructor.GetParameters(),
+                    constructor is not null &&
+                    Array.TrueForAll(constructor.GetParameters(),
                         parameter => parameter.ParameterType != typeof(IPreparedChanges))));
             Assert.That(typeof(NodeManagerLifecycle).Assembly.GetType(
                 "Opc.Ua.Server.NodeManagerPreparedConflictException"), Is.Null);
@@ -245,6 +246,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Returns only weak owner references and the original native failure after cleanup and recorder release.
         /// </summary>
+        /// <exception cref="AssertionException">The native unit did not report its conflict.</exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static async Task<(InvalidOperationException Conflict, WeakReference<IPreparedChanges> Batch,
             WeakReference<NodeManagerRoutingTable.RoutingSnapshot> Snapshot,

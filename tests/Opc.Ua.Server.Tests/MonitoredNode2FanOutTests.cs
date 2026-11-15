@@ -301,6 +301,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A rebuild waiting on the lock while the dictionary is exposed does not publish the cache.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         public async Task RebuildDuringExposureDoesNotPublishCacheAsync()
         {

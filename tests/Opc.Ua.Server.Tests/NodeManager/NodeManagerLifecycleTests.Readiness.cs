@@ -1611,6 +1611,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Removal and retired-drain claims still prevent duplicate destruction while that
         /// callback is suspended, including a shadow generation with a real monitored item.
         /// </summary>
+        /// <exception cref="AssertionException">The stale owner was not rejected.</exception>
         [TestCase(ReadinessCleanup.Remove)]
         [TestCase(ReadinessCleanup.Reload)]
         [TestCase(ReadinessCleanup.ShadowDrain)]
@@ -1714,7 +1715,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     async () => await CommitChangeAsync(
                         LifecycleInspection.Capture(lifecycle, original),
                         LifecycleChange.Remove(original.Slot), timeout.Token).ConfigureAwait(false))
-                    .ConfigureAwait(false) ?? throw new AssertionException("The stale owner was not rejected.");
+                    .ConfigureAwait(false) ??
+                    throw new AssertionException("The stale owner was not rejected.");
                 Assert.That(competingRemove.Message, Does.Contain("stale").Or.Contain("not owned"));
 
                 // These real operations also give retired cleanup another opportunity

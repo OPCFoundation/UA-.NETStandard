@@ -348,7 +348,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                if (failDisposal && !confirmed &&
+                if (failDisposal &&
+                    !confirmed &&
                     lifecycle.GetRetirementFailure(registration.Identity) is not null)
                 {
                     await ConfirmFixtureManagerCleanupAsync(registration.Identity, resource =>
@@ -594,7 +595,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             await using ILifecycleWriter retainedWriter =
-                await LifecycleChangeExtensions.BeginAsync(lifecycle, cancellationToken: timeout.Token)
+                await lifecycle.BeginAsync(cancellationToken: timeout.Token)
                     .ConfigureAwait(false);
             TrackingLifecycleNodeManager? candidate = null;
             var expected = new IOException("Injected failure after the durable decision.");

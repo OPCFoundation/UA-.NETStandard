@@ -587,7 +587,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ? master.UnregisterNamespaceManagerAsync(AliasUri, manager, waitCancellation.Token).AsTask()
                         : master.RegisterNamespaceManagerAsync(AliasUri, manager, waitCancellation.Token).AsTask();
                     Assert.That(cancelledWait.IsCompleted, Is.False);
-                    waitCancellation.Cancel();
+                    await waitCancellation.CancelAsync().ConfigureAwait(false);
                     await Assert.ThatAsync(
                         () => cancelledWait.WaitAsync(timeout.Token), Throws.InstanceOf<OperationCanceledException>())
                         .ConfigureAwait(false);
@@ -934,7 +934,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(host.RoutingRevision.NodeManagers, Is.EqualTo(before.NodeManagers),
                         "An alias mutation must not partially publish candidate managers.");
                     Assert.That(host.RoutingRevision.NamespaceManagers.TryGetValue(
-                        reservedNamespaceIndex, out var candidateRoutes) && candidateRoutes.Any(owner =>
+                        reservedNamespaceIndex, out var candidateRoutes) &&
+                        candidateRoutes.Any(owner =>
                             !ReferenceEquals(owner, manager)), Is.False,
                         "The durable decision must finish before candidate routes become visible.");
                     bool materializedSuffix = !conflicting && !unregister && !namespaceAlreadyExists;
@@ -942,7 +943,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Is.EqualTo(candidateNamespaceExists || materializedSuffix ? reservedNamespaceIndex : -1));
                     if (decisionCancelled)
                     {
-                        decisionCancellation.Cancel();
+                        await decisionCancellation.CancelAsync().ConfigureAwait(false);
                     }
                 }
                 finally

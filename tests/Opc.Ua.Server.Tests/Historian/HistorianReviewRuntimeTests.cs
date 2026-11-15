@@ -255,7 +255,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 Task disposing = capture.DisposeAsync().AsTask();
                 clock.Advance(TimeSpan.FromSeconds(5));
                 observedTimeout = await Assert.ThrowsAsync<TimeoutException>(
-                    async () => await disposing.ConfigureAwait(false));
+                    async () => await disposing.ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(token.IsCancellationRequested, Is.True);
                 Assert.That(handle.SafeWaitHandle.IsClosed, Is.False,
                     "An in-flight provider still owns access to the cancellation token's resources.");
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
 
             TimeoutException? repeatedTimeout = await Assert.ThrowsAsync<TimeoutException>(
-                async () => await capture.DisposeAsync().ConfigureAwait(false));
+                async () => await capture.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(repeatedTimeout, Is.SameAs(observedTimeout));
 
             for (int attempt = 0; attempt < 500 && !handle.SafeWaitHandle.IsClosed; attempt++)

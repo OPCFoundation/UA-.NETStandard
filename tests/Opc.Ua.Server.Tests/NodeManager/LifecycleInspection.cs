@@ -44,6 +44,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Captures publication evidence before checking the expected generation's membership.
         /// Subsequent changes invalidate this evidence instead of rebasing a replacement or removal.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal static ILifecycleCapture Capture(
             INodeManagerLifecycle lifecycle, params NodeManagerRegistration[] registrations)
         {
@@ -72,6 +74,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Obtains a strong inspection handle only when a test explicitly requires its original owner.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         internal static NodeManagerRegistration Registration(NodeManagerRegistrationSnapshot snapshot)
         {
             Assert.That(snapshot.TryGetRegistration(out NodeManagerRegistration? registration), Is.True);
@@ -81,6 +84,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Captures before reacquiring and validating a weak exact-registration descriptor.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         internal static ILifecycleCapture Capture(
             INodeManagerLifecycle lifecycle, NodeManagerRegistrationSnapshot snapshot)
         {

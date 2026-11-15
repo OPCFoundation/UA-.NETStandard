@@ -947,7 +947,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var claim = new HistorianContinuationClaim(points.Object, state, logger: null);
 
             AggregateException observed = (await Assert.ThrowsAsync<AggregateException>(
-                async () => await claim.DisposeAsync().ConfigureAwait(false)))!;
+                async () => await claim.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false))!;
             var failures = observed.Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(3));
             Assert.That(failures, Has.Exactly(1).SameAs(durableFailure));
@@ -979,7 +979,7 @@ namespace Opc.Ua.Server.Tests.Historian
             try
             {
                 IOException observed = (await Assert.ThrowsAsync<IOException>(
-                    async () => await claim.DisposeAsync().ConfigureAwait(false)))!;
+                    async () => await claim.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(observed, Is.SameAs(releaseFailure));
                 Assert.That(restored, Is.Not.Null.And.Not.SameAs(state));
                 Assert.That(restored!.Id, Is.EqualTo(state.Id));
@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Server.Tests.Historian
             using var cancellation = new CancellationTokenSource();
             if (cancel)
             {
-                cancellation.Cancel();
+                await cancellation.CancelAsync().ConfigureAwait(false);
             }
             else
             {
@@ -1025,7 +1025,8 @@ namespace Opc.Ua.Server.Tests.Historian
 
             AggregateException observed = (await Assert.ThrowsAsync<AggregateException>(
                 async () => await HistorianDispatcher.TrySaveHistoryContinuationAsync(
-                    context, points, state, new HistoryReadResult(), cancellation.Token).ConfigureAwait(false)))!;
+                    context, points, state, new HistoryReadResult(), cancellation.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
 
             var failures = observed.Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(2));
@@ -1058,11 +1059,12 @@ namespace Opc.Ua.Server.Tests.Historian
             var cursor = new Mock<IDisposable>();
             state.Ownership.Data = cursor.Object;
             using var cancellation = new CancellationTokenSource();
-            cancellation.Cancel();
+            await cancellation.CancelAsync().ConfigureAwait(false);
 
             OperationCanceledException observed = (await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await HistorianDispatcher.TrySaveHistoryContinuationAsync(
-                    context, points, state, new HistoryReadResult(), cancellation.Token).ConfigureAwait(false)))!;
+                    context, points, state, new HistoryReadResult(), cancellation.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
 
             Assert.That(observed.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(points.RestoreHistory(new ByteString(state.Id.ToByteArray())), Is.Null);
@@ -1141,7 +1143,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 async () => await HistorianDispatcher.DispatchRawReadAsync(
                     context, provider.Object, node, nodeToRead, new ReadRawModifiedDetails(),
                     TimestampsToReturn.Source, new HistoryReadResult(), CancellationToken.None)
-                    .ConfigureAwait(false)))!;
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
 
             var failures = observed.Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(3));
@@ -1209,7 +1211,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 async () => await HistorianDispatcher.DispatchRawReadAsync(
                     context, provider.Object, node, nodeToRead, new ReadRawModifiedDetails(),
                     TimestampsToReturn.Source, new HistoryReadResult(), CancellationToken.None)
-                    .ConfigureAwait(false)))!;
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
 
             var failures = observed.Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(3));
@@ -1264,7 +1266,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     async () => await HistorianDispatcher.DispatchRawReadAsync(
                         context, provider.Object, node, nodeToRead, new ReadRawModifiedDetails(),
                         TimestampsToReturn.Source, new HistoryReadResult(), CancellationToken.None)
-                        .ConfigureAwait(false)))!;
+                        .ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(observed, Is.SameAs(releaseFailure));
                 Assert.That(successor, Is.Not.Null.And.Not.SameAs(state));
                 Assert.That(successor!.Id, Is.Not.EqualTo(state.Id));

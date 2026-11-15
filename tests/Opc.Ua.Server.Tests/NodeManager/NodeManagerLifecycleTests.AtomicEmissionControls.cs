@@ -205,8 +205,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             .ConfigureAwait(false);
                         Assert.That(response.SubscriptionId, Is.EqualTo(subscriptionId));
                         acknowledgements = response.AvailableSequenceNumbers.ToArrayOf(sequence =>
-                            new SubscriptionAcknowledgement { SubscriptionId = subscriptionId,
-                                SequenceNumber = sequence });
+                            new SubscriptionAcknowledgement
+                            {
+                                SubscriptionId = subscriptionId,
+                                SequenceNumber = sequence
+                            });
                         sent = response.NotificationMessage;
                         foreach (ExtensionObject notification in sent.NotificationData)
                         {
@@ -386,7 +389,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await AssertServingAsync(551).ConfigureAwait(false);
                     if (cancel)
                     {
-                        decision.Cancel();
+                        await decision.CancelAsync().ConfigureAwait(false);
                         await Assert.ThatAsync(() => commit, Throws.InstanceOf<OperationCanceledException>())
                             .ConfigureAwait(false);
                     }

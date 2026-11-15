@@ -731,6 +731,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// A logging failure does not leave browser disposal pending or hide the retained cursor failure.
         /// </summary>
+        /// <exception cref="InvalidOperationException">Cleanup or cursor ownership was not tracked.</exception>
         [Test]
         public async Task LoggerFailureCompletesDisposalAndFaultsTrackedCleanupAsync()
         {

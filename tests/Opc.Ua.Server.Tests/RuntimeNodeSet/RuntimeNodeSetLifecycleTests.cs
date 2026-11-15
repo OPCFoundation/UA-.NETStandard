@@ -714,9 +714,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task RuntimeNodeSetLifecycleExtensionsRejectNullArgumentsAsync()
         {
             RuntimeNodeSetOptions options = CreateOptions(generation: 1);
-            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await ((INodeManagerLifecycle)null!).ApplyAsync(
-                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(options))]).ConfigureAwait(false));
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(options))]).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(exception.ParamName, Is.EqualTo("lifecycle"));
 
             exception = Assert.Throws<ArgumentNullException>(() => new RuntimeNodeSetNodeManagerFactory(null!))!;

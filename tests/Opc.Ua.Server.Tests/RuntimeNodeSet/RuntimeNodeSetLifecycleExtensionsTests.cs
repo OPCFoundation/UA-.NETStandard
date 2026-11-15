@@ -101,7 +101,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(result.Issues, Is.Empty);
             Mock.Get(writer).Verify(value => value.PrepareAsync(
                 It.Is<ArrayOf<LifecycleChange>>(changes => changes.Count == 1 &&
-                    changes[0].Slot == null && changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                    changes[0].Slot == null &&
+                    changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
                     changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate),
                     cancellation.Token), Times.Once);
         }
@@ -123,7 +124,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(result.Issues, Is.Empty);
             Mock.Get(writer).Verify(value => value.PrepareAsync(
                 It.Is<ArrayOf<LifecycleChange>>(changes => changes.Count == 1 &&
-                    changes[0].Slot == null && changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                    changes[0].Slot == null &&
+                    changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
                     changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate),
                     cancellation.Token), Times.Once);
         }
@@ -188,7 +190,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(result.Issues, Is.Empty);
             Mock.Get(writer).Verify(value => value.PrepareAsync(
                 It.Is<ArrayOf<LifecycleChange>>(changes => changes.Count == 1 &&
-                    changes[0].Slot == registration.Slot && changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                    changes[0].Slot == registration.Slot &&
+                    changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
                     changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate),
                     cancellation.Token), Times.Once);
         }
@@ -210,7 +213,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(result.Issues, Is.Empty);
             Mock.Get(writer).Verify(value => value.PrepareAsync(
                 It.Is<ArrayOf<LifecycleChange>>(changes => changes.Count == 1 &&
-                    changes[0].Slot == registration.Slot && changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                    changes[0].Slot == registration.Slot &&
+                    changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
                     changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate),
                     cancellation.Token), Times.Once);
         }
@@ -261,7 +265,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(result.Issues, Is.Empty);
             Mock.Get(writer).Verify(value => value.PrepareAsync(
                 It.Is<ArrayOf<LifecycleChange>>(changes => changes.Count == 1 &&
-                    changes[0].Slot == registration.Slot && changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                    changes[0].Slot == registration.Slot &&
+                    changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
                     changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate),
                     cancellation.Token), Times.Once);
         }
@@ -313,7 +318,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(result.Issues, Is.Empty);
             Mock.Get(writer).Verify(value => value.PrepareAsync(
                 It.Is<ArrayOf<LifecycleChange>>(changes => changes.Count == 1 &&
-                    changes[0].Slot == registration.Slot && changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                    changes[0].Slot == registration.Slot &&
+                    changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
                     changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Invalidate),
                     cancellation.Token), Times.Once);
         }

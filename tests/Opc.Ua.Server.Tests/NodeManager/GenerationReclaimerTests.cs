@@ -242,8 +242,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             reclaimer.Activate([retired]);
             if (failFirst)
             {
-                Exception cleanupFailure = await Assert.CatchAsync<Exception>(
-                    async () => await reclaimer.ReclaimReadyAsync().ConfigureAwait(false));
+                Exception? cleanupFailure = await Assert.CatchAsync<Exception>(
+                    async () => await reclaimer.ReclaimReadyAsync().ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(cleanupFailure, Is.SameAs(failure));
                 Assert.That(retired.Retirement.IsCompleted, Is.False);
                 Assert.That(reclaimer.Contains(retired), Is.True);
@@ -487,6 +487,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A staged cleanup retry does not repeat the manager's successful disposal callback.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public async Task RetirementRetriesStagedResourceAfterManagerDisposalWithoutRepeatingManagerDisposeAsync()
         {
@@ -584,6 +585,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A failed manager disposal keeps its staged historian dependencies alive.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public async Task FailedManagerDisposalRetainsStagedHistorianDependenciesAsync()
         {
@@ -811,6 +813,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A newly retained failure stops the next stage without replaying the completed callback.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [TestCase("Source")]
         [TestCase("Consumer")]
         [TestCase("Notifications")]
@@ -1051,6 +1054,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A confirmation offered while the failed worker is finishing starts a new retirement attempt.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         public async Task ConfirmationBeforeFailedWorkerReleasesClaimResumesRetirementAsync()
         {
@@ -1156,6 +1160,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Confirmed retry can stop a producer whose admitted work prevents quiescence.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         public async Task ConfirmedRetryStopsProducerBeforeWaitingForGenerationDrainAsync()
         {
@@ -1242,6 +1247,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A worker drains concurrent recovery before using the completed or uncertain confirmation outcome.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ConfirmationDuringDrainWaitsForAdmissionAndOutcomeAsync(bool confirmedBeforeRelease)

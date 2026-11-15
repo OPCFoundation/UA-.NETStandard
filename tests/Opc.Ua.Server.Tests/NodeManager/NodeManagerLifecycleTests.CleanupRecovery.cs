@@ -429,6 +429,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Exercises the real host recovery path before or during a published manager's retirement.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private async Task ExerciseDirectoryCursorRecoveryAsync(bool retireBeforeFailure)
         {
             var authorization = new CleanupRecoveryAuthorization();
@@ -631,7 +632,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             // The retained cursor is resolved through the host below.
                         }
                     }
-                    if (recovery is not null && server is not null &&
+                    if (recovery is not null &&
+                        server is not null &&
                         (!recovered || (removed is not null && !removed.Retired.IsCompleted)))
                     {
                         using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -684,6 +686,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A failed synchronous retired consumer is retained until the real host verifies its exact instance.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         [Category("NodeManagerLifecycle")]
         public async Task RetiredConsumerUsesAuthorizedRecoveryWithoutRepeatedDisposalAsync()
@@ -720,7 +723,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var consumer = new RetiredConsumerProbe(failure);
             verifier.VerifyResource = static resource =>
                 resource.TryGetDisposable(out IDisposable? disposable) &&
-                disposable is RetiredConsumerProbe probe && probe.IsExternallyClosed;
+                disposable is RetiredConsumerProbe probe &&
+                probe.IsExternallyClosed;
             try
             {
                 server = await fixture.StartAsync(
@@ -807,8 +811,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 consumer.FinishExternalCleanup();
                 try
                 {
-                    if (deferred && !recovered && recovery is not null &&
-                        server is not null && generation is not null && removed is not null)
+                    if (deferred &&
+                        !recovered &&
+                        recovery is not null &&
+                        server is not null &&
+                        generation is not null &&
+                        removed is not null)
                     {
                         using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                         var owner = (NodeManagerLifecycle)server.NodeManagerLifecycle;
@@ -996,7 +1004,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 resource.FinishExternalCleanup();
                 harness.Verifier.VerifyResource = candidate =>
                     candidate.TryGetDisposable(out IDisposable? exact) &&
-                    ReferenceEquals(exact, resource) && resource.IsExternallyClosed;
+                    ReferenceEquals(exact, resource) &&
+                    resource.IsExternallyClosed;
                 NodeManagerCleanupPostConfirmationException? postFailure =
                     await Assert.ThrowsAsync<NodeManagerCleanupPostConfirmationException>(
                         async () => await harness.Recovery.ConfirmAsync(retained.Handle).ConfigureAwait(false))
@@ -1056,7 +1065,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 resource.FinishExternalCleanup();
                 harness.Verifier.VerifyResource = candidate =>
                     candidate.TryGetDisposable(out IDisposable? exact) &&
-                    ReferenceEquals(exact, resource) && resource.IsExternallyClosed;
+                    ReferenceEquals(exact, resource) &&
+                    resource.IsExternallyClosed;
                 NodeManagerCleanupPostConfirmationException? postFailure =
                     await Assert.ThrowsAsync<NodeManagerCleanupPostConfirmationException>(
                         async () => await harness.Recovery.ConfirmAsync(retained.Handle).ConfigureAwait(false))
@@ -1140,7 +1150,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 harness.Verifier.VerifyResource = resource =>
                     resource.TryGetDisposable(out IDisposable? resolved) &&
-                    ReferenceEquals(resolved, point) && point.IsExternallyClosed;
+                    ReferenceEquals(resolved, point) &&
+                    point.IsExternallyClosed;
                 await Assert.ThatAsync(
                     async () => await harness.Recovery.ConfirmAsync(history.Handle).ConfigureAwait(false),
                     Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
@@ -1174,6 +1185,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A failing release notification cannot undo an already verified history cleanup.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         [Category("NodeManagerLifecycle")]
         public async Task HistoryRecoveryReportsReleaseNotificationFailureAfterConfirmationAsync()
@@ -1213,7 +1225,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 data.FinishExternalCleanup();
                 harness.Verifier.VerifyResource = resource =>
                     resource.TryGetDisposable(out IDisposable? resolved) &&
-                    ReferenceEquals(resolved, point) && data.IsExternallyClosed;
+                    ReferenceEquals(resolved, point) &&
+                    data.IsExternallyClosed;
 
                 NodeManagerCleanupPostConfirmationException? reported =
                     await Assert.ThrowsAsync<NodeManagerCleanupPostConfirmationException>(
@@ -1272,7 +1285,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(history[0].Handle.ParticipantId, Is.EqualTo(history[1].Handle.ParticipantId));
                 harness.Verifier.VerifyResource = resource =>
                     resource.TryGetDisposable(out IDisposable? resolved) &&
-                    resolved is HistoryCleanupRecoveryPoint candidate && candidate.IsExternallyClosed;
+                    resolved is HistoryCleanupRecoveryPoint candidate &&
+                    candidate.IsExternallyClosed;
                 NodeManagerCleanupFailureHandle firstHandle = default;
                 NodeManagerCleanupFailureHandle secondHandle = default;
                 foreach (RetainedNodeManagerCleanupFailure failure in history)
@@ -1591,7 +1605,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 if (cancelReconciliation)
                 {
-                    cancellation.Cancel();
+                    await cancellation.CancelAsync().ConfigureAwait(false);
                     await Assert.ThatAsync(
                         async () => await pending.ConfigureAwait(false),
                         Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
@@ -1620,7 +1634,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                cancellation.Cancel();
+                await cancellation.CancelAsync().ConfigureAwait(false);
                 harness.Verifier.Release();
                 try
                 {
@@ -1692,7 +1706,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(
                     resource.TryGetAsyncDisposable(out IAsyncDisposable? resolved) &&
-                        ReferenceEquals(resolved, harness.State.Resource(second.FailureId)),
+                    ReferenceEquals(resolved, harness.State.Resource(second.FailureId)),
                     Is.True);
                 Task nested = duringLookup
                     ? lookupAttempt ?? throw new InvalidOperationException("The resource lookup did not run.")
@@ -2280,7 +2294,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         .With.Message.Contains("Another cleanup recovery")).ConfigureAwait(false);
                 Assert.That(harness.Verifier.Count, Is.EqualTo(2));
 
-                cancellation.Cancel();
+                await cancellation.CancelAsync().ConfigureAwait(false);
                 await Assert.ThatAsync(
                     async () => await waitingConfirmation.ConfigureAwait(false),
                     Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
@@ -2292,7 +2306,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                cancellation.Cancel();
+                await cancellation.CancelAsync().ConfigureAwait(false);
                 harness.Verifier.Release();
                 if (waiting is not null)
                 {
@@ -2328,7 +2342,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await harness.Verifier.VerificationEntered.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(harness.Generation.CleanupRecoveryGate.ActiveCount, Is.EqualTo(1));
-                cancellation.Cancel();
+                await cancellation.CancelAsync().ConfigureAwait(false);
                 await Assert.ThatAsync(
                     async () => await confirmation.ConfigureAwait(false),
                     Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
@@ -2339,7 +2353,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                cancellation.Cancel();
+                await cancellation.CancelAsync().ConfigureAwait(false);
                 harness.Verifier.Release();
                 try
                 {
@@ -2571,6 +2585,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Verified private cleanup releases the writer's unit while retaining the original failure.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         [Category("NodeManagerLifecycle")]
         public async Task VerifiedPrivateCleanupReleasesWriterUnitAndPreservesFailureAsync()
@@ -2626,6 +2641,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Starts a real host with recovery adapters bound before startup and retains a failed private candidate.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="AggregateException"></exception>
         private async Task<CleanupRecoveryHarness> CreateCleanupRecoveryHarnessAsync(
             int failureCount,
             bool deferConformance = false,
@@ -2712,8 +2730,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await Assert.ThatAsync(
                         async () => await state.PrepareForShutdownAsync().ConfigureAwait(false),
                         Throws.TypeOf<AggregateException>()).ConfigureAwait(false);
-                    conformance = (testServer.CurrentInstance as IConformanceUnitsManagerProvider)
-                        ?.ConformanceUnitsManager ??
+                    conformance = (testServer.CurrentInstance as IConformanceUnitsManagerProvider)?
+                        .ConformanceUnitsManager ??
                         throw new InvalidOperationException("The live server has no conformance catalog.");
                     registeredContributor = contributorMock.Object;
                     conformance.Register(registeredContributor);
@@ -2847,6 +2865,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Withdraws the host-owned registration and joins its deferred physical cleanup.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             internal async ValueTask ReleaseConformanceAsync()
             {
                 IConformanceContributor? current = Interlocked.Exchange(ref m_contributor, null);
@@ -3049,6 +3068,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             internal NodeManagerCleanupAccess? LastAccess { get; private set; }
             internal NodeManagerCleanupVerification? LastVerification { get; private set; }
             internal NodeManagerCleanupConfirmation? LastConfirmation { get; private set; }
+
             internal CleanupRecoveryResource[] Resources
             {
                 get
@@ -3094,6 +3114,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Attempts each resource once and reports the retained original failures on later calls.
             /// </summary>
+            /// <exception cref="AggregateException"></exception>
             internal async ValueTask PrepareForShutdownAsync()
             {
                 Interlocked.Increment(ref m_shutdownCount);
@@ -3141,6 +3162,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Captures descriptors only while the host-issued capability is active.
             /// </summary>
+            /// <exception cref="UnauthorizedAccessException"></exception>
+            /// <exception cref="InvalidOperationException"></exception>
             internal ArrayOf<NodeManagerCleanupFailure> GetFailures(NodeManagerCleanupAccess access)
             {
                 Interlocked.Increment(ref m_failureSnapshots);
@@ -3169,6 +3192,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Resolves one exact retained resource using the host-issued one-use capability.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             internal NodeManagerCleanupResource GetResource(NodeManagerCleanupVerification verification)
             {
                 lock (m_gate)
@@ -3201,6 +3225,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Atomically consumes confirmation and updates the participant's registry.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             internal void Confirm(NodeManagerCleanupConfirmation confirmation)
             {
                 lock (m_gate)
@@ -3263,8 +3288,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             private readonly Lock m_gate = new();
             private readonly INodeManagerCleanupParticipant m_participant;
+
             private readonly INodeManagerCleanupParticipant m_otherParticipant =
                 Mock.Of<INodeManagerCleanupParticipant>();
+
             private readonly Dictionary<Guid, CleanupRecoveryResource> m_resources = [];
             private readonly Dictionary<Guid, CleanupRecoveryResource> m_retained = [];
             private int m_attempted;
@@ -3497,8 +3524,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             private readonly TaskCompletionSource<bool> m_entered =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly TaskCompletionSource<bool> m_release =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private RetainedNodeManagerCleanupFailure? m_lastFailure;
             private WeakReference<IAsyncDisposable>? m_lastResource;
             private WeakReference<IDisposable>? m_lastSynchronousResource;
@@ -3514,8 +3543,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             internal NodeManagerCleanupAuditOutcome? FailNextOutcome { get; set; }
             internal NodeManagerCleanupOperation FailNextOperation { get; set; } = NodeManagerCleanupOperation.Confirm;
             internal bool PauseConfirmationOutcome { get; set; }
+
             internal TaskCompletionSource<bool> OutcomeEntered { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             internal NodeManagerCleanupAuditRecord[] Records
             {
                 get
@@ -3532,7 +3563,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerCleanupAuditRecord record, CancellationToken cancellationToken)
             {
                 if (record.Operation == NodeManagerCleanupOperation.Confirm &&
-                    record.Outcome == NodeManagerCleanupAuditOutcome.Succeeded && PauseConfirmationOutcome)
+                    record.Outcome == NodeManagerCleanupAuditOutcome.Succeeded &&
+                    PauseConfirmationOutcome)
                 {
                     OutcomeEntered.TrySetResult(true);
                     await m_release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -3558,6 +3590,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             private readonly Lock m_gate = new();
             private readonly List<NodeManagerCleanupAuditRecord> m_records = [];
+
             private readonly TaskCompletionSource<bool> m_release =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }

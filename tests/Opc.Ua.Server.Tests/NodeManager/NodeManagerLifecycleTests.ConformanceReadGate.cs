@@ -33,6 +33,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets the aggregate worker whose completion protects the gate's storage.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             public Task Aggregate => m_aggregate ??
                 throw new InvalidOperationException("The read gate has no aggregate worker.");
 
@@ -44,6 +45,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Arms exactly one subsequent getter invocation.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             public void Arm()
             {
                 if (Interlocked.CompareExchange(ref m_armed, 1, 0) != 0)
@@ -56,6 +58,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Observes a getter synchronously, blocking only the one armed invocation.
             /// Invoke the aggregate on a dedicated test worker, not the test continuation.
             /// </summary>
+            /// <exception cref="TimeoutException"></exception>
             public void ObserveRead()
             {
                 if (Interlocked.CompareExchange(ref m_armed, 2, 1) != 1)
@@ -90,6 +93,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Associates the gate with the aggregate that can enter its getter.
             /// </summary>
+            /// <exception cref="ArgumentNullException"></exception>
+            /// <exception cref="InvalidOperationException"></exception>
             public void TrackAggregate(Task aggregate)
             {
                 if (Interlocked.CompareExchange(

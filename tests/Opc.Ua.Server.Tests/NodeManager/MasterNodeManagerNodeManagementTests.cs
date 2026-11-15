@@ -331,6 +331,9 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A nested AddNodes operation retains mutation admission after its callback returns.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The outer callback did not capture its admission permit.
+        /// </exception>
         [Test]
         [Category("Server")]
         [Category("NodeManagerLifecycle")]
@@ -422,6 +425,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// An admitted AddNodes callback can re-enter lifecycle admission after its parent callback closes.
         /// </summary>
+        /// <exception cref="InvalidOperationException">A callback did not capture its admission permit.</exception>
         [Test]
         [Category("Server")]
         [Category("NodeManagerLifecycle")]
@@ -507,7 +511,7 @@ namespace Opc.Ua.Server.Tests
             finally
             {
                 release.TrySetResult(true);
-                rescue.Cancel();
+                await rescue.CancelAsync().ConfigureAwait(false);
                 if (nested is not null)
                 {
                     try

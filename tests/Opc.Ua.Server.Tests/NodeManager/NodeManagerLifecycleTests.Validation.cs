@@ -283,7 +283,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         externallyClosed.FinishExternalCleanup();
                         await ConfirmFixtureManagerCleanupAsync(generation, resource =>
                             resource.TryGetAsyncDisposable(out IAsyncDisposable? retained) &&
-                            ReferenceEquals(retained, manager.Object) && externallyClosed.IsExternallyClosed)
+                            ReferenceEquals(retained, manager.Object) &&
+                            externallyClosed.IsExternallyClosed)
                             .ConfigureAwait(false);
                     }
                 }

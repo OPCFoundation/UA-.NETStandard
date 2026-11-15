@@ -1253,8 +1253,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var concurrentAdmissionEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            string nestedUri = kSecondModelNamespaceUri + ":SessionClosingConcurrentNested";
-            string concurrentUri = kSecondModelNamespaceUri + ":SessionClosingConcurrentOther";
+            const string nestedUri = kSecondModelNamespaceUri + ":SessionClosingConcurrentNested";
+            const string concurrentUri = kSecondModelNamespaceUri + ":SessionClosingConcurrentOther";
             var nestedCandidates = new List<TrackingLifecycleNodeManager>();
             var concurrentCandidates = new List<TrackingLifecycleNodeManager>();
             var nestedFactory = new CountingNodeManagerFactory([nestedUri],
@@ -1288,8 +1288,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     catch (InvalidOperationException conflict) when (
                         conflict is NodeManagerRoutingConflictException ||
-                        conflict.GetType() == typeof(InvalidOperationException) && conflict.Message ==
-                            "The publication invocation conflicts with a newer address-space revision.")
+                        (conflict.GetType() == typeof(InvalidOperationException) &&
+                            conflict.Message ==
+                                "The publication invocation conflicts with a newer address-space revision."))
                     {
                         int expectedCreations = conflict is NodeManagerRoutingConflictException ? 1 : 0;
                         Assert.That(nestedFactory.CreateCount, Is.EqualTo(expectedCreations));
@@ -1916,6 +1917,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Reference preparation resolves a standard retirement alias to its exact contribution owner.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         [Category("Integration")]
         public async Task StandardRetirementAliasRemovesOnlyItsReferenceContributionsAsync()
@@ -1962,6 +1964,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Holds a separate cleanup admission for each exact source owner despite custom equality.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         public async Task RetiredReferenceCleanupAdmitsEachEqualSourceOwnerAsync()
         {
@@ -2337,7 +2340,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(
                     (await removal.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false)).CleanupFailure,
                     Is.Null);
-                    await exactWriter13.DisposeAsync().ConfigureAwait(false);
+                await exactWriter13.DisposeAsync().ConfigureAwait(false);
                 Assert.That(node.ReferenceExists(ReferenceTypeIds.HasComponent, false, sourceRoot), Is.False);
             }
         }

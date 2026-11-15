@@ -339,6 +339,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A failed read must not release a point that another operation saved under the same identifier.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -410,6 +411,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A replacement saved during failed-request cleanup is not the point being released.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase(false)]
         [TestCase(true)]
         public async Task FaultedHistoryCleanupKeepsSameIdReplacementAsync(bool cleanupFails)
@@ -473,6 +475,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A successful callback cannot bind or return another operation's replacement point.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         public async Task HistoryReadDoesNotBindSameIdReplacementToWrongGenerationAsync()
         {
@@ -536,6 +539,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A resumed read cannot bind a replacement that appeared while its saved point was still in use.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         public async Task ResumedHistoryReadDoesNotBindSameIdReplacementAsync()
         {
@@ -603,6 +607,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A later callback cannot return a point saved in an earlier callback's inherited context.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         public async Task HistoryReadDoesNotBindSaveFromEarlierCallbackAsync()
         {
@@ -1126,8 +1131,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
                 Justification = "The owning test calls DisposeGate after joining the history read.")]
             private readonly ManualResetEventSlim m_release = new();
+
             private readonly TaskCompletionSource<bool> m_entered =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private int m_disposeCount;
         }
 

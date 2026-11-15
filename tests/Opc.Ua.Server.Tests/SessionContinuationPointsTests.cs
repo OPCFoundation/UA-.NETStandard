@@ -421,6 +421,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Mirror and cleanup failures are both observable while the exact failed point remains retained.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -465,7 +466,8 @@ namespace Opc.Ua.Server.Tests
                 {
                     holder.RestoreHistory(token);
                 }
-            }).ConfigureAwait(false) ?? throw new AssertionException("The mirror removal did not fail.");
+            }).ConfigureAwait(false) ??
+                throw new AssertionException("The mirror removal did not fail.");
 
             if (cleanupFails)
             {
@@ -1088,8 +1090,8 @@ namespace Opc.Ua.Server.Tests
                 .Callback(holder.Clear)
                 .ReturnsAsync(point.Object);
 
-            AggregateException failure = await Assert.ThrowsAsync<AggregateException>(
-                async () => await holder.LoadMirroredAsync(s_sessionId).ConfigureAwait(false));
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await holder.LoadMirroredAsync(s_sessionId).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.InnerExceptions, Has.Count.EqualTo(3));
             Assert.That(failure.InnerExceptions[0], Is.TypeOf<ServiceResultException>());
@@ -1543,6 +1545,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A failed request retains its claimed point until the portable claim finishes.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase(false, false, false)]
         [TestCase(true, false, false)]
         [TestCase(false, true, false)]

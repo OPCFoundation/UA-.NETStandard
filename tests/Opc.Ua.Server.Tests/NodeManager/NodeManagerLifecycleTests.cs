@@ -2212,7 +2212,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await prepared.CommitAsync(
                             _ => new ValueTask(Task.FromException(new InvalidOperationException("Rejected."))))
                             .ConfigureAwait(false)).ConfigureAwait(false);
-                        await exactWriter5.DisposeAsync().ConfigureAwait(false);
+                    await exactWriter5.DisposeAsync().ConfigureAwait(false);
                 }
                 else
                 {
@@ -6115,15 +6115,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool VerifyExactResource(NodeManagerCleanupResource resource)
             {
                 return resource.TryGetDisposable(out IDisposable? retained) &&
-                    ReferenceEquals(retained, nodeManager.Object) && externallyClosed.IsExternallyClosed;
+                    ReferenceEquals(retained, nodeManager.Object) &&
+                    externallyClosed.IsExternallyClosed;
             }
             try
             {
-                AggregateException exception = await Assert.ThrowsAsync<AggregateException>(
+                AggregateException exception = (await Assert.ThrowsAsync<AggregateException>(
                     async () => RequireRegistration(
                         (await CommitChangeAsync(
                         lifecycle, LifecycleChange.Add(
-                        factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]));
+                        factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]))
+                    .ConfigureAwait(false))!;
 
                 string[] failureMessages = [.. exception
                     .Flatten()
@@ -7852,7 +7854,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<InvalidOperationException>()
                     .And
                     .Matches<InvalidOperationException>(
-                        exception => exception is not null && exception.ToString().Contains(
+                        exception => exception is not null &&
+                            exception.ToString().Contains(
                             "shutting down", StringComparison.Ordinal)));
         }
 
@@ -9428,6 +9431,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Completes base disposal before signaling that the retired generation has released its resources.
             /// </summary>
+            /// <exception cref="SentinelException">The injected disposal failure is still pending.</exception>
             public override async ValueTask DisposeAsync()
             {
                 await base.DisposeAsync().ConfigureAwait(false);

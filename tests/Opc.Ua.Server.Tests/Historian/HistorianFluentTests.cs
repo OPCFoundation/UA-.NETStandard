@@ -1071,7 +1071,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         }
                     });
                 var eventHistorian = new HistorianBuilder(server);
-                    unregistrationSignals[eventHistorian] = eventHistorianUnregistered;
+                unregistrationSignals[eventHistorian] = eventHistorianUnregistered;
                 eventHistorian.UseProvider(eventProvider.Object);
                 var notifier = new BaseObjectState(null)
                 {
@@ -1255,8 +1255,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     }
                 });
 
-            var firstHistorian = new HistorianBuilder(server);
-            firstHistorian.UseProvider(provider.Object);
+            HistorianBuilder firstHistorian = new HistorianBuilder(server).UseProvider(provider.Object);
             firstHistorian.Historize(
                 firstVariable,
                 systemContext: firstNodeBuilder.Context,
@@ -1265,8 +1264,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     BatchTarget = 1,
                     BatchWindow = TimeSpan.Zero
                 });
-            var secondHistorian = new HistorianBuilder(server);
-            secondHistorian.UseProvider(provider.Object);
+            HistorianBuilder secondHistorian = new HistorianBuilder(server).UseProvider(provider.Object);
             secondHistorian.Historize(
                 secondVariable,
                 systemContext: secondNodeBuilder.Context,

@@ -331,6 +331,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A parked Publish retains its request admission without retaining a NodeManager routing epoch.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public async Task ParkedPublishDoesNotDelayNodeManagerRetirementAsync()
         {

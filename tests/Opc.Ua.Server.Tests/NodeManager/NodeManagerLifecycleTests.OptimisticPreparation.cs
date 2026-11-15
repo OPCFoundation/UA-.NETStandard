@@ -1019,7 +1019,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(nestedObserver is not null && !IsNestedRoutingConflictOwnerAlive(nestedObserver), Is.True);
                 Assert.That(typeof(NodeManagerRoutingConflictException).GetProperty(
                     "Batch", System.Reflection.BindingFlags.Instance |
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic), Is.Null);
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic), Is.Null);
                 Assert.That(nestedMarker?.RoutingRevision, Is.SameAs(snapshot));
                 Assert.That(ownerCalls, Is.EqualTo(1));
                 Assert.That(nestedDecisions[0], Is.Zero);
@@ -1272,7 +1273,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(nested.IsCommitted, Is.False);
             Assert.That(typeof(NodeManagerRoutingConflictException).GetProperty(
                 "IsBound", System.Reflection.BindingFlags.Instance |
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic), Is.Null);
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic), Is.Null);
             Assert.That(marker.RoutingRevision, Is.SameAs(snapshot));
             Assert.That(marker.InnerException, Is.Null);
             GC.KeepAlive(nested);

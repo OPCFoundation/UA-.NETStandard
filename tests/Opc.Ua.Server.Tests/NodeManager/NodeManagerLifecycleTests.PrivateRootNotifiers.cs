@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <param name="lifecycle">The lifecycle provider.</param>
         /// <param name="factory">The root-notifier factory.</param>
         /// <returns>The committed batch result.</returns>
-        private async Task<LifecycleResult> CommitRootNotifierAdditionAsync(
+        private static async Task<LifecycleResult> CommitRootNotifierAdditionAsync(
             INodeManagerLifecycle lifecycle,
             LifecycleRootNotifierFactory factory)
         {

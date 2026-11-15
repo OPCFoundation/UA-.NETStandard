@@ -160,6 +160,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Each adapter operation suppresses in-scope notifications but not notifications from escaped work.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         [TestCase("add", false)]
         [TestCase("add", true)]
         [TestCase("range", false)]
@@ -442,17 +444,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Captures a real child task and positively holds it until either in-scope or post-return release.
         /// </summary>
+        /// <typeparam name="T">The observation produced by the captured child task.</typeparam>
         private sealed class CapturedWork<T> : IAsyncDisposable
         {
             /// <summary>
             /// Gets the observation task after the callback has started it.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             public Task<T> Result => m_worker ??
                 throw new InvalidOperationException("The production callback did not start the child task.");
 
             /// <summary>
             /// Starts the child inside the production scope and optionally awaits it inside that same scope.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             public async ValueTask StartAsync(Func<ValueTask<T>> observe, bool escaped)
             {
                 if (m_worker is not null)

@@ -443,6 +443,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A released or invalidated saved point remains owned until its active read ends.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase("Release")]
         [TestCase("Clear")]
         [TestCase("Retire")]
@@ -495,6 +496,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A deferred cleanup failure remains associated with the exact point and is not retried.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase("Release")]
         [TestCase("Clear")]
         [TestCase("Retire")]
@@ -781,10 +783,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 release.Set();
                 if (failMirror)
                 {
-                    IOException? observed = await Assert.ThrowsAsync<IOException>(async () =>
-                    {
-                        await restoring.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-                    }).ConfigureAwait(false);
+                    IOException? observed = await Assert.ThrowsAsync<IOException>(
+                        async () => await restoring.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false))
+                        .ConfigureAwait(false);
                     Assert.That(observed, Is.SameAs(failure));
                 }
                 else
@@ -926,10 +927,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 point.Verify(value => value.Dispose(), Times.Never);
 
                 release.Set();
-                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                {
-                    await releasing.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-                }).ConfigureAwait(false);
+                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await releasing.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false))
+                    .ConfigureAwait(false);
                 Assert.That(observed, Is.SameAs(failure));
                 await drain.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 ArrayOf<NodeManagerCleanupFailure> retained = NodeManagerCleanupRecovery.CaptureFailures(generation);
@@ -983,6 +983,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// An admitted portable claim keeps its generation alive until invalidated cleanup finishes.
         /// </summary>
+        /// <exception cref="IOException"></exception>
         [TestCase(false)]
         [TestCase(true)]
         public async Task RetiredHistoryReadDrainsPortableClaimAsync(bool failClaim)
@@ -1031,10 +1032,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 release.TrySetResult(true);
                 if (failClaim)
                 {
-                    IOException? observed = await Assert.ThrowsAsync<IOException>(async () =>
-                    {
-                        await restoring.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-                    }).ConfigureAwait(false);
+                    IOException? observed = await Assert.ThrowsAsync<IOException>(
+                        async () => await restoring.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false))
+                        .ConfigureAwait(false);
                     Assert.That(observed, Is.SameAs(failure));
                 }
                 else
@@ -1865,6 +1865,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Captures an execution context before closing its history scope.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static (
             ExecutionContext Context,
@@ -1892,6 +1893,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Captures an execution context before closing its history request.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static (ExecutionContext Context, WeakReference<SessionContinuationPoints> Session)
             CaptureClosedRequestScope()
@@ -1907,6 +1909,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Captures a nested request context and closes both request scopes.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static (ExecutionContext Context, WeakReference<IDisposable> Outer) CaptureClosedNestedRequestScope()
         {
@@ -1947,6 +1950,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Captures nested dispatch contexts before closing their requests.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static (
             ExecutionContext Context,
@@ -2024,6 +2028,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Checks a weak target without extending its lifetime into a collection cycle.
         /// </summary>
+        /// <typeparam name="T">The type of the weakly referenced scope owner.</typeparam>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static bool IsScopeOwnerAlive<T>(WeakReference<T> reference)
             where T : class

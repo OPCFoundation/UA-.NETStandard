@@ -360,7 +360,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 int callbackClaims = 0;
                 originalManager.AllEventsCallback = (item, unsubscribe, _) =>
                 {
-                    if (item.Id != eventId || unsubscribe != delete ||
+                    if (item.Id != eventId ||
+                        unsubscribe != delete ||
                         Interlocked.CompareExchange(ref callbackClaims, 1, 0) != 0)
                     {
                         return default;

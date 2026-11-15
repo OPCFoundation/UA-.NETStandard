@@ -40,6 +40,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Retirement closes contributor admission and joins a synchronous aggregate read before destruction.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase(false)]
         [TestCase(true)]
         public async Task PublishedContributorRetirementDrainsExplicitAggregateReadAsync(bool unregister)
@@ -128,6 +129,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// An aborted private candidate remains registered until unregister and admitted reads release ownership.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase(false)]
         [TestCase(true)]
         public async Task AbortedExplicitContributorDefersCleanupUntilUnregisterAndReadDrainAsync(bool unregister)
@@ -259,6 +261,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A live writer releases a deferred private candidate after the conformance drain completes.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public async Task ActiveWriterReleasesDeferredCandidateAfterConformanceDrainAsync()
         {
@@ -367,6 +370,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Prepares a privately registered contributor without exposing a strong reference to the caller.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private async Task<(IPreparedChanges Prepared, WeakReference Candidate)> PrepareDeferredWriterCandidateAsync(
             ILifecycleWriter writer,
@@ -399,6 +403,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Observes cleanup counts without retaining the manager across the collection assertion.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void AssertPrivateCleanupCounts(WeakReference candidate, int deletes, int disposals)
         {
@@ -413,6 +418,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Gets the live catalog used for explicit registrations, including private test candidates.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private ConformanceUnitsManager GetReadDrainConformanceManager()
         {
             return (m_server.CurrentInstance as IConformanceUnitsManagerProvider)?.ConformanceUnitsManager ??
