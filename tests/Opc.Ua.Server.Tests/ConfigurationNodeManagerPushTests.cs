@@ -2024,25 +2024,6 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
         }
 
-        // NOTE: A test that drives UpdateCertificate + ApplyChanges through a
-        // full, completed rotation (i.e. awaiting DrainPendingApplyChangesAsync)
-        // is intentionally NOT included. ScheduleDeferredApplyChanges calls
-        // CertificateManager.UpdateAsync, which notifies every registered
-        // ITransportListener; TcpTransportListener.CertificateUpdate then
-        // calls CertificateManager.AcquireApplicationCertificateBySecurityPolicy,
-        // which AddRef()s a CertificateEntry that is never released. That is
-        // a genuine, pre-existing resource leak several layers below
-        // ConfigurationNodeManager (in Opc.Ua.Core's TcpTransportListener /
-        // CertificateManager), reproducible deterministically as soon as a
-        // real ApplyChanges rotation completes against a running TCP
-        // listener. It trips the assembly-wide
-        // Opc.Ua.Server.Tests.LeakDetectionSetup certificate-leak assertion.
-        // Fixing it is out of scope for this test-only change (it lives
-        // outside ConfigurationNodeManager.cs entirely). ApplyChanges' own
-        // request-building/staging logic (lines up to the deferred
-        // scheduling call) is still covered by the tests below and by
-        // UpdateCertificate's own success/failure staging tests.
-
         [Test]
         public async Task ApplyChangesWithNoPendingUpdatesReturnsBadNothingToDoAsync()
         {
@@ -2089,6 +2070,9 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
             await m_configManager.DrainPendingApplyChangesAsync()
                 .ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            await m_configManager.DrainPendingApplyChangesAsync(cancellation.Token).ConfigureAwait(false);
         }
 
         [Test]
@@ -2099,7 +2083,8 @@ namespace Opc.Ua.Server.Tests
                 BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_pendingApplyChangesTask not found.");
             var failure = new InvalidOperationException("Deferred apply failed.");
-            pendingApplyChangesTaskField.SetValue(m_configManager, Task.FromException(failure));
+            Task pending = Task.FromException(failure);
+            pendingApplyChangesTaskField.SetValue(m_configManager, pending);
 
             try
             {
@@ -2107,6 +2092,13 @@ namespace Opc.Ua.Server.Tests
                     async () => await m_configManager.DrainPendingApplyChangesAsync().ConfigureAwait(false));
 
                 Assert.That(actual, Is.SameAs(failure));
+                using var cancellation = new CancellationTokenSource();
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                Task repeated = m_configManager.DrainPendingApplyChangesAsync(cancellation.Token);
+                Assert.That(repeated, Is.SameAs(pending));
+                InvalidOperationException? repeatedFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await repeated.ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(repeatedFailure, Is.SameAs(failure));
             }
             finally
             {
@@ -3527,6 +3519,46 @@ namespace Opc.Ua.Server.Tests
                 }
                 await manager.DrainPendingApplyChangesAsync(timeout.Token).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// A coordinator failure releases provisional certificate handles and preserves the original outcome.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ApplyChangesCoordinatorFailureReleasesProvisionalRotationsAsync(bool cancellation)
+        {
+            long outstanding = Certificate.InstancesLeaked;
+            IServerInternal serverInternal = m_server.CurrentInstance;
+            var coordinator = new Mock<IPushConfigurationTransactionCoordinator>();
+            using (var manager = new ConfigurationNodeManager(
+                serverInternal, m_fixture.Config, serverInternal.Telemetry.CreateLogger<ConfigurationNodeManager>(),
+                timeProvider: null, coordinator.Object, pendingKeyStore: null))
+            using (Certificate certificate = CertificateBuilder
+                .Create("CN=FailedRotation " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA())
+            {
+                var sessionId = new NodeId(Guid.NewGuid(), 1);
+                var certificateType = new NodeId(Guid.NewGuid(), 1);
+                ISystemContext context = CreateAdminContextForSession(sessionId);
+                Exception failure = cancellation
+                    ? new OperationCanceledException("Apply coordinator canceled.")
+                    : new InvalidOperationException("Apply coordinator failed.");
+                coordinator.Setup(value => value.ApplyChangesAsync(
+                    sessionId, It.IsAny<PushConfigurationApplyEffects>(), It.IsAny<CancellationToken>()))
+                    .Callback(() => InvokeRegisterPendingRotation(manager, certificateType, certificate))
+                    .Returns(new ValueTask<ServiceResult>(Task.FromException<ServiceResult>(failure)));
+
+                Exception? actual = await Assert.CatchAsync<Exception>(
+                    async () => await InvokeApplyChangesAsync(manager, context).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(actual, Is.SameAs(failure));
+                coordinator.Verify(value => value.ApplyChangesAsync(
+                    sessionId, It.IsAny<PushConfigurationApplyEffects>(), It.IsAny<CancellationToken>()), Times.Once);
+                await manager.DrainPendingApplyChangesAsync().ConfigureAwait(false);
+            }
+            Assert.That(Certificate.InstancesLeaked, Is.EqualTo(outstanding));
         }
 
         [Test]

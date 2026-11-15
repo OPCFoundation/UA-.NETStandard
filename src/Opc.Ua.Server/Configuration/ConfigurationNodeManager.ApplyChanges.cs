@@ -48,20 +48,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public Task DrainPendingApplyChangesAsync(CancellationToken cancellationToken = default)
         {
-            Task? pending;
+            Task pending;
             lock (m_pendingApplyChangesLock)
             {
-                pending = m_pendingApplyChangesTask;
-            }
-
-            if (pending is null)
-            {
-                return Task.CompletedTask;
-            }
-
-            if (!cancellationToken.CanBeCanceled || pending.IsCompleted)
-            {
-                return pending;
+                pending = m_pendingApplyChangesTask ?? Task.CompletedTask;
             }
 
             return pending.WaitAsync(cancellationToken);
@@ -339,6 +329,7 @@ namespace Opc.Ua.Server
             // transaction whose (uncommitted) targets a snapshot would report.
             var committedEffects = new PushConfigurationApplyEffects();
             ServiceResult result;
+            bool keepRotations = false;
             using var rotationScope = new NodeManagerAmbientScope<RotationCollector>(
                 m_activeRotationCollector, new RotationCollector(rotations));
             try
@@ -365,6 +356,7 @@ namespace Opc.Ua.Server
                     result = await m_coordinator.ApplyChangesAsync(sessionId, committedEffects, cancellationToken)
                         .ConfigureAwait(false);
                 }
+                keepRotations = ServiceResult.IsGood(result);
             }
             finally
             {
@@ -372,16 +364,16 @@ namespace Opc.Ua.Server
                 {
                     rotationScope.Dispose();
                 }
+                if (!keepRotations)
+                {
+                    DisposeRotations(rotations);
+                }
             }
 
             UpdateTransactionDiagnostics(context);
 
-            if (!ServiceResult.IsGood(result))
+            if (!keepRotations)
             {
-                // The transaction failed and was reverse-compensated;
-                // nothing actually rotated, so any provisionally-recorded
-                // rotations must be discarded rather than scheduled.
-                DisposeRotations(rotations);
                 return result;
             }
 
