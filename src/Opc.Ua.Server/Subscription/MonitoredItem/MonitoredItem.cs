@@ -561,7 +561,9 @@ namespace Opc.Ua.Server
         private void UpdateUnresolvedOwnership()
         {
             if (m_subscriptionOwnership == SubscriptionOwnership.Bound &&
-                !m_isDisposed && !m_isTerminal && (Generation is null || m_isDeleted))
+                !m_isDisposed &&
+                !m_isTerminal &&
+                (Generation is null || m_isDeleted))
             {
                 m_slot.UnresolvedItems[this] = m_subscription!;
             }
@@ -720,10 +722,10 @@ namespace Opc.Ua.Server
         bool IReadySignalingMonitoredItem.HasPendingNotifications =>
             !IsReadinessPending() &&
             (Volatile.Read(ref m_readyToPublish) ||
-            Volatile.Read(ref m_readyToTrigger) ||
-            Volatile.Read(ref m_resendData) ||
+                Volatile.Read(ref m_readyToTrigger) ||
+                Volatile.Read(ref m_resendData) ||
             // an aggregate becomes ready when its processing interval ends, without a new value.
-            AggregateFilter != null);
+                AggregateFilter != null);
 
         /// <summary>
         /// Re-signals retained samples after this exact bound generation finishes initialization.
@@ -733,7 +735,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (!m_isDisposed && IsBoundToGeneration(generation) &&
+                if (!m_isDisposed &&
+                    IsBoundToGeneration(generation) &&
                     (m_readyToPublish || m_readyToTrigger || m_resendData || AggregateFilter is not null))
                 {
                     SignalReady();
@@ -762,7 +765,8 @@ namespace Opc.Ua.Server
         {
             // the compare-exchange is a full fence: the flags set before it are visible to a
             // subscription that releases the signal and then checks the flags again.
-            if (!IsReadinessPending() && m_subscription is IMonitoredItemReadySink sink &&
+            if (!IsReadinessPending() &&
+                m_subscription is IMonitoredItemReadySink sink &&
                 Interlocked.CompareExchange(ref m_readySignal, 1, 0) == 0)
             {
                 sink.OnMonitoredItemReady(this);
@@ -903,7 +907,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                bool released = Generation is null && sourceGeneration is not null &&
+                bool released = Generation is null &&
+                    sourceGeneration is not null &&
                     ReferenceEquals(m_releasedGeneration, sourceGeneration);
                 if (!m_isDisposed &&
                     m_isDeleted &&
@@ -2453,7 +2458,8 @@ namespace Opc.Ua.Server
             }
             bool capturedSourceEmission = admittedGeneration is not null;
             MasterNodeManager.SourceEmissionAdmission? emission = null;
-            bool admitted = capturedSourceEmission || MasterNodeManager.TryCaptureSourceEmission(
+            bool admitted = capturedSourceEmission ||
+                MasterNodeManager.TryCaptureSourceEmission(
                     m_server,
                     NodeManager,
                     out emission,
@@ -2588,7 +2594,8 @@ namespace Opc.Ua.Server
         {
             bool capturedSourceEmission = admittedGeneration is not null;
             MasterNodeManager.SourceEmissionAdmission? emission = null;
-            bool admitted = capturedSourceEmission || MasterNodeManager.TryCaptureSourceEmission(
+            bool admitted = capturedSourceEmission ||
+                MasterNodeManager.TryCaptureSourceEmission(
                     m_server,
                     NodeManager,
                     out emission,
@@ -3383,7 +3390,8 @@ namespace Opc.Ua.Server
 
         private bool CanQueueSourceEmission()
         {
-            return Generation is not null && !m_isTerminal &&
+            return Generation is not null &&
+                !m_isTerminal &&
                 (!m_isDeleted ||
                     (!UsesExternalValueSource && (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0));
         }
@@ -3467,7 +3475,8 @@ namespace Opc.Ua.Server
                 MinimumSamplingInterval = variable.MinimumSamplingInterval
             };
             if (variable.FindChild(server.DefaultSystemContext, QualifiedName.From(BrowseNames.EURange)) is
-                PropertyState property && property.Value.TryGetStructure<Range>(out Range? range))
+                PropertyState property &&
+                property.Value.TryGetStructure<Range>(out Range? range))
             {
                 metadata.AddChild(new PropertyState(metadata)
                 {
@@ -4059,6 +4068,7 @@ namespace Opc.Ua.Server
             DeadbandType = (uint)DeadbandType.None,
             DeadbandValue = 0.0
         };
+
         private readonly ILogger m_logger;
         private bool m_isDisposed;
 

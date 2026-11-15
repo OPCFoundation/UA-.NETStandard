@@ -1157,8 +1157,11 @@ namespace Opc.Ua.Server
                 cancellationToken.ThrowIfCancellationRequested();
                 var itemLifecycle = (IMonitoredItemGenerationBinding)monitoredItem;
                 long sourceRevision = itemLifecycle.SourceRevision;
-                if (unresolvedOnly && (!itemLifecycle.IsSourceUnavailable ||
-                    itemLifecycle.IsDisposed || itemLifecycle.IsRemoved || itemLifecycle.IsTerminal))
+                if (unresolvedOnly &&
+                    (!itemLifecycle.IsSourceUnavailable ||
+                        itemLifecycle.IsDisposed ||
+                        itemLifecycle.IsRemoved ||
+                        itemLifecycle.IsTerminal))
                 {
                     continue;
                 }
@@ -1866,11 +1869,14 @@ namespace Opc.Ua.Server
 
         private readonly HashSet<object> m_shutdownCompletedNodeManagers =
             new(RefEqualityComparer.Default);
+
         private int m_shutdownCompletedNodeManagerCount;
         private readonly List<IAsyncNodeManager> m_preparingNodeManagers = [];
         private readonly Lock m_preparingNodeManagersLock = new();
+
         private volatile Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>
             m_dynamicExternalReferences = new(RefEqualityComparer.Default);
+
         private Dictionary<NodeId, IList<IReference>>? m_foundationExternalReferences;
 
         private readonly Lock m_retiringEventGenerationsLock = new();

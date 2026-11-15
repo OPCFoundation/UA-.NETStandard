@@ -582,7 +582,8 @@ namespace Opc.Ua.Server
                         routePosition.Key,
                         out IReadOnlyList<IAsyncNodeManager>? existing);
                     var updated = existing?.Where(manager =>
-                        !HasSameIdentity(manager, previous)).ToList() ?? [];
+                        !HasSameIdentity(manager, previous)).ToList() ??
+                        [];
                     updated.Insert(
                         ResolveInsertionIndex(
                             updated,
@@ -767,7 +768,8 @@ namespace Opc.Ua.Server
                         routePosition.Key,
                         out IReadOnlyList<IAsyncNodeManager>? existing);
                     var updated = existing?.Where(manager =>
-                        !HasSameIdentity(manager, nodeManager)).ToList() ?? [];
+                        !HasSameIdentity(manager, nodeManager)).ToList() ??
+                        [];
                     updated.Insert(
                         ResolveInsertionIndex(
                             updated,
@@ -1544,7 +1546,6 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the in-memory reference images owned by this routing generation.
             /// </summary>
-
             /// <summary>
             /// Gets the immutable application state owned by this routing generation.
             /// </summary>
@@ -2210,7 +2211,9 @@ namespace Opc.Ua.Server
             /// </exception>
             private void ValidateNamespaceMutation()
             {
-                if (m_disposed || m_published || !ReferenceEquals(m_owner.m_reservedRoutes, this) ||
+                if (m_disposed ||
+                    m_published ||
+                    !ReferenceEquals(m_owner.m_reservedRoutes, this) ||
                     !ReferenceEquals(m_owner.m_snapshot, m_previous))
                 {
                     throw new InvalidOperationException("The routing publication has not been reserved.");

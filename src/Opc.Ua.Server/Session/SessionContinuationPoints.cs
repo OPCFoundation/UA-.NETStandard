@@ -258,7 +258,8 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (restored is null && m_mirroredBrowseOwners != null &&
+                if (restored is null &&
+                    m_mirroredBrowseOwners != null &&
                     m_mirroredBrowseOwners.TryGetValue(id, out NodeId ownerSessionId))
                 {
                     m_mirroredBrowseOwners.Remove(id);
@@ -671,7 +672,8 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (historyRequest is not HistoryRequestScope scope ||
-                    !ReferenceEquals(scope.Owner, this) || scope.Ended)
+                    !ReferenceEquals(scope.Owner, this) ||
+                    scope.Ended)
                 {
                     throw new InvalidOperationException("The history request is no longer active.");
                 }
@@ -702,7 +704,8 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (historyRequest is not HistoryRequestScope scope ||
-                    !ReferenceEquals(scope.Owner, this) || scope.Ended ||
+                    !ReferenceEquals(scope.Owner, this) ||
+                    scope.Ended ||
                     historyDispatch is not HistoryDispatchScope dispatch ||
                     !dispatch.CanBind(scope, generation) ||
                     !scope.TryFindSavedFor(id, dispatch, out SavedHistoryPoint saved))
@@ -710,10 +713,14 @@ namespace Opc.Ua.Server
                     return false;
                 }
                 HistoryContinuationPoint entry = saved.Entry;
-                if (entry.Id != id || entry.SaveSequence != saved.SaveSequence ||
-                    m_history?.Contains(entry) != true || entry.Invalidated ||
-                    entry.PendingPersistence || entry.Claiming ||
-                    entry.CleanupPending || entry.CleanupFailure is not null ||
+                if (entry.Id != id ||
+                    entry.SaveSequence != saved.SaveSequence ||
+                    m_history?.Contains(entry) != true ||
+                    entry.Invalidated ||
+                    entry.PendingPersistence ||
+                    entry.Claiming ||
+                    entry.CleanupPending ||
+                    entry.CleanupFailure is not null ||
                     (entry.Generation is { } existing && !existing.Identifies(generation)))
                 {
                     return false;
@@ -1193,9 +1200,11 @@ namespace Opc.Ua.Server
                     {
                         return null;
                     }
-                    if (readScope is not null && candidate.Generation is { } generationReference &&
+                    if (readScope is not null &&
+                        candidate.Generation is { } generationReference &&
                         (!generationReference.TryGetGeneration(out NodeManagerGeneration? generation) ||
-                            generation is null || !readScope.TryAdmitGeneration(generation)))
+                            generation is null ||
+                            !readScope.TryAdmitGeneration(generation)))
                     {
                         candidate.Invalidated = true;
                         m_history.RemoveAt(i);
@@ -1310,7 +1319,8 @@ namespace Opc.Ua.Server
                 if (history != null && history.Contains(continuationPoint))
                 {
                     continuationPoint.Claiming = false;
-                    if (m_closed || continuationPoint.Invalidated ||
+                    if (m_closed ||
+                        continuationPoint.Invalidated ||
                         continuationPoint.Value is Historian.HistorianContinuationState { IsInvalidated: true })
                     {
                         history.Remove(continuationPoint);
@@ -1339,7 +1349,8 @@ namespace Opc.Ua.Server
                     invalidated = false;
                     return false;
                 }
-                invalidated = m_closed || continuationPoint.Invalidated ||
+                invalidated = m_closed ||
+                    continuationPoint.Invalidated ||
                     continuationPoint.Value is Historian.HistorianContinuationState { IsInvalidated: true };
                 if (invalidated)
                 {
@@ -1382,7 +1393,8 @@ namespace Opc.Ua.Server
             {
                 m_checkedOutHistory.Add(entry);
             }
-            if (callerOwned && entry.ActiveReads == 0 &&
+            if (callerOwned &&
+                entry.ActiveReads == 0 &&
                 entry.Value is not Historian.HistorianContinuationState)
             {
                 entry.TransferToCaller();
@@ -1718,7 +1730,9 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (!ReferenceEquals(entry.CleanupFailure, failure) ||
-                    entry.ActiveReads != 0 || entry.CleanupPending || entry.CleanupInProgress ||
+                    entry.ActiveReads != 0 ||
+                    entry.CleanupPending ||
+                    entry.CleanupInProgress ||
                     !m_checkedOutHistory.Contains(entry))
                 {
                     throw new InvalidOperationException("The retained history cleanup has changed.");
@@ -2613,9 +2627,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Identifies a history request without retaining its session or saved entries.
         /// </summary>
-        private sealed class HistoryRequestIdentity
-        {
-        }
+        private sealed class HistoryRequestIdentity;
 
         /// <summary>
         /// Identifies one callback without retaining its NodeManager in captured execution contexts.
@@ -3193,8 +3205,10 @@ namespace Opc.Ua.Server
             {
                 lock (m_stateLock)
                 {
-                    return m_active && m_point is Historian.HistorianContinuationState state &&
-                        (state.NodeId == nodeId || state.OriginNodeId == nodeId ||
+                    return m_active &&
+                        m_point is Historian.HistorianContinuationState state &&
+                        (state.NodeId == nodeId ||
+                            state.OriginNodeId == nodeId ||
                             (state.SourceNode is { } source && source.NodeId == nodeId))
                         ? state.Provider
                         : null;

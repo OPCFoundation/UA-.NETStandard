@@ -1008,7 +1008,7 @@ namespace Opc.Ua.Server
                                 var page = await FetchReferencesAsync(
                                     context,
                                     m_owner.MaxContinuationPointsPerBrowse == 0 ||
-                                        continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                                    continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                                     fetching,
                                     result.References,
                                     cancellationToken).ConfigureAwait(false);
@@ -1297,8 +1297,9 @@ namespace Opc.Ua.Server
         {
             if (GetRouting(context).TryGetGeneration(nodeManager, out NodeManagerGeneration? generation))
             {
-                return generation ?? throw new InvalidOperationException(
-                    "A routing view resolved a NodeManager without a generation.");
+                return generation ??
+                    throw new InvalidOperationException(
+                        "A routing view resolved a NodeManager without a generation.");
             }
             // Legacy lookup overrides may return a proxy owner outside the managed routing view.
             return NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
@@ -1729,8 +1730,10 @@ namespace Opc.Ua.Server
                         results,
                         errors,
                         cancellationToken).ConfigureAwait(false);
-                    if (continuationPoints is not null && currentRequest is not null &&
-                        generation is not null && historyDispatch is not null)
+                    if (continuationPoints is not null &&
+                        currentRequest is not null &&
+                        generation is not null &&
+                        historyDispatch is not null)
                     {
                         for (int ii = 0; ii < pending.Length; ii++)
                         {
@@ -2641,7 +2644,8 @@ namespace Opc.Ua.Server
                     error = await SetEventSubscriptionAsync(
                         eventManagers[ii], context, subscriptionId, monitoredItem, false, cancellationToken,
                         refreshExisting: false)
-                        .ConfigureAwait(false) ?? ServiceResult.Good;
+                        .ConfigureAwait(false) ??
+                        ServiceResult.Good;
                     if (monitoredItem.MonitoringAllEvents &&
                         error.StatusCode == StatusCodes.BadNotSupported)
                     {
@@ -4660,7 +4664,8 @@ namespace Opc.Ua.Server
                         monitoredItem,
                         operation,
                         unsubscribe,
-                        cancellationToken).ConfigureAwait(false) ?? ServiceResult.Good;
+                        cancellationToken).ConfigureAwait(false) ??
+                        ServiceResult.Good;
                 }
                 else
                 {
@@ -4708,7 +4713,8 @@ namespace Opc.Ua.Server
                     (remove, ct) => owner.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, remove, ct),
                     unsubscribe: true,
                     cancellationToken,
-                    retainFailedRelease: false).ConfigureAwait(false) ?? ServiceResult.Good;
+                    retainFailedRelease: false).ConfigureAwait(false) ??
+                    ServiceResult.Good;
                 if (result.StatusCode == StatusCodes.BadNotSupported)
                 {
                     return ServiceResult.Good;

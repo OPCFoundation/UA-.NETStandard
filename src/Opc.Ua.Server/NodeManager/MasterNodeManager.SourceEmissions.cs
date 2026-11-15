@@ -41,7 +41,8 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> when the source generation is live.</returns>
         internal bool IsSourceEmissionAllowed(IAsyncNodeManager? nodeManager)
         {
-            return nodeManager is not null && m_nodeManagers.Revision.TryGetSourceGeneration(
+            return nodeManager is not null &&
+                m_nodeManagers.Revision.TryGetSourceGeneration(
                     nodeManager,
                     out NodeManagerGeneration? generation) &&
                 generation!.Gate.State == NodeManagerGenerationState.Live;
@@ -466,7 +467,8 @@ namespace Opc.Ua.Server
                 {
                     MasterNodeManager? owner = Volatile.Read(ref m_owner);
                     IAsyncNodeManager? nodeManager = item.NodeManager;
-                    return owner is not null && nodeManager is not null &&
+                    return owner is not null &&
+                        nodeManager is not null &&
                         TryCaptureCore(
                             owner, nodeManager, (item as MonitoredItem)?.Generation,
                             item.MonitoringAllEvents, out emission);
@@ -698,6 +700,5 @@ namespace Opc.Ua.Server
             /// <inheritdoc/>
             public ITelemetryContext Telemetry => context.Telemetry;
         }
-
     }
 }

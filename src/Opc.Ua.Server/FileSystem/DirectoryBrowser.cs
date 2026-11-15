@@ -513,8 +513,10 @@ namespace Opc.Ua.Server.FileSystem
         private static readonly Lock s_identityLock = new();
         private static readonly ConditionalWeakTable<IAsyncDisposable, DirectoryCursorOwnership> s_cursorOwners = new();
         private readonly Lock m_lock = new();
+
         private readonly TaskCompletionSource<bool> m_completion =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private IAsyncDisposable? m_cursor;
         private Exception? m_failure;
         private bool m_finished;

@@ -1093,8 +1093,10 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException("The cleanup verification capability is invalid.");
                 }
                 RetiredConsumer? resource = m_retirementResources?.Find(
-                    candidate => candidate.Id == id && candidate.Failure is not null &&
-                        candidate.DisposingThreadId == 0 && !candidate.ConfirmationInProgress);
+                    candidate => candidate.Id == id &&
+                        candidate.Failure is not null &&
+                        candidate.DisposingThreadId == 0 &&
+                        !candidate.ConfirmationInProgress);
                 if (resource is null)
                 {
                     throw new InvalidOperationException("The retained consumer was not found.");
@@ -1118,8 +1120,10 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException("The cleanup confirmation capability is invalid.");
                 }
                 resource = m_retirementResources?.Find(
-                    candidate => candidate.Id == id && candidate.Failure is not null &&
-                        candidate.DisposingThreadId == 0 && !candidate.ConfirmationInProgress)
+                    candidate => candidate.Id == id &&
+                        candidate.Failure is not null &&
+                        candidate.DisposingThreadId == 0 &&
+                        !candidate.ConfirmationInProgress)
                     ?? throw new InvalidOperationException("The retained consumer was not found.");
                 resource.ConfirmationInProgress = true;
             }
@@ -2493,9 +2497,10 @@ namespace Opc.Ua.Server
                 {
                     lock (m_sync)
                     {
-                        return m_candidates.Count == 0 && m_owners.All(static current =>
-                            current.Gate.State is NodeManagerGenerationState.Retiring or
-                                NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed);
+                        return m_candidates.Count == 0 &&
+                            m_owners.All(static current =>
+                                current.Gate.State is NodeManagerGenerationState.Retiring or
+                                    NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed);
                     }
                 }
             }
@@ -2570,10 +2575,11 @@ namespace Opc.Ua.Server
                     int candidateIndex = m_candidates.FindIndex(
                         candidate => ReferenceEquals(candidate, owner.NodeManager));
                     if (m_cleanupStarted ||
-                        candidateIndex < 0 &&
-                        m_owners.Count != 0 && m_owners.All(static current =>
-                            current.Gate.State is NodeManagerGenerationState.Retiring or
-                                NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed))
+                        (candidateIndex < 0 &&
+                            m_owners.Count != 0 &&
+                            m_owners.All(static current =>
+                                current.Gate.State is NodeManagerGenerationState.Retiring or
+                                    NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed)))
                     {
                         throw new InvalidOperationException(
                             "A retiring or cleaned physical resource cannot be reused.");
@@ -2598,10 +2604,13 @@ namespace Opc.Ua.Server
             {
                 lock (m_sync)
                 {
-                    if (m_cleanupStarted || m_candidates.Any(current => ReferenceEquals(current, candidate)) ||
-                        m_candidates.Count == 0 && m_owners.Count != 0 && m_owners.All(static current =>
-                            current.Gate.State is NodeManagerGenerationState.Retiring or
-                                NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed))
+                    if (m_cleanupStarted ||
+                        m_candidates.Any(current => ReferenceEquals(current, candidate)) ||
+                        (m_candidates.Count == 0 &&
+                            m_owners.Count != 0 &&
+                            m_owners.All(static current =>
+                                current.Gate.State is NodeManagerGenerationState.Retiring or
+                                    NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed)))
                     {
                         throw new NodeManagerAlreadyRegisteredException();
                     }
@@ -2657,9 +2666,10 @@ namespace Opc.Ua.Server
                                 throw new InvalidOperationException(
                                     "Physical cleanup ownership is no longer retained.");
                             }
-                            if (m_candidates.Count == 0 && m_owners.All(static current =>
-                                current.Gate.State is NodeManagerGenerationState.Retiring or
-                                    NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed))
+                            if (m_candidates.Count == 0 &&
+                                m_owners.All(static current =>
+                                    current.Gate.State is NodeManagerGenerationState.Retiring or
+                                        NodeManagerGenerationState.Aborted or NodeManagerGenerationState.Disposed))
                             {
                                 m_cleanupStarted = true;
                                 break;
@@ -2737,8 +2747,10 @@ namespace Opc.Ua.Server
                 lock (m_sync)
                 {
                     m_cleanupAdmissions--;
-                    completed = m_cleanupStarted && m_owners.Count == 0 &&
-                        m_candidates.Count == 0 && m_cleanupAdmissions == 0;
+                    completed = m_cleanupStarted &&
+                        m_owners.Count == 0 &&
+                        m_candidates.Count == 0 &&
+                        m_cleanupAdmissions == 0;
                 }
                 if (completed)
                 {

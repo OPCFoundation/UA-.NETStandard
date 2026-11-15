@@ -305,7 +305,7 @@ namespace Opc.Ua.Server
             return AcquireHostAdmissionAsync(
                 callbackPermit,
                 NodeManagerAdmissionCapability.AddressSpaceMutation |
-                    NodeManagerAdmissionCapability.ServerLifecycle,
+                NodeManagerAdmissionCapability.ServerLifecycle,
                 cancellationToken);
         }
 

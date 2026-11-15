@@ -603,8 +603,10 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_publishLock = new(1, 1);
         private readonly IServerInternal m_server;
         private readonly List<ContributorRegistration> m_contributors = [];
+
         private readonly ConditionalWeakTable<IConformanceContributor, ContributorRegistration> m_contributorStates =
             new();
+
         private ArrayOf<QualifiedName> m_nodeManagerUnits;
         private ArrayOf<string> m_nodeManagerProfiles;
         private HashSet<QualifiedName> m_conformanceUnits;

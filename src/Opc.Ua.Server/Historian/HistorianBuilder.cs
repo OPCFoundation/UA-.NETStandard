@@ -53,6 +53,7 @@ namespace Opc.Ua.Server.Historian
     {
         private static readonly ConditionalWeakTable<IHistorianProvider, ProviderCaptureState>
             s_providerCaptureStates = new();
+
         private static readonly Lock s_providerCaptureLock = new();
 
         /// <summary>

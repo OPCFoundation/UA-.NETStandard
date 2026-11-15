@@ -87,8 +87,9 @@ namespace Opc.Ua.Server
             m_reclaimer = new GenerationReclaimer(m_timeProvider);
             var weakOwner = new WeakReference<NodeManagerLifecycle>(this);
             bool CanDispose() => !weakOwner.TryGetTarget(out NodeManagerLifecycle? owner) ||
-                owner.m_reclaimer.Count == 0 && owner.m_registrations.Count == 0 &&
-                owner.PendingPrivateCleanupCount == 0;
+                (owner.m_reclaimer.Count == 0 &&
+                    owner.m_registrations.Count == 0 &&
+                    owner.PendingPrivateCleanupCount == 0);
 
             if (writerFactory is null)
             {
@@ -233,7 +234,8 @@ namespace Opc.Ua.Server
                 lock (m_registrationLock)
                 {
                     return m_registrations.Count != 0 ||
-                        m_reclaimer.Count != 0 || PendingPrivateCleanupCount != 0;
+                        m_reclaimer.Count != 0 ||
+                        PendingPrivateCleanupCount != 0;
                 }
             }
         }
@@ -1693,8 +1695,10 @@ namespace Opc.Ua.Server
                             }
                             throw new ServiceResultException(result);
                         }
-                        if (!compatible || m_replacement is null ||
-                            binding?.IsRemoved == true || !IsOwnedBySubscription(monitoredItem))
+                        if (!compatible ||
+                            m_replacement is null ||
+                            binding?.IsRemoved == true ||
+                            !IsOwnedBySubscription(monitoredItem))
                         {
                             m_reconciledItems[monitoredItem] = sourceRevision;
                             continue;
@@ -1782,7 +1786,8 @@ namespace Opc.Ua.Server
                 foreach (IMonitoredItem monitoredItem in m_deletedItems.Concat(m_failedItems))
                 {
                     if (!m_reconciledItems.TryGetValue(monitoredItem, out long sourceRevision) ||
-                        m_markedDeletedItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem) ||
+                        m_markedDeletedItems.Contains(monitoredItem) ||
+                        !IsOwnedBySubscription(monitoredItem) ||
                         monitoredItem is IMonitoredItemGenerationBinding { IsRemoved: true })
                     {
                         continue;
@@ -1836,6 +1841,7 @@ namespace Opc.Ua.Server
             /// <summary>The source incarnation released by each completed committed handoff.</summary>
             private readonly Dictionary<IMonitoredItem, long> m_reconciledItems =
                 new(MonitoredItemReferenceComparer.Instance);
+
             private readonly List<IMonitoredItem> m_failedItems = [];
             private readonly HashSet<IMonitoredItem> m_markedDeletedItems = [];
 
@@ -2333,7 +2339,7 @@ namespace Opc.Ua.Server
                             (!m_registrations.TryGetValue(
                                 entry.Current.Registration.Id,
                                 out RegistrationState? current) ||
-                            !ReferenceEquals(current, entry.Current)))
+                                !ReferenceEquals(current, entry.Current)))
                         {
                             throw new InvalidOperationException(
                                 "A registration changed while the batch was prepared.");
@@ -2421,7 +2427,8 @@ namespace Opc.Ua.Server
                     committedReferences = await batch.Host.CommitBatchAsync(context).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (
-                    batch.DecisionCommitted && !batch.IsCommitted &&
+                    batch.DecisionCommitted &&
+                    !batch.IsCommitted &&
                     failure is not OutOfMemoryException)
                 {
                     m_writer.MarkPublicationFailed();
@@ -2747,7 +2754,8 @@ namespace Opc.Ua.Server
                         if (entry.Current is not null)
                         {
                             if (entry.Change.TransitionMode !=
-                                NodeManagerMonitoredItemTransitionMode.Migrate || entry.Manager is null)
+                                NodeManagerMonitoredItemTransitionMode.Migrate ||
+                                entry.Manager is null)
                             {
                                 NodeManagerGeneration generation = entry.Current.Registration.Identity;
                                 generation.Slot.LateMigrationRevision =
@@ -2912,9 +2920,10 @@ namespace Opc.Ua.Server
             {
                 cleanup.Stage = PrivateCleanupStage.WaitingForConformance;
             }
-            bool deferred = !drain.IsCompleted || cleanup.Candidates.Any(
-                static candidate => !candidate.Generation.ResourceOwnership.IsCleanupReady ||
-                    !candidate.Generation.IsQuiescent);
+            bool deferred = !drain.IsCompleted ||
+                cleanup.Candidates.Any(
+                    static candidate => !candidate.Generation.ResourceOwnership.IsCleanupReady ||
+                        !candidate.Generation.IsQuiescent);
             if (deferred && !ExecutionContext.IsFlowSuppressed())
             {
                 ExecutionContext.SuppressFlow();
@@ -3163,8 +3172,9 @@ namespace Opc.Ua.Server
             {
                 cleanup = m_privateCleanups.FirstOrDefault(current =>
                     current.Candidates.Any(candidate => ReferenceEquals(candidate.Generation, generation)));
-                if (cleanup is null || cleanup.Stage is
-                    PrivateCleanupStage.WaitingForConformance or PrivateCleanupStage.WaitingForShutdown)
+                if (cleanup is null ||
+                    cleanup.Stage is
+                        PrivateCleanupStage.WaitingForConformance or PrivateCleanupStage.WaitingForShutdown)
                 {
                     return;
                 }
@@ -3250,7 +3260,6 @@ namespace Opc.Ua.Server
             /// Gets or sets the current cleanup stage.
             /// </summary>
             internal PrivateCleanupStage Stage { get; set; }
-
         }
 
         /// <summary>
@@ -3695,7 +3704,8 @@ namespace Opc.Ua.Server
                     payload.Owner.ThrowIfDecisionCallbackActive();
                     if (metadata.Owner is not { } owner ||
                         !NodeManagerGenerationRegistry.TryGet(owner, out NodeManagerGeneration? generation) ||
-                        generation is null || slot is not null && !ReferenceEquals(generation.Slot, slot))
+                        generation is null ||
+                        (slot is not null && !ReferenceEquals(generation.Slot, slot)))
                     {
                         throw new ArgumentException(
                             "Metadata must identify the exact generation owner.", nameof(metadata));
@@ -3808,7 +3818,8 @@ namespace Opc.Ua.Server
                     {
                         executionFailure = failure;
                     }
-                    if (!payload.IsCommitted && !payload.DecisionCommitted &&
+                    if (!payload.IsCommitted &&
+                        !payload.DecisionCommitted &&
                         (m_validationOnly || executionFailure is not null))
                     {
                         cleanupFailure = await CleanupAsync(payload, waitForCleanup: m_validationOnly)
@@ -4182,7 +4193,6 @@ namespace Opc.Ua.Server
             private readonly WeakReference<NodeManagerLifecycle> m_owner;
         }
 
-
         /// <summary>The construction-bound server state and schema publication services.</summary>
         private readonly INodeManagerLifecycleHost m_server;
 
@@ -4210,6 +4220,5 @@ namespace Opc.Ua.Server
 
         /// <summary>Owns retired generations independently of lifecycle publication.</summary>
         private readonly GenerationReclaimer m_reclaimer;
-
     }
 }
