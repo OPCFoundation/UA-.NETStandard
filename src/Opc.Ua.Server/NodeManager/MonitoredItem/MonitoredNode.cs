@@ -2128,7 +2128,83 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves current subscriber permissions and reuses only an unchanged exact-source grant.
         /// </summary>
-        private async ValueTask<(ServiceResult Result, ServerSystemContext Context)> GetDataChangePermissionAsync(
+        private ValueTask<(ServiceResult Result, ServerSystemContext Context)> GetDataChangePermissionAsync(
+            DataChangeSnapshot snapshot,
+            IDataChangeMonitoredItem2 monitoredItem,
+            PermissionType permission,
+            CancellationToken ct)
+        {
+            return TryGetCachedDataChangePermission(
+                monitoredItem,
+                ct,
+                out ServiceResult? result,
+                out ServerSystemContext? context)
+                ? new ValueTask<(ServiceResult, ServerSystemContext)>((result!, context!))
+                : ValidateDataChangePermissionAsync(snapshot, monitoredItem, permission, ct);
+        }
+
+        /// <summary>
+        /// Returns a current cached verdict without suspending, so a data change fan-out keeps
+        /// the permission context and read inputs of each item on the stack instead of copying
+        /// them into a state machine through the GC write barrier. It answers a cached bad
+        /// role verdict, or a cached good one whose exact-source read verdict may be reused;
+        /// anything else is left to <see cref="ValidateDataChangePermissionAsync"/>. No input is
+        /// awaited here, so one recapture of the context and inputs covers the whole path.
+        /// </summary>
+        private bool TryGetCachedDataChangePermission(
+            IDataChangeMonitoredItem2 monitoredItem,
+            CancellationToken ct,
+            out ServiceResult? result,
+            out ServerSystemContext? context)
+        {
+            result = null;
+            context = null;
+            if (ct.IsCancellationRequested)
+            {
+                return false;
+            }
+            _ = MonitoredReadAuthorization.TryRefreshIdentity(m_server, monitoredItem.Session);
+            MonitoredItemPermissionContext authorization = CapturePermissionContext(monitoredItem);
+            if (authorization.Session?.IsIdentityStale == true ||
+                !m_permissionCache.TryGetValue(monitoredItem.Id, out CachedDataChangePermission? cached))
+            {
+                return false;
+            }
+            long generation = authorization.Generation +
+                authorization.RolePermissionsVersion +
+                authorization.IdentityGeneration;
+            var inputs = MonitoredReadInputs.Capture(monitoredItem.Session, Node);
+            ServerSystemContext cachedContext = GetSubscriberContext(GetSubscriberContextTemplate(), monitoredItem);
+            if (!cached.Matches(generation, cachedContext.OperationContext!.Session, cachedContext))
+            {
+                return false;
+            }
+            ServiceResult verdict = cached.Result;
+            if (!ServiceResult.IsBad(verdict))
+            {
+                if (!MonitoredReadVerdict.TryReuse(
+                    cached.Read, m_server, NodeManager, Node, monitoredItem.AttributeId, inputs,
+                    out ServiceResult? reused))
+                {
+                    return false;
+                }
+                verdict = reused;
+            }
+            if (!authorization.Matches(CapturePermissionContext(monitoredItem)) ||
+                !inputs.IsCurrent(monitoredItem.Session, Node))
+            {
+                return false;
+            }
+            result = verdict;
+            context = cachedContext;
+            return true;
+        }
+
+        /// <summary>
+        /// Validates the data change permission of an item, for every case that
+        /// <see cref="TryGetCachedDataChangePermission"/> does not answer.
+        /// </summary>
+        private async ValueTask<(ServiceResult Result, ServerSystemContext Context)> ValidateDataChangePermissionAsync(
             DataChangeSnapshot snapshot,
             IDataChangeMonitoredItem2 monitoredItem,
             PermissionType permission,
@@ -2154,13 +2230,8 @@ namespace Opc.Ua.Server
                     return (new ServiceResult(StatusCodes.BadUserAccessDenied), cachedContext);
                 }
                 MonitoredReadVerdict? readVerdict = null;
-                if (m_permissionCache.TryGetValue(
-                    monitoredItem.Id,
-                    out (long Generation, ISession? Session,
-                        ServerSystemContext? Context, ServiceResult Result, MonitoredReadVerdict? Read) cached) &&
-                    cached.Generation == generation &&
-                    ReferenceEquals(cached.Session, operationContext.Session) &&
-                    ReferenceEquals(cached.Context, cachedContext))
+                if (m_permissionCache.TryGetValue(monitoredItem.Id, out CachedDataChangePermission? cached) &&
+                    cached.Matches(generation, operationContext.Session, cachedContext))
                 {
                     result = cached.Result;
                     readVerdict = cached.Read;
@@ -2170,7 +2241,7 @@ namespace Opc.Ua.Server
                     result = await NodeManager.ValidateRolePermissionsAsync(
                         operationContext, snapshot.NodeId, permission, ct).ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
-                    m_permissionCache[monitoredItem.Id] = (
+                    m_permissionCache[monitoredItem.Id] = new CachedDataChangePermission(
                         generation, operationContext.Session, cachedContext, result, null);
                 }
                 if (!ServiceResult.IsBad(result))
@@ -2192,7 +2263,7 @@ namespace Opc.Ua.Server
                         ct.ThrowIfCancellationRequested();
                         if (readVerdict != null)
                         {
-                            m_permissionCache[monitoredItem.Id] = (
+                            m_permissionCache[monitoredItem.Id] = new CachedDataChangePermission(
                                 generation, operationContext.Session, cachedContext, roleResult, readVerdict);
                         }
                     }
@@ -2433,10 +2504,7 @@ namespace Opc.Ua.Server
         }
 
 
-        private readonly ConcurrentDictionary<
-            uint, (long Generation, ISession? Session, ServerSystemContext? Context, ServiceResult Result,
-                MonitoredReadVerdict? Read)>
-            m_permissionCache = new();
+        private readonly ConcurrentDictionary<uint, CachedDataChangePermission> m_permissionCache = new();
 
         private readonly ConcurrentDictionary<EventPermissionCacheKey, CachedEventPermission>
             m_eventPermissionCache = new();
@@ -2809,6 +2877,44 @@ namespace Opc.Ua.Server
             public readonly MonitoredItemPermissionContext Context;
             public readonly WeakReference<NodeState> SourceNode;
             public readonly ServiceResult Result;
+        }
+
+        /// <summary>
+        /// A cached data change permission verdict of one item. It is a class, and a changed
+        /// verdict replaces the entry, because every node change reads one per item, and copying
+        /// a value tuple out of the cache takes the GC write barrier.
+        /// </summary>
+        private sealed class CachedDataChangePermission(
+            long generation,
+            ISession? session,
+            ServerSystemContext context,
+            ServiceResult result,
+            MonitoredReadVerdict? read)
+        {
+            /// <summary>The sum of the permission, role-permission and identity generations.</summary>
+            public readonly long Generation = generation;
+
+            /// <summary>The session the verdict was computed for.</summary>
+            public readonly ISession? Session = session;
+
+            /// <summary>The subscriber context the verdict was computed with.</summary>
+            public readonly ServerSystemContext Context = context;
+
+            /// <summary>The role-permission verdict.</summary>
+            public readonly ServiceResult Result = result;
+
+            /// <summary>The good exact-source read verdict, if one may be reused.</summary>
+            public readonly MonitoredReadVerdict? Read = read;
+
+            /// <summary>
+            /// Returns whether the verdict was computed for the generation, session and context.
+            /// </summary>
+            public bool Matches(long currentGeneration, ISession? currentSession, ServerSystemContext currentContext)
+            {
+                return Generation == currentGeneration &&
+                    ReferenceEquals(Session, currentSession) &&
+                    ReferenceEquals(Context, currentContext);
+            }
         }
 
         /// <summary>
