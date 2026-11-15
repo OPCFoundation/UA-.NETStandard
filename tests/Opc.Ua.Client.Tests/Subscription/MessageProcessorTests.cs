@@ -32,6 +32,7 @@
 #pragma warning disable CA2007
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -400,9 +401,9 @@ namespace Opc.Ua.Client.Subscriptions
                 Created = true,
                 OnPublishReceivedAsyncFunc = (message, available, strings) =>
                 {
-                    ValueTask receiving = sut.OnPublishReceivedAsync(message, available, strings);
+                    Task receiving = sut.OnPublishReceivedAsync(message, available, strings).AsTask();
                     ingressBlocked.TrySetResult(!receiving.IsCompleted);
-                    return receiving;
+                    return new ValueTask(receiving);
                 }
             };
             session.CreateSubscriptionFactory = (_, _, _) => subscription;
@@ -446,6 +447,193 @@ namespace Opc.Ua.Client.Subscriptions
                 await quiescence.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await manager.DisposeAsync().ConfigureAwait(false);
                 await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A subscription whose callback blocks fills its ingress queue. Publish
+        /// workers that draw a response for it may park on the queue, but never
+        /// the last free one: the other subscriptions of the session keep getting
+        /// their notifications instead of running into their lifetime.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task FullSubscriptionDoesNotParkTheLastFreePublishWorkerAsync(CancellationToken ct)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 2,
+                MaxPublishWorkerCount = 2
+            };
+            var slow = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry) { Id = 3 };
+            m_completion.ShutdownToken = manager.ShutdownToken;
+            int otherDeliveries = 0;
+            int slowResponses = 0;
+            var slowSubscription = new FakeManagedSubscription
+            {
+                Id = 3,
+                Created = true,
+                OnPublishAdmissionAsyncFunc = (message, waitPolicy) =>
+                {
+                    Interlocked.Increment(ref slowResponses);
+                    return slow.OnPublishReceivedAsync(message, null, [], waitPolicy);
+                }
+            };
+            var otherSubscription = new FakeManagedSubscription
+            {
+                Id = 4,
+                Created = true,
+                OnPublishAdmissionAsyncFunc = (_, _) =>
+                {
+                    Interlocked.Increment(ref otherDeliveries);
+                    return new ValueTask<bool>(true);
+                }
+            };
+            var created = new Queue<FakeManagedSubscription>([slowSubscription, otherSubscription]);
+            session.CreateSubscriptionFactory = (_, _, _) => created.Dequeue();
+            int responses = 0;
+            session.OnPublishAsync = (_, _, _) =>
+            {
+                bool forSlow = (Interlocked.Increment(ref responses) & 1) == 0;
+                return new ValueTask<PublishResponse>(new PublishResponse
+                {
+                    SubscriptionId = forSlow ? 3u : 4u,
+                    MoreNotifications = true,
+                    NotificationMessage = BuildNotificationMessage("keepalive", 1025)
+                });
+            };
+
+            // The callback of the slow subscription blocks with its queue full.
+            await slow.Block.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                for (uint sequenceNumber = 1; sequenceNumber <= 1024; sequenceNumber++)
+                {
+                    await slow.OnPublishReceivedAsync(
+                        BuildNotificationMessage("keepalive", sequenceNumber), null, [])
+                        .AsTask().WaitAsync(ct).ConfigureAwait(false);
+                }
+
+                manager.Add(Mock.Of<ISubscriptionNotificationHandler>(), OptionsFactory.Create<SubscriptionOptions>());
+                manager.Add(Mock.Of<ISubscriptionNotificationHandler>(), OptionsFactory.Create<SubscriptionOptions>());
+                manager.Resume();
+
+                // Both workers have drawn responses for the slow subscription.
+                while (Volatile.Read(ref slowResponses) < 4)
+                {
+                    await Task.Delay(10, ct).ConfigureAwait(false);
+                }
+                int before = Volatile.Read(ref otherDeliveries);
+                var deadline = Stopwatch.StartNew();
+                while (Volatile.Read(ref otherDeliveries) < before + 50 &&
+                    deadline.Elapsed < TimeSpan.FromSeconds(10))
+                {
+                    await Task.Delay(10, ct).ConfigureAwait(false);
+                }
+                Assert.That(Volatile.Read(ref otherDeliveries), Is.GreaterThanOrEqualTo(before + 50),
+                    "A blocked subscription must not park every publish worker.");
+                Assert.That(manager.ParkedPublishWorkerCount, Is.LessThanOrEqualTo(1));
+                Assert.That(slow.NotAdmittedMessageCount, Is.Zero,
+                    "Keep-alives that are not admitted are not counted as messages left on the server.");
+            }
+            finally
+            {
+                slow.Block.Release();
+                await manager.DisposeAsync().ConfigureAwait(false);
+                await slow.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The byte budget of the ingress queue counts the available sequence numbers
+        /// and the string table queued with each message. A server that sends small
+        /// messages with maximal lists cannot fill the queue with them unchecked.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task ByteBudgetCountsAvailableSequenceNumbersAndStringTablesAsync()
+        {
+            const int kAvailable = 65_536;
+            var available = new uint[kAvailable];
+            for (int i = 0; i < available.Length; i++)
+            {
+                available[i] = (uint)i + 1;
+            }
+            string[] stringTable = [new string('x', 32 * 1024)];
+            NotificationMessage first = BuildNotificationMessage("keepalive", 1);
+            int size = MessageProcessor.EstimateRetainedSize(first, kAvailable, stringTable);
+            Assert.That(size, Is.GreaterThan((kAvailable * sizeof(uint)) + (32 * 1024 * sizeof(char))));
+            Assert.That(MessageProcessor.EstimateRetainedSize(first), Is.LessThan(1024));
+            int fits = (int)(MessageProcessor.kMaxQueuedBytes / size);
+            Assert.That(fits, Is.InRange(2, 1000), "The byte budget, not the count, must limit the queue.");
+
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry) { Id = 94 };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.Block.WaitAsync().ConfigureAwait(false);
+                bool blockHeld = true;
+                try
+                {
+                    // The first message is taken by the worker and blocks in its callback.
+                    await sut.OnPublishReceivedAsync(
+                        BuildDataChangeMessage(1), available, stringTable).ConfigureAwait(false);
+                    await sut.DataChangeNotificationReceived.WaitAsync()
+                        .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task overBudget = Task.CompletedTask;
+                    int admitted = 0;
+                    for (uint i = 0; i < 1024; i++)
+                    {
+                        Task admission = sut.OnPublishReceivedAsync(
+                            BuildNotificationMessage("keepalive", 2), available, stringTable).AsTask();
+                        if (!admission.IsCompleted)
+                        {
+                            overBudget = admission;
+                            break;
+                        }
+                        await admission.ConfigureAwait(false);
+                        admitted++;
+                    }
+                    Assert.That(overBudget.IsCompleted, Is.False,
+                        "Messages beyond the byte budget must wait for room.");
+                    Assert.That(admitted, Is.LessThanOrEqualTo(fits),
+                        "The byte budget, not the message count, must stop the queue.");
+
+                    // A caller that may not wait gets the message back unadmitted.
+                    var refuse = new RefusingWaitPolicy();
+                    Assert.That(await sut.OnPublishReceivedAsync(
+                        BuildDataChangeMessage(5000), available, stringTable, refuse).ConfigureAwait(false),
+                        Is.False);
+                    Assert.That(refuse.Asked, Is.EqualTo(1));
+                    Assert.That(sut.NotAdmittedMessageCount, Is.EqualTo(1));
+
+                    sut.Block.Release();
+                    blockHeld = false;
+                    await overBudget.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (blockHeld)
+                    {
+                        sut.Block.Release();
+                    }
+                }
+            }
+        }
+
+        private sealed class RefusingWaitPolicy : IIngressWaitPolicy
+        {
+            public int Asked { get; private set; }
+
+            public bool TryEnterWait()
+            {
+                Asked++;
+                return false;
+            }
+
+            public void ExitWait()
+            {
+                throw new InvalidOperationException("No wait was entered.");
             }
         }
 

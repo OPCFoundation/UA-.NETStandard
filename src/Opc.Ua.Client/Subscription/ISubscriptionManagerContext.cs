@@ -213,5 +213,23 @@ namespace Opc.Ua.Client.Subscriptions
             ArrayOf<uint> availableSequenceNumbers,
             ArrayOf<string> stringTable,
             bool moreNotifications);
+
+        /// <summary>
+        /// Waits until a subscription the session holds outside this manager has
+        /// room for another message. Such a subscription acknowledges a message
+        /// when it is saved, so a full queue would give up older messages that the
+        /// server can no longer republish.
+        /// </summary>
+        /// <param name="subscriptionId">The identifier from the publish response.</param>
+        /// <param name="waitPolicy">Decides whether the caller may wait.</param>
+        /// <param name="ct">Cancels the wait.</param>
+        /// <returns><c>false</c> when the subscription is full and the caller may
+        /// not wait: the message must then stay unacknowledged on the server.
+        /// <c>true</c> otherwise, also when the session does not hold the
+        /// identifier.</returns>
+        ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+            uint subscriptionId,
+            IIngressWaitPolicy waitPolicy,
+            CancellationToken ct);
     }
 }

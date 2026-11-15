@@ -115,7 +115,40 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public Func<CancellationToken, ValueTask>? OnConditionRefreshAsync { get; set; }
         public Func<ValueTask>? OnDisposeAsync { get; set; }
 
-        public ValueTask OnPublishReceivedAsync(NotificationMessage message,
+        /// <summary>
+        /// Optional override that sees the wait policy and decides admission.
+        /// </summary>
+        public Func<NotificationMessage, IIngressWaitPolicy?, ValueTask<bool>>?
+            OnPublishAdmissionAsyncFunc
+        { get; set; }
+
+        public ValueTask<bool> OnPublishReceivedAsync(NotificationMessage message,
+            IReadOnlyList<uint>? availableSequenceNumbers,
+            IReadOnlyList<string> stringTable,
+            IIngressWaitPolicy? waitPolicy = null)
+        {
+            if (OnPublishAdmissionAsyncFunc != null)
+            {
+                lock (OnPublishReceivedCalls)
+                {
+                    OnPublishReceivedCalls.Add(new OnPublishReceivedCall(message,
+                        availableSequenceNumbers, stringTable));
+                }
+                return OnPublishAdmissionAsyncFunc(message, waitPolicy);
+            }
+            return OnPublishReceivedLegacyAsync(message, availableSequenceNumbers, stringTable);
+        }
+
+        private async ValueTask<bool> OnPublishReceivedLegacyAsync(NotificationMessage message,
+            IReadOnlyList<uint>? availableSequenceNumbers,
+            IReadOnlyList<string> stringTable)
+        {
+            await OnPublishReceivedCoreAsync(message, availableSequenceNumbers, stringTable)
+                .ConfigureAwait(false);
+            return true;
+        }
+
+        private ValueTask OnPublishReceivedCoreAsync(NotificationMessage message,
             IReadOnlyList<uint>? availableSequenceNumbers,
             IReadOnlyList<string> stringTable)
         {

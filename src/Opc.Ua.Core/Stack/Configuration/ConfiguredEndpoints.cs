@@ -1268,7 +1268,7 @@ namespace Opc.Ua
                 ArrayOf<EndpointDescription> collection = await client
                     .GetEndpointsAsync(default, ct)
                     .ConfigureAwait(false);
-                ValidateAgainstSelectionEndpoints(collection);
+                ValidateAgainstSelectionEndpoints(collection, applicationConfiguration);
                 DiscoveryEndpoints = collection;
 
                 // find list of matching endpoints.

@@ -346,6 +346,114 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A classic subscription acknowledges a message when it saves it, so its
+        /// queue must not give up messages to take new ones while the callback
+        /// stalls. The publish worker waits for room when it may, or leaves the
+        /// message on the server. A message the queue still has to give up is
+        /// reported with a publish state change.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task StalledCallbackHoldsBackSavingAndReportsLostMessagesAsync(CancellationToken ct)
+        {
+            using var gate = new SemaphoreSlim(0);
+            using var entered = new SemaphoreSlim(0);
+            int delivered = 0;
+            var states = new ConcurrentQueue<PublishStateChangedMask>();
+            var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                DisableMonitoredItemCache = true,
+                FastDataChangeCallback = (_, _, _) =>
+                {
+                    if (Interlocked.Increment(ref delivered) == 1)
+                    {
+                        entered.Release();
+                        gate.Wait(ct);
+                    }
+                }
+            };
+            subscription.PublishStatusChanged += (_, e) => states.Enqueue(e.Status);
+            using (subscription)
+            {
+                subscription.Session = BuildSessionMock((_, _) => false);
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+                // The callback stalls on the first message.
+                subscription.SaveMessageInCache([1], BuildDataMessage(1));
+                await entered.WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(subscription.HasIncomingRoom(), Is.True);
+
+                uint sequenceNumber = 2;
+                while (subscription.HasIncomingRoom())
+                {
+                    subscription.SaveMessageInCache([sequenceNumber], BuildDataMessage(sequenceNumber));
+                    sequenceNumber++;
+                }
+                Assert.That(sequenceNumber - 2, Is.LessThanOrEqualTo(
+                    (uint)(Subscription.kMaxIncomingMessages - 1024)));
+                Assert.That(states, Does.Not.Contain(PublishStateChangedMask.MessagesLost));
+
+                // A worker that may not wait leaves the message on the server.
+                var refuse = new CountingWaitPolicy(allow: false);
+                Assert.That(await subscription.WaitForIncomingRoomAsync(refuse, ct).ConfigureAwait(false),
+                    Is.False);
+                Assert.That(refuse.Entered, Is.Zero);
+
+                // A worker that may wait does so until the callback returns.
+                var allow = new CountingWaitPolicy(allow: true);
+                Task<bool> waiting = subscription.WaitForIncomingRoomAsync(allow, ct).AsTask();
+                await Task.Delay(200, ct).ConfigureAwait(false);
+                Assert.That(waiting.IsCompleted, Is.False);
+                Assert.That(allow.Entered, Is.EqualTo(1));
+
+                gate.Release();
+                Assert.That(await waiting.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false),
+                    Is.True);
+                Assert.That(allow.Exited, Is.EqualTo(1));
+                while (Volatile.Read(ref delivered) < (int)sequenceNumber - 1)
+                {
+                    await Task.Delay(5, ct).ConfigureAwait(false);
+                }
+
+                // Saving past the limit without waiting gives up messages, and says so.
+                Interlocked.Exchange(ref delivered, 0);
+                for (int i = 0; i < 2 * Subscription.kMaxIncomingMessages; i++)
+                {
+                    subscription.SaveMessageInCache([sequenceNumber], BuildDataMessage(sequenceNumber));
+                    sequenceNumber++;
+                }
+                gate.Release();
+                Assert.That(states, Does.Contain(PublishStateChangedMask.MessagesLost));
+            }
+        }
+
+        private sealed class CountingWaitPolicy(bool allow) : IIngressWaitPolicy
+        {
+            public int Entered => Volatile.Read(ref m_entered);
+            public int Exited => Volatile.Read(ref m_exited);
+
+            public bool TryEnterWait()
+            {
+                if (!allow)
+                {
+                    return false;
+                }
+                Interlocked.Increment(ref m_entered);
+                return true;
+            }
+
+            public void ExitWait()
+            {
+                Interlocked.Increment(ref m_exited);
+            }
+
+            private int m_entered;
+            private int m_exited;
+        }
+
+        /// <summary>
         /// A body decoded on first use is dispatched decoded, then keeps only its bytes
         /// while the message stays cached: reading the cached message decodes it again,
         /// as a new instance with the same content (#5003).

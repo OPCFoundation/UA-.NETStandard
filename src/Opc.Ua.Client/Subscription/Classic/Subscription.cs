@@ -2364,6 +2364,8 @@ namespace Opc.Ua.Client
             AcknowledgementScope? requiredScope = null)
         {
             PublishStateChangedEventHandler? callback = null;
+            PublishStateChangedEventHandler? lostCallback = null;
+            bool messagesLost = false;
             raiseNotification = false;
 
             lock (m_cache)
@@ -2534,52 +2536,14 @@ namespace Opc.Ua.Client
                 }
 
                 // clean out processed values.
-                node = m_incomingMessages.First;
-
-                while (node != null)
-                {
-                    entry = node.Value;
-                    LinkedListNode<IncomingMessage>? next = node.Next;
-
-                    // can only pull off processed or expired or missing messages.
-                    if (!entry.Processed &&
-                        !(
-                            entry.Republished &&
-                            (
-                                entry.RepublishStatus != StatusCodes.Good ||
-                                m_timeProvider.GetElapsedTime(entry.MonotonicTimestamp)
-                                    .TotalMilliseconds > kRepublishMessageExpiredTimeout)))
-                    {
-                        break;
-                    }
-
-                    if (next != null)
-                    {
-                        //If the message being removed is supposed to be the next message, advance it to release anything waiting on it to be processed
-                        if (entry.SequenceNumber == NextSequenceNumber(m_lastSequenceNumberProcessed))
-                        {
-                            if (!entry.Processed)
-                            {
-                                m_logger.SubscriptionIdSubscriptionIdSkippingPublishResponseSequenceNumber(
-                                    Id,
-                                    entry.SequenceNumber,
-                                    Session?.SessionId);
-                            }
-
-                            m_lastSequenceNumberProcessed = entry.SequenceNumber;
-                        }
-
-                        m_incomingMessages.Remove(node);
-                    }
-
-                    node = next;
-                }
+                RemoveResolvedIncomingMessages();
 
                 // Bound the queue. Entries stay queued behind the oldest one that is
                 // neither processed nor given up, for example a message the server
                 // keeps listing as available while its Republish fails, or messages
-                // that arrive while the message worker is stopped. Past the limit
-                // the oldest entries are given up, as if their recovery had expired.
+                // that arrive while the message worker is stopped or its callback
+                // stalls. Past the limit the oldest entries are given up, as if their
+                // recovery had expired, and the application is told.
                 while (m_incomingMessages.Count > kMaxIncomingMessages)
                 {
                     entry = m_incomingMessages.First!.Value;
@@ -2589,6 +2553,7 @@ namespace Opc.Ua.Client
                             Id,
                             entry.SequenceNumber,
                             Session?.SessionId);
+                        messagesLost = true;
                     }
                     if (IsNewerSequenceNumber(entry.SequenceNumber, m_lastSequenceNumberProcessed))
                     {
@@ -2596,14 +2561,144 @@ namespace Opc.Ua.Client
                     }
                     m_incomingMessages.RemoveFirst();
                 }
+                if (messagesLost)
+                {
+                    lostCallback = m_PublishStatusChanged;
+                }
             }
 
             // send notification that publishing received a keep alive or has to republish.
             PublishingStateChanged(callback, PublishStateChangedMask.Recovered);
+            if (messagesLost)
+            {
+                PublishingStateChanged(lostCallback, PublishStateChangedMask.MessagesLost);
+            }
 
             // process messages.
             m_messageWorkerEvent.Set();
             return true;
+        }
+
+        /// <summary>
+        /// Removes the entries at the head of the incoming queue that are processed
+        /// or whose recovery was given up. The caller holds the cache lock.
+        /// </summary>
+        private void RemoveResolvedIncomingMessages()
+        {
+            LinkedListNode<IncomingMessage>? node = m_incomingMessages?.First;
+
+            while (node != null)
+            {
+                IncomingMessage entry = node.Value;
+                LinkedListNode<IncomingMessage>? next = node.Next;
+
+                // can only pull off processed or expired or missing messages.
+                if (!entry.Processed &&
+                    !(
+                        entry.Republished &&
+                        (
+                            entry.RepublishStatus != StatusCodes.Good ||
+                            m_timeProvider.GetElapsedTime(entry.MonotonicTimestamp)
+                                .TotalMilliseconds > kRepublishMessageExpiredTimeout)))
+                {
+                    break;
+                }
+
+                if (next != null)
+                {
+                    //If the message being removed is supposed to be the next message, advance it to release anything waiting on it to be processed
+                    if (entry.SequenceNumber == NextSequenceNumber(m_lastSequenceNumberProcessed))
+                    {
+                        if (!entry.Processed)
+                        {
+                            m_logger.SubscriptionIdSubscriptionIdSkippingPublishResponseSequenceNumber(
+                                Id,
+                                entry.SequenceNumber,
+                                Session?.SessionId);
+                        }
+
+                        m_lastSequenceNumberProcessed = entry.SequenceNumber;
+                    }
+
+                    m_incomingMessages!.Remove(node);
+                }
+
+                node = next;
+            }
+        }
+
+        /// <summary>
+        /// Whether the incoming queue can take another message, together with a
+        /// full sequence gap of placeholders, without giving up an entry.
+        /// </summary>
+        internal bool HasIncomingRoom()
+        {
+            lock (m_cache)
+            {
+                if (m_incomingMessages == null)
+                {
+                    return true;
+                }
+                RemoveResolvedIncomingMessages();
+                return m_incomingMessages.Count < kMaxIncomingMessages - (int)kMaxSequenceNumberGap;
+            }
+        }
+
+        /// <summary>
+        /// Waits until the incoming queue has room for another message. A message is
+        /// acknowledged when it is saved, so it must not be saved into a queue that
+        /// would give up older messages to take it. A subscription whose callback
+        /// stalls holds back the publish worker this way, but only while
+        /// <paramref name="waitPolicy"/> lets that worker wait.
+        /// </summary>
+        /// <param name="waitPolicy">Decides whether the caller may wait.</param>
+        /// <param name="ct">Cancels the wait.</param>
+        /// <returns><c>false</c> when the queue is full and the caller may not
+        /// wait: the message must then be left unacknowledged on the server, which
+        /// keeps it for Republish.</returns>
+        internal async ValueTask<bool> WaitForIncomingRoomAsync(
+            Subscriptions.IIngressWaitPolicy? waitPolicy,
+            CancellationToken ct)
+        {
+            if (HasIncomingRoom())
+            {
+                return true;
+            }
+            if (waitPolicy != null && !waitPolicy.TryEnterWait())
+            {
+                return false;
+            }
+            try
+            {
+                while (!HasIncomingRoom())
+                {
+                    Task? worker = m_messageWorkerTask;
+                    if (m_disposed || worker == null || worker.IsCompleted)
+                    {
+                        // Nothing drains the queue; saving bounds it.
+                        return true;
+                    }
+                    // The message worker signals after each batch. Entries whose
+                    // recovery expires leave without a signal, so check again
+                    // after a while.
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    timeout.CancelAfter(kIncomingRoomPollInterval);
+                    try
+                    {
+                        await m_incomingRoomEvent.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    {
+                    }
+                }
+                // Several workers can wait; pass the signal on.
+                m_incomingRoomEvent.Set();
+                return true;
+            }
+            finally
+            {
+                waitPolicy?.ExitWait();
+            }
         }
 
         /// <summary>
@@ -3123,6 +3218,7 @@ namespace Opc.Ua.Client
                 {
                     await m_messageWorkerEvent.WaitAsync(ct).ConfigureAwait(false);
                     await OnMessageReceivedAsync(ct).ConfigureAwait(false);
+                    m_incomingRoomEvent.Set();
                 }
             }
             catch (ObjectDisposedException)
@@ -4564,6 +4660,8 @@ namespace Opc.Ua.Client
         private ArrayOf<uint> m_availableSequenceNumbers;
         private ConcurrentDictionary<uint, MonitoredItem> m_monitoredItems = new();
         private readonly AsyncAutoResetEvent m_messageWorkerEvent = new();
+        private readonly AsyncAutoResetEvent m_incomingRoomEvent = new();
+        private static readonly TimeSpan kIncomingRoomPollInterval = TimeSpan.FromSeconds(1);
         private CancellationTokenSource? m_messageWorkerCts;
         private Task? m_messageWorkerTask;
         private int m_outstandingMessageWorkers;
@@ -4727,7 +4825,14 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Session is not connected
         /// </summary>
-        SessionNotConnected = 0x40
+        SessionNotConnected = 0x40,
+
+        /// <summary>
+        /// Received or missing messages were given up without being delivered,
+        /// because the incoming message queue reached its limit. The server
+        /// was already told it could discard them, so they cannot be republished.
+        /// </summary>
+        MessagesLost = 0x80
     }
 
     /// <summary>
