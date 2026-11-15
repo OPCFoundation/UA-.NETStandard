@@ -33,9 +33,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Security;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -46,6 +43,60 @@ namespace Opc.Ua.Tools.Tests
     [NonParallelizable]
     public sealed class CoverageGateScriptTests
     {
+        /// <summary>
+        /// Large positive hit counts remain covered while duplicate classes preserve line and branch maxima.
+        /// </summary>
+        [TestCase("2147483657", false)]
+        [TestCase("2147483657", true)]
+        [TestCase("9223372036854775817", false)]
+        [TestCase("9223372036854775817", true)]
+        public async Task LargeHitCountsPreserveCoverageAndClassMergeOrderAsync(string hits, bool largeFirst)
+        {
+            ScriptResult result = await RunHitCountGateAsync(hits, largeFirst).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.ExitCode, Is.Zero, result.Output);
+                Assert.That(result.Output, Does.Contain("100.00% (1/1 lines"));
+                Assert.That(result.Output, Does.Contain("75.00%"));
+                Assert.That(result.Output, Does.Contain("Coverage gate passed."));
+            }
+        }
+
+        /// <summary>
+        /// Invalid hit counts are rejected as input errors even when the synthetic project floor is zero.
+        /// </summary>
+        [TestCase("-1")]
+        [TestCase("")]
+        [TestCase("not-a-count")]
+        public async Task InvalidHitCountsCannotPassAZeroFloorGateAsync(string hits)
+        {
+            ScriptResult result = await RunHitCountGateAsync(hits, largeFirst: false).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.ExitCode, Is.Not.Zero, result.Output);
+                Assert.That(result.Output, Does.Contain("Invalid non-negative coverage hit count"));
+                Assert.That(result.Output, Does.Not.Contain("Coverage gate passed."));
+            }
+        }
+
+        /// <summary>
+        /// Zero remains a valid hit count without making its source line covered.
+        /// </summary>
+        [Test]
+        public async Task ZeroHitCountsRemainValidAndUncoveredAsync()
+        {
+            ScriptResult result = await RunHitCountGateAsync("0", largeFirst: false).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.ExitCode, Is.Zero, result.Output);
+                Assert.That(result.Output, Does.Contain("0.00% (0/1 lines"));
+                Assert.That(result.Output, Does.Contain("Coverage gate passed."));
+            }
+        }
+
         [Test]
         public async Task RelativeRepoRootKeepsSourceSubRootInCoveragePathsAsync()
         {
@@ -302,12 +353,10 @@ namespace Opc.Ua.Tools.Tests
                 WithWotPathRule).ConfigureAwait(false);
 
             Assert.Multiple(() =>
-            {
                 Assert.That(
                     result.Output,
                     Does.Not.Contain("Rule 'WoT test rule'"),
-                    "A rule with nothing in scope states nothing about the patch.");
-            });
+                    "A rule with nothing in scope states nothing about the patch."));
         }
 
         /// <summary>
@@ -801,11 +850,53 @@ namespace Opc.Ua.Tools.Tests
               ],
             """;
 
+        /// <summary>
+        /// Runs synthetic count controls without initializing a Git fixture or consulting changed-line coverage.
+        /// </summary>
+        private static async Task<ScriptResult> RunHitCountGateAsync(string hits, bool largeFirst)
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory, "coverage-hit-count-fixtures",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                string high = $$"""
+                    <class name="High" filename="src/CoverageSubject/Subject.cs">
+                      <lines><line number="1" hits="{{SecurityElement.Escape(hits)}}" branch="true"
+                        condition-coverage="75% (3/4)" /></lines>
+                    </class>
+                    """;
+                const string low = """
+                    <class name="Low" filename="src/CoverageSubject/Subject.cs">
+                      <lines><line number="1" hits="0" branch="true" condition-coverage="25% (1/4)" /></lines>
+                    </class>
+                    """;
+                string path = Path.Combine(directory, "synthetic-counts.cobertura.xml");
+                await File.WriteAllTextAsync(path, $$"""
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <coverage line-rate="1" branch-rate="0.75">
+                      <sources><source>.</source></sources>
+                      <packages><package name="SyntheticCounts"><classes>
+                        {{(largeFirst ? high + low : low + high)}}
+                      </classes></package></packages>
+                    </coverage>
+                    """).ConfigureAwait(false);
+                return await RunCoverageGateAsync(
+                    directory, path, FindRepositoryRoot(), projectOnly: true).ConfigureAwait(false);
+            }
+            finally
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+
         private static async Task<ScriptResult> RunCoverageGateAsync(
             string workingDirectory,
             string coberturaPath,
             string repoRoot,
-            string? pathRules = null)
+            string? pathRules = null,
+            bool projectOnly = false)
         {
             string scriptPath = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "check-coverage.ps1");
             string thresholdsPath = Path.Combine(workingDirectory, "coverage-thresholds.json");
@@ -853,9 +944,12 @@ namespace Opc.Ua.Tools.Tests
             process.StartInfo.ArgumentList.Add(thresholdsPath);
             process.StartInfo.ArgumentList.Add("-RepoRoot");
             process.StartInfo.ArgumentList.Add(repoRoot);
-            process.StartInfo.ArgumentList.Add("-BaseRef");
-            process.StartInfo.ArgumentList.Add("master");
-            process.StartInfo.ArgumentList.Add("-SkipFetch");
+            if (!projectOnly)
+            {
+                process.StartInfo.ArgumentList.Add("-BaseRef");
+                process.StartInfo.ArgumentList.Add("master");
+                process.StartInfo.ArgumentList.Add("-SkipFetch");
+            }
 
             Assert.That(process.Start(), Is.True);
             Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
@@ -870,6 +964,18 @@ namespace Opc.Ua.Tools.Tests
 
         private static string FindRepositoryRoot()
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(root, ".azurepipelines", "check-coverage.ps1")))
+                {
+                    throw new InvalidOperationException("The configured repository root has no coverage gate.");
+                }
+
+                return root;
+            }
+
             string? current = TestContext.CurrentContext.TestDirectory;
             while (!string.IsNullOrWhiteSpace(current))
             {

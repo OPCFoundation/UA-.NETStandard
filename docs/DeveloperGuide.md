@@ -813,6 +813,8 @@ Coverage is collected only on .NET 8.0 and newer hosts. `coverlet.collector` 10.
 
 The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1), driven by [`coverage-thresholds.json`](../coverage-thresholds.json):
 
+Every measured line must supply a non-negative integer hit count. Missing, negative or malformed counts reject the report, even when the configured coverage floor is zero. Large counts are not narrowed to 32-bit or 64-bit integers. When several classes report the same source line, the gate retains its maximum hit count rather than adding the counts.
+
 | Check | Behaviour |
 | --- | --- |
 | **Project floor** | Total line and branch rates must meet the absolute floors in `coverage-thresholds.json`. The `ignore` globs are applied here too, so samples, tests and generated code do not count. |
