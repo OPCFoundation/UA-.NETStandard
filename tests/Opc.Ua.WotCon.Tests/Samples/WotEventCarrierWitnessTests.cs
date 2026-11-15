@@ -300,7 +300,16 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static string DocumentsDirectory()
         {
-            DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
+            string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            DirectoryInfo? directory = new(string.IsNullOrEmpty(configuredRoot)
+                ? TestContext.CurrentContext.TestDirectory
+                : configuredRoot);
+            if (!string.IsNullOrEmpty(configuredRoot) &&
+                !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
+            {
+                throw new DirectoryNotFoundException(
+                    "OPCUA_TEST_REPOSITORY_ROOT does not identify a repository containing UA.slnx.");
+            }
             while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
             {
                 directory = directory.Parent;
