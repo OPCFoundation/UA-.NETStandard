@@ -97,7 +97,8 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
         {
             ArgumentNullException.ThrowIfNull(context);
 
-            IWebApiServer server = context.Features.Get<WebApiServer>() ??
+            WebApiServer? boundServer = context.Features.Get<WebApiServer>();
+            IWebApiServer server = boundServer ??
                 context.RequestServices.GetRequiredService<IWebApiServer>();
             ISessionlessIdentityProvider? identityProvider = context.RequestServices
                 .GetService<ISessionlessIdentityProvider>();
@@ -115,17 +116,55 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                 fallback: encoding);
 
             IServiceMessageContext messageContext = server.MessageContext;
+            int maxLength = GetMaxRequestBodySize<TRequest>(messageContext.MaxMessageSize);
+
+            // A listener-bound route charges its body like every other HTTPS body: as the
+            // bytes arrive, to the reassembly pool and the peer's ceiling, until decoded.
+            HttpsTransportListener? listener = boundServer?.Listener;
+            using HttpBodyAdmission? admission = listener?.TryAdmitHttpBody(context);
+            if (listener != null && admission == null)
+            {
+                response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                response.ContentLength = 0;
+                return;
+            }
 
             TRequest decoded;
             try
             {
-                decoded = await WebApiBodyCodec
-                    .DecodeBodyAsync<TRequest>(
+                byte[] payload;
+                if (listener != null)
+                {
+                    payload = await listener.ReadAdmittedBodyAsync(request, maxLength, admission!, ct)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    // Without a listener there is no pool to charge, but the body still
+                    // grows only with the bytes that arrive, never from the announced length.
+                    payload = await HttpBodyAdmission.ReadBodyAsync(
                         request.Body,
-                        messageContext,
-                        contentLengthHint: request.ContentLength ?? -1,
-                        ct: ct)
-                    .ConfigureAwait(false);
+                        request.ContentLength,
+                        maxLength,
+                        admission: null,
+                        TimeSpan.FromMilliseconds(TcpMessageLimits.DefaultChannelLifetime),
+                        TimeProvider.System,
+                        static state => ((HttpContext)state!).Abort(),
+                        context,
+                        ct).ConfigureAwait(false);
+                }
+                decoded = WebApiBodyCodec.DecodeBody<TRequest>(payload, messageContext);
+                admission?.Release();
+            }
+            catch (ServiceResultException sre) when (
+                sre.StatusCode == StatusCodes.BadServerTooBusy ||
+                sre.StatusCode == StatusCodes.BadTimeout)
+            {
+                response.StatusCode = sre.StatusCode == StatusCodes.BadServerTooBusy
+                    ? (int)HttpStatusCode.ServiceUnavailable
+                    : (int)HttpStatusCode.RequestTimeout;
+                response.ContentLength = 0;
+                return;
             }
             catch (ServiceResultException sre)
             {
@@ -202,6 +241,25 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                 // as the binary transports do.
                 (dispatched as IPooledEncodeable)?.Reuse();
             }
+        }
+
+        /// <summary>
+        /// The largest body accepted for <typeparamref name="TRequest"/>. Discovery
+        /// routes are anonymous, so their bodies are capped at the discovery message
+        /// size, as a discovery-only SecureChannel caps them.
+        /// </summary>
+        /// <typeparam name="TRequest">The request type of the route.</typeparam>
+        internal static int GetMaxRequestBodySize<TRequest>(int maxMessageSize)
+        {
+            if (typeof(TRequest) == typeof(GetEndpointsRequest) ||
+                typeof(TRequest) == typeof(FindServersRequest) ||
+                typeof(TRequest) == typeof(FindServersOnNetworkRequest))
+            {
+                return maxMessageSize > 0
+                    ? Math.Min(maxMessageSize, TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
+                    : TcpMessageLimits.DefaultDiscoveryMaxMessageSize;
+            }
+            return maxMessageSize;
         }
 
         private static string? GetSingleAcceptHeader(HttpRequest request)

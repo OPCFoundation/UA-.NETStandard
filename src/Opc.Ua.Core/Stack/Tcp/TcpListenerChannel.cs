@@ -323,8 +323,21 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Whether chunks of an unfinished message are waiting on the channel.
+        /// Admission reclaim tries channels without one first.
+        /// </summary>
+        internal bool HoldsPartialMessage => HasPartialMessage;
+
+        /// <summary>
         /// Closes an unused channel to make room for admission unless it is disposed, closing, or serving a session.
         /// </summary>
+        /// <remarks>
+        /// An unfinished message does not protect a channel that serves no session
+        /// (Part 4 §5.6.2.1 closes the oldest SecureChannel that has no Session).
+        /// Otherwise a peer without credentials could pin every channel slot by
+        /// trickling chunks of messages it never finishes. Callers try channels
+        /// without an unfinished message first (<see cref="HoldsPartialMessage"/>).
+        /// </remarks>
         internal bool TryIdleCleanupForAdmission()
         {
             using (Gate.Enter())
@@ -332,8 +345,7 @@ namespace Opc.Ua.Bindings
                 if (Volatile.Read(ref m_disposed) != 0 ||
                     UsedBySession ||
                     !(State is TcpChannelState.Open or TcpChannelState.Faulted ||
-                        (State == TcpChannelState.Connecting && IsReclaimableWhileConnecting)) ||
-                    HasPartialMessage)
+                        (State == TcpChannelState.Connecting && IsReclaimableWhileConnecting)))
                 {
                     return false;
                 }

@@ -718,7 +718,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void AdmissionDoesNotReclaimActiveHandshakePartialMessageOrServiceRequest()
+        public void AdmissionDoesNotReclaimActiveHandshakeOrServiceRequest()
         {
             var pool = new TrackingArrayPool();
             using TestServerChannel channel = CreateOpenChannel(pool);
@@ -729,12 +729,81 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
             }
-            byte[] part = channel.TakeBufferForTest(32);
-            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(part));
-            Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
-            channel.ReleaseSavedPartsForTest(1);
             Assert.That(channel.TryIdleCleanupForAdmission(), Is.True);
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// An unfinished message must not pin a channel without a session: a peer
+        /// without credentials could otherwise hold every channel slot by trickling
+        /// chunks it never finishes (Part 4 §5.6.2.1 closes the oldest channel without
+        /// a session).
+        /// </summary>
+        [Test]
+        public void AdmissionReclaimsSessionlessChannelHoldingOnlyAPartialMessage()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            byte[] part = channel.TakeBufferForTest(32);
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(part));
+            Assert.That(channel.HoldsPartialMessage, Is.True);
+
+            Assert.That(channel.TryIdleCleanupForAdmission(), Is.True);
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A peer without a session must not restart the assembly deadline by
+        /// abandoning an unfinished message for a new request id: the deadline runs
+        /// from the first chunk of the first message the peer left unfinished.
+        /// </summary>
+        [Test]
+        public void AbandonedMessageKeepsAssemblyDeadlineOnSessionlessChannel()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock, channelLifetime: 1000);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(600));
+            channel.SaveReceivedPartForTest(2, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(300));
+            channel.SaveReceivedPartForTest(3, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(99));
+            Assert.That(channel.HasExpiredPartialMessage, Is.False);
+
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(channel.HasExpiredPartialMessage, Is.True);
+            channel.ReleaseSavedPartsForTest(3);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A channel serving an activated session keeps the per-message deadline: an
+        /// abandoned message does not shorten the deadline of the next one.
+        /// </summary>
+        [Test]
+        public void AbandonedMessageRestartsAssemblyDeadlineOnSessionChannel()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            var provider = new Mock<IServerSessionBindingProvider>();
+            provider.Setup(value => value.HasSession(It.IsAny<string>())).Returns(true);
+            using TestServerChannel channel = CreateOpenChannel(
+                pool, clock: clock, channelLifetime: 1000, bindingProvider: provider.Object);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(600));
+            channel.SaveReceivedPartForTest(2, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(999));
+            Assert.That(channel.HasExpiredPartialMessage, Is.False);
+
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(channel.HasExpiredPartialMessage, Is.True);
+            channel.ReleaseSavedPartsForTest(2);
             Assert.That(pool.OutstandingCount, Is.Zero);
         }
 
