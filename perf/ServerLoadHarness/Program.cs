@@ -669,13 +669,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         }
 
         /// <summary>
-        /// Starts the harness itself as the server child; <c>SERVER_</c> variables are passed without the prefix.
+        /// Starts the selected compatible server harness; <c>SERVER_</c> variables are passed without the prefix.
         /// </summary>
         internal static (Process Server, BlockingCollection<string> Lines) StartServerChild(
             string arguments,
             IReadOnlyDictionary<string, string>? defaultEnvironment = null)
         {
-            var startInfo = new ProcessStartInfo(Environment.ProcessPath!, arguments)
+            var startInfo = new ProcessStartInfo(Arg("server-harness", Environment.ProcessPath!), arguments)
             {
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,

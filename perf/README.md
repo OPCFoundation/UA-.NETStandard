@@ -74,6 +74,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention` or `gc`. |
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |
 | `--out <file>` | | Append the result block to a file. |
+| `--server-harness <executable>` | this harness | Start another compatible harness executable as the measured server child. This keeps the client executable and assemblies fixed when comparing server builds. The selected child must implement the same READY/MARKED/REPORT control protocol; this is not the native-worker `--server-exe` option. |
 | `--gc-events` | 1 | 0: turn the in-process GC event listener off (no `client-gc:` line). |
 | `--client-cores` | all | Windows only. Relaunch the client with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) and affinity to the last N allowed processors. If processors remain, pin the server to them. On Linux the process-affinity API changes only the main thread's affinity; use a cgroup (`docker --cpuset-cpus`) or launch under `taskset` instead. |
 | `--client-memory` | unlimited | Emulated client memory budget in MB. Sets the GC heap hard limit to 75 % of that budget; native memory is not capped. |
