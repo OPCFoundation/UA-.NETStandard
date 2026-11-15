@@ -289,6 +289,49 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Associates event fields with a stamp created once for the event and the group of
+        /// items that share the field values (see <see cref="CreateSharedEventFieldsStamp"/>).
+        /// Falls back to <see cref="RegisterEventFields(EventFieldList, IFilterTarget)"/> when
+        /// there is no shared stamp or it does not belong to these fields.
+        /// </summary>
+        /// <param name="fields">The event field list.</param>
+        /// <param name="occurrence">The filter target.</param>
+        /// <param name="sharedStamp">The stamp shared by the group, or <c>null</c>.</param>
+        internal void RegisterEventFields(EventFieldList fields, IFilterTarget occurrence, object? sharedStamp)
+        {
+            if (sharedStamp is EventFieldsStamp stamp && ReferenceEquals(stamp.Owner, this) &&
+                stamp.Fields.Span == fields.EventFields.Span)
+            {
+                ThrowIfIdentityDisposed();
+                fields.AdmissionStamp = stamp;
+                return;
+            }
+            RegisterEventFields(fields, occurrence);
+        }
+
+        /// <summary>
+        /// Creates the stamp of event fields that every item of a group shares, or returns
+        /// <c>null</c> when the occurrence is not a sealed snapshot.
+        /// </summary>
+        /// <remarks>
+        /// A sealed snapshot was admitted once by the publication pipeline and is never
+        /// changed, so admitting it again per item returns the same identity stamp; the
+        /// stamp of the fields therefore depends only on the event and the shared field
+        /// values and can be created once for all items of the group.
+        /// </remarks>
+        /// <param name="occurrence">The filter target.</param>
+        /// <param name="fields">The field values shared by the group.</param>
+        internal object? CreateSharedEventFieldsStamp(IFilterTarget occurrence, Variant[] fields)
+        {
+            if (!TryGetSealedStamp(occurrence, out IdentityStamp? stamp))
+            {
+                return null;
+            }
+            ThrowIfIdentityDisposed();
+            return new EventFieldsStamp(this, stamp, fields);
+        }
+
+        /// <summary>
         /// Releases the identity association of event fields.
         /// </summary>
         /// <param name="fields">The event field list.</param>
