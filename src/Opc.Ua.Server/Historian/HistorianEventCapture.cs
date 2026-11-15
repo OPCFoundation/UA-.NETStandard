@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Historian
             m_capabilities = capabilities ??
                 throw new ArgumentNullException(nameof(capabilities));
             m_options = options ?? new HistorianCaptureOptions();
-            ValidateOptions(m_options);
+            BoundedChannelOptions channelOptions = HistorianCaptureSink.CreateChannelOptions(m_options);
             m_timeProvider = timeProvider ??
                 (server as ITimeProviderProvider)?.TimeProvider ??
                 TimeProvider.System;
@@ -76,14 +76,6 @@ namespace Opc.Ua.Server.Historian
             m_fields = BuildCaptureFields(
                 capabilities.EventFields,
                 capabilities.MandatoryEventFields);
-            var channelOptions = new BoundedChannelOptions(
-                m_options.MaxQueuedSamples)
-            {
-                FullMode = MapFullMode(m_options.FullMode),
-                SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = false
-            };
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions,
                 OnEventDropped);
@@ -537,50 +529,6 @@ namespace Opc.Ua.Server.Historian
                 batch[captured.Notifier.NodeId] = events;
             }
             events.Events.Add(captured.Record);
-        }
-
-        private static void ValidateOptions(
-            HistorianCaptureOptions options)
-        {
-            if (options.MaxQueuedSamples <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "MaxQueuedSamples must be positive.");
-            }
-            if (options.BatchTarget <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "BatchTarget must be positive.");
-            }
-            if (options.BatchWindow < TimeSpan.Zero)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "BatchWindow must not be negative.");
-            }
-            if (options.FullMode is not CaptureFullMode.DropOldest and
-                not CaptureFullMode.DropNewest)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "FullMode is not supported.");
-            }
-        }
-
-        private static BoundedChannelFullMode MapFullMode(
-            CaptureFullMode fullMode)
-        {
-            return fullMode switch
-            {
-                CaptureFullMode.DropOldest =>
-                    BoundedChannelFullMode.DropOldest,
-                CaptureFullMode.DropNewest =>
-                    BoundedChannelFullMode.DropNewest,
-                _ => throw new ArgumentOutOfRangeException(
-                    nameof(fullMode))
-            };
         }
 
         private static ArrayOf<SimpleAttributeOperand> BuildCaptureFields(

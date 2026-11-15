@@ -50,6 +50,57 @@ namespace Opc.Ua.Server.Tests.Historian
     [Parallelizable(ParallelScope.All)]
     public sealed class HistorianReviewRuntimeTests
     {
+        /// <summary>
+        /// Both capture constructors preserve option diagnostics without admitting provider work.
+        /// </summary>
+        /// <param name="option">The capture setting to invalidate.</param>
+        /// <param name="events">Whether to construct event rather than value capture.</param>
+        /// <exception cref="ArgumentOutOfRangeException">The option selector is unsupported.</exception>
+        [TestCase(nameof(HistorianCaptureOptions.MaxQueuedSamples), false)]
+        [TestCase(nameof(HistorianCaptureOptions.MaxQueuedSamples), true)]
+        [TestCase(nameof(HistorianCaptureOptions.BatchTarget), false)]
+        [TestCase(nameof(HistorianCaptureOptions.BatchTarget), true)]
+        [TestCase(nameof(HistorianCaptureOptions.BatchWindow), false)]
+        [TestCase(nameof(HistorianCaptureOptions.BatchWindow), true)]
+        [TestCase(nameof(HistorianCaptureOptions.FullMode), false)]
+        [TestCase(nameof(HistorianCaptureOptions.FullMode), true)]
+        public async Task CaptureConstructorsRejectInvalidOptionsAsync(string option, bool events)
+        {
+            HistorianCaptureOptions options = option switch
+            {
+                nameof(HistorianCaptureOptions.MaxQueuedSamples) => new() { MaxQueuedSamples = 0 },
+                nameof(HistorianCaptureOptions.BatchTarget) => new() { BatchTarget = 0 },
+                nameof(HistorianCaptureOptions.BatchWindow) => new() { BatchWindow = TimeSpan.FromTicks(-1) },
+                nameof(HistorianCaptureOptions.FullMode) => new() { FullMode = (CaptureFullMode)int.MaxValue },
+                _ => throw new ArgumentOutOfRangeException(nameof(option))
+            };
+            string diagnostic = option switch
+            {
+                nameof(HistorianCaptureOptions.BatchWindow) => "BatchWindow must not be negative.",
+                nameof(HistorianCaptureOptions.FullMode) => "FullMode is not supported.",
+                _ => option + " must be positive."
+            };
+            var provider = new Mock<IHistorianProvider>();
+            provider.As<IHistorianDataProvider>();
+            provider.As<IHistorianEventProvider>();
+            IServerInternal server = Mock.Of<IServerInternal>();
+
+            ArgumentOutOfRangeException? failure = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            {
+                await using IAsyncDisposable capture = events
+                    ? new HistorianEventCapture(
+                        server, provider.Object, HistorianNodeCapabilities.EventReadWrite, options)
+                    : new HistorianCaptureSink(provider.Object, new ServerSystemContext(server), options);
+            }).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(failure!.ParamName, Is.EqualTo("options"));
+                Assert.That(failure.Message, Does.StartWith(diagnostic));
+            }
+            provider.VerifyNoOtherCalls();
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task CaptureSurvivesProviderFailuresWithExactDropsAndBoundedLogsAsync(bool canceledByProvider)
@@ -410,7 +461,11 @@ namespace Opc.Ua.Server.Tests.Historian
                 {
                     await cleanup.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 }
+#if NETFRAMEWORK
                 registration.Dispose();
+#else
+                await registration.DisposeAsync().ConfigureAwait(false);
+#endif
             }
 
             async ValueTask<HistorianUpdateOutcome<T>> FinishProviderAsync<T>(CancellationToken token)

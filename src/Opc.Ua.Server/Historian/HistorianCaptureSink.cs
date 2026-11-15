@@ -113,44 +113,13 @@ namespace Opc.Ua.Server.Historian
             }
             m_systemContext = systemContext ?? throw new ArgumentNullException(nameof(systemContext));
             m_options = options ?? new HistorianCaptureOptions();
-            if (m_options.MaxQueuedSamples <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "MaxQueuedSamples must be positive.");
-            }
-            if (m_options.BatchTarget <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "BatchTarget must be positive.");
-            }
-            if (m_options.BatchWindow < TimeSpan.Zero)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "BatchWindow must not be negative.");
-            }
-            if (m_options.FullMode is not CaptureFullMode.DropOldest and
-                not CaptureFullMode.DropNewest)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "FullMode is not supported.");
-            }
+            BoundedChannelOptions channelOptions = CreateChannelOptions(m_options);
             m_logger = systemContext.Server?.Telemetry?.CreateLogger<HistorianCaptureSink>();
             m_timeProvider = timeProvider
                 ?? (systemContext.Server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_cleanupStarted = cleanupStarted;
 
-            var channelOptions = new BoundedChannelOptions(m_options.MaxQueuedSamples)
-            {
-                FullMode = MapFullMode(m_options.FullMode),
-                SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = false
-            };
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions, OnSampleDropped);
             m_shutdownCts = new CancellationTokenSource();
@@ -278,6 +247,50 @@ namespace Opc.Ua.Server.Historian
                     TaskContinuationOptions.ExecuteSynchronously,
                     TaskScheduler.Default);
             }
+        }
+
+        /// <summary>
+        /// Validates shared capture settings and configures bounded value and event queues.
+        /// </summary>
+        /// <param name="options">The normalized capture settings.</param>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// A queue capacity, batch size, batch window or overflow mode is invalid.
+        /// </exception>
+        internal static BoundedChannelOptions CreateChannelOptions(HistorianCaptureOptions options)
+        {
+            if (options.MaxQueuedSamples <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "MaxQueuedSamples must be positive.");
+            }
+            if (options.BatchTarget <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "BatchTarget must be positive.");
+            }
+            if (options.BatchWindow < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "BatchWindow must not be negative.");
+            }
+            BoundedChannelFullMode fullMode = options.FullMode switch
+            {
+                CaptureFullMode.DropOldest => BoundedChannelFullMode.DropOldest,
+                CaptureFullMode.DropNewest => BoundedChannelFullMode.DropNewest,
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "FullMode is not supported.")
+            };
+            return new BoundedChannelOptions(options.MaxQueuedSamples)
+            {
+                FullMode = fullMode,
+                SingleReader = true,
+                SingleWriter = false,
+                AllowSynchronousContinuations = false
+            };
         }
 
         /// <summary>
@@ -630,16 +643,6 @@ namespace Opc.Ua.Server.Historian
             Interlocked.Increment(ref m_droppedSamples);
             // Log at trace level — high-frequency drops would otherwise spam.
             m_logger?.HistorianCaptureSinkDroppedSampleForNodeIdMode(ev.NodeId, m_options.FullMode);
-        }
-
-        private static BoundedChannelFullMode MapFullMode(CaptureFullMode mode)
-        {
-            return mode switch
-            {
-                CaptureFullMode.DropOldest => BoundedChannelFullMode.DropOldest,
-                CaptureFullMode.DropNewest => BoundedChannelFullMode.DropNewest,
-                _ => throw new ArgumentOutOfRangeException(nameof(mode))
-            };
         }
 
         private readonly record struct CaptureEvent(NodeId NodeId, DataValue Value);
