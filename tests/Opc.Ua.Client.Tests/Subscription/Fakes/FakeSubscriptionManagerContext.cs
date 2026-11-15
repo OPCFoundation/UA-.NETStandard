@@ -306,6 +306,21 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return true;
         }
 
+        /// <summary>
+        /// Optional override of <see cref="WaitForSessionSubscriptionRoomAsync"/>.
+        /// </summary>
+        public Func<uint, IIngressWaitPolicy, CancellationToken, ValueTask<bool>>?
+            SessionSubscriptionRoomHandler { get; set; }
+
+        public ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+            uint subscriptionId,
+            IIngressWaitPolicy waitPolicy,
+            CancellationToken ct)
+        {
+            return SessionSubscriptionRoomHandler?.Invoke(subscriptionId, waitPolicy, ct) ??
+                new ValueTask<bool>(true);
+        }
+
         private int m_sessionDispatchCount;
         private int m_prepareCalls;
 

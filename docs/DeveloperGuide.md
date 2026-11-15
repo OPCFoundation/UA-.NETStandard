@@ -40,8 +40,8 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 - **Docker Desktop (optional)** — only needed to run the containerized reference server; see [ContainerReferenceServer.md](ContainerReferenceServer.md).
 
 The C# language version is pinned (`LangVersion` 14) and analyzer/style rules are enforced by the build.
-A newer SDK can introduce diagnostics that CI's pinned SDK does not report.
-To reproduce CI diagnostics, use the SDK version selected by the relevant CI workflow.
+A newer .NET 11 SDK can introduce diagnostics that CI's SDK does not report.
+To reproduce CI diagnostics, use the SDK version selected in the relevant CI job.
 
 ## Repository layout
 

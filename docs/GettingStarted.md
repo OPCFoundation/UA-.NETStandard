@@ -475,7 +475,7 @@ persistent, access-controlled location; see the
 | `BadNotConnected` with `Could not connect to the remote endpoint` | No server is listening at the URL. | Start the server, then check the host, port, and path in the URL. |
 | `No discovered endpoint matched the configured security policy and mode.` | The server does not offer the requested security mode and policy. | Choose a mode and policy that the server offers. See [Profiles](Profiles.md#security-profiles). |
 | The server does not start, and the port is in use | Another application uses the port. | Stop that application, or change the port in both the server endpoint URL and the client discovery URL. |
-| `A compatible .NET SDK was not found` (Route A) | No stable SDK satisfying `global.json` is installed. | Install a stable .NET SDK version 10.0.400 or later. |
+| `A compatible .NET SDK was not found` (Route A) | No stable SDK satisfying `global.json` is installed. | Install a stable .NET 11 SDK version 11.0.100 or later. |
 
 See [Certificates](Certificates.md) for certificate stores and chains, and
 [Diagnostics](Diagnostics.md) for logging and packet capture.

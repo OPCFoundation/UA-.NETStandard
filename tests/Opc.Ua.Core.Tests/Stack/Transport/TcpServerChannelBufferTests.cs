@@ -738,6 +738,93 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.OutstandingCount, Is.Zero);
         }
 
+        [Test]
+        public async Task InactivityCleanupDoesNotClaimPendingRequestsAndRejectsLateMessagesAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock);
+            clock.Advance(TimeSpan.FromSeconds(2));
+            using (channel.TrackPendingRequest())
+            {
+                Assert.That(channel.TryIdleCleanupForInactivity(1000), Is.False);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            }
+            Assert.That(channel.TryIdleCleanupForInactivity(1000), Is.True);
+            int delivered = 0;
+            channel.SetRequestReceivedCallback((_, _, _) => delivered++);
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(1, 1, new ReadRequest(), intermediate: false)).ConfigureAwait(false);
+            Assert.That(delivered, Is.Zero);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task ClosingChannelRejectsRequestWithoutTakingBufferOwnershipAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            int delivered = 0;
+            channel.SetRequestReceivedCallback((_, _, _) => delivered++);
+            ArraySegment<byte> chunk = channel.CreateRequestChunkForTest(
+                1, 1, new ReadRequest(), intermediate: false);
+            channel.StartClosingForTest();
+
+            bool ownsBuffer = await channel.HandleIncomingForTestAsync(chunk).ConfigureAwait(false);
+
+            Assert.That(ownsBuffer, Is.False);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closing));
+            Assert.That(delivered, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+            Assert.That(pool.ReturnCount, Is.Zero);
+            channel.ReturnBufferForTest(chunk.Array!);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.ReturnCount, Is.EqualTo(1));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task QueuedResponsePreventsIdleAndAdmissionCleanupUntilWriteCompletesAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock);
+            var transport = new GateByteTransport(expectedSendCount: 1);
+            channel.SetTransport(transport);
+            try
+            {
+                using (channel.TrackPendingRequest())
+                {
+                    clock.Advance(TimeSpan.FromSeconds(2));
+                    Assert.That(await channel.SendResponseAsync(1, CreateResponse()).ConfigureAwait(false), Is.False);
+                    await transport.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+
+                Assert.That(channel.HasPendingWrites, Is.True);
+                Assert.That(channel.GetWriteStallTime(), Is.EqualTo(TimeSpan.Zero));
+                Assert.That(channel.TryIdleCleanupForInactivity(1000), Is.False);
+                Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+
+                transport.Complete();
+                Assert.That(await WaitForOutstandingCountAsync(pool, 0, 5).ConfigureAwait(false), Is.True);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                while (channel.HasPendingWrites)
+                {
+                    await Task.Delay(1, timeout.Token).ConfigureAwait(false);
+                }
+                clock.Advance(TimeSpan.FromSeconds(2));
+                Assert.That(channel.TryIdleCleanupForInactivity(1000), Is.True);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            }
+            finally
+            {
+                transport.Complete();
+            }
+        }
+
         /// <summary>
         /// OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel messages are always a single final
         /// chunk, so an intermediate or abort chunk faults the channel with Bad_TcpMessageTypeInvalid before it
@@ -2163,6 +2250,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 State = TcpChannelState.Opening;
             }
 
+            /// <summary>
+            /// Sets the claimed cleanup state without completing cleanup.
+            /// </summary>
+            public void StartClosingForTest()
+            {
+                State = TcpChannelState.Closing;
+            }
+
             public async Task WaitForBackgroundWorkAsync()
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -2327,6 +2422,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public ValueTask FeedReceivedChunkAsync(ArraySegment<byte> chunk)
             {
                 return OnChunkReceivedAsync(chunk, CancellationToken.None);
+            }
+
+            /// <summary>
+            /// Calls the handler directly to observe whether it takes ownership.
+            /// </summary>
+            public ValueTask<bool> HandleIncomingForTestAsync(ArraySegment<byte> chunk)
+            {
+                return HandleIncomingMessageAsync(
+                    TcpMessageType.Message | TcpMessageType.Final, chunk, CancellationToken.None);
+            }
+
+            /// <summary>
+            /// Returns a chunk retained by the caller.
+            /// </summary>
+            public void ReturnBufferForTest(byte[] buffer)
+            {
+                BufferManager.ReturnBuffer(buffer, nameof(ReturnBufferForTest));
             }
 
             /// <summary>

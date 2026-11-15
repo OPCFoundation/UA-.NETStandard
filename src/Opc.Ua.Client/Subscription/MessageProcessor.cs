@@ -139,10 +139,11 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask OnPublishReceivedAsync(
+        public virtual async ValueTask<bool> OnPublishReceivedAsync(
             NotificationMessage message,
             IReadOnlyList<uint>? availableSequenceNumbers,
-            IReadOnlyList<string> stringTable)
+            IReadOnlyList<string> stringTable,
+            IIngressWaitPolicy? waitPolicy = null)
         {
             CancellationToken shutdownToken = AckQueue.ShutdownToken;
             shutdownToken.ThrowIfCancellationRequested();
@@ -155,28 +156,56 @@ namespace Opc.Ua.Client.Subscriptions
                 AvailableInRetransmissionQueue = availableSequenceNumberSnapshot;
             }
             OnPublishReceived();
-            int size = EstimateRetainedSize(message);
-            if (!await m_messageCapacity.WaitAsync(0, m_cts.Token).ConfigureAwait(false))
+            int size = EstimateRetainedSize(message, availableSequenceNumberSnapshot.Length, stringTable);
+            bool waiting = false;
+            try
             {
-                // Link shutdown only while backpressured, not on the normal admission path.
-                using CancellationTokenSource? admission = shutdownToken.CanBeCanceled
-                    ? CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token, shutdownToken)
-                    : null;
-                await m_messageCapacity.WaitAsync(admission?.Token ?? m_cts.Token).ConfigureAwait(false);
-            }
-            if (!TryReserveQueuedBytes(size))
-            {
-                try
+                if (!await m_messageCapacity.WaitAsync(0, m_cts.Token).ConfigureAwait(false))
                 {
+                    if (waitPolicy != null && !waitPolicy.TryEnterWait())
+                    {
+                        OnMessageNotAdmitted(message);
+                        return false;
+                    }
+                    waiting = waitPolicy != null;
+
+                    // Link shutdown only while backpressured, not on the normal admission path.
                     using CancellationTokenSource? admission = shutdownToken.CanBeCanceled
                         ? CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token, shutdownToken)
                         : null;
-                    await ReserveQueuedBytesAsync(size, admission?.Token ?? m_cts.Token).ConfigureAwait(false);
+                    await m_messageCapacity.WaitAsync(admission?.Token ?? m_cts.Token).ConfigureAwait(false);
                 }
-                catch
+                if (!TryReserveQueuedBytes(size))
                 {
-                    m_messageCapacity.Release();
-                    throw;
+                    if (!waiting && waitPolicy != null)
+                    {
+                        if (!waitPolicy.TryEnterWait())
+                        {
+                            m_messageCapacity.Release();
+                            OnMessageNotAdmitted(message);
+                            return false;
+                        }
+                        waiting = true;
+                    }
+                    try
+                    {
+                        using CancellationTokenSource? admission = shutdownToken.CanBeCanceled
+                            ? CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token, shutdownToken)
+                            : null;
+                        await ReserveQueuedBytesAsync(size, admission?.Token ?? m_cts.Token).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        m_messageCapacity.Release();
+                        throw;
+                    }
+                }
+            }
+            finally
+            {
+                if (waiting)
+                {
+                    waitPolicy!.ExitWait();
                 }
             }
             if (!m_messages.TryWrite(new IncomingMessage(message, stringTable,
@@ -190,16 +219,59 @@ namespace Opc.Ua.Client.Subscriptions
                 ReleaseDeferredBodies(message);
                 throw new ChannelClosedException();
             }
+            return true;
+        }
+
+        /// <summary>
+        /// Number of received messages that were not admitted because the ingress
+        /// queue was full and the publish worker could not wait for room. They were
+        /// not acknowledged, so the server keeps them for Republish.
+        /// </summary>
+        internal long NotAdmittedMessageCount => Interlocked.Read(ref m_notAdmittedCount);
+
+        /// <summary>
+        /// A message is left on the server: it is neither queued nor acknowledged.
+        /// The gap it leaves is recovered with Republish once the queue has room.
+        /// </summary>
+        private void OnMessageNotAdmitted(NotificationMessage message)
+        {
+            ReleaseDeferredBodies(message);
+            if (message.NotificationData.Count != 0)
+            {
+                Interlocked.Increment(ref m_notAdmittedCount);
+                Logger.SubscriptionMessageLeftOnServer(Id, message.SequenceNumber);
+            }
         }
 
         /// <summary>
         /// Estimates the memory a queued message retains. A body kept as bytes, to be
         /// decoded on first use or because its type is unknown, counts with its
-        /// encoded length; a decoded body with a fixed amount per notification.
+        /// encoded length; a decoded body with a fixed amount per notification. The
+        /// available sequence numbers and the string table that are queued with the
+        /// message count as well: a server can send small messages with maximal lists.
         /// </summary>
-        internal static int EstimateRetainedSize(NotificationMessage message)
+        internal static int EstimateRetainedSize(
+            NotificationMessage message,
+            int availableSequenceNumberCount = 0,
+            IReadOnlyList<string>? stringTable = null)
         {
             long size = kMessageOverhead;
+            if (availableSequenceNumberCount > 0)
+            {
+                size += kArrayOverhead + ((long)availableSequenceNumberCount * sizeof(uint));
+            }
+            if (stringTable != null && stringTable.Count != 0)
+            {
+                size += kArrayOverhead + ((long)stringTable.Count * IntPtr.Size);
+                for (int i = 0; i < stringTable.Count; i++)
+                {
+                    string? entry = stringTable[i];
+                    if (entry != null)
+                    {
+                        size += kStringOverhead + ((long)entry.Length * sizeof(char));
+                    }
+                }
+            }
             ArrayOf<ExtensionObject> notificationData = message.NotificationData;
             for (int i = 0; i < notificationData.Count; i++)
             {
@@ -2245,9 +2317,12 @@ namespace Opc.Ua.Client.Subscriptions
         internal const int kMaxConsecutiveRepublishFailures = 3;
 
         private const int kMessageOverhead = 256;
+        private const int kArrayOverhead = 24;
+        private const int kStringOverhead = 24;
         private const int kDecodedNotificationSize = 128;
         private const int kDecodedEventSize = 512;
         private long m_queuedBytes;
+        private long m_notAdmittedCount;
         private int m_queuedBytesWaiters;
 #pragma warning disable CA2213 // disposed in DisposeAsync(bool)
         private readonly SemaphoreSlim m_queuedBytesReleased = new(0);
@@ -2417,5 +2492,13 @@ namespace Opc.Ua.Client.Subscriptions
             int count,
             int failures,
             uint missing);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 14, Level = LogLevel.Debug,
+            Message = "{SubscriptionId}: Ingress queue full; message with sequence number #{SeqNumber} " +
+                "is left on the server for Republish.")]
+        public static partial void SubscriptionMessageLeftOnServer(
+            this ILogger logger,
+            uint subscriptionId,
+            uint seqNumber);
     }
 }

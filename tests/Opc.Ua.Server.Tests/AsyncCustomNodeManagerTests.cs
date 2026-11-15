@@ -11010,7 +11010,7 @@ namespace Opc.Ua.Server.Tests
         private static Mock<IConfigurationNodeManager> CreateUnrestrictedConfigurationNodeManager()
         {
             var configuration = new Mock<IConfigurationNodeManager>();
-            NamespaceMetadataState? noMetadata = null;
+            NamespaceMetadataNode? noMetadata = null;
             configuration.As<INamespaceMetadataSnapshot>()
                 .Setup(manager => manager.TryGetNamespaceMetadataState(It.IsAny<ushort>(), out noMetadata))
                 .Returns(true);

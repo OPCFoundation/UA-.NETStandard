@@ -925,6 +925,17 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
+            // the raw values of one processing interval are held until the interval is
+            // complete, so bound how many one operation may hold.
+            int maxHeldRawValues = serverInternal.AggregateManager.MaxProcessedHistoryRawValues;
+            var standardCalculator = calculator as AggregateCalculator;
+            bool HoldsTooManyRawValues()
+            {
+                return maxHeldRawValues > 0 &&
+                    standardCalculator != null &&
+                    standardCalculator.RawValueCount > maxHeldRawValues;
+            }
+
             var values = new List<DataValue>();
             var rawRequest = new HistorianRawReadRequest
             {
@@ -998,6 +1009,10 @@ namespace Opc.Ua.Server.Historian
                 {
                     calculator.QueueRawValue(value);
                 }
+                if (HoldsTooManyRawValues())
+                {
+                    return false;
+                }
                 return FlushCalculator(
                     calculator,
                     values,
@@ -1039,7 +1054,8 @@ namespace Opc.Ua.Server.Historian
                             calculator,
                             values,
                             partial: false,
-                            kMaxProcessedBufferedOutputs))
+                            kMaxProcessedBufferedOutputs) ||
+                        HoldsTooManyRawValues())
                     {
                         return StatusCodes.BadTooManyOperations;
                     }
@@ -2186,7 +2202,9 @@ namespace Opc.Ua.Server.Historian
                             details.NumValuesPerNode,
                             capabilities.MaxReturnEventValues),
                         IsForward = isForward,
-                        Filter = (EventFilter)details.Filter.Clone()
+                        // shared read-only by every operation of the request and their
+                        // continuation points rather than copied for each of them.
+                        Filter = details.Filter
                     };
                     token = default;
                 }

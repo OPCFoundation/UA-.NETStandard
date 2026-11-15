@@ -938,6 +938,66 @@ namespace Opc.Ua.Server.Tests
             Assert.That(firstResult.DiagnosticInfo, Is.SameAs(firstDiagnostics), "the first notification is unchanged");
         }
 
+        /// <summary>
+        /// Items with equal filters that receive a sealed snapshot through a real event
+        /// manager share one admission stamp, whether the items are queued on one thread or
+        /// in ranges on several threads; items whose fields are copied per item (StatusResult
+        /// fields) get a stamp of their own.
+        /// </summary>
+        [Test]
+        public async Task ItemsWithEqualFiltersShareTheAdmissionStampOfASealedSnapshotAsync(
+            [Values(false, true)] bool splitEvents)
+        {
+            using var events = new EventManager(m_server, 100, 100);
+            Mock.Get(m_server).SetupGet(value => value.EventManager).Returns(events);
+            MonitoredNode2 monitoredNode = CreateMonitoredNode(true, splitEvents);
+            var plain = new List<MonitoredItem>();
+            var withResult = new List<MonitoredItem>();
+            for (uint ii = 1; ii <= 4; ii++)
+            {
+                MonitoredItem item = CreateItem(ii, CreateFilter(SelectA(), null), null);
+                monitoredNode.Add((IEventMonitoredItem)item);
+                plain.Add(item);
+                MonitoredItem copied = CreateItem(ii + 10, CreateFilter([.. SelectA(), Field("Result")], null), null);
+                monitoredNode.Add((IEventMonitoredItem)copied);
+                withResult.Add(copied);
+            }
+
+            BaseEventState e = CreateEventState(EventSeverity.High);
+            e.AddChild(new PropertyState(e)
+            {
+                NodeId = new NodeId("Result", 1),
+                BrowseName = QualifiedName.From("Result"),
+                DisplayName = new LocalizedText("Result"),
+                TypeDefinitionId = VariableTypeIds.PropertyType,
+                DataType = DataTypeIds.StatusResult,
+                ValueRank = ValueRanks.Scalar,
+                WrappedValue = Variant.FromStructure(new StatusResult(new ServiceResult(StatusCodes.BadUserAccessDenied)))
+            });
+
+            // a NodeState is cloned by the notifier, and the clone is sealed with the identity of the event.
+            await monitoredNode.OnReportEventAsync(m_systemContext, monitoredNode.Node, e).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            List<QueuedEvent> shared = [.. plain.Select(item => Publish(item).Single())];
+            object? stamp = shared[0].AdmissionStamp;
+            Assert.That(stamp, Is.Not.Null);
+            Assert.That(shared.Select(fields => fields.AdmissionStamp), Is.All.SameAs(stamp));
+
+            List<QueuedEvent> copies = [.. withResult.Select(item => Publish(item).Single())];
+            for (int ii = 0; ii < copies.Count; ii++)
+            {
+                Assert.That(copies[ii].AdmissionStamp, Is.Not.Null.And.Not.SameAs(stamp));
+                for (int jj = 0; jj < ii; jj++)
+                {
+                    Assert.That(
+                        copies[ii].AdmissionStamp,
+                        Is.Not.SameAs(copies[jj].AdmissionStamp),
+                        "every copy has a stamp of its own");
+                }
+            }
+        }
+
         private static StatusResult ResultOf(QueuedEvent fields, int index)
         {
             StatusResult result;

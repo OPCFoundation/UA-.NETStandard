@@ -443,7 +443,7 @@ namespace Opc.Ua.Bindings
 
             using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
-                if (State == TcpChannelState.Closed)
+                if (State is TcpChannelState.Closed or TcpChannelState.Closing)
                 {
                     return false;
                 }

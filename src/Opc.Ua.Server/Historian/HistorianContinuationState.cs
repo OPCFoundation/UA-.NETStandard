@@ -387,11 +387,8 @@ namespace Opc.Ua.Server.Historian
                 };
             HistorianEventReadRequest? eventRequest = EventRequest is null
                 ? null
-                : EventRequest with
-                {
-                    Filter = CoreUtils.Clone(EventRequest.Filter) ??
-                        throw new InvalidOperationException("The event request filter could not be cloned.")
-                };
+                // the event filter is read-only and shared with the predecessor.
+                : EventRequest with { };
             return new HistorianContinuationState(m_ownership)
             {
                 Id = id,
