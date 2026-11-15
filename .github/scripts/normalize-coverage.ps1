@@ -43,7 +43,7 @@ $inputRoot = (Resolve-Path -LiteralPath $InputDirectory).ProviderPath
 if (-not (Test-Path -LiteralPath $inputRoot -PathType Container)) {
     throw "Coverage input is not a directory: $InputDirectory"
 }
-$outputRoot = [IO.Path]::GetFullPath($OutputDirectory)
+$outputRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
 $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
 $separator = [IO.Path]::DirectorySeparatorChar
 $inputPrefix = $inputRoot.TrimEnd($separator) + $separator

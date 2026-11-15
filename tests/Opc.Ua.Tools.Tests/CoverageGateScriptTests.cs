@@ -106,6 +106,7 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         [TestCase("separate")]
         [TestCase("empty")]
+        [TestCase("location-relative")]
         public async Task NormalizationPreservesRawFragmentsAndBranchEvidenceAsync(string output)
         {
             NormalizationResult result = await RunNormalizationAsync(
@@ -1129,6 +1130,7 @@ namespace Opc.Ua.Tools.Tests
                 "same" => inputDirectory,
                 "nested" => Path.Combine(inputDirectory, "output"),
                 "ancestor" => directory,
+                "location-relative" => Path.Combine(directory, "caller", "output"),
                 _ => Path.Combine(directory, "output")
             };
             Directory.CreateDirectory(Path.Combine(inputDirectory, "shard"));
@@ -1172,11 +1174,24 @@ namespace Opc.Ua.Tools.Tests
                     ? Convert.ToHexString(SHA256.HashData(
                         await File.ReadAllBytesAsync(path).ConfigureAwait(false)))
                     : null;
+                string scriptPath = Path.Combine(
+                    FindRepositoryRoot(), ".github", "scripts", "normalize-coverage.ps1");
+                string[] arguments = ["-InputDirectory", inputDirectory, "-OutputDirectory", outputDirectory];
+                if (output == "location-relative")
+                {
+                    string callerDirectory = Path.Combine(directory, "caller");
+                    Directory.CreateDirectory(callerDirectory);
+                    string wrapper = Path.Combine(callerDirectory, "run.ps1");
+                    await File.WriteAllTextAsync(wrapper, """
+                        param([string] $Script, [string] $InputRoot)
+                        Set-Location $PSScriptRoot
+                        & $Script -InputDirectory $InputRoot -OutputDirectory output
+                        """).ConfigureAwait(false);
+                    arguments = [scriptPath, inputDirectory];
+                    scriptPath = wrapper;
+                }
                 ScriptResult result = await RunScriptAsync(
-                    directory,
-                    Path.Combine(FindRepositoryRoot(), ".github", "scripts", "normalize-coverage.ps1"),
-                    "-InputDirectory", inputDirectory,
-                    "-OutputDirectory", outputDirectory).ConfigureAwait(false);
+                    directory, scriptPath, arguments).ConfigureAwait(false);
                 string normalizedPath = Path.Combine(outputDirectory, "shard", "coverage.cobertura.xml");
                 return new NormalizationResult(
                     result,
