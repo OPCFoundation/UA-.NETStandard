@@ -2063,8 +2063,6 @@ namespace Opc.Ua.Server
             var results = new StatusCode[count];
             DiagnosticInfo[]? diagnosticInfos = null;
 
-            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = PrepareValidationCacheForMany(nodesToWrite);
-
             (IAsyncNodeManager[] dispatchOrder,
                 IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
                 m_nodeManagers.GetDispatchView(context.RoutingSnapshot);
@@ -2077,11 +2075,13 @@ namespace Opc.Ua.Server
             {
 
                 // pre-validate and pre-parse parameter. Validate also access rights and role permissions
+                // without an attribute cache: a Write mostly writes each node once, so the
+                // permission attributes are read into the array of the thread, as for one value.
                 ServiceResult? error = await ValidateWriteRequestAsync(
                     context,
                     nodesToWrite[ii],
-                    uniqueNodesReadAttributes,
-                    permissionsOnly: uniqueNodesReadAttributes == null,
+                    uniqueNodesServiceAttributes: null,
+                    permissionsOnly: true,
                     routeHandle: true,
                     cancellationToken)
                     .ConfigureAwait(false);
