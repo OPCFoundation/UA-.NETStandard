@@ -396,6 +396,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // processors it keeps (SERVER_DOTNET_PROCESSOR_COUNT still overrides)
             string? clientAffinity = Environment.GetEnvironmentVariable(kClientAffinityVariable);
             string? serverAffinity = Environment.GetEnvironmentVariable(kServerAffinityVariable);
+            // explicit masks win over --client-cores: on processors of different speed (for
+            // example Zen5 and Zen5c cores) the mask decides the CPU time per operation
+            if (TryGetArg("server-affinity", out string? serverMask))
+            {
+                serverAffinity = Convert.ToUInt64(serverMask, 16).ToString("X", CultureInfo.InvariantCulture);
+            }
+            if (TryGetArg("client-affinity", out string? clientMask))
+            {
+                clientAffinity = Convert.ToUInt64(clientMask, 16).ToString("X", CultureInfo.InvariantCulture);
+            }
             Dictionary<string, string>? serverEnvironment = serverAffinity == null
                 ? null
                 : new Dictionary<string, string>(StringComparer.Ordinal)
@@ -424,7 +434,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 using Process self = Process.GetCurrentProcess();
                 self.ProcessorAffinity = (nint)Convert.ToInt64(clientAffinity, 16);
             }
-            if (Environment.GetEnvironmentVariable(kConstrainedVariable) != null)
+            if (Environment.GetEnvironmentVariable(kConstrainedVariable) != null ||
+                serverAffinity != null || clientAffinity != null)
             {
                 Console.WriteLine(FormattableString.Invariant(
                     $"constrained client: processors={Environment.ProcessorCount} mask=0x{clientAffinity ?? "all"} ") +
