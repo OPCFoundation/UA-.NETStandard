@@ -91,6 +91,7 @@ binary compatibility with removed instance members.
 | --- | --- |
 | `INodeManagerBatchLifecycle`, `IPreparedNodeManagerBatch`, `NodeManagerBatchChange`, `NodeManagerBatchResult` | `INodeManagerLifecycle`, `IPreparedChanges`, `LifecycleChange`, `LifecycleResult` |
 | `INodeManagerPublicationLifecycle`, `INodeManagerPublicationCapture`, `INodeManagerPublication`, `INodeManagerValidationPublication` | `ILifecycleCapture` and `ILifecycleWriter`, obtained through `CaptureChanges()` |
+| Static `LifecycleChangeExtensions.CaptureChanges` and `PrepareAsync` lifecycle/publication overloads | Native `INodeManagerLifecycle.CaptureChanges()` and `PrepareAsync()`; use the captured writer for invocation-bound preparation |
 | `SupportsPreparedPublication`, `SupportsPublicationIsolation`, `CapturePublication()` on the lifecycle | Implement the modern capture and preparation contract; reject unsupported operations before factory or durable effects |
 | Lifecycle `AddAsync`, `ReloadAsync`, `ShadowReloadAsync`, `ImmediateReloadAsync`, `RemoveAsync` and lifecycle-only `callerContext` overloads | Prepare slot-targeted changes and commit their owner |
 | `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, `NodeManagerRemovalCommittedException`, `INodeManagerCommittedFailure` | Inspect the returned `LifecycleResult.CleanupFailure`, `Issues` and `Retired` separately |
@@ -104,6 +105,11 @@ generation, or `Invalidate` to invalidate them. Neither transition keeps the
 old generation available for new work. The released `IStandardServer`
 factory-list `AddNodeManager` and `RemoveNodeManager` contracts are not these
 dynamic lifecycle methods and remain available.
+
+Moving capture and preparation from extension methods to interface members
+preserves ordinary call syntax, not the static call targets in existing
+binaries. Recompile 2.x consumers and implement both native members in custom
+lifecycle providers; no extension forwarding shim remains.
 
 Their presence does not establish compatibility with every released provider.
 In 1.5.378.182, both factory interfaces' `NamespacesUris` property returns
