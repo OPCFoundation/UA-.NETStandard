@@ -326,8 +326,12 @@ namespace Opc.Ua.Server.Historian
                 catch (TimeoutException)
                 {
                     timedOut?.Invoke();
-                    cleanup = Task.WhenAll(consumer, RequestShutdownAsync(shutdown));
+                    Task cancellation = RequestShutdownAsync(shutdown);
+                    cleanup = Task.WhenAll(consumer, cancellation);
                     cleanupStarted?.Invoke(cleanup);
+#if NETFRAMEWORK
+                    await WaitForCancellationRequestAsync(cancellation, shutdown.Token).ConfigureAwait(false);
+#endif
                     throw;
                 }
                 finally
@@ -372,6 +376,36 @@ namespace Opc.Ua.Server.Historian
                 m_logger is null ? null : m_logger.HistorianCaptureSinkConsumerDidNotDrainWithin5s,
                 m_cleanupStarted);
         }
+
+#if NETFRAMEWORK
+        /// <summary>
+        /// Joins the legacy cancellation request transition without waiting for provider callbacks.
+        /// </summary>
+        /// <param name="cancellation">The separately owned callback-completion task.</param>
+        /// <param name="token">The capture token whose wait handle is signaled before callbacks run.</param>
+        private static async Task WaitForCancellationRequestAsync(Task cancellation, CancellationToken token)
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            var requested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            RegisteredWaitHandle registration = ThreadPool.RegisterWaitForSingleObject(
+                token.WaitHandle,
+                static (state, _) => ((TaskCompletionSource<bool>)state!).TrySetResult(true),
+                requested,
+                Timeout.Infinite,
+                executeOnlyOnce: true);
+            try
+            {
+                await Task.WhenAny(requested.Task, cancellation).ConfigureAwait(false);
+            }
+            finally
+            {
+                registration.Unregister(null);
+            }
+        }
+#endif
 
         private async Task ConsumeAsync(CancellationToken ct)
         {
