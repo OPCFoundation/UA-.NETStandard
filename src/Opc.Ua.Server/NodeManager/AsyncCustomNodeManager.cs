@@ -4800,17 +4800,39 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <param name="key">The key representing the NodeId for which the cache is kept</param>
-        /// <param name="values">The array to store the values of the attributes</param>
-        private static void ReadAndCacheValidationAttributes(
+        /// <returns>
+        /// The cached values. A node without AccessRestrictions, RolePermissions and
+        /// UserRolePermissions, the common case, shares one array of null values: the cached
+        /// arrays are only read.
+        /// </returns>
+        private static Variant[] ReadAndCacheValidationAttributes(
             Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes,
             ServerSystemContext systemContext,
             NodeState target,
-            NodeId key,
-            ref Variant[] values)
+            NodeId key)
         {
+            Variant[] scratch = t_validationValues ?? new Variant[3];
+            t_validationValues = null;
+            Variant[] values = scratch;
             ReadValidationAttributes(systemContext, target, ref values);
+            if (values.Length == 3 && values[0].IsNull && values[1].IsNull && values[2].IsNull)
+            {
+                values = s_noValidationAttributes;
+            }
+            if (!ReferenceEquals(values, scratch))
+            {
+                // the cache does not keep the scratch array: give it back to the thread.
+                Array.Clear(scratch, 0, scratch.Length);
+                t_validationValues = scratch;
+            }
             uniqueNodesServiceAttributes[key] = values;
+            return values;
         }
+
+        /// <summary>
+        /// The cached validation attributes of a node that has none of them; never written.
+        /// </summary>
+        private static readonly Variant[] s_noValidationAttributes = new Variant[3];
 
         /// <summary>
         /// Reads the Attributes used by the AccessRestrictions and RolePermission validation process
@@ -10832,13 +10854,11 @@ namespace Opc.Ua.Server
                 if (!uniqueNodesServiceAttributesCache.TryGetValue(key, out Variant[]? values) ||
                     values.Length != 3)
                 {
-                    values = new Variant[3];
-                    ReadAndCacheValidationAttributes(
+                    values = ReadAndCacheValidationAttributes(
                         uniqueNodesServiceAttributesCache,
                         systemContext,
                         target,
-                        key,
-                        ref values);
+                        key);
                 }
 
                 SetAccessAndRolePermissions(values, metadata);
@@ -10937,13 +10957,11 @@ namespace Opc.Ua.Server
                 if (!uniqueNodesServiceAttributesCache.TryGetValue(key, out values) ||
                     values.Length != 3)
                 {
-                    values = new Variant[3];
-                    ReadAndCacheValidationAttributes(
+                    values = ReadAndCacheValidationAttributes(
                         uniqueNodesServiceAttributesCache,
                         systemContext,
                         target,
-                        key,
-                        ref values);
+                        key);
                 }
             }
             Variant[]? scratch = null;
