@@ -475,6 +475,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Authorizes the current host caller and records denied requests.
         /// </summary>
+        /// <exception cref="UnauthorizedAccessException">
+        /// No authorization policy is configured, or the policy denies recovery or supplies an empty,
+        /// whitespace-only or longer-than-256-character audit user identifier.
+        /// </exception>
         private async ValueTask<NodeManagerCleanupAuthorization> AuthorizeAsync(
             INodeManagerCleanupAudit audit,
             Guid requestId,
@@ -517,6 +521,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves the resource only while its exact generation admits recovery operations.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The handle is invalid or no longer retained, recovery is already active, or the participant
+        /// does not consume verification or return a retained resource.
+        /// </exception>
         // The returned disposable owns the lease; disposing it here would allow cleanup during verification.
         // TODO: Remove this exception when CA2000 recognizes the returned owner's lease transfer.
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
@@ -590,6 +598,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds the lifecycle and exact generation named by an operator handle.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The handle contains an empty generation, participant or failure identifier,
+        /// or its generation is no longer retained by this host.
+        /// </exception>
         private (NodeManagerLifecycle Owner, NodeManagerGeneration Generation) FindRecoveryGeneration(
             NodeManagerCleanupFailureHandle handle)
         {
@@ -614,6 +626,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Proves that an earlier verified confirmation has cleared and no other failure remains.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The generation is no longer retained, no verified confirmation awaits reconciliation,
+        /// or the confirmed failure or another cleanup failure is still retained.
+        /// </exception>
         private void InspectPendingConfirmation(
             NodeManagerLifecycle owner,
             NodeManagerGeneration generation,
@@ -657,6 +673,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Revalidates the exact failure and applies the one-use confirmation after verification.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Recovery admission or the captured generation, participant or failure is no longer current,
+        /// or the participant does not consume confirmation or clear the confirmed failure.
+        /// </exception>
+        /// <exception cref="NodeManagerCleanupConfirmationOutcomeUnknownException">
+        /// The participant consumed confirmation, but its retained-failure snapshot could not be inspected.
+        /// </exception>
         private ConfirmationObservation ConfirmCapturedFailure(CapturedFailure captured)
         {
             captured.Owner.DemandCleanupAuthority(m_authority);
@@ -759,6 +782,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Retains the exact generation during recovery operations that use participant-owned state.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The generation's cleanup recovery gate does not admit a lease.
+        /// </exception>
         private static GenerationGate.Lease EnterRecovery(NodeManagerGeneration generation)
         {
             if (!generation.CleanupRecoveryGate.TryEnter(out GenerationGate.Lease? lease) || lease is null)
@@ -772,6 +798,9 @@ namespace Opc.Ua.Server
         /// Prevents physical cleanup while any participant still retains an unresolved resource failure.
         /// </summary>
         /// <param name="generation">The generation whose recovery admission has been closed and drained.</param>
+        /// <exception cref="InvalidOperationException">
+        /// A cleanup participant still reports an unresolved resource failure.
+        /// </exception>
         internal static void EnsureNoRetainedFailures(NodeManagerGeneration generation)
         {
             if (HasRetainedFailures(generation))
@@ -995,6 +1024,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds the exact participant addressed by a generation-scoped handle.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// No participant retained by the generation has the requested participant identifier.
+        /// </exception>
         private static INodeManagerCleanupParticipant FindParticipant(NodeManagerGeneration generation, Guid id)
         {
             if (generation.GetCleanupParticipantId(generation) == id)
@@ -1025,6 +1057,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="participant">The participant that owns the failure registry.</param>
         /// <returns>The validated descriptions in host-owned storage.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The participant returns a null snapshot, a null failure entry or duplicate failure identifiers.
+        /// </exception>
         internal static ArrayOf<NodeManagerCleanupFailure> CaptureFailures(INodeManagerCleanupParticipant participant)
         {
             var access = new NodeManagerCleanupAccess(participant);
@@ -1056,6 +1091,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds one exact, currently retained participant failure.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The participant's retained-failure snapshot contains no failure with the requested identifier.
+        /// </exception>
         private static NodeManagerCleanupFailure FindFailure(INodeManagerCleanupParticipant participant, Guid id)
         {
             foreach (NodeManagerCleanupFailure failure in CaptureFailures(participant))
@@ -1107,6 +1145,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Requires an audit adapter before exposing failures or applying confirmation.
         /// </summary>
+        /// <exception cref="InvalidOperationException">No cleanup recovery audit adapter is configured.</exception>
         private INodeManagerCleanupAudit RequireAudit()
         {
             return m_authority.Audit
@@ -1133,6 +1172,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Records a failed operation without hiding either the original failure or an audit failure.
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// Recording the supplied operation failure through the audit adapter also fails.
+        /// </exception>
         private static async ValueTask RecordFailureAsync(
             INodeManagerCleanupAudit audit,
             Guid requestId,
@@ -1158,6 +1200,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rejects recovery that would wait for its own verification to exit.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The current asynchronous flow is already verifying cleanup for the handle's generation.
+        /// </exception>
         private static void RejectVerificationReentrancy(NodeManagerCleanupFailureHandle handle)
         {
             if (VerificationOperationScope.Contains(handle.GenerationId))
@@ -1280,6 +1325,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Transfers the temporary resource reference to the verifier.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// The captured resource has already been taken or released.
+            /// </exception>
             internal NodeManagerCleanupResource TakeResource()
             {
                 NodeManagerCleanupResource resource = m_resource;

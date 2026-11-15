@@ -118,6 +118,9 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Attempts to restore an uncommitted continuation and releases the claim.
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// Both durable restoration and the fallback local save of the continuation fail.
+        /// </exception>
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",

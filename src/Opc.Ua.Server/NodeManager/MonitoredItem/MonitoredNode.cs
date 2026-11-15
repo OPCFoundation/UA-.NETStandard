@@ -147,6 +147,7 @@ namespace Opc.Ua.Server
         /// <exception cref="InvalidOperationException">
         /// Disposal has been transferred to the retired generation and the new manager differs from its owner.
         /// </exception>
+        /// <exception cref="ArgumentNullException">The assigned node manager is null.</exception>
         public IAsyncNodeManager NodeManager
         {
             get => m_nodeManager;

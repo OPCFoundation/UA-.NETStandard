@@ -1594,6 +1594,9 @@ namespace Opc.Ua.Server
         /// Validates history read requests and dispatches reads or continuation releases to the node managers.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="InvalidOperationException">
+        /// A session-backed history dispatch needs continuation ownership, but its history request is unavailable.
+        /// </exception>
         private async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             HistoryReadCoreAsync(
             OperationContext context,

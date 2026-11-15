@@ -70,6 +70,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rejects operations that cannot be admitted by the running writer.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// A durable publication failed, or shutdown has excluded new operations.
+        /// </exception>
         internal void EnsureRunning()
         {
             ThrowIfDecisionCallbackActive();
@@ -339,6 +342,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the server only while its original identity remains available.
             /// </summary>
+            /// <exception cref="ObjectDisposedException">The captured server is no longer available.</exception>
             internal IServerInternal Server => m_server.TryGetTarget(out IServerInternal? server)
                 ? server
                 : throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
@@ -346,6 +350,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the exact original host without recapturing serving evidence.
             /// </summary>
+            /// <exception cref="ObjectDisposedException">The captured host is no longer available.</exception>
             internal IDynamicNodeManagerHost OwnerHost => m_host.TryGetTarget(out IDynamicNodeManagerHost? host)
                 ? host
                 : throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
@@ -548,6 +553,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets active revision ownership, including while admitted work drains during disposal.
             /// </summary>
+            /// <exception cref="ObjectDisposedException">The publication revision has been released.</exception>
             private PublicationRevision Revision =>
                 m_revision ?? throw new ObjectDisposedException(nameof(ILifecycleWriter));
 
@@ -555,6 +561,9 @@ namespace Opc.Ua.Server
             /// Prepares one transaction while preventing overlapping preparation or premature disposal.
             /// </summary>
             /// <typeparam name="T">The prepared transaction type.</typeparam>
+            /// <exception cref="ObjectDisposedException">
+            /// The publication invocation is closing or its revision has been released.
+            /// </exception>
             internal async ValueTask<T> PrepareAsync<T>(Func<ValueTask<T>> prepare)
                 where T : IAsyncDisposable
             {

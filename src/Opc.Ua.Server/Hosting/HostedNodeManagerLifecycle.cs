@@ -196,6 +196,9 @@ namespace Opc.Ua.Server.Hosting
         /// </summary>
         /// <param name="owner">The lifecycle whose resource failure was confirmed.</param>
         /// <returns>A task completed after shutdown resumption is attempted.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The lifecycle is no longer retained by this host, or its ordered shutdown cannot be resumed.
+        /// </exception>
         internal async ValueTask ResumeCleanupAsync(NodeManagerLifecycle owner)
         {
             RecoveryOwner entry;

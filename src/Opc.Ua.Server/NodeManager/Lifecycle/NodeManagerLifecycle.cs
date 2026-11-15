@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -169,6 +170,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Binds the host's exact recovery adapters once before the lifecycle is exposed.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="authority"/> is null.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// The supplied authority does not match an existing or sealed cleanup-authority binding.
+        /// </exception>
         internal void BindCleanupAuthority(NodeManagerCleanupAuthority authority)
         {
             if (authority is null)
@@ -203,6 +208,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Requires the adapters configured by the owning host.
         /// </summary>
+        /// <exception cref="UnauthorizedAccessException">
+        /// Cleanup authority is unbound or the supplied authority does not match the owning host's adapters.
+        /// </exception>
         internal void DemandCleanupAuthority(NodeManagerCleanupAuthority authority)
         {
             lock (m_cleanupAuthorityLock)
@@ -456,6 +464,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Withdraws owned generations, including system roles only after the server has stopped their consumers.
         /// </summary>
+        /// <exception cref="NodeManagerCleanupDeferredException">
+        /// Private candidate cleanup is still pending.
+        /// </exception>
+        /// <exception cref="AggregateException">
+        /// One or more generation shutdown preparations fail, optionally together with private cleanup.
+        /// </exception>
         internal async ValueTask CompleteShutdownAsync(
             IServerInternal server,
             bool retireSystems,
@@ -1035,6 +1049,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Selects one generation-owned item inventory for migration or terminal removal without placeholder sources.
         /// </summary>
+        /// <exception cref="NotSupportedException">
+        /// Monitored items require a transition, but the current or replacement manager does not implement
+        /// <see cref="INodeManagerMonitoredItemSource"/>.
+        /// </exception>
         private static async ValueTask<MonitoredItemTransition>
             PrepareMonitoredItemTransitionAsync(
                 IAsyncNodeManager current,
@@ -1895,6 +1913,10 @@ namespace Opc.Ua.Server
         /// <param name="initial">The explicit startup capability, or null for runtime preparation.</param>
         /// <param name="shutdown">The explicit removal-only shutdown capability, or null.</param>
         /// <returns>The prepared batch, which must be disposed if it is not committed.</returns>
+        /// <exception cref="NotSupportedException">
+        /// The server factory does not support prepared publication,
+        /// or a manager being replaced does not support safe reload.
+        /// </exception>
         private async ValueTask<IPreparedChanges> PrepareChangesAsync(
             ArrayOf<LifecycleChange> changes,
             LifecycleWriter.PublicationSession? publication,
@@ -2989,6 +3011,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Cleans one private candidate while retaining its exact recovery admission and confirmation outcome.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// A verified cleanup confirmation must be reconciled before private cleanup can continue.
+        /// </exception>
+        /// <exception cref="AggregateException">
+        /// Private abort and retaining its cleanup failure both fail,
+        /// or private cleanup and restoring recovery admission both fail.
+        /// </exception>
         private async ValueTask CompletePrivateCandidateCleanupAsync(
             PrivateBatchCleanup cleanup,
             PrivateCandidateCleanup candidate)
@@ -3121,6 +3150,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resumes an exact confirmed private candidate only after a retryable or completed stage.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// An earlier candidate must finish first, or the failed cleanup stage cannot safely be retried automatically.
+        /// </exception>
         internal async ValueTask ResumePrivateCleanupAfterConfirmationAsync(NodeManagerGeneration generation)
         {
             PrivateBatchCleanup? cleanup;
@@ -3618,6 +3650,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Validates without deciding, then joins the same single cleanup attempt as disposal.
             /// </summary>
+            /// <exception cref="InvalidOperationException">This preparation is not a validation candidate.</exception>
             internal ValueTask ValidateAsync(CancellationToken cancellationToken)
             {
                 PreparationPayload? payload;
@@ -3641,6 +3674,14 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Resolves and validates one exact metadata owner before transaction consumption.
             /// </summary>
+            /// <exception cref="ArgumentNullException"><paramref name="metadata"/> is null.</exception>
+            /// <exception cref="ArgumentException">
+            /// Metadata does not identify the exact requested generation,
+            /// or its owner is neither a candidate nor an unchanged live generation in this unit.
+            /// </exception>
+            /// <exception cref="InvalidOperationException">
+            /// Preparation has been consumed or inspection has ended, or metadata is already bound for the slot.
+            /// </exception>
             private void SetMetadataCore(NodeManagerSlot? slot, INodeManagerReadImage metadata)
             {
                 if (metadata is null)
@@ -3699,6 +3740,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Admits one commit, with overlapping callers joining its result instead of replaying decisions.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// This is a validation-only candidate, or its preparation is no longer open.
+            /// </exception>
             private ValueTask<LifecycleResult> CommitCoreAsync(
                 Func<CancellationToken, ValueTask>? decideAsync,
                 Action? publishCommittedState,
@@ -3734,6 +3778,11 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Executes one commit or validation and releases preparation after publication or cleanup transfer.
             /// </summary>
+            // TODO: Remove this suppression when RCS1140 distinguishes failure on a separate completion task.
+            [SuppressMessage(
+                "Documentation",
+                "RCS1140:Add exception to documentation comment",
+                Justification = "The caught publication failure faults the commit completion, not this helper task.")]
             private async Task CompleteAsync(
                 PreparationPayload payload,
                 Func<CancellationToken, ValueTask>? decideAsync,
@@ -3804,6 +3853,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Joins terminal cleanup before rejecting consumed commit or validation without replaying preparation.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// The commit or validation preparation has already been consumed or disposed.
+            /// </exception>
             private async Task<LifecycleResult> RejectAfterDisposalAsync()
             {
                 await m_finished.Task.ConfigureAwait(false);
@@ -3893,6 +3945,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Requires an unconsumed preparation whose inspection access has not ended.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// Preparation has been consumed, inspection has ended or the payload has been released.
+            /// </exception>
             private PreparationPayload GetOpenPayload()
             {
                 return !m_consumed && !m_inspectionEnded && m_payload is { } payload
@@ -4114,6 +4169,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Resolves the lifecycle only while active preparation needs its services.
             /// </summary>
+            /// <exception cref="ObjectDisposedException">The captured lifecycle is no longer available.</exception>
             private NodeManagerLifecycle GetOwner()
             {
                 return m_owner.TryGetTarget(out NodeManagerLifecycle? owner)

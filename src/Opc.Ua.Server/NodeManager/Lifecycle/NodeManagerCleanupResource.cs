@@ -59,6 +59,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="resource">The retained resource.</param>
         /// <returns>The resource reference for trusted verification.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="resource"/> is null.</exception>
         public static NodeManagerCleanupResource FromDisposable(IDisposable resource)
         {
             return new NodeManagerCleanupResource(
@@ -70,6 +71,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="resource">The retained resource.</param>
         /// <returns>The resource reference for trusted verification.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="resource"/> is null.</exception>
         public static NodeManagerCleanupResource FromAsyncDisposable(IAsyncDisposable resource)
         {
             return new NodeManagerCleanupResource(

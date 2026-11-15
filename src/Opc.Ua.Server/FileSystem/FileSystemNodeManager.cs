@@ -498,6 +498,9 @@ namespace Opc.Ua.Server.FileSystem
         /// Closes cursor admission and waits for registered cursors and recorded cleanup tasks.
         /// </summary>
         /// <param name="waitForConfirmation">Whether unresolved failures keep disposal pending.</param>
+        /// <exception cref="AggregateException">
+        /// No cleanup task remains pending and a registered cleanup failed, was canceled or retains a cursor failure.
+        /// </exception>
         private async ValueTask WaitForCursorCleanupsAsync(bool waitForConfirmation = false)
         {
             while (true)

@@ -205,6 +205,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="participant">The participant receiving the discovery call.</param>
         /// <returns>Whether the capability is active for that participant.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="participant"/> is null.</exception>
         public bool IsAuthorizedFor(INodeManagerCleanupParticipant participant)
         {
             if (participant is null)
@@ -246,6 +247,7 @@ namespace Opc.Ua.Server
         /// <param name="participant">The participant receiving the confirmation call.</param>
         /// <param name="failureId">The retained failure identifier when consumption succeeds.</param>
         /// <returns>Whether the capability was valid and had not already been consumed.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="participant"/> is null.</exception>
         public bool TryConsume(INodeManagerCleanupParticipant participant, out Guid failureId)
         {
             if (participant is null)

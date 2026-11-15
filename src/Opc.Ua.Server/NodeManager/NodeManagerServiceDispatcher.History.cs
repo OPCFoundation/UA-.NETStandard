@@ -48,6 +48,9 @@ namespace Opc.Ua.Server
         /// <param name="nodesToRead">The nodes to read.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The results and diagnostics for each node.</returns>
+        /// <exception cref="AggregateException">
+        /// The history read fails and releasing continuation points not returned to the caller also fails.
+        /// </exception>
         internal async ValueTask<(ArrayOf<HistoryReadResult> Values, ArrayOf<DiagnosticInfo> Diagnostics)>
             HistoryReadAsync(
             OperationContext context,
@@ -150,6 +153,9 @@ namespace Opc.Ua.Server
         /// <param name="nodeCount">The number of nodes in the request.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The result and the error of the node.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// A resumed history read needs a manager dispatch, but its owning history request is unavailable.
+        /// </exception>
         private async ValueTask<(HistoryReadResult Result, ServiceResult Error)> ReadHistoryContinuationAsync(
             OperationContext context,
             SessionContinuationPoints holder,
@@ -261,6 +267,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Releases a resumed read without losing a failure from the admitted operation.
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// An admitted history operation has failed and disposing its read scope also fails.
+        /// </exception>
         private static void DisposeHistoryReadScope(
             SessionContinuationPoints.HistoryReadScope use,
             Exception? admittedFailure)

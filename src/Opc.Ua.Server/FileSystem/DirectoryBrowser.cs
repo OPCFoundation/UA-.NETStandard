@@ -65,6 +65,9 @@ namespace Opc.Ua.Server.FileSystem
         /// rather than blocked on.
         /// </summary>
         /// <exception cref="AggregateException">Enumeration and cursor cleanup both fail.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// The provider returns a directory cursor already held by another cursor owner.
+        /// </exception>
         public override async ValueTask<IReference?> NextAsync(
             CancellationToken cancellationToken = default)
         {
@@ -391,6 +394,9 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         /// <param name="cursor">The provider-owned enumerator.</param>
         /// <returns>Whether another cursor owner does not already hold the same enumerator.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// This owner has already completed or has already been assigned a cursor.
+        /// </exception>
         internal bool TrySetCursor(IAsyncDisposable cursor)
         {
             lock (s_identityLock)
@@ -416,6 +422,7 @@ namespace Opc.Ua.Server.FileSystem
         /// Records the outcome without retrying a failed cursor disposal.
         /// </summary>
         /// <param name="failure">The original cleanup failure, or null on success.</param>
+        /// <exception cref="InvalidOperationException">This cursor owner has already completed.</exception>
         internal void Complete(Exception? failure)
         {
             lock (s_identityLock)

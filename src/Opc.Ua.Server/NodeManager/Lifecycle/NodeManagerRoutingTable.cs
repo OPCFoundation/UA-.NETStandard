@@ -498,6 +498,10 @@ namespace Opc.Ua.Server
         /// Atomically removes a replacement and restores the previous NodeManager
         /// to its captured global and namespace-route positions.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The replacement is absent, the previous manager is already registered,
+        /// or the exact retiring predecessor is unavailable, has not drained or can no longer be restored.
+        /// </exception>
         public void RestoreReplacement(
             IAsyncNodeManager replacement,
             IAsyncNodeManager previous,
@@ -711,6 +715,10 @@ namespace Opc.Ua.Server
         /// Restores a previously removed NodeManager to its captured routing positions.
         /// The exact generation must have drained, its slot must be unused, and physical cleanup must not have started.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The manager is already registered, or its exact retiring generation cannot be restored
+        /// into an unused slot after draining and before physical cleanup.
+        /// </exception>
         public void Restore(
             IAsyncNodeManager nodeManager,
             NodeManagerRoutingPosition position,
@@ -1319,6 +1327,9 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="nodeManager">The manager or standard adapter to resolve.</param>
             /// <returns>The exact registered owner, or null when it is absent.</returns>
+            /// <exception cref="InvalidOperationException">
+            /// A standard adapter matches more than one registered owner by generation identity.
+            /// </exception>
             internal IAsyncNodeManager? FindRegisteredOwner(IAsyncNodeManager nodeManager)
             {
                 foreach (IAsyncNodeManager owner in NodeManagers)
@@ -2050,6 +2061,10 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Mirrors an allowed alias mutation into the serving image and this reserved successor only.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// The reservation is no longer current, the namespace or manager conflicts with it,
+            /// or the reserved successor routes are inconsistent.
+            /// </exception>
             internal bool ChangeNamespace(
                 int namespaceIndex,
                 IAsyncNodeManager nodeManager,
@@ -2189,6 +2204,10 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Prevents alias reconciliation from accepting stale work or another publication's reservation.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// This publication is disposed, already published, not the current reservation,
+            /// or based on a stale routing snapshot.
+            /// </exception>
             private void ValidateNamespaceMutation()
             {
                 if (m_disposed || m_published || !ReferenceEquals(m_owner.m_reservedRoutes, this) ||

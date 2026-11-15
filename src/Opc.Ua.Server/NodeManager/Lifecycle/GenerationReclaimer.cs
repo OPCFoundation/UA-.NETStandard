@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -361,6 +362,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="retired">The exclusively claimed generation.</param>
         /// <returns>The failure, if any, reported to the current cleanup caller and diagnostic log.</returns>
+        // TODO: Remove this suppression when RCS1140 accounts for exceptions returned after an internal catch.
+        [SuppressMessage(
+            "Documentation",
+            "RCS1140:Add exception to documentation comment",
+            Justification = "Confirmation failures are caught, logged and returned as values, not thrown to the awaiter.")]
         private async Task<Exception?> ReclaimAsync(RetiredGeneration retired)
         {
             bool recoveryAdmissionClosed = false;
@@ -664,6 +670,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The owning server instance.</param>
         /// <param name="generation">The generation whose saved continuations have expired.</param>
+        /// <exception cref="AggregateException">
+        /// Removing this generation's continuation points fails in more than one session.
+        /// </exception>
         private static void InvalidateContinuationPoints(IServerInternal server, NodeManagerGeneration generation)
         {
             // A published initial generation can retire before startup installs the session manager.

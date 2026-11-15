@@ -217,6 +217,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Prepares reference owners under the captured routing view.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// A manager being removed or replaced has no registered owner in the captured routing view.
+        /// </exception>
         private async ValueTask<PreparedAddressSpaceReferences> PrepareReferencesAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
@@ -309,6 +312,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Acquires the requested host admission and any capabilities inherited from the active callback.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The missing callback capabilities identify neither address-space mutation nor server lifecycle admission.
+        /// </exception>
         // BatchAdmission owns a successful borrow; the finally blocks dispose every untransferred borrow.
         // TODO: Remove this exception when the native lifecycle admission contract replaces this adapter.
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",

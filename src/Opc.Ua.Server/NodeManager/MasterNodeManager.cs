@@ -1607,6 +1607,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the node manager receiving the notification dispatch.
             /// </summary>
+            /// <exception cref="ObjectDisposedException">The notification dispatch lease has been released.</exception>
             public IAsyncNodeManager NodeManager => Volatile.Read(ref m_nodeManager) ??
                 throw new ObjectDisposedException(nameof(NotificationDispatchLease));
 

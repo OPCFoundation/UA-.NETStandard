@@ -616,6 +616,9 @@ namespace Opc.Ua.Server
         /// Activates a restored read scope in the caller's asynchronous flow.
         /// </summary>
         /// <param name="scope">The scope returned by <see cref="RestoreHistoryReadAsync"/>.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The scope is inactive, belongs to another holder or does not follow the current flow's read scope.
+        /// </exception>
         internal void ActivateHistoryRead(HistoryReadScope scope)
         {
             if (!scope.CanActivate(this, m_historyRead.Value))
@@ -660,6 +663,9 @@ namespace Opc.Ua.Server
         /// <param name="historyRequest">The exact request that owns the dispatch.</param>
         /// <param name="generation">The generation that receives the callback.</param>
         /// <returns>The scope to close after binding the callback's results.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The request is not a history request owned by this holder, or it has already ended.
+        /// </exception>
         internal IDisposable BeginHistoryDispatch(IDisposable historyRequest, NodeManagerGeneration generation)
         {
             lock (m_lock)
@@ -1066,6 +1072,9 @@ namespace Opc.Ua.Server
         /// Removes a released point's mirrors and disposes its exact value.
         /// </summary>
         /// <param name="released">The point removed from the available history list.</param>
+        /// <exception cref="AggregateException">
+        /// More than one step fails while removing the point's portable or local mirrors and disposing the point.
+        /// </exception>
         private void CleanupReleasedHistory(HistoryContinuationPoint released)
         {
             var failures = new List<Exception>();
@@ -1121,6 +1130,10 @@ namespace Opc.Ua.Server
         /// <param name="readScope">The read owner, or null for a caller-owned restore.</param>
         /// <param name="cancellationToken">The token used to cancel a portable claim.</param>
         /// <returns>The restored point, or null if it is unavailable.</returns>
+        /// <exception cref="AggregateException">
+        /// Removing the local mirror or claiming the portable point fails,
+        /// and the corresponding read-ownership or claim cleanup also fails.
+        /// </exception>
         private async ValueTask<IHistoryContinuationPoint?> RestoreHistoryCoreAsync(
             ByteString continuationPoint,
             HistoryReadScope? readScope,
@@ -1428,6 +1441,9 @@ namespace Opc.Ua.Server
         /// Reserves an exact entry for one history read while holding the session lock.
         /// </summary>
         /// <param name="entry">The entry being admitted.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The point already has an active read, pending cleanup or an unresolved cleanup failure.
+        /// </exception>
         private static void AdmitHistoryRead(HistoryContinuationPoint entry)
         {
             if (entry.ActiveReads != 0 || entry.CleanupPending || entry.CleanupFailure is not null)
@@ -1443,6 +1459,10 @@ namespace Opc.Ua.Server
         /// <param name="point">The exact point used by the completed read.</param>
         /// <param name="disposePoint">Whether an unsaved point must be disposed.</param>
         /// <param name="scope">The read owner whose admission may need to follow deferred cleanup.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The point is no longer retained, its exclusive read ownership was lost,
+        /// or deferred cleanup already owns a generation admission.
+        /// </exception>
         private void EndHistoryRead(
             IHistoryContinuationPoint point,
             bool disposePoint,
@@ -1549,6 +1569,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="point">The exact continuation held by the completed read.</param>
         /// <param name="checkSessionOwnership">Whether caller and other-session ownership must be preserved.</param>
+        /// <exception cref="InvalidOperationException">Cleanup of this exact point is already pending.</exception>
         internal void DisposeHistoryReadPoint(
             IHistoryContinuationPoint point,
             bool checkSessionOwnership = false)
@@ -1689,6 +1710,9 @@ namespace Opc.Ua.Server
         /// <param name="entry">The retained continuation entry.</param>
         /// <param name="failure">The original failure associated with the verified resource.</param>
         /// <returns>The release notification to invoke after the failure is removed.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The failure changed, a read or cleanup is active, or this holder no longer retains the failed entry.
+        /// </exception>
         private Action? ConfirmHistoryCleanup(HistoryContinuationPoint entry, Exception failure)
         {
             lock (m_lock)
@@ -1711,6 +1735,9 @@ namespace Opc.Ua.Server
         /// Removes the local store mirror of a history continuation point.
         /// </summary>
         /// <param name="point">The continuation point, or null.</param>
+        /// <exception cref="AggregateException">
+        /// Removing the point's local store mirror fails and disposing the point during rollback also fails.
+        /// </exception>
         private void RemoveLocalHistoryMirror(IHistoryContinuationPoint? point)
         {
             if (point == null)
@@ -1905,6 +1932,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Releases the reservation after mirror rollback or successful admission.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// No pending mirrored-history save reservation exists for the supplied identifier.
+        /// </exception>
         private void ReleaseMirroredHistorySave(Guid id)
         {
             lock (m_lock)
@@ -1942,6 +1972,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates admission while holding the session lock and honors the exact mirror-save reservation.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The session is closed (<c>BadSessionClosed</c>),
+        /// or the point has been invalidated (<c>BadContinuationPointInvalid</c>).
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// The point has an unresolved cleanup failure, cleanup is pending, the identifier is already registered,
+        /// or the mirror-save reservation is invalid or held by another save.
+        /// </exception>
         private void ValidateHistoryAdmission(
             IHistoryContinuationPoint point,
             Guid id,
@@ -2003,6 +2041,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Admits an exact point while remembering caller ownership for a failed save rollback.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The retained point's save sequence has reached <see cref="ulong.MaxValue"/>.
+        /// </exception>
         private (HistoryContinuationPoint Point, bool CallerOwned) AddHistoryContinuationPoint(
             IHistoryContinuationPoint continuationPoint,
             NodeId ownerSessionId,
@@ -2169,6 +2210,10 @@ namespace Opc.Ua.Server
         /// Validates a pending save while the session lock is held.
         /// </summary>
         /// <param name="continuationPoint">The point whose persistence is in progress.</param>
+        /// <exception cref="ServiceResultException">
+        /// The session closed during persistence (<c>BadSessionClosed</c>), or the point was invalidated,
+        /// is no longer pending persistence or is no longer retained (<c>BadContinuationPointInvalid</c>).
+        /// </exception>
         private void ValidatePendingHistoryLocked(HistoryContinuationPoint continuationPoint)
         {
             if (m_closed)
@@ -2770,6 +2815,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Cleans up a rejected mirrored history point without disposing an instance retained by another save.
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// Mirror removal or point disposal fails together with another cleanup failure
+        /// or the supplied original failure.
+        /// </exception>
         private void CleanupRejectedMirroredHistory(
             IHistoryContinuationPoint point,
             HistoryContinuationPointEnvelope envelope,
@@ -2832,6 +2881,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes and disposes all continuation points (called when the session is closed or discarded).
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// Removing mirrored entries or disposing browse or history continuation points fails.
+        /// </exception>
         public void Clear()
         {
             var browseCPs = new List<ContinuationPoint>();
@@ -3063,6 +3115,10 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="generation">The point's issuing generation.</param>
             /// <returns>Whether the generation accepted this read.</returns>
+            /// <exception cref="InvalidOperationException">
+            /// This scope is inactive or already owns a generation,
+            /// or successful generation admission returns no lease.
+            /// </exception>
             internal bool TryAdmitGeneration(NodeManagerGeneration generation)
             {
                 lock (m_stateLock)
@@ -3306,6 +3362,10 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets or retains the exact point while the session owns it.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// No strongly retained or still-reachable caller-owned point is available.
+            /// </exception>
+            /// <exception cref="ArgumentNullException">The assigned continuation point is null.</exception>
             public IHistoryContinuationPoint Value
             {
                 get => GetValueOrNull()

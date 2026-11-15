@@ -576,6 +576,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <param name="provider">The provider whose capture cleanup is being observed.</param>
         /// <returns>A task that completes when no timed-out consumer remains.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is null.</exception>
         internal static Task WaitForProviderCaptureCleanupAsync(IHistorianProvider provider)
         {
             if (provider is null)

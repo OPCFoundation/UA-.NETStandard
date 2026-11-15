@@ -879,6 +879,8 @@ namespace Opc.Ua.Server
         /// <param name="resource">The manager being disposed.</param>
         /// <param name="onCompleted">Marks the disposal stage complete after verified cleanup.</param>
         /// <returns>The registered disposal attempt.</returns>
+        /// <exception cref="ArgumentException"><paramref name="resource"/> contains no disposal resource.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="onCompleted"/> is null.</exception>
         internal RetiredConsumer BeginManagerCleanup(
             NodeManagerCleanupResource resource,
             Action onCompleted)
@@ -916,6 +918,9 @@ namespace Opc.Ua.Server
         /// <param name="resource">The exact manager disposal target, if it has one.</param>
         /// <param name="failure">The original private abort failure.</param>
         /// <param name="onConfirmed">Marks abort and disposal complete, without replaying either callback.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="failure"/> or <paramref name="onConfirmed"/> is null.
+        /// </exception>
         internal void RetainPrivateAbortFailure(
             NodeManagerCleanupResource resource,
             Exception failure,
@@ -952,6 +957,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="attempt">The exact registered disposal attempt.</param>
         /// <param name="failure">The disposal failure, or null when disposal succeeded.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The attempt is not retained by this generation or is no longer marked as a manager disposal in progress.
+        /// </exception>
         internal void CompleteManagerCleanup(RetiredConsumer attempt, Exception? failure)
         {
             lock (m_retirementResourcesLock)
@@ -977,6 +985,10 @@ namespace Opc.Ua.Server
         /// Disposes retired consumers after the generation's existing epochs and gate have drained.
         /// A failed resource remains owned until its cleanup has been verified.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The generation is not quiescent, or a retained consumer is already being disposed
+        /// or has no synchronous disposal resource.
+        /// </exception>
         internal void DisposeRetiredResources()
         {
             RetiredConsumer[] resources;
@@ -1343,6 +1355,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Releases one verification after the verifier has stopped using the resource.
         /// </summary>
+        /// <exception cref="InvalidOperationException">No cleanup verification remains active.</exception>
         internal void EndCleanupVerification()
         {
             TaskCompletionSource<bool>? drained = null;
@@ -1365,6 +1378,7 @@ namespace Opc.Ua.Server
         /// Waits for verifiers admitted before the current exclusive recovery operation.
         /// </summary>
         /// <returns>A task that completes after those verifiers have exited.</returns>
+        /// <exception cref="InvalidOperationException">Exclusive cleanup recovery has not been admitted.</exception>
         internal Task WaitForCleanupVerificationsAsync()
         {
             lock (m_cleanupConfirmationLock)
@@ -1504,6 +1518,10 @@ namespace Opc.Ua.Server
         /// <param name="handle">The verified and audited failure.</param>
         /// <param name="otherFailures">Whether another participant still reports a retained failure.</param>
         /// <returns>Whether cleanup can be resumed for this confirmation.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The confirmation is no longer pending, another unsuspended offer exists,
+        /// or a cleanup worker already holds a confirmation claim.
+        /// </exception>
         internal bool OfferCleanupConfirmation(NodeManagerCleanupFailureHandle handle, bool otherFailures)
         {
             lock (m_cleanupConfirmationLock)
@@ -1609,6 +1627,9 @@ namespace Opc.Ua.Server
         /// <param name="handle">The exact confirmation claimed by the worker.</param>
         /// <param name="completed">Whether physical cleanup of this generation finished.</param>
         /// <param name="allowRetry">Whether a deferred worker may claim it again without reconciliation.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The supplied handle is not the confirmation currently claimed by the cleanup worker.
+        /// </exception>
         internal void FinishCleanupConfirmationClaim(
             NodeManagerCleanupFailureHandle handle,
             bool completed,
@@ -2033,6 +2054,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves an unregistered source without assigning it another facade's generation.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The source has no logical generation association, but its physical resource already has an owner.
+        /// </exception>
         internal static NodeManagerGeneration GetOrCreateSource(IAsyncNodeManager nodeManager)
         {
             IAsyncNodeManager identity = GetGenerationIdentity(nodeManager);
@@ -2078,6 +2102,10 @@ namespace Opc.Ua.Server
         /// <param name="current">The generation being replaced.</param>
         /// <param name="replacement">The replacement manager.</param>
         /// <returns>The prepared replacement generation.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The replacement identity already belongs to a live, retired or incompatible prepared generation,
+        /// or its cleaned identity can no longer be reused.
+        /// </exception>
         internal static NodeManagerGeneration CreateReplacement(
             NodeManagerGeneration current,
             IAsyncNodeManager replacement)
@@ -2276,6 +2304,10 @@ namespace Opc.Ua.Server
         /// Retains an accepted factory candidate before its registration slot and generation are assigned.
         /// Rejects reused terminal or live logical identities without guessing disposal ownership.
         /// </summary>
+        /// <exception cref="NodeManagerAlreadyRegisteredException">
+        /// The identity is already live or terminal, its exact physical candidate is already reserved,
+        /// or the physical resource has begun cleanup or has only terminal owners and no candidate reservation.
+        /// </exception>
         internal static void ReserveCandidate(IAsyncNodeManager manager)
         {
             IAsyncNodeManager identity = GetGenerationIdentity(manager);
@@ -2310,6 +2342,9 @@ namespace Opc.Ua.Server
         /// Releases terminal associations only after exact, verified cleanup has succeeded.
         /// Tombstones retain identity and reject resurrection without retaining the manager or server.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The generation is not quiescent or is neither retiring nor aborted.
+        /// </exception>
         internal static void CompleteCleanup(NodeManagerGeneration generation)
         {
             lock (s_lock)
@@ -2353,6 +2388,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Resolves the retained generation or rejects a collected terminal identity.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// Cleanup released the retained owner and its terminal generation is no longer reachable.
+            /// </exception>
             internal NodeManagerGeneration Get()
             {
                 return TryGet(out NodeManagerGeneration? current)
@@ -2380,6 +2418,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Checks an exact cleanup owner without changing either its association or gate.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// The supplied generation is not the association's retained cleanup owner.
+            /// </exception>
             internal void ValidateOwner(NodeManagerGeneration owner)
             {
                 if (!ReferenceEquals(m_owner, owner))
@@ -2478,6 +2519,9 @@ namespace Opc.Ua.Server
             /// Disposes synchronization only after terminal ownership and every cleanup admission have drained.
             /// An active lease or pending waiter owns the deferred disposal until its exact exit.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// Physical cleanup has not started, or logical owners or private candidate reservations still exist.
+            /// </exception>
             public void Dispose()
             {
                 lock (m_sync)
@@ -2515,6 +2559,10 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Reserves ownership before the logical generation can be published.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// Physical cleanup has started, or all remaining owners are terminal
+            /// and no candidate reservation exists for this manager.
+            /// </exception>
             internal void Add(NodeManagerGeneration owner)
             {
                 lock (m_sync)
@@ -2542,6 +2590,10 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Owns a private factory result until generation assignment consumes this physical reservation.
             /// </summary>
+            /// <exception cref="NodeManagerAlreadyRegisteredException">
+            /// Physical cleanup has started, this exact candidate is already reserved,
+            /// or the resource has only terminal owners and no outstanding candidate reservation.
+            /// </exception>
             internal void ReserveCandidate(IAsyncNodeManager candidate)
             {
                 lock (m_sync)
@@ -2577,6 +2629,9 @@ namespace Opc.Ua.Server
             /// No provider callback runs while a synchronous state lock is held.
             /// The caller owns its closed recovery gate and releases this lease after handling its cleanup outcome.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// This lifetime no longer retains the exact logical owner requesting physical cleanup.
+            /// </exception>
             internal async ValueTask<CleanupLease> EnterCleanupAsync(NodeManagerGeneration owner)
             {
                 lock (m_sync)
@@ -2647,6 +2702,10 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Drops only the exact completed owner, leaving an irreversible physical tombstone.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// Physical cleanup has not started, the owner is not quiescent,
+            /// or this lifetime no longer retains the owner.
+            /// </exception>
             internal void Complete(NodeManagerGeneration owner)
             {
                 bool completed;
@@ -2720,6 +2779,9 @@ namespace Opc.Ua.Server
                 /// Claims sibling evidence and stops producers before joining the work they may release.
                 /// The caller already owns its exact confirmation; siblings keep evidence for their own cleanup.
                 /// </summary>
+                /// <exception cref="InvalidOperationException">
+                /// A shared logical owner's pending cleanup confirmation cannot be claimed for this attempt.
+                /// </exception>
                 internal async ValueTask PrepareForShutdownAsync(NodeManagerGeneration owner)
                 {
                     var claims = new List<(NodeManagerGeneration Generation, NodeManagerCleanupFailureHandle Handle)>();

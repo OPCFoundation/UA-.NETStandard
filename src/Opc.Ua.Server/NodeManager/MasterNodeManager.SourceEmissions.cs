@@ -581,6 +581,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Retains the parent admission while a child is validated and registered.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// The number of simultaneous source-emission capture claims has reached <see cref="int.MaxValue"/>.
+            /// </exception>
             private bool TryEnterCapture()
             {
                 while (true)

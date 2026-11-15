@@ -3267,6 +3267,9 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Restores an unfinished claim without losing a failure from the operation being unwound.
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// An operation failure was supplied and disposing its continuation claim also fails.
+        /// </exception>
         private static async ValueTask DisposeContinuationClaimAsync(
             HistorianContinuationClaim? claim,
             Exception? operationFailure)
@@ -3442,6 +3445,9 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Releases a state whose admission failed without discarding the original failure or denial.
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// Disposing the untransferred state fails after admission failed or was denied.
+        /// </exception>
         private static void DisposeUntransferredHistoryState(
             ISessionContinuationPoints continuationPoints,
             HistorianContinuationState state,

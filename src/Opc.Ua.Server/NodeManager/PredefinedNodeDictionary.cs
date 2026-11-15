@@ -102,6 +102,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a node, rejecting an existing NodeId.
         /// </summary>
+        /// <exception cref="ArgumentException">The supplied key is already indexed.</exception>
         public void Add(NodeId key, NodeState value)
         {
             if (!TryAdd(key, value))
@@ -121,6 +122,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a node or replaces the current entry with the value returned by the update callback.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="updateValueFactory"/> is null.</exception>
         public NodeState AddOrUpdate(
             NodeId key,
             NodeState addValue,
@@ -147,6 +149,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a node produced by the callback if absent and returns the indexed node.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="valueFactory"/> is null.</exception>
         public NodeState GetOrAdd(NodeId key, Func<NodeId, NodeState> valueFactory)
         {
             if (valueFactory == null)
@@ -159,6 +162,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces an entry only if it still contains the exact comparison node.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="comparisonValue"/> is null.</exception>
         public bool TryUpdate(NodeId key, NodeState value, NodeState comparisonValue)
         {
             if (comparisonValue == null)
@@ -219,6 +223,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes an entry only if it still contains the exact supplied node.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="value"/> is null.</exception>
         public bool TryRemove(NodeId key, NodeState value)
         {
             if (value == null)

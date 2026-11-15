@@ -295,6 +295,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// Managed-resource disposal was requested and more than one session resource cleanup fails.
+        /// </exception>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
