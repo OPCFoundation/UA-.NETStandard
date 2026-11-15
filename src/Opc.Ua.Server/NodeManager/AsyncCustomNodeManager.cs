@@ -5320,8 +5320,11 @@ namespace Opc.Ua.Server
             List<NodeHandle>? nodesToValidate = null;
 
             // the values kept for the response are charged against the response byte
-            // budget of the service while they are read.
-            bool hasResponseBudget = context.ResponseBytesRemaining >= 0;
+            // budget of the service while they are read. Nothing else charges the budget
+            // while a node manager reads, so the values are summed here and charged once.
+            long responseBytesLeft = context.ResponseBytesRemaining;
+            bool hasResponseBudget = responseBytesLeft >= 0;
+            long responseBytes = 0;
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
@@ -5415,16 +5418,24 @@ namespace Opc.Ua.Server
 
                 // the read fails as a whole once its values exceed the response byte
                 // budget, so the remaining nodes are not read.
-                if (hasResponseBudget &&
-                    !context.TryChargeResponse(ResponseSizeEstimator.EstimateValue(value)))
+                if (hasResponseBudget)
                 {
-                    return;
+                    responseBytes += ResponseSizeEstimator.EstimateValue(value);
+                    if (responseBytes > responseBytesLeft)
+                    {
+                        context.TryChargeResponse(responseBytes);
+                        return;
+                    }
                 }
             }
 
             // check for nothing to do.
             if (nodesToValidate == null)
             {
+                if (hasResponseBudget)
+                {
+                    context.TryChargeResponse(responseBytes);
+                }
                 return;
             }
 
@@ -5442,11 +5453,13 @@ namespace Opc.Ua.Server
             {
                 foreach (NodeHandle handle in nodesToValidate)
                 {
-                    if (!context.TryChargeResponse(ResponseSizeEstimator.EstimateValue(values[handle.Index])))
+                    responseBytes += ResponseSizeEstimator.EstimateValue(values[handle.Index]);
+                    if (responseBytes > responseBytesLeft)
                     {
-                        return;
+                        break;
                     }
                 }
+                context.TryChargeResponse(responseBytes);
             }
         }
 

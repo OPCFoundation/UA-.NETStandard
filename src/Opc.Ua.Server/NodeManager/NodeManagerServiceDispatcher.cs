@@ -1751,15 +1751,15 @@ namespace Opc.Ua.Server
                             // nothing.
                             if (context.ResponseBytesRemaining == remaining)
                             {
-                                for (int ii = 0; ii < count; ii++)
+                                long responseBytes = 0;
+                                for (int ii = 0; ii < count && responseBytes <= remaining; ii++)
                                 {
-                                    if (unread[ii] &&
-                                        nodesToRead[ii].Processed &&
-                                        !context.TryChargeResponse(ResponseSizeEstimator.EstimateValue(values[ii])))
+                                    if (unread[ii] && nodesToRead[ii].Processed)
                                     {
-                                        break;
+                                        responseBytes += ResponseSizeEstimator.EstimateValue(values[ii]);
                                     }
                                 }
+                                context.TryChargeResponse(responseBytes);
                             }
 
                             // a response that exceeds the message size limit cannot be sent.
