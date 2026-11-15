@@ -50,6 +50,32 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         public const string PumpModelDirectory = "sample-pump";
 
+        /// <summary>
+        /// Resolves the explicitly selected checkout, or discovers it from in-checkout test output.
+        /// </summary>
+        internal static string RepositoryRoot
+        {
+            get
+            {
+                string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+                DirectoryInfo? directory = new(string.IsNullOrEmpty(configuredRoot)
+                    ? NUnit.Framework.TestContext.CurrentContext.TestDirectory
+                    : configuredRoot);
+                if (!string.IsNullOrEmpty(configuredRoot) &&
+                    !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException(
+                        "OPCUA_TEST_REPOSITORY_ROOT does not identify a repository containing UA.slnx.");
+                }
+                while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
+                {
+                    directory = directory.Parent;
+                }
+                return directory?.FullName
+                    ?? throw new DirectoryNotFoundException("Could not locate the repository root.");
+            }
+        }
+
         public static byte[] GenerateThingModel(string sourcePath, string title)
         {
             using WotDocument document = WotNodeSetConverter.FromNodeSet(
