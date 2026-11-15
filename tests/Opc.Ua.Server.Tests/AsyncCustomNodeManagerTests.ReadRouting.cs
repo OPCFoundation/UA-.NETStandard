@@ -155,6 +155,51 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// A read of several attributes of a node one after another reads the permission
+        /// attributes of the node once; the node is read again after another node.
+        /// </summary>
+        [Test]
+        public async Task ConsecutiveReadsOfANodeReadItsPermissionsOnceAsync()
+        {
+            (MasterNodeManager dispatcher, ITestNodeManager manager, ISession session) =
+                CreateReadDispatcher();
+            await using MasterNodeManager disposable = dispatcher;
+            NodeId counted = await AddPermissionVariableAsync(
+                manager, "CountedPermissions", 3, PermissionType.Browse | PermissionType.Read).ConfigureAwait(false);
+            NodeId other = await AddPermissionVariableAsync(
+                manager, "OtherPermissions", 4, PermissionType.Browse | PermissionType.Read).ConfigureAwait(false);
+            int permissionReads = 0;
+            manager.PredefinedNodes[counted].OnReadRolePermissions =
+                (ISystemContext context, NodeState node, ref ArrayOf<RolePermissionType> value) =>
+            {
+                permissionReads++;
+                return ServiceResult.Good;
+            };
+
+            (ArrayOf<DataValue> values, _) = await ReadManyAsync(
+                dispatcher,
+                session,
+                DiagnosticsMasks.None,
+                new ReadValueId { NodeId = counted, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = counted, AttributeId = Attributes.BrowseName },
+                new ReadValueId { NodeId = counted, AttributeId = Attributes.DisplayName },
+                new ReadValueId { NodeId = other, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = counted, AttributeId = Attributes.Value }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(values.Count, Is.EqualTo(5));
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    Assert.That(values[ii].StatusCode, Is.EqualTo(StatusCodes.Good), $"value {ii}");
+                }
+                Assert.That((int)values[0].WrappedValue, Is.EqualTo(3));
+                Assert.That((int)values[3].WrappedValue, Is.EqualTo(4));
+                Assert.That(permissionReads, Is.EqualTo(2));
+            });
+        }
+
         private (MasterNodeManager Dispatcher, ITestNodeManager Manager, ISession Session)
             CreateReadDispatcher(ITestNodeManager? manager = null)
         {

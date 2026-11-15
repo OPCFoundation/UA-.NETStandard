@@ -1058,25 +1058,6 @@ namespace Opc.Ua.Server
                 : new AggregateException("Browse and continuation cleanup failed.", cleanupFailures);
         }
 
-        /// <summary>
-        /// Creates the attribute cache for a request with more than one node, and returns
-        /// <c>null</c> for a request with one node: its permission attributes are read once
-        /// either way, so the caller validates with <c>permissionsOnly</c> instead of
-        /// allocating a cache it never hits.
-        /// </summary>
-        /// <typeparam name="T">One of the types used in the service calls (ReadValueId, WriteValue).</typeparam>
-        /// <param name="nodesList">The collection of nodes on which the service operates upon</param>
-        /// <returns>The cache, or <c>null</c> for a request with at most one node.</returns>
-        private static Dictionary<NodeId, Variant[]>? PrepareValidationCacheForMany<T>(ArrayOf<T> nodesList)
-        {
-            if (nodesList.Count <= 1)
-            {
-                return null;
-            }
-
-            PrepareValidationCache(nodesList, out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes);
-            return uniqueNodesServiceAttributes;
-        }
 
         /// <summary>
         /// Prepares a cache per NodeManager and unique NodeId that holds the attributes needed to validate AccessRestrictions and RolePermissions.
@@ -1675,7 +1656,11 @@ namespace Opc.Ua.Server
 
             m_logger.MasterNodeManagerReadCountCount(nodesToRead.Count);
 
-            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = PrepareValidationCacheForMany(nodesToRead);
+            // a request with more than one node caches the permission attributes of the node
+            // of the previous value: clients read the attributes of a node one after another,
+            // and a cache of every node of the request costs a dictionary sized for it.
+            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes =
+                nodesToRead.Count > 1 ? new Dictionary<NodeId, Variant[]>(1) : null;
 
             (IAsyncNodeManager[] dispatchOrder,
                 IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
@@ -1684,6 +1669,12 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
+                if (uniqueNodesReadAttributes != null &&
+                    !uniqueNodesReadAttributes.ContainsKey(nodesToRead[ii].NodeId))
+                {
+                    uniqueNodesReadAttributes.Clear();
+                }
+
                 // pre-validate and pre-parse parameter.
                 errors[ii] = (await ValidateReadRequestAsync(
                     context,
