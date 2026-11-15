@@ -223,8 +223,13 @@ namespace Opc.Ua.Buffers
                 throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<>));
             }
 
+            // Per the IBufferWriter contract a sizeHint of 0 asks for any
+            // non-empty buffer: hand out the rest of the current chunk and
+            // rent a new chunk only when it is full. Renting on every
+            // GetSpan(0) would close a segment per call and strand a pooled
+            // array (up to the max chunk size) per zero length write.
             int remainingSpace = m_currentBuffer.Length - m_offset;
-            if (remainingSpace < sizeHint || sizeHint == 0)
+            if (remainingSpace < sizeHint || remainingSpace == 0)
             {
                 AddSegment();
 
