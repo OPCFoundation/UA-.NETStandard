@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -4590,6 +4591,21 @@ namespace Opc.Ua.Server
                 return (StatusCodes.Good, null);
             }
 
+            // the node manager finds an in-memory node again without a handle.
+            if (TryFindNodeWithDefaultLookup(context, nodeId, out AsyncCustomNodeManager? defaultOwner, out NodeState? node))
+            {
+                return (await ValidatePermissionsOfNodeAsync(
+                        context,
+                        defaultOwner,
+                        nodeId,
+                        node,
+                        requestedPermission,
+                        uniqueNodesServiceAttributes,
+                        permissionsOnly,
+                        cancellationToken)
+                    .ConfigureAwait(false), null);
+            }
+
             (object? nodeHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
                     context,
                     nodeId,
@@ -4756,6 +4772,20 @@ namespace Opc.Ua.Server
         {
             if (context.Session != null || context.UserIdentity != null || context.ChannelContext != null)
             {
+                if (TryFindNodeWithDefaultLookup(context, nodeId, out AsyncCustomNodeManager? owner, out NodeState? node))
+                {
+                    return await ValidatePermissionsOfNodeAsync(
+                            context,
+                            owner,
+                            nodeId,
+                            node,
+                            requestedPermision,
+                            uniqueNodesServiceAttributes,
+                            permissionsOnly,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
                 (object? nodeHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
                     context, nodeId, cancellationToken)
                     .ConfigureAwait(false);
@@ -4771,6 +4801,99 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
             }
             return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Finds the in-memory node <paramref name="nodeId"/> without a handle when the node
+        /// manager that
+        /// <see cref="GetManagerHandleAsync(OperationContext, NodeId, CancellationToken)"/>
+        /// asks first is an <see cref="AsyncCustomNodeManager"/> with the default handle lookup
+        /// (see <see cref="AsyncCustomNodeManager.FindNodeWithDefaultLookup"/>) and has the node.
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> when the handle lookup must decide, which then asks the node managers
+        /// again from the first one.
+        /// </returns>
+        private bool TryFindNodeWithDefaultLookup(
+            OperationContext context,
+            NodeId nodeId,
+            [NotNullWhen(true)] out AsyncCustomNodeManager? owner,
+            [NotNullWhen(true)] out NodeState? node)
+        {
+            owner = null;
+            node = null;
+            if (m_handleLookupOverride != null || nodeId.IsNull)
+            {
+                return false;
+            }
+
+            // the same selection as ResolveManagerHandleAsync, up to the first node manager it asks.
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
+            var routing = m_nodeManagers.GetDispatchView(snapshot);
+            IAsyncNodeManager? first = null;
+            if (!routing.NamespaceManagers.TryGetValue(
+                nodeId.NamespaceIndex,
+                out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            {
+                if (routing.NodeManagers.Length >= 2 && snapshot.CanDispatchTo(routing.NodeManagers[1]))
+                {
+                    first = routing.NodeManagers[1];
+                }
+            }
+            else
+            {
+                for (int ii = 0; ii < nodeManagers!.Count; ii++)
+                {
+                    if (snapshot.CanDispatchTo(nodeManagers[ii]))
+                    {
+                        first = nodeManagers[ii];
+                        break;
+                    }
+                }
+            }
+
+            if (first is AsyncCustomNodeManager custom &&
+                custom.FindNodeWithDefaultLookup(nodeId) is NodeState found)
+            {
+                owner = custom;
+                node = found;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Validates the permissions and access restrictions of a node that
+        /// <see cref="TryFindNodeWithDefaultLookup"/> found, like
+        /// <see cref="ValidatePermissionsAndGetMetadataAsync"/> does with its handle.
+        /// </summary>
+        private async ValueTask<ServiceResult> ValidatePermissionsOfNodeAsync(
+            OperationContext context,
+            AsyncCustomNodeManager owner,
+            NodeId nodeId,
+            NodeState node,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributes,
+            bool permissionsOnly,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await owner.ValidatePermissionsAsync(
+                        context,
+                        nodeId,
+                        node,
+                        requestedPermission,
+                        uniqueNodesServiceAttributes,
+                        permissionsOnly,
+                        m_logger,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                return new ServiceResult(exception);
+            }
         }
 
         /// <summary>

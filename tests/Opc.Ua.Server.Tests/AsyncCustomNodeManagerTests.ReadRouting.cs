@@ -70,7 +70,9 @@ namespace Opc.Ua.Server.Tests
             });
             if (m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
-                // routed by the validation, for the node manager that owns the node.
+                // routed by the validation, for the node manager that owns the node: the
+                // fixture's core node manager is asked first for the namespace, so the
+                // validation resolves a handle (see WriteRouting for a node found without one).
                 Assert.That(single.Handle, Is.InstanceOf<NodeHandle>());
                 var handle = (NodeHandle)single.Handle;
                 Assert.That(handle.Node, Is.SameAs(manager.PredefinedNodes[nodeId]));
@@ -154,12 +156,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         private (MasterNodeManager Dispatcher, ITestNodeManager Manager, ISession Session)
-            CreateReadDispatcher()
+            CreateReadDispatcher(ITestNodeManager? manager = null)
         {
             m_mockServer.Setup(server => server.Telemetry).Returns(NUnitTelemetryContext.Create());
             var resources = new ResourceManager(m_configuration);
             m_mockServer.Setup(server => server.ResourceManager).Returns(resources);
-            ITestNodeManager manager = CreateManager();
+            manager ??= CreateManager();
             var core = new Mock<ICoreNodeManager>();
             core.Setup(value => value.SyncNodeManager).Returns(Mock.Of<INodeManager>());
             var factory = new Mock<IMainNodeManagerFactory>();
