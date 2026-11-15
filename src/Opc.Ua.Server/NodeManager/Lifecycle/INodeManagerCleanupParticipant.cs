@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(participant));
             }
-            return ReferenceEquals(m_participant, participant) && Volatile.Read(ref m_active) != 0;
+            return ReferenceEquals(Volatile.Read(ref m_participant), participant);
         }
 
         /// <summary>
@@ -220,11 +220,10 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void Revoke()
         {
-            Interlocked.Exchange(ref m_active, 0);
+            Interlocked.Exchange(ref m_participant, null);
         }
 
-        private readonly INodeManagerCleanupParticipant m_participant;
-        private int m_active = 1;
+        private INodeManagerCleanupParticipant? m_participant;
     }
 
     /// <summary>
@@ -254,12 +253,13 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(participant));
             }
-            if (!ReferenceEquals(m_participant, participant) ||
+            if (!ReferenceEquals(Volatile.Read(ref m_participant), participant) ||
                 Interlocked.CompareExchange(ref m_state, kConsumed, kActive) != kActive)
             {
                 failureId = Guid.Empty;
                 return false;
             }
+            Interlocked.Exchange(ref m_participant, null);
             failureId = m_failureId;
             return true;
         }
@@ -275,12 +275,13 @@ namespace Opc.Ua.Server
         internal void Revoke()
         {
             Interlocked.CompareExchange(ref m_state, kRevoked, kActive);
+            Interlocked.Exchange(ref m_participant, null);
         }
 
         private const int kActive = 0;
         private const int kConsumed = 1;
         private const int kRevoked = 2;
-        private readonly INodeManagerCleanupParticipant m_participant;
+        private INodeManagerCleanupParticipant? m_participant;
         private readonly Guid m_failureId;
         private int m_state;
     }

@@ -27,6 +27,8 @@
 
 using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
@@ -261,6 +263,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Retained capabilities keep their participant only while their authority remains usable.
+        /// </summary>
+        [TestCase("Discovery", false, false)]
+        [TestCase("Discovery", false, true)]
+        [TestCase("Verification", false, false)]
+        [TestCase("Verification", false, true)]
+        [TestCase("Verification", true, false)]
+        [TestCase("Verification", true, true)]
+        [TestCase("Confirmation", false, false)]
+        [TestCase("Confirmation", false, true)]
+        [TestCase("Confirmation", true, false)]
+        [TestCase("Confirmation", true, true)]
+        public async Task CleanupCapabilityOnlyRetainsActiveParticipantAsync(
+            string kind,
+            bool consumed,
+            bool revoked)
+        {
+            (object capability, WeakReference participant) =
+                CreateRetainedCapability(kind, consumed, revoked);
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                await Task.Yield();
+            }
+            Assert.That(participant.IsAlive, Is.EqualTo(!consumed && !revoked));
+            GC.KeepAlive(capability);
+        }
+
+        /// <summary>
         /// Only known kinds and numeric status codes are exposed from participant metadata.
         /// </summary>
         [TestCase("DirectoryCursor", "DirectoryCursor")]
@@ -288,6 +321,56 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(sanitized.StatusCode.SymbolicId, Is.Empty);
                 Assert.That(supplied.ResourceName, Is.EqualTo("C:\\private\\name"));
                 Assert.That(supplied.StatusCode.SymbolicId, Is.EqualTo("untrusted status text"));
+            }
+        }
+
+        /// <summary>
+        /// Keeps the capability but not its participant on the caller's stack.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (object Capability, WeakReference Participant) CreateRetainedCapability(
+            string kind,
+            bool consumed,
+            bool revoked)
+        {
+            INodeManagerCleanupParticipant participant = Mock.Of<INodeManagerCleanupParticipant>();
+            var weak = new WeakReference(participant);
+            var id = Guid.NewGuid();
+            switch (kind)
+            {
+                case "Discovery":
+                    var access = new NodeManagerCleanupAccess(participant);
+                    if (revoked)
+                    {
+                        access.Revoke();
+                    }
+                    return (access, weak);
+                case "Verification":
+                    var verification = new NodeManagerCleanupVerification(participant, id);
+                    if (consumed)
+                    {
+                        Assert.That(verification.TryConsume(participant, out Guid verifiedId), Is.True);
+                        Assert.That(verifiedId, Is.EqualTo(id));
+                    }
+                    if (revoked)
+                    {
+                        verification.Revoke();
+                    }
+                    return (verification, weak);
+                case "Confirmation":
+                    var confirmation = new NodeManagerCleanupConfirmation(participant, id);
+                    if (consumed)
+                    {
+                        Assert.That(confirmation.TryConsume(participant, out Guid confirmedId), Is.True);
+                        Assert.That(confirmedId, Is.EqualTo(id));
+                    }
+                    if (revoked)
+                    {
+                        confirmation.Revoke();
+                    }
+                    return (confirmation, weak);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
             }
         }
 

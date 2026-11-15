@@ -1415,6 +1415,8 @@ Each participant returns a stable snapshot whose backing storage is not changed 
 registry updates. The host revokes each participant capability when its callback returns or
 throws, before inspecting the returned snapshot or confirmation outcome. It copies and validates
 the snapshot before using it.
+Consuming or revoking a capability releases its participant reference. A retained spent
+capability cannot keep the participant alive; confirmation still records whether it was consumed.
 Discovery and confirmation must remain available until lifecycle cleanup finishes, including
 after the manager's disposal callback returns. During published retirement and private-candidate
 cleanup, the lifecycle checks for retained failures before producer preparation and after
