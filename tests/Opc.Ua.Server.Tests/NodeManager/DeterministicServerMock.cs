@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             var mockMasterNodeManager = new Mock<IMasterNodeManager>();
             var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
-            NamespaceMetadataState? noMetadata = null;
+            NamespaceMetadataNode? noMetadata = null;
             mockConfigurationNodeManager.As<INamespaceMetadataSnapshot>()
                 .Setup(manager => manager.TryGetNamespaceMetadataState(It.IsAny<ushort>(), out noMetadata))
                 .Returns(true);
@@ -144,8 +144,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             Mock<IConfigurationNodeManager> configuration = Mock.Get(
                 server.Object.NodeManager.ConfigurationNodeManager!);
+            NamespaceMetadataNode? node = NamespaceMetadataNode.From(metadata);
             configuration.As<INamespaceMetadataSnapshot>()
-                .Setup(manager => manager.TryGetNamespaceMetadataState(namespaceIndex, out metadata))
+                .Setup(manager => manager.TryGetNamespaceMetadataState(namespaceIndex, out node))
                 .Returns(true);
             configuration.Setup(manager => manager.GetNamespaceMetadataStateAsync(
                     namespaceIndex, It.IsAny<CancellationToken>()))

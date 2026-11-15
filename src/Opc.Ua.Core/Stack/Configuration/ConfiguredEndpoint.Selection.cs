@@ -75,12 +75,18 @@ namespace Opc.Ua
         /// Checks the endpoints of a discovery update against the endpoints the
         /// endpoint was selected from. The selection is only checked once: the
         /// updated list becomes <see cref="DiscoveryEndpoints"/> and is compared
-        /// with the endpoints returned by CreateSession.
+        /// with the endpoints returned by CreateSession. Like that comparison
+        /// (OPC 10000-4 §5.7.2.2), only the endpoints with the transport profile
+        /// of the selected endpoint are compared, and
+        /// <see cref="ClientConfiguration.VerifyServerEndpointsWithDiscovery"/>
+        /// turns the check off.
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// The update offers different security options than the selection.
         /// </exception>
-        private void ValidateAgainstSelectionEndpoints(ArrayOf<EndpointDescription> endpoints)
+        private void ValidateAgainstSelectionEndpoints(
+            ArrayOf<EndpointDescription> endpoints,
+            ApplicationConfiguration? applicationConfiguration)
         {
             ArrayOf<EndpointDescription> selection = m_selectionEndpoints;
             if (selection.IsEmpty)
@@ -88,7 +94,16 @@ namespace Opc.Ua
                 return;
             }
 
-            if (!HaveSameSecurityOptions(selection, endpoints))
+            if (applicationConfiguration?.ClientConfiguration?.VerifyServerEndpointsWithDiscovery == false)
+            {
+                m_selectionEndpoints = default;
+                return;
+            }
+
+            string? transportProfileUri = m_description?.TransportProfileUri;
+            if (!HaveSameSecurityOptions(
+                FilterByTransportProfile(selection, transportProfileUri),
+                FilterByTransportProfile(endpoints, transportProfileUri)))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
@@ -97,6 +112,38 @@ namespace Opc.Ua
             }
 
             m_selectionEndpoints = default;
+        }
+
+        /// <summary>
+        /// Selects the endpoints with <paramref name="transportProfileUri"/>. OPC
+        /// 10000-4 §5.7.2.2 compares only the EndpointDescriptions that match the
+        /// transport profile of the current SecureChannel; a server may describe
+        /// its endpoints on other transports differently. An unknown profile
+        /// keeps every endpoint.
+        /// </summary>
+        internal static ArrayOf<EndpointDescription> FilterByTransportProfile(
+            ArrayOf<EndpointDescription> endpoints,
+            string? transportProfileUri)
+        {
+            if (string.IsNullOrEmpty(transportProfileUri) || endpoints.IsEmpty)
+            {
+                return endpoints;
+            }
+
+            var matching = new List<EndpointDescription>(endpoints.Count);
+            for (int ii = 0; ii < endpoints.Count; ii++)
+            {
+                EndpointDescription? endpoint = endpoints[ii];
+                if (endpoint != null &&
+                    string.Equals(
+                        endpoint.TransportProfileUri,
+                        transportProfileUri,
+                        System.StringComparison.Ordinal))
+                {
+                    matching.Add(endpoint);
+                }
+            }
+            return matching.Count == endpoints.Count ? endpoints : matching.ToArray();
         }
 
         /// <summary>

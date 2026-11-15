@@ -1823,6 +1823,9 @@ namespace Opc.Ua.Server
 
             // pre-validate items.
             bool validItems = false;
+            bool eventFilterTooLarge =
+                details is ReadEventDetails { Filter: { } readEventFilter } &&
+                ExceedsSelectClauseLimit(readEventFilter);
             // create empty list of errors.
             var errors = new List<ServiceResult>(nodesToRead.Count);
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -1839,9 +1842,21 @@ namespace Opc.Ua.Server
                 if (!nodesToRead[ii].ContinuationPoint.IsEmpty &&
                     context.Session?.ContinuationPoints is SessionContinuationPoints holder)
                 {
-                    (result, errors[ii]) = await ReadHistoryContinuationAsync(
-                        context, holder, nodesToRead[ii], details!, timestampsToReturn,
-                        releaseContinuationPoints, ii, nodesToRead.Count, cancellationToken).ConfigureAwait(false);
+                    if (eventFilterTooLarge && !releaseContinuationPoints)
+                    {
+                        // a resumed read passes the filter of the request on to the node
+                        // manager, so the limit applies here too. The point cannot be
+                        // resumed with this filter, so it is released rather than kept.
+                        holder.ReleaseHistory(nodesToRead[ii].ContinuationPoint);
+                        result = new HistoryReadResult();
+                        errors[ii] = StatusCodes.BadEventFilterInvalid;
+                    }
+                    else
+                    {
+                        (result, errors[ii]) = await ReadHistoryContinuationAsync(
+                            context, holder, nodesToRead[ii], details!, timestampsToReturn,
+                            releaseContinuationPoints, ii, nodesToRead.Count, cancellationToken).ConfigureAwait(false);
+                    }
                     nodesToRead[ii].Processed = true;
                     if (ServiceResult.IsBad(errors[ii]))
                     {
@@ -1860,6 +1875,13 @@ namespace Opc.Ua.Server
                 // pre-validate and pre-parse parameter.
                 errors[ii] = (await ValidateHistoryReadRequestAsync(context, nodesToRead[ii], cancellationToken)
                     .ConfigureAwait(false))!;
+
+                // the event filter is kept by the continuation points of the request, so its
+                // select clauses are limited for every node manager, legacy ones included.
+                if (eventFilterTooLarge && !ServiceResult.IsBad(errors[ii]))
+                {
+                    errors[ii] = StatusCodes.BadEventFilterInvalid;
+                }
 
                 // return error status.
                 if (ServiceResult.IsBad(errors[ii]))

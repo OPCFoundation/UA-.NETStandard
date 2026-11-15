@@ -216,9 +216,12 @@ The manager's `TimeProvider` drives both native verification time and cache
 deadlines, including when constructed through the factory. Hostname validation
 is independent of the chain cache and checks each requested endpoint.
 
-The Reference Server rejects every user-certificate validation error through an
-isolated per-call policy, even when application provisioning enables autoaccept
-or another validation has warmed a permissive Users cache. Approve X.509 users
+The Reference Server and the library `X509Authenticator` (used by
+`AddSecureServer` and `AddDefaultIdentityAuthenticators`) reject every
+user-certificate validation error through an isolated per-call policy, even when
+`AutoAcceptUntrustedCertificates` or a global `AcceptError` hook accepts
+application certificates, or another validation has warmed a permissive Users
+cache. Approve X.509 users
 in the Users trust list; trusting an application in Peers does not approve a
 user. Valid user certificates still require proof of possession and grant no
 administrative role merely by being trusted. Application bootstrap acceptance

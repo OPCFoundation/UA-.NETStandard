@@ -345,6 +345,63 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Verifies that the fields every item selects from a transferred snapshot share one
+        /// stamp, which admits them and still rejects fields changed after admission, and
+        /// that fields with their own values are stamped on their own.
+        /// </summary>
+        [Test]
+        public void FieldsOfTransferredSnapshotShareOneStamp()
+        {
+            using var fixture = new IdentityFixture();
+            EnableAdmission(fixture);
+            BaseEventState native = Event(s_id);
+            fixture.Manager.AdmitEvent(fixture.Context, native);
+            var snapshot = (BaseEventState)native.Clone();
+            fixture.Manager.TransferEventIdentity(fixture.Context, native, snapshot);
+            Variant[] values = [s_id];
+
+            object? shared = fixture.Manager.CreateSharedEventFieldsStamp(snapshot, values);
+            var first = new EventFieldList { Handle = snapshot, EventFields = values };
+            var second = new EventFieldList { Handle = snapshot, EventFields = values };
+            var copy = new EventFieldList { Handle = snapshot, EventFields = [s_id] };
+            fixture.Manager.RegisterEventFields(first, snapshot, shared);
+            fixture.Manager.RegisterEventFields(second, snapshot, shared);
+            fixture.Manager.RegisterEventFields(copy, snapshot, shared);
+
+            Assert.That(shared, Is.Not.Null);
+            Assert.That(first.AdmissionStamp, Is.SameAs(shared));
+            Assert.That(second.AdmissionStamp, Is.SameAs(shared));
+            Assert.That(copy.AdmissionStamp, Is.Not.Null.And.Not.SameAs(shared));
+            Assert.DoesNotThrow(() => fixture.Manager.AdmitEventFields(first));
+            Assert.DoesNotThrow(() => fixture.Manager.AdmitEventFields(copy));
+            second.EventFields = [s_otherId];
+            AssertStatus(() => fixture.Manager.AdmitEventFields(second), StatusCodes.BadSecurityChecksFailed);
+            GC.KeepAlive(native);
+        }
+
+        /// <summary>
+        /// Verifies that an occurrence that is not a sealed snapshot has no shared stamp, so
+        /// each item admits it itself.
+        /// </summary>
+        [Test]
+        public void UnsealedOccurrenceHasNoSharedStamp()
+        {
+            using var fixture = new IdentityFixture();
+            EnableAdmission(fixture);
+            BaseEventState native = Event(s_id);
+            fixture.Manager.AdmitEvent(fixture.Context, native);
+            Variant[] values = [s_id];
+
+            object? shared = fixture.Manager.CreateSharedEventFieldsStamp(native, values);
+            var fields = new EventFieldList { Handle = native, EventFields = values };
+            fixture.Manager.RegisterEventFields(fields, native, shared);
+
+            Assert.That(shared, Is.Null);
+            Assert.That(fields.AdmissionStamp, Is.Not.Null);
+            Assert.DoesNotThrow(() => fixture.Manager.AdmitEventFields(fields));
+        }
+
+        /// <summary>
         /// Verifies that a snapshot that no longer matches its occurrence is not admitted with
         /// it, so the items it is queued to still see the conflict.
         /// </summary>

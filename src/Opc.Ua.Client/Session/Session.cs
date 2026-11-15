@@ -6805,9 +6805,18 @@ namespace Opc.Ua.Client
             ArrayOf<string> discoveryProfileUris,
             string? expectedServerApplicationUri)
         {
-            if (!discoveryServerEndpoints.IsEmpty)
+            // OPC 10000-4 §5.7.2.2: a Client with configured security options ignores the list.
+            bool verifyWithDiscovery =
+                m_configuration.ClientConfiguration?.VerifyServerEndpointsWithDiscovery != false;
+            if (!discoveryServerEndpoints.IsEmpty && verifyWithDiscovery)
             {
-                // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
+                // Compare EndpointDescriptions returned at GetEndpoints with values returned at
+                // CreateSession. Only those with the transport profile of the current
+                // SecureChannel are compared (OPC 10000-4 §5.7.2.2): a server may describe its
+                // endpoints on other transports differently.
+                string? channelTransportProfileUri = m_endpoint.Description.TransportProfileUri;
+                discoveryServerEndpoints = ConfiguredEndpoint.FilterByTransportProfile(
+                    discoveryServerEndpoints, channelTransportProfileUri);
                 ArrayOf<EndpointDescription> expectedServerEndpoints = default;
                 if (!serverEndpoints.IsNull && !discoveryProfileUris.IsEmpty)
                 {
@@ -6827,6 +6836,8 @@ namespace Opc.Ua.Client
                 {
                     expectedServerEndpoints = serverEndpoints;
                 }
+                expectedServerEndpoints = ConfiguredEndpoint.FilterByTransportProfile(
+                    expectedServerEndpoints, channelTransportProfileUri);
 
                 if (discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
                 {
