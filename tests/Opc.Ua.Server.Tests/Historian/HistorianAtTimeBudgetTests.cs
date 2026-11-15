@@ -90,11 +90,11 @@ namespace Opc.Ua.Server.Tests.Historian
             var provider = new ScanningProvider(samples: 1000);
             DateTimeUtc[] times = RequestedTimes(10_000, TimeSpan.FromMilliseconds(1));
 
-            long before = GC.GetTotalAllocatedBytes(precise: true);
+            long before = GetTotalAllocatedBytes();
             var watch = Stopwatch.StartNew();
             HistoryReadResult result = await ReadAtTimeAsync(provider.Object, times);
             watch.Stop();
-            long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+            long allocated = GetTotalAllocatedBytes() - before;
             TestContext.Out.WriteLine(
                 "status={0} reads={1} scanned={2} time={3} ms allocated={4} MB",
                 result.StatusCode, provider.Reads, provider.Scanned, watch.ElapsedMilliseconds, allocated >> 20);
@@ -210,6 +210,19 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 await fixture.StopAsync();
             }
+        }
+
+        /// <summary>
+        /// The bytes allocated by the process so far; zero on .NET Framework, which has no
+        /// process-wide counter (the scan count still bounds the work there).
+        /// </summary>
+        private static long GetTotalAllocatedBytes()
+        {
+#if NETFRAMEWORK
+            return 0;
+#else
+            return GC.GetTotalAllocatedBytes(precise: true);
+#endif
         }
 
         private static DateTimeUtc[] RequestedTimes(int count, TimeSpan step, TimeSpan offset = default)
