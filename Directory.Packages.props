@@ -13,7 +13,7 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.0" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.5" />
     <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.4" />
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
@@ -224,5 +224,25 @@
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.13" />
+  </ItemGroup>
+  <!-- The patched Aspire host requires these framework patches. Keep its tool-only
+       minimum separate from the stack's unchanged dependency baseline. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Opc.Ua.Lens.AppHost'">
+    <PackageVersion Update="Microsoft.Extensions.Configuration;
+                            Microsoft.Extensions.Configuration.Abstractions;
+                            Microsoft.Extensions.Configuration.EnvironmentVariables;
+                            Microsoft.Extensions.Logging;
+                            Microsoft.Extensions.Logging.Abstractions;
+                            Microsoft.Extensions.Logging.Console;
+                            Microsoft.Extensions.DependencyInjection.Abstractions;
+                            Microsoft.Extensions.DependencyInjection;
+                            Microsoft.Extensions.Diagnostics;
+                            Microsoft.Extensions.Http;
+                            Microsoft.Extensions.Hosting;
+                            Microsoft.Extensions.Hosting.Abstractions;
+                            Microsoft.Extensions.Caching.Abstractions;
+                            Microsoft.Extensions.Options;
+                            Microsoft.Extensions.Options.ConfigurationExtensions"
+                    Version="10.0.14" />
   </ItemGroup>
 </Project>
