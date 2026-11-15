@@ -29,12 +29,16 @@
 
 #if NET10_0
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Security;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests
@@ -97,6 +101,149 @@ namespace Opc.Ua.Tools.Tests
             }
         }
 
+        /// <summary>
+        /// Presence copies preserve raw reports, source paths and branch evidence without overflowing hit counts.
+        /// </summary>
+        [TestCase("separate")]
+        [TestCase("empty")]
+        public async Task NormalizationPreservesRawFragmentsAndBranchEvidenceAsync(string output)
+        {
+            NormalizationResult result = await RunNormalizationAsync(
+                ["0", "1", "2147483640", "9223372036854775817"], output).ConfigureAwait(false);
+
+            Assert.That(result.Script.ExitCode, Is.Zero, result.Script.Output);
+            Assert.That(result.Normalized, Is.Not.Null);
+            var normalized = XDocument.Parse(result.Normalized!);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.RawHashAfter, Is.EqualTo(result.RawHashBefore));
+                Assert.That(
+                    normalized.Descendants("line").Select(line => (string?)line.Attribute("hits")),
+                    Is.EqualTo(s_expectedPresenceHits));
+                Assert.That(
+                    normalized.Descendants("line").Select(line => (string?)line.Attribute("condition-coverage")),
+                    Is.All.EqualTo("75% (3/4)"));
+                Assert.That(normalized.Descendants("source").Single().Value, Is.EqualTo("synthetic-source"));
+                Assert.That((string?)normalized.Root!.Attribute("branch-rate"), Is.EqualTo("0.75"));
+            }
+        }
+
+        /// <summary>
+        /// Invalid raw counts must be rejected before they can become a successful merged coverage report.
+        /// </summary>
+        [TestCase("-1")]
+        [TestCase("")]
+        [TestCase("not-a-count")]
+        public async Task NormalizationRejectsInvalidCountsWithoutChangingRawInputAsync(string hits)
+        {
+            NormalizationResult result = await RunNormalizationAsync([hits]).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Script.ExitCode, Is.Not.Zero, result.Script.Output);
+                Assert.That(result.Script.Output, Does.Contain("Invalid non-negative coverage hit count"));
+                Assert.That(result.RawHashAfter, Is.EqualTo(result.RawHashBefore));
+                Assert.That(result.Normalized, Is.Null);
+            }
+        }
+
+        /// <summary>
+        /// Output storage cannot overwrite, contain or be rediscovered within the raw artifact directory.
+        /// </summary>
+        [TestCase("same")]
+        [TestCase("nested")]
+        [TestCase("ancestor")]
+        public async Task NormalizationRejectsOverlappingDirectoriesAsync(string output)
+        {
+            NormalizationResult result = await RunNormalizationAsync(["1"], output).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Script.ExitCode, Is.Not.Zero, result.Script.Output);
+                Assert.That(result.Script.Output, Does.Contain("must not overlap"));
+                Assert.That(result.RawHashAfter, Is.EqualTo(result.RawHashBefore));
+            }
+        }
+
+        /// <summary>
+        /// Existing output is not removed or mixed with a later fragment set.
+        /// </summary>
+        [Test]
+        public async Task NormalizationRejectsExistingOutputWithoutRemovingItAsync()
+        {
+            NormalizationResult result = await RunNormalizationAsync(["1"], "nonempty").ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Script.ExitCode, Is.Not.Zero, result.Script.Output);
+                Assert.That(result.Script.Output, Does.Contain("must be empty"));
+                Assert.That(result.Sentinel, Is.EqualTo("keep"));
+                Assert.That(result.RawHashAfter, Is.EqualTo(result.RawHashBefore));
+            }
+        }
+
+        /// <summary>
+        /// Missing raw fragments cannot be treated as a successful normalization.
+        /// </summary>
+        [Test]
+        public async Task NormalizationRejectsMissingFragmentsAsync()
+        {
+            NormalizationResult result = await RunNormalizationAsync(["1"], writeReport: false).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Script.ExitCode, Is.Not.Zero, result.Script.Output);
+                Assert.That(result.Script.Output, Does.Contain("No Cobertura fragments were found"));
+                Assert.That(result.Normalized, Is.Null);
+            }
+        }
+
+        /// <summary>
+        /// A file with the expected suffix must still contain Cobertura data.
+        /// </summary>
+        [Test]
+        public async Task NormalizationRejectsUnrelatedXmlWithoutChangingItAsync()
+        {
+            NormalizationResult result = await RunNormalizationAsync(
+                ["1"], validCoverage: false).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Script.ExitCode, Is.Not.Zero, result.Script.Output);
+                Assert.That(result.Script.Output, Does.Contain("Not a Cobertura fragment"));
+                Assert.That(result.RawHashAfter, Is.EqualTo(result.RawHashBefore));
+                Assert.That(result.Normalized, Is.Null);
+            }
+        }
+
+        /// <summary>
+        /// Both coverage jobs must actually merge the copied presence reports with an explicit tool version.
+        /// </summary>
+        [TestCase("buildandtest.yml")]
+        [TestCase("nightly.yml")]
+        public async Task NormalizationFeedsThePinnedWorkflowMergerAsync(string workflow)
+        {
+            string text = await File.ReadAllTextAsync(
+                Path.Combine(FindRepositoryRoot(), ".github", "workflows", workflow)).ConfigureAwait(false);
+            int start = text.IndexOf("    - name: Merge coverage report", StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0));
+            int end = text.IndexOf("\n    - name:", start + 1, StringComparison.Ordinal);
+            string step = end < 0 ? text[start..] : text[start..end];
+            int normalize = step.IndexOf("./.github/scripts/normalize-coverage.ps1", StringComparison.Ordinal);
+            int merge = step.IndexOf("./tools/reportgenerator", StringComparison.Ordinal);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(normalize, Is.GreaterThanOrEqualTo(0));
+                Assert.That(merge, Is.GreaterThan(normalize));
+                Assert.That(step, Does.Contain("-OutputDirectory normalized-coverage"));
+                Assert.That(step, Does.Contain("-reports:normalized-coverage/**/*.cobertura.xml"));
+                Assert.That(step, Does.Not.Contain("-reports:coverage-artifacts/"));
+                Assert.That(step, Does.Contain("dotnet-reportgenerator-globaltool --version "));
+                Assert.That(step, Does.Contain("installation failed with exit code"));
+            }
+        }
+
         [Test]
         public async Task RelativeRepoRootKeepsSourceSubRootInCoveragePathsAsync()
         {
@@ -156,9 +303,9 @@ namespace Opc.Ua.Tools.Tests
             string sourceFile = repository.WriteSourceFile("1");
             await repository.CommitAllAsync("base").ConfigureAwait(false);
             await repository.CreateAndCheckoutBranchAsync("feature").ConfigureAwait(false);
-            File.WriteAllText(
+            await File.WriteAllTextAsync(
                 Path.Combine(repository.RootPath, "README.md"),
-                "documentation change" + Environment.NewLine);
+                "documentation change" + Environment.NewLine).ConfigureAwait(false);
             await repository.CommitAllAsync("change docs").ConfigureAwait(false);
             string reportPath = repository.WriteCoberturaReport(sourceFile, repository.SourceRoot, 5, 1);
 
@@ -560,15 +707,27 @@ namespace Opc.Ua.Tools.Tests
             repository.WriteWotProjectFile();
             repository.WriteNonCoverableWotFile(
                 "IContract.cs",
-                "public interface IContract" + Environment.NewLine + "{" + Environment.NewLine +
-                    "    int Value { get; }" + Environment.NewLine + "}");
+                "public interface IContract" +
+                Environment.NewLine +
+                "{" +
+                Environment.NewLine +
+                "    int Value { get; }" +
+                Environment.NewLine +
+                "}");
             await repository.CommitAllAsync("base").ConfigureAwait(false);
             await repository.CreateAndCheckoutBranchAsync("feature").ConfigureAwait(false);
             repository.WriteNonCoverableWotFile(
                 "IContract.cs",
-                "public interface IContract" + Environment.NewLine + "{" + Environment.NewLine +
-                    "    int Value { get; }" + Environment.NewLine + Environment.NewLine +
-                    "    int Other { get; }" + Environment.NewLine + "}");
+                "public interface IContract" +
+                Environment.NewLine +
+                "{" +
+                Environment.NewLine +
+                "    int Value { get; }" +
+                Environment.NewLine +
+                Environment.NewLine +
+                "    int Other { get; }" +
+                Environment.NewLine +
+                "}");
             await repository.CommitAllAsync("change contract").ConfigureAwait(false);
 
             // Nothing of the project is in the report, so nothing proves the
@@ -669,16 +828,27 @@ namespace Opc.Ua.Tools.Tests
             repository.WriteWotSourceFile("1");
             repository.WriteNonCoverableWotFile(
                 "Kind.cs",
-                "public enum Kind" + Environment.NewLine + "{" + Environment.NewLine +
-                    "    None = 0" + Environment.NewLine + "}");
+                "public enum Kind" +
+                Environment.NewLine +
+                "{" +
+                Environment.NewLine +
+                "    None = 0" +
+                Environment.NewLine +
+                "}");
             await repository.CommitAllAsync("base").ConfigureAwait(false);
             await repository.CreateAndCheckoutBranchAsync("feature").ConfigureAwait(false);
             repository.WriteWotSourceFile("2");
             repository.WriteNonCoverableWotFile(
                 "Kind.cs",
-                "public enum Kind" + Environment.NewLine + "{" + Environment.NewLine +
-                    "    None = 0," + Environment.NewLine + "    Some = 1" +
-                    Environment.NewLine + "}");
+                "public enum Kind" +
+                Environment.NewLine +
+                "{" +
+                Environment.NewLine +
+                "    None = 0," +
+                Environment.NewLine +
+                "    Some = 1" +
+                Environment.NewLine +
+                "}");
             await repository.CommitAllAsync("change both").ConfigureAwait(false);
 
             // The one file that can be measured is uncovered, so the rule has
@@ -900,7 +1070,7 @@ namespace Opc.Ua.Tools.Tests
         {
             string scriptPath = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "check-coverage.ps1");
             string thresholdsPath = Path.Combine(workingDirectory, "coverage-thresholds.json");
-            File.WriteAllText(
+            await File.WriteAllTextAsync(
                 thresholdsPath,
                 """
                 {
@@ -928,8 +1098,112 @@ namespace Opc.Ua.Tools.Tests
                     "**/*.g.cs"
                   ]
                 }
-                """);
+                """).ConfigureAwait(false);
 
+            var arguments = new List<string>
+            {
+                "-CoberturaPath", coberturaPath,
+                "-ThresholdsPath", thresholdsPath,
+                "-RepoRoot", repoRoot
+            };
+            if (!projectOnly)
+            {
+                arguments.AddRange(["-BaseRef", "master", "-SkipFetch"]);
+            }
+            return await RunScriptAsync(workingDirectory, scriptPath, [.. arguments]).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs one isolated normalization case using ordinary directories, never a Git fixture.
+        /// </summary>
+        private static async Task<NormalizationResult> RunNormalizationAsync(
+            string[] hits,
+            string output = "separate",
+            bool writeReport = true,
+            bool validCoverage = true)
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "coverage-normalization", Guid.NewGuid().ToString("N"));
+            string inputDirectory = Path.Combine(directory, "input");
+            string outputDirectory = output switch
+            {
+                "same" => inputDirectory,
+                "nested" => Path.Combine(inputDirectory, "output"),
+                "ancestor" => directory,
+                _ => Path.Combine(directory, "output")
+            };
+            Directory.CreateDirectory(Path.Combine(inputDirectory, "shard"));
+            try
+            {
+                if (output is "empty" or "nonempty")
+                {
+                    Directory.CreateDirectory(outputDirectory);
+                }
+                string sentinel = Path.Combine(outputDirectory, "keep.txt");
+                if (output == "nonempty")
+                {
+                    await File.WriteAllTextAsync(sentinel, "keep").ConfigureAwait(false);
+                }
+                string path = Path.Combine(inputDirectory, "shard", "coverage.cobertura.xml");
+                string? original = null;
+                if (writeReport)
+                {
+                    string lines = string.Concat(hits.Select((value, index) =>
+                        $"<line number=\"{index + 1}\" hits=\"{SecurityElement.Escape(value)}\" " +
+                        "branch=\"true\" condition-coverage=\"75% (3/4)\" />"));
+                    original = $$"""
+                        <coverage line-rate="0.75" branch-rate="0.75">
+                          <sources><source>synthetic-source</source></sources>
+                          <packages><package name="SyntheticCounts"><classes>
+                            <class name="Subject" filename="SyntheticSubject.txt">
+                              <methods><method name="M"><lines>{{lines}}</lines></method></methods>
+                              <lines>{{lines}}</lines>
+                            </class>
+                          </classes></package></packages>
+                        </coverage>
+                        """;
+                    if (!validCoverage)
+                    {
+                        original = original.Replace("<coverage ", "<other ", StringComparison.Ordinal)
+                            .Replace("</coverage>", "</other>", StringComparison.Ordinal);
+                    }
+                    await File.WriteAllTextAsync(path, original).ConfigureAwait(false);
+                }
+                string? originalHash = File.Exists(path)
+                    ? Convert.ToHexString(SHA256.HashData(
+                        await File.ReadAllBytesAsync(path).ConfigureAwait(false)))
+                    : null;
+                ScriptResult result = await RunScriptAsync(
+                    directory,
+                    Path.Combine(FindRepositoryRoot(), ".github", "scripts", "normalize-coverage.ps1"),
+                    "-InputDirectory", inputDirectory,
+                    "-OutputDirectory", outputDirectory).ConfigureAwait(false);
+                string normalizedPath = Path.Combine(outputDirectory, "shard", "coverage.cobertura.xml");
+                return new NormalizationResult(
+                    result,
+                    originalHash,
+                    File.Exists(path)
+                        ? Convert.ToHexString(SHA256.HashData(
+                            await File.ReadAllBytesAsync(path).ConfigureAwait(false)))
+                        : null,
+                    File.Exists(normalizedPath)
+                        ? await File.ReadAllTextAsync(normalizedPath).ConfigureAwait(false)
+                        : null,
+                    File.Exists(sentinel) ? await File.ReadAllTextAsync(sentinel).ConfigureAwait(false) : null);
+            }
+            finally
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+
+        /// <summary>
+        /// Runs a repository PowerShell script without shell argument interpolation.
+        /// </summary>
+        private static async Task<ScriptResult> RunScriptAsync(
+            string workingDirectory,
+            string scriptPath,
+            params string[] arguments)
+        {
             using var process = new Process();
             process.StartInfo.FileName = "pwsh";
             process.StartInfo.WorkingDirectory = workingDirectory;
@@ -938,17 +1212,9 @@ namespace Opc.Ua.Tools.Tests
             process.StartInfo.ArgumentList.Add("-NoProfile");
             process.StartInfo.ArgumentList.Add("-File");
             process.StartInfo.ArgumentList.Add(scriptPath);
-            process.StartInfo.ArgumentList.Add("-CoberturaPath");
-            process.StartInfo.ArgumentList.Add(coberturaPath);
-            process.StartInfo.ArgumentList.Add("-ThresholdsPath");
-            process.StartInfo.ArgumentList.Add(thresholdsPath);
-            process.StartInfo.ArgumentList.Add("-RepoRoot");
-            process.StartInfo.ArgumentList.Add(repoRoot);
-            if (!projectOnly)
+            foreach (string argument in arguments)
             {
-                process.StartInfo.ArgumentList.Add("-BaseRef");
-                process.StartInfo.ArgumentList.Add("master");
-                process.StartInfo.ArgumentList.Add("-SkipFetch");
+                process.StartInfo.ArgumentList.Add(argument);
             }
 
             Assert.That(process.Start(), Is.True);
@@ -989,7 +1255,20 @@ namespace Opc.Ua.Tools.Tests
             throw new InvalidOperationException("Could not find the repository root.");
         }
 
+        /// <summary>Expected method and class line-presence counts in the synthetic normalization fixture.</summary>
+        private static readonly string[] s_expectedPresenceHits = ["0", "1", "1", "1", "0", "1", "1", "1"];
+
         private sealed record ScriptResult(int ExitCode, string Output);
+
+        /// <summary>
+        /// Captures the script outcome and immutable raw/report evidence before fixture cleanup.
+        /// </summary>
+        private sealed record NormalizationResult(
+            ScriptResult Script,
+            string? RawHashBefore,
+            string? RawHashAfter,
+            string? Normalized,
+            string? Sentinel);
 
         private sealed class TestRepository : IDisposable
         {
