@@ -3038,9 +3038,11 @@ namespace Opc.Ua.Server.Historian
             if (responseBytes >= 0)
             {
                 bool fits = false;
+                bool someFit = false;
                 for (int attempt = 0; attempt < kMaxResponseBudgetPageAttempts; attempt++)
                 {
                     (int count, long bytes) = CountValuesThatFit(filled, operationContext!.ResponseBytesRemaining);
+                    someFit |= count > 0;
                     if (count == filled.Count)
                     {
                         fits = operationContext.TryChargeResponse(bytes);
@@ -3063,14 +3065,16 @@ namespace Opc.Ua.Server.Historian
 
                 if (!fits)
                 {
-                    // not one value of the page fits. The response cannot hold it when
-                    // nothing else was charged, otherwise a later request can.
+                    // no page that fits was read. When nothing else was charged, no later
+                    // request can hold this page either.
                     if (operationContext!.ResponseBudgetUnused)
                     {
                         operationContext.TryChargeResponse(long.MaxValue);
                         throw new ServiceResultException(
                             StatusCodes.BadResponseTooLarge,
-                            "A value of the HistoryRead exceeds the response size limit.");
+                            someFit
+                                ? "The history provider returned more values than the response size limit holds."
+                                : "A value of the HistoryRead exceeds the response size limit.");
                     }
                     // Part 11 6.3: fewer values than requested, here none, with a
                     // continuation point that resumes where this page started.
