@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -3731,6 +3732,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves a data historian only for a variable node.
+        /// </summary>
+        private bool TryResolveDataHistorianProvider(
+            NodeState node,
+            [NotNullWhen(true)] out IHistorianProvider? provider)
+        {
+            provider = node is BaseVariableState ? ResolveHistorianProvider(node) : null;
+            return provider != null;
+        }
+
+        /// <summary>
         /// Releases the continuation points.
         /// </summary>
         protected virtual void HistoryReleaseContinuationPoints(
@@ -3799,14 +3811,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -3842,14 +3847,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -3891,14 +3889,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4362,14 +4353,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4434,15 +4418,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    if (source is not BaseVariableState)
-                    {
-                        errors[handle.Index] =
-                            StatusCodes.BadHistoryOperationUnsupported;
-                        continue;
-                    }
-                    IHistorianProvider? provider =
-                        ResolveHistorianProvider(source);
-                    if (provider == null)
+                    if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                     {
                         errors[handle.Index] =
                             StatusCodes.BadHistoryOperationUnsupported;
@@ -4519,14 +4495,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4560,14 +4529,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
