@@ -142,8 +142,7 @@ namespace Opc.Ua.Server
                 () => Id,
                 maxMessageCount,
                 m_server.SubscriptionStore as ISubscriptionRetransmissionStore,
-                m_logger,
-                m_server.EventManager);
+                m_logger);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = false;
 
@@ -350,8 +349,7 @@ namespace Opc.Ua.Server
                 m_logger,
                 storedSubscription.SentMessages,
                 storedSubscription.SequenceNumber,
-                storedSubscription.LastSentMessage,
-                m_server.EventManager);
+                storedSubscription.LastSentMessage);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
             // UserIdentityToken is null for anonymous sessions; the owner is then an
@@ -2261,7 +2259,7 @@ namespace Opc.Ua.Server
             // the collections are reused by every Publish of the subscription (under m_lock);
             // the constructed messages copy what they keep.
             List<NotificationMessage> messages = m_publishMessages;
-            List<MonitoredItemNotification[]?> rentedItemArrays = m_publishRentedItemArrays;
+            List<RentedNotificationArrays> rentedItemArrays = m_publishRentedItemArrays;
             messages.Clear();
             rentedItemArrays.Clear();
 
@@ -2270,7 +2268,7 @@ namespace Opc.Ua.Server
                 DateTime start1 = DateTime.UtcNow;
 
                 // collect notifications to publish.
-                Queue<EventFieldList> events = m_publishEvents;
+                Queue<QueuedEvent> events = m_publishEvents;
                 Queue<MonitoredItemNotification> datachanges = m_publishDataChanges;
                 Queue<DiagnosticInfo> datachangeDiagnostics = m_publishDataChangeDiagnostics;
                 events.Clear();
@@ -2369,7 +2367,7 @@ namespace Opc.Ua.Server
                             datachanges,
                             datachangeDiagnostics,
                             out int notificationCount,
-                            out MonitoredItemNotification[]? rentedItems);
+                            out RentedNotificationArrays rentedItems);
 
                         // add to list of messages to send.
                         messages.Add(message);
@@ -2401,7 +2399,7 @@ namespace Opc.Ua.Server
                         datachanges,
                         datachangeDiagnostics,
                         out int notificationCount,
-                        out MonitoredItemNotification[]? rentedItems);
+                        out RentedNotificationArrays rentedItems);
 
                     // add to list of messages to send.
                     messages.Add(message);
@@ -2515,14 +2513,16 @@ namespace Opc.Ua.Server
         /// Construct a message from the queues.
         /// </summary>
         private NotificationMessage ConstructMessage(
-            Queue<EventFieldList> events,
+            Queue<QueuedEvent> events,
             Queue<MonitoredItemNotification> datachanges,
             Queue<DiagnosticInfo> datachangeDiagnostics,
             out int notificationCount,
-            out MonitoredItemNotification[]? rentedItems)
+            out RentedNotificationArrays rented)
         {
             notificationCount = 0;
-            rentedItems = null;
+            EventFieldList[]? rentedEvents = null;
+            object?[]? rentedStamps = null;
+            MonitoredItemNotification[]? rentedItems = null;
 
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
             message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
@@ -2547,15 +2547,28 @@ namespace Opc.Ua.Server
             // add events.
             if (eventCount > 0)
             {
-                var eventList = new EventFieldList[eventCount];
-                for (int ii = 0; ii < eventList.Length; ii++)
+                // the arrays are rented and returned with the payload of the message like the
+                // data change array. The admission stamps stay referenced by the message until
+                // its last owner releases it, so the occurrences it reports keep their EventIds.
+                EventFieldList[] eventList = ArrayPool<EventFieldList>.Shared.Rent(eventCount);
+                rentedEvents = eventList;
+                EventManager? eventManager = m_server.EventManager;
+                for (int ii = 0; ii < eventCount; ii++)
                 {
-                    EventFieldList fields = events.Dequeue();
-                    m_server.EventManager?.AdmitEventFields(fields);
-                    eventList[ii] = fields;
+                    QueuedEvent queued = events.Dequeue();
+                    eventManager?.AdmitEventFields(queued);
+                    eventList[ii] = queued.Fields;
+                    if (queued.AdmissionStamp != null)
+                    {
+                        rentedStamps ??= ArrayPool<object?>.Shared.Rent(eventCount);
+                        rentedStamps[ii] = queued.AdmissionStamp;
+                    }
                 }
                 notificationCount += eventCount;
-                notificationData[dataIndex++] = new ExtensionObject(new EventNotificationList { Events = eventList });
+                notificationData[dataIndex++] = new ExtensionObject(new EventNotificationList
+                {
+                    Events = new ArrayOf<EventFieldList>(eventList.AsMemory(0, eventCount))
+                });
             }
 
             // add datachanges (space permitting).
@@ -2592,6 +2605,7 @@ namespace Opc.Ua.Server
             }
 
             message.NotificationData = notificationData;
+            rented = new RentedNotificationArrays(rentedItems, rentedEvents, rentedStamps);
             return message;
         }
 
@@ -4419,8 +4433,8 @@ namespace Opc.Ua.Server
         /// <summary>The authorization epoch of the retained messages.</summary>
         private NotificationAuthorization? m_notificationAuthorization;
         private readonly List<NotificationMessage> m_publishMessages = [];
-        private readonly List<MonitoredItemNotification[]?> m_publishRentedItemArrays = [];
-        private readonly Queue<EventFieldList> m_publishEvents = new();
+        private readonly List<RentedNotificationArrays> m_publishRentedItemArrays = [];
+        private readonly Queue<QueuedEvent> m_publishEvents = new();
         private readonly Queue<MonitoredItemNotification> m_publishDataChanges = new();
         private readonly Queue<DiagnosticInfo> m_publishDataChangeDiagnostics = new();
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;

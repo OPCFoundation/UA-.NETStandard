@@ -504,7 +504,6 @@ namespace Opc.Ua.Client.Tests
 
             // What the dispatch set on the first instance is set on the new one too.
             Assert.That(reread.SequenceNumber, Is.EqualTo(1u));
-            Assert.That(reread.Events[0].Message, Is.SameAs(cached));
             Assert.That(reread.Events[0].EventFields[0].TryGetValue(out string? field), Is.True);
             Assert.That(field, Is.EqualTo("first"));
 

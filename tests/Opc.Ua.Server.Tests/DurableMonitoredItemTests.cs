@@ -369,22 +369,22 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
-            bool status = queue.Dequeue(out EventFieldList result);
+            bool status = queue.Dequeue(out QueuedEvent result);
 
             Assert.That(status, Is.True);
-            Assert.That(result, Is.EqualTo(value));
+            Assert.That(result.Fields, Is.EqualTo(value));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            bool status2 = queue.Dequeue(out EventFieldList result2);
+            bool status2 = queue.Dequeue(out QueuedEvent result2);
 
             Assert.That(status2, Is.True);
-            Assert.That(result2, Is.EqualTo(value2));
+            Assert.That(result2.Fields, Is.EqualTo(value2));
             Assert.That(queue.ItemsInQueue, Is.Zero);
 
-            bool status3 = queue.Dequeue(out EventFieldList result3);
+            bool status3 = queue.Dequeue(out QueuedEvent result3);
 
             Assert.That(status3, Is.False);
-            Assert.That(result3, Is.Null);
+            Assert.That(result3.Fields, Is.Default);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
 
@@ -409,10 +409,10 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
-            bool status = queue.Dequeue(out EventFieldList result);
+            bool status = queue.Dequeue(out QueuedEvent result);
 
             Assert.That(status, Is.True);
-            Assert.That(result, Is.EqualTo(value));
+            Assert.That(result.Fields, Is.EqualTo(value));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
             queue.Enqueue(value2);
@@ -423,22 +423,22 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
-            bool status2 = queue.Dequeue(out EventFieldList result2);
+            bool status2 = queue.Dequeue(out QueuedEvent result2);
 
             Assert.That(status2, Is.True);
-            Assert.That(result2, Is.EqualTo(value2));
+            Assert.That(result2.Fields, Is.EqualTo(value2));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            bool status3 = queue.Dequeue(out EventFieldList result3);
+            bool status3 = queue.Dequeue(out QueuedEvent result3);
 
             Assert.That(status3, Is.True);
-            Assert.That(result3, Is.EqualTo(value2));
+            Assert.That(result3.Fields, Is.EqualTo(value2));
             Assert.That(queue.ItemsInQueue, Is.Zero);
 
-            bool status4 = queue.Dequeue(out EventFieldList result4);
+            bool status4 = queue.Dequeue(out QueuedEvent result4);
 
             Assert.That(status4, Is.False);
-            Assert.That(result4, Is.Null);
+            Assert.That(result4.Fields, Is.Default);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
 
@@ -466,16 +466,16 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            bool status = queue.Dequeue(out EventFieldList result);
+            bool status = queue.Dequeue(out QueuedEvent result);
 
             Assert.That(status, Is.True);
-            Assert.That(result, Is.EqualTo(value2));
+            Assert.That(result.Fields, Is.EqualTo(value2));
             Assert.That(queue.ItemsInQueue, Is.Zero);
 
-            bool status2 = queue.Dequeue(out EventFieldList result2);
+            bool status2 = queue.Dequeue(out QueuedEvent result2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.Fields, Is.Default);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
 
@@ -491,26 +491,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.QueueSize, Is.EqualTo(2));
             Assert.That(queue.ItemsInQueue, Is.Zero);
 
-            var value = new EventFieldList
+            var value = new QueuedEvent(new EventFieldList
             {
-                EventFields = [new Variant(true)],
-                Handle = new AuditSessionEventState(null)
-            };
+                EventFields = [new Variant(true)]
+            }, new AuditSessionEventState(null));
 
             queue.Enqueue(value);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
-            var value2 = new EventFieldList
+            var value2 = new QueuedEvent(new EventFieldList
             {
-                EventFields = [new Variant(false)],
-                Handle = new AuditUrlMismatchEventState(null)
-            };
+                EventFields = [new Variant(false)]
+            }, new AuditUrlMismatchEventState(null));
 
-            bool result = queue.IsEventContainedInQueue((IFilterTarget)value.Handle);
+            bool result = queue.IsEventContainedInQueue((IFilterTarget)value.Handle!);
 
             Assert.That(result, Is.True);
 
-            bool result2 = queue.IsEventContainedInQueue((IFilterTarget)value2.Handle);
+            bool result2 = queue.IsEventContainedInQueue((IFilterTarget)value2.Handle!);
 
             Assert.That(result2, Is.False);
 
@@ -518,11 +516,11 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
-            bool result3 = queue.IsEventContainedInQueue((IFilterTarget)value.Handle);
+            bool result3 = queue.IsEventContainedInQueue((IFilterTarget)value.Handle!);
 
             Assert.That(result3, Is.True);
 
-            bool result4 = queue.IsEventContainedInQueue((IFilterTarget)value2.Handle);
+            bool result4 = queue.IsEventContainedInQueue((IFilterTarget)value2.Handle!);
 
             Assert.That(result4, Is.True);
         }
@@ -550,18 +548,18 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 10; i++)
             {
-                bool status = queue.Dequeue(out EventFieldList result);
+                bool status = queue.Dequeue(out QueuedEvent result);
 
                 Assert.That(status, Is.True);
-                Assert.That(result, Is.EqualTo(value));
+                Assert.That(result.Fields, Is.EqualTo(value));
             }
 
             Assert.That(queue.ItemsInQueue, Is.Zero);
 
-            bool status2 = queue.Dequeue(out EventFieldList result2);
+            bool status2 = queue.Dequeue(out QueuedEvent result2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.Fields, Is.Default);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
 
@@ -598,18 +596,18 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 5; i++)
             {
-                bool status = queue.Dequeue(out EventFieldList result);
+                bool status = queue.Dequeue(out QueuedEvent result);
 
                 Assert.That(status, Is.True);
-                Assert.That(result, Is.EqualTo(value));
+                Assert.That(result.Fields, Is.EqualTo(value));
             }
 
             Assert.That(queue.ItemsInQueue, Is.Zero);
 
-            bool status2 = queue.Dequeue(out EventFieldList result2);
+            bool status2 = queue.Dequeue(out QueuedEvent result2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.Fields, Is.Default);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
 
@@ -648,18 +646,18 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 5; i++)
             {
-                bool status = queue.Dequeue(out EventFieldList result);
+                bool status = queue.Dequeue(out QueuedEvent result);
 
                 Assert.That(status, Is.True);
-                Assert.That(result, Is.EqualTo(value2));
+                Assert.That(result.Fields, Is.EqualTo(value2));
             }
 
             Assert.That(queue.ItemsInQueue, Is.Zero);
 
-            bool status2 = queue.Dequeue(out EventFieldList result2);
+            bool status2 = queue.Dequeue(out QueuedEvent result2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.Fields, Is.Default);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
 
@@ -698,18 +696,18 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 5; i++)
             {
-                bool status = queue.Dequeue(out EventFieldList result);
+                bool status = queue.Dequeue(out QueuedEvent result);
 
                 Assert.That(status, Is.True);
-                Assert.That(result, Is.EqualTo(value));
+                Assert.That(result.Fields, Is.EqualTo(value));
             }
 
             Assert.That(queue.ItemsInQueue, Is.Zero);
 
-            bool status2 = queue.Dequeue(out EventFieldList result2);
+            bool status2 = queue.Dequeue(out QueuedEvent result2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.Fields, Is.Default);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
 
@@ -751,12 +749,12 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queueHandler.Overflow, Is.True);
 
-            var events = new Queue<EventFieldList>();
+            var events = new Queue<QueuedEvent>();
             queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Not.Empty);
             Assert.That(events, Has.Count.EqualTo(1));
-            Assert.That(events.Peek(), Is.Not.EqualTo(value));
-            Assert.That(events.Peek(), Is.EqualTo(value2));
+            Assert.That(events.Peek().Fields, Is.Not.EqualTo(value));
+            Assert.That(events.Peek().Fields, Is.EqualTo(value2));
         }
 
         [Test]
@@ -784,21 +782,21 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queueHandler.Overflow, Is.False);
 
-            var events = new Queue<EventFieldList>();
+            var events = new Queue<QueuedEvent>();
             queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Not.Empty);
             Assert.That(events, Has.Count.EqualTo(1));
-            Assert.That(events.Peek(), Is.Not.EqualTo(value2));
-            Assert.That(events.Peek(), Is.EqualTo(value));
+            Assert.That(events.Peek().Fields, Is.Not.EqualTo(value2));
+            Assert.That(events.Peek().Fields, Is.EqualTo(value));
 
-            events = new Queue<EventFieldList>();
+            events = new Queue<QueuedEvent>();
             queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Not.Empty);
             Assert.That(events, Has.Count.EqualTo(1));
-            Assert.That(events.Peek(), Is.Not.EqualTo(value));
-            Assert.That(events.Peek(), Is.EqualTo(value2));
+            Assert.That(events.Peek().Fields, Is.Not.EqualTo(value));
+            Assert.That(events.Peek().Fields, Is.EqualTo(value2));
 
-            events = new Queue<EventFieldList>();
+            events = new Queue<QueuedEvent>();
             queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Empty);
         }
@@ -822,14 +820,14 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queueHandler.Overflow, Is.False);
 
-            var events = new Queue<EventFieldList>();
+            var events = new Queue<QueuedEvent>();
             queueHandler.Publish(null!, events, 2);
             Assert.That(events, Is.Not.Empty);
             Assert.That(events, Has.Count.EqualTo(2));
-            Assert.That(events.Dequeue(), Is.EqualTo(value));
-            Assert.That(events.Dequeue(), Is.EqualTo(value2));
+            Assert.That(events.Dequeue().Fields, Is.EqualTo(value));
+            Assert.That(events.Dequeue().Fields, Is.EqualTo(value2));
 
-            events = new Queue<EventFieldList>();
+            events = new Queue<QueuedEvent>();
             queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Empty);
         }
@@ -1378,13 +1376,12 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 1);
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
-            EventFieldList publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.FirstOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
 
@@ -1462,12 +1459,11 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
 
             Assert.That(result, Is.Not.Empty);
-            EventFieldList publishResult = result.LastOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.LastOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
@@ -1497,7 +1493,7 @@ namespace Opc.Ua.Server.Tests
             for (uint i = 0; i < 3000; i++)
             {
                 Assert.That(
-                    queue.Dequeue(out EventFieldList value),
+                    queue.Dequeue(out QueuedEvent value),
                     string.Format(
                         CultureInfo.InvariantCulture,
                         "Dequeue operation failed for the {0}st item",

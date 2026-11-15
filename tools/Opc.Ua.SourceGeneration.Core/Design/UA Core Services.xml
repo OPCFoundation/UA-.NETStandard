@@ -1689,7 +1689,7 @@
     <opc:Field Name="Events" DataType="EventFieldList" ValueRank="0" />
   </opc:ComplexType>
 
-  <opc:ComplexType Name="EventFieldList" AllowArrays="true" NotInAddressSpace="true" PartNo="4" Purpose="ServicesOnly">
+  <opc:ComplexType Name="EventFieldList" AllowArrays="true" NotInAddressSpace="true" PartNo="4" Purpose="ServicesOnly" IsValueType="true">
     <opc:Field Name="ClientHandle" DataType="IntegerId" />
     <opc:Field Name="EventFields" DataType="s0:Variant" ValueRank="0" />
   </opc:ComplexType>

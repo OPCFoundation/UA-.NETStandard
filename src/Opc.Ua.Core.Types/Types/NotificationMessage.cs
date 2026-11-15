@@ -111,26 +111,14 @@ namespace Opc.Ua
                 {
                     for (int ii = notification.Events.Count - 1; ii >= 0; ii--)
                     {
-                        EventFieldList eventFields = notification.Events[ii];
-
-                        if (eventFields != null)
-                        {
-                            eventFields.Message = this;
-                            events.Add(eventFields);
-                        }
+                        events.Add(notification.Events[ii]);
                     }
                 }
                 else
                 {
                     for (int ii = 0; ii < notification.Events.Count; ii++)
                     {
-                        EventFieldList eventFields = notification.Events[ii];
-
-                        if (eventFields != null)
-                        {
-                            eventFields.Message = this;
-                            events.Add(eventFields);
-                        }
+                        events.Add(notification.Events[ii]);
                     }
                 }
             }

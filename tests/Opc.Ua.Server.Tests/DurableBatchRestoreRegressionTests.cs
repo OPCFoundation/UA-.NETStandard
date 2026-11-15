@@ -166,14 +166,14 @@ namespace Opc.Ua.Server.Tests
                 batch.PersistingInProgress = true;
             }
 
-            Assert.That(queue.Dequeue(out EventFieldList pending), Is.False);
-            Assert.That(pending, Is.Null);
+            Assert.That(queue.Dequeue(out QueuedEvent pending), Is.False);
+            Assert.That(pending.Fields, Is.Default);
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
             persistor.Verify(p => p.RequestBatchRestore(batch), Times.Once);
 
             batch.PersistingInProgress = false;
             batch.Restore([expected]);
-            Assert.That(queue.Dequeue(out EventFieldList actual), Is.True);
+            Assert.That(queue.Dequeue(out QueuedEvent actual), Is.True);
             Assert.That(actual.ClientHandle, Is.EqualTo(42));
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests
             {
                 queue.Enqueue(new EventFieldList { ClientHandle = i });
             }
-            queue.Enqueue(new EventFieldList { ClientHandle = kEventBatchSize, Handle = instance });
+            queue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = kEventBatchSize }, instance));
 
             StorableEventQueue stored = queue.ToStorableQueue();
             Assert.That(stored.DequeueBatch, Is.Not.SameAs(stored.EnqueueBatch));
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
                 true, 1, persistor.Object, NUnitTelemetryContext.Create());
             queue.SetQueueSize(10, false);
             IFilterTarget instance = new Mock<IFilterTarget>().Object;
-            queue.Enqueue(new EventFieldList { ClientHandle = 1, Handle = new FilteredRetainTarget(instance) });
+            queue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = 1 }, new FilteredRetainTarget(instance)));
 
             Assert.That(queue.IsEventContainedInQueue(instance), Is.True);
             Assert.That(queue.IsEventContainedInQueue(new Mock<IFilterTarget>().Object), Is.False);
@@ -247,7 +247,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.ItemsInQueue, Is.EqualTo((int)count));
             for (uint i = 1; i <= count; i++)
             {
-                Assert.That(restored.Dequeue(out EventFieldList value), Is.True);
+                Assert.That(restored.Dequeue(out QueuedEvent value), Is.True);
                 Assert.That(value.ClientHandle, Is.EqualTo(i));
             }
             Assert.That(restored.ItemsInQueue, Is.Zero);
@@ -255,7 +255,7 @@ namespace Opc.Ua.Server.Tests
 
             // the restored queue keeps working without serving stale events.
             restored.Enqueue(new EventFieldList { ClientHandle = 4242 });
-            Assert.That(restored.Dequeue(out EventFieldList next), Is.True);
+            Assert.That(restored.Dequeue(out QueuedEvent next), Is.True);
             Assert.That(next.ClientHandle, Is.EqualTo(4242u));
             Assert.That(restored.Dequeue(out _), Is.False);
         }
@@ -316,7 +316,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(restored.ItemsInQueue, Is.EqualTo((int)count));
                 for (uint i = 1; i <= count; i++)
                 {
-                    Assert.That(restored.Dequeue(out EventFieldList value), Is.True, $"event {i}");
+                    Assert.That(restored.Dequeue(out QueuedEvent value), Is.True, $"event {i}");
                     Assert.That(value.ClientHandle, Is.EqualTo(i));
                 }
                 Assert.That(restored.Dequeue(out _), Is.False);
@@ -364,7 +364,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.ItemsInQueue, Is.EqualTo((int)count));
             for (uint i = 1; i <= count; i++)
             {
-                Assert.That(restored.Dequeue(out EventFieldList value), Is.True, $"event {i}");
+                Assert.That(restored.Dequeue(out QueuedEvent value), Is.True, $"event {i}");
                 Assert.That(value.ClientHandle, Is.EqualTo(i));
             }
         }
@@ -378,11 +378,11 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.Create(telemetry);
-            var events = new List<EventFieldList>
+            var events = new List<QueuedEvent>
             {
-                new() { ClientHandle = 1 },
-                new() { ClientHandle = 2 },
-                new() { ClientHandle = 3 }
+                new EventFieldList { ClientHandle = 1 },
+                new EventFieldList { ClientHandle = 2 },
+                new EventFieldList { ClientHandle = 3 }
             };
             var batch = new EventBatch(events, kEventBatchSize, 5);
 
@@ -408,7 +408,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.ItemsInQueue, Is.EqualTo(3));
             for (uint i = 1; i <= 3; i++)
             {
-                Assert.That(restored.Dequeue(out EventFieldList value), Is.True);
+                Assert.That(restored.Dequeue(out QueuedEvent value), Is.True);
                 Assert.That(value.ClientHandle, Is.EqualTo(i));
             }
             Assert.That(restored.Dequeue(out _), Is.False);
@@ -537,9 +537,9 @@ namespace Opc.Ua.Server.Tests
             encoder.WriteUInt32(null, batch.MonitoredItemId);
             encoder.WriteBoolean(null, false);
             encoder.WriteInt32(null, batch.Events.Count);
-            foreach (EventFieldList value in batch.Events)
+            foreach (QueuedEvent value in batch.Events)
             {
-                encoder.WriteEncodeableAsExtensionObject(null, value);
+                encoder.WriteEncodeableAsExtensionObject(null, value.Fields);
             }
         }
 

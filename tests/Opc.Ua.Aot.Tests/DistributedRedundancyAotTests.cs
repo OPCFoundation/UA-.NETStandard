@@ -264,7 +264,7 @@ namespace Opc.Ua.Aot.Tests
 
                 IEventMonitoredItemQueue eventQueue = factory.CreateEventQueue(false, 78);
                 eventQueue.SetQueueSize(4, true);
-                eventQueue.Enqueue(new EventFieldList { ClientHandle = 9, EventFields = [new Variant(true)] });
+                eventQueue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = 9, EventFields = [new Variant(true)] }));
 
                 await factory.FlushAsync().ConfigureAwait(false);
             }

@@ -81,9 +81,7 @@ namespace Opc.Ua.Server.Tests
             var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
             item.ClientHandle = 77;
             item.Value = new DataValue(42);
-            var eventItem = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
-            eventItem.ClientHandle = 77;
-            eventItem.EventFields = [42];
+            var eventItem = new EventFieldList { ClientHandle = 77, EventFields = [42] };
             var data = new DataChangeNotification { MonitoredItems = [item] };
             var eventList = new EventNotificationList { Events = [eventItem] };
             source.NotificationData = [new ExtensionObject(events ? eventList : data)];
@@ -170,9 +168,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(value!.Events[0].ClientHandle, Is.EqualTo(77u));
                 Assert.That(value.Events[0].EventFields[0].GetInt32(), Is.EqualTo(42));
 
-                // event field lists are not pooled by the server; they are left to the GC.
+                // event field lists are values; the message holds a copy.
                 Assert.That(eventItem.ClientHandle, Is.EqualTo(77u));
-                eventItem.Reuse();
             }
             else
             {
@@ -183,7 +180,6 @@ namespace Opc.Ua.Server.Tests
 
                 // data change notifications are values; the message holds a copy.
                 Assert.That(item.ClientHandle, Is.EqualTo(77u));
-                eventItem.Reuse();
             }
             queue.Clear();
         }
@@ -319,7 +315,7 @@ namespace Opc.Ua.Server.Tests
 
             MonitoredItemNotification[] originals = rented.Take(3).ToArray();
             NotificationMessage sent = queue.Enqueue(
-                [message], [], out _, out _, out NotificationMessageLease lease, [rented]);
+                [message], [], out _, out _, out NotificationMessageLease lease, [new RentedNotificationArrays(rented, null)]);
             var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
             PublishResponse decoded = Encode(response);
             Assert.That(
@@ -350,6 +346,63 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// The event field lists of a message are copied into an array rented from the shared
+        /// pool; the array is returned once the payload is recycled, and the message encodes
+        /// only its slice of it.
+        /// </summary>
+        [Test]
+        public void RentedEventArrayIsReturnedWithThePayload([Values(false, true)] bool acknowledgeFirst)
+        {
+            var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
+            EventFieldList[] rented = System.Buffers.ArrayPool<EventFieldList>.Shared.Rent(3);
+            for (int ii = 0; ii < 3; ii++)
+            {
+                rented[ii] = new EventFieldList { ClientHandle = (uint)ii + 1, EventFields = [ii] };
+            }
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [new ExtensionObject(new EventNotificationList
+                {
+                    Events = new ArrayOf<EventFieldList>(rented.AsMemory(0, 3))
+                })]
+            };
+
+            EventFieldList[] originals = rented.Take(3).ToArray();
+            NotificationMessage sent = queue.Enqueue(
+                [message], [], out _, out _, out NotificationMessageLease lease,
+                [new RentedNotificationArrays(null, rented)]);
+            var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
+            PublishResponse decoded = Encode(response);
+            Assert.That(
+                decoded.NotificationMessage.NotificationData[0].TryGetValue(out EventNotificationList? events),
+                Is.True);
+            Assert.That(events!.Events.Count, Is.EqualTo(3));
+            Assert.That(events.Events[2].ClientHandle, Is.EqualTo(3u));
+            Assert.That(events.Events[2].EventFields[0].GetInt32(), Is.EqualTo(2));
+
+            if (acknowledgeFirst)
+            {
+                Assert.That(queue.TryAcknowledge(1), Is.True);
+                Assert.That(rented[0], Is.EqualTo(originals[0]), "still being sent");
+                ((IPooledEncodeable)response).Reuse();
+            }
+            else
+            {
+                ((IPooledEncodeable)response).Reuse();
+                Assert.That(rented[0], Is.EqualTo(originals[0]), "still retained for republish");
+                Assert.That(queue.TryAcknowledge(1), Is.True);
+            }
+
+            // returned with clearArray, so it no longer references the recycled field values
+            // (another test may have rented it again since).
+            for (int ii = 0; ii < originals.Length; ii++)
+            {
+                Assert.That(rented[ii], Is.Not.EqualTo(originals[ii]));
+            }
+        }
+
+        /// <summary>
         /// Messages dropped unsent on queue overflow return their rented arrays.
         /// </summary>
         [Test]
@@ -367,7 +420,7 @@ namespace Opc.Ua.Server.Tests
                 new NotificationMessage { SequenceNumber = 1 },
                 new NotificationMessage { SequenceNumber = 2 }
             ];
-            List<MonitoredItemNotification[]?> rented = [dropped, kept];
+            List<RentedNotificationArrays> rented = [new(dropped, null), new(kept, null)];
 
             NotificationMessage sent = queue.Enqueue(messages, [], out _, out uint discarded, out NotificationMessageLease lease, rented);
 
