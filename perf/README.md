@@ -74,6 +74,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--diag`, `--audit` | 0 | Server diagnostics and auditing. |
 | `--threads`, `--queue` | 200, 2000 | `MaxRequestThreadCount` and `MaxQueuedRequestCount` of the server; `MinRequestThreadCount` is the smaller of 50 and `--threads`. |
 | `--isolation` | `default` | `sharedonly`: run the server with the SharedOnly [resource isolation](../docs/ResourceIsolation.md) mode (no isolation provider, one FIFO request queue) instead of the default profile. |
+| `--owner-share` | 1 | `ServerResourceIsolationOptions.DefaultOwnerShare` of the server. Every workload session (and every native worker) connects from this machine, so the server sees one owner; the harness lets it take the whole request queue and all workers. The library default is 0.5. |
 | `--trace <file>` | | Record the measurement window with `dotnet-trace`. |
 | `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention` or `gc`. |
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |

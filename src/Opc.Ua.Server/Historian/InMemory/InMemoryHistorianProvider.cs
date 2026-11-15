@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -1528,11 +1529,11 @@ namespace Opc.Ua.Server.Historian.InMemory
                 SortedSet<HistoricalValueKey>? addedKeys = m_options.MaxSamplesPerNode > 0
                     ? new SortedSet<HistoricalValueKey>(HistoricalValueKeyComparer.Instance)
                     : null;
-                using SortedDictionary<HistoricalValueKey, DataValue>.KeyCollection.Enumerator archivedKeys =
-                    addedKeys != null ? archive.Raw.Keys.GetEnumerator() : default;
-                bool hasArchivedKey = addedKeys != null && archivedKeys.MoveNext();
+                using IEnumerator<HistoricalValueKey>? archivedKeys =
+                    addedKeys != null ? archive.Raw.Keys.GetEnumerator() : null;
+                bool hasArchivedKey = archivedKeys != null && archivedKeys.MoveNext();
                 HistoricalValueKey retainedBound = cutoff > DateTime.MinValue && archive.Raw.Count > 0
-                    ? archive.Raw.Keys.First()
+                    ? archive.Raw.FirstKey
                     : default;
                 bool hasRetainedBound = cutoff > DateTime.MinValue &&
                     archive.Raw.Count > 0 &&
@@ -1588,8 +1589,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                     if (!exists && addedKeys != null && projectedCount >= m_options.MaxSamplesPerNode)
                     {
                         oldestIsArchived = hasArchivedKey &&
-                            (addedKeys.Count == 0 || archivedKeys.Current <= addedKeys.Min);
-                        oldest = oldestIsArchived ? archivedKeys.Current : addedKeys.Min;
+                            (addedKeys.Count == 0 || archivedKeys!.Current <= addedKeys.Min);
+                        oldest = oldestIsArchived ? archivedKeys!.Current : addedKeys.Min;
                     }
                     if (!exists &&
                         (updateType == HistoryUpdateType.Insert ||
@@ -1620,14 +1621,14 @@ namespace Opc.Ua.Server.Historian.InMemory
                             hasRetainedBound = false;
                             if (addedKeys != null)
                             {
-                                hasArchivedKey = archivedKeys.MoveNext();
+                                hasArchivedKey = archivedKeys!.MoveNext();
                             }
                         }
                         if (addedKeys != null && projectedCount > m_options.MaxSamplesPerNode)
                         {
                             if (oldestIsArchived)
                             {
-                                hasArchivedKey = archivedKeys.MoveNext();
+                                hasArchivedKey = archivedKeys!.MoveNext();
                             }
                             else
                             {
@@ -1772,7 +1773,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         return new HistorianPage<HistoricalDataValue>(output);
                     }
 
-                    foreach (KeyValuePair<HistoricalValueKey, DataValue> entry in archive.Raw)
+                    foreach (KeyValuePair<HistoricalValueKey, DataValue> entry in archive.Raw.From(windowMax))
                     {
                         if (entry.Key.SourceTimestamp.ToDateTime() > windowMax)
                         {
@@ -1794,9 +1795,15 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
             }
 
-            IEnumerable<KeyValuePair<HistoricalValueKey, DataValue>> source = request.IsForward
-                ? archive.Raw
-                : archive.Raw.Reverse();
+            // seek to the window (or the resume key) instead of walking the archive from one end;
+            // the loop below still skips what lies before them.
+            RawArchive.Range source = request.IsForward
+                ? hasResume && resumeKey.SourceTimestamp.ToDateTime() >= windowMin
+                    ? archive.Raw.From(resumeKey)
+                    : archive.Raw.From(windowMin)
+                : hasResume && resumeKey.SourceTimestamp.ToDateTime() <= windowMax
+                    ? archive.Raw.DownFrom(resumeKey.SourceTimestamp.ToDateTime(), inclusive: true)
+                    : archive.Raw.DownFrom(windowMax, inclusive: true);
 
             bool leadingBoundarySpecified = request.IsForward
                 ? request.StartTime != DateTimeUtc.MinValue
@@ -1946,27 +1953,22 @@ namespace Opc.Ua.Server.Historian.InMemory
         {
             if (isForward)
             {
-                DataValue candidate = DataValue.Null;
-                HistoricalValueKey candidateKey = default;
-                foreach (KeyValuePair<HistoricalValueKey, DataValue> entry in archive.Raw)
+                // the newest entry before the window
+                foreach (KeyValuePair<HistoricalValueKey, DataValue> entry in
+                    archive.Raw.DownFrom(windowMin, inclusive: false))
                 {
-                    if (entry.Key.SourceTimestamp.ToDateTime() >= windowMin)
+                    if (entry.Value.IsNull)
                     {
                         break;
                     }
-                    candidate = entry.Value;
-                    candidateKey = entry.Key;
-                }
-                if (!candidate.IsNull)
-                {
-                    bound = new HistoricalDataValue(CloneRawValue(archive, candidateKey, candidate), IsBound: true);
-                    boundKey = candidateKey;
+                    bound = new HistoricalDataValue(CloneRawValue(archive, entry.Key, entry.Value), IsBound: true);
+                    boundKey = entry.Key;
                     return true;
                 }
             }
             else
             {
-                foreach (KeyValuePair<HistoricalValueKey, DataValue> entry in archive.Raw)
+                foreach (KeyValuePair<HistoricalValueKey, DataValue> entry in archive.Raw.From(windowMax))
                 {
                     if (entry.Key.SourceTimestamp.ToDateTime() > windowMax)
                     {
@@ -2327,34 +2329,22 @@ namespace Opc.Ua.Server.Historian.InMemory
         private static List<HistoricalValueKey> GetKeysAt(NodeArchive archive, DateTime timestamp)
         {
             var keys = new List<HistoricalValueKey>();
-            foreach (HistoricalValueKey key in archive.Raw.Keys)
+            foreach (KeyValuePair<HistoricalValueKey, DataValue> entry in archive.Raw.From(timestamp))
             {
-                var candidate = key.SourceTimestamp.ToDateTime();
-                if (candidate > timestamp)
+                if (entry.Key.SourceTimestamp.ToDateTime() != timestamp)
                 {
                     break;
                 }
-                if (candidate == timestamp)
-                {
-                    keys.Add(key);
-                }
+                keys.Add(entry.Key);
             }
             return keys;
         }
 
         private static bool ContainsTimestamp(NodeArchive archive, DateTime timestamp)
         {
-            foreach (HistoricalValueKey key in archive.Raw.Keys)
+            foreach (KeyValuePair<HistoricalValueKey, DataValue> entry in archive.Raw.From(timestamp))
             {
-                var candidate = key.SourceTimestamp.ToDateTime();
-                if (candidate > timestamp)
-                {
-                    return false;
-                }
-                if (candidate == timestamp)
-                {
-                    return true;
-                }
+                return entry.Key.SourceTimestamp.ToDateTime() == timestamp;
             }
             return false;
         }
@@ -2378,20 +2368,12 @@ namespace Opc.Ua.Server.Historian.InMemory
 
             while (archive.Raw.Count > 1)
             {
-                HistoricalValueKey oldest;
-                using (SortedDictionary<HistoricalValueKey, DataValue>.Enumerator entries = archive.Raw.GetEnumerator())
+                HistoricalValueKey oldest = archive.Raw.FirstKey;
+                if (oldest.SourceTimestamp.ToDateTime() >= cutoff ||
+                    !archive.Raw.TryGetSecondKey(out HistoricalValueKey second) ||
+                    second.SourceTimestamp.ToDateTime() > cutoff)
                 {
-                    if (!entries.MoveNext())
-                    {
-                        break;
-                    }
-                    oldest = entries.Current.Key;
-                    if (oldest.SourceTimestamp.ToDateTime() >= cutoff ||
-                        !entries.MoveNext() ||
-                        entries.Current.Key.SourceTimestamp.ToDateTime() > cutoff)
-                    {
-                        break;
-                    }
+                    break;
                 }
 
                 // Keep the newest value at or before the cutoff as the retained window's start bound.
@@ -2415,7 +2397,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 while (archive.Raw.Count > m_options.MaxSamplesPerNode)
                 {
-                    archive.Raw.Remove(archive.Raw.Keys.First());
+                    archive.Raw.Remove(archive.Raw.FirstKey);
                 }
             }
         }
@@ -2423,7 +2405,7 @@ namespace Opc.Ua.Server.Historian.InMemory
         private bool CanStoreRaw(NodeArchive archive, HistoricalValueKey key, DateTime cutoff)
         {
             HistoricalValueKey oldest = m_options.MaxSamplesPerNode > 0 &&
-                archive.Raw.Count >= m_options.MaxSamplesPerNode ? archive.Raw.Keys.First() : default;
+                archive.Raw.Count >= m_options.MaxSamplesPerNode ? archive.Raw.FirstKey : default;
             return CanStoreRaw(key, cutoff, archive.Raw.Count, oldest);
         }
 
@@ -2447,7 +2429,7 @@ namespace Opc.Ua.Server.Historian.InMemory
         private static void RefreshLatestRawTimestamp(NodeArchive archive)
         {
             archive.LatestRawTimestamp = archive.Raw.Count > 0
-                ? archive.Raw.Keys.Last().SourceTimestamp.ToDateTime()
+                ? archive.Raw.LastKey.SourceTimestamp.ToDateTime()
                 : DateTime.MinValue;
         }
 
@@ -2790,10 +2772,436 @@ namespace Opc.Ua.Server.Historian.InMemory
         private readonly NodeIdDictionary<IHistorianStructuredDataKeySelector> m_keySelectors = [];
         private long m_eventSequence;
 
+        /// <summary>
+        /// The raw values of one node in key order, kept in sorted chunks: a timestamp is found by
+        /// binary search over the chunks and then within one chunk, and a read walks the archive
+        /// from there with a struct cursor in either direction. A read (an at-time read in
+        /// particular, which reads around every requested time) therefore no longer walks the
+        /// archive from its oldest value under the provider lock, and allocates nothing to seek.
+        /// Appending and evicting the oldest values touch only the last and the first chunk.
+        /// </summary>
+        private sealed class RawArchive : IEnumerable<KeyValuePair<HistoricalValueKey, DataValue>>
+        {
+            /// <summary>
+            /// The number of entries in one chunk: an insert out of order moves at most this many.
+            /// </summary>
+            private const int kChunkSize = 128;
+
+            public int Count => m_count;
+
+            /// <summary>
+            /// The keys in archive order.
+            /// </summary>
+            public IEnumerable<HistoricalValueKey> Keys
+            {
+                get
+                {
+                    foreach (Chunk chunk in m_chunks)
+                    {
+                        for (int ii = 0; ii < chunk.Count; ii++)
+                        {
+                            yield return chunk.Keys[ii];
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
+            /// The oldest key; the archive must not be empty.
+            /// </summary>
+            public HistoricalValueKey FirstKey => m_chunks[0].Keys[0];
+
+            /// <summary>
+            /// The second oldest key, if the archive holds two entries.
+            /// </summary>
+            public bool TryGetSecondKey(out HistoricalValueKey key)
+            {
+                if (m_count < 2)
+                {
+                    key = default;
+                    return false;
+                }
+                Chunk first = m_chunks[0];
+                key = first.Count > 1 ? first.Keys[1] : m_chunks[1].Keys[0];
+                return true;
+            }
+
+            /// <summary>
+            /// The newest key; the archive must not be empty.
+            /// </summary>
+            public HistoricalValueKey LastKey
+            {
+                get
+                {
+                    Chunk last = m_chunks[^1];
+                    return last.Keys[last.Count - 1];
+                }
+            }
+
+            public DataValue this[HistoricalValueKey key]
+            {
+                get
+                {
+                    if (!TryGetValue(key, out DataValue value))
+                    {
+                        throw new KeyNotFoundException();
+                    }
+                    return value;
+                }
+                set => Set(key, value);
+            }
+
+            public bool ContainsKey(HistoricalValueKey key)
+            {
+                return TryFind(key, out _, out _);
+            }
+
+            public bool TryGetValue(HistoricalValueKey key, out DataValue value)
+            {
+                if (TryFind(key, out int chunk, out int index))
+                {
+                    value = m_chunks[chunk].Values[index];
+                    return true;
+                }
+                value = default;
+                return false;
+            }
+
+            public bool Remove(HistoricalValueKey key)
+            {
+                if (!TryFind(key, out int chunkIndex, out int index))
+                {
+                    return false;
+                }
+                Chunk chunk = m_chunks[chunkIndex];
+                int tail = chunk.Count - index - 1;
+                if (tail > 0)
+                {
+                    Array.Copy(chunk.Keys, index + 1, chunk.Keys, index, tail);
+                    Array.Copy(chunk.Values, index + 1, chunk.Values, index, tail);
+                }
+                chunk.Count--;
+                chunk.Keys[chunk.Count] = default;
+                chunk.Values[chunk.Count] = default;
+                if (chunk.Count == 0)
+                {
+                    m_chunks.RemoveAt(chunkIndex);
+                }
+                m_count--;
+                return true;
+            }
+
+            /// <summary>
+            /// The entries at or after <paramref name="timestamp"/>, oldest first.
+            /// </summary>
+            public Range From(DateTime timestamp)
+            {
+                return From(LowerKey(timestamp));
+            }
+
+            /// <summary>
+            /// The entries at or after <paramref name="key"/>, oldest first.
+            /// </summary>
+            public Range From(HistoricalValueKey key)
+            {
+                LowerBound(key, out int chunk, out int index);
+                return new Range(this, chunk, index, forward: true);
+            }
+
+            /// <summary>
+            /// The entries before <paramref name="timestamp"/> (or, when
+            /// <paramref name="inclusive"/>, at or before it), newest first.
+            /// </summary>
+            public Range DownFrom(DateTime timestamp, bool inclusive)
+            {
+                int chunk;
+                int index;
+                if (inclusive && timestamp.Ticks >= DateTime.MaxValue.Ticks - 1)
+                {
+                    chunk = m_chunks.Count;
+                    index = 0;
+                }
+                else
+                {
+                    // every key of the timestamp sorts before the empty uniqueness key of the next tick
+                    LowerBound(LowerKey(inclusive ? timestamp.AddTicks(1) : timestamp), out chunk, out index);
+                }
+                // the entry before the first one outside the range
+                if (index > 0)
+                {
+                    index--;
+                }
+                else if (chunk > 0)
+                {
+                    chunk--;
+                    index = m_chunks[chunk].Count - 1;
+                }
+                else
+                {
+                    chunk = -1;
+                }
+                return new Range(this, chunk, index, forward: false);
+            }
+
+            public Enumerator GetEnumerator()
+            {
+                return new Enumerator(this, 0, 0, forward: true);
+            }
+
+            IEnumerator<KeyValuePair<HistoricalValueKey, DataValue>>
+                IEnumerable<KeyValuePair<HistoricalValueKey, DataValue>>.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            private void Set(HistoricalValueKey key, DataValue value)
+            {
+                if (m_chunks.Count == 0)
+                {
+                    var chunk = new Chunk();
+                    chunk.Keys[0] = key;
+                    chunk.Values[0] = value;
+                    chunk.Count = 1;
+                    m_chunks.Add(chunk);
+                    m_count = 1;
+                    return;
+                }
+                LowerBound(key, out int chunkIndex, out int index);
+                if (chunkIndex == m_chunks.Count)
+                {
+                    // after the newest entry: append
+                    chunkIndex--;
+                    index = m_chunks[chunkIndex].Count;
+                }
+                else if (m_chunks[chunkIndex].Keys[index].CompareTo(key) == 0)
+                {
+                    m_chunks[chunkIndex].Values[index] = value;
+                    return;
+                }
+                Chunk target = m_chunks[chunkIndex];
+                if (target.Count == kChunkSize)
+                {
+                    if (chunkIndex == m_chunks.Count - 1 && index == kChunkSize)
+                    {
+                        // appending in order: start a new chunk and keep the full ones full
+                        target = new Chunk();
+                        m_chunks.Add(target);
+                        chunkIndex++;
+                        index = 0;
+                    }
+                    else
+                    {
+                        // split the chunk in half and insert into the half that holds the position
+                        var upper = new Chunk { Count = kChunkSize / 2 };
+                        Array.Copy(target.Keys, kChunkSize / 2, upper.Keys, 0, kChunkSize / 2);
+                        Array.Copy(target.Values, kChunkSize / 2, upper.Values, 0, kChunkSize / 2);
+                        Array.Clear(target.Keys, kChunkSize / 2, kChunkSize / 2);
+                        Array.Clear(target.Values, kChunkSize / 2, kChunkSize / 2);
+                        target.Count = kChunkSize / 2;
+                        m_chunks.Insert(chunkIndex + 1, upper);
+                        if (index > kChunkSize / 2)
+                        {
+                            target = upper;
+                            index -= kChunkSize / 2;
+                        }
+                    }
+                }
+                int tail = target.Count - index;
+                if (tail > 0)
+                {
+                    Array.Copy(target.Keys, index, target.Keys, index + 1, tail);
+                    Array.Copy(target.Values, index, target.Values, index + 1, tail);
+                }
+                target.Keys[index] = key;
+                target.Values[index] = value;
+                target.Count++;
+                m_count++;
+            }
+
+            private bool TryFind(HistoricalValueKey key, out int chunk, out int index)
+            {
+                LowerBound(key, out chunk, out index);
+                return chunk < m_chunks.Count && m_chunks[chunk].Keys[index].CompareTo(key) == 0;
+            }
+
+            /// <summary>
+            /// The position of the first entry at or after <paramref name="key"/>, or
+            /// (<see cref="List{T}.Count"/> of the chunks, 0) when every entry is before it.
+            /// </summary>
+            private void LowerBound(HistoricalValueKey key, out int chunk, out int index)
+            {
+                // the first chunk whose newest key is at or after the key
+                int lo = 0;
+                int hi = m_chunks.Count;
+                while (lo < hi)
+                {
+                    int mid = (lo + hi) >>> 1;
+                    Chunk candidate = m_chunks[mid];
+                    if (candidate.Keys[candidate.Count - 1].CompareTo(key) < 0)
+                    {
+                        lo = mid + 1;
+                    }
+                    else
+                    {
+                        hi = mid;
+                    }
+                }
+                chunk = lo;
+                if (chunk == m_chunks.Count)
+                {
+                    index = 0;
+                    return;
+                }
+                HistoricalValueKey[] keys = m_chunks[chunk].Keys;
+                lo = 0;
+                hi = m_chunks[chunk].Count - 1;
+                while (lo < hi)
+                {
+                    int mid = (lo + hi) >>> 1;
+                    if (keys[mid].CompareTo(key) < 0)
+                    {
+                        lo = mid + 1;
+                    }
+                    else
+                    {
+                        hi = mid;
+                    }
+                }
+                index = lo;
+            }
+
+            private static HistoricalValueKey LowerKey(DateTime timestamp)
+            {
+                return HistoricalValueKey.FromTimestamp(
+                    new DateTimeUtc(new DateTime(timestamp.Ticks, DateTimeKind.Utc)));
+            }
+
+            private readonly List<Chunk> m_chunks = [];
+            private int m_count;
+
+            private sealed class Chunk
+            {
+                public readonly HistoricalValueKey[] Keys = new HistoricalValueKey[kChunkSize];
+                public readonly DataValue[] Values = new DataValue[kChunkSize];
+                public int Count;
+            }
+
+            /// <summary>
+            /// The entries from a position, in one direction. The archive must not change while
+            /// a range is enumerated.
+            /// </summary>
+            public readonly struct Range : IEnumerable<KeyValuePair<HistoricalValueKey, DataValue>>
+            {
+                internal Range(RawArchive archive, int chunk, int index, bool forward)
+                {
+                    m_archive = archive;
+                    m_chunk = chunk;
+                    m_index = index;
+                    m_forward = forward;
+                }
+
+                public Enumerator GetEnumerator()
+                {
+                    return new Enumerator(m_archive, m_chunk, m_index, m_forward);
+                }
+
+                IEnumerator<KeyValuePair<HistoricalValueKey, DataValue>>
+                    IEnumerable<KeyValuePair<HistoricalValueKey, DataValue>>.GetEnumerator()
+                {
+                    return GetEnumerator();
+                }
+
+                IEnumerator IEnumerable.GetEnumerator()
+                {
+                    return GetEnumerator();
+                }
+
+                private readonly RawArchive m_archive;
+                private readonly int m_chunk;
+                private readonly int m_index;
+                private readonly bool m_forward;
+            }
+
+            /// <summary>
+            /// Walks the archive from a position, oldest first or newest first.
+            /// </summary>
+            public struct Enumerator : IEnumerator<KeyValuePair<HistoricalValueKey, DataValue>>
+            {
+                internal Enumerator(RawArchive archive, int chunk, int index, bool forward)
+                {
+                    m_chunks = archive.m_chunks;
+                    m_chunk = chunk;
+                    m_index = index;
+                    m_forward = forward;
+                    m_started = false;
+                }
+
+                public readonly KeyValuePair<HistoricalValueKey, DataValue> Current
+                {
+                    get
+                    {
+                        Chunk chunk = m_chunks[m_chunk];
+                        return new KeyValuePair<HistoricalValueKey, DataValue>(
+                            chunk.Keys[m_index], chunk.Values[m_index]);
+                    }
+                }
+
+                readonly object IEnumerator.Current => Current;
+
+                public bool MoveNext()
+                {
+                    if (m_chunk < 0 || m_chunk >= m_chunks.Count)
+                    {
+                        return false;
+                    }
+                    if (!m_started)
+                    {
+                        m_started = true;
+                    }
+                    else if (m_forward)
+                    {
+                        if (++m_index >= m_chunks[m_chunk].Count)
+                        {
+                            m_chunk++;
+                            m_index = 0;
+                        }
+                    }
+                    else if (--m_index < 0)
+                    {
+                        if (--m_chunk >= 0)
+                        {
+                            m_index = m_chunks[m_chunk].Count - 1;
+                        }
+                    }
+                    return m_chunk >= 0 && m_chunk < m_chunks.Count &&
+                        m_index >= 0 && m_index < m_chunks[m_chunk].Count;
+                }
+
+                public void Reset()
+                {
+                    throw new NotSupportedException();
+                }
+
+                public readonly void Dispose()
+                {
+                }
+
+                private readonly List<Chunk> m_chunks;
+                private int m_chunk;
+                private int m_index;
+                private readonly bool m_forward;
+                private bool m_started;
+            }
+        }
+
         private sealed class NodeArchive
         {
-            public SortedDictionary<HistoricalValueKey, DataValue> Raw { get; }
-                = new(HistoricalValueKeyComparer.Instance);
+            public RawArchive Raw { get; } = new();
 
             public LinkedList<ModificationEntry> ModifiedLog { get; } = [];
 

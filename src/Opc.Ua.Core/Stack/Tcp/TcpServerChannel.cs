@@ -402,6 +402,7 @@ namespace Opc.Ua.Bindings
 
                     // put channel back in open state.
                     State = TcpChannelState.Open;
+                    OnRequestTransportReconnected();
 
                     // send any queued responses.
                     ResetQueuedResponses(OnChannelReconnected);

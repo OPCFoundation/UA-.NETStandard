@@ -323,6 +323,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 server.ResourceIsolationOptions.Mode = Opc.Ua.Server.ServerResourceIsolationMode.SharedOnly;
             }
+            // Every workload session runs in one client process on loopback, so the server sees
+            // one owner; a real deployment spreads this load over many clients. Let that owner
+            // take the whole request queue and all workers unless asked otherwise.
+            server.ResourceIsolationOptions.DefaultOwnerShare = double.Parse(
+                Arg("owner-share", "1"), System.Globalization.CultureInfo.InvariantCulture);
             server.TransportBindings = TestTransportBindings.WithAllSchemes();
             await application.StartAsync(server).ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
@@ -408,6 +413,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} ") +
                 FormattableString.Invariant(
                     $"--counters {counterCount} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")} ") +
+                FormattableString.Invariant($"--owner-share {Arg("owner-share", "1")} ") +
                 FormattableString.Invariant(
                     $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} --counter-lock {Arg("counter-lock", "0")}"),
                 serverEnvironment);

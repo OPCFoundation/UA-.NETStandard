@@ -1744,7 +1744,8 @@ namespace Opc.Ua.Bindings
             ValueTask<IServiceResponse> processing;
             try
             {
-                processing = callback.ProcessRequestAsync(channel.GetRequestContext(), request);
+                processing = callback.ProcessRequestAsync(
+                    channel.GetRequestContext(), request, channel.RequestCancellationToken);
             }
             catch (Exception e)
             {

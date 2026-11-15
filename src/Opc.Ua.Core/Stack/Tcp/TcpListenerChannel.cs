@@ -159,6 +159,7 @@ namespace Opc.Ua.Bindings
                 Volatile.Write(ref m_disposed, 1);
                 Volatile.Write(ref m_peerCertificateChain, null);
                 Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
+                CancelPendingRequests();
             }
             base.Dispose(disposing);
         }
@@ -359,6 +360,96 @@ namespace Opc.Ua.Bindings
         /// Evaluated under <see cref="UaSCUaBinaryChannel.Gate"/>.
         /// </summary>
         private protected virtual bool IsReclaimableWhileConnecting => false;
+
+        /// <summary>
+        /// How long the requests of a channel that lost its transport keep running for a reconnect.
+        /// </summary>
+        /// <remarks>
+        /// A client that reconnects within it receives the responses on the new transport. A client
+        /// that is gone (it dropped its socket without closing its Session) no longer holds server
+        /// workers and queue slots with requests nobody reads.
+        /// </remarks>
+        internal static TimeSpan FaultedRequestGracePeriod { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Cancelled once the listener drops the channel (closed by the client, closed after a fault
+        /// or disposed), or once the channel lost its transport and was not reconnected within
+        /// <see cref="FaultedRequestGracePeriod"/>. Queued and running requests of the channel observe
+        /// it, so the work of a client that abandoned its channel without closing its Session does not
+        /// keep holding server capacity. A reconnect after the cancellation starts a new token.
+        /// </summary>
+        internal CancellationToken RequestCancellationToken => m_requestCancellation.Token;
+
+        /// <summary>
+        /// Cancels <see cref="RequestCancellationToken"/> once, on the thread pool: the callers may hold
+        /// the channel gate, which the cancellation callbacks (completing queued requests) must not run under.
+        /// </summary>
+        private void CancelPendingRequests()
+        {
+            Interlocked.Exchange(ref m_faultedRequestTimer, null)?.Dispose();
+            if (Interlocked.Exchange(ref m_requestsCancelled, 1) != 0)
+            {
+                return;
+            }
+            ThreadPool.UnsafeQueueUserWorkItem(
+                static state =>
+                {
+                    try
+                    {
+                        ((CancellationTokenSource)state!).Cancel();
+                    }
+                    catch (AggregateException)
+                    {
+                        // a request's callback failed; that request completes on its own
+                    }
+                },
+                m_requestCancellation);
+        }
+
+        /// <summary>
+        /// Cancels the requests of a channel that lost its transport unless it is reconnected
+        /// within <see cref="FaultedRequestGracePeriod"/>. Called with the gate held.
+        /// </summary>
+        private void ScheduleFaultedRequestCancellation()
+        {
+            if (Volatile.Read(ref m_requestsCancelled) != 0 || m_faultedRequestTimer != null)
+            {
+                return;
+            }
+            ITimer timer = TimeProvider.CreateTimer(
+                static state => ((TcpListenerChannel)state!).OnFaultedRequestGraceElapsed(),
+                this,
+                FaultedRequestGracePeriod,
+                Timeout.InfiniteTimeSpan);
+            Interlocked.Exchange(ref m_faultedRequestTimer, timer)?.Dispose();
+        }
+
+        private void OnFaultedRequestGraceElapsed()
+        {
+            using (Gate.Enter())
+            {
+                if (State != TcpChannelState.Faulted)
+                {
+                    return;
+                }
+                CancelPendingRequests();
+            }
+        }
+
+        /// <summary>
+        /// Keeps the requests of a channel that reconnected running, and gives the reconnected
+        /// channel a new request token if the grace period already cancelled the old one.
+        /// Called with the gate held, once the channel is open again.
+        /// </summary>
+        private protected void OnRequestTransportReconnected()
+        {
+            Interlocked.Exchange(ref m_faultedRequestTimer, null)?.Dispose();
+            if (Volatile.Read(ref m_requestsCancelled) != 0 && Volatile.Read(ref m_disposed) == 0)
+            {
+                m_requestCancellation = new CancellationTokenSource();
+                Volatile.Write(ref m_requestsCancelled, 0);
+            }
+        }
 
         /// <summary>
         /// Keeps a decoded sessionless request classified as in-use through dispatch and asynchronous processing.
@@ -929,6 +1020,11 @@ namespace Opc.Ua.Bindings
 
             State = TcpChannelState.Faulted;
             m_responseRequired = false;
+            if (!close)
+            {
+                // kept for a reconnect: its requests keep running for a while only
+                ScheduleFaultedRequestCancellation();
+            }
 
             if (close)
             {
@@ -1053,6 +1149,7 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Closed;
                 ClosePartialMessage();
                 Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
+                CancelPendingRequests();
                 Listener.ChannelClosed(ChannelId);
 
                 // notify any monitors.
@@ -1080,6 +1177,7 @@ namespace Opc.Ua.Bindings
                 State = finalState;
                 ClosePartialMessage();
                 Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
+                CancelPendingRequests();
                 Listener.ChannelClosed(ChannelId);
             }
         }
@@ -1392,6 +1490,13 @@ namespace Opc.Ua.Bindings
         /// Prevents new transport attachment or admission cleanup after disposal begins.
         /// </summary>
         private int m_disposed;
+        // Cancelled, never disposed: requests of the channel may still register on its token
+        // after the channel was disposed, and a source without a timer holds no resources.
+#pragma warning disable CA2213 // Disposable fields should be disposed
+        private volatile CancellationTokenSource m_requestCancellation = new();
+#pragma warning restore CA2213 // Disposable fields should be disposed
+        private int m_requestsCancelled;
+        private ITimer? m_faultedRequestTimer;
         private byte[]? m_peerCertificateChain;
         private int m_messageCleanupPending;
         private volatile TcpChannelRequestEventHandler? m_requestReceived;

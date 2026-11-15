@@ -875,7 +875,19 @@ namespace Opc.Ua.Server
             var ceilings = new long[kStageCount];
             for (int ii = 0; ii < ceilings.Length; ii++)
             {
-                ceilings[ii] = provisioned?.HardLimits[ii] ?? m_stages[ii].Plan.OwnerHardLimit;
+                ResourceIsolationStagePlan stage = m_stages[ii].Plan;
+                // An owner's usage is counted across its classes, so a protected request adds its
+                // class floor to the ordinary ceiling: an owner at its ceiling can still reconnect,
+                // cancel or close.
+                long floor = ownerClass switch
+                {
+                    ResourceIsolationClass.Bootstrap => stage.BootstrapReserved,
+                    ResourceIsolationClass.Reconnect => stage.ReconnectReserved,
+                    ResourceIsolationClass.Control => stage.ControlReserved,
+                    _ => 0
+                };
+                ceilings[ii] = provisioned?.HardLimits[ii] ??
+                    Math.Min(stage.Capacity, stage.OwnerHardLimit + Math.Max(0, floor));
             }
             var owner = new ResourceIsolationOwner(
                 key, ownerClass, provisioned?.Weight ?? Plan.DefaultWeight, ceilings);
