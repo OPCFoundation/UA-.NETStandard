@@ -1775,7 +1775,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// The response byte budget of Browse, BrowseNext and Call: the message size limit
+        /// The response byte budget of Browse, BrowseNext, Call, Read and HistoryRead: the
+        /// message size limit
         /// for a binary encoded request, whose results it bounds from below. Other encodings
         /// can be smaller than that bound (JSON numbers), so they have no budget.
         /// </summary>
@@ -2246,6 +2247,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
+                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
 
                 (ArrayOf<DataValue> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.ReadAsync(
@@ -2307,6 +2309,7 @@ namespace Opc.Ua.Server
                         nodesToRead,
                         OperationLimits.MaxNodesPerHistoryReadData);
                 }
+                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
 
                 (ArrayOf<HistoryReadResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.HistoryReadAsync(

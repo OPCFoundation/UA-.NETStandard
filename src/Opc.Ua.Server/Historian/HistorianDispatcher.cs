@@ -3021,23 +3021,70 @@ namespace Opc.Ua.Server.Historian
                 token = default;
             }
 
-            HistorianPage<HistoricalDataValue> page = await data.ReadRawAsync(
-                opContext, request, token, cancellationToken).ConfigureAwait(false);
+            // the values kept for the response are charged against the response byte
+            // budget of the service: a page holds at most the values that fit it.
+            OperationContext? operationContext = systemContext.OperationContext;
+            long responseBytes = operationContext?.ResponseBytesRemaining ?? -1;
+            HistorianRawReadRequest pageRequest = responseBytes < 0
+                ? request
+                : LimitPageByResponseBudget(request, request.PageLimit, responseBytes);
 
-            var values = new List<DataValue>(page.Values.Count);
-            foreach (HistoricalDataValue v in page.Values)
+            HistorianPage<HistoricalDataValue> page = await data.ReadRawAsync(
+                opContext, pageRequest, token, cancellationToken).ConfigureAwait(false);
+
+            List<DataValue> filled = FillRawPage(systemContext, result, page, nodeToRead, timestampsToReturn);
+
+            bool resumeAtStart = false;
+            if (responseBytes >= 0)
             {
-                values.Add(v.Value);
+                bool fits = false;
+                for (int attempt = 0; attempt < kMaxResponseBudgetPageAttempts; attempt++)
+                {
+                    (int count, long bytes) = CountValuesThatFit(filled, operationContext!.ResponseBytesRemaining);
+                    if (count == filled.Count)
+                    {
+                        fits = operationContext.TryChargeResponse(bytes);
+                        break;
+                    }
+                    if (count == 0)
+                    {
+                        break;
+                    }
+
+                    // read the page again with the values that fit, so the provider hands
+                    // back the position after the last of them.
+                    page = await data.ReadRawAsync(
+                        opContext,
+                        LimitPageByResponseBudget(request, (uint)count, long.MaxValue),
+                        token,
+                        cancellationToken).ConfigureAwait(false);
+                    filled = FillRawPage(systemContext, result, page, nodeToRead, timestampsToReturn);
+                }
+
+                if (!fits)
+                {
+                    // not one value of the page fits. The response cannot hold it when
+                    // nothing else was charged, otherwise a later request can.
+                    if (operationContext!.ResponseBudgetUnused)
+                    {
+                        operationContext.TryChargeResponse(long.MaxValue);
+                        throw new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            "A value of the HistoryRead exceeds the response size limit.");
+                    }
+                    // Part 11 6.3: fewer values than requested, here none, with a
+                    // continuation point that resumes where this page started.
+                    page = new HistorianPage<HistoricalDataValue>([], token);
+                    filled = FillRawPage(systemContext, result, page, nodeToRead, timestampsToReturn);
+                    resumeAtStart = true;
+                }
             }
-            FillHistoryData(
-                systemContext,
-                result,
-                values,
-                nodeToRead,
-                timestampsToReturn);
+
+            List<DataValue> values = filled;
+            bool hasMore = resumeAtStart || !page.NextToken.IsEmpty;
 
             HistorianContinuationState? initialState = null;
-            if (claim == null && !page.NextToken.IsEmpty)
+            if (claim == null && hasMore)
             {
                 initialState = new HistorianContinuationState
                 {
@@ -3058,7 +3105,7 @@ namespace Opc.Ua.Server.Historian
                 systemContext,
                 result,
                 claim,
-                hasMore: !page.NextToken.IsEmpty,
+                hasMore,
                 page.NextToken,
                 initialState,
                 bufferedProcessedOffset: null,
@@ -3066,7 +3113,7 @@ namespace Opc.Ua.Server.Historian
 
             // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists (and no
             // Bounding Values were requested/returned) is reported with Good_NoData.
-            if (values.Count == 0 && page.NextToken.IsEmpty)
+            if (values.Count == 0 && !hasMore)
             {
                 result.StatusCode = StatusCodes.GoodNoData;
             }
@@ -3074,6 +3121,77 @@ namespace Opc.Ua.Server.Historian
             return ServiceResult.Good;
         }
 #pragma warning restore CA2000
+
+        /// <summary>
+        /// The smallest encoded size of a raw history value that a page is limited by: its
+        /// encoding mask and one timestamp, which a raw value is returned with. The limit
+        /// only shortens a page, the values of the page are charged with their own size.
+        /// </summary>
+        private const int kMinHistoryDataValueSize = 1 + 8;
+
+        /// <summary>
+        /// How often a raw page is read again with fewer values before it is returned
+        /// without values: a provider that does not honor the page limit, or whose values
+        /// grow between the reads, does not hold the read in a loop.
+        /// </summary>
+        private const int kMaxResponseBudgetPageAttempts = 3;
+
+        /// <summary>
+        /// Limits the values of a raw page to <paramref name="pageLimit"/> and to the
+        /// values the rest of the response byte budget can hold at the smallest size.
+        /// </summary>
+        private static HistorianRawReadRequest LimitPageByResponseBudget(
+            HistorianRawReadRequest request,
+            uint pageLimit,
+            long responseBytes)
+        {
+            uint limit = pageLimit == 0 ? uint.MaxValue : pageLimit;
+            long byBudget = Math.Max(1, responseBytes / kMinHistoryDataValueSize);
+            if (byBudget < limit)
+            {
+                limit = (uint)byBudget;
+            }
+            return limit == request.PageLimit ? request : request with { PageLimit = limit };
+        }
+
+        /// <summary>
+        /// Counts the leading values whose encoded size fits <paramref name="responseBytes"/>
+        /// and returns their size.
+        /// </summary>
+        private static (int Count, long Bytes) CountValuesThatFit(List<DataValue> values, long responseBytes)
+        {
+            long bytes = 0;
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                long next = bytes + ResponseSizeEstimator.Estimate(values[ii]);
+                if (next > responseBytes)
+                {
+                    return (ii, bytes);
+                }
+                bytes = next;
+            }
+            return (values.Count, bytes);
+        }
+
+        private static List<DataValue> FillRawPage(
+            ServerSystemContext systemContext,
+            HistoryReadResult result,
+            HistorianPage<HistoricalDataValue> page,
+            HistoryReadValueId nodeToRead,
+            TimestampsToReturn timestampsToReturn)
+        {
+            var values = new List<DataValue>(page.Values.Count);
+            foreach (HistoricalDataValue v in page.Values)
+            {
+                values.Add(v.Value);
+            }
+            return FillHistoryData(
+                systemContext,
+                result,
+                values,
+                nodeToRead,
+                timestampsToReturn);
+        }
 
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
 #pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
@@ -3418,7 +3536,7 @@ namespace Opc.Ua.Server.Historian
             };
         }
 
-        private static void FillHistoryData(
+        private static List<DataValue> FillHistoryData(
             ISystemContext systemContext,
             HistoryReadResult result,
             ArrayOf<DataValue> values,
@@ -3438,6 +3556,7 @@ namespace Opc.Ua.Server.Historian
             }
             var data = new HistoryData { DataValues = filtered };
             result.HistoryData = new ExtensionObject(data);
+            return filtered;
         }
 
         private static void FillHistoryModifiedData(

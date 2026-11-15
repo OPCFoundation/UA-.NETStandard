@@ -5319,6 +5319,10 @@ namespace Opc.Ua.Server
                 nodesToRead.Count > 1 ? new Dictionary<NodeId, NodeState>() : null;
             List<NodeHandle>? nodesToValidate = null;
 
+            // the values kept for the response are charged against the response byte
+            // budget of the service while they are read.
+            bool hasResponseBudget = context.ResponseBytesRemaining >= 0;
+
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 ReadValueId nodeToRead = nodesToRead[ii];
@@ -5408,6 +5412,14 @@ namespace Opc.Ua.Server
                     m_logger.Read(nodeToRead.NodeId, value.WrappedValue, nodeToRead.IndexRange);
                 }
 #endif
+
+                // the read fails as a whole once its values exceed the response byte
+                // budget, so the remaining nodes are not read.
+                if (hasResponseBudget &&
+                    !context.TryChargeResponse(ResponseSizeEstimator.EstimateValue(value)))
+                {
+                    return;
+                }
             }
 
             // check for nothing to do.
@@ -5425,6 +5437,17 @@ namespace Opc.Ua.Server
                 nodesToValidate,
                 operationCache ?? new Dictionary<NodeId, NodeState>(),
                 cancellationToken).ConfigureAwait(false);
+
+            if (hasResponseBudget)
+            {
+                foreach (NodeHandle handle in nodesToValidate)
+                {
+                    if (!context.TryChargeResponse(ResponseSizeEstimator.EstimateValue(values[handle.Index])))
+                    {
+                        return;
+                    }
+                }
+            }
         }
 
         /// <summary>

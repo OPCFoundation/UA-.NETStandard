@@ -109,6 +109,47 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// A lower bound of the encoded size of a data value: its encoding mask and the
+        /// fields the mask selects.
+        /// </summary>
+        public static long Estimate(in DataValue value)
+        {
+            if (value.IsNull)
+            {
+                return 1;
+            }
+            long size = EstimateValue(value);
+            if (value.StatusCodeValue != 0)
+            {
+                size += 4;
+            }
+            if (value.SourceTimestamp != DateTimeUtc.MinValue)
+            {
+                size += value.SourcePicoseconds != 0 ? 8 + 2 : 8;
+            }
+            if (value.ServerTimestamp != DateTimeUtc.MinValue)
+            {
+                size += value.ServerPicoseconds != 0 ? 8 + 2 : 8;
+            }
+            return size;
+        }
+
+        /// <summary>
+        /// A lower bound of the encoded size of a data value that counts its encoding
+        /// mask and its value only, for a data value whose status and timestamps can
+        /// still be removed before it is sent (the timestamp filters of Read).
+        /// </summary>
+        public static long EstimateValue(in DataValue value)
+        {
+            if (value.IsNull)
+            {
+                return 1;
+            }
+            Variant wrappedValue = value.WrappedValue;
+            return wrappedValue.IsNull ? 1 : 1 + Estimate(wrappedValue);
+        }
+
+        /// <summary>
         /// A lower bound of the encoded size of a variant. Values whose size is not
         /// cheap to compute count with their encoding mask and array length only.
         /// </summary>

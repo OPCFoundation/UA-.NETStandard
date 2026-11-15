@@ -1710,11 +1710,26 @@ namespace Opc.Ua.Server
             // call each node manager that serves the namespace of a valid item.
             if (validItems)
             {
+                // the values kept for the response are charged against the response byte
+                // budget of the service while they are read: by the node managers that
+                // charge their values themselves, and here for the others.
+                bool[]? unread = context.ResponseBytesRemaining >= 0 ? new bool[nodesToRead.Count] : null;
+
                 foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
                     if (!routes.Includes(nodeManager) || !GetRouting(context).CanDispatchTo(nodeManager))
                     {
                         continue;
+                    }
+
+                    long remaining = 0;
+                    if (unread != null)
+                    {
+                        for (int ii = 0; ii < unread.Length; ii++)
+                        {
+                            unread[ii] = !nodesToRead[ii].Processed;
+                        }
+                        remaining = context.ResponseBytesRemaining;
                     }
 
                     await nodeManager.ReadAsync(
@@ -1724,6 +1739,32 @@ namespace Opc.Ua.Server
                         values,
                         errors,
                         cancellationToken).ConfigureAwait(false);
+
+                    if (unread != null)
+                    {
+                        // every charged value counts at least its encoding mask, so a node
+                        // manager whose reads left the budget unchanged charged nothing.
+                        if (context.ResponseBytesRemaining == remaining)
+                        {
+                            for (int ii = 0; ii < unread.Length; ii++)
+                            {
+                                if (unread[ii] &&
+                                    nodesToRead[ii].Processed &&
+                                    !context.TryChargeResponse(ResponseSizeEstimator.EstimateValue(values[ii])))
+                                {
+                                    break;
+                                }
+                            }
+                        }
+
+                        // a response that exceeds the message size limit cannot be sent.
+                        if (context.ResponseBudgetExceeded)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadResponseTooLarge,
+                                "The values of the Read exceed the response size limit.");
+                        }
+                    }
                 }
             }
 

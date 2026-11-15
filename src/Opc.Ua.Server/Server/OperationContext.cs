@@ -327,10 +327,23 @@ namespace Opc.Ua.Server
         /// <param name="maxResponseBytes">The response size limit in bytes.</param>
         internal void StartResponseBudget(int maxResponseBytes)
         {
-            Volatile.Write(
-                ref m_responseBudget,
-                maxResponseBytes <= 0 ? kNoResponseBudget :
-                maxResponseBytes == int.MaxValue ? int.MaxValue : maxResponseBytes + 1);
+            int start = maxResponseBytes <= 0 ? kNoResponseBudget :
+                maxResponseBytes == int.MaxValue ? int.MaxValue : maxResponseBytes + 1;
+            m_responseBudgetStart = start;
+            Volatile.Write(ref m_responseBudget, start);
+        }
+
+        /// <summary>
+        /// Whether the call has a response byte budget that nothing was charged against
+        /// yet: a result that does not fit it cannot fit any response of the call.
+        /// </summary>
+        internal bool ResponseBudgetUnused
+        {
+            get
+            {
+                int current = Volatile.Read(ref m_responseBudget);
+                return current != kNoResponseBudget && current == m_responseBudgetStart;
+            }
         }
 
         /// <summary>
@@ -1197,6 +1210,11 @@ namespace Opc.Ua.Server
         /// one, or <see cref="kResponseBudgetExceeded"/>.
         /// </summary>
         private int m_responseBudget;
+
+        /// <summary>
+        /// The value <see cref="m_responseBudget"/> started with.
+        /// </summary>
+        private int m_responseBudgetStart;
         private const int kNoResponseBudget = 0;
         private const int kResponseBudgetExceeded = int.MinValue;
         private StringTable? m_stringTable;

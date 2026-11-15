@@ -250,6 +250,85 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A Read of 2500 nodes that each hold a large array fails with
+        /// BadResponseTooLarge once the values pass the message size limit. A node
+        /// manager that charges its values itself stops reading at that point.
+        /// </summary>
+        [Test]
+        public async Task ReadOfMoreValuesThanTheResponseSizeLimitHoldsFailsAsync()
+        {
+            const int maxMessageSize = 1024 * 1024;
+            const int nodeCount = 2500;
+            (MasterNodeManager dispatcher, ArrayOf<ReadValueId> nodesToRead, Counter reads) =
+                await CreateReadDispatcherAsync(nodeCount, arrayLength: 1024).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget(maxMessageSize);
+
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await dispatcher.ReadAsync(
+                        context, 0, TimestampsToReturn.Both, nodesToRead).ConfigureAwait(false));
+
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+                // each value is 1 + (1 + 4 + 8192) bytes: the 128th passes 1 MiB.
+                if (m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
+                {
+                    Assert.That(reads.Value, Is.EqualTo(128));
+                }
+            }
+        }
+
+        /// <summary>
+        /// A Read whose values fit the message size limit returns all of them, and the
+        /// same Read without a response budget (an in-process caller) is not limited.
+        /// </summary>
+        [Test]
+        public async Task ReadWithinTheResponseSizeLimitReturnsAllValuesAsync()
+        {
+            const int maxMessageSize = 1024 * 1024;
+            (MasterNodeManager dispatcher, ArrayOf<ReadValueId> nodesToRead, _) =
+                await CreateReadDispatcherAsync(nodeCount: 127, arrayLength: 1024).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget(maxMessageSize);
+
+                (ArrayOf<DataValue> values, _) = await dispatcher.ReadAsync(
+                    context, 0, TimestampsToReturn.Both, nodesToRead).ConfigureAwait(false);
+
+                Assert.That(values.Count, Is.EqualTo(127));
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    Assert.That(values[ii].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(values[ii].WrappedValue.TryGetValue(out ArrayOf<double> array), Is.True);
+                    Assert.That(array.Count, Is.EqualTo(1024));
+                }
+                Assert.That(context.ResponseBudgetExceeded, Is.False);
+
+                using var unlimited = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                var twice = new ReadValueId[2 * nodesToRead.Count];
+                for (int ii = 0; ii < twice.Length; ii++)
+                {
+                    twice[ii] = new ReadValueId
+                    {
+                        NodeId = nodesToRead[ii % nodesToRead.Count].NodeId,
+                        AttributeId = Attributes.Value
+                    };
+                }
+                (ArrayOf<DataValue> all, _) = await dispatcher.ReadAsync(
+                    unlimited, 0, TimestampsToReturn.Both, twice).ConfigureAwait(false);
+                Assert.That(all.Count, Is.EqualTo(254));
+                for (int ii = 0; ii < all.Count; ii++)
+                {
+                    Assert.That(all[ii].WrappedValue.TryGetValue(out ArrayOf<double> array), Is.True);
+                    Assert.That(array.Count, Is.EqualTo(1024));
+                }
+                Assert.That(unlimited.ResponseBytesRemaining, Is.EqualTo(-1));
+            }
+        }
+
+        /// <summary>
         /// Browses the parent three times with ten references per node, without a response
         /// budget, and returns the three continuation points and the largest page estimate.
         /// </summary>
@@ -379,6 +458,39 @@ namespace Opc.Ua.Server.Tests
             }
             await manager.AddNodeAsync(manager.SystemContext, NodeId.Null, parent).ConfigureAwait(false);
             return (dispatcher, parent);
+        }
+
+        private async Task<(MasterNodeManager, ArrayOf<ReadValueId>, Counter)> CreateReadDispatcherAsync(
+            int nodeCount, int arrayLength)
+        {
+            m_mockSession.Setup(s => s.PreferredLocales).Returns([]);
+            ITestNodeManager manager = CreateManager();
+            MasterNodeManager dispatcher = CreateDispatcher(manager);
+            ushort ns = manager.NamespaceIndexes[0];
+            var reads = new Counter();
+            ArrayOf<double> array = new double[arrayLength];
+            var nodesToRead = new ReadValueId[nodeCount];
+            for (int ii = 0; ii < nodeCount; ii++)
+            {
+                string name = "BudgetArray" + ii.ToString("D4", System.Globalization.CultureInfo.InvariantCulture);
+                var variable = new BaseDataVariableState(null);
+                variable.CreateAsPredefinedNode(manager.SystemContext);
+                variable.NodeId = new NodeId(name, ns);
+                variable.BrowseName = new QualifiedName(name, ns);
+                variable.DataType = DataTypeIds.Double;
+                variable.ValueRank = ValueRanks.OneDimension;
+                variable.AccessLevel = AccessLevels.CurrentRead;
+                variable.UserAccessLevel = AccessLevels.CurrentRead;
+                variable.Value = array;
+                variable.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant _) =>
+                {
+                    reads.Value++;
+                    return ServiceResult.Good;
+                };
+                await manager.AddNodeAsync(manager.SystemContext, NodeId.Null, variable).ConfigureAwait(false);
+                nodesToRead[ii] = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value };
+            }
+            return (dispatcher, nodesToRead, reads);
         }
 
         private sealed class Counter
