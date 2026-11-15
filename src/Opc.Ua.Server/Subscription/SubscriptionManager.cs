@@ -1530,6 +1530,23 @@ namespace Opc.Ua.Server
                         parkSink,
                         cancellationToken).ConfigureAwait(false);
 
+                    // OPC 10000-4 7.40.6: the request was validated when it arrived, but it
+                    // may have waited past the expiration of the session's identity token.
+                    // Nothing is delivered then, neither notifications nor a status message
+                    // such as GoodSubscriptionTransferred: the subscription keeps its
+                    // notifications for the next request after the client has activated the
+                    // session again.
+                    if (context.Session is Session session && session.HaveCredentialsExpired())
+                    {
+                        if (subscription != null)
+                        {
+                            queue.Requeue(subscription);
+                        }
+                        throw new ServiceResultException(
+                            StatusCodes.BadIdentityTokenInvalid,
+                            "The user identity token has expired. Activate the session with a new token.");
+                    }
+
                     // check for pending status message that may have arrived while waiting.
                     if (ReturnPendingStatusMessage(context, out statusMessage, out statusSubscriptionId))
                     {
@@ -1555,6 +1572,7 @@ namespace Opc.Ua.Server
                         requeue = true;
                         continue;
                     }
+
 
                     bool moreNotifications = false;
 

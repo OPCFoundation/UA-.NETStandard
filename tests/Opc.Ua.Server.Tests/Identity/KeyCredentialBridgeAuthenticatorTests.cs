@@ -57,7 +57,8 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncValidProofAcceptedAndClaimsReturned()
         {
-            using InMemoryKeyCredentialStore store = await CreateStoreAsync(DateTime.UtcNow.AddMinutes(10))
+            DateTime expiration = DateTime.UtcNow.AddMinutes(10);
+            using InMemoryKeyCredentialStore store = await CreateStoreAsync(expiration)
                 .ConfigureAwait(false);
             var authenticator = new KeyCredentialBridgeAuthenticator(store);
 
@@ -72,6 +73,11 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(claims.Groups, Does.Contain("engineering"));
             Assert.That(claims.Roles, Does.Contain("operator"));
             Assert.That(claims.Claims["email"], Is.EqualTo("operator@example.test"));
+
+            // the session enforces the credential's expiration (OPC 10000-4 7.40.6)
+            var expiring = result.Identity as IIdentityExpiration;
+            Assert.That(expiring, Is.Not.Null);
+            Assert.That(expiring!.ExpiresAt, Is.EqualTo(expiration));
         }
 
         [Test]

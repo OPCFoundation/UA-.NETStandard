@@ -469,14 +469,17 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // classic: Session from the default session factory (classic subscription engine).
             // shared: classic Sessions whose secure channels come from one ClientChannelManager.
             string clientKind = Arg("client", "managed");
-            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared"
+            bool connectScenario = scenario is "connect" or "channel";
+            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared" || connectScenario
                 ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
                 : null;
             var channelManager = new ClientChannelManager(client.Config, telemetry);
             await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
             // sub: --writers adds dedicated writer sessions after the subscriber sessions
             int writerCount = scenario == "sub" ? ArgInt("writers", 0) : 0;
-            var sessions = new ISession[sessionCount + writerCount];
+            // connect/channel open their own sessions or channels per operation; idle
+            // preconnected sessions would only add keep-alive traffic to the measurement
+            var sessions = new ISession[connectScenario ? 0 : sessionCount + writerCount];
             var connectTime = Stopwatch.StartNew();
             // Shared sessions connect one at a time by default: concurrent creation
             // on one ClientChannelManager fails with BadSecureChannelClosed.
@@ -523,7 +526,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
 
-            Workload workload = counters
+            Workload workload = connectScenario
+                ? new ConnectWorkload(scenario, client, endpointForBuilder!, ArgInt("workers", 8))
+                : counters
                 ? new CounterWorkload(sessions, counterSubs, ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
                 : scenario == "events"
                 ? new EventWorkload(

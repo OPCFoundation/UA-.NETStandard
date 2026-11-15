@@ -1035,6 +1035,9 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                // the ephemeral key is not created for a request that was already
+                // cancelled or timed out.
+                requestLifetime.CancellationToken.ThrowIfCancellationRequested();
                 AdditionalParametersType? parameters = CreateSessionProcessAdditionalParameters(
                     session,
                     requestHeader.AdditionalHeader);

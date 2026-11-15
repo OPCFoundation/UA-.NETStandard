@@ -437,6 +437,13 @@ Key design notes:
   The session then schedules proactive refresh at `provider.ExpiresAt - 60s` using the
   configured `TimeProvider`. Refresh failures are logged and retried
   with backoff; they do not close the session.
+* **The server honours the token expiration.** OPC 10000-4 7.40.6: once the
+  issued token of a session has expired, the server rejects the session's
+  requests (except CloseSession) with `Bad_IdentityTokenInvalid` until the
+  client activates the session with a new token. `JwtAuthenticator` sets the
+  expiration to the `exp` claim plus its clock skew tolerance. A custom
+  identity reports its expiration through `IIdentityExpiration`; an
+  `IIdentityAugmenter` that wraps an identity should forward it.
 
 ```csharp
 var options = new ManagedSessionOptions
