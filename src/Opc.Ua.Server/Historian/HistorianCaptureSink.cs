@@ -251,58 +251,6 @@ namespace Opc.Ua.Server.Historian
                 : new ValueTask(completion.Task);
         }
 
-        private async ValueTask DisposeCoreAsync(TaskCompletionSource<bool> completion)
-        {
-            Task cleanup = m_consumer;
-            try
-            {
-                // Close the writer; the consumer drains remaining items and exits normally.
-                m_channel.Writer.TryComplete();
-                try
-                {
-                    await m_consumer
-                        .WaitAsync(TimeSpan.FromSeconds(5), m_timeProvider)
-                        .ConfigureAwait(false);
-                }
-                catch (TimeoutException)
-                {
-                    m_logger?.HistorianCaptureSinkConsumerDidNotDrainWithin5s();
-                    cleanup = Task.WhenAll(m_consumer, RequestShutdownAsync(m_shutdownCts));
-                    m_cleanupStarted?.Invoke(cleanup);
-                    throw;
-                }
-                finally
-                {
-                    if (cleanup.IsCompleted)
-                    {
-                        _ = cleanup.Exception;
-                        m_shutdownCts.Dispose();
-                    }
-                    else
-                    {
-                        // The consumer and cancellation callbacks own the token until both complete.
-                        _ = cleanup.ContinueWith(
-                            static (completed, state) =>
-                            {
-                                _ = completed.Exception;
-                                ((CancellationTokenSource)state!).Dispose();
-                            },
-                            m_shutdownCts,
-                            CancellationToken.None,
-                            TaskContinuationOptions.ExecuteSynchronously,
-                            TaskScheduler.Default);
-                    }
-                }
-                completion.TrySetResult(true);
-            }
-            catch (Exception failure)
-            {
-                completion.TrySetException(failure);
-                _ = completion.Task.Exception;
-                throw;
-            }
-        }
-
         /// <summary>
         /// Cancels an unsuccessful synchronous setup and observes consumer completion without blocking its caller.
         /// </summary>
@@ -345,6 +293,84 @@ namespace Opc.Ua.Server.Historian
             // TODO: Remove the marker once all supported runtimes complete the empty-registration path.
             using CancellationTokenRegistration completion = shutdown.Token.Register(static () => { });
             await shutdown.CancelAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Completes a capture consumer's shared disposal while retaining deferred cancellation and token ownership.
+        /// </summary>
+        /// <typeparam name="T">The queued capture record type.</typeparam>
+        /// <param name="writer">The capture queue closed before draining the consumer.</param>
+        /// <param name="consumer">The consumer whose actual completion releases its provider dependency.</param>
+        /// <param name="shutdown">The capture-owned cancellation source.</param>
+        /// <param name="timeProvider">The clock used for the shutdown deadline.</param>
+        /// <param name="completion">The original terminal disposal completion joined by overlapping callers.</param>
+        /// <param name="timedOut">The capture-specific timeout notification.</param>
+        /// <param name="cleanupStarted">The owner notified of separately tracked deferred cleanup.</param>
+        internal static async ValueTask CompleteDisposalAsync<T>(
+            ChannelWriter<T> writer,
+            Task consumer,
+            CancellationTokenSource shutdown,
+            TimeProvider timeProvider,
+            TaskCompletionSource<bool> completion,
+            Action? timedOut,
+            Action<Task>? cleanupStarted)
+        {
+            Task cleanup = consumer;
+            try
+            {
+                writer.TryComplete();
+                try
+                {
+                    await consumer.WaitAsync(TimeSpan.FromSeconds(5), timeProvider).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    timedOut?.Invoke();
+                    cleanup = Task.WhenAll(consumer, RequestShutdownAsync(shutdown));
+                    cleanupStarted?.Invoke(cleanup);
+                    throw;
+                }
+                finally
+                {
+                    if (cleanup.IsCompleted)
+                    {
+                        _ = cleanup.Exception;
+                        shutdown.Dispose();
+                    }
+                    else
+                    {
+                        // The consumer and cancellation callbacks own the token until both complete.
+                        _ = cleanup.ContinueWith(
+                            static (completed, state) =>
+                            {
+                                _ = completed.Exception;
+                                ((CancellationTokenSource)state!).Dispose();
+                            },
+                            shutdown,
+                            CancellationToken.None,
+                            TaskContinuationOptions.ExecuteSynchronously,
+                            TaskScheduler.Default);
+                    }
+                }
+                completion.TrySetResult(true);
+            }
+            catch (Exception failure)
+            {
+                completion.TrySetException(failure);
+                _ = completion.Task.Exception;
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Closes value capture and joins the common consumer disposal protocol.
+        /// </summary>
+        private ValueTask DisposeCoreAsync(TaskCompletionSource<bool> completion)
+        {
+            return CompleteDisposalAsync(
+                m_channel.Writer, m_consumer, m_shutdownCts, m_timeProvider, completion,
+                m_logger is null ? null : m_logger.HistorianCaptureSinkConsumerDidNotDrainWithin5s,
+                m_cleanupStarted);
         }
 
         private async Task ConsumeAsync(CancellationToken ct)

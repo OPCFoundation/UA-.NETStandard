@@ -206,55 +206,15 @@ namespace Opc.Ua.Server.Historian
                 : new ValueTask(completion.Task);
         }
 
-        private async ValueTask DisposeCoreAsync(TaskCompletionSource<bool> completion)
+        /// <summary>
+        /// Closes event capture and joins the common consumer disposal protocol.
+        /// </summary>
+        private ValueTask DisposeCoreAsync(TaskCompletionSource<bool> completion)
         {
-            Task cleanup = m_consumer;
-            try
-            {
-                m_channel.Writer.TryComplete();
-                try
-                {
-                    await m_consumer.WaitAsync(
-                        TimeSpan.FromSeconds(5),
-                        m_timeProvider).ConfigureAwait(false);
-                }
-                catch (TimeoutException)
-                {
-                    m_logger.HistorianEventCaptureConsumerDidNotDrain();
-                    cleanup = Task.WhenAll(m_consumer, HistorianCaptureSink.RequestShutdownAsync(m_shutdownCts));
-                    m_cleanupStarted?.Invoke(cleanup);
-                    throw;
-                }
-                finally
-                {
-                    if (cleanup.IsCompleted)
-                    {
-                        _ = cleanup.Exception;
-                        m_shutdownCts.Dispose();
-                    }
-                    else
-                    {
-                        // The consumer and cancellation callbacks own the token until both complete.
-                        _ = cleanup.ContinueWith(
-                            static (completed, state) =>
-                            {
-                                _ = completed.Exception;
-                                ((CancellationTokenSource)state!).Dispose();
-                            },
-                            m_shutdownCts,
-                            CancellationToken.None,
-                            TaskContinuationOptions.ExecuteSynchronously,
-                            TaskScheduler.Default);
-                    }
-                }
-                completion.TrySetResult(true);
-            }
-            catch (Exception failure)
-            {
-                completion.TrySetException(failure);
-                _ = completion.Task.Exception;
-                throw;
-            }
+            return HistorianCaptureSink.CompleteDisposalAsync(
+                m_channel.Writer, m_consumer, m_shutdownCts, m_timeProvider, completion,
+                m_logger.HistorianEventCaptureConsumerDidNotDrain,
+                m_cleanupStarted);
         }
 
         private HistorianEventRecord CreateRecord(
