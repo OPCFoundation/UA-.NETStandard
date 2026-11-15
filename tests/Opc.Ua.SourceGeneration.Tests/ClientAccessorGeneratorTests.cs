@@ -287,9 +287,12 @@ namespace Opc.Ua.SourceGeneration
             MetadataReference core = compilation.References.First(reference =>
                 Path.GetFileName(reference.Display) == "Opc.Ua.Core.dll");
             var output = new DirectoryInfo(Path.GetDirectoryName(core.Display)!);
-            string client = Path.GetFullPath(Path.Combine(
-                output.FullName, "..", "..", "..", "..", "Opc.Ua.Client", "bin",
-                output.Parent!.Name, output.Name, "Opc.Ua.Client.dll"));
+            string client = output.Parent?.Name == "Opc.Ua.Server"
+                ? Path.Combine(
+                    output.Parent.Parent!.FullName, "Opc.Ua.Client", output.Name, "Opc.Ua.Client.dll")
+                : Path.GetFullPath(Path.Combine(
+                    output.FullName, "..", "..", "..", "..", "Opc.Ua.Client", "bin",
+                    output.Parent!.Name, output.Name, "Opc.Ua.Client.dll"));
             return MetadataReference.CreateFromFile(client);
         }
 

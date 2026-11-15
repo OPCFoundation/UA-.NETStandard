@@ -101,11 +101,13 @@ Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
 - **Out-of-tree source inputs.** When `--artifacts-path` places source-backed
-  WoT aggregation, AMB model, RobotIntent conformance or OpenUSD generator
-  datasheet tests outside the checkout, set `OPCUA_TEST_REPOSITORY_ROOT` to the
-  checkout containing `UA.slnx`. These fixtures read their original
+  WoT aggregation, AMB model, RobotIntent conformance, source-generator model or
+  OpenUSD generator datasheet tests outside the checkout, set
+  `OPCUA_TEST_REPOSITORY_ROOT` to the checkout containing `UA.slnx`. These fixtures read their original
   repository assets there; no asset or assembly copying is needed. An invalid
   configured root fails explicitly instead of falling back to another checkout.
+  Source-generator runtime probes use Server and Client outputs from the same
+  artifacts directory and output pivot; build both projects with the same options.
 - **NUnit 5 async assertions.** Always await `Assert.ThrowsAsync`, `Assert.CatchAsync`, and `Assert.DoesNotThrowAsync`; these methods return tasks and no longer block until the assertion completes. The enclosing test or helper must return `Task`.
 - **WoT registry test storage.** File-backed registry and certificate fixtures
   create unique directories under `Path.GetTempPath()` and delete their own

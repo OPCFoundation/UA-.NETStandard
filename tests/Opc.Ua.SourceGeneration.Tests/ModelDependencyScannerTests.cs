@@ -1111,11 +1111,22 @@ namespace Opc.Ua.SourceGeneration
 
         private static string FindRepositoryRoot()
         {
+            string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrEmpty(configuredRoot))
+            {
+                if (File.Exists(Path.Combine(configuredRoot, "UA.slnx")))
+                {
+                    return configuredRoot;
+                }
+                throw new InvalidOperationException(
+                    $"OPCUA_TEST_REPOSITORY_ROOT does not contain UA.slnx: '{configuredRoot}'.");
+            }
+
             string assemblyDirectory =
                 Path.GetDirectoryName(typeof(ModelDependencyScannerTests).Assembly.Location)
                 ?? throw new InvalidOperationException("Test assembly directory was not found.");
             var directory = new DirectoryInfo(assemblyDirectory);
-            for (int i = 0; i < 5; i++)
+            while (!File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
             {
                 directory = directory.Parent
                     ?? throw new InvalidOperationException("Repository root was not found.");
@@ -1286,21 +1297,27 @@ namespace Opc.Ua.SourceGeneration
                 Path.GetDirectoryName(typeof(ModelDependencyScannerTests).Assembly.Location)
                 ?? throw new InvalidOperationException("Test assembly directory was not found.");
             var directory = new DirectoryInfo(assemblyDirectory);
-            string targetFramework = directory.Name;
-            string configuration = directory.Parent?.Name
-                ?? throw new InvalidOperationException("Test configuration directory was not found.");
-            for (int i = 0; i < 5; i++)
+            string serverOutput;
+            if (directory.Parent?.Name == "Opc.Ua.SourceGeneration.Tests")
             {
-                directory = directory.Parent
-                    ?? throw new InvalidOperationException("Repository root was not found.");
+                string artifactsBin = directory.Parent.Parent?.FullName
+                    ?? throw new InvalidOperationException("Artifacts output directory was not found.");
+                serverOutput = Path.Combine(artifactsBin, "Opc.Ua.Server", directory.Name);
+                if (!File.Exists(Path.Combine(serverOutput, "Opc.Ua.Server.dll")))
+                {
+                    throw new InvalidOperationException(
+                        $"Opc.Ua.Server output was not found at '{serverOutput}'. "
+                        + "Build Opc.Ua.Server with the same artifacts path and output pivot.");
+                }
             }
-            string serverBin = Path.Combine(
-                directory.FullName,
-                "src",
-                "Opc.Ua.Server",
-                "bin",
-                configuration);
-            string serverOutput = ResolveServerOutputFolder(serverBin, targetFramework);
+            else
+            {
+                string configuration = directory.Parent?.Name
+                    ?? throw new InvalidOperationException("Test configuration directory was not found.");
+                string serverBin = Path.Combine(
+                    FindRepositoryRoot(), "src", "Opc.Ua.Server", "bin", configuration);
+                serverOutput = ResolveServerOutputFolder(serverBin, directory.Name);
+            }
             return Directory.EnumerateFiles(serverOutput, "Opc.Ua*.dll")
                 .Where(path => !string.Equals(
                     Path.GetFileName(path),
