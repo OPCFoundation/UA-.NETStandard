@@ -283,13 +283,25 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the data using RSA encryption.
         /// </summary>
+        /// <param name="dataToDecrypt">The cipher text.</param>
+        /// <param name="encryptingCertificate">
+        /// The certificate whose private key decrypts.
+        /// </param>
+        /// <param name="padding">The padding that was applied.</param>
+        /// <param name="logger">Records a block size mismatch.</param>
+        /// <param name="maxPlainTextLength">
+        /// The longest plaintext the caller accepts. A cipher text with more RSA
+        /// blocks than that needs is rejected before the first private-key
+        /// operation.
+        /// </param>
         /// <exception cref="ServiceResultException"></exception>
         /// <exception cref="CryptographicException">The ciphertext or plaintext framing is invalid.</exception>
         internal static byte[] Decrypt(
             ArraySegment<byte> dataToDecrypt,
             Certificate encryptingCertificate,
             Padding padding,
-            ILogger logger)
+            ILogger logger,
+            int maxPlainTextLength = int.MaxValue)
         {
             using RSA rsa =
                 encryptingCertificate.GetRSAPrivateKey()
@@ -297,13 +309,35 @@ namespace Opc.Ua
                     StatusCodes.BadSecurityChecksFailed,
                     "No private key for certificate.");
 
+            return Decrypt(dataToDecrypt, rsa, padding, logger, maxPlainTextLength);
+        }
+
+        /// <summary>
+        /// Decrypts the data with a private key the caller owns.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="CryptographicException">The ciphertext or plaintext framing is invalid.</exception>
+        private static byte[] Decrypt(
+            ArraySegment<byte> dataToDecrypt,
+            RSA rsa,
+            Padding padding,
+            ILogger logger,
+            int maxPlainTextLength)
+        {
             int cipherTextBlockSize = GetCipherTextBlockSize(rsa);
             if (dataToDecrypt.Count == 0 || dataToDecrypt.Count % cipherTextBlockSize != 0)
             {
                 throw new CryptographicException("Could not decrypt data.");
             }
-            int plainTextSize = dataToDecrypt.Count / cipherTextBlockSize;
-            plainTextSize *= GetPlainTextBlockSize(encryptingCertificate, padding);
+
+            int plainTextBlockSize = GetPlainTextBlockSize(rsa, padding);
+            IdentityTokenLimits.ThrowIfRsaCipherTextTooLong(
+                dataToDecrypt.Count,
+                cipherTextBlockSize,
+                plainTextBlockSize,
+                maxPlainTextLength);
+
+            int plainTextSize = dataToDecrypt.Count / cipherTextBlockSize * plainTextBlockSize;
 
             byte[] buffer = new byte[plainTextSize];
             try
@@ -332,6 +366,11 @@ namespace Opc.Ua
         /// </param>
         /// <param name="padding">The padding that was applied.</param>
         /// <param name="logger">Records a block size mismatch.</param>
+        /// <param name="maxPlainTextLength">
+        /// The longest plaintext the caller accepts. A cipher text with more RSA
+        /// blocks than that needs is rejected before the first private-key
+        /// operation.
+        /// </param>
         /// <param name="ct">Cancels the operation.</param>
         /// <returns>The plain text.</returns>
         /// <exception cref="ServiceResultException"></exception>
@@ -345,41 +384,55 @@ namespace Opc.Ua
             Certificate encryptingCertificate,
             Padding padding,
             ILogger logger,
+            int maxPlainTextLength = int.MaxValue,
             CancellationToken ct = default)
         {
-            RSA? rsa = encryptingCertificate.GetRSAPrivateKey();
+            RSA rsa =
+                encryptingCertificate.GetRSAPrivateKey()
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "No private key for certificate.");
 
             if (rsa is IAsyncRsaKey asyncRsa)
             {
                 return DecryptWithAsyncRsaAsync(
-                    rsa, asyncRsa, dataToDecrypt, encryptingCertificate, padding, logger, ct);
+                    rsa, asyncRsa, dataToDecrypt, padding, logger, maxPlainTextLength, ct);
             }
 
-            rsa?.Dispose();
+            byte[] plainText;
+            using (rsa)
+            {
+                plainText = Decrypt(dataToDecrypt, rsa, padding, logger, maxPlainTextLength);
+            }
 
-            return new ValueTask<byte[]>(
-                Decrypt(dataToDecrypt, encryptingCertificate, padding, logger));
+            return new ValueTask<byte[]>(plainText);
         }
 
         private static async ValueTask<byte[]> DecryptWithAsyncRsaAsync(
             RSA owned,
             IAsyncRsaKey key,
             ArraySegment<byte> dataToDecrypt,
-            Certificate encryptingCertificate,
             Padding padding,
             ILogger logger,
+            int maxPlainTextLength,
             CancellationToken ct)
         {
             using (owned)
             {
                 int inputBlockSize = GetCipherTextBlockSize(owned);
-                int outputBlockSize = GetPlainTextBlockSize(encryptingCertificate, padding);
+                int outputBlockSize = GetPlainTextBlockSize(owned, padding);
 
                 if (dataToDecrypt.Count == 0 || dataToDecrypt.Count % inputBlockSize != 0)
                 {
                     logger.RsaUtilsLogMessage1(dataToDecrypt.Count, inputBlockSize);
                     throw new CryptographicException("Could not decrypt data.");
                 }
+
+                IdentityTokenLimits.ThrowIfRsaCipherTextTooLong(
+                    dataToDecrypt.Count,
+                    inputBlockSize,
+                    outputBlockSize,
+                    maxPlainTextLength);
 
                 RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
                 byte[] buffer = new byte[dataToDecrypt.Count / inputBlockSize * outputBlockSize];
