@@ -5612,8 +5612,11 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = GetOperationSystemContext(context);
-            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
-            var nodesToValidate = new List<NodeHandle>();
+
+            // created when a node is looked up or must be validated: the nodes the request
+            // validation resolved are written through their routed handles.
+            IDictionary<NodeId, NodeState>? operationCache = null;
+            List<NodeHandle>? nodesToValidate = null;
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             using (await AcquireSemaphoreAsync(m_writeSemaphore, cancellationToken).ConfigureAwait(false))
@@ -5628,12 +5631,14 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // check for valid handle.
-                    NodeHandle handle = await GetManagerHandleAsync(
-                        systemContext,
-                        nodeToWrite.NodeId,
-                        operationCache,
-                        cancellationToken).ConfigureAwait(false);
+                    // check for valid handle: the handle of an in-memory node this node manager
+                    // already returned while the request was validated, or a new one.
+                    NodeHandle handle = GetRoutedHandle(nodeToWrite.Handle, nodeToWrite.NodeId) ??
+                        await GetManagerHandleAsync(
+                            systemContext,
+                            nodeToWrite.NodeId,
+                            operationCache ??= new Dictionary<NodeId, NodeState>(),
+                            cancellationToken).ConfigureAwait(false);
 
                     if (handle == null)
                     {
@@ -5658,7 +5663,7 @@ namespace Opc.Ua.Server
 
                         // must validate node in a separate operation.
                         handle.Index = ii;
-                        nodesToValidate.Add(handle);
+                        (nodesToValidate ??= []).Add(handle);
 
                         continue;
                     }
@@ -5790,7 +5795,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check for nothing to do.
-                if (nodesToValidate.Count == 0)
+                if (nodesToValidate == null)
                 {
                     return;
                 }
@@ -5802,7 +5807,7 @@ namespace Opc.Ua.Server
                 nodesToWrite,
                 errors,
                 nodesToValidate,
-                operationCache,
+                operationCache ?? new Dictionary<NodeId, NodeState>(),
                 cancellationToken).ConfigureAwait(false);
         }
 

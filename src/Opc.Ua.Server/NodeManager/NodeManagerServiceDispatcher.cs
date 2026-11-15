@@ -2083,6 +2083,7 @@ namespace Opc.Ua.Server
                     nodesToWrite[ii],
                     uniqueNodesReadAttributes,
                     permissionsOnly: uniqueNodesReadAttributes == null,
+                    routeHandle: true,
                     cancellationToken)
                     .ConfigureAwait(false);
 
@@ -4515,45 +4516,137 @@ namespace Opc.Ua.Server
                 readValueId.Handle = null!;
             }
 
-            if (context.Session == null && context.UserIdentity == null && context.ChannelContext == null)
-            {
-                return StatusCodes.Good;
-            }
-
-            (object? nodeHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+            (ServiceResult result, NodeHandle? routed) = await ValidatePermissionsAndResolveRoutedHandleAsync(
                     context,
                     readValueId.NodeId,
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            if (nodeManager is AsyncCustomNodeManager owner &&
-                nodeHandle is NodeHandle { Validated: true, Node: not null } resolved &&
-                readValueId.Handle == null)
-            {
-                resolved.RoutedBy = owner;
-                readValueId.Handle = resolved;
-            }
-
-            return await ValidatePermissionsAsync(
-                    context,
-                    nodeManager,
-                    nodeHandle,
                     requestedPermission,
                     uniqueNodesReadAttributes,
                     permissionsOnly,
                     cancellationToken)
                 .ConfigureAwait(false);
+
+            if (routed != null && readValueId.Handle == null)
+            {
+                readValueId.Handle = routed;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Validates the permissions of a write like
+        /// <see cref="ValidatePermissionsAsync(OperationContext, NodeId, PermissionType, Dictionary{NodeId, Variant[]}?, bool, CancellationToken)"/>
+        /// and keeps the handle of an in-memory node of an <see cref="AsyncCustomNodeManager"/>
+        /// in <see cref="WriteValue.Handle"/>, so the node manager writes through it (see
+        /// <see cref="AsyncCustomNodeManager.GetRoutedHandle"/>), as
+        /// <see cref="ValidateReadPermissionsAndRouteHandleAsync"/> does for a read.
+        /// </summary>
+        private async ValueTask<ServiceResult> ValidateWritePermissionsAndRouteHandleAsync(
+            OperationContext context,
+            WriteValue writeValue,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributes,
+            bool permissionsOnly,
+            CancellationToken cancellationToken)
+        {
+            // a handle routed for an earlier write of the same instance is stale.
+            if (writeValue.Handle is NodeHandle { RoutedBy: not null })
+            {
+                writeValue.Handle = null!;
+            }
+
+            (ServiceResult result, NodeHandle? routed) = await ValidatePermissionsAndResolveRoutedHandleAsync(
+                    context,
+                    writeValue.NodeId,
+                    requestedPermission,
+                    uniqueNodesServiceAttributes,
+                    permissionsOnly,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (routed != null && writeValue.Handle == null)
+            {
+                writeValue.Handle = routed;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Validates the permissions of a node and returns the handle the validation resolved
+        /// when it is a resolved and validated handle of an in-memory node of an
+        /// <see cref="AsyncCustomNodeManager"/>, marked as routed by that node manager.
+        /// </summary>
+        private async ValueTask<(ServiceResult Result, NodeHandle? Routed)> ValidatePermissionsAndResolveRoutedHandleAsync(
+            OperationContext context,
+            NodeId nodeId,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributes,
+            bool permissionsOnly,
+            CancellationToken cancellationToken)
+        {
+            if (context.Session == null && context.UserIdentity == null && context.ChannelContext == null)
+            {
+                return (StatusCodes.Good, null);
+            }
+
+            (object? nodeHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                    context,
+                    nodeId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            NodeHandle? routed = null;
+            if (nodeManager is AsyncCustomNodeManager owner &&
+                nodeHandle is NodeHandle { Validated: true, Node: not null } resolved)
+            {
+                resolved.RoutedBy = owner;
+                routed = resolved;
+            }
+
+            ServiceResult result = await ValidatePermissionsAsync(
+                    context,
+                    nodeManager,
+                    nodeHandle,
+                    requestedPermission,
+                    uniqueNodesServiceAttributes,
+                    permissionsOnly,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return (result, routed);
         }
 
         /// <summary>
         /// Validates an attribute write and the permissions required by its target attribute.
         /// </summary>
-        internal async ValueTask<ServiceResult?> ValidateWriteRequestAsync(
+        internal ValueTask<ServiceResult?> ValidateWriteRequestAsync(
             OperationContext operationContext,
             WriteValue writeValue,
             Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributes = null,
             bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
+        {
+            return ValidateWriteRequestAsync(
+                operationContext,
+                writeValue,
+                uniqueNodesServiceAttributes,
+                permissionsOnly,
+                routeHandle: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates an attribute write and the permissions required by its target attribute,
+        /// and with <paramref name="routeHandle"/> keeps the handle of the node for the write
+        /// (see <see cref="ValidateWritePermissionsAndRouteHandleAsync"/>).
+        /// </summary>
+        private async ValueTask<ServiceResult?> ValidateWriteRequestAsync(
+            OperationContext operationContext,
+            WriteValue writeValue,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributes,
+            bool permissionsOnly,
+            bool routeHandle,
+            CancellationToken cancellationToken)
         {
             ServiceResult? serviceResult = WriteValue.Validate(writeValue);
 
@@ -4571,6 +4664,18 @@ namespace Opc.Ua.Server
                 else if (writeValue.AttributeId == Attributes.Value)
                 {
                     requestedPermission = PermissionType.Write;
+                }
+
+                if (routeHandle)
+                {
+                    return await ValidateWritePermissionsAndRouteHandleAsync(
+                            operationContext,
+                            writeValue,
+                            requestedPermission,
+                            uniqueNodesServiceAttributes,
+                            permissionsOnly,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 // check access rights and permissions
