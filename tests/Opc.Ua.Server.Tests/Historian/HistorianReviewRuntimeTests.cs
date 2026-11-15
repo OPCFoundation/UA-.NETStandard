@@ -303,6 +303,130 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// The shutdown deadline does not wait for a cancellation callback, whose token resources remain owned.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CaptureShutdownDeadlineDoesNotWaitForCancellationCallbacksAsync(bool events)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var cancellationRelease = new ManualResetEventSlim();
+            var logger = new Mock<ILogger>();
+            logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            ServerSystemContext context = CreateSystemContext(logger.Object);
+            var clock = new FakeTimeProvider(s_start);
+            var entered = new TaskCompletionSource<CancellationToken>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var cancellationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var providerRelease = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var providerReturned = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var cleanupStarted = new TaskCompletionSource<Task>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new Mock<IHistorianProvider>();
+            CancellationTokenRegistration registration = default;
+            IAsyncDisposable capture;
+            var options = new HistorianCaptureOptions { BatchTarget = 1 };
+            if (events)
+            {
+                provider.As<IHistorianEventProvider>().Setup(value => value.UpdateEventsAsync(
+                        It.IsAny<HistorianOperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<ArrayOf<HistorianEventRecord>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((HistorianOperationContext _, NodeId _, ArrayOf<HistorianEventRecord> _,
+                        CancellationToken token) => FinishProviderAsync<HistorianEventRecord>(token));
+                var pump = new HistorianEventCapture(
+                    context.Server, provider.Object, HistorianNodeCapabilities.EventReadWrite, options, clock,
+                    task => cleanupStarted.TrySetResult(task));
+                capture = pump;
+                var notifier = new BaseObjectState(null) { NodeId = new NodeId("cancel-callback", 1) };
+                var reportedEvent = new BaseEventState(null);
+                reportedEvent.Initialize(
+                    context, notifier, EventSeverity.Medium, new LocalizedText("cancel-callback"));
+                pump.Enqueue(context, notifier, reportedEvent);
+            }
+            else
+            {
+                provider.As<IHistorianDataProvider>().Setup(value => value.InsertAsync(
+                        It.IsAny<HistorianOperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<ArrayOf<DataValue>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((HistorianOperationContext _, NodeId _, ArrayOf<DataValue> _,
+                        CancellationToken token) => FinishProviderAsync<DataValue>(token));
+                var pump = new HistorianCaptureSink(
+                    provider.Object, context, options, clock, task => cleanupStarted.TrySetResult(task));
+                capture = pump;
+                pump.Enqueue(new NodeId("cancel-callback", 1), new DataValue(1));
+            }
+
+            Task? disposing = null;
+            Task? advancing = null;
+            Task? cleanup = null;
+            try
+            {
+                CancellationToken token = await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                WaitHandle handle = token.WaitHandle;
+                disposing = capture.DisposeAsync().AsTask();
+                advancing = Task.Run(() => clock.Advance(TimeSpan.FromSeconds(5)));
+                await cancellationEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                TimeoutException? failure = await Assert.ThrowsAsync<TimeoutException>(
+                    () => disposing.WaitAsync(timeout.Token)).ConfigureAwait(false);
+                Assert.That(disposing.IsFaulted, Is.True,
+                    "The capture's own deadline, not the test's wait deadline, must complete disposal.");
+                TimeoutException? repeated = await Assert.ThrowsAsync<TimeoutException>(
+                    async () => await capture.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(repeated, Is.SameAs(failure));
+                cleanup = await cleanupStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                providerRelease.TrySetResult(true);
+                await providerReturned.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(cleanup.IsCompleted, Is.False,
+                    "Cleanup must also join the cancellation callback after the provider returns.");
+                Assert.That(handle.SafeWaitHandle.IsClosed, Is.False,
+                    "A cancellation callback still owns the token resources.");
+            }
+            finally
+            {
+                cancellationRelease.Set();
+                providerRelease.TrySetResult(true);
+                if (advancing is not null)
+                {
+                    await advancing.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                if (disposing is not null)
+                {
+                    await Assert.ThrowsAsync<TimeoutException>(
+                        () => disposing).ConfigureAwait(false);
+                }
+                else
+                {
+                    await capture.DisposeAsync().ConfigureAwait(false);
+                }
+                if (cleanup is not null)
+                {
+                    await cleanup.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                registration.Dispose();
+            }
+
+            async ValueTask<HistorianUpdateOutcome<T>> FinishProviderAsync<T>(CancellationToken token)
+            {
+                registration = token.Register(() =>
+                {
+                    cancellationEntered.TrySetResult(true);
+                    cancellationRelease.Wait(TimeSpan.FromSeconds(15));
+                });
+                entered.TrySetResult(token);
+                await providerRelease.Task.ConfigureAwait(false);
+                providerReturned.TrySetResult(true);
+                return new HistorianUpdateOutcome<T>([StatusCodes.Good]);
+            }
+        }
+
         [TestCase(0, false)]
         [TestCase(0, true)]
         [TestCase(1, false)]

@@ -253,6 +253,7 @@ namespace Opc.Ua.Server.Historian
 
         private async ValueTask DisposeCoreAsync(TaskCompletionSource<bool> completion)
         {
+            Task cleanup = m_consumer;
             try
             {
                 // Close the writer; the consumer drains remaining items and exits normally.
@@ -266,21 +267,21 @@ namespace Opc.Ua.Server.Historian
                 catch (TimeoutException)
                 {
                     m_logger?.HistorianCaptureSinkConsumerDidNotDrainWithin5s();
-                    m_cleanupStarted?.Invoke(m_consumer);
-                    m_shutdownCts.Cancel();
+                    cleanup = Task.WhenAll(m_consumer, RequestShutdownAsync(m_shutdownCts));
+                    m_cleanupStarted?.Invoke(cleanup);
                     throw;
                 }
                 finally
                 {
-                    if (m_consumer.IsCompleted)
+                    if (cleanup.IsCompleted)
                     {
-                        _ = m_consumer.Exception;
+                        _ = cleanup.Exception;
                         m_shutdownCts.Dispose();
                     }
                     else
                     {
-                        // The in-flight provider still owns the token until it completes.
-                        _ = m_consumer.ContinueWith(
+                        // The consumer and cancellation callbacks own the token until both complete.
+                        _ = cleanup.ContinueWith(
                             static (completed, state) =>
                             {
                                 _ = completed.Exception;
@@ -329,6 +330,21 @@ namespace Opc.Ua.Server.Historian
                     TaskContinuationOptions.ExecuteSynchronously,
                     TaskScheduler.Default);
             }
+        }
+
+        /// <summary>
+        /// Requests asynchronous shutdown and completes cancellation notification before token resources are released.
+        /// </summary>
+        /// <param name="shutdown">The cancellation source owned by a capture consumer.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="shutdown"/> is <c>null</c>.</exception>
+        internal static async Task RequestShutdownAsync(CancellationTokenSource shutdown)
+        {
+            _ = shutdown ?? throw new ArgumentNullException(nameof(shutdown));
+            // CancelAsync can leave notification incomplete when there are no registrations, preventing
+            // disposal of an existing token wait handle. Keep a registration until notification completes.
+            // TODO: Remove the marker once all supported runtimes complete the empty-registration path.
+            using CancellationTokenRegistration completion = shutdown.Token.Register(static () => { });
+            await shutdown.CancelAsync().ConfigureAwait(false);
         }
 
         private async Task ConsumeAsync(CancellationToken ct)

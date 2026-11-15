@@ -208,6 +208,7 @@ namespace Opc.Ua.Server.Historian
 
         private async ValueTask DisposeCoreAsync(TaskCompletionSource<bool> completion)
         {
+            Task cleanup = m_consumer;
             try
             {
                 m_channel.Writer.TryComplete();
@@ -220,21 +221,21 @@ namespace Opc.Ua.Server.Historian
                 catch (TimeoutException)
                 {
                     m_logger.HistorianEventCaptureConsumerDidNotDrain();
-                    m_cleanupStarted?.Invoke(m_consumer);
-                    m_shutdownCts.Cancel();
+                    cleanup = Task.WhenAll(m_consumer, HistorianCaptureSink.RequestShutdownAsync(m_shutdownCts));
+                    m_cleanupStarted?.Invoke(cleanup);
                     throw;
                 }
                 finally
                 {
-                    if (m_consumer.IsCompleted)
+                    if (cleanup.IsCompleted)
                     {
-                        _ = m_consumer.Exception;
+                        _ = cleanup.Exception;
                         m_shutdownCts.Dispose();
                     }
                     else
                     {
-                        // The in-flight provider still owns the token until it completes.
-                        _ = m_consumer.ContinueWith(
+                        // The consumer and cancellation callbacks own the token until both complete.
+                        _ = cleanup.ContinueWith(
                             static (completed, state) =>
                             {
                                 _ = completed.Exception;
