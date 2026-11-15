@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -100,6 +101,14 @@ namespace Opc.Ua.Server.Tests.Hosting
             inner.VerifyAll();
         }
 
+        /// <summary>
+        /// Concrete and interface entry points forward the same prepared transaction and cancellation token.
+        /// </summary>
+        // TODO: Remove this suppression when RCS1151 recognizes intentional interface-dispatch controls.
+        [SuppressMessage(
+            "Style",
+            "RCS1151:Remove redundant cast",
+            Justification = "The false case must call through the interface, not repeat the concrete entry point.")]
         [TestCase(false)]
         [TestCase(true)]
         public async Task HostedPreparationForwardsCanonicalTransactionAsync(bool compatibilityEntryPoint)
@@ -122,6 +131,14 @@ namespace Opc.Ua.Server.Tests.Hosting
             prepared.Verify(owner => owner.DisposeAsync(), Times.Once);
         }
 
+        /// <summary>
+        /// Both entry points preserve the exact capture and the writer's cancellation token.
+        /// </summary>
+        // TODO: Remove this suppression when RCS1151 recognizes intentional interface-dispatch controls.
+        [SuppressMessage(
+            "Style",
+            "RCS1151:Remove redundant cast",
+            Justification = "The false case must call through the interface, not repeat the concrete entry point.")]
         [TestCase(false)]
         [TestCase(true)]
         public async Task HostedCapturePreservesOwnerContextFreeTokenAndIdentityAsync(bool legacyContext)

@@ -27,6 +27,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -62,6 +63,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(nodes.ContainsKey(original.NodeId), Is.False);
         }
 
+        /// <summary>
+        /// Collection-interface membership and removal reject an equal entry for a different node instance.
+        /// </summary>
+        // TODO: Remove this suppression when RCS1151 recognizes intentional interface-dispatch controls.
+        [SuppressMessage(
+            "Style",
+            "RCS1151:Remove redundant cast",
+            Justification = "Both assertions deliberately exercise collection-interface dispatch.")]
         [Test]
         public void CollectionRemovalPreservesDistinctEqualReplacement()
         {
