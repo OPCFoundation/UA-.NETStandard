@@ -5032,7 +5032,7 @@ namespace Opc.Ua.Server
                             if (m_monitoredItemManager.MonitoredNodes.TryGetValue(
                                 notifier.NodeId, out MonitoredNode2? monitored))
                             {
-                                foreach (IEventMonitoredItem item in monitored.EventMonitoredItems.Values.ToArray())
+                                foreach (IEventMonitoredItem item in monitored.GetEventItems())
                                 {
                                     if (!item.MonitoringAllEvents)
                                     {
@@ -5107,7 +5107,7 @@ namespace Opc.Ua.Server
             bool wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
                 source.NodeId,
                 out MonitoredNode2? existingMonitoredNode) &&
-                existingMonitoredNode.EventMonitoredItems.ContainsKey(
+                existingMonitoredNode.ContainsEventItem(
                     monitoredItem.Id);
             (MonitoredNode2? monitoredNode, ServiceResult serviceResult) = m_monitoredItemManager!
                 .SubscribeToEvents(
