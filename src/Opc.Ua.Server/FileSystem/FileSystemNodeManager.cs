@@ -461,13 +461,18 @@ namespace Opc.Ua.Server.FileSystem
         public override async ValueTask DisposeAsync()
         {
             Task cleanup = base.DisposeAsync().AsTask();
-            if (await Task.WhenAny(cleanup, Task.Delay(CloseTimeout)).ConfigureAwait(false) == cleanup ||
-                cleanup.IsCompleted)
+            try
             {
-                await cleanup.ConfigureAwait(false);
-                return;
+                await cleanup.WaitAsync(CloseTimeout).ConfigureAwait(false);
             }
-            throw new NodeManagerCleanupDeferredException(cleanup);
+            catch (TimeoutException)
+            {
+                if (!cleanup.IsCompleted)
+                {
+                    throw new NodeManagerCleanupDeferredException(cleanup);
+                }
+                await cleanup.ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
