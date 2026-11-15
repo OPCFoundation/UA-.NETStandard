@@ -295,7 +295,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 for (int ii = 0; ii < count; ii++)
                 {
                     double[] array = new double[length];
-                    Array.Fill(array, ii);
+                    for (int jj = 0; jj < length; jj++)
+                    {
+                        array[jj] = ii;
+                    }
                     values[ii] = new DataValue(
                         new Variant((ArrayOf<double>)array),
                         StatusCodes.Good,
