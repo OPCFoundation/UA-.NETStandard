@@ -288,6 +288,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // sized for the largest pipeline (sessions x inflight), as the o6-automation benchmarks do
             config.ServerConfiguration.MaxQueuedRequestCount = ArgInt("queue", 2000);
             int counters = ArgInt("counters", 0);
+            // simulated regressions for validating the load floors (perf/regression)
+            FaultInjection.AllocBytes = ArgInt("inject-alloc", 0);
+            FaultInjection.SpinMicroseconds = ArgInt("inject-spin-us", 0);
             int sampling = ArgInt("sampling", 10);
             if (counters > 0)
             {
@@ -318,6 +321,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     ArgInt("async-node-manager", contract ? 1 : 0) != 0)
                 : contract
                 ? new BenchmarkContractServer(telemetry, ArgInt("async-node-manager", 1) != 0)
+                : FaultInjection.Enabled
+                ? new FaultInjectingReferenceServer(telemetry)
                 : new ReferenceServer(telemetry);
             if (Arg("isolation", "default") == "sharedonly")
             {
@@ -409,7 +414,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                     $"--counters {counterCount} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")} ") +
                 FormattableString.Invariant(
-                    $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} --counter-lock {Arg("counter-lock", "0")}"),
+                    $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} ") +
+                FormattableString.Invariant(
+                    $"--counter-lock {Arg("counter-lock", "0")} ") +
+                FormattableString.Invariant(
+                    $"--inject-alloc {Arg("inject-alloc", "0")} --inject-spin-us {Arg("inject-spin-us", "0")}"),
                 serverEnvironment);
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;

@@ -203,3 +203,57 @@ jobs:
         name: chaos-tcp-${{ steps.seed.outputs.seed }}
         path: ${{ env.TESTRESULTS }}
       if: always()
+
+  load-floors:
+    name: Server load floors
+    # Same gate as the jobs above. The floors measure throughput, so they run
+    # nightly and on request, never as a required pull-request check.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'stress') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'stress'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      CONFIGURATION: 'Release'
+      CUSTOM_TEST_TARGET: 'net10.0'
+      HARNESS_PROJECT: './perf/ServerLoadHarness/ServerLoadHarness.csproj'
+      TESTRESULTS: './TestResults/load-floors'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET from global.json
+      uses: ./.github/actions/setup-repository-dotnet
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Build the server load harness
+      run: >
+        dotnet build ${{ env.HARNESS_PROJECT }}
+        --configuration ${{ env.CONFIGURATION }}
+        /p:CustomTestTarget=${{ env.CUSTOM_TEST_TARGET }}
+
+    # Delivered %, server bytes per operation and rate ratios against a same-run
+    # read calibration; see perf/regression/README.md for what each floor catches.
+    - name: Run the load floors
+      shell: pwsh
+      run: |
+        ./perf/regression/Invoke-LoadFloors.ps1 `
+          -Harness "./perf/ServerLoadHarness/bin/$($env:CONFIGURATION)/$($env:CUSTOM_TEST_TARGET)/ServerLoadHarness" `
+          -OutDirectory $env:TESTRESULTS
+
+    - name: Upload load floor results
+      uses: actions/upload-artifact@v7
+      with:
+        name: load-floors
+        path: ${{ env.TESTRESULTS }}
+      if: always()
