@@ -34,6 +34,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -310,6 +311,96 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             Assert.That(counter.DecryptCount, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// The encoder always appends a block (length / block size + 1), so a
+        /// block-aligned plaintext of the maximum length takes one block more than
+        /// it fills. The limit allows that block and nothing more.
+        /// </summary>
+        [Test]
+        public void BlockAlignedMaximumPlainTextAllowsTheEncodersExtraBlock()
+        {
+            const int cipherBlock = 256;
+            const int plainBlock = 214; // 2048-bit key, OAEP-SHA1
+            const int maxPlainText = 4 * plainBlock;
+
+            Assert.DoesNotThrow(() => IdentityTokenLimits.ThrowIfRsaCipherTextTooLong(
+                5 * cipherBlock, cipherBlock, plainBlock, maxPlainText));
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => IdentityTokenLimits.ThrowIfRsaCipherTextTooLong(
+                    6 * cipherBlock, cipherBlock, plainBlock, maxPlainText))!;
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        /// <summary>
+        /// A block-aligned plaintext of exactly the maximum length round-trips
+        /// through the encoder and the bounded decoder (sync and async).
+        /// </summary>
+        [TestCase(0, TestName = "BlockAlignedMaximumPlainTextRoundTrips(Pkcs1)")]
+        [TestCase(1, TestName = "BlockAlignedMaximumPlainTextRoundTrips(OaepSHA1)")]
+        [TestCase(2, TestName = "BlockAlignedMaximumPlainTextRoundTrips(OaepSHA256)")]
+        public async Task BlockAlignedMaximumPlainTextRoundTripsAsync(int paddingValue)
+        {
+            // RsaUtils.Padding is internal, so the cases pass its value.
+            var padding = (RsaUtils.Padding)paddingValue;
+            using Certificate certificate = CreateCertificate();
+            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<IdentityTokenSecretLimitTests>();
+            int plainBlock = RsaUtils.GetPlainTextBlockSize(certificate, padding);
+            int maxPlainText = 4 * plainBlock;
+            byte[] data = RandomBytes(maxPlainText - sizeof(int));
+
+            byte[] cipherText = RsaUtils.Encrypt(data, certificate, padding, logger);
+            Assert.That(cipherText, Has.Length.EqualTo(5 * RsaUtils.GetCipherTextBlockSize(certificate)));
+
+            byte[] decrypted = RsaUtils.Decrypt(
+                new ArraySegment<byte>(cipherText), certificate, padding, logger, maxPlainText);
+            Assert.That(decrypted, Is.EqualTo(data));
+
+            decrypted = await RsaUtils.DecryptAsync(
+                new ArraySegment<byte>(cipherText), certificate, padding, logger, maxPlainText)
+                .ConfigureAwait(false);
+            Assert.That(decrypted, Is.EqualTo(data));
+        }
+
+        /// <summary>
+        /// An HSM or remote key (<see cref="IAsyncRsaKey"/>) gets the same limit:
+        /// an oversized secret makes no key call, one within the limit round-trips.
+        /// </summary>
+        [Test]
+        public async Task AsyncRsaKeyRejectsOversizedCipherTextBeforeTheKeyIsUsedAsync()
+        {
+            using Certificate certificate = CreateCertificate();
+            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<IdentityTokenSecretLimitTests>();
+
+            var oversizedKey = new CountingAsyncRsa(certificate.GetRSAPrivateKey()!);
+            ServiceResultException sre = await AssertIdentityTokenInvalidAsync(async () =>
+                await RsaUtils.DecryptWithAsyncRsaAsync(
+                    oversizedKey,
+                    oversizedKey,
+                    new ArraySegment<byte>(RepeatBlock(certificate, kOversizedBlockCount)),
+                    RsaUtils.Padding.OaepSHA1,
+                    logger,
+                    IdentityTokenLimits.MaxLegacyPlainTextLength,
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(sre.Message, Does.Contain("RSA blocks"));
+            Assert.That(oversizedKey.DecryptCount, Is.Zero);
+
+            int maxPlainText = 4 * RsaUtils.GetPlainTextBlockSize(certificate, RsaUtils.Padding.OaepSHA1);
+            byte[] data = RandomBytes(maxPlainText - sizeof(int));
+            byte[] cipherText = RsaUtils.Encrypt(data, certificate, RsaUtils.Padding.OaepSHA1, logger);
+
+            var key = new CountingAsyncRsa(certificate.GetRSAPrivateKey()!);
+            byte[] decrypted = await RsaUtils.DecryptWithAsyncRsaAsync(
+                key,
+                key,
+                new ArraySegment<byte>(cipherText),
+                RsaUtils.Padding.OaepSHA1,
+                logger,
+                maxPlainText,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(decrypted, Is.EqualTo(data));
+            Assert.That(key.DecryptCount, Is.EqualTo(5));
+        }
+
         private static async Task<ServiceResultException> AssertIdentityTokenInvalidAsync(Func<Task> action)
         {
             try
@@ -382,8 +473,90 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         private static byte[] RandomBytes(int length)
         {
             byte[] bytes = new byte[length];
-            RandomNumberGenerator.Fill(bytes);
+            using RandomNumberGenerator rng = RandomNumberGenerator.Create();
+            rng.GetBytes(bytes);
             return bytes;
+        }
+
+        /// <summary>
+        /// Forwards to a real key and counts the decryptions made through
+        /// <see cref="IAsyncRsaKey"/> (an HSM or remote key).
+        /// </summary>
+        private sealed class CountingAsyncRsa : RSA, IAsyncRsaKey
+        {
+            private readonly RSA m_key;
+            private int m_decryptCount;
+
+            public CountingAsyncRsa(RSA key)
+            {
+                m_key = key;
+                KeySizeValue = key.KeySize;
+                LegalKeySizesValue = key.LegalKeySizes;
+            }
+
+            public int DecryptCount => Volatile.Read(ref m_decryptCount);
+
+            public ValueTask<byte[]> SignHashAsync(
+                ReadOnlyMemory<byte> hash,
+                HashAlgorithmName hashAlgorithm,
+                RSASignaturePadding padding,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<byte[]>(m_key.SignHash(hash.ToArray(), hashAlgorithm, padding));
+            }
+
+            public async ValueTask<byte[]> DecryptAsync(
+                ReadOnlyMemory<byte> data,
+                RSAEncryptionPadding padding,
+                CancellationToken ct = default)
+            {
+                Interlocked.Increment(ref m_decryptCount);
+                await Task.Yield();
+                return m_key.Decrypt(data.ToArray(), padding);
+            }
+
+            public override RSAParameters ExportParameters(bool includePrivateParameters)
+            {
+                return m_key.ExportParameters(includePrivateParameters);
+            }
+
+            public override void ImportParameters(RSAParameters parameters)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override byte[] Decrypt(byte[] data, RSAEncryptionPadding padding)
+            {
+                throw new NotSupportedException("Use DecryptAsync.");
+            }
+
+            public override byte[] Encrypt(byte[] data, RSAEncryptionPadding padding)
+            {
+                return m_key.Encrypt(data, padding);
+            }
+
+            public override byte[] SignHash(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
+            {
+                return m_key.SignHash(hash, hashAlgorithm, padding);
+            }
+
+            public override bool VerifyHash(
+                byte[] hash,
+                byte[] signature,
+                HashAlgorithmName hashAlgorithm,
+                RSASignaturePadding padding)
+            {
+                return m_key.VerifyHash(hash, signature, hashAlgorithm, padding);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    m_key.Dispose();
+                }
+                base.Dispose(disposing);
+            }
         }
 
         /// <summary>

@@ -196,7 +196,10 @@ namespace Opc.Ua
                 return;
             }
 
-            long maxBlocks = ((long)maxPlainTextLength + plainTextBlockSize - 1) / plainTextBlockSize;
+            // RsaUtils.Encrypt always appends a block (length / block size + 1),
+            // so a block-aligned plaintext of the maximum length takes one block
+            // more than it fills; allow that block.
+            long maxBlocks = ((long)maxPlainTextLength / plainTextBlockSize) + 1;
             if (cipherTextLength > maxBlocks * cipherTextBlockSize)
             {
                 throw ServiceResultException.Create(

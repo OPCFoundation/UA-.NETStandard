@@ -139,7 +139,10 @@ namespace Opc.Ua.Server.Tests
         public async Task LegacyRsaPasswordOfMaximumLengthReachesAuthenticatorAsync(string policyUri)
         {
             byte[] expectedPassword = new byte[IdentityTokenLimits.MaxPasswordLength];
-            RandomNumberGenerator.Fill(expectedPassword);
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(expectedPassword);
+            }
             byte[]? receivedPassword = null;
             var registry = new ServerIdentityRegistry(new UserNamePasswordAuthenticator(
                 (handler, _) =>

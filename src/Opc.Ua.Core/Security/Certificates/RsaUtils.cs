@@ -408,7 +408,7 @@ namespace Opc.Ua
             return new ValueTask<byte[]>(plainText);
         }
 
-        private static async ValueTask<byte[]> DecryptWithAsyncRsaAsync(
+        internal static async ValueTask<byte[]> DecryptWithAsyncRsaAsync(
             RSA owned,
             IAsyncRsaKey key,
             ArraySegment<byte> dataToDecrypt,
