@@ -134,7 +134,7 @@ namespace Opc.Ua.Aot.Tests
             nodes.AddOpcUaDi(context);
             new EcmModelProvider().AddPredefinedNodes(nodes, context);
             EnergyStandbyManagementState standby = context.CreateInstanceOfEnergyStandbyManagementType(
-                null, new QualifiedName("Power", instances));
+                browseName: new QualifiedName("Power", instances));
             EnergyDevicePowerOffState wol = context.CreateInstanceOfEnergyDevicePowerOffType(
                 standby, new QualifiedName("Sleep", instances));
             var clock = new DeviceClock();
@@ -145,6 +145,11 @@ namespace Opc.Ua.Aot.Tests
             await using var binding = new EcmPowerBinding(context, standby, provider, wol, provider,
                 authorize: static (_, _) => new ValueTask<bool>(true));
             await binding.RefreshAsync().ConfigureAwait(false);
+            ArgumentNullException.ThrowIfNull(standby.StandbyManagementStatus);
+            ArgumentNullException.ThrowIfNull(standby.StartPause);
+            ArgumentNullException.ThrowIfNull(standby.PauseTime);
+            ArgumentNullException.ThrowIfNull(wol.WOLMagicPacket);
+            ArgumentNullException.ThrowIfNull(wol.SwitchOffWOL);
             await Assert.That(standby.StandbyManagementStatus.Value)
                 .IsEqualTo((byte)EcmStandbyStatus.ReadyToOperate);
             await Assert.That(wol.WOLMagicPacket.Value.Length).IsEqualTo(6);
@@ -199,9 +204,10 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(wol.SwitchOffWOL.OnCallAsync == null).IsTrue();
 
             EnergyDevicePowerOffState standalone = context.CreateInstanceOfEnergyDevicePowerOffType(
-                null, new QualifiedName("StandaloneSleep", instances));
+                browseName: new QualifiedName("StandaloneSleep", instances));
             await using var standaloneBinding = new EcmWolBinding(context, standalone, provider,
                 authorize: static (_, _) => new ValueTask<bool>(true));
+            ArgumentNullException.ThrowIfNull(standalone.SwitchOffWOL);
             var standaloneCall = await standalone.SwitchOffWOL.OnCallAsync!(
                 context, standalone.SwitchOffWOL, standalone.NodeId, CancellationToken.None).ConfigureAwait(false);
             await Assert.That(standaloneCall.ServiceResult.StatusCode).IsEqualTo(StatusCodes.Good);
@@ -244,7 +250,7 @@ namespace Opc.Ua.Aot.Tests
             nodes.AddOpcUaDi(context);
             new EcmModelProvider().AddPredefinedNodes(nodes, context);
             EnergyMeasurementState measurement = context.CreateInstanceOfEnergyMeasurementType(
-                null, new QualifiedName("Meter", instances));
+                browseName: new QualifiedName("Meter", instances));
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var restarted = new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc);
             var provider = new StatisticsProvider(acquired, restarted);
@@ -312,7 +318,7 @@ namespace Opc.Ua.Aot.Tests
             nodes.AddOpcUaDi(context);
             new EcmModelProvider().AddPredefinedNodes(nodes, context);
             EnergyMeasurementState measurement = context.CreateInstanceOfEnergyMeasurementType(
-                null, new QualifiedName("Meter", instances));
+                browseName: new QualifiedName("Meter", instances));
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var restarted = new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc);
             var phases = new AcPeDataType { L1 = 1f, L2 = 2f, L3 = 3f };
@@ -328,7 +334,7 @@ namespace Opc.Ua.Aot.Tests
 
             var current = (BaseVariableState)measurement.FindChild(
                 context, new QualifiedName(ECM.BrowseNames.AcCurrentPe, ecm))!;
-            await Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType? published)).IsTrue();
+            await Assert.That(current.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? published)).IsTrue();
             await Assert.That(published!.L1).IsEqualTo(1f);
             var children = new List<BaseInstanceState>();
             measurement.GetChildren(context, children);
@@ -338,7 +344,7 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
 
             await Assert.That(ServiceResult.IsGood(result)).IsTrue();
-            await Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType? retained)).IsTrue();
+            await Assert.That(current.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? retained)).IsTrue();
             await Assert.That(retained!.L1).IsEqualTo(1f);
             await Assert.That(current.StatusCode).IsEqualTo(StatusCodes.Good);
 
@@ -358,7 +364,7 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(failure).IsNotNull();
             await Assert.That(hostile.Touched).IsEqualTo(0);
             await Assert.That(hostile.TypeIdReads).IsEqualTo(0);
-            await Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType? kept)).IsTrue();
+            await Assert.That(current.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? kept)).IsTrue();
             await Assert.That(kept!.L1).IsEqualTo(1f);
             await Assert.That(current.StatusCode).IsEqualTo(StatusCodes.BadNoCommunication);
         }
