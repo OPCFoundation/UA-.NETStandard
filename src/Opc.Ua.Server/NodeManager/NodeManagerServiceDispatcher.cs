@@ -2060,8 +2060,8 @@ namespace Opc.Ua.Server
             int count = nodesToWrite.Count;
 
             bool diagnosticsExist = false;
-            var results = new List<StatusCode>(count);
-            var diagnosticInfos = new List<DiagnosticInfo>(count);
+            var results = new StatusCode[count];
+            DiagnosticInfo[]? diagnosticInfos = null;
 
             Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = PrepareValidationCacheForMany(nodesToWrite);
 
@@ -2075,8 +2075,6 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < count; ii++)
             {
-                StatusCode result = StatusCodes.Good;
-                DiagnosticInfo? diagnosticInfo = null;
 
                 // pre-validate and pre-parse parameter. Validate also access rights and role permissions
                 ServiceResult? error = await ValidateWriteRequestAsync(
@@ -2092,12 +2090,13 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(error))
                 {
                     nodesToWrite[ii].Processed = true;
-                    result = error!.Code;
+                    results[ii] = error!.Code;
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
+                        (diagnosticInfos ??= new DiagnosticInfo[count])[ii] =
+                            ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger)!;
                         diagnosticsExist = true;
                     }
                 }
@@ -2108,16 +2107,12 @@ namespace Opc.Ua.Server
                     validItems = true;
                     routes.Include(namespaceManagers, nodesToWrite[ii].NodeId);
                 }
-
-                results.Add(result);
-                diagnosticInfos.Add(diagnosticInfo!);
             }
 
             // call each node manager.
             if (validItems)
             {
-                var errors = new List<ServiceResult>(count);
-                errors.AddRange(new ServiceResult[count]);
+                var errors = new ServiceResult[count];
 
                 foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
@@ -2147,7 +2142,7 @@ namespace Opc.Ua.Server
                         // add diagnostics if requested.
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
+                            (diagnosticInfos ??= new DiagnosticInfo[count])[ii] = ServerUtils.CreateDiagnosticInfo(
                                 Server,
                                 context,
                                 errors[ii],
@@ -2166,7 +2161,12 @@ namespace Opc.Ua.Server
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
-            return (results, diagnosticInfos);
+            ArrayOf<DiagnosticInfo> diagnostics = default;
+            if (diagnosticInfos != null)
+            {
+                diagnostics = diagnosticInfos;
+            }
+            return (results, diagnostics);
         }
 
         /// <summary>
