@@ -77,6 +77,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_loggerFactory = loggerFactory;
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
             m_outcomeDispatcher = new AcknowledgementOutcomeDispatcher(m_logger);
+            m_ingressWaitPolicy = new IngressWaitPolicy(this);
             ShutdownToken = m_cts.Token;
             ReturnDiagnostics = returnDiagnostics;
             m_disposeToken = m_cts.Token;
@@ -3751,15 +3752,24 @@ namespace Opc.Ua.Client.Subscriptions
                                 subscription, notificationMessage, availableSequenceNumbers, claimMark);
 
                             // Capture the delivery generation before draining can retire it.
-                            ValueTask delivery = subscription.OnPublishReceivedAsync(
+                            // A full subscription may park this worker only while another
+                            // worker stays free to publish for the other subscriptions.
+                            ValueTask<bool> delivery = subscription.OnPublishReceivedAsync(
                                 notificationMessage,
                                 availableSequenceNumbers.ToList(),
-                                response.ResponseHeader.StringTable.ToList());
+                                response.ResponseHeader.StringTable.ToList(),
+                                m_outer.m_ingressWaitPolicy);
                             m_outer.EndPublishRequest();
                             publishActive = false;
                             // A callback may await the service reader while recreation owns
                             // the writer. Ingress backpressure is not an in-flight request.
-                            await delivery.ConfigureAwait(false);
+                            if (!await delivery.ConfigureAwait(false))
+                            {
+                                // Not admitted and not acknowledged: the server keeps the
+                                // message and the subscription republishes it once it has
+                                // room. Do not ask for the next one at once.
+                                moreNotifications = false;
+                            }
                             Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
                             m_lastUnknownSubscriptionId = 0;
                             m_consecutiveUnresolvedResponses = 0;
@@ -3787,6 +3797,19 @@ namespace Opc.Ua.Client.Subscriptions
                             // transfer completed after the lookup missed it.
                             //
                             bool mayDelete = m_outer.m_session.MayDeleteUnknownSubscription(subscriptionId);
+                            bool deletedBefore = m_outer.m_subscriptionHistory.Contains(subscriptionId);
+
+                            //
+                            // A subscription the session holds through the classic API
+                            // acknowledges a message when it saves it. Wait for room
+                            // first, but only while another worker stays free; else
+                            // leave the message unacknowledged for Republish.
+                            //
+                            bool sessionSubscriptionRoom = deletedBefore || creationPending ||
+                                await m_outer.m_session.WaitForSessionSubscriptionRoomAsync(
+                                    subscriptionId,
+                                    m_outer.m_ingressWaitPolicy,
+                                    attemptToken).ConfigureAwait(false);
 
                             //
                             // The identifier does not resolve to any subscription
@@ -3806,7 +3829,7 @@ namespace Opc.Ua.Client.Subscriptions
                             // synchronously would never release the worker's
                             // thread pool thread. Therefore always throttle here.
                             //
-                            if (m_outer.m_subscriptionHistory.Contains(subscriptionId))
+                            if (deletedBefore)
                             {
                                 // ignore messages with a subscription that was deleted
                                 // Do not delete publish requests of stale subscriptions
@@ -3828,6 +3851,18 @@ namespace Opc.Ua.Client.Subscriptions
                                 moreNotifications = false;
                                 await DelayUnresolvedSubscriptionAsync(ct)
                                     .ConfigureAwait(false);
+                            }
+                            else if (!sessionSubscriptionRoom)
+                            {
+                                // Not saved and not acknowledged: the server keeps the
+                                // message, and the subscription republishes it from the
+                                // gap once its queue has room again.
+                                m_logger.PublishWorkerLeftMessageOnServer(
+                                    Index, handle, subscriptionId, notificationMessage.SequenceNumber);
+                                moreNotifications = false;
+                                Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                                m_lastUnknownSubscriptionId = 0;
+                                m_consecutiveUnresolvedResponses = 0;
                             }
                             else if (TryDispatchToSessionSubscription(
                                 subscriptionId,
@@ -3934,8 +3969,23 @@ namespace Opc.Ua.Client.Subscriptions
                             break;
                         }
 
-                        Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
                         bool requestFailed = publishActive && publishPending;
+
+                        // The server completes a queued Publish with Bad_Timeout once
+                        // its TimeoutHint passes without a notification or keep-alive.
+                        // The hint is kept within half the operation timeout, so with a
+                        // long keep-alive (or many workers) this is the normal outcome of
+                        // a healthy queue, not an error: re-issue the Publish at once.
+                        // Backing off would leave windows with no Publish queued. A server
+                        // that answers right away with Bad_Timeout is still backed off.
+                        bool serverTimedOut =
+                            requestFailed &&
+                            error.Code == StatusCodes.BadTimeout &&
+                            publishLatency >= s_minOperationTimeout;
+                        if (!serverTimedOut)
+                        {
+                            Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
+                        }
                         if (publishActive)
                         {
                             // Only a failed service request needs acknowledgement rollback.
@@ -3949,6 +3999,13 @@ namespace Opc.Ua.Client.Subscriptions
                         if (!m_outer.m_running.IsSet)
                         {
                             m_logger.PublishAbandonedAfterError(Index, handle, e.Message);
+                            continue;
+                        }
+
+                        if (serverTimedOut)
+                        {
+                            m_logger.PublishTimedOutOnServer(Index, handle);
+                            moreNotifications = true;
                             continue;
                         }
 
@@ -4395,6 +4452,50 @@ namespace Opc.Ua.Client.Subscriptions
         private int m_badPublishRequestCount;
         private int m_goodPublishRequestCount;
 #pragma warning restore IDE0032 // Use auto property
+        private int m_parkedPublishWorkers;
+
+        /// <summary>
+        /// Lets publish workers park on the full queue of a subscription only while
+        /// at least one other worker stays free to publish.
+        /// </summary>
+        private readonly IngressWaitPolicy m_ingressWaitPolicy;
+
+        /// <summary>
+        /// Number of publish workers currently parked on a full subscription.
+        /// </summary>
+        internal int ParkedPublishWorkerCount => Volatile.Read(ref m_parkedPublishWorkers);
+
+        /// <summary>
+        /// A subscription whose callback stalls fills its queue, and every worker
+        /// that draws a response for it would park on that queue. With all workers
+        /// parked, no Publish is queued and every other subscription runs into its
+        /// lifetime. The last free worker therefore never parks: the message it holds
+        /// is left unacknowledged and the subscription republishes it later.
+        /// </summary>
+        private sealed class IngressWaitPolicy(SubscriptionManager outer) : IIngressWaitPolicy
+        {
+            public bool TryEnterWait()
+            {
+                while (true)
+                {
+                    int parked = Volatile.Read(ref outer.m_parkedPublishWorkers);
+                    if (parked + 1 >= outer.PublishWorkerCount)
+                    {
+                        return false;
+                    }
+                    if (Interlocked.CompareExchange(
+                        ref outer.m_parkedPublishWorkers, parked + 1, parked) == parked)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            public void ExitWait()
+            {
+                Interlocked.Decrement(ref outer.m_parkedPublishWorkers);
+            }
+        }
         private readonly Channel<PendingAcknowledgement> m_acks;
         /// <summary>
         /// Serializes the session's acknowledgement-deferral callback and guards
@@ -4760,5 +4861,24 @@ namespace Opc.Ua.Client.Subscriptions
             int unknown,
             int invalid,
             int other);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManagerContinued + 5, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle}-{Id} - SubscriptionId={SubscriptionId} has no room " +
+                "for message #{SequenceNumber} and no other worker is free; the message is left " +
+                "unacknowledged on the server for Republish.")]
+        public static partial void PublishWorkerLeftMessageOnServer(
+            this ILogger logger,
+            int handle,
+            uint id,
+            uint subscriptionId,
+            uint sequenceNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManagerContinued + 6, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Publish timed out on the server; not counted " +
+                "towards the error backoff.")]
+        public static partial void PublishTimedOutOnServer(
+            this ILogger logger,
+            int handle,
+            uint id);
     }
 }

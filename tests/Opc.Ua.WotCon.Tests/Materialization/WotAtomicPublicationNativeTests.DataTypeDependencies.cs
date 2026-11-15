@@ -101,6 +101,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var borrowedDocuments = new List<WotDocument>();
             var emissionFlags = new List<bool>();
             var converted = new List<string>();
+            var borrowers = new List<string>();
             IWotDocumentConverter converter = stock;
             if (decorated || nativeFirst)
             {
@@ -117,6 +118,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             return stock.ConvertAsync(resource, bytes, snapshot, contents, token);
                         }
                         Assert.That(contents, Is.InstanceOf<IWotDocumentConversionContext>());
+                        // Each consumer borrows once per preparation. A concurrent serving-reference
+                        // write makes the coordinator prepare the unit again before the decision, so
+                        // a consumer's borrows from an abandoned attempt are replaced by its next one.
+                        for (int index = borrowers.Count - 1; index >= 0; index--)
+                        {
+                            if (borrowers[index] == resource.Xid)
+                            {
+                                borrowers.RemoveAt(index);
+                                borrowedDocuments.RemoveAt(index);
+                                emissionFlags.RemoveAt(index);
+                            }
+                        }
                         if (borrowedDocuments.Count != 0)
                         {
                             Assert.That(() => borrowedDocuments[0].RootElement.GetRawText(), Throws.Nothing,
@@ -128,6 +141,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         {
                             borrowedDocuments.Add(definition.Document);
                             emissionFlags.Add(definition.ProjectedSeparately);
+                            borrowers.Add(resource.Xid);
                         }
                         return stock.ConvertAsync(resource, bytes, snapshot, contents, token);
                     });
@@ -331,6 +345,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WotDocument previousBorrow = borrowedDocuments[0];
                 borrowedDocuments.Clear();
                 emissionFlags.Clear();
+                borrowers.Clear();
                 request.ExpectedGeneration = generation;
                 request.Options.Force = true;
                 WotRefreshResult refreshed = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);

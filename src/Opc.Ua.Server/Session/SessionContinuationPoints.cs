@@ -116,6 +116,16 @@ namespace Opc.Ua.Server
         /// </summary>
         public int MaxBrowse { get; set; }
 
+        /// <summary>
+        /// Gets or sets the maximum total number of values buffered by the history continuation
+        /// points of the session (see <see cref="ServerConfiguration.MaxHistoryContinuationPointValues"/>).
+        /// A point that does not fit releases the oldest points of earlier requests; if that is not
+        /// enough it is rejected with Bad_NoContinuationPoints. A value of zero or less means that
+        /// no limit is imposed.
+        /// </summary>
+        public int MaxHistoryValues { get; set; } =
+            ServerConfiguration.DefaultMaxHistoryContinuationPointValues;
+
         /// <inheritdoc/>
         public event Action? BrowseContinuationPointsReleased;
 
@@ -1197,6 +1207,9 @@ namespace Opc.Ua.Server
                         TrackCheckedOutHistory(old);
                         evicted.Add(old);
                     }
+                    // also when a reserved slot is used: a successor shares its buffer and adds
+                    // nothing, any other point is charged in full.
+                    EvictForBufferedValues(continuationPoint, evicted);
                     HistoryContinuationPoint? stored = m_checkedOutHistory.Find(
                         entry => ReferenceEquals(entry.Value, continuationPoint));
                     if (stored is null)
@@ -1300,6 +1313,120 @@ namespace Opc.Ua.Server
                 continuationPoint.ReservedBy = null;
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Keeps the values buffered by the history continuation points within
+        /// <see cref="MaxHistoryValues"/>: releases the oldest evictable points that buffer
+        /// values until the new point fits. The buffers of saved points and of points checked out
+        /// by a running read both count, each buffer once. A point that shares its buffer with a
+        /// point that is already held (the successor of a continued operation) adds nothing.
+        /// Called under the lock.
+        /// </summary>
+        /// <exception cref="ServiceResultException">Bad_NoContinuationPoints when the point does not fit.</exception>
+        private void EvictForBufferedValues(
+            IHistoryContinuationPoint continuationPoint,
+            List<HistoryContinuationPoint> evicted)
+        {
+            int maxValues = MaxHistoryValues;
+            if (maxValues <= 0 ||
+                m_history == null ||
+                continuationPoint is not Historian.HistorianContinuationState
+                {
+                    BufferedProcessedOutputs: { Count: > 0 } payload
+                })
+            {
+                return;
+            }
+            if (IsBufferHeld(m_checkedOutHistory, payload) || IsBufferHeld(m_history, payload))
+            {
+                return;
+            }
+            if (payload.Count > maxValues)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNoContinuationPoints,
+                    "The continuation point buffers more values than a session may hold.");
+            }
+            while (CountBufferedValues(m_history, m_checkedOutHistory, evicted) + payload.Count > maxValues)
+            {
+                int evictionIndex = -1;
+                for (int i = 0; i < m_history.Count; i++)
+                {
+                    HistoryContinuationPoint candidate = m_history[i];
+                    if (!candidate.PendingPersistence &&
+                        !candidate.Claiming &&
+                        candidate.Pins == 0 &&
+                        GetBuffer(candidate) != null)
+                    {
+                        evictionIndex = i;
+                        break;
+                    }
+                }
+                if (evictionIndex < 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNoContinuationPoints,
+                        "The history continuation points of the session hold too many values.");
+                }
+                HistoryContinuationPoint old = m_history[evictionIndex];
+                m_history.RemoveAt(evictionIndex);
+                TrackCheckedOutHistory(old);
+                evicted.Add(old);
+            }
+        }
+
+        private static Historian.HistorianBufferedProcessedPayload? GetBuffer(HistoryContinuationPoint point)
+        {
+            return point.Value is Historian.HistorianContinuationState
+            {
+                BufferedProcessedOutputs: { Count: > 0 } payload
+            }
+                ? payload
+                : null;
+        }
+
+        private static bool IsBufferHeld(
+            List<HistoryContinuationPoint> points,
+            Historian.HistorianBufferedProcessedPayload payload)
+        {
+            for (int i = 0; i < points.Count; i++)
+            {
+                if (ReferenceEquals(GetBuffer(points[i]), payload))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Counts the values buffered by the saved and the checked-out points, each shared
+        /// buffer once. Points that are being evicted are not counted.
+        /// </summary>
+        private static int CountBufferedValues(
+            List<HistoryContinuationPoint> saved,
+            List<HistoryContinuationPoint> checkedOut,
+            List<HistoryContinuationPoint> evicted)
+        {
+            var counted = new List<Historian.HistorianBufferedProcessedPayload>();
+            int total = 0;
+            foreach (List<HistoryContinuationPoint> points in new[] { saved, checkedOut })
+            {
+                for (int i = 0; i < points.Count; i++)
+                {
+                    Historian.HistorianBufferedProcessedPayload? payload = GetBuffer(points[i]);
+                    if (payload == null ||
+                        evicted.Contains(points[i]) ||
+                        counted.Exists(entry => ReferenceEquals(entry, payload)))
+                    {
+                        continue;
+                    }
+                    counted.Add(payload);
+                    total += payload.Count;
+                }
+            }
+            return total;
         }
 
         private int FindEvictableHistoryIndex()

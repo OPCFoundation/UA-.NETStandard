@@ -149,6 +149,106 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Only the endpoints with the transport profile of the current channel are
+        /// compared (OPC 10000-4 §5.7.2.2). A server whose endpoints on another
+        /// transport differ from its opc.tcp endpoints, here an https endpoint that
+        /// only discovery lists, still connects over opc.tcp.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EndpointsOfOtherTransportsAreNotComparedAsync(bool updateBeforeConnect)
+        {
+            ApplicationConfiguration config = ClientFixture.Config;
+            ArrayOf<EndpointDescription> honest = await ClientFixture
+                .GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            Assert.That(honest.ToArray()!.All(e => e!.TransportProfileUri == Profiles.UaTcpTransport), Is.True);
+
+            // discovery also lists an https endpoint, described differently.
+            EndpointDescription https = CoreUtils.Clone(honest[0])!;
+            https.EndpointUrl = "https://localhost:62541/";
+            https.TransportProfileUri = Profiles.HttpsBinaryTransport;
+            https.SecurityLevel = 200;
+            https.UserIdentityTokens = [new UserTokenPolicy(UserTokenType.Anonymous) { PolicyId = "https-anon" }];
+            ArrayOf<EndpointDescription> mixed = [.. honest.ToArray()!.Select(e => CoreUtils.Clone(e)!), https];
+
+            EndpointDescription? selected = CoreClientUtils.SelectEndpoint(
+                config, ServerUrl, mixed, useSecurity: true, Telemetry);
+            Assert.That(selected, Is.Not.Null);
+            Assert.That(selected!.TransportProfileUri, Is.EqualTo(Profiles.UaTcpTransport));
+            SetSelectionEndpoints(selected, mixed);
+
+            var configured = new ConfiguredEndpoint(null, selected, EndpointConfiguration.Create(config));
+            ISession session = await new DefaultSessionFactory(Telemetry).CreateAsync(
+                config, configured, updateBeforeConnect, false, "selection-other-transport",
+                60000, new UserIdentity(), default).ConfigureAwait(false);
+            try
+            {
+                Assert.That(session.Connected, Is.True);
+            }
+            finally
+            {
+                await session.CloseAsync().ConfigureAwait(false);
+                session.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// <see cref="ClientConfiguration.VerifyServerEndpointsWithDiscovery"/> turns
+        /// the comparison off: a client with configured security options ignores the
+        /// list (OPC 10000-4 §5.7.2.2), also when it differs from the selection.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EndpointComparisonCanBeTurnedOffAsync(bool updateBeforeConnect)
+        {
+            ApplicationConfiguration config = ClientFixture.Config;
+            ArrayOf<EndpointDescription> honest = await ClientFixture
+                .GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            ArrayOf<EndpointDescription> partial = honest.ToArray()!
+                .Where(e => e.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                .Select(e => CoreUtils.Clone(e)!)
+                .ToArray();
+            EndpointDescription? selected = CoreClientUtils.SelectEndpoint(
+                config, ServerUrl, partial, useSecurity: true, Telemetry);
+            Assert.That(selected, Is.Not.Null);
+            SetSelectionEndpoints(selected!, partial);
+            var configured = new ConfiguredEndpoint(null, selected!, EndpointConfiguration.Create(config));
+
+            ClientConfiguration clientConfiguration = config.ClientConfiguration!;
+            bool verify = clientConfiguration.VerifyServerEndpointsWithDiscovery;
+            clientConfiguration.VerifyServerEndpointsWithDiscovery = false;
+            try
+            {
+                ISession session = await new DefaultSessionFactory(Telemetry).CreateAsync(
+                    config, configured, updateBeforeConnect, false, "selection-not-verified",
+                    60000, new UserIdentity(), default).ConfigureAwait(false);
+                try
+                {
+                    Assert.That(session.Connected, Is.True);
+                    Assert.That(session.Endpoint.SecurityMode, Is.EqualTo(MessageSecurityMode.Sign));
+                }
+                finally
+                {
+                    await session.CloseAsync().ConfigureAwait(false);
+                    session.Dispose();
+                }
+            }
+            finally
+            {
+                clientConfiguration.VerifyServerEndpointsWithDiscovery = verify;
+            }
+        }
+
+        private static void SetSelectionEndpoints(EndpointDescription selected, ArrayOf<EndpointDescription> endpoints)
+        {
+            MethodInfo setSelection = typeof(ConfiguredEndpoint).GetMethod(
+                "SetSelectionEndpoints",
+                BindingFlags.Static | BindingFlags.NonPublic)!;
+            Assert.That(setSelection, Is.Not.Null);
+            setSelection.Invoke(null, [selected, endpoints]);
+        }
+
+        /// <summary>
         /// A selection list whose user token policies differ from the server's
         /// is refused as well, also when the channel security options match.
         /// </summary>

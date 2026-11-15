@@ -361,6 +361,14 @@ namespace Opc.Ua.Client.Subscriptions
                 return subscriptionId == kSessionSubscriptionId;
             }
 
+            public ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+                uint subscriptionId,
+                IIngressWaitPolicy waitPolicy,
+                CancellationToken ct)
+            {
+                return new ValueTask<bool>(true);
+            }
+
             /// <summary>
             /// Responses are cached per acknowledgement count, so the session itself
             /// does not allocate per Publish request. The manager only reads them.

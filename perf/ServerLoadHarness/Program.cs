@@ -469,14 +469,17 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // classic: Session from the default session factory (classic subscription engine).
             // shared: classic Sessions whose secure channels come from one ClientChannelManager.
             string clientKind = Arg("client", "managed");
-            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared"
+            bool connectScenario = scenario is "connect" or "channel";
+            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared" || connectScenario
                 ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
                 : null;
             var channelManager = new ClientChannelManager(client.Config, telemetry);
             await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
             // sub: --writers adds dedicated writer sessions after the subscriber sessions
             int writerCount = scenario == "sub" ? ArgInt("writers", 0) : 0;
-            var sessions = new ISession[sessionCount + writerCount];
+            // connect/channel open their own sessions or channels per operation; idle
+            // preconnected sessions would only add keep-alive traffic to the measurement
+            var sessions = new ISession[connectScenario ? 0 : sessionCount + writerCount];
             var connectTime = Stopwatch.StartNew();
             // Shared sessions connect one at a time by default: concurrent creation
             // on one ClientChannelManager fails with BadSecureChannelClosed.
@@ -523,7 +526,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
 
-            Workload workload = counters
+            Workload workload = connectScenario
+                ? new ConnectWorkload(scenario, client, endpointForBuilder!, ArgInt("workers", 8))
+                : counters
                 ? new CounterWorkload(sessions, counterSubs, ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
                 : scenario == "events"
                 ? new EventWorkload(
@@ -1507,7 +1512,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = 0,
-                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1),
+                        Filter = CreateAggregateFilter()
                     };
                     if (m_itemCallback)
                     {
@@ -1581,7 +1587,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = TimeSpan.Zero,
-                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1),
+                        Filter = CreateAggregateFilter()
                     },
                     out _))
                 {
@@ -1590,6 +1597,34 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
             await setup.WaitForReadyAsync(subscription, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The AggregateFilter of the monitored items (--aggregate), or null for plain data changes.
+        /// </summary>
+        private static AggregateFilter? CreateAggregateFilter()
+        {
+            string aggregate = Program.Arg("aggregate", string.Empty);
+            if (aggregate.Length == 0)
+            {
+                return null;
+            }
+            return new AggregateFilter
+            {
+                AggregateType = aggregate switch
+                {
+                    "Average" => ObjectIds.AggregateFunction_Average,
+                    "Interpolative" => ObjectIds.AggregateFunction_Interpolative,
+                    "Minimum" => ObjectIds.AggregateFunction_Minimum,
+                    "Maximum" => ObjectIds.AggregateFunction_Maximum,
+                    "TimeAverage" => ObjectIds.AggregateFunction_TimeAverage,
+                    "Count" => ObjectIds.AggregateFunction_Count,
+                    _ => throw new ArgumentException("Unknown aggregate: " + aggregate)
+                },
+                StartTime = DateTime.UtcNow,
+                ProcessingInterval = Program.ArgInt("aggregate-interval", 1000),
+                AggregateConfiguration = new AggregateConfiguration { UseServerCapabilitiesDefaults = true }
+            };
         }
 
         /// <summary>

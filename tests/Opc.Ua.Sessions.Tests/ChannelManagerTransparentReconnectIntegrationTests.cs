@@ -91,9 +91,14 @@ namespace Opc.Ua.Sessions.Tests
 
                 NodeId originalSessionId = session.SessionId;
                 IManagedTransportChannel channel = GetManagedChannel(session);
-                var outerStates = new ConcurrentQueue<ConnectionState>();
+
+                // The connect can return before the state machine dispatched the notification of
+                // the initial Connecting -> Connected transition, so a handler attached now may
+                // still receive it. Churn caused by the reconnect leaves Connected and is a
+                // transition of its own.
+                var outerTransitions = new ConcurrentQueue<(ConnectionState Previous, ConnectionState New)>();
                 var channelStates = new ConcurrentQueue<ChannelState>();
-                session.ConnectionStateChanged += (_, e) => outerStates.Enqueue(e.NewState);
+                session.ConnectionStateChanged += (_, e) => outerTransitions.Enqueue((e.PreviousState, e.NewState));
                 session.ChannelStateChanged += (_, e) => channelStates.Enqueue(e.NewState);
 
                 await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
@@ -106,11 +111,14 @@ namespace Opc.Ua.Sessions.Tests
                     Is.True,
                     "ManagedSession.ChannelStateChanged should report the manager reconnect cycle.");
 
+                (ConnectionState Previous, ConnectionState New)[] churn = [.. outerTransitions
+                    .Where(transition => transition is not
+                        (ConnectionState.Connecting, ConnectionState.Connected))];
                 Assert.That(channelStates, Has.Member(ChannelState.TransportReconnecting));
                 Assert.That(channelStates, Has.Member(ChannelState.TransportConnectedSessionReactivating));
                 Assert.That(channelStates, Has.Member(ChannelState.Ready));
-                Assert.That(outerStates, Has.No.Member(ConnectionState.Reconnecting));
-                Assert.That(outerStates, Has.No.Member(ConnectionState.Connected));
+                Assert.That(churn, Is.Empty,
+                    "The manager reconnect must not change the outer ManagedSession state.");
                 Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
                 Assert.That(session.SessionId, Is.EqualTo(originalSessionId));
 

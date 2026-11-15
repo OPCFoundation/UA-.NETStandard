@@ -302,6 +302,59 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// With a keep-alive time beyond half the operation timeout, the server
+        /// expires every queued Publish at its TimeoutHint with Bad_Timeout. That
+        /// is the normal life of a quiet queue: the worker re-issues the Publish at
+        /// once instead of backing off, so the server is never left without one.
+        /// </summary>
+        [Test]
+        [CancelAfter(20_000)]
+        public async Task ServerTimeoutOfQueuedPublishIsNotBackedOffAsync(CancellationToken ct)
+        {
+            // keep-alive 10 s x 10 = 100 s, clamped to 30 s by the 60 s operation timeout.
+            await using var harness = new PublishHarness(1, 10_000, 10, operationTimeout: 60_000);
+            harness.Manager.Resume();
+            for (int i = 0; i < 4; i++)
+            {
+                PublishAttempt attempt = await harness.NextAsync(ct).ConfigureAwait(false);
+                Assert.That(attempt.TimeoutHint, Is.EqualTo(30_000u));
+
+                // the server answers with Bad_Timeout when the hint passes.
+                harness.Clock.Advance(TimeSpan.FromMilliseconds(attempt.TimeoutHint));
+                Assert.That(attempt.Completion.Task.IsFaulted, Is.True);
+
+                // the next Publish follows without any time passing.
+                using var noTimePasses = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                noTimePasses.CancelAfter(TimeSpan.FromSeconds(3));
+                PublishAttempt next = await harness.NextAsync(noTimePasses.Token).ConfigureAwait(false);
+                next.Succeed();
+            }
+            Assert.That(harness.Manager.BadPublishRequestCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A server that answers a Publish with Bad_Timeout right away is still
+        /// backed off, so a broken server cannot make the worker spin.
+        /// </summary>
+        [Test]
+        [CancelAfter(20_000)]
+        public async Task ImmediateBadTimeoutIsStillBackedOffAsync(CancellationToken ct)
+        {
+            await using var harness = new PublishHarness(1, 10_000, 10, operationTimeout: 60_000);
+            harness.Manager.Resume();
+            PublishAttempt attempt = await harness.NextAsync(ct).ConfigureAwait(false);
+            attempt.Fail(StatusCodes.BadTimeout);
+
+            Task<PublishAttempt> next = harness.NextAsync(ct).AsTask();
+            await Task.Delay(500, ct).ConfigureAwait(false);
+            Assert.That(next.IsCompleted, Is.False, "The retry waits for the backoff.");
+            harness.Clock.Advance(TimeSpan.FromSeconds(1));
+            PublishAttempt retry = await next.ConfigureAwait(false);
+            retry.Succeed();
+            Assert.That(harness.Manager.BadPublishRequestCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Runs real Publish workers against controlled request deadlines and responses.
         /// </summary>
         private sealed class PublishHarness : IAsyncDisposable, ISubscriptionAcknowledgementObserver
