@@ -92,8 +92,8 @@ namespace Opc.Ua.Server
         {
             lock (m_sync)
             {
-                return m_pending.FirstOrDefault(retired => ReferenceEquals(retired.Generation, generation))
-                    ?.RetirementFailure;
+                return m_pending.FirstOrDefault(retired => ReferenceEquals(retired.Generation, generation))?
+                    .RetirementFailure;
             }
         }
 
@@ -310,14 +310,16 @@ namespace Opc.Ua.Server
                 {
                     if (!retired.Ready ||
                         retired.Worker is { IsCompleted: false } ||
-                        confirmedOnly && !retired.Generation.HasPendingCleanupConfirmation &&
-                            !retired.Generation.ResourceOwnership.HasReadyCleanupConfirmation ||
+                        (confirmedOnly &&
+                            !retired.Generation.HasPendingCleanupConfirmation &&
+                            !retired.Generation.ResourceOwnership.HasReadyCleanupConfirmation) ||
                         !retired.Generation.CanAttemptCleanup ||
-                        !onlyQuiescent && !confirmedOnly && retired.LastAttemptFailed ||
-                        onlyQuiescent && (!retired.Generation.IsQuiescent ||
-                            !retired.Generation.ResourceOwnership.IsCleanupReady) ||
-                        retired.AllowActiveMonitoredItems &&
-                            NodeManagerLifecycle.HasActiveMonitoredItems(retired.Server, retired.NodeManager))
+                        (!onlyQuiescent && !confirmedOnly && retired.LastAttemptFailed) ||
+                        (onlyQuiescent &&
+                            (!retired.Generation.IsQuiescent ||
+                                !retired.Generation.ResourceOwnership.IsCleanupReady)) ||
+                        (retired.AllowActiveMonitoredItems &&
+                            NodeManagerLifecycle.HasActiveMonitoredItems(retired.Server, retired.NodeManager)))
                     {
                         continue;
                     }
@@ -533,7 +535,8 @@ namespace Opc.Ua.Server
                     retired.Worker = null;
                 }
                 if (!confirmationPending &&
-                    retired.Generation.HasPendingCleanupConfirmation && retired.Generation.CanAttemptCleanup)
+                    retired.Generation.HasPendingCleanupConfirmation &&
+                    retired.Generation.CanAttemptCleanup)
                 {
                     // Confirmation may have arrived after admission reopened but before the worker released its claim.
                     RetryConfirmed();
@@ -612,8 +615,10 @@ namespace Opc.Ua.Server
             lock (m_sync)
             {
                 retired.RetryScheduled = false;
-                if (m_stopping || scheduleEpoch != m_scheduleEpoch ||
-                    !retired.Ready || !m_pending.Contains(retired) ||
+                if (m_stopping ||
+                    scheduleEpoch != m_scheduleEpoch ||
+                    !retired.Ready ||
+                    !m_pending.Contains(retired) ||
                     !retired.Generation.CanAttemptCleanup ||
                     retired.Worker is { IsCompleted: false })
                 {
@@ -1052,6 +1057,7 @@ namespace Opc.Ua.Server
 
             /// <summary>The durable retirement outcome.</summary>
             private Exception? m_retirementFailure;
+
             private readonly TaskCompletionSource<bool> m_retirementCompletion =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
@@ -1119,6 +1125,5 @@ namespace Opc.Ua.Server
 
         /// <summary>Prevents new background attempts once shutdown or disposal starts.</summary>
         private bool m_stopping;
-
     }
 }

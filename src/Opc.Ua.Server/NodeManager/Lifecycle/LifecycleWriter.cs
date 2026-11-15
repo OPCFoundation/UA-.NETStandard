@@ -267,8 +267,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private void TryDisposeSynchronization()
         {
-            if (m_disposed && !m_synchronizationDisposed && m_activeOperations == 0 &&
-                m_activeShutdownMethods == 0 && !m_shutdownPrepared && m_canDispose())
+            if (m_disposed &&
+                !m_synchronizationDisposed &&
+                m_activeOperations == 0 &&
+                m_activeShutdownMethods == 0 &&
+                !m_shutdownPrepared &&
+                m_canDispose())
             {
                 m_synchronizationDisposed = true;
                 m_mutation.Dispose();
@@ -360,8 +364,10 @@ namespace Opc.Ua.Server
             /// </summary>
             internal bool MatchesServer(IServerInternal server)
             {
-                return m_server.TryGetTarget(out IServerInternal? captured) && ReferenceEquals(captured, server) &&
-                    m_host.TryGetTarget(out IDynamicNodeManagerHost? host) && ReferenceEquals(server.NodeManager, host);
+                return m_server.TryGetTarget(out IServerInternal? captured) &&
+                    ReferenceEquals(captured, server) &&
+                    m_host.TryGetTarget(out IDynamicNodeManagerHost? host) &&
+                    ReferenceEquals(server.NodeManager, host);
             }
 
             /// <summary>
@@ -383,7 +389,8 @@ namespace Opc.Ua.Server
                     out EncodeableFactory factory, out long factoryRevision);
                 return ReferenceEquals(host.RoutingRevision, routing) &&
                     server.TypeTree.IsCurrentSnapshot(types, m_typeRevision) &&
-                    ReferenceEquals(factory, expectedFactory) && factoryRevision == m_factoryRevision;
+                    ReferenceEquals(factory, expectedFactory) &&
+                    factoryRevision == m_factoryRevision;
             }
 
             /// <summary>The server identity, without lifetime ownership.</summary>
@@ -508,7 +515,7 @@ namespace Opc.Ua.Server
                 lock (m_state)
                 {
                     PublicationRevision revision = Revision;
-                    if (!revision.IsCurrent() || server is not null && !revision.MatchesServer(server))
+                    if (!revision.IsCurrent() || (server is not null && !revision.MatchesServer(server)))
                     {
                         throw new InvalidOperationException(
                             "The publication invocation conflicts with a newer address-space revision.");
@@ -782,7 +789,8 @@ namespace Opc.Ua.Server
             /// </summary>
             internal void Validate(LifecycleWriter writer)
             {
-                if (!ReferenceEquals(owner, writer) || Volatile.Read(ref m_disposed) != 0 ||
+                if (!ReferenceEquals(owner, writer) ||
+                    Volatile.Read(ref m_disposed) != 0 ||
                     !owner.IsShuttingDown)
                 {
                     throw new InvalidOperationException("The shutdown publication no longer owns writer admission.");
