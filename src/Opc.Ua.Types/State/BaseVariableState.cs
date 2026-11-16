@@ -1959,10 +1959,11 @@ namespace Opc.Ua
                     "The value is not a defined value of the Enumeration DataType.");
             }
 
-            // a slice that addresses characters inside a string element is checked as
-            // whole elements only; partial character writes are not trim-validated.
-            if (WritesWholeStringElements(indexRange, value) &&
-                HasUntrimmedTrimmedStringValue(context, dataType, value))
+            // a slice that addresses characters inside a string element only changes part of
+            // it, so the element is checked after the slice is merged into the current value.
+            if (WritesWholeStringElements(indexRange, value)
+                    ? HasUntrimmedTrimmedStringValue(context, dataType, value)
+                    : HasUntrimmedMergedValue(context, dataType, indexRange, value))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadTypeMismatch,
@@ -1970,6 +1971,32 @@ namespace Opc.Ua
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if merging a character slice into the current value leaves a
+        /// TrimmedString element with leading or trailing white space. A slice the current
+        /// value cannot take is left to the write itself to reject.
+        /// </summary>
+        private bool HasUntrimmedMergedValue(
+            ISystemContext context,
+            NodeId dataType,
+            NumericRange indexRange,
+            in Variant value)
+        {
+            if (value.TypeInfo.BuiltInType != BuiltInType.String || value.IsNull)
+            {
+                return false;
+            }
+
+            Variant merged;
+            lock (m_attributeLock)
+            {
+                merged = m_value;
+            }
+
+            return !StatusCode.IsBad(indexRange.UpdateRange(ref merged, value)) &&
+                HasUntrimmedTrimmedStringValue(context, dataType, merged);
         }
 
         /// <summary>

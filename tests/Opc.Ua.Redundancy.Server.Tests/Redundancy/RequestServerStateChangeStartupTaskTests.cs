@@ -535,6 +535,36 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task CountdownDoesNotOverwriteStateRestoredByHostAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var timeProvider = new CountingTimeProvider();
+            using RequestServerStateChangeStartupTask task = CreateTask(timeProvider: timeProvider);
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Shutdown,
+                DateTimeUtc.MinValue,
+                10,
+                LocalizedText.Null,
+                restart: false);
+
+            // the host restores Running after the tick read a stale Shutdown state; the
+            // tick must check the state under the status lock it writes with.
+            loaded.Server.Object.UpdateServerStatus(status => status.Value.State = ServerState.Running);
+            loaded.Server.Setup(s => s.CurrentState).Returns(ServerState.Shutdown);
+            timeProvider.Advance(TimeSpan.FromSeconds(1));
+
+            Assert.That(loaded.Status.Value.State, Is.EqualTo(ServerState.Running));
+            Assert.That(loaded.Status.Value.SecondsTillShutdown, Is.EqualTo(10));
+            Assert.That(timeProvider.ActiveTimers, Is.Zero);
+        }
+
+        [Test]
         public async Task DisposeStopsPendingShutdownCountdownAsync()
         {
             using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);

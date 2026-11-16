@@ -359,11 +359,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Captures a request's effective identity and notification epoch together.
         /// </summary>
-        internal (IUserIdentity Identity, NotificationAuthorization? Authorization) CaptureNotificationContext()
+        internal (IUserIdentity Identity, NotificationAuthorization? Authorization, string? ClientUserId)
+            CaptureNotificationContext()
         {
             lock (m_lock)
             {
-                return (EffectiveIdentity, m_notificationAuthorization);
+                return (EffectiveIdentity, m_notificationAuthorization, m_clientUserId);
             }
         }
 

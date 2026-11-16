@@ -106,7 +106,7 @@ namespace Opc.Ua.Server
 
             ChannelContext = secureChannelContext;
             Session = session ?? throw new ArgumentNullException(nameof(session));
-            (UserIdentity, NotificationAuthorization) = CaptureNotificationContext(session);
+            (UserIdentity, NotificationAuthorization, m_sessionClientUserId) = CaptureNotificationContext(session);
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             AuditEntryId = requestHeader.AuditEntryId!;
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server
         {
             ChannelContext = null!;
             Session = session ?? throw new ArgumentNullException(nameof(session));
-            (UserIdentity, NotificationAuthorization) = CaptureNotificationContext(session);
+            (UserIdentity, NotificationAuthorization, m_sessionClientUserId) = CaptureNotificationContext(session);
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = diagnosticsMasks;
             AuditEntryId = null!;
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server
 
             if (Session != null)
             {
-                (UserIdentity, NotificationAuthorization) = CaptureNotificationContext(Session);
+                (UserIdentity, NotificationAuthorization, m_sessionClientUserId) = CaptureNotificationContext(Session);
                 PreferredLocales = Session.PreferredLocales;
             }
 
@@ -415,11 +415,12 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         /// <remarks>
-        /// The ClientUserId of the Session's user, or of <see cref="UserIdentity"/>
-        /// when the operation has no Session.
+        /// The ClientUserId of the Session's user, captured together with
+        /// <see cref="UserIdentity"/> when the context was created, or of
+        /// <see cref="UserIdentity"/> when the operation has no Session.
         /// </remarks>
         public string? ClientUserId => Session != null
-            ? ClientUserIdResolver.ResolveSession(Session)
+            ? m_sessionClientUserId
             : ClientUserIdResolver.ResolveIdentity(UserIdentity);
 
         /// <summary>
@@ -886,14 +887,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Captures built-in Session identity and epoch atomically, retaining support for custom sessions.
         /// </summary>
-        private static (IUserIdentity Identity, NotificationAuthorization? Authorization) CaptureNotificationContext(
-            ISession session)
+        private static (IUserIdentity Identity, NotificationAuthorization? Authorization, string? ClientUserId)
+            CaptureNotificationContext(ISession session)
         {
             return session is Session concreteSession
                 ? concreteSession.CaptureNotificationContext()
-                : (session.EffectiveIdentity, Opc.Ua.Server.NotificationAuthorization.Capture(session));
+                : (session.EffectiveIdentity,
+                    Opc.Ua.Server.NotificationAuthorization.Capture(session),
+                    ClientUserIdResolver.ResolveSession(session));
         }
 
+        private readonly string? m_sessionClientUserId;
         private int m_tableSlot = RequestTable<OperationContext>.kNoSlot;
         private int m_weakSystemContextCache;
 

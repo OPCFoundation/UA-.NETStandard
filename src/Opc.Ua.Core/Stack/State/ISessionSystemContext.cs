@@ -146,7 +146,9 @@ namespace Opc.Ua
         /// <remarks>
         /// Without a session operation context and without an assigned value, it is
         /// derived from <see cref="UserIdentity"/>: <c>null</c> for an anonymous user,
-        /// the user name of a UserName token and the display name otherwise.
+        /// otherwise the user name, certificate subject or issued-token issuer and
+        /// subject of its token or claims, and the display name only for an identity
+        /// that has neither.
         /// </remarks>
         public string? ClientUserId
         {
@@ -168,8 +170,11 @@ namespace Opc.Ua
                 {
                     return null;
                 }
-                return identity.TokenHandler?.Token is UserNameIdentityToken userNameToken
-                    ? userNameToken.UserName
+
+                // the display name is only used for an identity without a token or claims
+                // that name its user.
+                return ClientUserIdRules.TryResolve(identity, out string? clientUserId)
+                    ? clientUserId
                     : identity.DisplayName;
             }
             set => ReplaceValues().ClientUserId = value;

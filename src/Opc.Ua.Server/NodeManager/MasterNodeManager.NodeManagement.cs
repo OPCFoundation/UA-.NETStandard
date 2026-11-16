@@ -879,6 +879,46 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
             }
 
+            // The data-model checks read the References the mutation changes, so concurrent
+            // requests must not both pass a check (e.g. two HasTypeDefinition targets).
+            await m_addReferenceSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await AddCheckedReferenceAsync(
+                    context,
+                    item,
+                    sourceOwner,
+                    sourceHandle,
+                    sourceMetadata,
+                    localTarget ? targetOwner : null,
+                    targetHandle,
+                    targetMetadata,
+                    targetNodeId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_addReferenceSemaphore.Release();
+            }
+        }
+
+        /// <summary>
+        /// Validates the data-model constraints of a reference and adds it with its mirrored
+        /// inverse. Must be called with <c>m_addReferenceSemaphore</c> held.
+        /// </summary>
+        private async ValueTask<ServiceResult> AddCheckedReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            IAsyncNodeManager sourceOwner,
+            object sourceHandle,
+            NodeMetadata? sourceMetadata,
+            IAsyncNodeManager? targetOwner,
+            object? targetHandle,
+            NodeMetadata? targetMetadata,
+            NodeId targetNodeId,
+            CancellationToken cancellationToken)
+        {
+            bool localTarget = targetOwner != null;
             ServiceResult constraintResult = ValidateAddReferenceConstraints(
                 item,
                 sourceMetadata?.NodeClass ?? NodeClass.Unspecified,
@@ -1587,6 +1627,17 @@ namespace Opc.Ua.Server
             {
                 if (reference.IsInverse &&
                     Server.TypeTree.IsTypeOf(reference.ReferenceTypeId, ReferenceTypeIds.HasProperty))
+                {
+                    return true;
+                }
+
+                // a type definition added through AddReferences is stored as a reference
+                // rather than in TypeDefinitionId.
+                if (!reference.IsInverse &&
+                    Server.TypeTree.IsTypeOf(reference.ReferenceTypeId, ReferenceTypeIds.HasTypeDefinition) &&
+                    Server.TypeTree.IsTypeOf(
+                        ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris),
+                        VariableTypeIds.PropertyType))
                 {
                     return true;
                 }

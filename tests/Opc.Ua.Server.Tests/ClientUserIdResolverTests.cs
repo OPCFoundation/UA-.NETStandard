@@ -33,6 +33,7 @@ using System.Text;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -419,6 +420,33 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(resolved, Is.False);
                 Assert.That(continuityKey, Is.Null);
             });
+        }
+
+        [Test]
+        public void SystemContextWithoutOperationUsesIssuedTokenIssuerAndSubject()
+        {
+            (_, JwtUserIdentity identity) = CreateIssuedIdentity("https://issuer.example/", "subject");
+            var context = new SessionSystemContext(NUnitTelemetryContext.Create())
+            {
+                UserIdentity = identity
+            };
+
+            Assert.That(context.ClientUserId, Is.EqualTo("https://issuer.example/subject"));
+            Assert.That(context.UserId, Is.EqualTo("https://issuer.example/subject"));
+        }
+
+        [Test]
+        public void SystemContextWithoutOperationUsesDisplayNameOnlyWithoutTokenOrClaims()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.SetupGet(i => i.DisplayName).Returns("display");
+            var context = new SessionSystemContext(NUnitTelemetryContext.Create())
+            {
+                UserIdentity = identity.Object
+            };
+
+            Assert.That(context.ClientUserId, Is.EqualTo("display"));
         }
 
         private static string? ResolveIssuedTokenContinuityKey(string? issuer, string subject)

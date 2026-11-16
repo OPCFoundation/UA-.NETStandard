@@ -260,6 +260,38 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode, Is.Not.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
+        [TestCase("0")]
+        [TestCase("2")]
+        public void WriteSubstringAtBoundaryWithWhiteSpaceIsRejected(string indexRange)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(s_trimmedStringTypeId, ValueRanks.Scalar);
+            variable.Value = "abc";
+
+            ServiceResult result = Write(context, variable, Variant.From(" "), indexRange);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(variable.Value.GetString(), Is.EqualTo("abc"));
+        }
+
+        [TestCase("0")]
+        [TestCase("2")]
+        public async Task WriteAsyncSubstringAtBoundaryWithWhiteSpaceIsRejectedAsync(string indexRange)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(s_trimmedStringTypeId, ValueRanks.Scalar);
+            variable.Value = "abc";
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Parse(indexRange),
+                new DataValue(Variant.From(" "))).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(variable.Value.GetString(), Is.EqualTo("abc"));
+        }
+
         [TestCase(" lead", false)]
         [TestCase("trail\t", false)]
         [TestCase("clean", true)]

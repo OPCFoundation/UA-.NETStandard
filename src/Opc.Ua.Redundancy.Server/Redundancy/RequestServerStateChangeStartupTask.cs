@@ -287,28 +287,50 @@ namespace Opc.Ua.Redundancy.Server
         /// subscriptions see the change. A server context that is not an
         /// <see cref="IServerInternal"/> only has the variable nodes to write to.
         /// </summary>
-        private static void ApplyServerStatus(
+        /// <param name="server">The server.</param>
+        /// <param name="serverObject">The Server Object.</param>
+        /// <param name="state">The state to publish.</param>
+        /// <param name="secondsTillShutdown">The seconds until shutdown.</param>
+        /// <param name="reason">The shutdown reason.</param>
+        /// <param name="requiredState">
+        /// When set, the status is only written while the current state equals it; the check
+        /// and the write happen under the same status lock.
+        /// </param>
+        /// <returns><c>false</c> when <paramref name="requiredState"/> did not match.</returns>
+        private static bool ApplyServerStatus(
             IServerContext server,
             ServerObjectState serverObject,
             ServerState state,
             uint secondsTillShutdown,
-            LocalizedText reason)
+            LocalizedText reason,
+            ServerState? requiredState = null)
         {
             ISystemContext context = server.DefaultSystemContext;
             if (server is IServerInternal serverInternal)
             {
+                bool applied = false;
                 serverInternal.UpdateServerStatus(status =>
                 {
+                    if (requiredState != null && status.Value.State != requiredState.Value)
+                    {
+                        return;
+                    }
+                    applied = true;
                     status.Value.State = state;
                     status.Value.SecondsTillShutdown = secondsTillShutdown;
                     status.Value.ShutdownReason = reason;
                     UpdateVariables(status.Variable ?? serverObject.ServerStatus, context, state,
                         secondsTillShutdown, reason);
                 });
-                return;
+                return applied;
             }
 
+            if (requiredState != null && server.CurrentState != requiredState.Value)
+            {
+                return false;
+            }
             UpdateVariables(serverObject.ServerStatus, context, state, secondsTillShutdown, reason);
+            return true;
         }
 
         private static void UpdateVariables(
@@ -377,14 +399,19 @@ namespace Opc.Ua.Redundancy.Server
                 uint secondsTillShutdown = remaining <= TimeSpan.Zero
                     ? 0
                     : (uint)Math.Ceiling(remaining.TotalSeconds);
-                if (server.CurrentState != ServerState.Shutdown)
+                if (!ApplyServerStatus(
+                    server,
+                    serverObject,
+                    ServerState.Shutdown,
+                    secondsTillShutdown,
+                    reason,
+                    requiredState: ServerState.Shutdown))
                 {
                     // the state was changed by someone else; the countdown no longer applies.
                     StopCountdown();
                     return;
                 }
 
-                ApplyServerStatus(server, serverObject, ServerState.Shutdown, secondsTillShutdown, reason);
                 if (secondsTillShutdown == 0)
                 {
                     StopCountdown();

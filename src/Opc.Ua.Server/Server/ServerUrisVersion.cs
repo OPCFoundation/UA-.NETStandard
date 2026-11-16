@@ -38,12 +38,22 @@ namespace Opc.Ua.Server
     /// the server's NamespaceUris or ServerUris table raises it to a greater value.
     /// </summary>
     /// <remarks>
-    /// The value is a <c>VersionTime</c> (Part 4 §7.43): the new value is the larger of the
-    /// previous value plus one and the current number of seconds since 2000-01-01T00:00Z,
-    /// so the first value of a server instance is the time it started and a restarted
-    /// server does not report a version older than the previous run. Changes are detected
-    /// with the mutation versions of the two tables, so the update is idempotent and can be
-    /// called after any code that may have appended a namespace or server URI.
+    /// <para>
+    /// The value is a <c>VersionTime</c> (Part 4 §7.43), the seconds since
+    /// 2000-01-01T00:00Z. Changes are detected with the mutation versions of the two
+    /// tables, so the update is idempotent and can be called after any code that may have
+    /// appended a namespace or server URI.
+    /// </para>
+    /// <para>
+    /// Before the server accepts requests (<see cref="IServerInternal.IsRunning"/>) no Client can read the value,
+    /// so the changes made while it starts are folded into the start time instead of each
+    /// adding one: the startup burst of namespace registrations does not move the value
+    /// ahead of the clock. Once running, a change sets the larger of the previous value
+    /// plus one and the current time. The value only runs ahead of the clock when more
+    /// changes are made at runtime than seconds pass; a server restarted while it is ahead
+    /// can then report an older value than the previous run until the clock catches up.
+    /// Nothing is persisted across restarts.
+    /// </para>
     /// </remarks>
     internal static class ServerUrisVersion
     {
@@ -91,14 +101,30 @@ namespace Opc.Ua.Server
                     .GetUtcNow()
                     .UtcDateTime;
                 uint previous = urisVersion.Value;
-                uint next = previous == uint.MaxValue ? 1 : previous + 1;
-                urisVersion.Value = Math.Max(next, ToVersionTime(utcNow));
-                urisVersion.Timestamp = utcNow;
-                urisVersion.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                uint versionTime = ToVersionTime(utcNow);
+                uint value;
+                if (server.IsRunning)
+                {
+                    uint next = previous == uint.MaxValue ? 1 : previous + 1;
+                    value = Math.Max(next, versionTime);
+                }
+                else
+                {
+                    // not readable yet: fold startup changes into the start time.
+                    value = Math.Max(previous, versionTime);
+                }
 
                 tracker.NamespaceVersion = namespaceVersion;
                 tracker.ServerVersion = serverVersion;
                 tracker.Initialized = true;
+                if (value == previous)
+                {
+                    return null;
+                }
+
+                urisVersion.Value = value;
+                urisVersion.Timestamp = utcNow;
+                urisVersion.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 return urisVersion;
             }
         }

@@ -224,6 +224,51 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A Variable whose PropertyType definition is stored as a HasTypeDefinition
+        /// Reference, as AddReferences stores it, is a Property too.
+        /// </summary>
+        [Test]
+        public async Task PropertyTypedByReferenceAsHierarchicalSourceIsRejectedAsync()
+        {
+            await using var harness = new Harness();
+            harness.UntypedVariable.AddReference(
+                ReferenceTypeIds.HasTypeDefinition,
+                false,
+                VariableTypeIds.PropertyType);
+            await harness.InitializeAsync().ConfigureAwait(false);
+
+            StatusCode result = await harness.AddReferenceAsync(
+                harness.UntypedVariable.NodeId,
+                ReferenceTypeIds.HasComponent,
+                harness.DataVariable.NodeId).ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(StatusCodes.BadReferenceNotAllowed));
+        }
+
+        /// <summary>
+        /// Concurrent requests cannot both give a Node a HasTypeDefinition.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentTypeDefinitionsAddOnlyOneAsync()
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+
+            StatusCode[] results = await Task.WhenAll(
+                Task.Run(() => harness.AddReferenceAsync(
+                    harness.Untyped.NodeId,
+                    ReferenceTypeIds.HasTypeDefinition,
+                    harness.ObjectType.NodeId)),
+                Task.Run(() => harness.AddReferenceAsync(
+                    harness.Untyped.NodeId,
+                    ReferenceTypeIds.HasTypeDefinition,
+                    harness.OtherObjectType.NodeId))).ConfigureAwait(false);
+
+            Assert.That(results, Has.Exactly(1).EqualTo(StatusCodes.Good));
+            Assert.That(results, Has.Exactly(1).EqualTo(StatusCodes.BadReferenceNotAllowed));
+        }
+
+        /// <summary>
         /// HasSubtype only connects two types of the same NodeClass.
         /// </summary>
         [TestCase(false)]
