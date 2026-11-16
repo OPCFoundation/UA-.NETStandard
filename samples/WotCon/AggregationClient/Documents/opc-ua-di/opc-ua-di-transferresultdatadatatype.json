@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -319,16 +320,20 @@
           "DI Offline"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=6",
               "name": "SequenceNumber"
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=1",
               "name": "EndOfResults"
             },
             {
+              "arrayDimensions": "",
               "dataType": "ns=1;i=6525",
               "name": "ParameterDefs",
               "valueRank": 1
@@ -338,6 +343,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultDataDataType"
           }
         ],

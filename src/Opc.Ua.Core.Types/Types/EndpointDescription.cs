@@ -72,5 +72,12 @@ namespace Opc.Ua
         /// The proxy url to use when connecting to the endpoint.
         /// </summary>
         public Uri? ProxyUrl { get; set; }
+
+        /// <summary>
+        /// The discovery endpoints this description was selected from, set by
+        /// endpoint selection. Not encoded; a clone keeps the reference, so a
+        /// configured endpoint created from a copy still compares the list.
+        /// </summary>
+        internal ArrayOf<EndpointDescription> SelectionEndpoints { get; set; }
     }
 }

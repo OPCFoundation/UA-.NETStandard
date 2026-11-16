@@ -30,6 +30,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -67,11 +68,12 @@ namespace Opc.Ua.Server
         /// The default. Numeric identifiers are the most compact form on the
         /// wire and the most readable in client UIs. A 32 bit hash is also
         /// the only mode of this class where a collision between two distinct
-        /// browse paths is realistically possible, so the factory records
-        /// what it mints and raises
-        /// <see cref="StatusCodes.BadConfigurationError"/> if two paths ever
-        /// land on one identifier rather than letting one node silently
-        /// replace the other.
+        /// browse paths is realistically possible, so the factory always
+        /// records what it mints in this mode rather than letting one node
+        /// silently replace the other. A path that lands on an identifier
+        /// already minted for a different path moves to the next free
+        /// identifier; with collision detection on, the factory raises
+        /// <see cref="StatusCodes.BadConfigurationError"/> instead.
         /// </remarks>
         Numeric,
 
@@ -215,11 +217,14 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// <para>
-        /// On in a debug build, off otherwise. The record costs memory that
-        /// grows with the address space and a lookup on every mint, which is
-        /// worth paying while a model is being developed - when a collision
-        /// is a bug to find - and not in production, where the odds are
-        /// remote and the cost is permanent.
+        /// On in a debug build, off otherwise. Watching raises
+        /// <see cref="StatusCodes.BadConfigurationError"/> on a collision,
+        /// which is what is wanted while a model is being developed - when a
+        /// collision is a bug to find. Without watching, a
+        /// <see cref="NodeIdAssignmentMode.Numeric"/> factory still keeps its
+        /// record and resolves a collision by moving the later path to the
+        /// next free identifier, so two nodes never share one identity; the
+        /// 128 bit modes keep no record unless watching.
         /// </para>
         /// <para>
         /// This is the fallback for a factory built without an explicit
@@ -373,6 +378,32 @@ namespace Opc.Ua.Server
                 m_allocationStates);
         }
 
+        /// <summary>
+        /// Lowers the number of numeric identifiers recorded per namespace,
+        /// for tests that exercise the limit.
+        /// </summary>
+        internal void LimitNumericRecord(int limit)
+        {
+            m_allocation.RecordLimit = limit;
+        }
+
+        /// <summary>
+        /// Whether a numeric identifier of this factory's namespace was handed
+        /// out unrecorded because the record reached its limit.
+        /// </summary>
+        internal bool NumericRecordIsFull => m_allocation.RecordIsFull;
+
+        /// <summary>
+        /// Returns the allocation state of a namespace, which every view of
+        /// this factory shares.
+        /// </summary>
+        private AllocationState GetAllocation(ushort namespaceIndex)
+        {
+            return namespaceIndex == DefaultNamespaceIndex
+                ? m_allocation
+                : m_allocationStates.GetOrAdd(namespaceIndex, static _ => new AllocationState());
+        }
+
         /// <inheritdoc/>
         /// <remarks>
         /// Explicit for the same reason as
@@ -482,9 +513,8 @@ namespace Opc.Ua.Server
         {
             for (int attempt = 0; attempt < kMaxCounterAttempts; attempt++)
             {
-                var nodeId = new NodeId(
-                    Utils.IncrementIdentifier(ref m_allocation.LastUsedId),
-                    DefaultNamespaceIndex);
+                uint identifier = Utils.IncrementIdentifier(ref m_allocation.LastUsedId);
+                var nodeId = new NodeId(identifier, DefaultNamespaceIndex);
 
                 // The counter mints into the same numeric space a hash does -
                 // the counter base is a 32 bit value like any other - so a
@@ -500,7 +530,7 @@ namespace Opc.Ua.Server
                 // collide with itself, but about keeping its identifiers out
                 // of the way of the modes that can.
                 if (!m_detectCollisionsRequested ||
-                    m_allocation.MintedIdentifiers.TryAdd(nodeId, kCounterWitness))
+                    m_allocation.TryReserveNumeric(identifier))
                 {
                     return nodeId;
                 }
@@ -654,8 +684,16 @@ namespace Opc.Ua.Server
             switch (Mode)
             {
                 case NodeIdAssignmentMode.Numeric:
+                    if (!DetectsCollisions)
+                    {
+                        return MintNumericWithoutCollision(hash, namespaceIndex);
+                    }
                     nodeId = new NodeId(ToIdentifier(hash), namespaceIndex);
-                    break;
+                    if (!GetAllocation(namespaceIndex).ClaimNumeric(ToIdentifier(hash), ToWitness(hash)))
+                    {
+                        throw CreateCollisionError(nodeId, canonicalPath);
+                    }
+                    return nodeId;
                 case NodeIdAssignmentMode.Guid:
                     nodeId = new NodeId(ToGuid(hash), namespaceIndex);
                     break;
@@ -667,6 +705,56 @@ namespace Opc.Ua.Server
             GuardAgainstCollision(nodeId, hash, canonicalPath);
 
             return nodeId;
+        }
+
+        /// <summary>
+        /// Mints a numeric identifier when collisions are not raised, moving a
+        /// path whose identifier is already taken by a different path to the
+        /// next free identifier.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A 32 bit identifier collides with realistic odds once a namespace
+        /// holds tens of thousands of minted paths (about 1 % at 10,000 and
+        /// 25 % at 50,000), and the predefined-node index takes the last
+        /// writer, so two nodes would silently share one identity. The record
+        /// is therefore kept for this mode whatever the collision policy
+        /// says; the policy only decides between raising and resolving.
+        /// </para>
+        /// <para>
+        /// The first path to mint an identifier keeps it, so every path that
+        /// does not collide keeps the identifier it always had. A later path
+        /// that lands on it probes the following identifiers and takes the
+        /// first one that is free or that it already holds, which makes a
+        /// re-mint of the same path return the same identifier. Which of two
+        /// colliding paths moves follows the order they are minted in.
+        /// </para>
+        /// </remarks>
+        private NodeId MintNumericWithoutCollision(ReadOnlySpan<byte> hash, ushort namespaceIndex)
+        {
+            uint identifier = ToIdentifier(hash);
+            ulong witness = ToWitness(hash);
+            AllocationState allocation = GetAllocation(namespaceIndex);
+
+            for (int attempt = 0; attempt < kMaxProbeAttempts; attempt++)
+            {
+                if (allocation.ClaimNumeric(identifier, witness))
+                {
+                    return new NodeId(identifier, namespaceIndex);
+                }
+
+                // 0 is skipped when the probe wraps: a numeric identifier of 0
+                // is the null NodeId in namespace 0 and is reserved by
+                // convention elsewhere. ToIdentifier never returns 0, so the
+                // first attempt cannot be 0 either.
+                identifier = identifier == uint.MaxValue ? 1u : identifier + 1u;
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                "No free numeric NodeId was found in namespace {0} after {1} attempts.",
+                namespaceIndex,
+                kMaxProbeAttempts);
         }
 
         /// <summary>
@@ -701,12 +789,17 @@ namespace Opc.Ua.Server
 
             ulong witness = ToWitness(hash);
 
-            if (m_allocation.MintedIdentifiers.GetOrAdd(nodeId, witness) == witness)
+            if (GetAllocation(nodeId.NamespaceIndex).MintedIdentifiers.GetOrAdd(nodeId, witness) == witness)
             {
                 return;
             }
 
-            throw ServiceResultException.Create(
+            throw CreateCollisionError(nodeId, canonicalPath);
+        }
+
+        private ServiceResultException CreateCollisionError(NodeId nodeId, ReadOnlySpan<char> canonicalPath)
+        {
+            return ServiceResultException.Create(
                 StatusCodes.BadConfigurationError,
                 "The NodeId '{0}' was already minted from a different browse path, so '{1}' " +
                 "cannot be given it. Two distinct browse paths hashed to one {2} identifier. " +
@@ -1245,18 +1338,40 @@ namespace Opc.Ua.Server
         /// path behind it.
         /// </summary>
         /// <remarks>
-        /// A path derived witness is the tail of a SHA256 hash, so it can in
-        /// principle be this value too. That costs nothing: the only effect
-        /// would be treating one collision as a re-mint, at a probability of
-        /// 2^-64 on top of the collision itself.
+        /// A path witness always has its lowest bit set, so it is never this
+        /// value.
         /// </remarks>
-        private const ulong kCounterWitness = 0;
+        private const uint kCounterWitness = 0;
 
         /// <summary>
         /// How many counter values are tried before giving up on finding one
         /// no browse path has already claimed.
         /// </summary>
         private const int kMaxCounterAttempts = 1024;
+
+        /// <summary>
+        /// How many identifiers a colliding numeric mint probes before it
+        /// gives up.
+        /// </summary>
+        private const int kMaxProbeAttempts = 1024;
+
+        /// <summary>
+        /// How many numeric identifiers the record keeps per namespace.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The record only grows: an entry outlives the node it was minted
+        /// for, because releasing it would let a path that was moved past it
+        /// take it on a later mint and change identity. A dynamic address
+        /// space that keeps minting new browse paths would therefore grow it
+        /// for as long as the server runs, so it stops at this size - a table
+        /// of about 16 MB. Identifiers minted past the limit are handed out as
+        /// the plain hash and not recorded, which is how a numeric factory
+        /// behaved before the record existed; collisions with the identifiers
+        /// already recorded are still resolved or raised.
+        /// </para>
+        /// </remarks>
+        internal const int kMaxRecordedNumericIdentifiers = 1 << 20;
 
         /// <summary>
         /// The longest canonical path built on the stack. Longer ones come
@@ -1323,6 +1438,9 @@ namespace Opc.Ua.Server
         /// factory, so that two NodeManagers owning the same namespace draw
         /// from one counter and are checked against each other. Identifiers in
         /// different namespaces cannot collide, so they get separate state.
+        /// A view that mints into a namespace other than its default one uses
+        /// the state of that namespace, so every view consults one record per
+        /// namespace.
         /// </remarks>
         private sealed class AllocationState
         {
@@ -1336,10 +1454,189 @@ namespace Opc.Ua.Server
                 = kCounterBase | ((uint)DateTime.UtcNow.Ticks & 0x0FFFFFFF);
 
             /// <summary>
-            /// The identifiers minted so far, each with a witness of the
-            /// browse path it came from.
+            /// The Guid and Opaque identifiers minted so far, each with a
+            /// witness of the browse path it came from. Kept only while
+            /// collisions are detected.
             /// </summary>
             public readonly ConcurrentDictionary<NodeId, ulong> MintedIdentifiers = new();
+
+            /// <summary>
+            /// Claims a numeric identifier for the browse path with the
+            /// specified witness.
+            /// </summary>
+            /// <returns>
+            /// <c>true</c> when the identifier was free or the same path
+            /// already holds it; <c>false</c> when a different path or a
+            /// counter value holds it. A free identifier is not recorded once
+            /// the record holds <see cref="RecordLimit"/> identifiers.
+            /// </returns>
+            public bool ClaimNumeric(uint identifier, ulong witness)
+            {
+                // a path witness is never the counter witness, which is 0.
+                uint pathWitness = (uint)witness | 1u;
+                lock (m_table)
+                {
+                    return m_table.GetOrAdd(identifier, pathWitness, RecordLimit, out _) == pathWitness;
+                }
+            }
+
+            /// <summary>
+            /// Reserves a numeric counter identifier if nothing holds it yet.
+            /// </summary>
+            public bool TryReserveNumeric(uint identifier)
+            {
+                lock (m_table)
+                {
+                    m_table.GetOrAdd(identifier, kCounterWitness, RecordLimit, out bool free);
+                    return free;
+                }
+            }
+
+            /// <summary>
+            /// How many numeric identifiers the namespace records.
+            /// </summary>
+            public int RecordLimit = kMaxRecordedNumericIdentifiers;
+
+            /// <summary>
+            /// Whether an identifier went unrecorded because the record was
+            /// full.
+            /// </summary>
+            public bool RecordIsFull => m_table.IsFull;
+
+            /// <summary>
+            /// The numeric identifiers minted or reserved in the namespace,
+            /// by every view of the factory. It also serves as its own lock.
+            /// </summary>
+            private readonly NumericIdentifierTable m_table = new();
+        }
+
+        /// <summary>
+        /// The numeric identifiers of one namespace that were minted or
+        /// reserved, each with a 32 bit witness of the browse path it came
+        /// from (0 for a counter value).
+        /// </summary>
+        /// <remarks>
+        /// The record is kept for every numeric factory, not only while
+        /// collisions are detected, so it is built for the cost of a mint: one
+        /// array of 8 byte slots holding identifier and witness, open
+        /// addressing with linear probing and a load of at most one half. A
+        /// lookup touches one cache line, and an identifier costs 16 bytes or
+        /// less with no allocation per entry. The slot index is mixed with a
+        /// per-process random seed, so identifiers chosen to share a probe
+        /// run cannot be computed in advance. Callers synchronize.
+        /// </remarks>
+        private sealed class NumericIdentifierTable
+        {
+            /// <summary>
+            /// Returns the witness that holds the identifier, adding the
+            /// specified one when the identifier is free.
+            /// </summary>
+            /// <param name="identifier">The identifier.</param>
+            /// <param name="witness">The witness of the caller.</param>
+            /// <param name="limit">
+            /// How many identifiers the table holds at most. A free identifier
+            /// is reported free but not added once the table holds this many.
+            /// </param>
+            /// <param name="free">Whether the identifier was free.</param>
+            public uint GetOrAdd(uint identifier, uint witness, int limit, out bool free)
+            {
+                if (identifier == 0)
+                {
+                    // slot value 0 marks an empty slot, so identifier 0 is kept apart.
+                    free = !m_hasZero;
+                    if (free)
+                    {
+                        m_hasZero = true;
+                        m_zeroWitness = witness;
+                    }
+                    return m_zeroWitness;
+                }
+
+                while (true)
+                {
+                    ulong[] slots = m_slots;
+                    int mask = slots.Length - 1;
+                    int index = (int)(((identifier ^ s_seed) * 2654435769u) >> m_shift);
+                    while (true)
+                    {
+                        ulong slot = slots[index];
+                        if (slot == 0)
+                        {
+                            break;
+                        }
+                        if ((uint)(slot >> 32) == identifier)
+                        {
+                            free = false;
+                            return (uint)slot;
+                        }
+                        index = (index + 1) & mask;
+                    }
+
+                    free = true;
+
+                    if (m_count >= limit)
+                    {
+                        // full: the identifier is handed out unrecorded.
+                        IsFull = true;
+                        return witness;
+                    }
+
+                    if ((m_count + 1) * 2 > slots.Length)
+                    {
+                        Grow();
+                        continue;
+                    }
+
+                    slots[index] = ((ulong)identifier << 32) | witness;
+                    m_count++;
+                    return witness;
+                }
+            }
+
+            /// <summary>
+            /// Whether an identifier went unrecorded because the table held
+            /// its limit.
+            /// </summary>
+            public bool IsFull { get; private set; }
+
+            private void Grow()
+            {
+                ulong[] old = m_slots;
+                m_slots = new ulong[old.Length * 2];
+                m_shift--;
+                int mask = m_slots.Length - 1;
+                foreach (ulong slot in old)
+                {
+                    if (slot == 0)
+                    {
+                        continue;
+                    }
+                    int index = (int)((((uint)(slot >> 32) ^ s_seed) * 2654435769u) >> m_shift);
+                    while (m_slots[index] != 0)
+                    {
+                        index = (index + 1) & mask;
+                    }
+                    m_slots[index] = slot;
+                }
+            }
+
+            private const int kInitialBits = 8;
+            private static readonly uint s_seed = CreateSeed();
+            private ulong[] m_slots = new ulong[1 << kInitialBits];
+            private int m_shift = 32 - kInitialBits;
+            private int m_count;
+            private bool m_hasZero;
+            private uint m_zeroWitness;
+
+            private static uint CreateSeed()
+            {
+                byte[] seed = new byte[sizeof(uint)];
+                using (var random = RandomNumberGenerator.Create())
+                {
+                    random.GetBytes(seed);
+                }
+                return BitConverter.ToUInt32(seed, 0);
+            }
         }
 
         /// <summary>

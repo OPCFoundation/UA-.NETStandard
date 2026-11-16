@@ -624,10 +624,10 @@ namespace Opc.Ua.Server.Tests
             using IDisposable scope =
                 AmbientMessageContext.SetScopedContext(m_context);
 
-            var events = new List<EventFieldList>
+            var events = new List<QueuedEvent>
             {
-                new() { ClientHandle = 1 },
-                new() { ClientHandle = 2 }
+                new EventFieldList { ClientHandle = 1 },
+                new EventFieldList { ClientHandle = 2 }
             };
             var batch = new EventBatch(events, 5, 77);
 

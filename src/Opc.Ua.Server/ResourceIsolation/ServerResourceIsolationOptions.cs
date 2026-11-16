@@ -290,10 +290,21 @@ namespace Opc.Ua.Server
                 throw new ArgumentException("The declared queued, executing and parked request cost overflows Int64.");
             }
             long requestCostCapacity = retainedRequestSlots * quotas.MaxMessageSize;
+            // Every Session may hold the Publish requests its publish queue keeps (at least
+            // MaxPublishRequestCount, one more than its subscriptions when it has more), so
+            // the parked stage holds all of them on top of the queue. Sized at the queue
+            // alone, a few Sessions holding their quota refused the Publish requests of every
+            // other Session. Each Session counts at least one request, which with the
+            // subscriptions covers the subscriptions-plus-one rule. A parked Publish drops its
+            // decoded payload and is charged only what it still retains
+            // (RequestParkSink.RetainedBytes) at RequestQueueBytes.
+            long parkedCapacity = checked(queuedCapacity +
+                ((long)server.MaxSessionCount * Math.Max(1, server.MaxPublishRequestCount)) +
+                Math.Max(0, server.MaxSubscriptionCount));
             long[] totals =
             [
                 server.MaxChannelCount, server.MaxChannelCount, budget.MaxBytes, sessionCapacity,
-                queuedCapacity, executionCapacity, requestCostCapacity, queuedCapacity
+                queuedCapacity, executionCapacity, requestCostCapacity, parkedCapacity
             ];
             var overrides = new ResourceIsolationStageOptions?[totals.Length];
             foreach (ResourceIsolationStageOptions item in Stages)

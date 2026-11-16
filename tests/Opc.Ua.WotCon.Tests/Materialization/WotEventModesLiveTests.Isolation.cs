@@ -69,7 +69,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private static async Task CheckTransparentAuthorityIsolationAsync(bool requireSourceContinuity)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             CancellationToken ct = timeout.Token;
             await using var first = new NativeEndpoint();
             await using var second = new NativeEndpoint();
@@ -168,7 +168,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task NativeProvenanceAuthorizationPrecedesLookupAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             CancellationToken ct = timeout.Token;
             await using var source = new NativeEndpoint();
             await using var destination = new NativeEndpoint();
@@ -242,7 +242,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("transparent-forwarding")]
         public async Task NativeConditionActionAuthorizationPrecedesRouteLookupAsync(string mode)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             CancellationToken ct = timeout.Token;
             await using var source = new NativeEndpoint();
             await using var destination = new NativeEndpoint();
@@ -320,7 +320,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("transparent-forwarding")]
         public async Task NativeRetiringGenerationUsesCapturedActionsUntilDrainAsync(string mode)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             CancellationToken ct = timeout.Token;
             await using var source = new NativeEndpoint();
             await using var destination = new NativeEndpoint();

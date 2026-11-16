@@ -440,7 +440,7 @@ namespace Opc.Ua.AI.Inference
             int slash = mediaType.IndexOf('/', StringComparison.Ordinal);
             if (slash <= 0 ||
                 slash == mediaType.Length - 1 ||
-                mediaType.IndexOf('/', slash + 1) >= 0)
+                mediaType.IndexOf('/', slash + 1, StringComparison.Ordinal) >= 0)
             {
                 throw new JsonException(
                     "The image_url data URI media type must be of the form type/subtype.");

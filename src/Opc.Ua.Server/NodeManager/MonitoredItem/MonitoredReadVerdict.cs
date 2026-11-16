@@ -117,7 +117,7 @@ namespace Opc.Ua.Server
             NodeState node,
             uint attributeId,
             long defaultsGeneration,
-            NamespaceMetadataState? defaults,
+            NamespaceMetadataNode? defaults,
             in MonitoredReadInputs inputs,
             ServiceResult result)
         {
@@ -202,7 +202,7 @@ namespace Opc.Ua.Server
             // Namespace defaults behind read callbacks or access levels are not keyed by any
             // version, so a verdict is only kept while the defaults are static.
             long defaultsGeneration = NamespaceDefaultPermissionReader.Generation;
-            NamespaceMetadataState? defaults = null;
+            NamespaceMetadataNode? defaults = null;
             bool cacheable = CanCache(manager, node, attributeId) &&
                 NamespaceDefaultPermissionReader.TryGetStaticDefaults(
                     server, node.NodeId.NamespaceIndex, out defaults);
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server
             return m_defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
                 m_inputs.Matches(inputs) &&
                 NamespaceDefaultPermissionReader.TryGetStaticDefaults(
-                    server, namespaceIndex, out NamespaceMetadataState? current) &&
+                    server, namespaceIndex, out NamespaceMetadataNode? current) &&
                 ReferenceEquals(current, m_defaults);
         }
 
@@ -247,7 +247,7 @@ namespace Opc.Ua.Server
         private readonly long m_defaultsGeneration;
 
         /// <summary>The namespace metadata instance, if present.</summary>
-        private readonly NamespaceMetadataState? m_defaults;
+        private readonly NamespaceMetadataNode? m_defaults;
 
         /// <summary>The accepted channel and restriction inputs.</summary>
         private readonly MonitoredReadInputs m_inputs;

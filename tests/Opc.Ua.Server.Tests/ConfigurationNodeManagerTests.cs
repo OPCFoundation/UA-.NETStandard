@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.TestFramework;
@@ -127,8 +129,8 @@ namespace Opc.Ua.Server.Tests
                 }).ConfigureAwait(false);
 
                 const string namespaceUri = "http://test.org/UA/NamespaceMetadataTest";
-                NamespaceMetadataState metadata = await configManager
-                    .CreateNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false);
+                NamespaceMetadataState metadata = (await configManager
+                    .CreateNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false))!;
                 Assert.That(metadata, Is.Not.Null);
                 Assert.That(metadata.NamespaceUri!.Value, Is.EqualTo(namespaceUri));
 
@@ -242,6 +244,176 @@ namespace Opc.Ua.Server.Tests
 
             // Cleanup
             await fixture.StopAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A NodeSet's NamespaceMetadataType object imported without a state factory is a
+        /// plain <see cref="BaseObjectState"/>; publishing must keep it as the only metadata
+        /// object of its namespace and its default permissions must apply (issue #5080).
+        /// </summary>
+        [Test]
+        public async Task NamespaceMetadataPublisherKeepsUntypedMetadataObjectAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                IServerInternal serverInternal = server.CurrentInstance;
+                var serverNamespacesNode = (await serverInternal.NodeManager
+                    .FindNodeInAddressSpaceAsync(ObjectIds.Server_Namespaces)
+                    .ConfigureAwait(false)) as NamespacesState;
+                Assert.That(serverNamespacesNode, Is.Not.Null);
+
+                const string namespaceUri = "http://test.org/UA/UntypedNamespaceMetadata";
+                ushort namespaceIndex = serverInternal.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                ArrayOf<RolePermissionType> permissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Observer,
+                        Permissions = (uint)PermissionType.Browse
+                    }
+                ];
+                var untyped = new BaseObjectState(serverNamespacesNode)
+                {
+                    NodeId = new NodeId(Guid.NewGuid(), namespaceIndex),
+                    BrowseName = new QualifiedName(namespaceUri, namespaceIndex),
+                    TypeDefinitionId = ObjectTypeIds.NamespaceMetadataType,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent
+                };
+                untyped.AddChild(new PropertyState(untyped)
+                {
+                    NodeId = new NodeId(Guid.NewGuid(), namespaceIndex),
+                    BrowseName = new QualifiedName(BrowseNames.NamespaceUri),
+                    DataType = DataTypeIds.String,
+                    Value = new Variant(namespaceUri)
+                });
+                untyped.AddChild(new PropertyState(untyped)
+                {
+                    NodeId = new NodeId(Guid.NewGuid(), namespaceIndex),
+                    BrowseName = new QualifiedName(BrowseNames.DefaultRolePermissions),
+                    DataType = DataTypeIds.RolePermissionType,
+                    ValueRank = ValueRanks.OneDimension,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    Value = Variant.FromStructure(permissions)
+                });
+                serverNamespacesNode!.AddChild(untyped);
+                serverNamespacesNode.ClearChangeMasks(serverInternal.DefaultSystemContext, true);
+
+                await new NamespaceMetadataPublisher(serverInternal).PublishAsync().ConfigureAwait(false);
+
+                var children = new List<BaseInstanceState>();
+                serverNamespacesNode.GetChildren(serverInternal.DefaultSystemContext, children);
+                int duplicates = children.FindAll(child =>
+                    child is NamespaceMetadataState typed && typed.NamespaceUri?.Value == namespaceUri).Count;
+                NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                    serverInternal, serverInternal.DefaultSystemContext, namespaceIndex).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(duplicates, Is.Zero, "no NamespaceMetadataState duplicates the untyped object");
+                    Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(defaults.DefaultRolePermissions, Is.EqualTo(permissions),
+                        "the untyped object's default permissions apply to its namespace");
+                });
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// An untyped metadata object attached only in memory to the <c>Namespaces</c> object
+        /// the registry tracks is not browsable when another node manager serves
+        /// <c>Server/Namespaces</c>; the publisher keeps the object as is and links it with a
+        /// cross-manager reference like a published one.
+        /// </summary>
+        [Test]
+        public async Task NamespaceMetadataPublisherLinksUnreachableUntypedMetadataObjectAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                IServerInternal serverInternal = server.CurrentInstance;
+                var configManager = (ConfigurationNodeManager)serverInternal.ConfigurationNodeManager!;
+                var host = (INamespaceMetadataHost)configManager;
+                NamespacesState registryNamespaces = host.FindServerNamespacesNode()!;
+                Assert.That(registryNamespaces, Is.Not.Null);
+
+                const string namespaceUri = "http://test.org/UA/UntypedUnreachableMetadata";
+                serverInternal.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                var untyped = new BaseObjectState(registryNamespaces)
+                {
+                    NodeId = new NodeId(Guid.NewGuid(), host.NamespaceIndex),
+                    BrowseName = new QualifiedName(namespaceUri, host.NamespaceIndex),
+                    TypeDefinitionId = ObjectTypeIds.NamespaceMetadataType,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent
+                };
+                var namespaceUriProperty = new PropertyState(untyped)
+                {
+                    NodeId = new NodeId(Guid.NewGuid(), host.NamespaceIndex),
+                    BrowseName = new QualifiedName(BrowseNames.NamespaceUri),
+                    DataType = DataTypeIds.String,
+                    Value = new Variant(namespaceUri)
+                };
+                untyped.AddChild(namespaceUriProperty);
+                await configManager.AddPredefinedNodeAsync(untyped).ConfigureAwait(false);
+                registryNamespaces.AddChild(untyped);
+
+                // Server/Namespaces is served by a node manager that does not see the in-memory child.
+                var linked = new List<IReference>();
+                var master = new Mock<IMasterNodeManager>();
+                master.SetupGet(m => m.AsyncNodeManagers).Returns(serverInternal.NodeManager.AsyncNodeManagers);
+                master.Setup(m => m.BrowseAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<ViewDescription>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<ArrayOf<BrowseDescription>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<(ArrayOf<BrowseResult>, ArrayOf<DiagnosticInfo>)>(
+                        ([new BrowseResult { StatusCode = StatusCodes.Good }], default)));
+                master.Setup(m => m.AddReferencesAsync(
+                        ObjectIds.Server_Namespaces,
+                        It.IsAny<IList<IReference>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Callback((NodeId _, IList<IReference> references, CancellationToken _) =>
+                        linked.AddRange(references))
+                    .Returns(default(ValueTask));
+                var publishingServer = new Mock<IServerInternal>();
+                publishingServer.SetupGet(s => s.Telemetry).Returns(serverInternal.Telemetry);
+                publishingServer.SetupGet(s => s.NamespaceUris).Returns(serverInternal.NamespaceUris);
+                publishingServer.SetupGet(s => s.ConfigurationNodeManager).Returns(configManager);
+                publishingServer.SetupGet(s => s.NodeManager).Returns(master.Object);
+
+                await new NamespaceMetadataPublisher(publishingServer.Object).PublishAsync().ConfigureAwait(false);
+
+                var duplicates = new List<BaseInstanceState>();
+                registryNamespaces.GetChildren(serverInternal.DefaultSystemContext, duplicates);
+                duplicates.RemoveAll(child =>
+                    child is not NamespaceMetadataState typed || typed.NamespaceUri?.Value != namespaceUri);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        linked.Exists(reference =>
+                            ExpandedNodeId.ToNodeId(reference.TargetId, serverInternal.NamespaceUris) ==
+                                untyped.NodeId &&
+                            reference.ReferenceTypeId == ReferenceTypeIds.HasComponent &&
+                            !reference.IsInverse),
+                        Is.True,
+                        "the untyped metadata object is linked to Server/Namespaces");
+                    Assert.That(duplicates, Is.Empty, "no NamespaceMetadataState duplicates the untyped object");
+                    Assert.That(namespaceUriProperty.Value.TryGetValue(out string? value), Is.True);
+                    Assert.That(value, Is.EqualTo(namespaceUri), "the object's values are left untouched");
+                });
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]

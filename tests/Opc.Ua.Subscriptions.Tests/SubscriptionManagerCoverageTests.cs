@@ -600,6 +600,18 @@ namespace Opc.Ua.Subscriptions.Tests
 
             public int SessionSubscriptionCount => 0;
 
+            public int OperationTimeout => 0;
+
+            public bool MayDeleteUnknownSubscription(uint subscriptionId)
+            {
+                return true;
+            }
+
+            public Opc.Ua.Client.AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+            {
+                return null;
+            }
+
             public int CreateSubscriptionCallCount { get; private set; }
 
             public IMessageAckQueue? LastCreateQueue { get; private set; }
@@ -690,6 +702,14 @@ namespace Opc.Ua.Subscriptions.Tests
                 bool moreNotifications)
             {
                 return false;
+            }
+
+            public ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+                uint subscriptionId,
+                IIngressWaitPolicy waitPolicy,
+                CancellationToken ct)
+            {
+                return new ValueTask<bool>(true);
             }
 
             private int m_publishCallCount;
@@ -805,9 +825,10 @@ namespace Opc.Ua.Subscriptions.Tests
                 throw new NotSupportedException();
             }
 
-            public ValueTask OnPublishReceivedAsync(NotificationMessage message,
+            public ValueTask<bool> OnPublishReceivedAsync(NotificationMessage message,
                 IReadOnlyList<uint>? availableSequenceNumbers,
-                IReadOnlyList<string> stringTable)
+                IReadOnlyList<string> stringTable,
+                IIngressWaitPolicy? waitPolicy = null)
             {
                 throw new NotSupportedException();
             }

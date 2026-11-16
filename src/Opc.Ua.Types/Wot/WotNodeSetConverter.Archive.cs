@@ -1073,7 +1073,7 @@ namespace Opc.Ua.Wot
             using (var writer = new Utf8JsonWriter(output))
             {
                 writer.WriteStartObject();
-                WriteVariableValue(writer, node);
+                WriteVariableValue(writer, node, member: "const");
                 writer.WriteEndObject();
             }
             using var expected = JsonDocument.Parse(output.ToArray());
@@ -1182,6 +1182,42 @@ namespace Opc.Ua.Wot
                         {
                             matches.Add(new WotResolvedReferenceType(
                                 ToPortableNodeId(inverseId, baseline.NamespaceUris)!, rel, false));
+                        }
+                        if (GetElementString(link, "uav:refId") is { } pinnedId)
+                        {
+                            string id = NormalizeArchivedIdentity(
+                                document, pinnedId, identities, aliases, diagnostics, link);
+                            if (nodes.TryGetValue("id:" + id, out UANode? pinnedNode) &&
+                                pinnedNode is UAReferenceType pinnedType)
+                            {
+                                matches.Clear();
+                                if (name == NormalizeArchivedBrowseName(pinnedType.BrowseName))
+                                {
+                                    matches.Add(new WotResolvedReferenceType(pinnedId, rel, true));
+                                }
+                                if (!pinnedType.Symmetric)
+                                {
+                                    string qualified = NormalizeArchivedBrowseName(pinnedType.BrowseName) ??
+                                        string.Empty;
+                                    int separator = qualified.IndexOf(':', StringComparison.Ordinal);
+                                    string prefix = separator < 0 ? string.Empty : qualified[..(separator + 1)];
+                                    foreach (Export.LocalizedText inverseName in pinnedType.InverseName ?? [])
+                                    {
+                                        if (name == prefix + inverseName.Value)
+                                        {
+                                            matches.Add(new WotResolvedReferenceType(pinnedId, rel, false));
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (matches.Count == 0)
+                                {
+                                    ReportArchiveConflict(
+                                        pointer + "/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                        "ReferenceType", diagnostics);
+                                    continue;
+                                }
+                            }
                         }
                         answer = WotReferenceTypeAnswer.FromMatches(matches.ToArrayOf());
                     }

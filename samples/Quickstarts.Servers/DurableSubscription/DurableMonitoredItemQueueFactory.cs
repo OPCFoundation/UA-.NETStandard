@@ -510,7 +510,7 @@ namespace Quickstarts.Servers
             {
                 for (int i = 0; i < count; i++)
                 {
-                    encoder.WriteEncodeableAsExtensionObject(null, batch.Events[i]);
+                    encoder.WriteEncodeableAsExtensionObject(null, batch.Events[i].Fields);
                 }
             }
         }
@@ -535,7 +535,7 @@ namespace Quickstarts.Servers
             bool isPersisted = decoder.ReadBoolean(null);
 
             int count = decoder.ReadInt32(null);
-            var events = new List<EventFieldList>(count);
+            var events = new List<QueuedEvent>(count);
             for (int i = 0; i < count; i++)
             {
                 ExtensionObject eo = decoder.ReadExtensionObject(null);
@@ -543,7 +543,7 @@ namespace Quickstarts.Servers
                     eo.TryGetValue(out IEncodeable? e) &&
                     e is EventFieldList efl)
                 {
-                    events.Add(efl);
+                    events.Add(new QueuedEvent(efl));
                 }
             }
 

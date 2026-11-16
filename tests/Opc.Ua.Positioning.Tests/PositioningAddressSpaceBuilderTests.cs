@@ -28,11 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Gpos;
 using Opc.Ua.Positioning.Server;
+using Opc.Ua.Positioning.Server.Hosting;
 using Opc.Ua.Rsl;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Positioning.Tests
 {
@@ -326,6 +330,29 @@ namespace Opc.Ua.Positioning.Tests
                 Assert.That(rsl.NamespaceVersion!.Value, Is.EqualTo("1.00.1"));
                 Assert.That(gpos.NamespaceVersion!.Value, Is.EqualTo("1.0.0"));
             });
+        }
+
+        [Test]
+        public async Task EnsureNamespaceMetadataKeepsExistingUntypedMetadataAsync()
+        {
+            // An untyped metadata object of the namespace (e.g. from an untyped NodeSet
+            // import) is kept: the configuration node manager returns no typed state.
+            PositioningNodeManager manager = m_fixture!.Manager;
+            var configuration = new Mock<IConfigurationNodeManager>(MockBehavior.Strict);
+            configuration
+                .Setup(value => value.CreateNamespaceMetadataStateAsync(
+                    Opc.Ua.Rsl.Namespaces.RSL, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NamespaceMetadataState?>((NamespaceMetadataState?)null));
+
+            await PositioningNamespaceMetadata.EnsureAsync(
+                manager,
+                configuration.Object,
+                Opc.Ua.Rsl.Namespaces.RSL,
+                "1.00.1",
+                new DateTime(2023, 1, 12, 0, 0, 0, DateTimeKind.Utc),
+                CancellationToken.None).ConfigureAwait(false);
+
+            configuration.VerifyAll();
         }
     }
 }

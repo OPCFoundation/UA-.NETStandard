@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net11.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <AssemblyName>UaLens</AssemblyName>
@@ -27,7 +27,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
     <!-- Tool packages remain managed; NativeAOT is distributed by RID-specific publish. -->
     <PublishAot Condition="'$(PublishAotEnabled)' != 'false' and '$(_IsPacking)' != 'true'">true</PublishAot>
     <!-- Retain the managed dotnet-tool shim instead of an executable-runner command script. -->
@@ -38,7 +38,7 @@
          introduces a CS86xx becomes a build break instead of a silent
          warning. -->
     <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
-    <!-- The tool package uses net10.0; net8/net9 remain desktop build targets.
+    <!-- The tool package uses net10.0; net11.0 remains a desktop build target.
          Select CustomTestTarget=net10.0 for restore/build/pack so stale framework
          dependency groups cannot leak into the tool package. -->
     <IsPackable>true</IsPackable>

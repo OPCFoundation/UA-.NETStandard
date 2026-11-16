@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -414,6 +415,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TransferServicesType"
           }
         ],
@@ -448,6 +450,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TransferToDevice"
           }
         ],
@@ -478,6 +481,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -511,6 +515,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TransferFromDevice"
           }
         ],
@@ -541,6 +546,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -574,6 +580,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FetchTransferResultData"
           }
         ],
@@ -608,6 +615,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -640,6 +648,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
