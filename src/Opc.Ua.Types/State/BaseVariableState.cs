@@ -1713,7 +1713,7 @@ namespace Opc.Ua
             }
 
             // verify the data type before any handler sees the value (Part 4 5.11.4.2).
-            ServiceResult? typeResult = CheckValueType(context, value);
+            ServiceResult? typeResult = CheckValueType(context, value, indexRange);
 
             if (typeResult != null)
             {
@@ -1906,8 +1906,16 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context of the write.</param>
         /// <param name="value">The written value (the slice when an IndexRange is used).</param>
+        /// <param name="indexRange">The IndexRange of the write, if any.</param>
         /// <returns><c>null</c> if the value is acceptable; the error otherwise.</returns>
-        private ServiceResult? CheckValueType(ISystemContext context, Variant value)
+        /// <remarks>
+        /// A String value written to a TrimmedString Variable (or subtype) with leading or
+        /// trailing white space is rejected with Bad_TypeMismatch (Part 5 12.43).
+        /// </remarks>
+        private ServiceResult? CheckValueType(
+            ISystemContext context,
+            Variant value,
+            NumericRange indexRange)
         {
             NodeId dataType = m_dataType;
 
@@ -1951,7 +1959,102 @@ namespace Opc.Ua
                     "The value is not a defined value of the Enumeration DataType.");
             }
 
+            // a slice that addresses characters inside a string element is checked as
+            // whole elements only; partial character writes are not trim-validated.
+            if (WritesWholeStringElements(indexRange, value) &&
+                HasUntrimmedTrimmedStringValue(context, dataType, value))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "A TrimmedString value must not have leading or trailing white space.");
+            }
+
             return null;
+        }
+
+        /// <summary>
+        /// The TrimmedString DataType (i=31918, Part 5 12.43).
+        /// </summary>
+        internal static readonly NodeId TrimmedStringDataTypeId = new(31918u);
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="dataType"/> is TrimmedString or a subtype
+        /// of it and the String value (or one element of the String array or matrix) has
+        /// leading or trailing white space (Unicode White_Space, Part 5 12.43). Returns
+        /// <c>false</c> for any value that is not a String without consulting the type
+        /// table.
+        /// </summary>
+        internal static bool HasUntrimmedTrimmedStringValue(
+            ISystemContext context,
+            NodeId dataType,
+            in Variant value)
+        {
+            if (value.TypeInfo.BuiltInType != BuiltInType.String ||
+                value.IsNull ||
+                dataType.IsNull ||
+                dataType == DataTypeIds.String ||
+                dataType == DataTypeIds.BaseDataType)
+            {
+                return false;
+            }
+
+            if (dataType != TrimmedStringDataTypeId &&
+                (context.TypeTable == null ||
+                    !context.TypeTable.IsTypeOf(dataType, TrimmedStringDataTypeId)))
+            {
+                return false;
+            }
+
+            if (value.TypeInfo.IsScalar)
+            {
+                return value.TryGetValue(out string scalar) && HasOuterWhiteSpace(scalar);
+            }
+
+            if (value.TypeInfo.IsArray && value.TryGetValue(out ArrayOf<string> array))
+            {
+                foreach (string element in array)
+                {
+                    if (HasOuterWhiteSpace(element))
+                    {
+                        return true;
+                    }
+                }
+            }
+            else if (value.TypeInfo.IsMatrix && value.TryGetValue(out MatrixOf<string> matrix))
+            {
+                foreach (string element in matrix)
+                {
+                    if (HasOuterWhiteSpace(element))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if the written value replaces whole string elements: there
+        /// is no IndexRange, or the IndexRange has no dimension beyond the rank of the
+        /// written slice (a further dimension addresses characters inside a string).
+        /// </summary>
+        private static bool WritesWholeStringElements(NumericRange indexRange, in Variant value)
+        {
+            if (indexRange.IsNull)
+            {
+                return true;
+            }
+
+            int sliceRank = value.TypeInfo.IsScalar ? 0 : Math.Max(value.TypeInfo.ValueRank, 1);
+            int rangeRank = indexRange.SubRanges?.Length ?? 1;
+            return rangeRank <= sliceRank;
+        }
+
+        private static bool HasOuterWhiteSpace(string? value)
+        {
+            return !string.IsNullOrEmpty(value) &&
+                (char.IsWhiteSpace(value![0]) || char.IsWhiteSpace(value[value.Length - 1]));
         }
 
         /// <summary>
@@ -2375,7 +2478,7 @@ namespace Opc.Ua
                     return new AttributeWriteResult(statusOrTimestampResult);
                 }
 
-                ServiceResult? typeResult = CheckValueType(context, valueToWrite);
+                ServiceResult? typeResult = CheckValueType(context, valueToWrite, indexRange);
 
                 if (typeResult != null)
                 {

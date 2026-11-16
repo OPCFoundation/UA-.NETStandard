@@ -320,6 +320,14 @@ namespace Opc.Ua.Server
         StringTable IAliasNameMaterializerHost.ServerUris => Server.ServerUris;
 
         /// <inheritdoc/>
+        ushort IAliasNameMaterializerHost.GetServerIndexOrAppend(string serverUri)
+        {
+            ushort index = Server.ServerUris.GetIndexOrAppend(serverUri);
+            ServerUrisVersion.Update(Server);
+            return index;
+        }
+
+        /// <inheritdoc/>
         ushort IAliasNameMaterializerHost.MaterializationNamespaceIndex => m_namespaceIndex;
 
         /// <inheritdoc/>

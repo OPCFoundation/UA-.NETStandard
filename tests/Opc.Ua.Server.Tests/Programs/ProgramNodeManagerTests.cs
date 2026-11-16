@@ -480,6 +480,7 @@ namespace Opc.Ua.Server.Tests.Programs
             ProgramRuntime runtime = await harness.CreateAsync("Audited").ConfigureAwait(false);
             var identity = new Mock<IUserIdentity>();
             identity.SetupGet(value => value.DisplayName).Returns("Program operator");
+            identity.SetupGet(value => value.TokenType).Returns(UserTokenType.Certificate);
             var caller = new ServerSystemContext(server)
             {
                 SessionId = new NodeId("Creator", harness.Manager.NamespaceIndex),

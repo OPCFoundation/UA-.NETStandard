@@ -1303,6 +1303,8 @@ namespace Opc.Ua.Server
             {
                 m_namespaceRegistrationSemaphore.Release();
             }
+
+            ServerUrisVersion.Update(Server);
         }
 
         /// <inheritdoc/>

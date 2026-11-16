@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Opc.Ua.Identity;
@@ -120,6 +121,90 @@ namespace Opc.Ua.Server
             {
                 clientUserId = null;
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Resolves the ClientUserId of the user that activated a Session, as
+        /// reported in audit events (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <param name="session">The Session, or <c>null</c>.</param>
+        /// <returns>
+        /// The ClientUserId, or <c>null</c> for an anonymous, unknown or invalid identity.
+        /// </returns>
+        public static string? ResolveSession(ISession? session)
+        {
+            if (session is Session serverSession)
+            {
+                return serverSession.ClientUserId;
+            }
+            if (session?.IdentityToken == null || session.Identity == null)
+            {
+                return null;
+            }
+            TryResolve(session.IdentityToken, session.Identity, out string? clientUserId);
+            return clientUserId;
+        }
+
+        /// <summary>
+        /// Resolves the ClientUserId of an authenticated identity from the token
+        /// handler it holds, as reported in audit events (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <param name="identity">The authenticated identity, or <c>null</c>.</param>
+        /// <returns>
+        /// The ClientUserId, or <c>null</c> for an anonymous, unknown or invalid identity.
+        /// </returns>
+        public static string? ResolveIdentity(IUserIdentity? identity)
+        {
+            if (identity?.TokenHandler is not IUserIdentityTokenHandler identityToken)
+            {
+                return null;
+            }
+            TryResolve(identityToken, identity, out string? clientUserId);
+            return clientUserId;
+        }
+
+        /// <summary>
+        /// Resolves the ClientUserId of the token a Client supplied in an
+        /// ActivateSession request that was not authenticated, as reported in the
+        /// failed AuditActivateSessionEvent (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <remarks>
+        /// An issued token resolves only when it was sent unencrypted as a JWT; the
+        /// token is not validated, so the result names the claimed user.
+        /// </remarks>
+        /// <param name="identityToken">The requested token; <c>null</c> requests an anonymous user.</param>
+        /// <returns>
+        /// The ClientUserId, or <c>null</c> for an anonymous token or one without a
+        /// readable user.
+        /// </returns>
+        public static string? ResolveRequested(UserIdentityToken? identityToken)
+        {
+            try
+            {
+                switch (identityToken)
+                {
+                    case UserNameIdentityToken userNameToken:
+                        return userNameToken.UserName;
+                    case X509IdentityToken x509Token:
+                        return GetX509Subject(x509Token);
+                    case IssuedIdentityToken issuedToken
+                        when string.IsNullOrEmpty(issuedToken.EncryptionAlgorithm) &&
+                            !issuedToken.TokenData.IsEmpty:
+                        return TryGetJwtOwner(
+                            issuedToken.TokenData.ToArray(),
+                            out string? issuer,
+                            out string? subject)
+                            ? issuer == null ? subject : string.Concat(issuer, subject)
+                            : null;
+                    default:
+                        return null;
+                }
+            }
+            catch (Exception exception) when (
+                exception is ServiceResultException or CryptographicException or FormatException)
+            {
+                return null;
             }
         }
 
@@ -291,7 +376,7 @@ namespace Opc.Ua.Server
 
             if (identityToken is IssuedIdentityTokenHandler issuedToken &&
                 issuedToken.IssuedTokenType == IssuedTokenType.JWT &&
-                TryGetJwtOwner(issuedToken, out issuer, out subject))
+                TryGetJwtOwner(issuedToken.DecryptedTokenData, out issuer, out subject))
             {
                 return subject;
             }
@@ -327,16 +412,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Attempts to read the issuer and subject from a validated JWT token payload.
+        /// Attempts to read the issuer and subject from a JWT token payload. The
+        /// token data is owned by the method and cleared before it returns.
         /// </summary>
         private static bool TryGetJwtOwner(
-            IssuedIdentityTokenHandler token,
+            byte[]? tokenData,
             out string? issuer,
             [NotNullWhen(true)] out string? subject)
         {
             issuer = null;
             subject = null;
-            byte[]? tokenData = token.DecryptedTokenData;
             byte[]? payloadData = null;
 
             try

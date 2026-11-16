@@ -1677,7 +1677,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
                 throw TranslateException(context, e);
             }
             finally
@@ -1714,7 +1714,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1764,7 +1764,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1823,7 +1823,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1874,7 +1874,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 ServerInternal.ReportAuditAddNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1932,7 +1932,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 ServerInternal.ReportAuditDeleteNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1990,7 +1990,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 ServerInternal.ReportAuditAddReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -2048,7 +2048,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 ServerInternal.ReportAuditDeleteReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -2131,7 +2131,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2169,7 +2169,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2218,7 +2218,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2265,7 +2265,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
 
@@ -2328,7 +2328,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
@@ -2372,7 +2372,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2416,7 +2416,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2508,7 +2508,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2548,7 +2548,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2586,7 +2586,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2635,7 +2635,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2674,7 +2674,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2728,7 +2728,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2774,7 +2774,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2837,7 +2837,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2881,7 +2881,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2924,7 +2924,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2964,7 +2964,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3018,7 +3018,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3060,7 +3060,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedServiceRequest(e.StatusCode);
+                CountRejectedServiceRequest(context, e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3672,9 +3672,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Counts a request that a service rejected after admission. A method of its own, so
         /// that the service method allocates the closure only when it rejects a request.
+        /// The request also counts as an error of its Session (OPC 10000-5 12.13).
         /// </summary>
-        private void CountRejectedServiceRequest(StatusCode statusCode)
+        private void CountRejectedServiceRequest(OperationContext context, StatusCode statusCode)
         {
+            (context.Session as Session)?.UpdateRejectedRequestCounters(
+                context.RequestType,
+                statusCode);
+
             ServerInternal.UpdateServerDiagnostics(diagnostics =>
             {
                 diagnostics.RejectedRequestsCount++;

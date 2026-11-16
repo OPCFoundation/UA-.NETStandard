@@ -137,7 +137,43 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string? UserId => UserIdentity?.DisplayName;
+        /// <remarks>
+        /// The <see cref="ClientUserId"/> of the user (OPC 10000-5 6.4.3).
+        /// </remarks>
+        public string? UserId => ClientUserId;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Without a session operation context and without an assigned value, it is
+        /// derived from <see cref="UserIdentity"/>: <c>null</c> for an anonymous user,
+        /// the user name of a UserName token and the display name otherwise.
+        /// </remarks>
+        public string? ClientUserId
+        {
+            get
+            {
+                if (OperationContext is ISessionOperationContext session)
+                {
+                    return session.ClientUserId;
+                }
+
+                SharedValues values = m_values;
+                if (values.ClientUserId != null)
+                {
+                    return values.ClientUserId;
+                }
+
+                IUserIdentity? identity = values.UserIdentity;
+                if (identity == null || identity.TokenType == UserTokenType.Anonymous)
+                {
+                    return null;
+                }
+                return identity.TokenHandler?.Token is UserNameIdentityToken userNameToken
+                    ? userNameToken.UserName
+                    : identity.DisplayName;
+            }
+            set => ReplaceValues().ClientUserId = value;
+        }
 
         /// <summary>
         /// The identifier for the session (null if multiple sessions are associated with the operation).
@@ -393,11 +429,13 @@ namespace Opc.Ua
         internal void SetSessionValues(
             NodeId? sessionId,
             IUserIdentity? userIdentity,
+            string? clientUserId,
             ArrayOf<string> preferredLocales)
         {
             SharedValues values = ReplaceValues();
             values.SessionId = sessionId;
             values.UserIdentity = userIdentity;
+            values.ClientUserId = clientUserId;
             values.PreferredLocales = preferredLocales;
         }
 
@@ -413,6 +451,7 @@ namespace Opc.Ua
             SharedValues values = ReplaceValues();
             values.SessionId = source.SessionId;
             values.UserIdentity = source.UserIdentity;
+            values.ClientUserId = source.m_values.ClientUserId;
             values.PreferredLocales = source.PreferredLocales;
             values.NamespaceUris = source.NamespaceUris;
             values.ServerUris = source.ServerUris;
@@ -463,6 +502,7 @@ namespace Opc.Ua
             public ArrayOf<string> PreferredLocales { get; set; }
             public string? AuditEntryId { get; set; }
             public IUserIdentity? UserIdentity { get; set; }
+            public string? ClientUserId { get; set; }
 
             public SharedValues Copy()
             {

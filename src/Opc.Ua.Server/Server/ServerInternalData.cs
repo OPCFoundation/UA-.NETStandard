@@ -1552,6 +1552,14 @@ namespace Opc.Ua.Server
             serverObject.ServerArray!.OnSimpleReadValue = OnReadServerArray;
             serverObject.ServerArray.MinimumSamplingInterval = 1000;
 
+            // UrisVersion starts at the startup time (Part 5 §6.3.1, Part 4 §7.43) and is raised
+            // on every change of the tables; a read catches up with a change no caller reported.
+            if (serverObject.UrisVersion is { } urisVersion)
+            {
+                urisVersion.OnSimpleReadValue = OnReadUrisVersion;
+                ServerUrisVersion.Update(this);
+            }
+
             // the diagnostics collection can be enabled and disabled by an administrator
             // (Part 5 §6.3.3); the user access level grants the write access.
             serverObject.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -1751,6 +1759,19 @@ namespace Opc.Ua.Server
             ref Variant value)
         {
             value = ServerUris.ToArrayOf();
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Returns the UrisVersion, raised first when a table changed since the last update.
+        /// </summary>
+        private ServiceResult OnReadUrisVersion(
+            ISystemContext context,
+            NodeState node,
+            ref Variant value)
+        {
+            ServerUrisVersion.Update(this);
+            value = ((PropertyState<uint>)node).Value;
             return ServiceResult.Good;
         }
 

@@ -413,6 +413,15 @@ namespace Opc.Ua.Server
         /// <value>The user identity.</value>
         public IUserIdentity UserIdentity { get; }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The ClientUserId of the Session's user, or of <see cref="UserIdentity"/>
+        /// when the operation has no Session.
+        /// </remarks>
+        public string? ClientUserId => Session != null
+            ? ClientUserIdResolver.ResolveSession(Session)
+            : ClientUserIdResolver.ResolveIdentity(UserIdentity);
+
         /// <summary>
         /// The locales to use for the operation.
         /// </summary>
