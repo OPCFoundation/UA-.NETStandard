@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -30,6 +31,7 @@
       "input": {
         "properties": {
           "IndicationDuration": {
+            "type": "number",
             "uav:mapToType": "i=290",
             "uav:valueRank": -1
           }
@@ -120,6 +122,7 @@
       "observable": true,
       "readOnly": true,
       "title": "SupportedIndicationTypes",
+      "type": "integer",
       "uav:browseName": "ns1:SupportedIndicationTypes",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=156",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/DI/;i=410",
@@ -147,6 +150,7 @@
       "observable": true,
       "readOnly": true,
       "title": "UsedIndicationType",
+      "type": "integer",
       "uav:browseName": "ns1:UsedIndicationType",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=155",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/DI/;i=410",
@@ -400,6 +404,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IAssetLocationIndicationType"
           }
         ],
@@ -443,6 +448,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "StartLocationIndication"
           }
         ],
@@ -473,6 +479,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -503,6 +510,7 @@
         "browseName": "1:StopLocationIndication",
         "displayName": [
           {
+            "locale": "",
             "value": "StopLocationIndication"
           }
         ],
@@ -523,10 +531,12 @@
         ]
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:IsIndicating",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "IsIndicating"
           }
         ],
@@ -552,10 +562,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UsedIndicationType",
         "dataType": "ns=1;i=410",
         "displayName": [
           {
+            "locale": "",
             "value": "UsedIndicationType"
           }
         ],
@@ -581,10 +593,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SupportedIndicationTypes",
         "dataType": "ns=1;i=410",
         "displayName": [
           {
+            "locale": "",
             "value": "SupportedIndicationTypes"
           }
         ],

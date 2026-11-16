@@ -395,10 +395,33 @@ namespace Opc.Ua.Server
                 return copy;
             }
 
+            /// <summary>
+            /// Returns the admission stamp of the shared field values, created once for the
+            /// group, or <c>null</c> when <paramref name="fields"/> is an item's own copy or
+            /// the event has no sealed identity (the item then stamps its fields itself).
+            /// </summary>
+            public object? GetFieldsStamp(EventManager manager, IFilterTarget instance, Variant[] fields)
+            {
+                if (!ReferenceEquals(fields, Volatile.Read(ref m_fields)))
+                {
+                    return null;
+                }
+                object? stamp = Volatile.Read(ref m_stamp);
+                if (stamp == null)
+                {
+                    // two items may create a stamp at the same time; both are equivalent.
+                    stamp = manager.CreateSharedEventFieldsStamp(instance, fields) ?? s_noStamp;
+                    stamp = Interlocked.CompareExchange(ref m_stamp, stamp, null) ?? stamp;
+                }
+                return ReferenceEquals(stamp, s_noStamp) ? null : stamp;
+            }
+
+            private static readonly object s_noStamp = new();
             private readonly Lock m_lock = new();
             private int m_whereClause;
             private Variant[]? m_fields;
             private bool m_copyPerItem;
+            private object? m_stamp;
         }
     }
 }

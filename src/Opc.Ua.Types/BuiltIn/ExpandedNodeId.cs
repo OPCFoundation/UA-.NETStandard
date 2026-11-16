@@ -1341,7 +1341,7 @@ namespace Opc.Ua
 
             if (text.StartsWith("svu=", StringComparison.Ordinal))
             {
-                int index = text.IndexOf(';', 4);
+                int index = text.IndexOf(';', 4, StringComparison.Ordinal);
 
                 if (index < 0)
                 {
@@ -1373,7 +1373,7 @@ namespace Opc.Ua
 
             if (text.StartsWith("svr=", StringComparison.Ordinal))
             {
-                int index = text.IndexOf(';', 4);
+                int index = text.IndexOf(';', 4, StringComparison.Ordinal);
 
                 if (index < 0)
                 {
@@ -1410,7 +1410,7 @@ namespace Opc.Ua
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int index = text.IndexOf(';', 4);
+                int index = text.IndexOf(';', 4, StringComparison.Ordinal);
 
                 if (index < 0)
                 {

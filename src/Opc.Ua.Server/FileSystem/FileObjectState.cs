@@ -416,6 +416,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return StatusCodes.BadInvalidState;
             }
+            count = ClampToRemaining(operation.Stream, count);
             byte[] buffer = new byte[count];
             int read = operation.Stream.Read(buffer, 0, count);
             data = ByteString.From(read == count ? buffer : buffer.AsSpan(0, read).ToArray());
@@ -445,6 +446,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
             }
+            count = ClampToRemaining(operation.Stream, count);
             byte[] buffer = new byte[count];
 #if NET5_0_OR_GREATER
             int read = await operation.Stream.ReadAsync(buffer.AsMemory(0, count), operation.CancellationToken)
@@ -506,6 +508,20 @@ namespace Opc.Ua.Server.FileSystem
             }
             count = Math.Min(length, limit);
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Limits a read buffer to the bytes left after the position of a seekable stream,
+        /// so a read near the end of a file does not allocate the whole requested length.
+        /// </summary>
+        internal static int ClampToRemaining(Stream stream, int count)
+        {
+            if (!stream.CanSeek)
+            {
+                return count;
+            }
+            long remaining = stream.Length - stream.Position;
+            return remaining <= 0 ? 0 : (int)Math.Min(count, remaining);
         }
 
         /// <summary>

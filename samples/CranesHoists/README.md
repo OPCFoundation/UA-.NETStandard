@@ -19,7 +19,7 @@ dotnet build samples\CranesHoists\CranesHoistsServer\CranesHoistsServer.csproj
 dotnet build samples\CranesHoists\CranesHoistsClient\CranesHoistsClient.csproj
 ```
 
-The projects use `$(AppTargetFrameworks)`: `net10.0`, `net9.0`, `net8.0`, and
+The projects use `$(AppTargetFrameworks)`: `net11.0`, `net10.0`, and
 `net48`. Select a single build target using the documented
 [`CustomTestTarget` override](../../docs/DeveloperGuide.md).
 

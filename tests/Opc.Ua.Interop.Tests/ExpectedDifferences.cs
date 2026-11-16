@@ -63,7 +63,7 @@ namespace Opc.Ua.Interop.Tests
             // the rest, e.g. all checks of one security configuration.
             foreach (KeyValuePair<string, string> entry in s_differences.Value)
             {
-                if (entry.Key.EndsWith('*') &&
+                if (entry.Key.EndsWith('*', StringComparison.Ordinal) &&
                     name.StartsWith(entry.Key.Substring(0, entry.Key.Length - 1), StringComparison.Ordinal))
                 {
                     return entry.Value;

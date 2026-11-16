@@ -95,8 +95,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// <para>
         /// When <c>true</c>, the V2 subscription dispatcher calls
         /// <see cref="IPooledEncodeable.Reuse"/> on notification payload
-        /// instances (such as <c>MonitoredItemNotification</c> and
-        /// <c>EventFieldList</c>) after the handler returns, releasing them
+        /// containers (such as <c>DataChangeNotification</c> and
+        /// <c>EventNotificationList</c>) after the handler returns, releasing them
         /// back to their activator-level pools for reuse. The
         /// <see cref="System.ReadOnlyMemory{T}"/> of <see cref="DataValueChange"/>
         /// or <see cref="EventNotification"/> values passed to

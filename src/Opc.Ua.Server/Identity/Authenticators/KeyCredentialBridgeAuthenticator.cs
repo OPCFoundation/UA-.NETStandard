@@ -185,7 +185,8 @@ namespace Opc.Ua.Server
                 ExtractStringList(claims, "groups"),
                 ExtractStringList(claims, "roles"),
                 GetOptionalString(claims, "iss"),
-                GetOptionalString(claims, "sub") ?? token.CredentialId));
+                GetOptionalString(claims, "sub") ?? token.CredentialId,
+                credential.Expiration));
         }
 
         /// <summary>
@@ -451,7 +452,7 @@ namespace Opc.Ua.Server
             long IssuedAt,
             string Proof);
 
-        private sealed class KeyCredentialUserIdentity : IUserIdentity, IIdentityClaims
+        private sealed class KeyCredentialUserIdentity : IUserIdentity, IIdentityClaims, IIdentityExpiration
         {
             public KeyCredentialUserIdentity(
                 IssuedIdentityTokenHandler tokenHandler,
@@ -459,8 +460,10 @@ namespace Opc.Ua.Server
                 IReadOnlyList<string> groups,
                 IReadOnlyList<string> roles,
                 string? issuer,
-                string? subject)
+                string? subject,
+                DateTime expiresAt)
             {
+                ExpiresAt = expiresAt;
                 TokenHandler = tokenHandler ?? throw new ArgumentNullException(nameof(tokenHandler));
                 Claims = claims ?? throw new ArgumentNullException(nameof(claims));
                 Groups = groups ?? throw new ArgumentNullException(nameof(groups));
@@ -478,6 +481,8 @@ namespace Opc.Ua.Server
             public string? Issuer { get; }
 
             public string? Subject { get; }
+
+            public DateTime? ExpiresAt { get; }
 
             public string DisplayName => Subject ?? TokenHandler.DisplayName;
 

@@ -230,7 +230,7 @@ namespace Opc.Ua.Schema.Model
             }
 
             int index = 0;
-            while ((index = text.IndexOf('<', index)) >= 0)
+            while ((index = text.IndexOf('<', index, StringComparison.Ordinal)) >= 0)
             {
                 if (string.CompareOrdinal(text, index, "<!--", 0, 4) == 0)
                 {
@@ -240,7 +240,7 @@ namespace Opc.Ua.Schema.Model
                 }
                 if (index + 1 < text.Length && text[index + 1] is '?' or '!')
                 {
-                    int end = text.IndexOf('>', index + 1);
+                    int end = text.IndexOf('>', index + 1, StringComparison.Ordinal);
                     index = end < 0 ? text.Length : end + 1;
                     continue;
                 }

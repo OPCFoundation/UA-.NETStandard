@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Moq;
@@ -58,15 +59,14 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 1500; i++)
             {
-                queue.Enqueue(new EventFieldList
+                queue.Enqueue(new QueuedEvent(new EventFieldList
                 {
-                    EventFields = [new Variant(i)],
-                    Handle = new AuditSessionEventState(null)
-                });
+                    EventFields = [new Variant(i)]
+                }, new AuditSessionEventState(null)));
             }
 
             var newest = new AuditSessionEventState(null);
-            queue.Enqueue(new EventFieldList { EventFields = [new Variant(true)], Handle = newest });
+            queue.Enqueue(new QueuedEvent(new EventFieldList { EventFields = [new Variant(true)] }, newest));
 
             Assert.That(queue.IsEventContainedInQueue(newest), Is.True);
             Assert.That(
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests
                 handles.Add(handle);
                 // a trailing filtered retain event is queued with a wrapper of its instance.
                 object queuedHandle = i % 3 == 0 ? new FilteredRetainTarget(handle) : handle;
-                queue.Enqueue(new EventFieldList { EventFields = [new Variant(i)], Handle = queuedHandle });
+                queue.Enqueue(new QueuedEvent(new EventFieldList { EventFields = [new Variant(i)] }, queuedHandle));
             }
 
             // only the newest 1000 entries are checked.
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.IsEventContainedInQueue(handles[1199]), Is.True);
 
             // an instance queued twice stays a duplicate until both entries are gone.
-            queue.Enqueue(new EventFieldList { EventFields = [new Variant(-1)], Handle = handles[1199] });
+            queue.Enqueue(new QueuedEvent(new EventFieldList { EventFields = [new Variant(-1)] }, handles[1199]));
             for (int i = 0; i < 1000; i++)
             {
                 Assert.That(queue.Dequeue(out _), Is.True);
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.EqualTo(201));
             Assert.That(queue.IsEventContainedInQueue(handles[999]), Is.False);
             Assert.That(queue.IsEventContainedInQueue(handles[1000]), Is.True);
-            Assert.That(queue.Dequeue(out EventFieldList last), Is.True);
+            Assert.That(queue.Dequeue(out QueuedEvent last), Is.True);
             Assert.That(last.EventFields[0].GetInt32(), Is.EqualTo(1000));
             for (int i = 0; i < 199; i++)
             {
@@ -119,12 +119,12 @@ namespace Opc.Ua.Server.Tests
             // a shrink counts the remaining entries again.
             for (int i = 0; i < 10; i++)
             {
-                queue.Enqueue(new EventFieldList { EventFields = [new Variant(i)], Handle = handles[i] });
+                queue.Enqueue(new QueuedEvent(new EventFieldList { EventFields = [new Variant(i)] }, handles[i]));
             }
             queue.SetQueueSize(4, false);
             Assert.That(queue.IsEventContainedInQueue(handles[3]), Is.True);
             Assert.That(queue.IsEventContainedInQueue(handles[4]), Is.False);
-            queue.Enqueue(new EventFieldList { EventFields = [new Variant(20)], Handle = handles[20] });
+            queue.Enqueue(new QueuedEvent(new EventFieldList { EventFields = [new Variant(20)] }, handles[20]));
             Assert.That(queue.IsEventContainedInQueue(handles[0]), Is.False);
             Assert.That(queue.IsEventContainedInQueue(handles[20]), Is.True);
         }
@@ -136,16 +136,16 @@ namespace Opc.Ua.Server.Tests
             using var queue = new DirectlyFilledEventQueue(telemetry);
             queue.SetQueueSize(10, true);
             var queued = new AuditSessionEventState(null);
-            queue.Enqueue(new EventFieldList { EventFields = [new Variant(1)], Handle = queued });
+            queue.Enqueue(new QueuedEvent(new EventFieldList { EventFields = [new Variant(1)] }, queued));
 
             var added = new AuditSessionEventState(null);
-            queue.AddDirectly(new EventFieldList { EventFields = [new Variant(2)], Handle = added });
+            queue.AddDirectly(new QueuedEvent(new EventFieldList { EventFields = [new Variant(2)] }, added));
             Assert.That(queue.IsEventContainedInQueue(added), Is.True);
             Assert.That(queue.IsEventContainedInQueue(queued), Is.True);
 
             // a queue changed directly stays consistent through further queue operations.
-            queue.AddDirectly(new EventFieldList { EventFields = [new Variant(3)], Handle = added });
-            queue.Enqueue(new EventFieldList { EventFields = [new Variant(4)], Handle = queued });
+            queue.AddDirectly(new QueuedEvent(new EventFieldList { EventFields = [new Variant(3)] }, added));
+            queue.Enqueue(new QueuedEvent(new EventFieldList { EventFields = [new Variant(4)] }, queued));
             Assert.That(queue.Dequeue(out _), Is.True);
             Assert.That(queue.Dequeue(out _), Is.True);
             Assert.That(queue.IsEventContainedInQueue(added), Is.True);
@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests
 
             // an entry replaced in place leaves the count unchanged.
             var replacement = new AuditSessionEventState(null);
-            queue.ReplaceNewest(new EventFieldList { EventFields = [new Variant(5)], Handle = replacement });
+            queue.ReplaceNewest(new QueuedEvent(new EventFieldList { EventFields = [new Variant(5)] }, replacement));
             Assert.That(queue.IsEventContainedInQueue(replacement), Is.True);
             Assert.That(queue.IsEventContainedInQueue(queued), Is.False);
         }
@@ -182,7 +182,7 @@ namespace Opc.Ua.Server.Tests
         private static WeakReference EnqueueUnreferencedEvent(EventMonitoredItemQueue queue)
         {
             var handle = new AuditSessionEventState(null);
-            queue.Enqueue(new EventFieldList { EventFields = [new Variant(1)], Handle = handle });
+            queue.Enqueue(new QueuedEvent(new EventFieldList { EventFields = [new Variant(1)] }, handle));
             Assert.That(queue.IsEventContainedInQueue(handle), Is.True);
             return new WeakReference(handle);
         }
@@ -200,12 +200,12 @@ namespace Opc.Ua.Server.Tests
             {
             }
 
-            public void AddDirectly(EventFieldList value)
+            public void AddDirectly(QueuedEvent value)
             {
                 m_events.Add(value);
             }
 
-            public void ReplaceNewest(EventFieldList value)
+            public void ReplaceNewest(QueuedEvent value)
             {
                 m_events[m_events.Count - 1] = value;
             }
@@ -224,12 +224,12 @@ namespace Opc.Ua.Server.Tests
             {
                 var handle = new AuditSessionEventState(null);
                 handles.Add(handle);
-                queue.Enqueue(new EventFieldList { EventFields = [new Variant(value)], Handle = handle });
+                queue.Enqueue(new QueuedEvent(new EventFieldList { EventFields = [new Variant(value)] }, handle));
             }
 
             int Dequeue()
             {
-                Assert.That(queue.Dequeue(out EventFieldList fields), Is.True);
+                Assert.That(queue.Dequeue(out QueuedEvent fields), Is.True);
                 return fields.EventFields[0].GetInt32();
             }
 
@@ -300,9 +300,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(handler.SetQueueOverflowIfFull(), Is.True);
             Assert.That(handler.Overflow, Is.True);
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             Assert.That(handler.Publish(null!, notifications, 2), Is.EqualTo(2u));
-            Assert.That(notifications, Is.EqualTo(new[] { e1, e2 }));
+            Assert.That(notifications.Select(n => n.Fields), Is.EqualTo(new[] { e1, e2 }));
             Assert.That(handler.Overflow, Is.True);
 
             // e5 arrives after the loss and must be published after the overflow event.
@@ -311,13 +311,13 @@ namespace Opc.Ua.Server.Tests
 
             notifications.Clear();
             Assert.That(handler.Publish(null!, notifications, 2), Is.EqualTo(1u));
-            Assert.That(notifications, Is.EqualTo(new[] { e3 }));
+            Assert.That(notifications.Select(n => n.Fields), Is.EqualTo(new[] { e3 }));
             // the caller appends the overflow event here, as there is room left.
             Assert.That(handler.Overflow, Is.False);
 
             notifications.Clear();
             Assert.That(handler.Publish(null!, notifications, 2), Is.EqualTo(1u));
-            Assert.That(notifications, Is.EqualTo(new[] { e5 }));
+            Assert.That(notifications.Select(n => n.Fields), Is.EqualTo(new[] { e5 }));
 
             Assert.That(discarded, Is.EqualTo(1));
             Assert.That(overflowEvents, Is.EqualTo(1));
@@ -337,7 +337,7 @@ namespace Opc.Ua.Server.Tests
             handler.QueueEvent(NewEvent(2));
             Assert.That(handler.SetQueueOverflowIfFull(), Is.True);
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             Assert.That(handler.Publish(null!, notifications, 2), Is.EqualTo(2u));
             // the overflow event did not fit, so it is still pending.
             Assert.That(handler.Overflow, Is.True);
@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(overflowEvents, Is.EqualTo(1));
             Assert.That(handler.Overflow, Is.True);
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             handler.Publish(null!, notifications, 10);
             Assert.That(handler.Overflow, Is.False);
 
@@ -412,7 +412,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(discarded, Is.EqualTo(6));
             Assert.That(overflowEvents, Is.EqualTo(1));
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             Assert.That(handler.Publish(null!, notifications, 10), Is.EqualTo(4u));
             Assert.That(handler.Overflow, Is.False);
         }
@@ -434,7 +434,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(e4);
 
             var published = new List<object?>();
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 2);
             published.AddRange(notifications.Select(n => n.Handle));
 
@@ -621,7 +621,7 @@ namespace Opc.Ua.Server.Tests
             handler.TransformQueuedEvents(fields => NewEvent(fields.EventFields[0].GetInt32() + 10));
             handler.QueueEvent(NewEvent(20));
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             for (int attempt = 0; attempt < 20 && handler.ItemsInQueue > 0; attempt++)
             {
                 handler.Publish(null!, notifications, 10);
@@ -652,7 +652,7 @@ namespace Opc.Ua.Server.Tests
             handler.TransformQueuedEvents(fields =>
                 fields.EventFields[0].GetInt32() == 20 ? null : NewEvent(fields.EventFields[0].GetInt32() + 1));
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             handler.Publish(null!, notifications, 10, out bool overflowEventDue);
 
             // 1 -> 10 -> 11 is published, 2 -> 20 is dropped, the overflow event follows 11.
@@ -664,6 +664,45 @@ namespace Opc.Ua.Server.Tests
             Assert.That(notifications.Select(n => n.EventFields[0].GetInt32()), Is.EqualTo(s_lastTransformedEventValue));
             Assert.That(overflowEventDue, Is.False);
             Assert.That(handler.Overflow, Is.False);
+        }
+
+        /// <summary>
+        /// The transforms of many modifications are applied one after the other when the
+        /// event is published: the stack depth at the first transform does not grow with
+        /// their number, and every transform is applied in order.
+        /// </summary>
+        [Test]
+        public void EventTransformsOfManyModificationsDoNotAddStackDepth()
+        {
+            Assert.That(MeasurePublishStackDepth(4000, out int value4000), Is.LessThanOrEqualTo(
+                MeasurePublishStackDepth(10, out int value10) + 4));
+            Assert.That(value10, Is.EqualTo(10));
+            Assert.That(value4000, Is.EqualTo(4000));
+
+            static int MeasurePublishStackDepth(int transforms, out int value)
+            {
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                using var queue = new EventMonitoredItemQueue(false, 1, telemetry);
+                queue.SetQueueSize(10, true);
+                using var handler = new EventQueueHandler(queue, true, telemetry);
+                handler.QueueEvent(NewEvent(0));
+
+                int frames = 0;
+                handler.TransformQueuedEvents(fields =>
+                {
+                    frames = new StackTrace(false).FrameCount;
+                    return NewEvent(fields.EventFields[0].GetInt32() + 1);
+                });
+                for (int ii = 1; ii < transforms; ii++)
+                {
+                    handler.TransformQueuedEvents(fields => NewEvent(fields.EventFields[0].GetInt32() + 1));
+                }
+
+                var notifications = new Queue<QueuedEvent>();
+                handler.Publish(null!, notifications, 10);
+                value = notifications.Single().EventFields[0].GetInt32();
+                return frames;
+            }
         }
 
         /// <summary>
@@ -682,7 +721,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(handler.SetQueueOverflowIfFull(), Is.True);
 
             queue.FailedDequeues = 1;
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             Assert.That(handler.Publish(null!, notifications, 10, out bool due), Is.Zero);
             Assert.That(due, Is.False, "the events queued before the loss are still queued");
             Assert.That(handler.Overflow, Is.True);
@@ -712,12 +751,12 @@ namespace Opc.Ua.Server.Tests
 
             public bool FailEveryOtherDequeue { get; set; }
 
-            public override bool Dequeue(out EventFieldList value)
+            public override bool Dequeue(out QueuedEvent value)
             {
                 if (FailedDequeues > 0)
                 {
                     FailedDequeues--;
-                    value = null!;
+                    value = default;
                     return false;
                 }
 
@@ -726,7 +765,7 @@ namespace Opc.Ua.Server.Tests
                     m_failNext = !m_failNext;
                     if (m_failNext)
                     {
-                        value = null!;
+                        value = default;
                         return false;
                     }
                 }

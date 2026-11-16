@@ -3,7 +3,7 @@
 The OPC UA .NET Standard stack has long supported asynchronous server
 operations through the APM (Asynchronous Programming Model). APM uses
 `IAsyncResult` and the Begin/End pattern. .NET Framework 1.0 introduced
-this pattern, which remains supported in .NET 8.0.
+this pattern, which remains supported in .NET 10.
 
 The stack also supports TAP for server operations. TAP uses task-based APIs
 with `async`/`await` and is the recommended pattern for asynchronous server code.

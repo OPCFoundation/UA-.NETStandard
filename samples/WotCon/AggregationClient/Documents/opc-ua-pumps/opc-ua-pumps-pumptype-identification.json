@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -75,7 +76,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "\n      ",
+      "default": "\n      ",
       "description": "To be used by end users to store a unique identification in the context of their overall application. Servers shall support at least 40 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 40 Unicode characters into that field.",
       "links": [
         {
@@ -118,6 +119,7 @@
       ],
       "observable": true,
       "title": "ComponentName",
+      "type": "string",
       "uav:browseName": "ns3:ComponentName",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=10897",
       "uav:mapToType": "i=21",
@@ -201,7 +203,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "Pump",
+      "default": "Pump",
       "description": "Domain or for what purpose this item is used.",
       "links": [
         {
@@ -399,6 +401,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Manufacturer",
+      "type": "string",
       "uav:browseName": "ns3:Manufacturer",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9747",
       "uav:mapToType": "i=21",
@@ -456,6 +459,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Model",
+      "type": "string",
       "uav:browseName": "ns3:Model",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=10903",
       "uav:mapToType": "i=21",
@@ -1022,11 +1026,13 @@
         "browseName": "3:Identification",
         "description": [
           {
+            "locale": "",
             "value": "Identification information of a pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Identification"
           }
         ],
@@ -1156,15 +1162,18 @@
         "typeDefinition": "ns=1;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ArticleNumber",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Alphanumeric character sequence identifying a manufactured, non-configurable product."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ArticleNumber"
           }
         ],
@@ -1191,6 +1200,7 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "3:AssetId",
         "dataType": "String",
         "description": [
@@ -1201,6 +1211,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "AssetId"
           }
         ],
@@ -1228,6 +1239,7 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "3:ComponentName",
         "dataType": "LocalizedText",
         "description": [
@@ -1238,6 +1250,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ComponentName"
           }
         ],
@@ -1264,15 +1277,18 @@
         "valueXml": "<uax:LocalizedText xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" />"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:CountryOfOrigin",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Country in which the product is manufactured."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CountryOfOrigin"
           }
         ],
@@ -1298,15 +1314,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DayOfConstruction",
         "dataType": "Int32",
         "description": [
           {
+            "locale": "",
             "value": "The optional DayOfConstrucition provides the day of the month in which the manufacturing process of the machine has been completed. It shall be a number and never change during the life-cycle of a machine."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DayOfConstruction"
           }
         ],
@@ -1332,15 +1351,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "3:DeviceClass",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Domain or for what purpose this item is used."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceClass"
           }
         ],
@@ -1367,15 +1389,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">Pump</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:FabricationNumber",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Alphanumeric character sequence assigned to a fabricated product, which allows the date, time and circumstances of fabrication to be traced."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FabricationNumber"
           }
         ],
@@ -1401,15 +1426,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:GTINCode",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Bar code number that identifies the device based on the Global Trade Item Number system."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "GTINCode"
           }
         ],
@@ -1435,6 +1463,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "3:HardwareRevision",
         "dataType": "String",
         "description": [
@@ -1445,6 +1474,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "HardwareRevision"
           }
         ],
@@ -1470,6 +1500,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:InitialOperationDate",
         "dataType": "DateTime",
         "description": [
@@ -1480,6 +1511,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InitialOperationDate"
           }
         ],
@@ -1506,6 +1538,7 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "2:Location",
         "dataType": "String",
         "description": [
@@ -1516,6 +1549,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Location"
           }
         ],
@@ -1541,6 +1575,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "3:Manufacturer",
         "dataType": "LocalizedText",
         "description": [
@@ -1551,6 +1586,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -1576,6 +1612,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "3:ManufacturerUri",
         "dataType": "String",
         "description": [
@@ -1586,6 +1623,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -1611,6 +1649,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "3:Model",
         "dataType": "LocalizedText",
         "description": [
@@ -1621,6 +1660,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Model"
           }
         ],
@@ -1646,6 +1686,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:MonthOfConstruction",
         "dataType": "Byte",
         "description": [
@@ -1656,6 +1697,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MonthOfConstruction"
           }
         ],
@@ -1681,15 +1723,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NationalStockNumber",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "13-digit numeric code, identifying all 'standardized material items of supply' as recognized by the United States Department of Defense."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NationalStockNumber"
           }
         ],
@@ -1715,15 +1760,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OrderProductCode",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Unique combination of numbers and letters used to order the device."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OrderProductCode"
           }
         ],
@@ -1749,15 +1797,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PhysicalAddress",
         "dataType": "PhysicalAddressDataType",
         "description": [
           {
+            "locale": "",
             "value": "Physical address of the manufacturer."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PhysicalAddress"
           }
         ],
@@ -1784,6 +1835,7 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>ns=1;i=5017</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <PhysicalAddressDataType xmlns=\"http://opcfoundation.org/UA/Pumps/Types.xsd\">\n            <EncodingMask>0</EncodingMask>\n          </PhysicalAddressDataType>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "3:ProductCode",
         "dataType": "String",
         "description": [
@@ -1794,6 +1846,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ProductCode"
           }
         ],
@@ -1819,6 +1872,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "3:ProductInstanceUri",
         "dataType": "String",
         "description": [
@@ -1855,6 +1909,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "3:SerialNumber",
         "dataType": "String",
         "description": [
@@ -1865,6 +1920,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -1890,6 +1946,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "3:SoftwareRevision",
         "dataType": "String",
         "description": [
@@ -1900,6 +1957,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -1925,15 +1983,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Supplier",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Name of the supplier or vendor of a device."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Supplier"
           }
         ],
@@ -1959,15 +2020,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TypeOfProduct",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Characterisation of the device based on its usage, operation principle, and its fabricated form."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TypeOfProduct"
           }
         ],
@@ -1993,6 +2057,7 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:YearOfConstruction",
         "dataType": "UInt16",
         "description": [
@@ -2003,6 +2068,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "YearOfConstruction"
           }
         ],

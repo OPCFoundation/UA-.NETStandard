@@ -79,13 +79,13 @@ namespace Opc.Ua.Server
         /// Adds the value to the queue.
         /// </summary>
         /// <param name="value">The value to queue.</param>
-        void Enqueue(EventFieldList value);
+        void Enqueue(QueuedEvent value);
 
         /// <summary>
         /// Dequeue the oldest value in the queue.
         /// </summary>
         /// <param name="value">The value.</param>
         /// <returns>True if a value was found. False if the queue is empty.</returns>
-        bool Dequeue(out EventFieldList value);
+        bool Dequeue(out QueuedEvent value);
     }
 }

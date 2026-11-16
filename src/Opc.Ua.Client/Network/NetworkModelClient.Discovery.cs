@@ -249,26 +249,36 @@ namespace Opc.Ua.Client.Network
                 cancellationToken.ThrowIfCancellationRequested();
                 NodeId current = pending.Dequeue();
                 bool matches = false;
-                ArrayOf<ReferenceDescription> types = await BrowseAsync(
-                    current, ReferenceTypeIds.HasTypeDefinition, BrowseDirection.Forward,
-                    NodeClass.ObjectType, cancellationToken).ConfigureAwait(false);
-                for (int index = 0; index < types.Count && !matches; index++)
+                ArrayOf<ReferenceDescription> children;
+                try
                 {
-                    NodeId typeId = LocalNodeId(types[index].NodeId);
-                    matches = await MatchesTypeAsync(typeId, expectedType, expectedInterface, cancellationToken)
-                        .ConfigureAwait(false);
+                    ArrayOf<ReferenceDescription> types = await BrowseAsync(
+                        current, ReferenceTypeIds.HasTypeDefinition, BrowseDirection.Forward,
+                        NodeClass.ObjectType, cancellationToken).ConfigureAwait(false);
+                    for (int index = 0; index < types.Count && !matches; index++)
+                    {
+                        NodeId typeId = LocalNodeId(types[index].NodeId);
+                        matches = await MatchesTypeAsync(typeId, expectedType, expectedInterface, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    if (!matches && !expectedInterface.IsNull)
+                    {
+                        matches = await ImplementsAsync(current, expectedInterface, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    children = await BrowseObjectsAsync(current, cancellationToken).ConfigureAwait(false);
                 }
-                if (!matches && !expectedInterface.IsNull)
+                catch (ServiceResultException e) when (
+                    e.StatusCode == StatusCodes.BadNodeIdUnknown && current != root)
                 {
-                    matches = await ImplementsAsync(current, expectedInterface, cancellationToken)
-                        .ConfigureAwait(false);
+                    // The server removed this object after its parent was browsed. Browsing is
+                    // not a consistent snapshot of a live model, so treat the object as absent.
+                    continue;
                 }
                 if (matches)
                 {
                     found.Add(current);
                 }
-                ArrayOf<ReferenceDescription> children = await BrowseObjectsAsync(current, cancellationToken)
-                    .ConfigureAwait(false);
                 for (int index = 0; index < children.Count; index++)
                 {
                     NodeId id = LocalNodeId(children[index].NodeId);

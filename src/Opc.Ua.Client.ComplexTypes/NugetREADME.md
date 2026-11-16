@@ -45,7 +45,7 @@ await loader.LoadAsync();
 
 ## Target frameworks
 
-`net48`, `net8.0`, `net9.0`, `net10.0`.
+`net48`, `net10.0`, `net11.0`.
 The package is not NativeAOT-compatible because the runtime type
 emission depends on `System.Reflection.Emit`.
 

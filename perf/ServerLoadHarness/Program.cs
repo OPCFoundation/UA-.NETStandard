@@ -32,11 +32,15 @@
 // Modes:
 //   server  --port P [--diag 0|1] [--audit 0|1] [--threads N]
 //           Starts a ReferenceServer and reads commands from stdin: mark | report | quit
-//   run     --scenario read|write|sub|browse [--sessions N] [--nodes K] [--inflight I]
+//   run     --scenario read|write|sub|browse|churn [--sessions N] [--nodes K] [--inflight I]
 //           [--duration S] [--warmup S] [--security none|sign|encrypt] [--diag 0|1] [--audit 0|1]
 //           [--subs S] [--pub ms] [--write-interval ms] [--write-nodes K]
 //           [--trace file] [--trace-profile p] [--out file]
 //           [--client managed|classic|shared] [--callback fast|item] [--trace-side server|client]
+//           [--security-policy name|uri] [--security-mode None|Sign|SignAndEncrypt]
+//           [--identity anonymous|username|issued] [--password-length B] [--token-length B]
+//           [--token-encryption auto|legacy|secret] [--wrong-credentials 0|1]
+//           [--connection-rate off|server|N]
 //           Spawns the server child, drives the load and prints a report of client latency
 //           and the CPU / GC / allocation deltas of both processes for the measurement window.
 
@@ -224,6 +228,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             return result;
         }
 
+        private static string IdentityLabel(string kind, int passwordLength, int tokenLength, string tokenEncryption)
+        {
+            return kind switch
+            {
+                "username" => FormattableString.Invariant($"username/{passwordLength}B/{tokenEncryption}"),
+                "issued" => FormattableString.Invariant($"issued/{tokenLength}B/{tokenEncryption}"),
+                _ => kind
+            };
+        }
+
         private static ITelemetryContext CreateTelemetry(LogLevel level)
         {
             return DefaultTelemetry.Create(b => b.SetMinimumLevel(level).AddSimpleConsole(o => o.SingleLine = true));
@@ -287,6 +301,17 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             config.ServerConfiguration.MinRequestThreadCount = Math.Min(50, config.ServerConfiguration.MaxRequestThreadCount);
             // sized for the largest pipeline (sessions x inflight), as the o6-automation benchmarks do
             config.ServerConfiguration.MaxQueuedRequestCount = ArgInt("queue", 2000);
+            HarnessAuthenticator? authenticator = null;
+            if (!contract)
+            {
+                // UserName and JWT tokens of the connect scenario, checked against the harness
+                // credentials of --password-length and --token-length (see HarnessIdentity)
+                foreach (UserTokenPolicy policy in HarnessIdentity.ServerPolicies())
+                {
+                    config.ServerConfiguration.UserTokenPolicies += policy;
+                }
+                authenticator = new HarnessAuthenticator(ArgInt("password-length", 16), ArgInt("token-length", 1024));
+            }
             int counters = ArgInt("counters", 0);
             int sampling = ArgInt("sampling", 10);
             if (counters > 0)
@@ -323,8 +348,25 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 server.ResourceIsolationOptions.Mode = Opc.Ua.Server.ServerResourceIsolationMode.SharedOnly;
             }
+            // The default connection rate limit (500 per second, burst 1000) caps the connect
+            // and channel scenarios: past it every accepted socket is answered with
+            // Bad_TcpNotEnoughResources, which the measurement would count as server work.
+            // --connection-rate N sets the rate (burst 2N); off (the default) disables it,
+            // server restores the server defaults.
+            string connectionRate = Arg("connection-rate", "off");
+            if (connectionRate == "off")
+            {
+                server.RateLimitOptions.ConnectionRateLimitEnabled = false;
+            }
+            else if (connectionRate != "server")
+            {
+                int rate = int.Parse(connectionRate, CultureInfo.InvariantCulture);
+                server.RateLimitOptions.ConnectionsPerSecond = rate;
+                server.RateLimitOptions.ConnectionBurst = 2 * rate;
+            }
             server.TransportBindings = TestTransportBindings.WithAllSchemes();
             await application.StartAsync(server).ConfigureAwait(false);
+            authenticator?.Register(server.CurrentInstance);
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
 
             ProcessStats mark = ProcessStats.Capture();
@@ -355,11 +397,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         mark = ProcessStats.Capture();
                         (server as CounterServer)?.Counters.Mark();
                         events.Mark();
+                        authenticator?.Mark();
                         Console.WriteLine("MARKED");
                         break;
                     case "report":
                         string counterReport = (server as CounterServer)?.Counters.Report(sampling) ?? string.Empty;
-                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport + " " + events.Report());
+                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport + " " + events.Report() +
+                            (authenticator == null ? string.Empty : " " + authenticator.Report()));
                         break;
                     case "quit":
                         events.Stop();
@@ -387,6 +431,18 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int warmupSeconds = ArgInt("warmup", 10);
             int port = ArgInt("port", 62555 + (Environment.ProcessId % 1000));
             string security = Arg("security", "none");
+            // identity of the connect scenario: anonymous, username (--password-length bytes)
+            // or issued (a fake JWT of --token-length bytes); --token-encryption picks the
+            // RSA format of the secret: auto (client default), legacy or secret
+            string identityKind = Arg("identity", "anonymous");
+            int passwordLength = ArgInt("password-length", 16);
+            int tokenLength = ArgInt("token-length", 1024);
+            string tokenEncryption = Arg("token-encryption", "auto");
+            if (tokenEncryption is not ("auto" or "legacy" or "secret"))
+            {
+                Console.WriteLine("--token-encryption must be auto, legacy or secret");
+                return 1;
+            }
             if (ArgInt("gc-events", 1) != 0)
             {
                 s_gcListener = new GcListener();
@@ -396,6 +452,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // processors it keeps (SERVER_DOTNET_PROCESSOR_COUNT still overrides)
             string? clientAffinity = Environment.GetEnvironmentVariable(kClientAffinityVariable);
             string? serverAffinity = Environment.GetEnvironmentVariable(kServerAffinityVariable);
+            // explicit masks win over --client-cores: on processors of different speed (for
+            // example Zen5 and Zen5c cores) the mask decides the CPU time per operation
+            if (TryGetArg("server-affinity", out string? serverMask))
+            {
+                serverAffinity = Convert.ToUInt64(serverMask, 16).ToString("X", CultureInfo.InvariantCulture);
+            }
+            if (TryGetArg("client-affinity", out string? clientMask))
+            {
+                clientAffinity = Convert.ToUInt64(clientMask, 16).ToString("X", CultureInfo.InvariantCulture);
+            }
             Dictionary<string, string>? serverEnvironment = serverAffinity == null
                 ? null
                 : new Dictionary<string, string>(StringComparer.Ordinal)
@@ -409,7 +475,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                     $"--counters {counterCount} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")} ") +
                 FormattableString.Invariant(
-                    $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} --counter-lock {Arg("counter-lock", "0")}"),
+                    $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} ") +
+                FormattableString.Invariant(
+                    $"--counter-lock {Arg("counter-lock", "0")} --connection-rate {Arg("connection-rate", "off")} --password-length {passwordLength} --token-length {tokenLength}"),
                 serverEnvironment);
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
@@ -424,7 +492,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 using Process self = Process.GetCurrentProcess();
                 self.ProcessorAffinity = (nint)Convert.ToInt64(clientAffinity, 16);
             }
-            if (Environment.GetEnvironmentVariable(kConstrainedVariable) != null)
+            if (Environment.GetEnvironmentVariable(kConstrainedVariable) != null ||
+                serverAffinity != null || clientAffinity != null)
             {
                 Console.WriteLine(FormattableString.Invariant(
                     $"constrained client: processors={Environment.ProcessorCount} mask=0x{clientAffinity ?? "all"} ") +
@@ -448,13 +517,30 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // The test fixture asks the server for diagnostics in every response;
             // an application does not by default.
             client.SessionFactory.ReturnDiagnostics = DiagnosticsMasks.None;
-            string policy = security == "none" ? SecurityPolicies.None : SecurityPolicies.Basic256Sha256;
-            MessageSecurityMode mode = security switch
+            // --security none|sign|encrypt is the short form of --security-policy Basic256Sha256
+            // --security-mode Sign|SignAndEncrypt; --security-policy takes a policy name or URI
+            MessageSecurityMode mode = Arg("security-mode", security switch
             {
-                "sign" => MessageSecurityMode.Sign,
-                "encrypt" => MessageSecurityMode.SignAndEncrypt,
-                _ => MessageSecurityMode.None
+                "sign" => "Sign",
+                "encrypt" => "SignAndEncrypt",
+                _ => TryGetArg("security-policy", out _) ? "SignAndEncrypt" : "None"
+            }) switch
+            {
+                "None" => MessageSecurityMode.None,
+                "Sign" => MessageSecurityMode.Sign,
+                "SignAndEncrypt" => MessageSecurityMode.SignAndEncrypt,
+                string other => throw new ArgumentException("--security-mode must be None, Sign or SignAndEncrypt: " + other)
             };
+            string policyName = Arg("security-policy", mode == MessageSecurityMode.None ? "None" : "Basic256Sha256");
+            string policy = policyName.Contains("://", StringComparison.Ordinal)
+                ? policyName
+                : SecurityPolicies.Default.GetUri(policyName) ??
+                    throw new ArgumentException("Unknown --security-policy: " + policyName);
+            security = mode == MessageSecurityMode.None
+                ? "none"
+                : FormattableString.Invariant($"{policyName}/{mode}");
+            IUserIdentity? identity = HarnessIdentity.CreateClientIdentity(
+                identityKind, passwordLength, tokenLength, tokenEncryption, ArgInt("wrong-credentials", 0) != 0);
             ArrayOf<EndpointDescription> endpoints = await client.GetEndpointsAsync(new Uri(url)).ConfigureAwait(false);
             var selected = new List<EndpointDescription>();
             foreach (EndpointDescription endpoint in endpoints)
@@ -464,19 +550,32 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     selected.Add(endpoint);
                 }
             }
+            if (selected.Count == 0)
+            {
+                Console.WriteLine("no endpoint for " + security + "; the server offers:");
+                foreach (EndpointDescription endpoint in endpoints)
+                {
+                    Console.WriteLine(FormattableString.Invariant($"  {endpoint.SecurityPolicyUri} {endpoint.SecurityMode}"));
+                }
+                await server.StandardInput.WriteLineAsync("quit").ConfigureAwait(false);
+                return 1;
+            }
 
             // managed (default): ManagedSession with the default V2 subscription engine.
             // classic: Session from the default session factory (classic subscription engine).
             // shared: classic Sessions whose secure channels come from one ClientChannelManager.
             string clientKind = Arg("client", "managed");
-            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared"
+            bool connectScenario = scenario is "connect" or "channel";
+            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared" || connectScenario
                 ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
                 : null;
             var channelManager = new ClientChannelManager(client.Config, telemetry);
             await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
             // sub: --writers adds dedicated writer sessions after the subscriber sessions
             int writerCount = scenario == "sub" ? ArgInt("writers", 0) : 0;
-            var sessions = new ISession[sessionCount + writerCount];
+            // connect/channel open their own sessions or channels per operation; idle
+            // preconnected sessions would only add keep-alive traffic to the measurement
+            var sessions = new ISession[connectScenario ? 0 : sessionCount + writerCount];
             var connectTime = Stopwatch.StartNew();
             // Shared sessions connect one at a time by default: concurrent creation
             // on one ClientChannelManager fails with BadSecureChannelClosed.
@@ -523,10 +622,18 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
 
-            Workload workload = counters
+            Workload workload = connectScenario
+                ? new ConnectWorkload(scenario, client, endpointForBuilder!, ArgInt("workers", 8), identity)
+                : counters
                 ? new CounterWorkload(sessions, counterSubs, ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
                 : scenario == "events"
-                ? new EventWorkload(sessions, ArgInt("subs", 15), ArgInt("pub", 100), ArgInt("queue-size", 10000), ArgInt("event-rate", 0))
+                ? new EventWorkload(
+                    sessions,
+                    ArgInt("subs", 15),
+                    ArgInt("pub", 100),
+                    ArgInt("queue-size", 10000),
+                    ArgInt("event-rate", 0),
+                    ArgInt("event-where", 0) != 0)
                 : scenario == "sub"
                 ? new SubscribeWorkload(
                     sessions[..sessionCount],
@@ -606,7 +713,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
             string? clientGc = s_gcListener == null ? null : await s_gcListener.ReportAsync().ConfigureAwait(false);
             var result = new StringBuilder();
-            result.Append(CultureInfo.InvariantCulture, $"RESULT scenario={scenario} security={security} sessions={sessionCount} ")
+            string identityLabel = IdentityLabel(identityKind, passwordLength, tokenLength, tokenEncryption);
+            result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"RESULT scenario={scenario} security={security} identity={identityLabel} sessions={sessionCount} ")
                 .Append(string.Join(' ', args.Skip(1)))
                 .Append('\n')
                 .Append("  client: ").Append(clientReport).Append('\n')
@@ -803,7 +913,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         long Timestamp,
         int Threads,
         long WorkingSet,
-        long Heap)
+        long Heap,
+        TimeSpan UserCpu,
+        long WorkItems)
     {
         public static ProcessStats Capture()
         {
@@ -819,7 +931,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 Stopwatch.GetTimestamp(),
                 ThreadPool.ThreadCount,
                 process.WorkingSet64,
-                GC.GetGCMemoryInfo().HeapSizeBytes);
+                GC.GetGCMemoryInfo().HeapSizeBytes,
+                process.UserProcessorTime,
+                ThreadPool.CompletedWorkItemCount);
         }
 
         public string Delta(ProcessStats mark)
@@ -833,7 +947,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                 $"cpuMs={cpu.TotalMilliseconds:F0} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
                 FormattableString.Invariant(
-                $"contention={Contention - mark.Contention} threads={Threads} wsMB={WorkingSet / 1048576} heapMB={Heap / 1048576}");
+                $"contention={Contention - mark.Contention} threads={Threads} wsMB={WorkingSet / 1048576} heapMB={Heap / 1048576} ") +
+                FormattableString.Invariant(
+                $"userMs={(UserCpu - mark.UserCpu).TotalMilliseconds:F0} workItems={WorkItems - mark.WorkItems}");
         }
     }
 
@@ -1004,9 +1120,103 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     ResultMask = (uint)BrowseResultMask.All
                 }
             };
+
+            // translate: --nodes copies of Server/ServerStatus/CurrentTime.
+            var translatePath = new BrowsePath
+            {
+                StartingNode = ObjectIds.Server,
+                RelativePath = new RelativePath
+                {
+                    Elements =
+                    [
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName(BrowseNames.ServerStatus)
+                        },
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName(BrowseNames.CurrentTime)
+                        }
+                    ]
+                }
+            };
+            m_translate = Enumerable.Repeat(translatePath, m_nodes).ToArray();
+
+            // call: --nodes calls of the reference server's Methods_Void (no arguments).
+            ushort referenceNamespace = (ushort)m_sessions[0].NamespaceUris.GetIndex(
+                "http://opcfoundation.org/Quickstarts/ReferenceServer");
+            var call = new CallMethodRequest
+            {
+                ObjectId = new NodeId("Methods", referenceNamespace),
+                MethodId = new NodeId("Methods_Void", referenceNamespace)
+            };
+            m_call = Enumerable.Repeat(call, m_nodes).ToArray();
             Console.WriteLine(FormattableString.Invariant(
                 $"{m_kind}: {nodes.Count} nodes/request, inflight {m_inflight}/session"));
-            return Task.CompletedTask;
+            return m_kind == "churn" ? CreateChurnSubscriptionsAsync() : Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// churn: one subscription per session whose monitored items are created and deleted
+        /// again by every operation (one operation = CreateMonitoredItems + DeleteMonitoredItems).
+        /// </summary>
+        private async Task CreateChurnSubscriptionsAsync()
+        {
+            foreach (ISession session in m_sessions)
+            {
+                CreateSubscriptionResponse response = await session.CreateSubscriptionAsync(
+                    null, 1000, 600, 10, 0, true, 0, CancellationToken.None).ConfigureAwait(false);
+                m_churnSubscriptions[session] = response.SubscriptionId;
+            }
+            m_churnItems = (m_read.ToArray() ?? []).Select((r, i) => new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = r,
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = (uint)i,
+                    SamplingInterval = 1000,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            }).ToArray();
+        }
+
+        private async Task ChurnAsync(ISession session, CancellationToken ct)
+        {
+            uint subscriptionId = m_churnSubscriptions[session];
+            CreateMonitoredItemsResponse created = await session.CreateMonitoredItemsAsync(
+                null, subscriptionId, TimestampsToReturn.Both, m_churnItems, ct).ConfigureAwait(false);
+            MonitoredItemCreateResult[] createResults = created.Results.ToArray() ?? [];
+            // delete what was created even when part of the batch failed, then count the pair
+            // only when every create and every delete succeeded.
+            uint[] ids = createResults
+                .Where(r => StatusCode.IsGood(r.StatusCode))
+                .Select(r => r.MonitoredItemId)
+                .ToArray();
+            StatusCode failure = createResults.Length != m_churnItems.Count
+                ? StatusCodes.BadUnexpectedError
+                : createResults.Select(r => r.StatusCode).FirstOrDefault(s => !StatusCode.IsGood(s));
+            if (ids.Length > 0)
+            {
+                DeleteMonitoredItemsResponse deleted = await session.DeleteMonitoredItemsAsync(
+                    null, subscriptionId, ids, ct).ConfigureAwait(false);
+                StatusCode[] deleteResults = deleted.Results.ToArray() ?? [];
+                if (StatusCode.IsGood(failure))
+                {
+                    failure = deleteResults.Length != ids.Length
+                        ? StatusCodes.BadUnexpectedError
+                        : deleteResults.FirstOrDefault(s => !StatusCode.IsGood(s));
+                }
+            }
+            if (!StatusCode.IsGood(failure))
+            {
+                throw new ServiceResultException(failure, "churn: a CreateMonitoredItems or DeleteMonitoredItems operation failed");
+            }
         }
 
         public override async Task RunAsync(CancellationToken ct)
@@ -1052,8 +1262,34 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         case "write":
                             await session.WriteAsync(null, m_write, ct).ConfigureAwait(false);
                             break;
+                        case "churn":
+                            await ChurnAsync(session, ct).ConfigureAwait(false);
+                            break;
                         case "browse":
                             await session.BrowseAsync(null, null, 0, m_browse, ct).ConfigureAwait(false);
+                            break;
+                        case "translate":
+                            TranslateBrowsePathsToNodeIdsResponse translated =
+                                await session.TranslateBrowsePathsToNodeIdsAsync(null, m_translate, ct)
+                                    .ConfigureAwait(false);
+                            foreach (BrowsePathResult result in translated.Results)
+                            {
+                                if (!CheckOperation(result.StatusCode))
+                                {
+                                    break;
+                                }
+                            }
+                            break;
+                        case "call":
+                            CallResponse called = await session.CallAsync(null, m_call, ct)
+                                .ConfigureAwait(false);
+                            foreach (CallMethodResult result in called.Results)
+                            {
+                                if (!CheckOperation(result.StatusCode))
+                                {
+                                    break;
+                                }
+                            }
                             break;
                         default:
                             await session.ReadAsync(null, 0, TimestampsToReturn.Both, m_read, ct).ConfigureAwait(false);
@@ -1086,10 +1322,29 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
         }
 
+        /// <summary>
+        /// Counts a request whose operations failed as an error, so a scenario that only
+        /// returns bad operation results cannot pass for throughput.
+        /// </summary>
+        private bool CheckOperation(StatusCode result)
+        {
+            if (StatusCode.IsBad(result))
+            {
+                if (Interlocked.Increment(ref m_errors) < 5)
+                {
+                    Console.WriteLine("error: operation " + result);
+                }
+                return false;
+            }
+            return true;
+        }
+
         private readonly string m_kind;
         private readonly ISession[] m_sessions;
         private readonly int m_nodes;
         private readonly int m_inflight;
+        private ArrayOf<BrowsePath> m_translate;
+        private ArrayOf<CallMethodRequest> m_call;
         private readonly LatencyRecorder m_latency = new();
         private int m_epoch;
         private long m_requests;
@@ -1097,6 +1352,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private ArrayOf<ReadValueId> m_read;
         private ArrayOf<WriteValue> m_write;
         private ArrayOf<BrowseDescription> m_browse;
+        private readonly Dictionary<ISession, uint> m_churnSubscriptions = [];
+        private ArrayOf<MonitoredItemCreateRequest> m_churnItems;
     }
 
     /// <summary>
@@ -1354,7 +1611,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = 0,
-                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1),
+                        Filter = CreateAggregateFilter()
                     };
                     if (m_itemCallback)
                     {
@@ -1428,7 +1686,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = TimeSpan.Zero,
-                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1),
+                        Filter = CreateAggregateFilter()
                     },
                     out _))
                 {
@@ -1437,6 +1696,34 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
             await setup.WaitForReadyAsync(subscription, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The AggregateFilter of the monitored items (--aggregate), or null for plain data changes.
+        /// </summary>
+        private static AggregateFilter? CreateAggregateFilter()
+        {
+            string aggregate = Program.Arg("aggregate", string.Empty);
+            if (aggregate.Length == 0)
+            {
+                return null;
+            }
+            return new AggregateFilter
+            {
+                AggregateType = aggregate switch
+                {
+                    "Average" => ObjectIds.AggregateFunction_Average,
+                    "Interpolative" => ObjectIds.AggregateFunction_Interpolative,
+                    "Minimum" => ObjectIds.AggregateFunction_Minimum,
+                    "Maximum" => ObjectIds.AggregateFunction_Maximum,
+                    "TimeAverage" => ObjectIds.AggregateFunction_TimeAverage,
+                    "Count" => ObjectIds.AggregateFunction_Count,
+                    _ => throw new ArgumentException("Unknown aggregate: " + aggregate)
+                },
+                StartTime = DateTime.UtcNow,
+                ProcessingInterval = Program.ArgInt("aggregate-interval", 1000),
+                AggregateConfiguration = new AggregateConfiguration { UseServerCapabilitiesDefaults = true }
+            };
         }
 
         /// <summary>

@@ -335,13 +335,151 @@ namespace Opc.Ua.Schema
             try
             {
                 using var reader = new StreamReader(stream);
-                using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
+                using var xmlReader = new DepthLimitedXmlReader(
+                    XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings()),
+                    MaxSchemaElementDepth);
                 return XmlSchema.Read(xmlReader, handler)!;
             }
             catch (Exception e)
             {
                 throw new FileNotFoundException("Could not load schema.", e);
             }
+        }
+
+        /// <summary>
+        /// The deepest element nesting accepted in an XML schema. The schema
+        /// compiler processes nested particles recursively, so the depth of a
+        /// schema is bounded while it is read, before it is compiled.
+        /// </summary>
+        internal const int MaxSchemaElementDepth = 128;
+
+        /// <summary>
+        /// Reads through another reader and fails with an <see cref="XmlException"/>
+        /// when a node is nested deeper than the limit.
+        /// </summary>
+        private sealed class DepthLimitedXmlReader : XmlReader, IXmlLineInfo
+        {
+            public DepthLimitedXmlReader(XmlReader inner, int maxDepth)
+            {
+                m_inner = inner;
+                m_maxDepth = maxDepth;
+            }
+
+            public override bool Read()
+            {
+                if (!m_inner.Read())
+                {
+                    return false;
+                }
+                if (m_inner.Depth > m_maxDepth)
+                {
+                    throw new XmlException(CoreUtils.Format(
+                        "The schema nests elements deeper than {0} levels.",
+                        m_maxDepth));
+                }
+                return true;
+            }
+
+            public override int AttributeCount => m_inner.AttributeCount;
+            public override string BaseURI => m_inner.BaseURI;
+            public override int Depth => m_inner.Depth;
+            public override bool EOF => m_inner.EOF;
+            public override bool HasValue => m_inner.HasValue;
+            public override bool IsDefault => m_inner.IsDefault;
+            public override bool IsEmptyElement => m_inner.IsEmptyElement;
+            public override string LocalName => m_inner.LocalName;
+            public override string Name => m_inner.Name;
+            public override string NamespaceURI => m_inner.NamespaceURI;
+            public override XmlNameTable NameTable => m_inner.NameTable;
+            public override XmlNodeType NodeType => m_inner.NodeType;
+            public override string Prefix => m_inner.Prefix;
+            public override char QuoteChar => m_inner.QuoteChar;
+            public override ReadState ReadState => m_inner.ReadState;
+            public override string Value => m_inner.Value;
+            public override string XmlLang => m_inner.XmlLang;
+            public override XmlSpace XmlSpace => m_inner.XmlSpace;
+            public override XmlReaderSettings? Settings => m_inner.Settings;
+
+            public override string GetAttribute(int i)
+            {
+                return m_inner.GetAttribute(i);
+            }
+
+            public override string? GetAttribute(string name)
+            {
+                return m_inner.GetAttribute(name);
+            }
+
+            public override string? GetAttribute(string name, string? namespaceURI)
+            {
+                return m_inner.GetAttribute(name, namespaceURI);
+            }
+
+            public override string? LookupNamespace(string prefix)
+            {
+                return m_inner.LookupNamespace(prefix);
+            }
+
+            public override void MoveToAttribute(int i)
+            {
+                m_inner.MoveToAttribute(i);
+            }
+
+            public override bool MoveToAttribute(string name)
+            {
+                return m_inner.MoveToAttribute(name);
+            }
+
+            public override bool MoveToAttribute(string name, string? ns)
+            {
+                return m_inner.MoveToAttribute(name, ns);
+            }
+
+            public override bool MoveToElement()
+            {
+                return m_inner.MoveToElement();
+            }
+
+            public override bool MoveToFirstAttribute()
+            {
+                return m_inner.MoveToFirstAttribute();
+            }
+
+            public override bool MoveToNextAttribute()
+            {
+                return m_inner.MoveToNextAttribute();
+            }
+
+            public override bool ReadAttributeValue()
+            {
+                return m_inner.ReadAttributeValue();
+            }
+
+            public override void ResolveEntity()
+            {
+                m_inner.ResolveEntity();
+            }
+
+            public bool HasLineInfo()
+            {
+                return m_inner is IXmlLineInfo info && info.HasLineInfo();
+            }
+
+            public int LineNumber => m_inner is IXmlLineInfo info ? info.LineNumber : 0;
+
+            public int LinePosition => m_inner is IXmlLineInfo info ? info.LinePosition : 0;
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    m_inner.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            private readonly XmlReader m_inner;
+            private readonly int m_maxDepth;
         }
 
         /// <summary>

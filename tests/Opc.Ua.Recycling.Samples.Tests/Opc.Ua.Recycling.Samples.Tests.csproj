@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net11.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net10.0' OR '$(CustomTestTarget)' == 'net11.0'">$(CustomTestTarget)</TargetFrameworks>
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <RootNamespace>Opc.Ua.Recycling.Samples.Tests</RootNamespace>
@@ -23,7 +23,7 @@
     <ProjectReference Include="..\..\samples\Recycling\Recycling.Client\Recycling.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.AMB.Client\Opc.Ua.AMB.Client.csproj" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
     <!-- Native executable smoke remains a net10.0 profile; managed protocol tests run on all three targets. -->
     <Compile Remove="NativeRecyclingSmokeTests.cs" />
   </ItemGroup>

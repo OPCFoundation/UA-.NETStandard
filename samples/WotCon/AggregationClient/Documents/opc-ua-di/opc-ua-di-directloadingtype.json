@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -44,6 +45,7 @@
       "observable": true,
       "readOnly": true,
       "title": "UpdateBehavior",
+      "type": "integer",
       "uav:browseName": "ns1:UpdateBehavior",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=169",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/DI/;i=333",
@@ -71,6 +73,7 @@
       "observable": true,
       "readOnly": true,
       "title": "WriteTimeout",
+      "type": "number",
       "uav:browseName": "ns1:WriteTimeout",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=170",
       "uav:mapToType": "i=290",
@@ -323,6 +326,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DirectLoadingType"
           }
         ],
@@ -347,10 +351,12 @@
         "superType": "ns=1;i=137"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UpdateBehavior",
         "dataType": "ns=1;i=333",
         "displayName": [
           {
+            "locale": "",
             "value": "UpdateBehavior"
           }
         ],
@@ -376,10 +382,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:WriteTimeout",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "WriteTimeout"
           }
         ],

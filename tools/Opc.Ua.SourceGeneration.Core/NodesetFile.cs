@@ -630,7 +630,7 @@ namespace Opc.Ua.SourceGeneration
                 .Replace('-', '_')
                 .Replace('+', '_');
 
-            int colon = path.LastIndexOf(':');
+            int colon = path.LastIndexOf(':', StringComparison.Ordinal);
             if (colon != -1)
             {
                 path = path[(colon + 1)..];

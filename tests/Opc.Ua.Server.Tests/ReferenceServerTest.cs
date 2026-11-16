@@ -1432,6 +1432,76 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A binary encoded Browse whose references cannot fit the message size limit of
+        /// the server fails with BadResponseTooLarge, and a smaller one of the same node
+        /// succeeds. A JSON encoded request, whose encoding the binary lower bound does
+        /// not bound, has no response byte budget.
+        /// </summary>
+        [Test]
+        public async Task BrowseWhoseReferencesExceedTheMessageSizeLimitFailsAsync()
+        {
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            if (m_operationLimits == null)
+            {
+                await GetOperationLimitsAsync().ConfigureAwait(false);
+            }
+            var description = new BrowseDescription
+            {
+                NodeId = VariableIds.OpcUa_BinarySchema,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.References,
+                IncludeSubtypes = true,
+                NodeClassMask = 0,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+
+            // the smallest encoded size of the references of the node.
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse single = await services.BrowseAsync(
+                m_requestHeader, null!, 0, [description]).ConfigureAwait(false);
+            Assert.That(single.Results.Count, Is.EqualTo(1));
+            Assert.That(single.Results[0].ContinuationPoint.IsEmpty, Is.True);
+            long perNode = 12;
+            foreach (ReferenceDescription reference in single.Results[0].References)
+            {
+                perNode += 18 + (reference.BrowseName.Name?.Length ?? 0) +
+                    (reference.DisplayName.Text?.Length ?? 0);
+            }
+            int maxMessageSize = m_server.MessageContext.MaxMessageSize;
+            Assert.That(maxMessageSize, Is.GreaterThan(0));
+            long count = (maxMessageSize / perNode) + 1;
+            if (m_operationLimits!.MaxNodesPerBrowse > 0 && count > m_operationLimits.MaxNodesPerBrowse)
+            {
+                Assert.Ignore("MaxNodesPerBrowse is below the node count that exceeds the message size limit.");
+            }
+            var nodes = new BrowseDescription[count];
+            for (int ii = 0; ii < nodes.Length; ii++)
+            {
+                nodes[ii] = description;
+            }
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await services.BrowseAsync(m_requestHeader, null!, 0, nodes).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+
+            var jsonChannel = new SecureChannelContext(
+                m_secureChannelContext.SecureChannelId,
+                m_secureChannelContext.EndpointDescription,
+                RequestEncoding.Json,
+                m_secureChannelContext.ClientChannelCertificate.ToArray(),
+                m_secureChannelContext.ServerChannelCertificate.ToArray(),
+                m_secureChannelContext.ChannelThumbprint.ToArray(),
+                m_secureChannelContext.PeerAddress);
+            var jsonServices = new ServerTestServices(m_server, jsonChannel);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse json = await jsonServices.BrowseAsync(
+                m_requestHeader, null!, 0, nodes).ConfigureAwait(false);
+            Assert.That(json.Results.Count, Is.EqualTo(nodes.Length));
+        }
+
+        /// <summary>
         /// Translate references.
         /// </summary>
         [Test]
@@ -2980,6 +3050,50 @@ namespace Opc.Ua.Server.Tests
                 captured,
                 Is.True,
                 "Writing a trigger node must publish and archive the event on the CTT notifier.");
+        }
+
+        /// <summary>
+        /// A HistoryRead event filter with more select clauses than MaxSelectClauseParameters
+        /// is rejected with Bad_EventFilterInvalid; a filter within the limit is accepted.
+        /// </summary>
+        [Test]
+        public async Task HistoryReadEventFilterSelectClauseLimitAsync()
+        {
+            async Task<StatusCode> ReadEventsAsync(int selectClauses)
+            {
+                var filter = new EventFilter();
+                for (int ii = 0; ii < selectClauses; ii++)
+                {
+                    filter.AddSelectClause(
+                        ObjectTypeIds.BaseEventType,
+                        BrowseNames.Message,
+                        Attributes.Value);
+                }
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                HistoryReadResponse response = await m_server.HistoryReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    new ExtensionObject(new ReadEventDetails
+                    {
+                        StartTime = DateTime.UtcNow.AddMinutes(-1),
+                        EndTime = DateTime.UtcNow.AddSeconds(1),
+                        NumValuesPerNode = 0,
+                        Filter = filter
+                    }),
+                    TimestampsToReturn.Neither,
+                    false,
+                    [new HistoryReadValueId { NodeId = new NodeId("CTT", 2) }],
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(response.Results.Count, Is.EqualTo(1));
+                return response.Results[0].StatusCode;
+            }
+
+            Assert.That(
+                await ReadEventsAsync(ServerConfiguration.DefaultMaxSelectClauseParameters + 1).ConfigureAwait(false),
+                Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+            Assert.That(
+                await ReadEventsAsync(ServerConfiguration.DefaultMaxSelectClauseParameters).ConfigureAwait(false),
+                Is.Not.EqualTo(StatusCodes.BadEventFilterInvalid));
         }
 
         /// <summary>

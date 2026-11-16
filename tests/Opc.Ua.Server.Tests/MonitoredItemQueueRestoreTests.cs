@@ -631,16 +631,18 @@ namespace Opc.Ua.Server.Tests
 
             public int[] Stored { get; private set; } = [];
 
-            public override void Enqueue(DataValue value, ServiceResult error)
+            public override void Enqueue(in DataValue value, ServiceResult error)
             {
                 base.Enqueue(value, error);
-                Change(values => values.Add(ValueOf(value)));
+                int stored = ValueOf(value);
+                Change(values => values.Add(stored));
             }
 
-            public override void OverwriteLastValue(DataValue value, ServiceResult error)
+            public override void OverwriteLastValue(in DataValue value, ServiceResult error)
             {
                 base.OverwriteLastValue(value, error);
-                Change(values => values[values.Count - 1] = ValueOf(value));
+                int stored = ValueOf(value);
+                Change(values => values[values.Count - 1] = stored);
             }
 
             public override bool Dequeue(out DataValue value, out ServiceResult error)
