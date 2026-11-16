@@ -810,7 +810,8 @@ namespace Opc.Ua.Server.Tests
             const string unrelatedUri = "urn:permission-invalidation-unrelated";
             server.NamespaceUris.GetIndexOrAppend(unrelatedUri);
             NamespaceMetadataState unrelated = await server.ConfigurationNodeManager
-                .CreateNamespaceMetadataStateAsync(unrelatedUri).ConfigureAwait(false);
+                .CreateNamespaceMetadataStateAsync(unrelatedUri).ConfigureAwait(false)
+                ?? throw new AssertionException("The unrelated namespace metadata state was not created.");
             unrelated.AddDefaultRolePermissions(server.DefaultSystemContext);
             ArrayOf<RolePermissionType> originalUnrelated = unrelated.DefaultRolePermissions!.Value;
             bool changePolicy = false;

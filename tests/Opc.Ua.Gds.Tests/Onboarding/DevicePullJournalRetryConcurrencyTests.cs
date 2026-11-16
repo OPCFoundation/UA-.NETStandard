@@ -152,7 +152,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                             retained.ApplicationId, retained.RequestId, ct).ConfigureAwait(false);
                         AssertReceipt(new PullDcaCertificateReceipt(certificate, issuers), m_receipt);
                         entered.TrySetResult(true);
-                        await release.Task.WaitAsync(s_barrierTimeout).ConfigureAwait(false);
+                        await release.Task.WaitAsync(s_barrierTimeout, CancellationToken.None).ConfigureAwait(false);
                         throw interrupted;
                     }).AsTask();
                 try
@@ -233,7 +233,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     Interlocked.Increment(ref callbacks);
                     entered.TrySetResult(true);
-                    await release.Task.WaitAsync(s_barrierTimeout).ConfigureAwait(false);
+                    await release.Task.WaitAsync(s_barrierTimeout, CancellationToken.None).ConfigureAwait(false);
                     throw new PullDcaCertificatePendingException(m_binding.ApplicationId, m_binding.RequestId);
                 }).AsTask();
             try
@@ -291,7 +291,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Interlocked.Increment(ref callbacks);
                     observedToken = ct;
                     entered.TrySetResult(true);
-                    await release.Task.WaitAsync(s_barrierTimeout).ConfigureAwait(false);
+                    await release.Task.WaitAsync(s_barrierTimeout, CancellationToken.None).ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
                     return m_receipt;
                 }, cancellation.Token).AsTask();
@@ -565,7 +565,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             session.Handler = async (_, _) =>
             {
                 entered.TrySetResult(true);
-                await release.Task.WaitAsync(s_barrierTimeout).ConfigureAwait(false);
+                await release.Task.WaitAsync(s_barrierTimeout, CancellationToken.None).ConfigureAwait(false);
                 return new CallResponse
                 {
                     Results =

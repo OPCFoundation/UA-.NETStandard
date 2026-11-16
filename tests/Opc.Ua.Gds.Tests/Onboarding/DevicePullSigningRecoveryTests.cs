@@ -38,6 +38,7 @@ using Opc.Ua.Client.Tests.SessionContexts;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+using CoreObjectTypeIds = Opc.Ua.ObjectTypeIds;
 using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
 namespace Opc.Ua.Gds.Tests.Onboarding
@@ -66,9 +67,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             m_issuers = new CertificateCollection();
             m_manager = new Mock<ICertificateManager>(MockBehavior.Strict);
             m_manager.Setup(value => value.AcquireApplicationCertificateByType(
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType))
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType))
                 .Returns(() => new CertificateEntry(
-                    m_identity, m_issuers, ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                    m_identity, m_issuers, CoreObjectTypeIds.RsaSha256ApplicationCertificateType));
             m_manager.Setup(value => value.ValidateAsync(
                     It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
                     It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
@@ -778,7 +779,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ushort index = reorderedNamespaces ? (ushort)2 : (ushort)1;
             NodeId applicationId = new("device", index);
             var profile = new PullDcaCertificateProfile(
-                new NodeId("group", index), ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                new NodeId("group", index), CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
             ByteString request = await keys.CreateSigningRequestAsync(applicationId, profile)
                 .ConfigureAwait(false);
             ByteString key = await keys.GetSigningKeyCertificateAsync(applicationId, profile, request)
@@ -973,7 +974,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The selected certificate group and type.</summary>
         private static readonly PullDcaCertificateProfile s_profile = new(
-            new NodeId("group", 1), ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            new NodeId("group", 1), CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
 
         /// <summary>The maximum synchronization wait.</summary>
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);

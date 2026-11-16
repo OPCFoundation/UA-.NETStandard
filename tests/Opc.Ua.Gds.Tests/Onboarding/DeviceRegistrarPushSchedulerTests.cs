@@ -1772,6 +1772,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
 
             /// <inheritdoc/>
+            public override ValueTask WriteAsync(
+                ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                return inner.WriteAsync(buffer, cancellationToken);
+            }
+
+            /// <inheritdoc/>
             protected override void Dispose(bool disposing)
             {
                 try

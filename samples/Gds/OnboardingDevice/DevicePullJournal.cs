@@ -170,6 +170,23 @@ namespace OnboardingDevice
         }
 
         /// <summary>
+        /// Copies decoded strings into the journal's non-null representation.
+        /// </summary>
+        private static ArrayOf<string> CopyStringArray(ArrayOf<string?> values)
+        {
+            if (values.IsNull)
+            {
+                return default;
+            }
+            var copy = new string[values.Count];
+            for (int i = 0; i < values.Count; i++)
+            {
+                copy[i] = values[i] ?? throw new InvalidDataException("A pull checkpoint string is null.");
+            }
+            return copy.ToArrayOf();
+        }
+
+        /// <summary>
         /// Returns the reserved reset generation only if it still matches the journal.
         /// </summary>
         public async ValueTask<ByteString> RequireReservedGenerationAsync(
@@ -902,7 +919,7 @@ namespace OnboardingDevice
                 {
                     throw new InvalidDataException("The pull reset generation is invalid.");
                 }
-                ArrayOf<string> retired = decoder.ReadStringArray(null);
+                ArrayOf<string> retired = CopyStringArray(decoder.ReadStringArray(null));
                 RequireRetiredKeys(retired);
                 if (decoder.Position != buffer.Length)
                 {
@@ -1016,10 +1033,10 @@ namespace OnboardingDevice
                     throw new InvalidDataException("The pull signing journal version or device does not match.");
                 }
                 var stage = (DevicePullJournalStage)decoder.ReadInt32(null);
-                ArrayOf<string> retired = decoder.ReadStringArray(null);
+                ArrayOf<string> retired = CopyStringArray(decoder.ReadStringArray(null));
                 RequireRetiredKeys(retired);
                 Guid attemptId = decoder.ReadGuid(null);
-                ArrayOf<string> originalNamespaces = decoder.ReadStringArray(null);
+                ArrayOf<string> originalNamespaces = CopyStringArray(decoder.ReadStringArray(null));
                 ArrayOf<string> namespaces = targetNamespaces.IsNull ? originalNamespaces : targetNamespaces;
                 string endpointText = decoder.ReadString(null) ?? string.Empty;
                 string registrarUri = decoder.ReadString(null) ?? string.Empty;

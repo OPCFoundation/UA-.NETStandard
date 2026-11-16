@@ -879,9 +879,10 @@ namespace OnboardingDevice
                 {
                     throw new InvalidDataException("The assignment baseline belongs to another device or version.");
                 }
+                ByteString bindingDigest = decoder.ReadByteString(null);
+                ArrayOf<string> namespaceUris = CopyStringArray(decoder.ReadStringArray(null));
                 var baseline = new AssignmentBaseline(
-                    decoder.ReadByteString(null), decoder.ReadStringArray(null),
-                    decoder.ReadNodeIdArray(null), decoder.ReadByteStringArray(null));
+                    bindingDigest, namespaceUris, decoder.ReadNodeIdArray(null), decoder.ReadByteStringArray(null));
                 if (baseline.BindingDigest.Length != 32 || baseline.NamespaceUris.IsNull ||
                     baseline.NamespaceUris.Count == 0 || baseline.CertificateTypes.IsNull ||
                     baseline.Certificates.IsNull || baseline.CertificateTypes.Count != baseline.Certificates.Count ||
@@ -909,6 +910,23 @@ namespace OnboardingDevice
             {
                 throw new InvalidDataException("The assignment baseline is invalid.", error);
             }
+        }
+
+        /// <summary>
+        /// Copies decoded namespace URIs into the assignment's non-null representation.
+        /// </summary>
+        private static ArrayOf<string> CopyStringArray(ArrayOf<string?> values)
+        {
+            if (values.IsNull)
+            {
+                return default;
+            }
+            var copy = new string[values.Count];
+            for (int i = 0; i < values.Count; i++)
+            {
+                copy[i] = values[i] ?? throw new InvalidDataException("An assignment namespace URI is null.");
+            }
+            return copy.ToArrayOf();
         }
 
         /// <summary>

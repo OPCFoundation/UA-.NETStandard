@@ -44,6 +44,7 @@ using Opc.Ua.Onboarding;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
+using CoreObjectTypeIds = Opc.Ua.ObjectTypeIds;
 using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
 namespace Opc.Ua.Gds.Tests.Onboarding
@@ -68,9 +69,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             m_chain = new CertificateCollection();
             m_certificates = new Mock<ICertificateManager>(MockBehavior.Strict);
             m_certificates.Setup(manager => manager.AcquireApplicationCertificateByType(
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType))
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType))
                 .Returns(() => new CertificateEntry(
-                    m_identity, m_chain, ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                    m_identity, m_chain, CoreObjectTypeIds.RsaSha256ApplicationCertificateType));
             m_resolver = new CertificateManager(m_telemetry);
         }
 
@@ -408,7 +409,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     stagedCertificate = Encoded(certificate);
                     entered.TrySetResult(true);
-                    await release.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                    await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                     await actual.AddAsync(certificate, password, ct).ConfigureAwait(false);
                 });
             blocked.Setup(store => store.LoadPrivateKeyAsync(
@@ -550,7 +551,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await journal.GetOrCreateAsync(
                     binding.Registrar, binding.ApplicationId, binding.RequestId, binding.Profile,
-                    _ => new ValueTask<PullDcaCertificateReceipt>(new(Encoded(unrelated), [])))
+                    _ => new ValueTask<PullDcaCertificateReceipt>(
+                        new PullDcaCertificateReceipt(Encoded(unrelated), [])))
                     .ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
@@ -860,10 +862,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     return new ValueTask<ProvisionableDeviceSecurityStage>(stage);
                 });
             installation.Setup(value => value.InstallFromPullAsync(
-                    It.IsAny<ISession>(), kRegistrarUri, It.IsAny<ProvisionableDeviceCredentials>(),
+                    It.IsAny<Opc.Ua.Client.ISession>(), kRegistrarUri, It.IsAny<ProvisionableDeviceCredentials>(),
                     binding.AttemptId, It.IsAny<CancellationToken>()))
                 .Returns(async (
-                    ISession connected,
+                    Opc.Ua.Client.ISession connected,
                     string _,
                     ProvisionableDeviceCredentials installed,
                     Guid attemptId,
@@ -1188,7 +1190,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The selected certificate profile.</summary>
         private static readonly PullDcaCertificateProfile s_profile = new(
-            new NodeId("group", 1), ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            new NodeId("group", 1), CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
 
         /// <summary>The bounded duration of a synchronization barrier.</summary>
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
