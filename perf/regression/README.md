@@ -6,8 +6,9 @@ regressions that the NUnit `LoadTest` fixture in `tests/Opc.Ua.Sessions.Tests` d
 that fixture runs client and server in one process, is `[Explicit]`, and passes as long as the
 notifications arrive eventually.
 
-The floors run nightly and on pull requests labelled `stress`, in the `Server load floors` job of
-[stress-test.yml](../../.github/workflows/stress-test.yml). They are not a required check.
+The floors run nightly, on demand from the Actions tab, and on pull requests labelled
+`performance`, in [load-floors.yml](../../.github/workflows/load-floors.yml). They are not a
+required check: add the label to start a run, and each later push to the pull request restarts it.
 
 ```bash
 dotnet build perf/ServerLoadHarness -c Release -p:CustomTestTarget=net10.0

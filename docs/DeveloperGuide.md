@@ -676,6 +676,7 @@ The opt-in workflows run on their schedule, on demand from the Actions tab, and 
 | `stress` | Stress Tests | ChaosTCP with a random seed (in `chaos-seed.txt` of the results artifact) |
 | `soak` | Connection Stability Test, Sample HA Long-Haul Test | 30 minutes stability; 15 minutes per HA scenario (the schedules run 90 and 60) |
 | `interop` | Foreign stack interop | Every peer, as nightly |
+| `performance` | Server Load Floors | The [`perf/regression`](../perf/regression/README.md) load floors, 3 rounds, as nightly |
 
 Each opt-in workflow fails when its filter matched no test, so a moved or renamed test cannot leave it green while testing nothing.
 

@@ -1,0 +1,92 @@
+# Server load floors.
+#
+# Runs perf/regression/Invoke-LoadFloors.ps1: ServerLoadHarness scenarios with
+# the server out of process under Server GC, checked against the floors and
+# ceilings in perf/regression/load-floors.json (delivered %, server bytes per
+# operation, rate ratios against a same-run read calibration). See
+# perf/regression/README.md for what each check catches.
+#
+# Opt-in: nightly, manual, and pull requests labelled 'performance'. It is not
+# a required check. Adding the label starts a run; every later push to the
+# labelled pull request starts a new one and cancels the run in progress.
+name: Server Load Floors
+
+on:
+  schedule:
+    # Run nightly at 3:30 AM UTC, after the stress tests started.
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: 'Rounds per scenario (the median is checked).'
+        required: false
+        default: '3'
+        type: string
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+
+permissions:
+  contents: read
+
+# A pull request run is superseded by the next push. A 'labeled' event for any
+# other label gets a group of its own so it cannot cancel a run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.action == 'labeled' && github.event.label.name != 'performance' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  load-floors:
+    name: Server load floors
+    # The floors measure throughput, so they run nightly and on request, never
+    # as a required pull-request check.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'performance') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'performance'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      CONFIGURATION: 'Release'
+      CUSTOM_TEST_TARGET: 'net10.0'
+      HARNESS_PROJECT: './perf/ServerLoadHarness/ServerLoadHarness.csproj'
+      TESTRESULTS: './TestResults/load-floors'
+      ROUNDS: ${{ inputs.rounds || '3' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET from global.json
+      uses: ./.github/actions/setup-repository-dotnet
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Build the server load harness
+      run: >
+        dotnet build ${{ env.HARNESS_PROJECT }}
+        --configuration ${{ env.CONFIGURATION }}
+        /p:CustomTestTarget=${{ env.CUSTOM_TEST_TARGET }}
+
+    # Delivered %, server bytes per operation and rate ratios against a same-run
+    # read calibration; see perf/regression/README.md for what each floor catches.
+    - name: Run the load floors
+      shell: pwsh
+      run: |
+        ./perf/regression/Invoke-LoadFloors.ps1 `
+          -Harness "./perf/ServerLoadHarness/bin/$($env:CONFIGURATION)/$($env:CUSTOM_TEST_TARGET)/ServerLoadHarness" `
+          -Rounds ([int]$env:ROUNDS) `
+          -OutDirectory $env:TESTRESULTS
+
+    - name: Upload load floor results
+      uses: actions/upload-artifact@v7
+      with:
+        name: load-floors
+        path: ${{ env.TESTRESULTS }}
+      if: always()
