@@ -355,7 +355,7 @@ backends that otherwise return a one-shot presentation result.
 Required backend probe exceptions are also reported to the viewport owner
 immediately; cancellation remains cancellation rather than a device failure.
 Linux native artifact checks explicitly pass `--x11-vulkan` to select Avalonia's
-Vulkan compositor. OpenUSD 0.16.6-alpha prefers shared GPU surfaces, but can present
+Vulkan compositor. OpenUSD 0.17.0-alpha prefers shared GPU surfaces, but can present
 completed Vulkan frames through host-memory readback when the compositor lacks
 external-image or semaphore import support. Ordinary application defaults remain
 unchanged. The separate `--allow-software-gl` opt-in permits Mesa llvmpipe for
