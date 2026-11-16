@@ -92,7 +92,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Acquires connection and startup capacity together, reclaiming aggregate capacity at most once.
+        /// Acquires connection and startup capacity together, reclaiming local or aggregate capacity at most once.
         /// </summary>
         public bool TryAcquire(
             EndPoint? remoteEndpoint,
@@ -158,22 +158,25 @@ namespace Opc.Ua.Bindings
                         lock (m_lock)
                         {
                             int counted = m_limitPendingHandshakesOnly ? m_pendingHandshakes : m_leases.Count;
-                            if (m_stopped || (m_maxChannelCount > 0 && counted >= m_maxChannelCount))
+                            if (m_stopped)
                             {
                                 return false;
                             }
-                            if (m_deadlineTimer == null)
+                            if (m_maxChannelCount <= 0 || counted < m_maxChannelCount)
                             {
-                                TimeSpan period = TimeSpan.FromMilliseconds(
-                                    Math.Max(1, Math.Min(1000, m_handshakeTimeout.TotalMilliseconds / 2)));
-                                m_deadlineTimer = m_timeProvider.CreateTimer(CheckDeadlines, null, period, period);
+                                if (m_deadlineTimer == null)
+                                {
+                                    TimeSpan period = TimeSpan.FromMilliseconds(
+                                        Math.Max(1, Math.Min(1000, m_handshakeTimeout.TotalMilliseconds / 2)));
+                                    m_deadlineTimer = m_timeProvider.CreateTimer(CheckDeadlines, null, period, period);
+                                }
+                                lease = new Lease(this, connection, handshake, m_timeProvider.GetTimestamp());
+                                m_leases.Add(lease);
+                                m_pendingHandshakes++;
+                                connection = null;
+                                handshake = null;
+                                return true;
                             }
-                            lease = new Lease(this, connection, handshake, m_timeProvider.GetTimestamp());
-                            m_leases.Add(lease);
-                            m_pendingHandshakes++;
-                            connection = null;
-                            handshake = null;
-                            return true;
                         }
                     }
                 }
@@ -196,7 +199,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
                 // No partial resource leases or admission locks survive into listener cleanup.
-                if (tryReclaimCapacity == null || !tryReclaimCapacity())
+                if (attempt != 0 || tryReclaimCapacity == null || !tryReclaimCapacity())
                 {
                     return false;
                 }

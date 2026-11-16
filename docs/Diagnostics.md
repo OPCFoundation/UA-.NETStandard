@@ -1298,7 +1298,7 @@ variables and semantics documented under
 [Environment-variable configuration](#environment-variable-configuration)
 for the client, so a single `OPCUA_PCAP_FILE`/`OPCUA_KEYLOGFILE` pair drives
 both. The Console Reference Server wires this in automatically. (The pcap
-capture package targets net8.0+.)
+capture package targets net10.0+.)
 
 #### Client capture (outbound channels the app opens)
 
@@ -1602,8 +1602,8 @@ The `OPCFoundation.NetStandard.Opc.Ua.PubSub.Diagnostics` package is the PubSub
 captures the raw NetworkMessages exchanged over the UDP datagram and MQTT broker
 transports, writes them to `.pcap` / `.pcapng` for Wireshark, and dissects them
 back into structured DataSets — including **decryption of encrypted UADP
-messages** when the matching security keys are available. Targets `net8.0`,
-`net9.0`, `net10.0`.
+messages** when the matching security keys are available. Targets `net10.0`,
+`net11.0`.
 
 PubSub is connectionless and message-secured, so it uses its own frame and
 key-material abstractions rather than the UA-SC channel/token model, but reuses

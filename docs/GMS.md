@@ -72,8 +72,8 @@ the `OPCFoundation.NetStandard.` prefix, for example
 | `Opc.Ua.GMS.Client` | Discovery, bounded native reads, results/downloads and observations over an existing session |
 | `Opc.Ua.Mcp.GMS` | Six bounded GMS MCP workflows over the host's named sessions |
 
-Model/server/client target .NET Framework 4.8 and .NET 8, 9 and 10.
-MCP targets .NET 8, 9 and 10. GMS packages, including `.Debug` variants, follow
+Model/server/client target .NET Framework 4.8 and .NET 10 and 11.
+MCP targets .NET 10 and 11. GMS packages, including `.Debug` variants, follow
 the normal root version policy; they are not independently forced to preview.
 The model is server/client-independent, and the typed client does not depend
 on the server runtime.

@@ -297,7 +297,7 @@ namespace Opc.Ua.Vision.Server
 
         private async ValueTask RecoverAsync(string path, CancellationToken ct)
         {
-            string folder = path[..path.LastIndexOf('/')];
+            string folder = path[..path.LastIndexOf('/', StringComparison.Ordinal)];
             if (await m_provider.GetEntryAsync(folder, ct).ConfigureAwait(false) != null)
             {
                 var stale = new List<string>();

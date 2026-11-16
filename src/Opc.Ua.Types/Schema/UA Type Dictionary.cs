@@ -407,6 +407,13 @@ namespace Opc.Ua.Schema.Types {
                 this.isUnionField = value;
             }
         }
+
+        /// <summary>
+        /// Generate the structure as a value type (struct) instead of a class.
+        /// </summary>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        [System.ComponentModel.DefaultValueAttribute(false)]
+        public bool IsValueType { get; set; }
     }
     
     /// <remarks/>

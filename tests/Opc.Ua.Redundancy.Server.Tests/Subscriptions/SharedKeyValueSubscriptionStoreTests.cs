@@ -2036,7 +2036,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static string GenerationPrefixOf(string generationRecordKey)
         {
-            int separator = generationRecordKey.LastIndexOf('/');
+            int separator = generationRecordKey.LastIndexOf('/', StringComparison.Ordinal);
             Assert.That(separator, Is.GreaterThan(-1));
             return generationRecordKey[..(separator + 1)];
         }

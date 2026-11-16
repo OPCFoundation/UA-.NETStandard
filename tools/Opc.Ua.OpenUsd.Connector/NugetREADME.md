@@ -116,7 +116,7 @@ directory first, because a renderer needs geometry it can resolve. `--renderer` 
 and `--plugins` points at the USD plugin tree when it is not beside the connector. Closing the window
 stops the session; `--seconds` closes it automatically. The connector loads the viewport assembly on
 demand, so the package stays small and every other option keeps working without it. The viewport
-requires .NET 8 or later and a supported OpenUSD native runtime payload (`win-x64`, `linux-x64`, or
+requires .NET 10 or later and a supported OpenUSD native runtime payload (`win-x64`, `linux-x64`, or
 `osx-arm64`). A RID-less build or publish on a supported host uses that host's payload; use an
 explicit RID when publishing for another platform.
 

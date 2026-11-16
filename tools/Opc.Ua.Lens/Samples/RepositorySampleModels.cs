@@ -55,9 +55,8 @@ namespace UaLens.Samples
 
     internal enum RepositorySampleFramework
     {
-        Net8,
-        Net9,
-        Net10
+        Net10,
+        Net11
     }
 
     internal enum RepositorySampleBuildLayout

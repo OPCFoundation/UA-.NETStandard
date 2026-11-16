@@ -28,6 +28,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -44,6 +45,43 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotNativeProjectionTests
     {
+        /// <summary>
+        /// Checks that native preservation distinguishes absent facts from explicit empty facts.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NativeProjectionPreservesAbsentAndExplicitEmptyFacts(bool explicitEmpty)
+        {
+            var source = new UANodeSet
+            {
+                NamespaceUris = ["urn:test:empty"],
+                Aliases = explicitEmpty ? [] : null,
+                Extensions = explicitEmpty ? [] : null,
+                Items =
+                [
+                    new UAObject
+                    {
+                        NodeId = "ns=1;i=1",
+                        BrowseName = "1:Empty",
+                        ParentNodeId = explicitEmpty ? string.Empty : null,
+                        Documentation = explicitEmpty ? string.Empty : null,
+                        References = explicitEmpty ? [] : null,
+                        Extensions = explicitEmpty ? [] : null
+                    }
+                ]
+            };
+            var options = new WotNodeSetConverterOptions();
+            var diagnostics = new List<WotDiagnostic>();
+
+            using var json = JsonDocument.Parse(WotNativeProjection.Write(source, options, diagnostics));
+            UANodeSet? restored = WotNativeProjection.Read(json.RootElement, options, diagnostics);
+
+            Assert.That(restored, Is.Not.Null);
+            Assert.That(diagnostics, Is.Empty);
+            NodeSetComparisonResult comparison = NodeSetComparer.Compare(source, restored!);
+            Assert.That(comparison.AreEquivalent, Is.True, string.Join("; ", comparison.Differences));
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task UnsupportedNativeGrammarLeavesReadableContentUsableAsync(bool asynchronous)

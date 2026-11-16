@@ -234,6 +234,64 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// Verifies that an unload without activation units rebuilds its publication after a
+        /// predecision reference conflict and stops at the publication budget.
+        /// </summary>
+        /// <param name="conflicts">The number of predecision conflicts injected before success.</param>
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public async Task UnloadPublicationRetriesPredecisionReferenceConflictsWithinThePublicationBudget(
+            int conflicts)
+        {
+            m_coordinator.Dispose();
+            var host = new PausableWotProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
+            m_coordinator = new WotMaterializationCoordinator(m_registry, host, documentConverter: m_converter)
+            {
+                ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris,
+                DeletePolicy = WoTDeletePolicyEnum.Force
+            };
+            WotResource resource = await AddAsync("unload-conflict").ConfigureAwait(false);
+            WotRefreshResult loaded = await m_coordinator.RefreshAsync(HandoffRequest("unload-conflict-load"))
+                .ConfigureAwait(false);
+            Assert.That(loaded.NewGeneration, Is.EqualTo(1u));
+            WotRegistrySnapshot before = m_registry.Current;
+            int disposedBefore = host.DisposedPublications;
+            int attempts = 0;
+            host.BeforeCommit = () =>
+            {
+                if (++attempts <= conflicts)
+                {
+                    throw new InvalidOperationException("Serving references changed during preparation.");
+                }
+            };
+
+            if (conflicts < 3)
+            {
+                WotRegistryMutationResult result = await m_coordinator.SetEnabledAsync(
+                    resource.GroupId, resource.ResourceId, false).ConfigureAwait(false);
+
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), result.Message);
+                Assert.That(m_registry.Current.FindResourceByXid(resource.Xid)!.Enabled, Is.False);
+                Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+            else
+            {
+                await Assert.ThatAsync(async () => await m_coordinator.SetEnabledAsync(
+                    resource.GroupId, resource.ResourceId, false).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.EqualTo("Serving references changed during preparation.")).ConfigureAwait(false);
+
+                Assert.That(m_registry.Current, Is.SameAs(before));
+                Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+            }
+            Assert.That(attempts, Is.EqualTo(Math.Min(conflicts + 1, 3)));
+            Assert.That(host.DisposedPublications - disposedBefore, Is.EqualTo(attempts));
+        }
+
+        /// <summary>
         /// Verifies that an unrelated publication error is propagated immediately without retry.
         /// </summary>
         /// <param name="message">The unrelated or similar-but-not-exact failure diagnostic.</param>

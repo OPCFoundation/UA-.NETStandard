@@ -2,7 +2,7 @@
 
 The migration NuGet ships a multi-TFM runtime shim assembly
 (`Opc.Ua.MigrationAnalyzer.Core.dll`, `net48` /
-`net8.0` / `net9.0` / `net10.0`) that re-exposes the 1.5.378 obsolete extension
+`net10.0` / `net11.0`) that re-exposes the 1.5.378 obsolete extension
 surface so 1.5.378-style call sites continue to compile against 2.0.
 
 Together with the
@@ -110,9 +110,8 @@ no `Opc.Ua.MigrationAnalyzer.Core.dll` is shipped or loaded at runtime.
 | TFM | Shim ships? | Notes |
 |---|---|---|
 | `net48` | ✅ | Lowest legacy TFM supported; recommended for legacy WinForms consumers |
-| `net8.0` | ✅ | LTS |
-| `net9.0` | ✅ | STS |
-| `net10.0` | ✅ | LTS (current) |
+| `net10.0` | ✅ | LTS |
+| `net11.0` | ✅ | STS (current) |
 
 Consumers on unsupported target frameworks must retarget before using the
 bundled migration package. See the

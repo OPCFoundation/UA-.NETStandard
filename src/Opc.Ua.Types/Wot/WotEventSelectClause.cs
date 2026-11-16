@@ -564,7 +564,7 @@ namespace Opc.Ua.Wot
         {
             if (element.StartsWith(NamespaceUriPrefix, StringComparison.Ordinal))
             {
-                int separator = element.IndexOf(';', NamespaceUriPrefix.Length);
+                int separator = element.IndexOf(';', NamespaceUriPrefix.Length, StringComparison.Ordinal);
                 if (separator > NamespaceUriPrefix.Length && separator + 1 < element.Length)
                 {
                     qualifier = element[
@@ -578,7 +578,7 @@ namespace Opc.Ua.Wot
             }
             if (element.Length > 0 && element[0] == '{')
             {
-                int close = element.IndexOf('}', 1);
+                int close = element.IndexOf('}', 1, StringComparison.Ordinal);
                 if (close > 1 && close + 1 < element.Length)
                 {
                     qualifier = element[1..close];
@@ -589,7 +589,7 @@ namespace Opc.Ua.Wot
                 name = element;
                 return;
             }
-            int colon = element.IndexOf(':', 0);
+            int colon = element.IndexOf(':', 0, StringComparison.Ordinal);
             if (colon > 0 && colon + 1 < element.Length)
             {
                 qualifier = element[..colon];
@@ -651,7 +651,7 @@ namespace Opc.Ua.Wot
             int start = 0;
             while (true)
             {
-                int separator = browsePath.IndexOf('/', SkipQualifier(browsePath, start));
+                int separator = browsePath.IndexOf('/', SkipQualifier(browsePath, start), StringComparison.Ordinal);
                 if (separator < 0)
                 {
                     elements.Add(browsePath[start..]);
@@ -703,12 +703,12 @@ namespace Opc.Ua.Wot
             {
                 // ';' terminates the NamespaceUri and is percent-escaped inside
                 // it, so the first one is the delimiter (OPC 10000-6 §5.3.1.11).
-                int delimiter = browsePath.IndexOf(';', start + NamespaceUriPrefix.Length);
+                int delimiter = browsePath.IndexOf(';', start + NamespaceUriPrefix.Length, StringComparison.Ordinal);
                 return delimiter < 0 ? start : delimiter + 1;
             }
             if (browsePath[start] == '{')
             {
-                int delimiter = browsePath.IndexOf('}', start + 1);
+                int delimiter = browsePath.IndexOf('}', start + 1, StringComparison.Ordinal);
                 return delimiter < 0 ? start : delimiter + 1;
             }
             return start;

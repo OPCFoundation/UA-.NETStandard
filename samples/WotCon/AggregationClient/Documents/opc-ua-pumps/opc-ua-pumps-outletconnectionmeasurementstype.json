@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -236,7 +237,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "velocity",
+      "default": "velocity",
       "description": "Vector quantity giving the rate of change of a position vector",
       "links": [
         {
@@ -273,7 +274,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "temperature",
+      "default": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
@@ -310,7 +311,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured rate of flow at pump outlet connection divided by the outlet area of the pump.",
       "links": [
         {
@@ -319,6 +320,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Velocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC"
+      },
       "readOnly": true,
       "title": "MeanVelocityAtOutlet",
       "type": "number",
@@ -341,7 +348,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured temperature acting at the outlet area of the pump.",
       "links": [
         {
@@ -350,6 +357,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Temperature"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/K"
+      },
       "readOnly": true,
       "title": "OutletTemperatureOfThePump",
       "type": "number",
@@ -583,6 +596,7 @@
         "browseName": "1:OutletConnectionMeasurementsType",
         "displayName": [
           {
+            "locale": "",
             "value": "OutletConnectionMeasurementsType"
           }
         ],
@@ -611,15 +625,18 @@
         "superType": "ns=3;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MeanVelocityAtOutlet",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured rate of flow at pump outlet connection divided by the outlet area of the pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MeanVelocityAtOutlet"
           }
         ],
@@ -662,10 +679,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -691,10 +710,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -721,10 +742,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067859</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -750,15 +773,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Vector quantity giving the rate of change of a position vector"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -785,15 +811,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">velocity</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OutletTemperatureOfThePump",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured temperature acting at the outlet area of the pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OutletTemperatureOfThePump"
           }
         ],
@@ -836,10 +865,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -865,10 +896,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -895,10 +928,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -924,15 +959,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing a temperature value"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],

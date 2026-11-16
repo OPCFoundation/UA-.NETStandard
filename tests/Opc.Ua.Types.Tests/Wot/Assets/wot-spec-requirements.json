@@ -2945,9 +2945,8 @@
   "testTargetFrameworks": {},
   "plannedTestTargetFrameworks": {
     "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests": [
-      "net8.0",
-      "net9.0",
-      "net10.0"
+      "net10.0",
+      "net11.0"
     ]
   }
 }

@@ -328,7 +328,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             }
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             ((MonitoredItem)item).Publish(NewContext(), notifications, 100);
 
             // an overflowing queue would drop events and append an
@@ -407,7 +407,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             }
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             item.Publish(NewContext(), notifications, 100);
 
             Assert.That(

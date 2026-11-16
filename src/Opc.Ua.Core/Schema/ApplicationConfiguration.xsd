@@ -261,6 +261,7 @@
             <xs:element name="MinSubscriptionLifetime" type="xs:int" minOccurs="0" />
             <xs:element name="ReverseConnect" type="ReverseConnectClientConfiguration" minOccurs="0" />
             <xs:element name="OperationLimits" type="OperationLimits" minOccurs="0" />
+            <xs:element name="VerifyServerEndpointsWithDiscovery" type="xs:boolean" minOccurs="0" />
         </xs:sequence>
     </xs:complexType>
 

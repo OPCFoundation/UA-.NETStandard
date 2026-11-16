@@ -301,12 +301,13 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         /// <summary>
-        /// Deferred notification decoding is on for the V2 engine by default, delivers the
-        /// same notifications either way, and stays off for the classic engine.
+        /// Deferred notification decoding is on by default and follows the option, for the
+        /// V2 engine and for the classic engine (#5003).
         /// </summary>
         [TestCase(false, true, true)]
         [TestCase(false, false, false)]
-        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        [TestCase(true, false, false)]
         [CancelAfter(90_000)]
         public async Task DeferredNotificationDecodingFollowsTheOptionAsync(
             bool classic, bool defer, bool expected, CancellationToken ct)

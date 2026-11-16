@@ -263,17 +263,21 @@ namespace Opc.Ua.Sessions.Tests
 
                                     subscription.FastDataChangeCallback = (sub, item, value) =>
                                     {
-                                        foreach (MonitoredItemNotification dv in item.MonitoredItems)
+                                        for (int ii = 0; ii < item.MonitoredItems.Count; ii++)
                                         {
-                                            if (!StatusCode.IsGood(dv.DiagnosticInfo.InnerStatusCode))
+                                            DiagnosticInfo? diagnosticInfo = ii < item.DiagnosticInfos.Count
+                                                ? item.DiagnosticInfos[ii]
+                                                : null;
+                                            if (diagnosticInfo != null &&
+                                                !StatusCode.IsGood(diagnosticInfo.InnerStatusCode))
                                             {
                                                 Assert.Fail(
                                                     "Monitored item reported bad status code: " +
-                                                    dv.DiagnosticInfo.InnerStatusCode +
-                                                    dv.DiagnosticInfo.LocalizedText);
+                                                    diagnosticInfo.InnerStatusCode +
+                                                    diagnosticInfo.LocalizedText);
                                             }
 
-                                            valueChanges.Increment(dv.ClientHandle);
+                                            valueChanges.Increment(item.MonitoredItems[ii].ClientHandle);
                                         }
                                     };
 

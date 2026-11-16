@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -175,6 +176,7 @@
       ],
       "observable": true,
       "title": "Direction",
+      "type": "integer",
       "uav:browseName": "ns1:Direction",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=10960",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3014",
@@ -437,11 +439,13 @@
         "browseName": "1:<Drive>",
         "description": [
           {
+            "locale": "",
             "value": "Port for the connection of the drive."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "<Drive>"
           }
         ],
@@ -489,15 +493,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:Category",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "The category property describes the Port type. The value of this attribute is user-defined. Only ports with the same category value are allowed to be connected."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Category"
           }
         ],
@@ -527,10 +534,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -557,15 +566,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:Direction",
         "dataType": "PortDirectionEnum",
         "description": [
           {
+            "locale": "",
             "value": "Ports with the direction “In” can only be connected to ports with the direction “Out” or “InOut” and ports with the direction “Out” can only be connected with ports with the direction “In” or “InOut”. Ports with the direction “InOut” can be connected to Ports of arbitrary direction."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Direction"
           }
         ],
@@ -595,10 +607,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -625,15 +639,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:IdCarrier",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "This property contains the ID of the asset to which the port is assigned."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IdCarrier"
           }
         ],
@@ -663,10 +680,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],

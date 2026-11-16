@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 10);
 
             object?[] handles = [.. result.Select(r => r.Handle)];
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AlarmConditionState(null));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 10);
 
             object?[] handles = [.. result.Select(r => r.Handle)];
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // drop the oldest (the condition) and queue a new audit event...
                 monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
-                var drained = new Queue<EventFieldList>();
+                var drained = new Queue<QueuedEvent>();
                 monitoredItem.Publish(new OperationContext(monitoredItem), drained, 10);
             }
 
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 10);
 
             Assert.That(result.Select(r => r.Handle), Has.None.AssignableTo<RefreshRequiredEventState>());
@@ -151,18 +151,18 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
 
-            var first = new Queue<EventFieldList>();
+            var first = new Queue<QueuedEvent>();
             bool more = monitoredItem.Publish(new OperationContext(monitoredItem), first, 3);
             Assert.That(first.Select(r => r.Handle), Has.None.AssignableTo<RefreshRequiredEventState>());
             Assert.That(first.Last().Handle, Is.AssignableTo<EventQueueOverflowEventState>());
             Assert.That(more, Is.True, "The RefreshRequired event is still pending.");
 
-            var second = new Queue<EventFieldList>();
+            var second = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), second, 3);
             Assert.That(second.Select(r => r.Handle).ToArray(), Has.Length.EqualTo(1));
             Assert.That(second.Single().Handle, Is.AssignableTo<RefreshRequiredEventState>());
 
-            var third = new Queue<EventFieldList>();
+            var third = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), third, 3);
             Assert.That(third, Is.Empty, "The RefreshRequired event is sent once.");
         }
@@ -280,7 +280,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
             Refill(monitoredItem, (int)queueSize);
 
-            var first = new Queue<EventFieldList>();
+            var first = new Queue<QueuedEvent>();
             bool more = monitoredItem.Publish(new OperationContext(monitoredItem), first, budget);
             object?[] handles = [.. first.Select(r => r.Handle)];
             Assert.That(handles, Has.Length.EqualTo(3));
@@ -349,7 +349,7 @@ namespace Opc.Ua.Server.Tests
 
         private static object?[] Publish(MonitoredItem monitoredItem, uint budget)
         {
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, budget);
             return [.. result.Select(r => r.Handle)];
         }

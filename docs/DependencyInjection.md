@@ -1681,7 +1681,7 @@ manager into every new `ManagedSession` it creates, so multiple
 `ManagedSession` instances resolved from the same DI container will
 share underlying transport channels per
 `ConfiguredEndpoint`. Reconnect is coalesced and notified to attached
-sessions transparently. On .NET 8 and later, HTTPS transport channels
+sessions transparently. On .NET 10 and later, HTTPS transport channels
 also get the named `IHttpClientFactory` client (`Opc.Ua.Client`) and its
 standard resilience handler through `AddClient(...)`. See
 [Sessions and reconnect § 4](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)

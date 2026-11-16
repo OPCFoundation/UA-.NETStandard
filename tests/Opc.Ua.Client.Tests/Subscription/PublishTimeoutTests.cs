@@ -260,6 +260,101 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// The hint stays within half the channel's operation timeout, so the server
+        /// answers or expires a request before the client abandons it. Below that
+        /// limit the budget is unchanged.
+        /// </summary>
+        [TestCase(5000, 1000, 5u, 2500u)]
+        [TestCase(15_000, 1000, 10u, 7500u)]
+        [TestCase(120_000, 100, 10u, 3000u)]
+        [TestCase(0, 1000, 5u, 15_000u)]
+        [CancelAfter(10_000)]
+        public async Task TimeoutHintStaysWithinHalfTheOperationTimeoutAsync(
+            int operationTimeout, double intervalMs, uint keepAliveCount, uint expected, CancellationToken ct)
+        {
+            await using var harness = new PublishHarness(
+                2, intervalMs, keepAliveCount, operationTimeout: operationTimeout);
+            harness.Manager.Resume();
+            for (int i = 0; i < 2; i++)
+            {
+                PublishAttempt attempt = await harness.NextAsync(ct).ConfigureAwait(false);
+                Assert.That(attempt.TimeoutHint, Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
+        /// A timed-out request does not raise the next hint beyond the operation timeout.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task TimeoutRetryStaysWithinHalfTheOperationTimeoutAsync(bool requestTimeout, CancellationToken ct)
+        {
+            await using var harness = new PublishHarness(
+                1, 1000, 5, useSystemTime: true, operationTimeout: 5000);
+            harness.Manager.Resume();
+            PublishAttempt attempt = await harness.NextAsync(ct).ConfigureAwait(false);
+            Assert.That(attempt.TimeoutHint, Is.EqualTo(2500u));
+            attempt.Fail(requestTimeout ? StatusCodes.BadRequestTimeout : StatusCodes.BadTimeout);
+
+            PublishAttempt retry = await harness.NextAsync(ct).ConfigureAwait(false);
+            Assert.That(retry.TimeoutHint, Is.EqualTo(2500u));
+        }
+
+        /// <summary>
+        /// With a keep-alive time beyond half the operation timeout, the server
+        /// expires every queued Publish at its TimeoutHint with Bad_Timeout. That
+        /// is the normal life of a quiet queue: the worker re-issues the Publish at
+        /// once instead of backing off, so the server is never left without one.
+        /// </summary>
+        [Test]
+        [CancelAfter(20_000)]
+        public async Task ServerTimeoutOfQueuedPublishIsNotBackedOffAsync(CancellationToken ct)
+        {
+            // keep-alive 10 s x 10 = 100 s, clamped to 30 s by the 60 s operation timeout.
+            await using var harness = new PublishHarness(1, 10_000, 10, operationTimeout: 60_000);
+            harness.Manager.Resume();
+            for (int i = 0; i < 4; i++)
+            {
+                PublishAttempt attempt = await harness.NextAsync(ct).ConfigureAwait(false);
+                Assert.That(attempt.TimeoutHint, Is.EqualTo(30_000u));
+
+                // the server answers with Bad_Timeout when the hint passes.
+                harness.Clock.Advance(TimeSpan.FromMilliseconds(attempt.TimeoutHint));
+                Assert.That(attempt.Completion.Task.IsFaulted, Is.True);
+
+                // the next Publish follows without any time passing.
+                using var noTimePasses = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                noTimePasses.CancelAfter(TimeSpan.FromSeconds(3));
+                PublishAttempt next = await harness.NextAsync(noTimePasses.Token).ConfigureAwait(false);
+                next.Succeed();
+            }
+            Assert.That(harness.Manager.BadPublishRequestCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A server that answers a Publish with Bad_Timeout right away is still
+        /// backed off, so a broken server cannot make the worker spin.
+        /// </summary>
+        [Test]
+        [CancelAfter(20_000)]
+        public async Task ImmediateBadTimeoutIsStillBackedOffAsync(CancellationToken ct)
+        {
+            await using var harness = new PublishHarness(1, 10_000, 10, operationTimeout: 60_000);
+            harness.Manager.Resume();
+            PublishAttempt attempt = await harness.NextAsync(ct).ConfigureAwait(false);
+            attempt.Fail(StatusCodes.BadTimeout);
+
+            Task<PublishAttempt> next = harness.NextAsync(ct).AsTask();
+            await Task.Delay(500, ct).ConfigureAwait(false);
+            Assert.That(next.IsCompleted, Is.False, "The retry waits for the backoff.");
+            harness.Clock.Advance(TimeSpan.FromSeconds(1));
+            PublishAttempt retry = await next.ConfigureAwait(false);
+            retry.Succeed();
+            Assert.That(harness.Manager.BadPublishRequestCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Runs real Publish workers against controlled request deadlines and responses.
         /// </summary>
         private sealed class PublishHarness : IAsyncDisposable, ISubscriptionAcknowledgementObserver
@@ -268,7 +363,8 @@ namespace Opc.Ua.Client.Subscriptions
             /// Creates one quiet subscription and the requested worker pool.
             /// </summary>
             public PublishHarness(
-                int workers = 2, double intervalMs = 100, uint keepAliveCount = 10, bool useSystemTime = false)
+                int workers = 2, double intervalMs = 100, uint keepAliveCount = 10, bool useSystemTime = false,
+                int operationTimeout = 0)
             {
                 Subscription = new FakeManagedSubscription
                 {
@@ -283,7 +379,8 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     CreateSubscriptionFactory = (_, _, _) => Subscription,
                     OnPublishAsync = PublishAsync,
-                    AcknowledgementObserver = this
+                    AcknowledgementObserver = this,
+                    OperationTimeout = operationTimeout
                 };
                 Manager = new SubscriptionManager(
                     Context, NUnitTelemetryContext.Create().LoggerFactory, DiagnosticsMasks.None, m_timeProvider)

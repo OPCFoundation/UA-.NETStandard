@@ -6,7 +6,7 @@
          legacy CI runs Directory.Build.targets strips this project to an empty
          no-op shell via $(RestrictForLegacyTfm). -->
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net10.0' OR '$(CustomTestTarget)' == 'net11.0'">$(CustomTestTarget)</TargetFrameworks>
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <RootNamespace>Opc.Ua.PubSub.Pcap.Tests</RootNamespace>
