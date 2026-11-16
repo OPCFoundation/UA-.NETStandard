@@ -3018,6 +3018,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseClose = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            var gateAcquired = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new ReloadProbeProvider();
+            Task reloadTask = Task.CompletedTask;
             int armed = 1;
 
             // Block the original listener's replacement close so the test can prove
@@ -3038,8 +3042,47 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 TransportBindings = harness.Registry
             };
             await using var managerDisposal = new BoundedManagerDisposal(manager);
-            await manager.StartServiceAsync(BuildAppConfig(telemetry, original))
-                .ConfigureAwait(false);
+            Task heldCallback = Task.CompletedTask;
+            async Task WaitWithReloadStateAsync(Task pending, string stage)
+            {
+                ReportReloadState($"waiting:{stage}");
+                using var diagnosticCts = new CancellationTokenSource();
+                Task diagnosticDelay = Task.Delay(TimeSpan.FromSeconds(30), diagnosticCts.Token);
+                Task completed = await Task.WhenAny(pending, diagnosticDelay).ConfigureAwait(false);
+                if (completed == diagnosticDelay)
+                {
+                    ReportReloadState($"still-waiting:{stage}");
+                }
+                else
+                {
+                    diagnosticCts.Cancel();
+                }
+
+                await pending.ConfigureAwait(false);
+            }
+
+            void ReportReloadState(string stage)
+            {
+                TestContext.Progress.WriteLine(
+                    $"[ReloadDrainsHeldConnectionCallbackBeforeReplacingListeners] " +
+                    $"stage={stage}; providerCompleted={provider.Completed.IsCompleted}; " +
+                    $"gateAcquired={gateAcquired.Task.IsCompleted}; reload={reloadTask.Status}; " +
+                    $"heldCallback={heldCallback.Status}; " +
+                    $"closeGateEntered={closeGateEntered.Task.IsCompleted}; " +
+                    $"releaseClose={releaseClose.Task.IsCompleted}; " +
+                    $"activeCallbacks={manager.ActiveConnectionCallbackCountForTest}; " +
+                    $"state={manager.CurrentStateForTest}");
+            }
+
+            await WaitWithReloadStateAsync(
+                manager.StartServiceAsync(BuildAppConfig(telemetry, original)),
+                "initial-start").ConfigureAwait(false);
+            manager.ConfigurationProvider = provider;
+            manager.GateAcquiredForTest = () =>
+            {
+                gateAcquired.TrySetResult(true);
+                return Task.CompletedTask;
+            };
             FakeReverseListener originalListener = harness.Listeners.Single(
                 l => l.OpenedUrl == original);
             Assert.That(originalListener.IsOpen, Is.True);
@@ -3047,20 +3090,24 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // Park a held callback on the running manager: no registration matches,
             // so it holds its (unaccepted) transport parked on the hold delay.
             var held = new FakeConnectionWaitingEventArgs("urn:test:reverse:unmatched", original);
-            Task heldCallback = manager.InvokeConnectionWaitingForTest(held);
+            heldCallback = manager.InvokeConnectionWaitingForTest(held);
             Assert.That(heldCallback.IsCompleted, Is.False, "the unmatched callback must hold");
             Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.EqualTo(1));
 
             // Reload replaces the original listener with the replacement. The
             // activation must drain the held callback before closing the original.
-            Task reload = manager.ReloadConfigurationAsync(
+            ReportReloadState("before-reload");
+            reloadTask = manager.ReloadConfigurationAsync(
                 BuildAppConfig(telemetry, replacement),
                 manager.CurrentWatcherGeneration);
+            ReportReloadState("before-close-gate-wait");
 
             try
             {
-                await AwaitCloseGateAsync(closeGateEntered.Task, reload, heldCallback, manager, "Reload")
-                    .ConfigureAwait(false);
+                await WaitWithReloadStateAsync(
+                    AwaitCloseGateAsync(closeGateEntered.Task, reloadTask, heldCallback, manager, "Reload"),
+                    "close-gate-entered").ConfigureAwait(false);
+                ReportReloadState("after-close-gate-entered");
                 // The drain completes when the callback leaves its tracking
                 // region, which is before its task completes: assert the
                 // tracked count, not heldCallback.IsCompleted.
@@ -3079,7 +3126,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 var candidate = new FakeConnectionWaitingEventArgs(
                     "urn:test:reverse:candidate",
                     replacement);
-                await manager.InvokeConnectionWaitingForTest(candidate).ConfigureAwait(false);
+                await WaitWithReloadStateAsync(
+                    manager.InvokeConnectionWaitingForTest(candidate),
+                    "candidate-callback").ConfigureAwait(false);
+                ReportReloadState("after-candidate-callback");
                 Assert.That(
                     candidate.Accepted,
                     Is.False,
@@ -3092,8 +3142,13 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 // leave the reload blocked, or the manager disposal hangs.
                 releaseClose.TrySetResult(true);
             }
-            await BoundedAsync(reload, "Reload").ConfigureAwait(false);
-            await BoundedAsync(heldCallback, "Held callback").ConfigureAwait(false);
+            await WaitWithReloadStateAsync(
+                BoundedAsync(reloadTask, "Reload"),
+                "reload-completion").ConfigureAwait(false);
+            ReportReloadState("after-reload-completion");
+            await WaitWithReloadStateAsync(
+                BoundedAsync(heldCallback, "Held callback"),
+                "held-callback-completion").ConfigureAwait(false);
 
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
             Assert.That(
@@ -5818,6 +5873,23 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             {
                 LastContext = applicationConfiguration;
                 LastInput = configuration;
+                return new ValueTask<ReverseConnectClientConfiguration>(configuration);
+            }
+        }
+
+        private sealed class ReloadProbeProvider : IReverseConnectConfigurationProvider
+        {
+            private readonly TaskCompletionSource<bool> m_completed = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public Task<bool> Completed => m_completed.Task;
+
+            public ValueTask<ReverseConnectClientConfiguration> ConfigureAsync(
+                ApplicationConfiguration? applicationConfiguration,
+                ReverseConnectClientConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                m_completed.TrySetResult(true);
                 return new ValueTask<ReverseConnectClientConfiguration>(configuration);
             }
         }

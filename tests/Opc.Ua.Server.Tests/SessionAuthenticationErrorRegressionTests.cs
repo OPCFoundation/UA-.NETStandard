@@ -82,6 +82,97 @@ namespace Opc.Ua.Server.Tests
             Assert.That(badLayout.AdditionalInfo, Is.EqualTo(badPadding.AdditionalInfo));
         }
 
+        /// <summary>
+        /// Verifies a legacy RSA encrypted password of ~1 MB (4 095 RSA blocks, ~2 s of
+        /// private-key work for a 2048-bit key) is rejected with the uniform decryption
+        /// error before the blocks are decrypted.
+        /// </summary>
+        [Test]
+        public async Task OversizedLegacyRsaPasswordIsRejectedWithoutDecryptingAsync()
+        {
+            bool authenticatorCalled = false;
+            var registry = new ServerIdentityRegistry(new UserNamePasswordAuthenticator(
+                (_, _) =>
+                {
+                    authenticatorCalled = true;
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                }));
+            var stopwatch = new System.Diagnostics.Stopwatch();
+
+            ServiceResultException error = await ActivateAsync(
+                registry,
+                SecurityPolicies.Basic256Sha256,
+                (certificate, _) =>
+                {
+                    using RSA rsa = certificate.GetRSAPublicKey()!;
+                    byte[] block = rsa.Encrypt([1, 2, 3, 4], RSAEncryptionPadding.OaepSHA1);
+                    byte[] password = new byte[block.Length * 4095];
+                    for (int ii = 0; ii < 4095; ii++)
+                    {
+                        Buffer.BlockCopy(block, 0, password, ii * block.Length, block.Length);
+                    }
+                    stopwatch.Start();
+                    return new UserNameIdentityToken
+                    {
+                        PolicyId = "username",
+                        UserName = "test-user",
+                        Password = ByteString.From(password),
+                        EncryptionAlgorithm = SecurityAlgorithms.RsaOaep
+                    };
+                }).ConfigureAwait(false);
+            stopwatch.Stop();
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(error.Result.LocalizedText.Text, Is.EqualTo("Could not decrypt identity token."));
+            Assert.That(error.InnerResult, Is.Null);
+            Assert.That(authenticatorCalled, Is.False);
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(1000));
+        }
+
+        /// <summary>
+        /// Verifies the longest password the block limit allows still reaches the
+        /// authenticator intact through the legacy RSA encryption.
+        /// </summary>
+        [TestCase(SecurityPolicies.Basic128Rsa15)]
+        [TestCase(SecurityPolicies.Basic256Sha256)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
+        public async Task LegacyRsaPasswordOfMaximumLengthReachesAuthenticatorAsync(string policyUri)
+        {
+            byte[] expectedPassword = new byte[IdentityTokenLimits.MaxPasswordLength];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(expectedPassword);
+            }
+            byte[]? receivedPassword = null;
+            var registry = new ServerIdentityRegistry(new UserNamePasswordAuthenticator(
+                (handler, _) =>
+                {
+                    receivedPassword = (byte[]?)handler.DecryptedPassword?.Clone();
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                }));
+
+            ServiceResultException error = await ActivateAsync(
+                registry,
+                policyUri,
+                (certificate, serverNonce) =>
+                {
+                    EncryptedData encrypted = SecurityPolicies.Default.Encrypt(
+                        certificate,
+                        policyUri,
+                        Utils.Append(expectedPassword, serverNonce.ToArray()));
+                    return new UserNameIdentityToken
+                    {
+                        PolicyId = "username",
+                        UserName = "test-user",
+                        Password = encrypted.Data.ToByteString(),
+                        EncryptionAlgorithm = encrypted.Algorithm
+                    };
+                }).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(receivedPassword, Is.EqualTo(expectedPassword));
+        }
+
         [TestCaseSource(nameof(s_rejectionCodes))]
         public Task AuthenticatorRejectionPreservesStatusAndMessageAsync(StatusCode statusCode)
         {

@@ -628,6 +628,13 @@ namespace Opc.Ua.Bindings
                     if (m_partialRequestId != requestId && m_partialMessageChunks != null)
                     {
                         m_logger.UaSCChannelLog4(m_partialRequestId);
+                        // The abandoned message started the channel's assembly deadline. A
+                        // channel without a session keeps it, so a peer cannot restart the
+                        // deadline by abandoning a message for a new request id.
+                        if (m_abandonedPartialMessageStartedAt == 0)
+                        {
+                            m_abandonedPartialMessageStartedAt = m_partialMessageStartedAt;
+                        }
                         m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
                         m_partialMessageChunks = null;
                         ReleasePartialMessageReservation();
@@ -686,7 +693,10 @@ namespace Opc.Ua.Bindings
                                 m_partialMessageChunks = isFinal
                                     ? Interlocked.Exchange(ref m_spareMessageChunks, null) ?? new BufferCollection(1)
                                     : [];
-                                m_partialMessageStartedAt = TimeProvider.GetTimestamp();
+                                m_partialMessageStartedAt =
+                                    !isFinal && !hasSession && m_abandonedPartialMessageStartedAt != 0
+                                        ? m_abandonedPartialMessageStartedAt
+                                        : TimeProvider.GetTimestamp();
                                 m_partialMessageOwner = owner;
                             }
                             m_partialRequestId = requestId;
@@ -772,6 +782,19 @@ namespace Opc.Ua.Bindings
                 {
                     return m_partialMessageChunks != null;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Whether chunks of the message with the request id are already waiting
+        /// for the rest of it. A chunk with another request id starts a new message
+        /// and abandons the saved one.
+        /// </summary>
+        protected bool HasPartialMessageFor(uint requestId)
+        {
+            lock (m_partialMessageLock)
+            {
+                return m_partialMessageChunks != null && m_partialRequestId == requestId;
             }
         }
 
@@ -874,6 +897,9 @@ namespace Opc.Ua.Bindings
             {
                 savedChunks = m_partialMessageChunks ?? [];
                 m_partialMessageChunks = null;
+                // A completed message ends the history of abandoned ones: the next
+                // message starts its own assembly deadline.
+                m_abandonedPartialMessageStartedAt = 0;
                 ReleasePartialMessageReservation();
                 leases = DetachIsolationLeases();
             }
@@ -3092,6 +3118,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private BufferCollection? m_spareMessageChunks;
         private long m_partialMessageStartedAt;
+
+        /// <summary>
+        /// When the first message the peer abandoned for a new request id started, or
+        /// zero. Unfinished messages on a channel without a session keep this deadline.
+        /// </summary>
+        private long m_abandonedPartialMessageStartedAt;
         private long m_partialMessageReservedBytes;
         private readonly ChunkReassemblyBudget? m_chunkReassemblyBudget;
         private ResourceIsolationOwner? m_partialMessageOwner;
