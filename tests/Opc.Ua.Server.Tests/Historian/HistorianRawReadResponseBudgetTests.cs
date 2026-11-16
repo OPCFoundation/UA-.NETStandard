@@ -242,8 +242,88 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// The last page of a read is sent without a continuation point and may use the
+        /// bytes the budget reserves for one: a single value that fills the message size
+        /// limit with the response framing is returned, and the response encodes within
+        /// the limit.
+        /// </summary>
+        [TestCase(65450)]
+        [TestCase(65464)]
+        public async Task RawReadOfALastValueThatFitsWithoutAContinuationPointReturnsItAsync(int length)
+        {
+            const int maxMessageSize = 64 * 1024;
+            var h = new Harness();
+            // a ByteString of 65450 bytes with its source timestamp is a 65464 byte value,
+            // more than the budget less the continuation point reserve (65462 bytes).
+            NodeId nodeId = h.SeedValues(1, _ => new Variant(ByteString.From(new byte[length])));
+            BaseDataVariableState variable = CreateVariable(nodeId);
+
+            OperationContext operation = h.SystemContext.OperationContext!;
+            operation.StartResponseBudget(ResponseSizeEstimator.GetHistoryReadResponseBudget(maxMessageSize, 1));
+            var result = new HistoryReadResult();
+            ServiceResult error = await ReadAsync(
+                h, variable, nodeId, ByteString.Empty, CreateDetails(uint.MaxValue), result);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(GetValues(result).Count, Is.EqualTo(1));
+
+            var response = new HistoryReadResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 1,
+                    ServiceResult = StatusCodes.Good
+                },
+                Results = [result],
+                DiagnosticInfos = []
+            };
+            var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create())
+            {
+                MaxMessageSize = maxMessageSize
+            };
+            using var encoder = new BinaryEncoder(messageContext);
+            Assert.DoesNotThrow(() => encoder.EncodeMessage(response));
+        }
+
+        /// <summary>
+        /// History values are measured with the nesting limit the server encodes responses
+        /// with, not the default one: values nested deeper than the default but within the
+        /// configured limit are returned.
+        /// </summary>
+        [Test]
+        public async Task RawReadOfValuesNestedWithinTheServerNestingLimitReturnsThemAsync()
+        {
+            const int depth = 250;
+            var h = new Harness(maxEncodingNestingLevels: 300);
+            NodeId nodeId = h.SeedValues(3, ii =>
+            {
+                Variant value = Variant.From(ii);
+                for (int level = 0; level < depth; level++)
+                {
+                    ArrayOf<Variant> elements = [value];
+                    value = new Variant(elements);
+                }
+                return value;
+            });
+            BaseDataVariableState variable = CreateVariable(nodeId);
+
+            OperationContext operation = h.SystemContext.OperationContext!;
+            operation.StartResponseBudget(kBudget);
+            var result = new HistoryReadResult();
+            ServiceResult error = await ReadAsync(
+                h, variable, nodeId, ByteString.Empty, CreateDetails(uint.MaxValue), result);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(GetValues(result).Count, Is.EqualTo(3));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        /// <summary>
         /// The budget of a HistoryRead is the message size limit less the framing of the
-        /// response and of each result; a limit of zero is no budget.
+        /// response and of each result, and an empty diagnostic info per result when the
+        /// client asks for operation diagnostics; a limit of zero is no budget.
         /// </summary>
         [Test]
         public void HistoryReadBudgetReservesTheResponseAndResultFraming()
@@ -253,6 +333,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 ResponseSizeEstimator.GetHistoryReadResponseBudget(65536, 2),
                 Is.EqualTo(65536 - ResponseSizeEstimator.HistoryReadResponseFramingSize -
                     (2 * ResponseSizeEstimator.HistoryReadResultFramingSize)));
+            Assert.That(
+                ResponseSizeEstimator.GetHistoryReadResponseBudget(65536, 2, returnsOperationDiagnostics: true),
+                Is.EqualTo(65536 - ResponseSizeEstimator.HistoryReadResponseFramingSize -
+                    (2 * (ResponseSizeEstimator.HistoryReadResultFramingSize + 1))));
             Assert.That(ResponseSizeEstimator.GetHistoryReadResponseBudget(100, 1000), Is.EqualTo(1));
         }
 
@@ -319,7 +403,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             public static readonly DateTime BaseTime = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            public Harness()
+            public Harness(int maxEncodingNestingLevels = 0)
             {
                 Provider = new InMemoryHistorianProvider(
                     new InMemoryHistorianOptions(),
@@ -337,6 +421,14 @@ namespace Opc.Ua.Server.Tests.Historian
                 server.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
                 server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
                 server.Setup(s => s.Telemetry).Returns(new Mock<ITelemetryContext>().Object);
+                if (maxEncodingNestingLevels > 0)
+                {
+                    server.Setup(s => s.MessageContext).Returns(new ServiceMessageContext(
+                        NUnitTelemetryContext.Create())
+                    {
+                        MaxEncodingNestingLevels = maxEncodingNestingLevels
+                    });
+                }
                 var operation = new OperationContext(
                     new RequestHeader(),
                     null!,

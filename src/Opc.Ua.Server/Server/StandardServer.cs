@@ -2311,7 +2311,8 @@ namespace Opc.Ua.Server
                 }
                 context.StartResponseBudget(ResponseSizeEstimator.GetHistoryReadResponseBudget(
                     GetResponseByteBudget(secureChannelContext),
-                    nodesToRead.Count));
+                    nodesToRead.Count,
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0));
 
                 (ArrayOf<HistoryReadResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.HistoryReadAsync(

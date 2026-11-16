@@ -437,7 +437,9 @@ alone exceeds the limit fails the request with `BadResponseTooLarge`. Because a
 history page must be sent, not refused, its values are measured with the binary
 encoder rather than bounded from below, and the HistoryRead budget leaves room
 for the response header and for each result's status, continuation point and
-history data header. Diagnostics the client asks for are not reserved. Requests
+history data header. The last page of a read has no continuation point and may
+use that room. When the client asks for operation diagnostics, an empty
+diagnostic info is reserved per result; their content is not. Requests
 in other encodings, which can encode below the binary bound, and in-process
 callers of the node managers have no budget.
 

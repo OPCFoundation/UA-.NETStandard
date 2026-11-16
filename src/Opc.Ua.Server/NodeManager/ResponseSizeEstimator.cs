@@ -68,12 +68,20 @@ namespace Opc.Ua.Server
         public const int HistoryReadResponseFramingSize = 4 + (8 + 4 + 4 + 1 + 4 + 3) + 4 + 4;
 
         /// <summary>
+        /// The bytes a history continuation point (a Guid) adds to a result over the null
+        /// continuation point of a result that is complete.
+        /// </summary>
+        public const int HistoryContinuationPointSize = 16;
+
+        /// <summary>
         /// The encoded size of one HistoryRead result without its values, as a history page
         /// is sent: StatusCode, a 16 byte continuation point, the extension object header
-        /// of the history data (four-byte type id, encoding, length), the length of its
-        /// values array and an empty diagnostic info.
+        /// of the history data (four-byte type id, encoding, length) and the length of its
+        /// values array. The last page of a read uses the continuation point bytes for its
+        /// values.
         /// </summary>
-        public const int HistoryReadResultFramingSize = 4 + (4 + 16) + (4 + 1 + 4) + 4 + 1;
+        public const int HistoryReadResultFramingSize =
+            4 + (4 + HistoryContinuationPointSize) + (4 + 1 + 4) + 4;
 
         /// <summary>
         /// The response byte budget of a HistoryRead: the message size limit less the
@@ -82,16 +90,21 @@ namespace Opc.Ua.Server
         /// <paramref name="maxMessageSize"/> is zero.
         /// </summary>
         /// <remarks>
-        /// Diagnostics that the client asks for are not reserved.
+        /// When the client asks for operation diagnostics, an empty diagnostic info is
+        /// reserved per result; the content of diagnostics is not reserved.
         /// </remarks>
-        public static int GetHistoryReadResponseBudget(int maxMessageSize, int resultCount)
+        public static int GetHistoryReadResponseBudget(
+            int maxMessageSize,
+            int resultCount,
+            bool returnsOperationDiagnostics = false)
         {
             if (maxMessageSize <= 0)
             {
                 return 0;
             }
+            int resultFraming = HistoryReadResultFramingSize + (returnsOperationDiagnostics ? 1 : 0);
             long budget = maxMessageSize - HistoryReadResponseFramingSize -
-                ((long)resultCount * HistoryReadResultFramingSize);
+                ((long)resultCount * resultFraming);
             return (int)System.Math.Max(1, budget);
         }
 

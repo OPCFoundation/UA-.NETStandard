@@ -3044,14 +3044,19 @@ namespace Opc.Ua.Server.Historian
                 bool someFit = false;
                 for (int reads = 1; ; reads++)
                 {
-                    // every page read is checked, the last re-read as well.
+                    // every page read is checked, the last re-read as well. The last page
+                    // of the read is sent without a continuation point, so it may use the
+                    // continuation point bytes the budget reserves for its result.
+                    long reserve = page.NextToken.IsEmpty
+                        ? ResponseSizeEstimator.HistoryContinuationPointSize
+                        : 0;
                     (int count, long bytes) = meter.CountValuesThatFit(
                         filled,
-                        operationContext!.ResponseBytesRemaining);
+                        operationContext!.ResponseBytesRemaining + reserve);
                     someFit |= count > 0;
                     if (count == filled.Count)
                     {
-                        fits = operationContext.TryChargeResponse(bytes);
+                        fits = operationContext.TryChargeResponse(Math.Max(0, bytes - reserve));
                         break;
                     }
                     if (count == 0 || reads > kMaxResponseBudgetPageRereads)
@@ -3168,13 +3173,15 @@ namespace Opc.Ua.Server.Historian
         /// Measures the binary encoded size of history values, without storing the bytes.
         /// </summary>
         /// <remarks>
-        /// The encoding limits of the message context do not apply: the measurement only
-        /// sizes the values, the encoder of the response still enforces the limits. A value
-        /// that fails to encode does not fit.
+        /// The length limits of the message context do not apply: the measurement only
+        /// sizes the values, the encoder of the response still enforces the limits. The
+        /// nesting limit is the server's, the one the response is encoded with, which also
+        /// bounds the recursion of the measurement. A value that fails to encode does not
+        /// fit.
         /// </remarks>
         private sealed class EncodedSizeMeter : IDisposable
         {
-            public EncodedSizeMeter(ISystemContext context)
+            public EncodedSizeMeter(ServerSystemContext context)
             {
                 m_context = new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
                 {
@@ -3183,7 +3190,9 @@ namespace Opc.Ua.Server.Historian
                     MaxStringLength = 0,
                     MaxByteStringLength = 0,
                     MaxArrayLength = 0,
-                    MaxMessageSize = 0
+                    MaxMessageSize = 0,
+                    MaxEncodingNestingLevels = context.Server.MessageContext?.MaxEncodingNestingLevels ??
+                        DefaultEncodingLimits.MaxEncodingNestingLevels
                 };
             }
 
@@ -3196,6 +3205,12 @@ namespace Opc.Ua.Server.Historian
                 long bytes = 0;
                 for (int ii = 0; ii < values.Count; ii++)
                 {
+                    // a value whose lower bound does not fit is not encoded: encoding a
+                    // large string buffers all of its UTF-8 bytes.
+                    if (ResponseSizeEstimator.Estimate(values[ii]) > responseBytes - bytes)
+                    {
+                        return (ii, bytes);
+                    }
                     long size = Measure(values[ii]);
                     if (size > responseBytes - bytes)
                     {
