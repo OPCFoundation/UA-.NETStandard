@@ -54,9 +54,6 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// An external DCA proceeds directly to managers and ordinary managed-application signing and installation.
         /// </summary>
-        /// <summary>
-        /// FinishRequest is rejected before dispatch when either channel certificate differs from StartRequest.
-        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExternalHandoffSkipsTicketSelectionAndReusesManagedApplicationProvisioning(bool managed)
@@ -185,8 +182,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(result.ManagedApplications[0].ApplicationId, Is.EqualTo(kManagedId));
         }
 
-        [Test]
-        public async Task NewKeyPairModeRequiresInstallerBeforeConnecting()
+        /// <summary>
+        /// Missing installers reject both initial and managed-application key-pair modes before connecting.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NewKeyPairModeRequiresInstallerBeforeConnecting(bool managedApplication)
         {
             var fixture = new Fixture();
             var credentialProvider = new Mock<IPullDcaCredentialProvider>(MockBehavior.Strict);
@@ -199,7 +200,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 credentialProvider.Object);
             PullDcaRequest request = CreateRequest() with
             {
-                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+                DcaCertificateRequestMode = managedApplication
+                    ? PullDcaCertificateRequestMode.SigningRequest
+                    : PullDcaCertificateRequestMode.NewKeyPairRequest,
+                ManagedApplications = managedApplication
+                    ? [
+                        CreateApplication() with
+                        {
+                            CertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+                        }
+                    ]
+                    : []
             };
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -2095,6 +2106,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
         }
 
+        /// <summary>
+        /// FinishRequest is rejected before dispatch when either channel certificate differs from StartRequest.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task KeyPairFinishRejectsChangedChannelCertificateBeforeDispatch(bool changeClientCertificate)
