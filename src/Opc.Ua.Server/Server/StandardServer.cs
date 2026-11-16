@@ -66,41 +66,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Starts discovery registration after the initial NodeManager readiness callbacks have completed.
-        /// </summary>
-        private void StartRegistrationAfterReadiness()
-        {
-            lock (m_registrationLock)
-            {
-                if (m_registrationInfo is null)
-                {
-                    throw new InvalidOperationException("Server registration information is not initialized.");
-                }
-                if (m_registrationShutdownRequested)
-                {
-                    return;
-                }
-
-                m_registrationInfo.IsOnline = true;
-                if (m_maxRegistrationInterval <= 0)
-                {
-                    return;
-                }
-
-                m_registrationTimer?.Dispose();
-                m_registrationTimer = null;
-                m_registrationStopped = false;
-                m_registrationCts = new CancellationTokenSource();
-                m_logger.ServerRegistrationTimerStarted();
-                m_registrationTimer = TimeProvider.CreateTimer(
-                    OnRegisterServer,
-                    ++m_registrationGeneration,
-                    TimeSpan.FromMilliseconds(m_minRegistrationInterval),
-                    Timeout.InfiniteTimeSpan);
-            }
-        }
-
-        /// <summary>
         /// Initializes a new instance of <see cref="StandardServer"/>
         /// with an explicit <see cref="TimeProvider"/> so the server's
         /// timers and duration calculations can be mocked in tests.
@@ -143,7 +108,12 @@ namespace Opc.Ua.Server
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
-            m_registrationWorkerFactory = registrationWorkerFactory;
+            m_discoveryRegistration = new DiscoveryRegistration(
+                this,
+                () => Configuration,
+                TimeProvider,
+                m_logger,
+                registrationWorkerFactory);
             m_nodeManagerLifecycle = new NodeManagerLifecycle(this, TimeProvider, lifecycleWriterFactory);
             m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
@@ -416,8 +386,8 @@ namespace Opc.Ua.Server
             ServerInternalData? serverInternal = m_serverInternal;
             bool internalsDisposed = serverInternal is null;
 
-            RequestRegistrationShutdown();
-            await RunShutdownStageAsync(failures, StopRegistrationAsync).ConfigureAwait(false);
+            m_discoveryRegistration.RequestShutdown();
+            await RunShutdownStageAsync(failures, m_discoveryRegistration.StopAsync).ConfigureAwait(false);
             RunShutdownStage(failures, DisposeConfigurationWatcher);
             RunShutdownStage(failures, DisposeCertificateManagerSubscription);
 
@@ -3001,278 +2971,9 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask<bool> RegisterWithDiscoveryServerAsync(CancellationToken ct = default)
+        public ValueTask<bool> RegisterWithDiscoveryServerAsync(CancellationToken ct = default)
         {
-            var configuration = new ApplicationConfiguration(Configuration!)
-            {
-                // share the server's CertificateManager so the registration channel uses
-                // the same trust list, rejected store, and cached validation results.
-                // The base copy ctor already propagates the legacy CertificateValidator.
-                CertificateManager = CertificateManager!
-            };
-
-            // try each endpoint.
-            if (m_registrationEndpoints != null)
-            {
-                foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
-                {
-                    RegistrationClient? client = null;
-                    int i = 0;
-
-                    while (i++ < 2)
-                    {
-                        try
-                        {
-                            // update from the server.
-                            bool updateRequired = true;
-
-                            lock (m_registrationLock)
-                            {
-                                updateRequired = endpoint.UpdateBeforeConnect;
-                            }
-
-                            if (updateRequired)
-                            {
-                                await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
-                            }
-
-                            lock (m_registrationLock)
-                            {
-                                endpoint.UpdateBeforeConnect = false;
-                            }
-
-                            var requestHeader = new RequestHeader
-                            {
-                                Timestamp = TimeProvider.GetUtcNow().UtcDateTime
-                            };
-
-                            // create the client. The registration channel takes
-                            // ownership of the instance certificate handle and
-                            // disposes it on close, so hand it an independent
-                            // ref-counted handle (AddRef) and dispose the
-                            // acquired entry here.
-                            using CertificateEntry? instanceEntry =
-                                CertificateManager!.AcquireApplicationCertificateBySecurityPolicy(
-                                    endpoint.Description?.SecurityPolicyUri ??
-                                    SecurityPolicies.None);
-                            Certificate? instanceCertificate =
-                                instanceEntry?.Certificate?.AddRef();
-                            try
-                            {
-                                client = await RegistrationClient.CreateAsync(
-                                    configuration,
-                                    endpoint.Description!,
-                                    endpoint.Configuration!,
-                                    instanceCertificate!,
-                                    ct: ct).ConfigureAwait(false);
-
-                                // Ownership of the AddRef'd handle has transferred
-                                // to the registration channel, which disposes it
-                                // when the channel closes.
-                                instanceCertificate = null;
-                            }
-                            finally
-                            {
-                                instanceCertificate?.Dispose();
-                            }
-
-                            client.OperationTimeout = 10000;
-
-                            // register the server.
-                            if (m_useRegisterServer2)
-                            {
-                                var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
-                                {
-                                    ServerCapabilities = configuration.ServerConfiguration!
-                                        .ServerCapabilities,
-                                    MdnsServerName = Utils.GetHostName()
-                                };
-                                var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
-                                ArrayOf<ExtensionObject> discoveryConfiguration = [extensionObject];
-                                await client.RegisterServer2Async(
-                                    requestHeader,
-                                    m_registrationInfo,
-                                    discoveryConfiguration,
-                                    ct).ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                await client.RegisterServerAsync(
-                                    requestHeader,
-                                    m_registrationInfo,
-                                    ct)
-                                    .ConfigureAwait(false);
-                            }
-
-                            m_registeredWithDiscoveryServer = m_registrationInfo!.IsOnline;
-                            return true;
-                        }
-                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                        {
-                            throw;
-                        }
-                        catch (Exception e)
-                        {
-                            m_logger.RegisterServerApiFailedForEndpointUrlException(
-                                m_useRegisterServer2 ? "2" : string.Empty,
-                                endpoint.EndpointUrl,
-                                e.Message);
-                            m_useRegisterServer2 = !m_useRegisterServer2;
-                        }
-                        finally
-                        {
-                            if (client != null)
-                            {
-                                try
-                                {
-                                    await client.CloseAsync(ct).ConfigureAwait(false);
-                                }
-                                catch (Exception e)
-                                {
-                                    m_logger.NotCleanlyCloseConnectionWithLDSException(e.Message);
-                                }
-                                finally
-                                {
-                                    client.Dispose();
-                                    client = null;
-                                }
-                            }
-                        }
-                    }
-                }
-                // retry to start with RegisterServer2 if both failed
-                m_useRegisterServer2 = true;
-            }
-
-            m_registeredWithDiscoveryServer = false;
-            return false;
-        }
-
-        /// <summary>
-        /// Registers the server endpoints with the LDS.
-        /// </summary>
-        /// <param name="state">The state.</param>
-        private void OnRegisterServer(object? state)
-        {
-            long generation = (long)state!;
-            lock (m_registrationLock)
-            {
-                if (m_registrationStopped ||
-                    generation != m_registrationGeneration ||
-                    m_registrationTask is { IsCompleted: false })
-                {
-                    return;
-                }
-                m_registrationTimer?.Dispose();
-                m_registrationTimer = null;
-                m_registrationTask = m_registrationWorkerFactory is { } factory
-                    ? factory(m_registrationCts!.Token)
-                    : RegisterServerIterationAsync(generation, m_registrationCts!.Token);
-            }
-        }
-
-        /// <summary>
-        /// Attempts discovery registration and schedules the next retry only for the active registration generation.
-        /// </summary>
-        private async Task RegisterServerIterationAsync(long generation, CancellationToken cancellationToken)
-        {
-            try
-            {
-                bool registered = await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
-                lock (m_registrationLock)
-                {
-                    if (m_registrationStopped ||
-                        generation != m_registrationGeneration ||
-                        cancellationToken.IsCancellationRequested ||
-                        m_maxRegistrationInterval <= 0)
-                    {
-                        return;
-                    }
-                    int delay;
-                    if (registered)
-                    {
-                        delay = m_maxRegistrationInterval;
-                        m_lastRegistrationInterval = m_minRegistrationInterval;
-                        m_logger.RegisterServerSucceededRegisteringAgainInRegistrationInterval(delay);
-                    }
-                    else
-                    {
-                        delay = (int)Math.Min((long)m_lastRegistrationInterval * 2, m_maxRegistrationInterval);
-                        m_lastRegistrationInterval = delay;
-                        m_logger.RegisterServerFailedTryingAgainInRegistrationInterval(delay);
-                    }
-                    m_registrationTimer = TimeProvider.CreateTimer(
-                        OnRegisterServer,
-                        ++m_registrationGeneration,
-                        TimeSpan.FromMilliseconds(delay),
-                        Timeout.InfiniteTimeSpan);
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                // The registration owner is stopping.
-            }
-            catch (Exception e)
-            {
-                m_logger.UnexpectedExceptionHandlingRegistrationTimer(e);
-            }
-        }
-
-        /// <summary>
-        /// Prevents registration rearming, cancels the active attempt and drains it before releasing cancellation
-        /// state.
-        /// </summary>
-        private async ValueTask StopRegistrationAsync()
-        {
-            CancellationTokenSource? cancellation;
-            Task? registration;
-            lock (m_registrationLock)
-            {
-                m_registrationStopped = true;
-                m_registrationGeneration++;
-                m_registrationTimer?.Dispose();
-                m_registrationTimer = null;
-                cancellation = m_registrationCts;
-                m_registrationCts = null;
-                registration = m_registrationTask;
-            }
-
-            var failures = new List<Exception>();
-            try
-            {
-                await RunShutdownStageAsync(failures, () =>
-                {
-                    cancellation?.Cancel();
-                    return default;
-                }).ConfigureAwait(false);
-                if (registration != null)
-                {
-                    await RunShutdownStageAsync(failures, () => new ValueTask(registration)).ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                cancellation?.Dispose();
-                lock (m_registrationLock)
-                {
-                    if (ReferenceEquals(m_registrationTask, registration))
-                    {
-                        m_registrationTask = null;
-                    }
-                }
-            }
-            if (failures.Count != 0)
-            {
-                throw new AggregateException("Discovery registration shutdown failed.", failures);
-            }
-        }
-
-        private void RequestRegistrationShutdown()
-        {
-            lock (m_registrationLock)
-            {
-                m_registrationShutdownRequested = true;
-            }
+            return m_discoveryRegistration.RegisterAsync(ct);
         }
 
         /// <summary>
@@ -3865,10 +3566,7 @@ namespace Opc.Ua.Server
             m_semaphoreSlim.Wait();
             try
             {
-                lock (m_registrationLock)
-                {
-                    m_registrationShutdownRequested = false;
-                }
+                m_discoveryRegistration.ClearShutdownRequest();
                 base.OnServerStarting(configuration);
                 InitializeResourceIsolation(configuration, MessageContext.Telemetry);
 
@@ -3878,7 +3576,7 @@ namespace Opc.Ua.Server
                 m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
 
                 // try first RegisterServer2
-                m_useRegisterServer2 = true;
+                m_discoveryRegistration.PreferRegisterServer2();
             }
             finally
             {
@@ -4592,73 +4290,12 @@ namespace Opc.Ua.Server
                 ServerError = null!;
 
                 // setup registration information.
-                await StopRegistrationAsync().ConfigureAwait(false);
-                lock (m_registrationLock)
-                {
-                    m_maxRegistrationInterval = configuration.ServerConfiguration!
-                        .MaxRegistrationInterval;
-
-                    ApplicationDescription serverDescription = ServerDescription!;
-
-                    m_registrationInfo = new RegisteredServer
-                    {
-                        ServerUri = serverDescription.ApplicationUri!
-                    };
-                    m_registrationInfo.ServerNames += serverDescription.ApplicationName;
-                    m_registrationInfo.ProductUri = serverDescription.ProductUri;
-                    m_registrationInfo.ServerType = serverDescription.ApplicationType;
-                    m_registrationInfo.GatewayServerUri = null;
-                    m_registrationInfo.IsOnline = false;
-                    m_registrationInfo.SemaphoreFilePath = null;
-
-                    // add all discovery urls.
-                    string computerName = Utils.GetHostName();
-
-                    var discoveryUrls = new List<string>();
-                    for (int ii = 0; ii < BaseAddresses.Count; ii++)
-                    {
-                        var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl!);
-
-                        if (string.Equals(
-                            uri.Host,
-                            "localhost",
-                            StringComparison.OrdinalIgnoreCase))
-                        {
-                            uri.Host = computerName;
-                        }
-
-                        discoveryUrls.Add(uri.ToString());
-                    }
-                    m_registrationInfo.DiscoveryUrls = discoveryUrls;
-
-                    // build list of registration endpoints.
-                    m_registrationEndpoints = new ConfiguredEndpointCollection(configuration);
-
-                    EndpointDescription? endpoint = configuration.ServerConfiguration
-                        .RegistrationEndpoint;
-
-                    if (endpoint == null)
-                    {
-                        endpoint = new EndpointDescription
-                        {
-                            EndpointUrl = Utils.Format(Utils.DiscoveryUrls[0], "localhost"),
-                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
-                                MessageSecurityMode.SignAndEncrypt,
-                                SecurityPolicies.Basic256Sha256,
-                                m_logger),
-                            SecurityMode = MessageSecurityMode.SignAndEncrypt,
-                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
-                        };
-                        endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-                    }
-
-                    m_registrationEndpoints.Add(endpoint);
-
-                    m_registeredWithDiscoveryServer = false;
-                    m_minRegistrationInterval = 1000;
-                    m_lastRegistrationInterval = m_minRegistrationInterval;
-
-                }
+                await m_discoveryRegistration
+                    .ConfigureAsync(
+                        configuration,
+                        ServerDescription!,
+                        BaseAddresses.Select(address => address.DiscoveryUrl).ToList())
+                    .ConfigureAwait(false);
             }
             catch (OperationCanceledException cancellation)
                 when (cancellationToken.IsCancellationRequested)
@@ -4712,7 +4349,7 @@ namespace Opc.Ua.Server
                 }
                 // Application setup servers enter NoConfiguration (OPC 10000-12 G.2).
                 SetServerState(StartupServerState);
-                StartRegistrationAfterReadiness();
+                m_discoveryRegistration.StartAfterReadiness();
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -4939,12 +4576,12 @@ namespace Opc.Ua.Server
                 ? new ShutdownProgress()
                 : m_shutdownProgress.GetValue(serverInternal, static _ => new ShutdownProgress());
             var failures = new List<Exception>();
-            RequestRegistrationShutdown();
+            m_discoveryRegistration.RequestShutdown();
             await RunShutdownStageOnceAsync(
                 progress, ShutdownStage.Delay, failures, () => WaitForShutdownDelayAsync(cancellationToken))
                 .ConfigureAwait(false);
             await RunShutdownStageOnceAsync(
-                progress, ShutdownStage.Registration, failures, StopRegistrationAsync).ConfigureAwait(false);
+                progress, ShutdownStage.Registration, failures, m_discoveryRegistration.StopAsync).ConfigureAwait(false);
             await RunShutdownStageOnceAsync(progress, ShutdownStage.ConfigurationWatcher, failures, () =>
             {
                 m_configurationWatcher?.Dispose();
@@ -4959,14 +4596,8 @@ namespace Opc.Ua.Server
             }).ConfigureAwait(false);
             if ((progress.CompletedStages & ShutdownStage.Registration) != 0)
             {
-                await RunShutdownStageOnceAsync(progress, ShutdownStage.Discovery, failures, async () =>
-                {
-                    if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
-                    {
-                        m_registrationInfo!.IsOnline = false;
-                        await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
-                    }
-                }).ConfigureAwait(false);
+                await RunShutdownStageOnceAsync(progress, ShutdownStage.Discovery, failures,
+                    () => m_discoveryRegistration.UnregisterAsync(cancellationToken)).ConfigureAwait(false);
             }
 
             if (serverInternal is not null)
@@ -5194,7 +4825,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static async Task RunShutdownStageAsync(
+        internal static async Task RunShutdownStageAsync(
             List<Exception> failures,
             Func<ValueTask> stage)
         {
@@ -6104,7 +5735,6 @@ namespace Opc.Ua.Server
         private OperationLimitsState OperationLimits
             => ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!;
 
-        private readonly Lock m_registrationLock = new();
         private readonly Lock m_shutdownStateLock = new();
 
         [SuppressMessage(
@@ -6142,45 +5772,13 @@ namespace Opc.Ua.Server
         }
 
         private ConfigurationWatcher? m_configurationWatcher;
-        private ConfiguredEndpointCollection? m_registrationEndpoints;
-        private RegisteredServer? m_registrationInfo;
-        private ITimer? m_registrationTimer;
+        private readonly DiscoveryRegistration m_discoveryRegistration;
 
         /// <summary>
-        /// Creates discovery-registration workers when supplied at construction.
+        /// The LDS registration component (exposed for tests).
         /// </summary>
-        private readonly Func<CancellationToken, Task>? m_registrationWorkerFactory;
-
-        /// <summary>
-        /// Cancels the currently owned discovery-registration attempt during shutdown.
-        /// </summary>
-        private CancellationTokenSource? m_registrationCts;
-
-        /// <summary>
-        /// Tracks the registration attempt that shutdown must drain.
-        /// </summary>
-        private Task? m_registrationTask;
-
-        /// <summary>
-        /// Distinguishes current registration callbacks from callbacks belonging to a retired timer.
-        /// </summary>
-        private long m_registrationGeneration;
-
-        /// <summary>
-        /// Prevents startup readiness from rearming registration after the shutdown stage has run.
-        /// </summary>
-        private bool m_registrationShutdownRequested;
-
-        /// <summary>
-        /// Prevents discovery-registration callbacks from starting or rearming after shutdown.
-        /// </summary>
-        private bool m_registrationStopped = true;
-        private int m_minRegistrationInterval;
-        private int m_maxRegistrationInterval;
-        private int m_lastRegistrationInterval;
-        private bool m_registeredWithDiscoveryServer;
+        internal DiscoveryRegistration DiscoveryRegistration => m_discoveryRegistration;
         private int m_minNonceLength;
-        private bool m_useRegisterServer2;
         private readonly List<INodeManagerFactory> m_nodeManagerFactories = [];
         private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
 
