@@ -133,6 +133,12 @@ namespace Opc.Ua.Gds.Server
         /// <param name="certificateTypeId">The certificate type.</param>
         /// <param name="signedCertificate">The signed certificate.</param>
         /// <param name="privateKey">The private key, if requested.</param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadUserAccessDenied"/> when the request is bound to an initiating
+        /// client certificate. Use
+        /// <see cref="IClientCertificateBoundCertificateRequestStore.FinishBoundRequest"/> with the matching
+        /// client-certificate fingerprint to finish a bound request.
+        /// </exception>
         CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,

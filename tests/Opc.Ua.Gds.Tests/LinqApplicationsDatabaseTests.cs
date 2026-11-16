@@ -368,6 +368,103 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// A legacy request without a client-certificate binding must be replaced with a new request.
+        /// </summary>
+        [TestCase(false, CertificateRequestState.New)]
+        [TestCase(false, CertificateRequestState.Approved)]
+        [TestCase(false, CertificateRequestState.Accepted)]
+        [TestCase(true, CertificateRequestState.New)]
+        [TestCase(true, CertificateRequestState.Approved)]
+        [TestCase(true, CertificateRequestState.Accepted)]
+        public void LegacyPersistedRequestWithoutCertificateBindingMustBeReRequested(
+            bool newKeyPair,
+            CertificateRequestState state)
+        {
+            string fileName = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:legacy", "Legacy"));
+                NodeId legacyRequest = newKeyPair
+                    ? database.StartNewKeyPairRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        "CN=Legacy",
+                        ["localhost"],
+                        "PFX",
+                        ReadOnlySpan<char>.Empty,
+                        "admin")
+                    : database.StartSigningRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        ByteString.From([1, 2, 3]),
+                        "admin");
+                if (state == CertificateRequestState.Approved)
+                {
+                    database.ApproveRequest(legacyRequest, false);
+                }
+                else if (state == CertificateRequestState.Accepted)
+                {
+                    database.AcceptRequest(legacyRequest, ByteString.From([9, 8, 7]));
+                }
+
+                JsonObject document = JsonNode.Parse(File.ReadAllText(fileName))!.AsObject();
+                JsonObject request = document["CertificateRequests"]!.AsArray()[0]!.AsObject();
+                request.Remove("ClientCertificateFingerprint");
+                File.WriteAllText(fileName, document.ToJsonString());
+
+                database = JsonApplicationsDatabase.Load(fileName);
+                ByteString fingerprint = CreateFingerprint(1);
+                Assert.That(
+                    () => database.FinishBoundRequest(
+                        application, legacyRequest, fingerprint, out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+
+                NodeId replacementRequest = newKeyPair
+                    ? database.StartBoundNewKeyPairRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        "CN=Replacement",
+                        ["localhost"],
+                        "PFX",
+                        ReadOnlySpan<char>.Empty,
+                        fingerprint,
+                        "admin")
+                    : database.StartBoundSigningRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        ByteString.From([4, 5, 6]),
+                        fingerprint,
+                        "admin");
+                Assert.That(replacementRequest, Is.Not.EqualTo(legacyRequest));
+                database.ApproveRequest(replacementRequest, false);
+
+                Assert.That(
+                    () => database.FinishBoundRequest(
+                        application, legacyRequest, fingerprint, out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(
+                    database.FinishBoundRequest(
+                        application, replacementRequest, fingerprint, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Approved));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
+        /// <summary>
         /// Pending signing requests retain recovery evidence without publishing issued credentials.
         /// </summary>
         [Test]

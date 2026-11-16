@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
@@ -131,6 +132,54 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(
                 provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
                 Is.InstanceOf<LinqApplicationsDatabase>());
+        }
+
+        [Test]
+        public void AddLegacyCertificateRequestThenInMemoryStoresDoesNotRegisterBoundStore()
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddCertificateRequest<LegacyCertificateRequestStore>()
+                .AddInMemoryStores();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetService<IClientCertificateBoundCertificateRequestStore>(), Is.Null);
+            Assert.That(
+                provider.GetRequiredService<ICertificateRequest>(),
+                Is.InstanceOf<LegacyCertificateRequestStore>());
+        }
+
+        [Test]
+        public void AddCertificateRequestPreservesSeparateBoundStoreRegistration()
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            IClientCertificateBoundCertificateRequestStore boundStore =
+                new Mock<IClientCertificateBoundCertificateRequestStore>().Object;
+            services.AddSingleton<IClientCertificateBoundCertificateRequestStore>(boundStore);
+            services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddCertificateRequest<LegacyCertificateRequestStore>()
+                .AddInMemoryStores();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            IClientCertificateBoundCertificateRequestStore? managerStore = null;
+            GdsServerHostedService.ConfigureClientCertificateBoundRequestStore(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                requestStore => managerStore = requestStore);
+
+            Assert.That(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                Is.SameAs(boundStore));
+            Assert.That(managerStore, Is.SameAs(boundStore));
+
+            bool configuredWithoutStore = false;
+            GdsServerHostedService.ConfigureClientCertificateBoundRequestStore(
+                null,
+                _ => configuredWithoutStore = true);
+            Assert.That(configuredWithoutStore, Is.False);
         }
 
         [Test]
@@ -410,6 +459,74 @@ namespace Opc.Ua.Gds.Tests.Hosting
         private static int CountRegistrations<T>(IServiceCollection services)
         {
             return services.Count(d => d.ServiceType == typeof(T));
+        }
+
+        private sealed class LegacyCertificateRequestStore : ICertificateRequest
+        {
+            public ushort NamespaceIndex { get; set; }
+
+            public void Initialize()
+            {
+                throw new NotImplementedException();
+            }
+
+            public NodeId StartSigningRequest(
+                NodeId applicationId,
+                string certificateGroupId,
+                string certificateTypeId,
+                ByteString certificateRequest,
+                string authorityId)
+            {
+                throw new NotImplementedException();
+            }
+
+            public NodeId StartNewKeyPairRequest(
+                NodeId applicationId,
+                string certificateGroupId,
+                string certificateTypeId,
+                string subjectName,
+                ArrayOf<string> domainNames,
+                string privateKeyFormat,
+                ReadOnlySpan<char> privateKeyPassword,
+                string authorityId)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void ApproveRequest(NodeId requestId, bool isRejected)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void AcceptRequest(NodeId requestId, ByteString certificate)
+            {
+                throw new NotImplementedException();
+            }
+
+            public CertificateRequestState FinishRequest(
+                NodeId applicationId,
+                NodeId requestId,
+                out string? certificateGroupId,
+                out string? certificateTypeId,
+                out ByteString signedCertificate,
+                out ByteString privateKey)
+            {
+                throw new NotImplementedException();
+            }
+
+            public CertificateRequestState ReadRequest(
+                NodeId applicationId,
+                NodeId requestId,
+                out string? certificateGroupId,
+                out string? certificateTypeId,
+                out ByteString certificateRequest,
+                out string? subjectName,
+                out string[]? domainNames,
+                out string? privateKeyFormat,
+                out ReadOnlySpan<char> privateKeyPassword)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private sealed class TestIdentityHandler : IIdentityAugmenter, IUserTokenAuthenticator

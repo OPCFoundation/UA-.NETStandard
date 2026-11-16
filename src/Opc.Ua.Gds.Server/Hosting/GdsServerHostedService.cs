@@ -186,6 +186,25 @@ namespace Opc.Ua.Gds.Server.Hosting
                     "matching AddApplicationsDatabase, AddCertificateRequest, AddCertificateGroup, or AddUserDatabase method.");
         }
 
+        /// <summary>
+        /// Applies a separately registered binding-aware request store to the hosted node manager.
+        /// </summary>
+        /// <param name="requestStore">The optional registered binding-aware request store.</param>
+        /// <param name="configure">The node-manager configuration action.</param>
+        internal static void ConfigureClientCertificateBoundRequestStore(
+            IClientCertificateBoundCertificateRequestStore? requestStore,
+            Action<IClientCertificateBoundCertificateRequestStore> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            if (requestStore is not null)
+            {
+                configure(requestStore);
+            }
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             string appName = ResolveApplicationName(m_options);
@@ -283,13 +302,12 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_keyCredentialStore,
                 m_configurationStore,
                 m_options.AutoApprove,
-                m_enableBuiltInApplicationSelfAdminProvider);
+                m_enableBuiltInApplicationSelfAdminProvider,
+                m_services.GetService<IClientCertificateBoundCertificateRequestStore>());
             GdsDeviceRegistrarRegistration? registrar =
                 m_services.GetService<GdsDeviceRegistrarRegistration>();
             m_server.DeviceRegistrarCertificateAuthorization = registrar?.CertificateAuthorization;
             m_server.CertificateRequestIssuanceStore = m_services.GetService<ICertificateRequestIssuanceStore>();
-            m_server.ClientCertificateBoundRequestStore =
-                m_certificateRequest as IClientCertificateBoundCertificateRequestStore;
             m_server.DeviceRegistrarPushEnrollments =
                 m_services.GetService<SecretStoreDeviceRegistrarPushEnrollmentProvider>();
             m_server.DeviceRegistrarFactory = registrar?.Factory;
@@ -694,7 +712,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                 IKeyCredentialRequestStore? keyCredentialStore,
                 IConfigurationDataStore? configurationStore,
                 bool autoApprove,
-                bool enableApplicationSelfAdminProvider)
+                bool enableApplicationSelfAdminProvider,
+                IClientCertificateBoundCertificateRequestStore? clientCertificateBoundRequestStore)
                 : base(
                     database,
                     request,
@@ -711,6 +730,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_keyCredentialStore = keyCredentialStore;
                 m_configurationStore = configurationStore;
                 m_autoApprove = autoApprove;
+                ClientCertificateBoundRequestStore = clientCertificateBoundRequestStore;
             }
 
             /// <summary>
@@ -808,9 +828,9 @@ namespace Opc.Ua.Gds.Server.Hosting
                             applications.DeviceRegistrarCertificateAuthorization =
                                 DeviceRegistrarCertificateAuthorization;
                             applications.CertificateRequestIssuanceStore = CertificateRequestIssuanceStore;
-                            applications.ClientCertificateBoundRequestStore =
-                                ClientCertificateBoundRequestStore ?? m_request as
-                                    IClientCertificateBoundCertificateRequestStore;
+                            ConfigureClientCertificateBoundRequestStore(
+                                ClientCertificateBoundRequestStore,
+                                requestStore => applications.ClientCertificateBoundRequestStore = requestStore);
                             DeviceRegistrarPushEnrollments?.Bind(applications);
                         })
                 };
