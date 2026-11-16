@@ -135,11 +135,50 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         [Test]
+        public void AddCertificateRequestGenericUsesLastBindingAwareStore()
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddCertificateRequest<LinqApplicationsDatabase>()
+                .AddCertificateRequest<SecondBoundCertificateRequestStore>();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            SecondBoundCertificateRequestStore requestStore =
+                provider.GetRequiredService<SecondBoundCertificateRequestStore>();
+            Assert.That(provider.GetRequiredService<ICertificateRequest>(), Is.SameAs(requestStore));
+            Assert.That(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                Is.SameAs(requestStore));
+        }
+
+        [Test]
+        public void AddInMemoryStoresThenBoundRequestUsesReplacement()
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddInMemoryStores()
+                .AddCertificateRequest<SecondBoundCertificateRequestStore>();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            SecondBoundCertificateRequestStore requestStore =
+                provider.GetRequiredService<SecondBoundCertificateRequestStore>();
+            Assert.That(provider.GetRequiredService<ICertificateRequest>(), Is.SameAs(requestStore));
+            Assert.That(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                Is.SameAs(requestStore));
+        }
+
+        [Test]
         public void AddLegacyCertificateRequestThenInMemoryStoresDoesNotRegisterBoundStore()
         {
             IServiceCollection services = CreateServicesWithStoreDependencies();
             services.AddOpcUa()
                 .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddCertificateRequest<LinqApplicationsDatabase>()
                 .AddCertificateRequest<LegacyCertificateRequestStore>()
                 .AddInMemoryStores();
 
@@ -152,15 +191,42 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         [Test]
-        public void AddCertificateRequestPreservesSeparateBoundStoreRegistration()
+        public void AddInMemoryStoresThenLegacyRequestDoesNotRegisterBoundStore()
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddInMemoryStores()
+                .AddCertificateRequest<LegacyCertificateRequestStore>();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetService<IClientCertificateBoundCertificateRequestStore>(), Is.Null);
+            Assert.That(
+                provider.GetRequiredService<ICertificateRequest>(),
+                Is.InstanceOf<LegacyCertificateRequestStore>());
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void AddCertificateRequestPreservesSeparateBoundStoreRegistration(
+            bool registerBoundStoreBeforeBuilder)
         {
             IServiceCollection services = CreateServicesWithStoreDependencies();
             IClientCertificateBoundCertificateRequestStore boundStore =
                 new Mock<IClientCertificateBoundCertificateRequestStore>().Object;
-            services.AddSingleton<IClientCertificateBoundCertificateRequestStore>(boundStore);
-            services.AddOpcUa()
+            if (registerBoundStoreBeforeBuilder)
+            {
+                services.AddSingleton<IClientCertificateBoundCertificateRequestStore>(boundStore);
+            }
+            IGdsServerBuilder builder = services.AddOpcUa()
                 .AddGdsServer(options => options.ApplicationName = "TestGds")
-                .AddCertificateRequest<LegacyCertificateRequestStore>()
+                .AddCertificateRequest<LinqApplicationsDatabase>();
+            if (!registerBoundStoreBeforeBuilder)
+            {
+                services.AddSingleton<IClientCertificateBoundCertificateRequestStore>(boundStore);
+            }
+            builder.AddCertificateRequest<LegacyCertificateRequestStore>()
                 .AddInMemoryStores();
 
             using ServiceProvider provider = services.BuildServiceProvider();
@@ -482,6 +548,11 @@ namespace Opc.Ua.Gds.Tests.Hosting
         {
             return services.Count(d => d.ServiceType == typeof(T));
         }
+
+        /// <summary>
+        /// Provides a second binding-aware store type for replacement registration tests.
+        /// </summary>
+        private sealed class SecondBoundCertificateRequestStore : LinqApplicationsDatabase;
 
         private sealed class LegacyCertificateRequestStore : ICertificateRequest
         {
