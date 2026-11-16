@@ -354,6 +354,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(progress.Items[^1].Stage, Is.EqualTo(expectedStage));
             Assert.That(progress.Items[^1].ApplicationId, Is.EqualTo(kDcaId));
             Assert.That(progress.Items[^1].RequestId, Is.EqualTo(kRequestId));
+            Assert.That(
+                fixture.Connection.LastReturnedPrivateKeyPfx.ToArray(),
+                Is.EqualTo(new byte[kPrivateKeyPfx.Length]));
             Assert.That(progress.Items.Any(p => p.Stage == PullDcaStage.Completed), Is.False);
         }
 
@@ -1770,6 +1773,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// Gets or sets the PFX returned by a new key-pair request.
             /// </summary>
             public ByteString NewKeyPairPrivateKeyPfx { get; set; } = kPrivateKeyPfx;
+
+            /// <summary>
+            /// Gets the last PFX buffer returned to the workflow.
+            /// </summary>
+            public ByteString LastReturnedPrivateKeyPfx { get; private set; }
+
             public Action? AfterFinish { get; set; }
             public Func<CancellationToken, Task>? IdentityWait { get; set; }
 
@@ -1882,8 +1891,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
                 }
+                LastReturnedPrivateKeyPfx = NewKeyPairPrivateKeyPfx.Copy();
                 return new ValueTask<(ByteString, ByteString, ArrayOf<ByteString>)>(
-                    (NewKeyPairCertificate, NewKeyPairPrivateKeyPfx.Copy(), new[] { kIssuer }.ToArrayOf()));
+                    (NewKeyPairCertificate, LastReturnedPrivateKeyPfx, new[] { kIssuer }.ToArrayOf()));
             }
 
             public async ValueTask<TrustListDataType> ReadTrustListAsync(
