@@ -37,6 +37,7 @@ covers cross-cutting changes.
 - [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
 - [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
 - [Transport resource limits](#transport-resource-limits)
+- [Identity token secret size limits](#identity-token-secret-size-limits)
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
@@ -1022,6 +1023,27 @@ for legitimate large transfers without relying on continuation chunks to
 extend it indefinitely. A zero or negative value uses the 30-second default
 for message assembly. It does not disable assembly cleanup. See
 [incomplete-message limits](Transports.md#incomplete-message-resource-limits).
+
+## Identity token secret size limits
+
+Servers now reject an encrypted `UserName` password longer than **1 024 bytes**
+and `IssuedIdentityToken` token data longer than **16 384 bytes** with
+`Bad_IdentityTokenInvalid`, before any authenticator runs. In 1.5.x the server
+decrypted a legacy RSA token secret of any length one RSA block at a time, so a
+1 MB secret cost about 2 s of CPU per `ActivateSession`. The limits apply to
+the legacy RSA format, `RSAEncryptedSecret` and the ECC `EncryptedSecret`.
+
+The limits are fixed and cannot be configured. A deployment affected by them:
+
+- moves bearer tokens longer than 1 024 bytes from the password field to an
+  `IssuedIdentityToken`;
+- keeps issued tokens under 16 KiB by trimming the claims the identity provider
+  adds, or by switching it to reference tokens;
+- that calls `SecurityPolicies.Decrypt` or `DecryptAsync` for its own data
+  larger than 16 KiB plus a 128-byte nonce, decrypts with `RsaUtils` or its own
+  RSA code instead.
+
+See [encrypted token secret size limits](IdentityProviders.md#encrypted-token-secret-size-limits).
 
 ## Migrating channel subclasses that override HandleIncomingMessage
 
