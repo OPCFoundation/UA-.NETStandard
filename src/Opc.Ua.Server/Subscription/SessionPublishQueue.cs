@@ -905,47 +905,37 @@ namespace Opc.Ua.Server
         /// </summary>
         private QueuedSubscription? GetSubscriptionToPublish()
         {
-            var availableSubscriptions = new List<QueuedSubscription>();
+            // find the available subscription with the highest priority that has been waiting
+            // the longest, in one pass so that no list is allocated per Publish.
+            byte maxPriority = 0;
+            DateTime earliestTimestamp = DateTime.MaxValue;
+            QueuedSubscription? subscriptionToPublish = null;
 
             foreach (KeyValuePair<uint, QueuedSubscription> entry in m_queuedSubscriptions)
             {
                 QueuedSubscription subscription = entry.Value;
-                if (subscription.ReadyToPublish && !subscription.Publishing)
+                if (!subscription.ReadyToPublish || subscription.Publishing)
                 {
-                    availableSubscriptions.Add(subscription);
+                    continue;
+                }
+
+                byte priority = subscription.Subscription.Priority;
+
+                if (priority > maxPriority)
+                {
+                    maxPriority = priority;
+                    earliestTimestamp = DateTime.MaxValue;
+                }
+
+                if (priority >= maxPriority && earliestTimestamp > subscription.Timestamp)
+                {
+                    earliestTimestamp = subscription.Timestamp;
+                    subscriptionToPublish = subscription;
                 }
             }
 
-            // find the subscription that has been waiting the longest.
-            if (availableSubscriptions.Count > 0)
-            {
-                byte maxPriority = 0;
-                DateTime earliestTimestamp = DateTime.MaxValue;
-                QueuedSubscription? subscriptionToPublish = null;
-
-                for (int ii = 0; ii < availableSubscriptions.Count; ii++)
-                {
-                    QueuedSubscription subscription = availableSubscriptions[ii];
-                    byte priority = subscription.Subscription.Priority;
-
-                    if (priority > maxPriority)
-                    {
-                        maxPriority = priority;
-                        earliestTimestamp = DateTime.MaxValue;
-                    }
-
-                    if (priority >= maxPriority && earliestTimestamp > subscription.Timestamp)
-                    {
-                        earliestTimestamp = subscription.Timestamp;
-                        subscriptionToPublish = subscription;
-                    }
-                }
-
-                subscriptionToPublish!.Publishing = true;
-                return subscriptionToPublish;
-            }
-
-            return null;
+            subscriptionToPublish?.Publishing = true;
+            return subscriptionToPublish;
         }
 
         /// <summary>

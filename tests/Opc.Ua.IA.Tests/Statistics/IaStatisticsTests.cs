@@ -2021,6 +2021,9 @@ namespace Opc.Ua.IA.Tests.Statistics
         [TestCase(BuiltInType.ExtensionObject)]
         [TestCase(BuiltInType.DataValue)]
         [TestCase(BuiltInType.LocalizedText)]
+        [TestCase(BuiltInType.Number)]
+        [TestCase(BuiltInType.Integer)]
+        [TestCase(BuiltInType.UInteger)]
         public async Task MalformedMutableScalarRejectsBeforePublication(BuiltInType builtInType)
         {
             byte[] buffer = [1, 2, 3];
