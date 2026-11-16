@@ -186,6 +186,42 @@ namespace Opc.Ua.Gds.Server.Hosting
                     "matching AddApplicationsDatabase, AddCertificateRequest, AddCertificateGroup, or AddUserDatabase method.");
         }
 
+        /// <summary>
+        /// Applies a separately registered binding-aware request store to the hosted node manager.
+        /// </summary>
+        /// <param name="requestStore">The optional registered binding-aware request store.</param>
+        /// <param name="configure">The node-manager configuration action.</param>
+        internal static void ConfigureClientCertificateBoundRequestStore(
+            IClientCertificateBoundCertificateRequestStore? requestStore,
+            Action<IClientCertificateBoundCertificateRequestStore> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            if (requestStore is not null)
+            {
+                configure(requestStore);
+            }
+        }
+
+        /// <summary>
+        /// Selects the registered binding-aware request store, falling back to the legacy request store when possible.
+        /// </summary>
+        /// <param name="registeredRequestStore">The optional separately registered binding-aware store.</param>
+        /// <param name="requestStore">The request store configured through the legacy registration.</param>
+        /// <returns>The selected binding-aware request store, or <c>null</c> when none is available.</returns>
+        internal static IClientCertificateBoundCertificateRequestStore? ResolveClientCertificateBoundRequestStore(
+            IClientCertificateBoundCertificateRequestStore? registeredRequestStore,
+            ICertificateRequest requestStore)
+        {
+            if (requestStore is null)
+            {
+                throw new ArgumentNullException(nameof(requestStore));
+            }
+            return registeredRequestStore ?? requestStore as IClientCertificateBoundCertificateRequestStore;
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             string appName = ResolveApplicationName(m_options);
@@ -283,7 +319,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_keyCredentialStore,
                 m_configurationStore,
                 m_options.AutoApprove,
-                m_enableBuiltInApplicationSelfAdminProvider);
+                m_enableBuiltInApplicationSelfAdminProvider,
+                m_services.GetService<IClientCertificateBoundCertificateRequestStore>());
             GdsDeviceRegistrarRegistration? registrar =
                 m_services.GetService<GdsDeviceRegistrarRegistration>();
             m_server.DeviceRegistrarCertificateAuthorization = registrar?.CertificateAuthorization;
@@ -663,7 +700,9 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// <summary>
         /// <see cref="GlobalDiscoverySampleServer"/> subclass that wires
         /// the optional DI-supplied services (<see cref="IAccessTokenProvider"/>,
-        /// <see cref="IKeyCredentialRequestStore"/>, <see cref="IConfigurationDataStore"/>)
+        /// <see cref="IKeyCredentialRequestStore"/>,
+        /// <see cref="IClientCertificateBoundCertificateRequestStore"/>,
+        /// <see cref="IConfigurationDataStore"/>)
         /// into the <see cref="ApplicationsNodeManager"/> and adds a
         /// <see cref="DefaultManagedApplicationsNodeManager"/> when a
         /// configuration store is supplied.
@@ -690,7 +729,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                 IKeyCredentialRequestStore? keyCredentialStore,
                 IConfigurationDataStore? configurationStore,
                 bool autoApprove,
-                bool enableApplicationSelfAdminProvider)
+                bool enableApplicationSelfAdminProvider,
+                IClientCertificateBoundCertificateRequestStore? clientCertificateBoundRequestStore)
                 : base(
                     database,
                     request,
@@ -707,6 +747,9 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_keyCredentialStore = keyCredentialStore;
                 m_configurationStore = configurationStore;
                 m_autoApprove = autoApprove;
+                ClientCertificateBoundRequestStore = ResolveClientCertificateBoundRequestStore(
+                    clientCertificateBoundRequestStore,
+                    request);
             }
 
             /// <summary>
@@ -729,6 +772,11 @@ namespace Opc.Ua.Gds.Server.Hosting
             /// Gets or sets the host-owned secret issuance store used for completion retries.
             /// </summary>
             public ICertificateRequestIssuanceStore? CertificateRequestIssuanceStore { get; set; }
+
+            /// <summary>
+            /// Gets or sets the DI-supplied certificate request store with client-certificate binding.
+            /// </summary>
+            public IClientCertificateBoundCertificateRequestStore? ClientCertificateBoundRequestStore { get; set; }
 
             /// <summary>
             /// Gets or sets the enrollment journal bound only to this GDS's actual application node manager.
@@ -799,6 +847,9 @@ namespace Opc.Ua.Gds.Server.Hosting
                             applications.DeviceRegistrarCertificateAuthorization =
                                 DeviceRegistrarCertificateAuthorization;
                             applications.CertificateRequestIssuanceStore = CertificateRequestIssuanceStore;
+                            ConfigureClientCertificateBoundRequestStore(
+                                ClientCertificateBoundRequestStore,
+                                requestStore => applications.ClientCertificateBoundRequestStore = requestStore);
                             DeviceRegistrarPushEnrollments?.Bind(applications);
                         })
                 };

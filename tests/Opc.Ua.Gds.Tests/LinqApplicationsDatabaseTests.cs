@@ -292,6 +292,178 @@ namespace Opc.Ua.Gds.Tests
                 Is.EqualTo(CertificateRequestState.Approved));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BoundCertificateRequestFinishesWithItsInitiatingClientCertificate(bool newKeyPair)
+        {
+            var database = new LinqApplicationsDatabase();
+            NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:bound", "Bound"));
+            ByteString fingerprint = CreateFingerprint(1);
+            NodeId request = StartBoundRequest(database, application, newKeyPair, fingerprint);
+            database.ApproveRequest(request, false);
+
+            Assert.That(
+                () => database.FinishRequest(application, request, out _, out _, out _, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                database.FinishBoundRequest(
+                    application, request, fingerprint, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BoundCertificateRequestRejectsDifferentClientCertificate(bool newKeyPair)
+        {
+            var database = new LinqApplicationsDatabase();
+            NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:bound", "Bound"));
+            ByteString initiatingFingerprint = CreateFingerprint(1);
+            NodeId request = StartBoundRequest(database, application, newKeyPair, initiatingFingerprint);
+            database.ApproveRequest(request, false);
+
+            Assert.That(
+                () => database.FinishBoundRequest(
+                    application, request, CreateFingerprint(2), out _, out _, out _, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                database.FinishBoundRequest(
+                    application, request, initiatingFingerprint, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BoundCertificateRequestBindingSurvivesJsonDatabaseReload(bool newKeyPair)
+        {
+            string fileName = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:bound", "Bound"));
+                ByteString fingerprint = CreateFingerprint(1);
+                NodeId request = StartBoundRequest(database, application, newKeyPair, fingerprint);
+                database.ApproveRequest(request, false);
+
+                database = JsonApplicationsDatabase.Load(fileName);
+
+                Assert.That(
+                    database.FinishBoundRequest(
+                        application, request, fingerprint, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Approved));
+                Assert.That(
+                    () => database.FinishBoundRequest(
+                        application, request, CreateFingerprint(2), out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
+        /// <summary>
+        /// A legacy request without a client-certificate binding must be replaced with a new request.
+        /// </summary>
+        [TestCase(false, CertificateRequestState.New)]
+        [TestCase(false, CertificateRequestState.Approved)]
+        [TestCase(false, CertificateRequestState.Accepted)]
+        [TestCase(true, CertificateRequestState.New)]
+        [TestCase(true, CertificateRequestState.Approved)]
+        [TestCase(true, CertificateRequestState.Accepted)]
+        public void LegacyPersistedRequestWithoutCertificateBindingMustBeReRequested(
+            bool newKeyPair,
+            CertificateRequestState state)
+        {
+            string fileName = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:legacy", "Legacy"));
+                NodeId legacyRequest = newKeyPair
+                    ? database.StartNewKeyPairRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        "CN=Legacy",
+                        ["localhost"],
+                        "PFX",
+                        ReadOnlySpan<char>.Empty,
+                        "admin")
+                    : database.StartSigningRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        ByteString.From([1, 2, 3]),
+                        "admin");
+                if (state == CertificateRequestState.Approved)
+                {
+                    database.ApproveRequest(legacyRequest, false);
+                }
+                else if (state == CertificateRequestState.Accepted)
+                {
+                    database.AcceptRequest(legacyRequest, ByteString.From([9, 8, 7]));
+                }
+
+                JsonObject document = JsonNode.Parse(File.ReadAllText(fileName))!.AsObject();
+                JsonObject request = document["CertificateRequests"]!.AsArray()[0]!.AsObject();
+                request.Remove("ClientCertificateFingerprint");
+                File.WriteAllText(fileName, document.ToJsonString());
+
+                database = JsonApplicationsDatabase.Load(fileName);
+                ByteString fingerprint = CreateFingerprint(1);
+                Assert.That(
+                    () => database.FinishBoundRequest(
+                        application, legacyRequest, fingerprint, out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+
+                NodeId replacementRequest = newKeyPair
+                    ? database.StartBoundNewKeyPairRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        "CN=Replacement",
+                        ["localhost"],
+                        "PFX",
+                        ReadOnlySpan<char>.Empty,
+                        fingerprint,
+                        "admin")
+                    : database.StartBoundSigningRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        ByteString.From([4, 5, 6]),
+                        fingerprint,
+                        "admin");
+                Assert.That(replacementRequest, Is.Not.EqualTo(legacyRequest));
+                database.ApproveRequest(replacementRequest, false);
+
+                Assert.That(
+                    () => database.FinishBoundRequest(
+                        application, legacyRequest, fingerprint, out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(
+                    database.FinishBoundRequest(
+                        application, replacementRequest, fingerprint, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Approved));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
         /// <summary>
         /// Pending signing requests retain recovery evidence without publishing issued credentials.
         /// </summary>
@@ -516,9 +688,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 var database = JsonApplicationsDatabase.Load(fileName);
                 NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
-                NodeId request = database.StartNewKeyPairRequest(
+                ByteString fingerprint = CreateFingerprint(1);
+                NodeId request = database.StartBoundNewKeyPairRequest(
                     application, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType",
-                    "CN=ServerA", ["localhost"], "PFX", "secret-password".AsSpan(), "admin");
+                    "CN=ServerA", ["localhost"], "PFX", "secret-password".AsSpan(), fingerprint, "admin");
                 database.ApproveRequest(request, false);
 
                 Assert.That(File.ReadAllText(fileName), Does.Not.Contain("secret-password"));
@@ -532,7 +705,13 @@ namespace Opc.Ua.Gds.Tests
                 // completed with an unprotected private key.
                 database = JsonApplicationsDatabase.Load(fileName);
                 Assert.That(
-                    database.FinishRequest(application, request, out _, out _, out _, out _),
+                    () => database.FinishRequest(application, request, out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(
+                    database.FinishBoundRequest(
+                        application, request, fingerprint, out _, out _, out _, out _),
                     Is.EqualTo(CertificateRequestState.Rejected));
             }
             finally
@@ -643,6 +822,37 @@ namespace Opc.Ua.Gds.Tests
                 DiscoveryUrls = [$"opc.tcp://localhost:4840/{name}"],
                 ServerCapabilities = ["LDS"]
             };
+        }
+
+        private static NodeId StartBoundRequest(
+            LinqApplicationsDatabase database,
+            NodeId application,
+            bool newKeyPair,
+            ByteString fingerprint)
+        {
+            return newKeyPair
+                ? database.StartBoundNewKeyPairRequest(
+                    application,
+                    "DefaultApplicationGroup",
+                    "RsaSha256ApplicationCertificateType",
+                    "CN=Bound",
+                    ["localhost"],
+                    "PFX",
+                    default,
+                    fingerprint,
+                    "admin")
+                : database.StartBoundSigningRequest(
+                    application,
+                    "DefaultApplicationGroup",
+                    "RsaSha256ApplicationCertificateType",
+                    ByteString.From([1, 2, 3]),
+                    fingerprint,
+                    "admin");
+        }
+
+        private static ByteString CreateFingerprint(byte value)
+        {
+            return ByteString.From(Enumerable.Repeat(value, 32).ToArray());
         }
     }
 }
