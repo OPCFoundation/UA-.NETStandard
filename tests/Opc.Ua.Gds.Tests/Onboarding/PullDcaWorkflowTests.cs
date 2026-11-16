@@ -221,6 +221,34 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             credentialProvider.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// External authentication validates the managed key-pair installer before opening a registrar connection.
+        /// </summary>
+        [Test]
+        public async Task ExternalManagedKeyPairModeRequiresInstallerBeforeConnecting()
+        {
+            var fixture = new Fixture();
+            var credentialProvider = new Mock<IPullDcaCredentialProvider>(MockBehavior.Strict);
+            Func<PullDcaRegistrar, CancellationToken, ValueTask<IPullDcaConnection>> connectionFactory =
+                (_, _) => throw new AssertionException("The workflow connected without a key-pair installer.");
+            var workflow = new PullDcaWorkflow(
+                new PullDcaOptions(),
+                connectionFactory,
+                fixture.Host,
+                credentialProvider.Object);
+            PullDcaManagedApplication application = CreateApplication() with
+            {
+                CertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await workflow.RunExternalAuthenticationAsync(kRegistrar, [application]).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(fixture.Calls, Is.Empty);
+            credentialProvider.VerifyNoOtherCalls();
+        }
+
         [Test]
         public async Task ConsumedKeyPairFinishRestartsWithFreshRequestInsteadOfSigningRecovery()
         {
