@@ -209,10 +209,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             Assert.That(values.Count, Is.EqualTo(4));
-            Assert.That(values[3].TryGetValue(out EventNotificationList? list), Is.True);
-            Assert.That(list!.Events[0].EventFields[0].TryGetValue(out ExtensionObject field), Is.True);
-            Assert.That(field.TryGetValue(out Structure? last), Is.True);
-            Assert.That(CountInstances(last!), Is.EqualTo((1 << 18) - 1));
+
+            // read again after a rewind: the body keeps the limit of its response.
+            for (int read = 0; read < 2; read++)
+            {
+                Assert.That(values[3].TryGetValue(out EventNotificationList? list), Is.True, $"read {read}");
+                Assert.That(list!.Events[0].EventFields[0].TryGetValue(out ExtensionObject field), Is.True);
+                Assert.That(field.TryGetValue(out Structure? last), Is.True);
+                Assert.That(CountInstances(last!), Is.EqualTo((1 << 18) - 1));
+                values[3].RewindDeferredBody();
+            }
         }
 
         [Test]
@@ -257,6 +263,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(values.Count, Is.EqualTo(2));
             Assert.That(values[0].TryGetValue(out Structure? first), Is.True);
             Assert.That(CountInstances(first!), Is.EqualTo((1 << 17) - 1));
+            Assert.That(values[1].TryGetValue(out EventNotificationList? _), Is.False);
+
+            // a rejected body is not decoded after a rewind either.
+            values[1].RewindDeferredBody();
             Assert.That(values[1].TryGetValue(out EventNotificationList? _), Is.False);
         }
 

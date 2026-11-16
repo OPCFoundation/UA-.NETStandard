@@ -183,17 +183,18 @@ namespace Opc.Ua
             try
             {
                 IEncodeable value = m_activator.CreateInstance();
-                // the first decode counts with the response. A decode after Rewind
-                // counts on its own, against the limit of one message of this
-                // length, so that reading a body again never fails where the first
-                // read succeeded, and repeated reads do not add up.
+                // the first decode counts with the response. Once a decode
+                // succeeded, a decode after Rewind counts on its own, against the
+                // limit the response reached, so that reading a body again never
+                // fails where the first read succeeded, and repeated reads do not
+                // add up. A body that failed keeps counting with the response.
                 DecoderRecoveries recoveries = m_decoded ? new DecoderRecoveries(m_recoveries) : m_recoveries;
-                m_decoded = true;
                 using var decoder = new BinaryDecoder(buffer, 0, m_length, m_context);
                 decoder.InheritDecodingState(null, null, m_nestingLevel, m_length, recoveries);
                 value.Decode(decoder);
                 if (decoder.Position == m_length)
                 {
+                    m_decoded = true;
                     return value;
                 }
                 errorMessage = "Length mismatch";
@@ -260,11 +261,12 @@ namespace Opc.Ua
         /// <summary>
         /// Create the state of a decode that shares the recovery budget and the
         /// logged failure of <paramref name="response"/> but counts its own
-        /// encodeables.
+        /// encodeables, against the limit the response reached.
         /// </summary>
         public DecoderRecoveries(DecoderRecoveries response)
         {
             m_response = response;
+            m_encodeableLimit = Volatile.Read(ref response.m_encodeableLimit);
         }
 
         /// <summary>
