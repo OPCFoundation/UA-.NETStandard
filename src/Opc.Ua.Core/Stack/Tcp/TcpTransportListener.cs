@@ -1613,8 +1613,9 @@ namespace Opc.Ua.Bindings
                 }
                 candidates = channels.Values.ToArray();
             }
-            foreach (TcpListenerChannel candidate in candidates.OrderByDescending(
-                channel => channel.ElapsedSinceLastActiveTime))
+            foreach (TcpListenerChannel candidate in candidates
+                .OrderBy(channel => channel.HoldsPartialMessage)
+                .ThenByDescending(channel => channel.ElapsedSinceLastActiveTime))
             {
                 if (attempted.Contains(candidate) || candidate.UsedBySession)
                 {

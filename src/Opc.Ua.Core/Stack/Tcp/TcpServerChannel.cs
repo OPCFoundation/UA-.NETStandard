@@ -1649,9 +1649,12 @@ namespace Opc.Ua.Bindings
                     //
                     // Not gated on the saved size: a first chunk with an empty body
                     // would then skip the check entirely and let a non discovery
-                    // request buffer until the size limit.
+                    // request buffer until the size limit. Gated on the request id
+                    // rather than on any saved message: a chunk with a new request
+                    // id abandons the saved message and starts another one, whose
+                    // first chunk must be validated as well.
                     if (DiscoveryOnly &&
-                        !HasPartialMessage &&
+                        !HasPartialMessageFor(requestId) &&
                         !ValidateDiscoveryServiceCall(
                             token,
                             requestId,

@@ -344,9 +344,17 @@ namespace Opc.Ua
                     }
                 }
 
-                byte[]? decryptedTokenData = await m_securityPolicies
-                    .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
-                    .ConfigureAwait(false);
+                // the legacy format decrypts every RSA block of the token data, so
+                // the blocks are bounded to what the longest issued token needs
+                // before the first private-key operation (OPC 10000-4 7.41.2.2).
+                byte[]? decryptedTokenData = await IdentityTokenLimits.DecryptLegacyAsync(
+                    m_securityPolicies,
+                    certificate,
+                    securityPolicyUri,
+                    encryptedData,
+                    IdentityTokenLimits.MaxIssuedTokenDataLength,
+                    receiverNonce,
+                    ct).ConfigureAwait(false);
 
                 // verify the sender's nonce.
                 int startOfNonce = decryptedTokenData!.Length;
@@ -362,6 +370,14 @@ namespace Opc.Ua
                             throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
                         }
                     }
+                }
+
+                if (startOfNonce > IdentityTokenLimits.MaxIssuedTokenDataLength)
+                {
+                    Array.Clear(decryptedTokenData, 0, decryptedTokenData.Length);
+                    IdentityTokenLimits.ThrowIfSecretTooLong(
+                        startOfNonce,
+                        IdentityTokenLimits.MaxIssuedTokenDataLength);
                 }
 
                 // copy results.
@@ -392,6 +408,9 @@ namespace Opc.Ua
                     "Failed to decrypt IssuedIdentityToken token data using ECC encrypted secret.");
             }
 
+            IdentityTokenLimits.ThrowIfSecretTooLong(
+                decryptedSecret,
+                IdentityTokenLimits.MaxIssuedTokenDataLength);
             m_decryptedTokenData = decryptedSecret;
         }
 

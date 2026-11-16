@@ -558,6 +558,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var body = new Mock<Stream>();
             body.SetupGet(value => value.CanRead).Returns(true);
             context.Request.Body = body.Object;
+            context.Request.ContentType = json ? "application/opcua+uajson" : "application/octet-stream";
             if (json)
             {
                 await listener.SendJsonAsync(context).ConfigureAwait(false);
