@@ -2029,7 +2029,10 @@ namespace Opc.Ua.Client.Subscriptions
             // several messages in a row, and a cancelled handler only throws out of its own
             // call, so each message checks here. Without a delivery there is nothing to
             // acknowledge either: the server keeps the message for a transfer to pick up.
-            if (ct.IsCancellationRequested ||
+            // Only the owners' lifetimes count: transfer recovery passes its caller's token,
+            // and cancelling that operation alone must not drop a message whose sequence
+            // number recovery has already moved past.
+            if (m_cts.IsCancellationRequested ||
                 AckQueue.ShutdownToken.IsCancellationRequested ||
                 IsShuttingDown)
             {

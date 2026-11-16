@@ -361,13 +361,15 @@ namespace Opc.Ua.Client.Subscriptions
                 await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1], []).ConfigureAwait(false);
                 await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
 
-                // Message 3 waits in the reorder buffer for message 2. The duplicate is
-                // processed after it, so its acknowledgement proves that 3 is buffered.
+                // Message 3 waits in the reorder buffer for message 2. Ingress is ordered
+                // by sequence number, so message 2 must not be submitted before the
+                // worker has counted the gap, or it would overtake message 3.
                 await subscription.OnPublishReceivedAsync(BuildDataMessage(3), [1, 2, 3], [])
                     .ConfigureAwait(false);
-                await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1, 2, 3], [])
-                    .ConfigureAwait(false);
-                await m_completion.WaitForQueuedAckAsync(2).WaitAsync(ct).ConfigureAwait(false);
+                while (subscription.MissingMessageCount == 0)
+                {
+                    await Task.Delay(1, ct).ConfigureAwait(false);
+                }
 
                 await subscription.OnPublishReceivedAsync(BuildDataMessage(2), [1, 2, 3], [])
                     .ConfigureAwait(false);
