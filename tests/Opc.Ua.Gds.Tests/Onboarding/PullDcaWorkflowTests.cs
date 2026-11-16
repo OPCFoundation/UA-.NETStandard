@@ -156,6 +156,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Calls, Is.EqualTo(s_initialNewKeyPairCalls));
             Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kDcaId }));
             Assert.That(fixture.Host.ReceivedPrivateKeyPfx, Is.EqualTo(kPrivateKeyPfx));
+            Assert.That(
+                fixture.Connection.LastReturnedPrivateKeyPfx.ToArray(),
+                Is.EqualTo(new byte[kPrivateKeyPfx.Length]));
             Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
             receipts.Verify(store => store.GetOrCreateAsync(
                 It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
@@ -179,6 +182,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Calls, Is.EqualTo(s_managedApplicationNewKeyPairCalls));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
             Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kManagedId }));
+            Assert.That(
+                fixture.Connection.LastReturnedPrivateKeyPfx.ToArray(),
+                Is.EqualTo(new byte[kPrivateKeyPfx.Length]));
             Assert.That(result.ManagedApplications[0].ApplicationId, Is.EqualTo(kManagedId));
         }
 
