@@ -2197,6 +2197,75 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
         }
 
+        /// <summary>
+        /// A consumed key-pair request must be restarted instead of retried as a signing request.
+        /// </summary>
+        [Test]
+        public async Task KeyPairFinishBadInvalidArgumentRequiresNewStart()
+        {
+            var applicationId = new NodeId("app", 2);
+            var firstRequestId = new NodeId("first-request", 2);
+            var secondRequestId = new NodeId("second-request", 2);
+            var requests = new List<CallMethodRequest>();
+            int calls = 0;
+            await using var session = CreateConfidentialSession(request =>
+            {
+                requests.Add(request);
+                calls++;
+                return calls switch
+                {
+                    1 => Good(firstRequestId),
+                    2 => new CallMethodResult { StatusCode = StatusCodes.BadInvalidArgument },
+                    3 => Good(secondRequestId),
+                    4 => Good(
+                        ByteString.From(new byte[] { 10 }),
+                        ByteString.From(new byte[] { 11 }),
+                        Variant.From(ArrayOf<ByteString>.Empty)),
+                    _ => throw new AssertionException("Unexpected key-pair request.")
+                };
+            });
+            var adapter = new PullDcaConnection(
+                session.InnerSession, kRegistrar, session.Telemetry, 1024, _ => default);
+
+            Assert.That(await adapter.StartNewKeyPairAsync(applicationId, kProfile, CancellationToken.None)
+                .ConfigureAwait(false), Is.EqualTo(firstRequestId));
+            ServiceResultException? consumed = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await adapter.FinishNewKeyPairAsync(applicationId, firstRequestId, CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(consumed!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+
+            int callsBeforeOldRequestRetry = calls;
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await adapter.FinishNewKeyPairAsync(applicationId, firstRequestId, CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(calls, Is.EqualTo(callsBeforeOldRequestRetry));
+
+            Assert.That(await adapter.StartNewKeyPairAsync(applicationId, kProfile, CancellationToken.None)
+                .ConfigureAwait(false), Is.EqualTo(secondRequestId));
+            var (certificate, privateKey, _) = await adapter.FinishNewKeyPairAsync(
+                applicationId, secondRequestId, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                Assert.That(certificate, Is.EqualTo(ByteString.From(new byte[] { 10 })));
+                Assert.That(privateKey, Is.EqualTo(ByteString.From(new byte[] { 11 })));
+                NodeId[] expectedMethods =
+                [
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest,
+                        session.MessageContext),
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_FinishRequest, session.MessageContext),
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest,
+                        session.MessageContext),
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_FinishRequest, session.MessageContext)
+                ];
+                Assert.That(requests.Select(request => request.MethodId), Is.EqualTo(expectedMethods));
+            }
+            finally
+            {
+                ClearReturnedPrivateKey(privateKey);
+            }
+        }
+
         [TestCase(true)]
         [TestCase(false)]
         public async Task NewKeyPairRequestsRequireConfidentialDispatch(bool finish)
