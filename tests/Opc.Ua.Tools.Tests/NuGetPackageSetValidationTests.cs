@@ -694,19 +694,12 @@ namespace Opc.Ua.Tools.Tests
             }
         }
 
+        /// <summary>
+        /// Resolves the checkout containing the package-set validator.
+        /// </summary>
         private static string FindRepositoryRoot()
         {
-            string? current = TestContext.CurrentContext.TestDirectory;
-            while (!string.IsNullOrWhiteSpace(current))
-            {
-                if (File.Exists(Path.Combine(current, ".azurepipelines", "validate-nuget-package-set.ps1")))
-                {
-                    return current;
-                }
-                current = Directory.GetParent(current)?.FullName;
-            }
-
-            throw new InvalidOperationException("Could not find the repository root.");
+            return RepositoryTestRoot.Find(Path.Combine(".azurepipelines", "validate-nuget-package-set.ps1"));
         }
 
         [Test]

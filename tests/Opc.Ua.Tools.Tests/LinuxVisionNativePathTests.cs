@@ -149,19 +149,13 @@ namespace Opc.Ua.Tools.Tests
             return end < 0 ? source[start..] : source[start..end];
         }
 
+        /// <summary>
+        /// Resolves the original GitHub action from the selected checkout.
+        /// </summary>
         private static string FindActionPath()
         {
-            string? current = TestContext.CurrentContext.TestDirectory;
-            while (current is not null)
-            {
-                string path = Path.Combine(current, ".github", "actions", "run-dotnet-tests", "action.yml");
-                if (File.Exists(path))
-                {
-                    return path;
-                }
-                current = Directory.GetParent(current)?.FullName;
-            }
-            throw new InvalidOperationException("Could not find the repository's run-dotnet-tests action.");
+            string relativePath = Path.Combine(".github", "actions", "run-dotnet-tests", "action.yml");
+            return Path.Combine(RepositoryTestRoot.Find(relativePath), relativePath);
         }
     }
 }

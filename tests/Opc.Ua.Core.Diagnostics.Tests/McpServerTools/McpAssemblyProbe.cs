@@ -31,7 +31,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 
@@ -106,8 +105,23 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
             return assemblies;
         }
 
+        /// <summary>
+        /// Selects MCP assemblies from the same artifacts pivot or conventional configuration and target.
+        /// </summary>
         private static string FindOutputDirectory()
         {
+            var currentOutput = new DirectoryInfo(AppContext.BaseDirectory);
+            if (currentOutput.Parent is { Parent: { Name: "bin" } outputBin } projectOutput &&
+                projectOutput.Name == typeof(McpAssemblyProbe).Assembly.GetName().Name)
+            {
+                string artifactsOutput = Path.Combine(outputBin.FullName, "Opc.Ua.Mcp", currentOutput.Name);
+                if (!File.Exists(Path.Combine(artifactsOutput, "Opc.Ua.Mcp.dll")))
+                {
+                    Assert.Ignore("The MCP server is not built for this test output pivot.");
+                }
+                return artifactsOutput;
+            }
+
             string repoRoot = FindRepositoryRoot();
             string configuration = GetBuildConfiguration();
             string directory = Path.Combine(
@@ -119,26 +133,28 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
                 return directory;
             }
 
-            string binPath = Path.Combine(repoRoot, "tools", "Opc.Ua.Mcp", "bin");
-            string? found = Directory.Exists(binPath)
-                ? Directory.EnumerateFiles(binPath, "Opc.Ua.Mcp.dll", SearchOption.AllDirectories)
-                    .Select(Path.GetDirectoryName)
-                    .FirstOrDefault(d => d is not null)
-                : null;
-
-            if (found is null)
-            {
-                Assert.Ignore(
-                    "The MCP assemblies are not built for this CI leg " +
-                    "(the MCP server targets net10.0 and net11.0 only); skipping the reflective MCP server test.");
-            }
-
-            return found!;
+            Assert.Ignore(
+                "The MCP server is not built for this configuration and target framework.");
+            return directory;
         }
 
+        /// <summary>
+        /// Resolves an explicitly configured checkout before searching assembly ancestors.
+        /// </summary>
+        /// <exception cref="DirectoryNotFoundException">The configured checkout has no solution.</exception>
         private static string FindRepositoryRoot()
         {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(root, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                }
+                return root;
+            }
+            DirectoryInfo? directory = new(AppContext.BaseDirectory);
 
             while (directory != null)
             {
