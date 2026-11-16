@@ -5439,6 +5439,18 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            if (hasResponseBudget)
+            {
+                // the values read so far are charged before the nodes are validated: the
+                // validating read charges the values it reads and stops at the value that
+                // exceeds the budget.
+                if (!context.TryChargeResponse(responseBytes))
+                {
+                    return;
+                }
+                responseBytesLeft = context.ResponseBytesRemaining;
+            }
+
             // validates the nodes (reads values from the underlying data source if required).
             await ReadAsync(
                 systemContext,
@@ -5449,17 +5461,19 @@ namespace Opc.Ua.Server
                 operationCache ?? new Dictionary<NodeId, NodeState>(),
                 cancellationToken).ConfigureAwait(false);
 
-            if (hasResponseBudget)
+            if (hasResponseBudget && context.ResponseBytesRemaining == responseBytesLeft)
             {
+                // an override of the validating read that does not charge its values.
+                long validatedBytes = 0;
                 foreach (NodeHandle handle in nodesToValidate)
                 {
-                    responseBytes += ResponseSizeEstimator.EstimateValue(values[handle.Index]);
-                    if (responseBytes > responseBytesLeft)
+                    validatedBytes += ResponseSizeEstimator.EstimateValue(values[handle.Index]);
+                    if (validatedBytes > responseBytesLeft)
                     {
                         break;
                     }
                 }
-                context.TryChargeResponse(responseBytes);
+                context.TryChargeResponse(validatedBytes);
             }
         }
 
@@ -5596,6 +5610,11 @@ namespace Opc.Ua.Server
         /// <param name="nodesToValidate">The nodes to validate.</param>
         /// <param name="cache">The cache.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <remarks>
+        /// The values read are charged against the response byte budget of the request,
+        /// and the read stops at the value that exceeds it. An override that does not
+        /// charge its values is charged for them after it returns.
+        /// </remarks>
         protected virtual async ValueTask ReadAsync(
             ServerSystemContext context,
             ArrayOf<ReadValueId> nodesToRead,
@@ -5605,6 +5624,10 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, NodeState> cache,
             CancellationToken cancellationToken = default)
         {
+            OperationContext? operation = context.OperationContext;
+            long responseBytesLeft = operation?.ResponseBytesRemaining ?? -1;
+            long responseBytes = 0;
+
             for (int ii = 0; ii < nodesToValidate.Count; ii++)
             {
                 NodeHandle handle = nodesToValidate[ii];
@@ -5635,6 +5658,20 @@ namespace Opc.Ua.Server
                     value,
                     cancellationToken).ConfigureAwait(false);
                 values[handle.Index] = value;
+
+                if (responseBytesLeft >= 0)
+                {
+                    responseBytes += ResponseSizeEstimator.EstimateValue(value);
+                    if (responseBytes > responseBytesLeft)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (responseBytes > 0)
+            {
+                operation!.TryChargeResponse(responseBytes);
             }
         }
 

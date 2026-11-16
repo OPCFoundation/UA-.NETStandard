@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -329,6 +331,37 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A Read of nodes that are not in memory, which the node manager validates and
+        /// reads in a separate pass, stops at the value that passes the message size limit
+        /// instead of reading every value first.
+        /// </summary>
+        [Test]
+        public async Task ReadOfValidatedNodesStopsOnceTheValuesExceedTheResponseSizeLimitAsync()
+        {
+            const int maxMessageSize = 1024 * 1024;
+            const int nodeCount = 2500;
+            m_mockSession.Setup(s => s.PreferredLocales).Returns([]);
+            using var manager = new ValidatedReadNodeManager(
+                m_mockServer.Object, m_configuration, m_mockLogger.Object, m_testNamespaceUri);
+            ushort ns = manager.NamespaceIndexes[0];
+            var nodesToRead = new ReadValueId[nodeCount];
+            for (int ii = 0; ii < nodeCount; ii++)
+            {
+                nodesToRead[ii] = new ReadValueId { NodeId = new NodeId((uint)(ii + 1), ns), AttributeId = Attributes.Value };
+            }
+            var values = new DataValue[nodeCount];
+            var errors = new ServiceResult[nodeCount];
+            using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+            context.StartResponseBudget(maxMessageSize);
+
+            await manager.ReadAsync(context, 0, nodesToRead, values, errors).ConfigureAwait(false);
+
+            Assert.That(context.ResponseBudgetExceeded, Is.True);
+            // each value is 1 + (1 + 4 + 8192) bytes: the 128th passes 1 MiB.
+            Assert.That(manager.Validations, Is.EqualTo(128));
+        }
+
+        /// <summary>
         /// A started budget is unused until the first charge of a result; an empty charge
         /// does not use it, and a context without a budget is never unused.
         /// </summary>
@@ -523,6 +556,55 @@ namespace Opc.Ua.Server.Tests
         private sealed class Counter
         {
             public int Value { get; set; }
+        }
+
+        /// <summary>
+        /// A node manager whose nodes are not in memory: every node is validated, and its
+        /// value (a 1024 element Double array) created, when it is read.
+        /// </summary>
+        private sealed class ValidatedReadNodeManager : AsyncCustomNodeManager
+        {
+            public ValidatedReadNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                Microsoft.Extensions.Logging.ILogger logger,
+                string namespaceUri)
+                : base(server, configuration, logger, namespaceUri)
+            {
+            }
+
+            public int Validations { get; private set; }
+
+            protected override ValueTask<NodeHandle> GetManagerHandleAsync(
+                ServerSystemContext context,
+                NodeId nodeId,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<NodeHandle>(IsNodeIdInNamespace(nodeId)
+                    ? new NodeHandle { NodeId = nodeId, Validated = false }
+                    : null!);
+            }
+
+            protected override ValueTask<NodeState> ValidateNodeAsync(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                Validations++;
+                var variable = new BaseDataVariableState(null)
+                {
+                    NodeId = handle.NodeId,
+                    BrowseName = new QualifiedName("Validated", handle.NodeId.NamespaceIndex),
+                    DataType = DataTypeIds.Double,
+                    ValueRank = ValueRanks.OneDimension,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    Value = (ArrayOf<double>)new double[1024]
+                };
+                return new ValueTask<NodeState>(ValidationComplete(context, handle, variable, cache));
+            }
         }
     }
 }

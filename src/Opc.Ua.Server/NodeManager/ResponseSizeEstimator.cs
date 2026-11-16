@@ -60,6 +60,42 @@ namespace Opc.Ua.Server
         public const int MinCallMethodResultSize = 4 + 4 + 4 + 4;
 
         /// <summary>
+        /// The encoded size of a HistoryRead response without its results: the four-byte
+        /// type id, the ResponseHeader (timestamp, handle, result, empty diagnostic info,
+        /// empty string table, null additional header) and the lengths of the results and
+        /// diagnostic infos arrays.
+        /// </summary>
+        public const int HistoryReadResponseFramingSize = 4 + (8 + 4 + 4 + 1 + 4 + 3) + 4 + 4;
+
+        /// <summary>
+        /// The encoded size of one HistoryRead result without its values, as a history page
+        /// is sent: StatusCode, a 16 byte continuation point, the extension object header
+        /// of the history data (four-byte type id, encoding, length), the length of its
+        /// values array and an empty diagnostic info.
+        /// </summary>
+        public const int HistoryReadResultFramingSize = 4 + (4 + 16) + (4 + 1 + 4) + 4 + 1;
+
+        /// <summary>
+        /// The response byte budget of a HistoryRead: the message size limit less the
+        /// framing of the response and of each of its results, so that history pages that
+        /// fit the budget are sent with their continuation points. Zero (no budget) when
+        /// <paramref name="maxMessageSize"/> is zero.
+        /// </summary>
+        /// <remarks>
+        /// Diagnostics that the client asks for are not reserved.
+        /// </remarks>
+        public static int GetHistoryReadResponseBudget(int maxMessageSize, int resultCount)
+        {
+            if (maxMessageSize <= 0)
+            {
+                return 0;
+            }
+            long budget = maxMessageSize - HistoryReadResponseFramingSize -
+                ((long)resultCount * HistoryReadResultFramingSize);
+            return (int)System.Math.Max(1, budget);
+        }
+
+        /// <summary>
         /// A lower bound of the encoded size of a reference description.
         /// </summary>
         public static long Estimate(ReferenceDescription? reference)

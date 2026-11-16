@@ -433,7 +433,11 @@ fit the rest of the budget and a continuation point for the others, also when
 the client asks for no limit (`NumValuesPerNode` 0 or a huge value). If none of
 its values fits what other operations of the request left, it returns no values
 and a continuation point that resumes at the first one; only a value that
-alone exceeds the limit fails the request with `BadResponseTooLarge`. Requests
+alone exceeds the limit fails the request with `BadResponseTooLarge`. Because a
+history page must be sent, not refused, its values are measured with the binary
+encoder rather than bounded from below, and the HistoryRead budget leaves room
+for the response header and for each result's status, continuation point and
+history data header. Diagnostics the client asks for are not reserved. Requests
 in other encodings, which can encode below the binary bound, and in-process
 callers of the node managers have no budget.
 

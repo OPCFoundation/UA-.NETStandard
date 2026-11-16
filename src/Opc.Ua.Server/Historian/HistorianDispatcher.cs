@@ -3037,18 +3037,24 @@ namespace Opc.Ua.Server.Historian
             bool resumeAtStart = false;
             if (responseBytes >= 0)
             {
+                // the values are measured with the binary encoder: a page that is sent must
+                // fit, a lower bound of its size does not show that.
+                using var meter = new EncodedSizeMeter(systemContext);
                 bool fits = false;
                 bool someFit = false;
-                for (int attempt = 0; attempt < kMaxResponseBudgetPageAttempts; attempt++)
+                for (int reads = 1; ; reads++)
                 {
-                    (int count, long bytes) = CountValuesThatFit(filled, operationContext!.ResponseBytesRemaining);
+                    // every page read is checked, the last re-read as well.
+                    (int count, long bytes) = meter.CountValuesThatFit(
+                        filled,
+                        operationContext!.ResponseBytesRemaining);
                     someFit |= count > 0;
                     if (count == filled.Count)
                     {
                         fits = operationContext.TryChargeResponse(bytes);
                         break;
                     }
-                    if (count == 0)
+                    if (count == 0 || reads > kMaxResponseBudgetPageRereads)
                     {
                         break;
                     }
@@ -3138,7 +3144,7 @@ namespace Opc.Ua.Server.Historian
         /// without values: a provider that does not honor the page limit, or whose values
         /// grow between the reads, does not hold the read in a loop.
         /// </summary>
-        private const int kMaxResponseBudgetPageAttempts = 3;
+        private const int kMaxResponseBudgetPageRereads = 3;
 
         /// <summary>
         /// Limits the values of a raw page to <paramref name="pageLimit"/> and to the
@@ -3159,22 +3165,150 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
-        /// Counts the leading values whose encoded size fits <paramref name="responseBytes"/>
-        /// and returns their size.
+        /// Measures the binary encoded size of history values, without storing the bytes.
         /// </summary>
-        private static (int Count, long Bytes) CountValuesThatFit(List<DataValue> values, long responseBytes)
+        /// <remarks>
+        /// The encoding limits of the message context do not apply: the measurement only
+        /// sizes the values, the encoder of the response still enforces the limits. A value
+        /// that fails to encode does not fit.
+        /// </remarks>
+        private sealed class EncodedSizeMeter : IDisposable
         {
-            long bytes = 0;
-            for (int ii = 0; ii < values.Count; ii++)
+            public EncodedSizeMeter(ISystemContext context)
             {
-                long next = bytes + ResponseSizeEstimator.Estimate(values[ii]);
-                if (next > responseBytes)
+                m_context = new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
                 {
-                    return (ii, bytes);
-                }
-                bytes = next;
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris,
+                    MaxStringLength = 0,
+                    MaxByteStringLength = 0,
+                    MaxArrayLength = 0,
+                    MaxMessageSize = 0
+                };
             }
-            return (values.Count, bytes);
+
+            /// <summary>
+            /// Counts the leading values whose encoded size fits
+            /// <paramref name="responseBytes"/> and returns their size.
+            /// </summary>
+            public (int Count, long Bytes) CountValuesThatFit(List<DataValue> values, long responseBytes)
+            {
+                long bytes = 0;
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    long size = Measure(values[ii]);
+                    if (size > responseBytes - bytes)
+                    {
+                        return (ii, bytes);
+                    }
+                    bytes += size;
+                }
+                return (values.Count, bytes);
+            }
+
+            public void Dispose()
+            {
+                DisposeEncoder();
+                m_stream.Dispose();
+            }
+
+            private void DisposeEncoder()
+            {
+                m_encoder?.Dispose();
+                m_encoder = null;
+            }
+
+            private long Measure(in DataValue value)
+            {
+                m_encoder ??= new BinaryEncoder(m_stream, m_context, true);
+                m_stream.Position = 0;
+                try
+                {
+                    m_encoder.WriteDataValue(null, value);
+                    return m_stream.Position;
+                }
+                catch (ServiceResultException)
+                {
+                    // the encoder is not used after a failure.
+                    DisposeEncoder();
+                    return long.MaxValue;
+                }
+            }
+
+            private readonly ServiceMessageContext m_context;
+            private readonly ByteCountingStream m_stream = new();
+            private BinaryEncoder? m_encoder;
+        }
+
+        /// <summary>
+        /// A stream that counts the bytes written to it and discards them.
+        /// </summary>
+        private sealed class ByteCountingStream : Stream
+        {
+            public override bool CanRead => false;
+            public override bool CanSeek => true;
+            public override bool CanWrite => true;
+            public override long Length => m_length;
+
+            public override long Position
+            {
+                get => m_position;
+                set => m_position = value;
+            }
+
+            public override void Flush()
+            {
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                m_position = origin switch
+                {
+                    SeekOrigin.Begin => offset,
+                    SeekOrigin.Current => m_position + offset,
+                    _ => m_length + offset
+                };
+                return m_position;
+            }
+
+            public override void SetLength(long value)
+            {
+                m_length = value;
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                Advance(count);
+            }
+
+#if NET
+            public override void Write(ReadOnlySpan<byte> buffer)
+            {
+                Advance(buffer.Length);
+            }
+#endif
+
+            public override void WriteByte(byte value)
+            {
+                Advance(1);
+            }
+
+            private void Advance(int count)
+            {
+                m_position += count;
+                if (m_position > m_length)
+                {
+                    m_length = m_position;
+                }
+            }
+
+            private long m_length;
+            private long m_position;
         }
 
         private static List<DataValue> FillRawPage(

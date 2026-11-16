@@ -39,6 +39,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
@@ -189,6 +190,72 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// A raw page read with the budget of a HistoryRead encodes within the message size
+        /// limit, so the client gets the page and its continuation point. The page holds
+        /// fewer values than their lower bounds fit: the response and result framing is
+        /// reserved, and values that encode larger than their lower bound (UTF-8 strings)
+        /// are measured.
+        /// </summary>
+        [TestCase(32754, false, 1)]
+        [TestCase(10000, true, 3)]
+        public async Task RawReadPageWithinTheBudgetEncodesWithinTheMessageSizeLimitAsync(
+            int length, bool isString, int expectedCount)
+        {
+            const int maxMessageSize = 64 * 1024;
+            var h = new Harness();
+            // a ByteString of 32754 bytes with its source timestamp is 32768 bytes, two of
+            // them the whole limit. A string of 10000 U+00FC is at least 10000 bytes and
+            // encodes 20000 UTF-8 bytes.
+            NodeId nodeId = h.SeedValues(10, ii => isString
+                ? new Variant(new string((char)0x00FC, length))
+                : new Variant(ByteString.From(new byte[length])));
+            BaseDataVariableState variable = CreateVariable(nodeId);
+
+            OperationContext operation = h.SystemContext.OperationContext!;
+            operation.StartResponseBudget(ResponseSizeEstimator.GetHistoryReadResponseBudget(maxMessageSize, 1));
+            var result = new HistoryReadResult();
+            ServiceResult error = await ReadAsync(
+                h, variable, nodeId, ByteString.Empty, CreateDetails(uint.MaxValue), result);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(GetValues(result).Count, Is.EqualTo(expectedCount));
+
+            var response = new HistoryReadResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 1,
+                    ServiceResult = StatusCodes.Good
+                },
+                Results = [result],
+                DiagnosticInfos = []
+            };
+            var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create())
+            {
+                MaxMessageSize = maxMessageSize
+            };
+            using var encoder = new BinaryEncoder(messageContext);
+            Assert.DoesNotThrow(() => encoder.EncodeMessage(response));
+        }
+
+        /// <summary>
+        /// The budget of a HistoryRead is the message size limit less the framing of the
+        /// response and of each result; a limit of zero is no budget.
+        /// </summary>
+        [Test]
+        public void HistoryReadBudgetReservesTheResponseAndResultFraming()
+        {
+            Assert.That(ResponseSizeEstimator.GetHistoryReadResponseBudget(0, 10), Is.Zero);
+            Assert.That(
+                ResponseSizeEstimator.GetHistoryReadResponseBudget(65536, 2),
+                Is.EqualTo(65536 - ResponseSizeEstimator.HistoryReadResponseFramingSize -
+                    (2 * ResponseSizeEstimator.HistoryReadResultFramingSize)));
+            Assert.That(ResponseSizeEstimator.GetHistoryReadResponseBudget(100, 1000), Is.EqualTo(1));
+        }
+
         private static ValueTask<ServiceResult> ReadAsync(
             Harness h,
             BaseDataVariableState variable,
@@ -289,18 +356,29 @@ namespace Opc.Ua.Server.Tests.Historian
             /// </summary>
             public NodeId SeedArrays(int count, int length)
             {
-                var nodeId = new NodeId($"budget-{Guid.NewGuid():N}", 1);
-                Provider.Register(nodeId);
-                var values = new DataValue[count];
-                for (int ii = 0; ii < count; ii++)
+                return SeedValues(count, ii =>
                 {
                     double[] array = new double[length];
                     for (int jj = 0; jj < length; jj++)
                     {
                         array[jj] = ii;
                     }
+                    return new Variant((ArrayOf<double>)array);
+                });
+            }
+
+            /// <summary>
+            /// Stores <paramref name="count"/> values, one per second.
+            /// </summary>
+            public NodeId SeedValues(int count, Func<int, Variant> createValue)
+            {
+                var nodeId = new NodeId($"budget-{Guid.NewGuid():N}", 1);
+                Provider.Register(nodeId);
+                var values = new DataValue[count];
+                for (int ii = 0; ii < count; ii++)
+                {
                     values[ii] = new DataValue(
-                        new Variant((ArrayOf<double>)array),
+                        createValue(ii),
                         StatusCodes.Good,
                         sourceTimestamp: BaseTime.AddSeconds(ii),
                         serverTimestamp: BaseTime.AddSeconds(ii));
