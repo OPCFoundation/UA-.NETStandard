@@ -1167,7 +1167,8 @@ namespace Opc.Ua.Server.Tests
 
                     var notifications = new Queue<MonitoredItemNotification>();
                     using var context = new OperationContext(item);
-                    var logger = server.Object.Telemetry.CreateLogger<MonitoredItemManagerLifecycleTests>();
+                    ILogger<MonitoredItemManagerLifecycleTests> logger =
+                        server.Object.Telemetry.CreateLogger<MonitoredItemManagerLifecycleTests>();
                     item.Publish(context, notifications, new Queue<DiagnosticInfo>(), 10, logger);
                     Assert.That(notifications, Has.Count.EqualTo(1));
                     Assert.That(notifications.Dequeue().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -4897,7 +4898,7 @@ namespace Opc.Ua.Server.Tests
                 out MonitoredItemQueueFactory queueFactory);
             using (queueFactory)
             {
-                var owner = new Mock<IAsyncNodeManager>().Object;
+                IAsyncNodeManager owner = new Mock<IAsyncNodeManager>().Object;
                 NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner);
                 using MonitoredItem source = CreateMonitoredItem(
                     server.Object, owner, new object(), new NodeId("FailedSamplingRestore", 1));
@@ -4985,7 +4986,7 @@ namespace Opc.Ua.Server.Tests
                 out MonitoredItemQueueFactory queueFactory);
             using (queueFactory)
             {
-                var owner = new Mock<IAsyncNodeManager>().Object;
+                IAsyncNodeManager owner = new Mock<IAsyncNodeManager>().Object;
                 using MonitoredItem existing = CreateMonitoredItem(
                     server.Object, owner, new object(), new NodeId("DuplicateSamplingRestore", 1));
                 IStoredMonitoredItem stored = existing.ToStorableMonitoredItem();

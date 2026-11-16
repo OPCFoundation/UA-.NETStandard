@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Tests.Historian
             using var previous = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
             using var successor = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
             var original = new TrackingProvider();
-            var replacement = sameProvider ? original : new TrackingProvider();
+            TrackingProvider replacement = sameProvider ? original : new TrackingProvider();
             previous.RegisterForNode(nodeId, original);
             previous.RegisterForNamespace(kNamespaceUri, original);
             Assert.That(previous.ResolveForHistorization(defaultNode), Is.SameAs(borrowed));

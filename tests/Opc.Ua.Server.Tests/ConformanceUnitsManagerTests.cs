@@ -434,7 +434,7 @@ namespace Opc.Ua.Server.Tests
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager.Object);
 
             contributor.BlockNextRead();
-            Task publication = Task.Run(async () => await manager.PublishAsync(timeout.Token).ConfigureAwait(false));
+            var publication = Task.Run(async () => await manager.PublishAsync(timeout.Token).ConfigureAwait(false));
             Task? refresh = null;
             try
             {

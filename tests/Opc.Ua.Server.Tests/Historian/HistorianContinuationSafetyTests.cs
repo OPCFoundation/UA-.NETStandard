@@ -948,7 +948,8 @@ namespace Opc.Ua.Server.Tests.Historian
 
             AggregateException observed = (await Assert.ThrowsAsync<AggregateException>(
                 async () => await claim.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false))!;
-            var failures = observed.Flatten().InnerExceptions;
+            System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                observed.Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(3));
             Assert.That(failures, Has.Exactly(1).SameAs(durableFailure));
             Assert.That(failures, Has.Exactly(1).SameAs(localFailure));
@@ -1028,7 +1029,8 @@ namespace Opc.Ua.Server.Tests.Historian
                     context, points, state, new HistoryReadResult(), cancellation.Token).ConfigureAwait(false))
                 .ConfigureAwait(false))!;
 
-            var failures = observed.Flatten().InnerExceptions;
+            System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                observed.Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(2));
             if (cancel)
             {
@@ -1145,7 +1147,8 @@ namespace Opc.Ua.Server.Tests.Historian
                     TimestampsToReturn.Source, new HistoryReadResult(), CancellationToken.None)
                     .ConfigureAwait(false)).ConfigureAwait(false))!;
 
-            var failures = observed.Flatten().InnerExceptions;
+            System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                observed.Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(3));
             Assert.That(failures, Has.Exactly(1).SameAs(readFailure));
             Assert.That(failures, Has.Exactly(1).SameAs(durableFailure));
@@ -1213,7 +1216,8 @@ namespace Opc.Ua.Server.Tests.Historian
                     TimestampsToReturn.Source, new HistoryReadResult(), CancellationToken.None)
                     .ConfigureAwait(false)).ConfigureAwait(false))!;
 
-            var failures = observed.Flatten().InnerExceptions;
+            System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                observed.Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(3));
             Assert.That(failures, Has.Exactly(1).SameAs(saveFailure));
             Assert.That(failures, Has.Exactly(1).SameAs(durableFailure));

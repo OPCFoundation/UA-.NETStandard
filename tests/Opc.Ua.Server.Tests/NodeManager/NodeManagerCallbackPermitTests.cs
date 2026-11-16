@@ -144,7 +144,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var permit = new NodeManagerCallbackPermit(current, NodeManagerAdmissionCapability.ServerLifecycle);
             try
             {
-                Task child = Task.Run(async () =>
+                var child = Task.Run(async () =>
                 {
                     Assert.That(current.Value, Is.SameAs(permit));
                     await permit.DisposeAsync().ConfigureAwait(false);

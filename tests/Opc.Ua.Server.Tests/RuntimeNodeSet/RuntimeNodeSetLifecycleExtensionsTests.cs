@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             using var cancellation = new CancellationTokenSource();
             ILifecycleCapture capture = lifecycle.Object.CaptureChanges();
             var factory = new RuntimeNodeSetNodeManagerFactory(CreateOptions());
-            LifecycleChange change = LifecycleChange.Add(factory);
+            var change = LifecycleChange.Add(factory);
             await using ILifecycleWriter writer = await capture.BeginAsync(cancellation.Token).ConfigureAwait(false);
             LifecycleResult result;
             if (hasContext)
@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             using var cancellation = new CancellationTokenSource();
             ILifecycleCapture capture = lifecycle.Object.CaptureChanges();
             var factory = new RuntimeNodeSetNodeManagerFactory(CreateOptions());
-            LifecycleChange change = LifecycleChange.Add(factory);
+            var change = LifecycleChange.Add(factory);
             await using ILifecycleWriter writer = await capture.BeginAsync(cancellation.Token).ConfigureAwait(false);
             LifecycleResult result;
             await using IPreparedChanges prepared = await writer.PrepareAsync([change], cancellation.Token)
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             using var cancellation = new CancellationTokenSource();
             ILifecycleCapture capture = LifecycleInspection.Capture(lifecycle.Object, registration);
             var factory = new RuntimeNodeSetNodeManagerFactory(CreateOptions());
-            LifecycleChange change = LifecycleChange.Replace(registration.Slot, factory);
+            var change = LifecycleChange.Replace(registration.Slot, factory);
             await using ILifecycleWriter writer = await capture.BeginAsync(cancellation.Token).ConfigureAwait(false);
             LifecycleResult result;
             if (hasContext)
@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             using var cancellation = new CancellationTokenSource();
             ILifecycleCapture capture = LifecycleInspection.Capture(lifecycle.Object, registration);
             var factory = new RuntimeNodeSetNodeManagerFactory(CreateOptions());
-            LifecycleChange change = LifecycleChange.Replace(registration.Slot, factory);
+            var change = LifecycleChange.Replace(registration.Slot, factory);
             await using ILifecycleWriter writer = await capture.BeginAsync(cancellation.Token).ConfigureAwait(false);
             LifecycleResult result;
             await using IPreparedChanges prepared = await writer.PrepareAsync([change], cancellation.Token)
@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             using var cancellation = new CancellationTokenSource();
             ILifecycleCapture capture = LifecycleInspection.Capture(lifecycle.Object, registration);
             var factory = new RuntimeNodeSetNodeManagerFactory(CreateOptions());
-            LifecycleChange change = LifecycleChange.Replace(registration.Slot, factory);
+            var change = LifecycleChange.Replace(registration.Slot, factory);
             await using ILifecycleWriter writer = await capture.BeginAsync(cancellation.Token).ConfigureAwait(false);
             LifecycleResult result;
             await using IPreparedChanges prepared = await writer.PrepareAsync([change], cancellation.Token)
@@ -308,7 +308,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             using var cancellation = new CancellationTokenSource();
             ILifecycleCapture capture = LifecycleInspection.Capture(lifecycle.Object, registration);
             var factory = new RuntimeNodeSetNodeManagerFactory(CreateOptions());
-            LifecycleChange change = LifecycleChange.Replace(
+            var change = LifecycleChange.Replace(
                 registration.Slot, factory, NodeManagerMonitoredItemTransitionMode.Invalidate);
             await using ILifecycleWriter writer = await capture.BeginAsync(cancellation.Token).ConfigureAwait(false);
             LifecycleResult result;

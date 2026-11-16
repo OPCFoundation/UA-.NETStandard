@@ -261,7 +261,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .Single(item => item.Id == eventItemId);
                 MonitoredNode2 source = first.GetEmissionSource(node.NodeId);
                 MonitoredNode2 survivorSource = survivor.GetEmissionSource(survivorNode.NodeId);
-                var initial = await PublishEmissionDataAsync(services, subscriptionId, default, timeout.Token)
+                (Dictionary<uint, DataValue> Values, ArrayOf<SubscriptionAcknowledgement> Acknowledgements) initial =
+                    await PublishEmissionDataAsync(services, subscriptionId, default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(initial.Values.Values.Select(value => value.StatusCode),
                     Is.All.EqualTo(StatusCodes.Good));

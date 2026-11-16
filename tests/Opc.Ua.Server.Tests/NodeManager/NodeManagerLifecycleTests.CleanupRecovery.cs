@@ -3102,7 +3102,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 catch (InvalidOperationException failure) when (ReferenceEquals(failure, resource.Failure))
                 {
                 }
-                Guid id = Guid.NewGuid();
+                var id = Guid.NewGuid();
                 lock (m_gate)
                 {
                     m_resources.Add(id, resource);

@@ -302,7 +302,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     release.Set();
                     try
                     {
-                        var result = await capture.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        (bool Accepted, MasterNodeManager.SourceEmissionAdmission? Admission) result =
+                            await capture.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                         if (!childDisposed)
                         {
                             result.Admission?.Dispose();

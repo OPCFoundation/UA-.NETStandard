@@ -425,7 +425,8 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<NodeId>(), ContinuationPointKind.Browse, second.Id), Times.Once);
                 store.Verify(value => value.RemoveContinuationPoint(
                     It.IsAny<NodeId>(), ContinuationPointKind.Browse, successful.Id), Times.Once);
-                var failures = failure.Flatten().InnerExceptions;
+                System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                    failure.Flatten().InnerExceptions;
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(failures, Has.Count.EqualTo(4));

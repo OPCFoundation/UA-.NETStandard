@@ -147,8 +147,8 @@ namespace Opc.Ua.Server.Tests
             var manager = new Mock<IAsyncNodeManager>();
             var first = new Mock<IHistoryContinuationPoint>();
             var second = new Mock<IHistoryContinuationPoint>();
-            Guid firstId = Guid.NewGuid();
-            Guid secondId = Guid.NewGuid();
+            var firstId = Guid.NewGuid();
+            var secondId = Guid.NewGuid();
             var firstStoreFailure = new IOException("The first history store removal failed.");
             var secondStoreFailure = new IOException("The second history store removal failed.");
             var firstDisposalFailure = new IOException("The first history disposal failed.");
@@ -223,7 +223,8 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<NodeId>(), ContinuationPointKind.History, secondId), Times.Once);
                 store.Verify(value => value.RemoveContinuationPoint(
                     It.IsAny<NodeId>(), ContinuationPointKind.History, successful.Id), Times.Once);
-                var failures = failure.Flatten().InnerExceptions;
+                System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                    failure.Flatten().InnerExceptions;
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(failures, Has.Count.EqualTo(4));
@@ -321,7 +322,8 @@ namespace Opc.Ua.Server.Tests
                         holder.RemoveForManager(manager.Object);
                     }
                 });
-                var failures = failure.Flatten().InnerExceptions;
+                System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                    failure.Flatten().InnerExceptions;
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(failures, Has.Count.EqualTo(2));
@@ -361,8 +363,8 @@ namespace Opc.Ua.Server.Tests
         {
             NodeId originalOwner = new(201);
             NodeId localOwner = new(202);
-            Guid mirroredBrowseId = Guid.NewGuid();
-            Guid mirroredHistoryId = Guid.NewGuid();
+            var mirroredBrowseId = Guid.NewGuid();
+            var mirroredHistoryId = Guid.NewGuid();
             var store = new Mock<IContinuationPointStore>();
             store.Setup(value => value.LoadContinuationPointsAsync(originalOwner, It.IsAny<CancellationToken>()))
                 .ReturnsAsync([
@@ -433,7 +435,8 @@ namespace Opc.Ua.Server.Tests
                     localOwner, ContinuationPointKind.Browse, browse.Id), Times.Once);
                 store.Verify(value => value.RemoveContinuationPoint(
                     localOwner, ContinuationPointKind.History, history.Id), Times.Once);
-                var failures = failure.Flatten().InnerExceptions;
+                System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                    failure.Flatten().InnerExceptions;
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(failures, Has.Count.EqualTo(2));

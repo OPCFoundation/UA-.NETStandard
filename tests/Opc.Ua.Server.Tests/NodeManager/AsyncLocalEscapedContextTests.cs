@@ -336,7 +336,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 parent.Dispose();
             }
             work.Release();
-            var observed = await work.Result.WaitAsync(kDeadline).ConfigureAwait(false);
+            (bool ParentGeneration, bool InnerGeneration, bool ParentServer, bool InnerServer) observed =
+                await work.Result.WaitAsync(kDeadline).ConfigureAwait(false);
             Assert.That(observed.ParentGeneration, Is.EqualTo(scopeState != 2));
             Assert.That(observed.InnerGeneration, Is.EqualTo(scopeState == 0));
             Assert.That(observed.ParentServer, Is.EqualTo(scopeState != 2));

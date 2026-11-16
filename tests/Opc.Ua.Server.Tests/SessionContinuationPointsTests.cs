@@ -388,7 +388,7 @@ namespace Opc.Ua.Server.Tests
                 NewPersistingHistoryMocks();
             SessionContinuationPoints holder = NewHolder(historyStore: store.Object, historyCodec: codec.Object);
             var point = new TrackingDisposable(Guid.NewGuid());
-            var token = ToByteString(point.Id);
+            ByteString token = ToByteString(point.Id);
             NodeManagerGeneration generation =
                 NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
             try
@@ -718,7 +718,7 @@ namespace Opc.Ua.Server.Tests
                 historyStore: failPersistence ? store.Object : null,
                 historyCodec: failPersistence ? codec.Object : null);
             var point = new Mock<IHistoryContinuationPoint>();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             point.SetupGet(value => value.Id).Returns(id);
             ByteString token = ToByteString(id);
             NodeManagerGeneration generation =
@@ -791,7 +791,7 @@ namespace Opc.Ua.Server.Tests
         {
             SessionContinuationPoints holder = NewHolder(maxHistory: 1);
             var borrowed = new Mock<IHistoryContinuationPoint>();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             borrowed.SetupGet(value => value.Id).Returns(id);
             ByteString token = ToByteString(id);
             NodeManagerGeneration generation =
@@ -828,7 +828,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true)]
         public async Task RetiredHistoryReadRetainsAllCleanupFailuresAsync(bool portable)
         {
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             var mirrorFailure = new InvalidOperationException("mirror removal failed");
             var schedulingFailure = new InvalidOperationException("portable removal scheduling failed");
             var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
@@ -903,7 +903,7 @@ namespace Opc.Ua.Server.Tests
             var id = Guid.NewGuid();
             var store = new Mock<IContinuationPointStore>();
             var original = new TrackingDisposable(id);
-            var duplicate = sameInstance ? original : new TrackingDisposable(id);
+            TrackingDisposable duplicate = sameInstance ? original : new TrackingDisposable(id);
             SessionContinuationPoints holder = NewHolder(store: store.Object);
             holder.SaveHistory(original);
 
@@ -1293,7 +1293,7 @@ namespace Opc.Ua.Server.Tests
             var releaseStore = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var cleanupFailure = new InvalidOperationException("Continuation cleanup failed.");
             var point = new Mock<IHistoryContinuationPoint>();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             point.SetupGet(value => value.Id).Returns(id);
             if (cleanupFails)
             {
@@ -1565,7 +1565,7 @@ namespace Opc.Ua.Server.Tests
             var claimFailure = new NotSupportedException("Portable claim failed.");
             var cleanupFailure = new InvalidOperationException("Continuation cleanup failed.");
             var point = new Mock<IHistoryContinuationPoint>();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             point.SetupGet(value => value.Id).Returns(id);
             if (cleanupFails)
             {
@@ -2438,7 +2438,7 @@ namespace Opc.Ua.Server.Tests
             ByteString token = ToByteString(held.Id);
             holder.SaveHistory(held);
 
-            Task first = Task.Run(async () =>
+            var first = Task.Run(async () =>
             {
                 using IDisposable request = holder.BeginHistoryRequest(
                     [new HistoryReadValueId { ContinuationPoint = token }]);
@@ -2510,7 +2510,7 @@ namespace Opc.Ua.Server.Tests
             holder.SaveHistory(held);
             var firstSaved = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var finishFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task first = Task.Run(async () =>
+            var first = Task.Run(async () =>
             {
                 using IDisposable request = holder.BeginHistoryRequest(
                     [new HistoryReadValueId { ContinuationPoint = token }]);

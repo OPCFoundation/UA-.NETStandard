@@ -1468,7 +1468,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 [],
                 needsDetachment: false);
             using var reclaimer = new GenerationReclaimer();
-            Task releasePoint = Task.Run(points.Clear);
+            var releasePoint = Task.Run(points.Clear);
             Task reclamation = Task.CompletedTask;
             bool retirementStarted = false;
             bool retiredBeforeRegistration = false;

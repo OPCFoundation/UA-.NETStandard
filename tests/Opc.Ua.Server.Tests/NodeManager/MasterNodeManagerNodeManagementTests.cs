@@ -400,8 +400,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(competing.IsCompleted, Is.False);
 
                 release.TrySetResult(true);
-                var nestedResult = await nested.WaitAsync(timeout.Token).ConfigureAwait(false);
-                var outerResult = await outer.WaitAsync(timeout.Token).ConfigureAwait(false);
+                (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) nestedResult =
+                    await nested.WaitAsync(timeout.Token).ConfigureAwait(false);
+                (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) outerResult =
+                    await outer.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await closing.AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
                 using INodeManagerBatchAdmission acquired =
                     await competing.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -504,7 +506,8 @@ namespace Opc.Ua.Server.Tests
                 release.TrySetResult(true);
                 await descendantEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(nested, Is.Not.Null);
-                var result = await nested!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) result =
+                    await nested!.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await close.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(result.results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             }

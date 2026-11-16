@@ -813,7 +813,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
                 var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                var owner = await AddHistoryOwnerAsync(data,
+                (NodeManagerRegistration Registration, TrackingLifecycleNodeManager Manager, NodeId NodeId) owner =
+                    await AddHistoryOwnerAsync(data,
                     CreateHistoryProbe(data, async (_, _, token, ct) =>
                     {
                         if (token.IsEmpty)

@@ -279,7 +279,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerCleanupDeferredException? deferred = null;
             try
             {
-                var pending = await PrepareDeferredWriterCandidateAsync(writer, catalog, gate, timeout.Token)
+                (IPreparedChanges Prepared, WeakReference Candidate) pending =
+                    await PrepareDeferredWriterCandidateAsync(writer, catalog, gate, timeout.Token)
                     .ConfigureAwait(false);
                 prepared = pending.Prepared;
                 candidate = pending.Candidate;

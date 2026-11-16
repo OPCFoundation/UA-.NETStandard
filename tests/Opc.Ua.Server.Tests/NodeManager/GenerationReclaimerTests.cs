@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             using var reclaimer = new GenerationReclaimer();
             var context = new ReclamationContext();
-            var retired = context.CreateRetirement();
+            GenerationReclaimer.RetiredGeneration retired = context.CreateRetirement();
             var completedResource = new Mock<IDisposable>();
             var resource = new Mock<IDisposable>();
             int attempts = 0;
@@ -288,7 +288,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void RetiredConsumerWaitsForRoutedView(bool closeBeforeDeferral, bool holdPin)
         {
             var context = new ReclamationContext();
-            var retired = context.CreateRetirement();
+            GenerationReclaimer.RetiredGeneration retired = context.CreateRetirement();
             var epoch = new AddressSpaceEpoch();
             var resource = new Mock<IDisposable>();
             int pin = -1;
@@ -448,7 +448,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var release = new ManualResetEventSlim();
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var context = new ReclamationContext();
-            var retired = context.CreateRetirement();
+            GenerationReclaimer.RetiredGeneration retired = context.CreateRetirement();
             var resource = new Mock<IDisposable>();
             bool ownerDeferred = true;
             resource.Setup(value => value.Dispose()).Callback(() =>
@@ -504,12 +504,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             using var reclaimer = new GenerationReclaimer();
             var context = new ReclamationContext();
-            var retired = context.CreateRetirement();
+            GenerationReclaimer.RetiredGeneration retired = context.CreateRetirement();
 
             var namespaceUris = new NamespaceTable();
             var serverUris = new StringTable();
             var typeTree = new TypeTable(namespaceUris);
-            EncodeableFactory factory = (EncodeableFactory)EncodeableFactory.Create();
+            var factory = (EncodeableFactory)EncodeableFactory.Create();
             using var servingRegistry = new HistorianProviderRegistry(namespaceUris);
             context.Server.SetupGet(value => value.NamespaceUris).Returns(namespaceUris);
             context.Server.SetupGet(value => value.ServerUris).Returns(serverUris);
@@ -601,11 +601,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var reclaimer = new GenerationReclaimer(new FakeTimeProvider());
             var context = new ReclamationContext();
-            var retired = context.CreateRetirement();
+            GenerationReclaimer.RetiredGeneration retired = context.CreateRetirement();
             var namespaceUris = new NamespaceTable();
             var serverUris = new StringTable();
             var typeTree = new TypeTable(namespaceUris);
-            EncodeableFactory factory = (EncodeableFactory)EncodeableFactory.Create();
+            var factory = (EncodeableFactory)EncodeableFactory.Create();
             using var servingRegistry = new HistorianProviderRegistry(namespaceUris);
             context.Server.SetupGet(value => value.NamespaceUris).Returns(namespaceUris);
             context.Server.SetupGet(value => value.ServerUris).Returns(serverUris);
@@ -661,7 +661,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             using var reclaimer = new GenerationReclaimer(new FakeTimeProvider());
             var context = new ReclamationContext();
-            var retired = context.CreateRetirement();
+            GenerationReclaimer.RetiredGeneration retired = context.CreateRetirement();
             var handle = new NodeManagerCleanupFailureHandle(
                 retired.Generation.CleanupRecoveryId, Guid.NewGuid(), Guid.NewGuid());
             retired.Generation.Gate.Retire();
@@ -858,7 +858,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerGeneration generation = CreateLiveGeneration(manager.Object);
             var retired = new GenerationReclaimer.RetiredGeneration(
                 context.Server.Object, context.Host.Object, generation, [], needsDetachment: true);
-            Mock<IMasterNodeManager> master = Mock.Get(context.Server.Object.NodeManager);
+            var master = Mock.Get(context.Server.Object.NodeManager);
             retired.PendingReferences.Add(new LocalReference(
                 new NodeId(1), ReferenceTypeIds.HasComponent, false, new NodeId(2)));
             var consumer = new Mock<IDisposable>();
@@ -1465,7 +1465,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             using var reclaimer = new GenerationReclaimer(new FakeTimeProvider());
             var context = new ReclamationContext();
-            var retired = context.CreateRetirement();
+            GenerationReclaimer.RetiredGeneration retired = context.CreateRetirement();
             var handle = new NodeManagerCleanupFailureHandle(
                 retired.Generation.CleanupRecoveryId, Guid.NewGuid(), Guid.NewGuid());
             retired.Generation.Gate.Retire();

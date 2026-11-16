@@ -245,7 +245,8 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true)]
         public void ReplacedTemplateIsNotRetainedWithoutAnOwnedRoutingPin(bool borrowRouting)
         {
-            var retention = CreateReplacementReferences(weak: false, pinRouting: false, borrowRouting);
+            (OperationContext Operation, WeakReference RetiredTemplate, WeakReference RetiredCopy) retention =
+                CreateReplacementReferences(weak: false, pinRouting: false, borrowRouting);
             try
             {
                 CollectGarbage();
@@ -289,7 +290,13 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true)]
         public void EnablingWeakCacheReleasesFirstTemplateAndCopy(bool pinRouting)
         {
-            var retention = CreateOperationReferences(pinRouting);
+            (
+                OperationContext Operation,
+                WeakReference FirstTemplate,
+                WeakReference FirstCopy,
+                WeakReference CachedTemplate,
+                WeakReference CachedCopy
+            ) retention = CreateOperationReferences(pinRouting);
             try
             {
                 retention.Operation.EnableWeakSystemContextCache();

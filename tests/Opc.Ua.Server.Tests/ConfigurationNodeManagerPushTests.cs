@@ -2083,7 +2083,7 @@ namespace Opc.Ua.Server.Tests
                 BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_pendingApplyChangesTask not found.");
             var failure = new InvalidOperationException("Deferred apply failed.");
-            Task pending = Task.FromException(failure);
+            var pending = Task.FromException(failure);
             pendingApplyChangesTaskField.SetValue(m_configManager, pending);
 
             try

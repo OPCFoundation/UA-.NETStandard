@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task SyncOnlyReadinessIsInvokedOnceAsync()
         {
             var manager = new Mock<INodeManager>();
-            var ready = manager.As<INodeManagerReadinessNotification>();
+            Mock<INodeManagerReadinessNotification> ready = manager.As<INodeManagerReadinessNotification>();
             ready.Setup(value => value.OnServerReadyAsync(CancellationToken.None)).Returns(default(ValueTask));
             using var adapter = new AsyncNodeManagerAdapter(manager.Object);
 
@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ClassicReadinessReceivesCanceledTokenAsync()
         {
             var manager = new Mock<INodeManager>();
-            var ready = manager.As<INodeManagerReadinessNotification>();
+            Mock<INodeManagerReadinessNotification> ready = manager.As<INodeManagerReadinessNotification>();
             ready.Setup(value => value.OnServerReadyAsync(It.IsAny<CancellationToken>()))
                 .Returns((CancellationToken token) =>
                 {
