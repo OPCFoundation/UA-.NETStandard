@@ -2476,11 +2476,13 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 released.TrySetResult(true);
             }
-            while (session.SessionDispatchCount == 0)
-            {
-                await Task.Delay(10, ct).ConfigureAwait(false);
-            }
-            Assert.That(manager.ParkedPublishWorkerCount, Is.Zero);
+            await WaitUntilAsync(() => session.SessionDispatchCount != 0, ct).ConfigureAwait(false);
+
+            // The workers keep publishing after the release, and a worker that draws
+            // the next message for the subscription enters and leaves the (now open)
+            // wait again, so the parked count can be 1 for a moment. The worker that
+            // was parked on the full queue must have left it.
+            await WaitUntilAsync(() => manager.ParkedPublishWorkerCount == 0, ct).ConfigureAwait(false);
         }
 
         [Test]
