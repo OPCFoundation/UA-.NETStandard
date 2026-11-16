@@ -1381,6 +1381,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns <c>true</c> when the server configures user token policies but none of
+        /// them could be published for <paramref name="description"/> (for example every
+        /// policy is a clear-text secret on a Sign endpoint). Such an endpoint is not
+        /// offered: an empty policy list would otherwise read as "no user authentication
+        /// required" (for example for anonymous Session-less requests).
+        /// </summary>
+        /// <param name="configuration">The configuration.</param>
+        /// <param name="description">The endpoint with its published user token policies.</param>
+        public static bool HasNoUsableUserTokenPolicy(
+            ApplicationConfiguration configuration,
+            EndpointDescription description)
+        {
+            return description.UserIdentityTokens.IsEmpty &&
+                configuration.ServerConfiguration != null &&
+                !configuration.ServerConfiguration.UserTokenPolicies.IsEmpty;
+        }
+
+        /// <summary>
         /// Returns <c>true</c> when a UserName or IssuedToken policy uses SecurityPolicy
         /// None on a Sign channel, so the secret would be sent unencrypted
         /// (Part 4 §7.40.4 Table 189: an invalid configuration that shall be rejected).
@@ -2285,6 +2303,15 @@ namespace Opc.Ua
                 "the secret would be sent unencrypted (OPC 10000-4 Table 189).")]
         public static partial void CleartextTokenPolicyOnSignEndpoint(
             this ILogger logger, UserTokenType tokenType, [NetworkAddress] string? endpointUrl);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 14, Level = LogLevel.Error,
+            Message = "Omitting {SecurityMode} endpoint {EndpointUrl} with SecurityPolicy {SecurityPolicyUri}: " +
+                "none of the configured user token policies can be offered on it.")]
+        public static partial void EndpointWithoutUsableUserTokenPolicy(
+            this ILogger logger,
+            MessageSecurityMode securityMode,
+            [NetworkAddress] string? endpointUrl,
+            string? securityPolicyUri);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 0, Level = LogLevel.Error,
             Message = "Unexpected error disposing transport listener {Name}.")]

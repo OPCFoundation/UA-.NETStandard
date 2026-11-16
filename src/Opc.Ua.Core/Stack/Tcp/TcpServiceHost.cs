@@ -128,6 +128,17 @@ namespace Opc.Ua.Bindings
                             configuration,
                             description);
 
+                        // fail closed: an endpoint whose configured user token policies were
+                        // all rejected is not offered with an empty (anonymous) policy list.
+                        if (ServerBase.HasNoUsableUserTokenPolicy(configuration, description))
+                        {
+                            logger.EndpointWithoutUsableUserTokenPolicy(
+                                description.SecurityMode,
+                                description.EndpointUrl,
+                                description.SecurityPolicyUri);
+                            continue;
+                        }
+
                         ServerBase.SetServerCertificateInEndpointDescription(
                             description,
                             serverCertificates,

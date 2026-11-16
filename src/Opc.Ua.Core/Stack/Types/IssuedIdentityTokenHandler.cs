@@ -465,7 +465,7 @@ namespace Opc.Ua
         private byte[]? m_decryptedTokenData;
 
         /// <summary>
-        /// Returns <c>true</c> when the token data starts with the binary encoded
+        /// Returns <c>true</c> when the token data starts with a binary encoded
         /// RsaEncryptedSecret type id, i.e. it is an EncryptedSecret envelope and not
         /// legacy RSA blocks (whose random leading bytes match with negligible probability).
         /// </summary>
@@ -473,11 +473,22 @@ namespace Opc.Ua
             IServiceMessageContext context,
             byte[] tokenData)
         {
-            using var encoder = new BinaryEncoder(context);
-            encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
-            byte[] typeId = encoder.CloseAndReturnBuffer()!;
-            return tokenData.Length > typeId.Length &&
-                tokenData.AsSpan(0, typeId.Length).SequenceEqual(typeId);
+            // decode the type id so every valid NodeId encoding is recognized; data that
+            // does not decode is not an EncryptedSecret and stays on the legacy path.
+            if (tokenData.Length < 8)
+            {
+                return false;
+            }
+
+            try
+            {
+                using var decoder = new BinaryDecoder(tokenData, context);
+                return decoder.ReadNodeId(null) == DataTypeIds.RsaEncryptedSecret;
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
         }
 
         private readonly IssuedIdentityToken m_token;

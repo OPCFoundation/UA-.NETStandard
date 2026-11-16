@@ -87,6 +87,44 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.That(tokenHandler.DecryptedTokenData, Is.EqualTo(expectedToken));
         }
 
+        /// <summary>
+        /// The envelope type id may use the seven-byte Numeric NodeId encoding instead of
+        /// the compact four-byte one; both identify an RsaEncryptedSecret.
+        /// </summary>
+        [Test]
+        public async Task DecryptSupportsNonCompactRsaEncryptedSecretTypeIdAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri)!;
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data!;
+            byte[] expectedToken = Encoding.UTF8.GetBytes("non-compact-type-id");
+
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Issued Identity Token Numeric Test Subject, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            byte[] nonCompact = UserNameIdentityTokenHandlerTests.CreateRsaEncryptedSecret(
+                context,
+                certificate,
+                kSecurityPolicyUri,
+                expectedToken,
+                receiverNonce,
+                numericTypeId: true);
+            Assert.That(nonCompact[0], Is.EqualTo(0x02));
+
+            var tokenHandler = new IssuedIdentityTokenHandler(
+                new IssuedIdentityToken { TokenData = nonCompact.ToByteString() });
+            await tokenHandler.DecryptAsync(
+                certificate,
+                Nonce.CreateNonce(securityPolicy, receiverNonce),
+                kSecurityPolicyUri,
+                context).ConfigureAwait(false);
+
+            Assert.That(tokenHandler.DecryptedTokenData, Is.EqualTo(expectedToken));
+        }
+
         [Test]
         public async Task DecryptRejectsRsaEncryptedSecretLongerThanTheIssuedTokenLimitAsync()
         {
