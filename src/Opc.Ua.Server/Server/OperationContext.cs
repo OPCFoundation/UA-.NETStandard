@@ -381,6 +381,35 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns bytes to the response byte budget that it reserved for framing the
+        /// response does not hold (the continuation point of a result that is complete).
+        /// A budget that nothing was charged against stays unused, an exceeded budget
+        /// stays exceeded.
+        /// </summary>
+        /// <param name="bytes">The reserved bytes the response does not hold.</param>
+        internal void CreditResponse(long bytes)
+        {
+            if (bytes <= 0)
+            {
+                return;
+            }
+            int current = Volatile.Read(ref m_responseBudget);
+            while (current != kNoResponseBudget && current != kResponseBudgetExceeded)
+            {
+                long next = Math.Min(
+                    (current < 0 ? -(long)current : current) + bytes,
+                    int.MaxValue);
+                int stored = current < 0 ? -(int)next : (int)next;
+                int observed = Interlocked.CompareExchange(ref m_responseBudget, stored, current);
+                if (observed == current)
+                {
+                    return;
+                }
+                current = observed;
+            }
+        }
+
+        /// <summary>
         /// The bytes left in the response byte budget, or -1 when the call has no budget.
         /// </summary>
         internal long ResponseBytesRemaining

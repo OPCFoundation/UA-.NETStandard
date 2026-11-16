@@ -288,6 +288,98 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// A complete result that leaves its continuation point bytes unused returns them
+        /// to the budget of the request: after an empty first result, a last value that
+        /// fills the rest of the message size limit is returned, and the two-result
+        /// response encodes within the limit.
+        /// </summary>
+        [Test]
+        public async Task RawReadAfterAnEmptyResultUsesItsContinuationPointBytesAsync()
+        {
+            const int maxMessageSize = 64 * 1024;
+            var h = new Harness();
+            NodeId emptyNodeId = h.SeedValues(0, _ => default);
+            // 65436 bytes with the source timestamp are a 65450 byte value, which needs
+            // the continuation point bytes of both results.
+            NodeId nodeId = h.SeedValues(1, _ => new Variant(ByteString.From(new byte[65436])));
+
+            OperationContext operation = h.SystemContext.OperationContext!;
+            operation.StartResponseBudget(ResponseSizeEstimator.GetHistoryReadResponseBudget(maxMessageSize, 2));
+            var empty = new HistoryReadResult();
+            ServiceResult error = await ReadAsync(
+                h, CreateVariable(emptyNodeId), emptyNodeId, ByteString.Empty, CreateDetails(uint.MaxValue), empty);
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(empty.ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(operation.ResponseBudgetUnused, Is.True);
+
+            var result = new HistoryReadResult();
+            error = await ReadAsync(
+                h, CreateVariable(nodeId), nodeId, ByteString.Empty, CreateDetails(uint.MaxValue), result);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(GetValues(result).Count, Is.EqualTo(1));
+
+            var response = new HistoryReadResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 1,
+                    ServiceResult = StatusCodes.Good
+                },
+                Results = [empty, result],
+                DiagnosticInfos = []
+            };
+            var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create())
+            {
+                MaxMessageSize = maxMessageSize
+            };
+            using var encoder = new BinaryEncoder(messageContext);
+            Assert.DoesNotThrow(() => encoder.EncodeMessage(response));
+        }
+
+        /// <summary>
+        /// A string nested in a variant array that alone exceeds the rest of the budget is
+        /// not encoded to be measured, so reading it does not allocate its UTF-8 bytes.
+        /// </summary>
+        [Test]
+        public async Task RawReadOfANestedStringLargerThanTheBudgetDoesNotEncodeItAsync()
+        {
+            const int length = 4_000_000;
+            var h = new Harness();
+            NodeId smallNodeId = h.SeedValues(1, _ => CreateNestedString(100_000));
+            NodeId nodeId = h.SeedValues(1, _ => CreateNestedString(length));
+            BaseDataVariableState variable = CreateVariable(nodeId);
+            ReadRawModifiedDetails details = CreateDetails(uint.MaxValue);
+
+            OperationContext operation = h.SystemContext.OperationContext!;
+            operation.StartResponseBudget(kBudget);
+            // a smaller value that does not fit either warms up the code path, without
+            // filling the array pool with the buffers a large string would rent.
+            await Assert.ThatAsync(
+                async () => await ReadAsync(
+                    h, CreateVariable(smallNodeId), smallNodeId, ByteString.Empty, details, new HistoryReadResult()),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadResponseTooLarge));
+#if NET
+            operation.StartResponseBudget(kBudget);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            ValueTask<ServiceResult> read = ReadAsync(h, variable, nodeId, ByteString.Empty, details, new HistoryReadResult());
+            Assert.That(read.IsCompleted, Is.True, "the in-memory read completes synchronously");
+            Assert.Throws<ServiceResultException>(() => read.GetAwaiter().GetResult());
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.That(allocated, Is.LessThan(length / 4));
+#endif
+        }
+
+        private static Variant CreateNestedString(int length)
+        {
+            ArrayOf<Variant> elements = [new Variant(new string('a', length))];
+            return new Variant(elements);
+        }
+
+        /// <summary>
         /// History values are measured with the nesting limit the server encodes responses
         /// with, not the default one: values nested deeper than the default but within the
         /// configured limit are returned.

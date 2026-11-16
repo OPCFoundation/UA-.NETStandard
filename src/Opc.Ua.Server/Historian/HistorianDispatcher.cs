@@ -3056,7 +3056,17 @@ namespace Opc.Ua.Server.Historian
                     someFit |= count > 0;
                     if (count == filled.Count)
                     {
-                        fits = operationContext.TryChargeResponse(Math.Max(0, bytes - reserve));
+                        // the continuation point bytes the values do not use stay in the
+                        // budget for the other results of the request.
+                        if (bytes >= reserve)
+                        {
+                            fits = operationContext.TryChargeResponse(bytes - reserve);
+                        }
+                        else
+                        {
+                            operationContext.CreditResponse(reserve - bytes);
+                            fits = true;
+                        }
                         break;
                     }
                     if (count == 0 || reads > kMaxResponseBudgetPageRereads)
@@ -3173,8 +3183,9 @@ namespace Opc.Ua.Server.Historian
         /// Measures the binary encoded size of history values, without storing the bytes.
         /// </summary>
         /// <remarks>
-        /// The length limits of the message context do not apply: the measurement only
-        /// sizes the values, the encoder of the response still enforces the limits. The
+        /// The length limits of the server's message context do not apply: the measurement
+        /// only sizes the values, the encoder of the response still enforces them. The
+        /// lengths and the written bytes are limited by the rest of the budget instead. The
         /// nesting limit is the server's, the one the response is encoded with, which also
         /// bounds the recursion of the measurement. A value that fails to encode does not
         /// fit.
@@ -3211,7 +3222,7 @@ namespace Opc.Ua.Server.Historian
                     {
                         return (ii, bytes);
                     }
-                    long size = Measure(values[ii]);
+                    long size = Measure(values[ii], responseBytes - bytes);
                     if (size > responseBytes - bytes)
                     {
                         return (ii, bytes);
@@ -3233,10 +3244,22 @@ namespace Opc.Ua.Server.Historian
                 m_encoder = null;
             }
 
-            private long Measure(in DataValue value)
+            /// <summary>
+            /// Measures a value that is encoded only as far as <paramref name="limit"/>
+            /// bytes: a string, byte string or array that alone is longer (also nested in
+            /// variants), or any write past the limit, stops the encoding, so a value that
+            /// does not fit is not buffered or encoded in full.
+            /// </summary>
+            private long Measure(in DataValue value, long limit)
             {
+                // each element of an array and each byte of a string is at least one byte.
+                int lengthLimit = (int)Math.Min(Math.Max(limit, 1), int.MaxValue);
+                m_context.MaxStringLength = lengthLimit;
+                m_context.MaxByteStringLength = lengthLimit;
+                m_context.MaxArrayLength = lengthLimit;
                 m_encoder ??= new BinaryEncoder(m_stream, m_context, true);
                 m_stream.Position = 0;
+                m_stream.Limit = limit;
                 try
                 {
                     m_encoder.WriteDataValue(null, value);
@@ -3313,8 +3336,19 @@ namespace Opc.Ua.Server.Historian
                 Advance(1);
             }
 
+            /// <summary>
+            /// The position writes may not pass.
+            /// </summary>
+            public long Limit { get; set; } = long.MaxValue;
+
             private void Advance(int count)
             {
+                if (count > Limit - m_position)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "The value exceeds the response size limit.");
+                }
                 m_position += count;
                 if (m_position > m_length)
                 {
