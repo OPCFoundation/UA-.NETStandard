@@ -1,6 +1,29 @@
 <Project>
   <Import Project="version.targets" />
 
+  <!-- RID-less builds otherwise copy every platform's native assets into each output.
+       Keep the SDK host's RID fallback chain, without changing RID-specific managed assets. -->
+  <Target Name="_KeepHostNativeOnly" AfterTargets="ResolvePackageAssets"
+          Condition="'$(RuntimeIdentifier)' == '' and '$(KeepAllNativeRuntimes)' != 'true' and '$(NETCoreSdkPortableRuntimeIdentifier)' != ''">
+    <PropertyGroup>
+      <_HostNativeRid>$(NETCoreSdkPortableRuntimeIdentifier)</_HostNativeRid>
+      <_HostNativeRids>;$(_HostNativeRid);$(_HostNativeRid.Split('-')[0]);</_HostNativeRids>
+    </PropertyGroup>
+    <ReadLinesFromFile File="$(MSBuildToolsPath)/NETCoreSdkRuntimeIdentifierChain.txt"
+                       Condition="Exists('$(MSBuildToolsPath)/NETCoreSdkRuntimeIdentifierChain.txt')">
+      <Output TaskParameter="Lines" ItemName="_HostNativeRuntimeIdentifier" />
+    </ReadLinesFromFile>
+    <PropertyGroup Condition="'@(_HostNativeRuntimeIdentifier)' != ''">
+      <_HostNativeRids>;@(_HostNativeRuntimeIdentifier);</_HostNativeRids>
+    </PropertyGroup>
+    <ItemGroup>
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)"
+          Condition="'%(RuntimeTargetsCopyLocalItems.AssetType)' == 'native' and
+                     (!$(_HostNativeRids.Contains(';%(RuntimeTargetsCopyLocalItems.RuntimeIdentifier);')) or
+                      '%(RuntimeTargetsCopyLocalItems.Extension)' == '.pdb')" />
+    </ItemGroup>
+  </Target>
+
   <!-- Test runners and TraceEvent require newer runtime packages than the Roslyn host
        supplies. Update their central versions after project references are declared,
        without changing the analyzer closure's RoslynRuntimeVersion pin. -->
