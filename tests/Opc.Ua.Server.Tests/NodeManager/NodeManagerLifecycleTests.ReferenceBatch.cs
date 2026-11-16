@@ -72,7 +72,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
             objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
             var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-            await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter1 = await Capture(
                 m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter1.PrepareAsync([replace
                     ? LifecycleChange.Replace(original.Slot, new RuntimeNodeSetNodeManagerFactory(
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
             for (int i = 0; i < replacementCount; i++)
             {
-                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter2 = await Capture(
                     m_server.NodeManagerLifecycle, current).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges replacement = await exactWriter2.PrepareAsync(
                     [LifecycleChange.Replace(current.Slot, new RuntimeNodeSetNodeManagerFactory(
@@ -144,10 +144,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 await exactWriter2.DisposeAsync().ConfigureAwait(false);
                 await replaced.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
-                current = LifecycleInspection.Registration(replacement.Registrations[0]);
+                current = Registration(replacement.Registrations[0]);
                 Assert.That(objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, rootId), Is.True);
             }
-            await using ILifecycleWriter exactWriter3 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter3 = await Capture(
                 m_server.NodeManagerLifecycle, current).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges removal = await exactWriter3.PrepareAsync(
                 [LifecycleChange.Remove(current.Slot)], timeout.Token).ConfigureAwait(false);
@@ -214,7 +214,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter4 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter4 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter4.PrepareAsync(
                     [LifecycleChange.Remove(original.Slot)], timeout.Token).ConfigureAwait(false);
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(replacement.Object);
             var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-            await using ILifecycleWriter exactWriter5 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter5 = await Capture(
                 m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter5.PrepareAsync(
                 [LifecycleChange.Remove(
@@ -341,7 +341,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 destroyed.GetRemovedExternalReferences().Add(
                     new LocalReference(source, ReferenceTypeIds.HasComponent, false, new NodeId(9903)));
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter6 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter6 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter6.PrepareAsync(removeSource
                         ? [LifecycleChange.Add(additionFactory.Object), LifecycleChange.Remove(registration.Slot)]
@@ -424,7 +424,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     new ValueTask<IAsyncNodeManager>(
                         new LazyReferenceSourceNodeManager(server, configuration, targetId, sourceExists)));
             var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-            await using ILifecycleWriter exactWriter7 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter7 = await Capture(
                 m_server.NodeManagerLifecycle, target, source).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter7.PrepareAsync(
                 [LifecycleChange.Remove(
@@ -1205,7 +1205,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 NodeManagerRegistration registration = await addNested.Task.ConfigureAwait(false);
                 await CommitChangeAsync(
-                    LifecycleInspection.Capture(lifecycle, registration),
+                    Capture(lifecycle, registration),
                     LifecycleChange.Remove(registration.Slot), timeout.Token)
                     .ConfigureAwait(false);
             }
@@ -1213,12 +1213,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 NodeManagerRegistration registration = await sessionClosingNested.Task.ConfigureAwait(false);
                 await CommitChangeAsync(
-                    LifecycleInspection.Capture(lifecycle, registration),
+                    Capture(lifecycle, registration),
                     LifecycleChange.Remove(registration.Slot), timeout.Token)
                     .ConfigureAwait(false);
             }
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 lifecycle, targetRegistration), LifecycleChange.Remove(
                 targetRegistration.Slot), timeout.Token).ConfigureAwait(false);
 
@@ -1385,15 +1385,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(concurrentRegistration, Is.Not.Null);
             Assert.That(RequireLifecycleValue(closed).ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 lifecycle, nestedRegistration!), LifecycleChange.Remove(
                 nestedRegistration!.Slot), timeout.Token).ConfigureAwait(false);
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 lifecycle, concurrentRegistration!), LifecycleChange.Remove(
                 concurrentRegistration!.Slot), timeout.Token).ConfigureAwait(false);
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 lifecycle, targetRegistration), LifecycleChange.Remove(
                 targetRegistration.Slot), timeout.Token).ConfigureAwait(false);
         }
@@ -1495,7 +1495,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (registration is not null)
                 {
                     await CommitChangeAsync(
-                        LifecycleInspection.Capture(
+                        Capture(
                         lifecycle, registration), LifecycleChange.Remove(
                         registration.Slot), timeout.Token).ConfigureAwait(false);
                 }
@@ -1689,15 +1689,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(closeResponse!.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             Assert.That(nestedRegistration, Is.Not.Null);
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 lifecycle, nestedRegistration!), LifecycleChange.Remove(
                 nestedRegistration!.Slot), timeout.Token).ConfigureAwait(false);
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 lifecycle, commitResult.Registrations[0]), LifecycleChange.Remove(
                 commitResult.Registrations[0].Slot), timeout.Token).ConfigureAwait(false);
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 lifecycle, targetRegistration), LifecycleChange.Remove(
                 targetRegistration.Slot), timeout.Token).ConfigureAwait(false);
         }
@@ -1802,12 +1802,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 LifecycleResult result = await added.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
-                first = LifecycleInspection.Registration(result.Registrations[0]);
-                second = LifecycleInspection.Registration(result.Registrations[1]);
+                first = Registration(result.Registrations[0]);
+                second = Registration(result.Registrations[1]);
             }
             NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, value), Is.True);
-            await using ILifecycleWriter exactWriter8 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter8 = await Capture(
                 m_server.NodeManagerLifecycle, first).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using (IPreparedChanges retired = await exactWriter8.PrepareAsync([replace
                     ? LifecycleChange.Replace(first.Slot, CreateReferenceContributorFactory(firstUri, []))
@@ -1835,7 +1835,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             if (publish)
             {
-                await using ILifecycleWriter exactWriter9 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter9 = await Capture(
                     m_server.NodeManagerLifecycle, second).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges removed = await exactWriter9.PrepareAsync(
                     [LifecycleChange.Remove(second.Slot)], timeout.Token).ConfigureAwait(false);
@@ -1882,7 +1882,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, firstRoot), Is.True);
             Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, secondRoot), Is.True);
 
-            await using ILifecycleWriter exactWriter10 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter10 = await Capture(
                 m_server.NodeManagerLifecycle, first).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using (IPreparedChanges removal = await exactWriter10.PrepareAsync(
                 [LifecycleChange.Remove(first.Slot)], timeout.Token).ConfigureAwait(false))
@@ -1900,7 +1900,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(current.Any(manager => ReferenceEquals(manager, first.NodeManager)), Is.False);
             Assert.That(current.Any(manager => ReferenceEquals(manager, second.NodeManager)), Is.True);
 
-            await using ILifecycleWriter exactWriter11 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter11 = await Capture(
                 m_server.NodeManagerLifecycle, second).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using (IPreparedChanges removal = await exactWriter11.PrepareAsync(
                 [LifecycleChange.Remove(second.Slot)], timeout.Token).ConfigureAwait(false))
@@ -2070,7 +2070,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var failure = new IOException("Committed reference callback failed.");
             NodeStateReferenceAdded? previous = objects.OnReferenceAdded;
             int callbacks = 0;
-            await using ILifecycleWriter exactWriter12 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter12 = await Capture(
                 m_server.NodeManagerLifecycle, original).BeginAsync(CancellationToken.None).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter12.PrepareAsync([
                     LifecycleChange.Replace(original.Slot, factory.Object),
@@ -2270,7 +2270,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration ordinary = RequireRegistration(publicationResult23.Registrations[0]);
             Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root), Is.True);
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 m_server.NodeManagerLifecycle, ordinary), LifecycleChange.Remove(
                 ordinary.Slot), CancellationToken.None).ConfigureAwait(false);
             Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root), Is.True);
@@ -2333,7 +2333,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.EqualTo(!rejectDecision));
             if (!rejectDecision)
             {
-                await using ILifecycleWriter exactWriter13 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter13 = await Capture(
                     m_server.NodeManagerLifecycle, source).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges removal = await exactWriter13.PrepareAsync(
                     [LifecycleChange.Remove(source.Slot)], timeout.Token).ConfigureAwait(false);

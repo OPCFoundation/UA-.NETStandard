@@ -349,7 +349,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var harness = new HistoryHarness(maxHistory: 10);
             ExecutionContext independentContext = ExecutionContext.Capture() ??
                 throw new InvalidOperationException("The test requires execution context flow.");
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             ByteString token = ToByteString(id);
             var original = new Mock<IHistoryContinuationPoint>();
             original.SetupGet(point => point.Id).Returns(id);
@@ -419,7 +419,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var harness = new HistoryHarness(maxHistory: 10);
             ExecutionContext independentContext = ExecutionContext.Capture() ??
                 throw new InvalidOperationException("The test requires execution context flow.");
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             ByteString token = ToByteString(id);
             var original = new Mock<IHistoryContinuationPoint>();
             original.SetupGet(point => point.Id).Returns(id);
@@ -482,7 +482,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var harness = new HistoryHarness(maxHistory: 10);
             ExecutionContext independentContext = ExecutionContext.Capture() ??
                 throw new InvalidOperationException("The test requires execution context flow.");
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             ByteString token = ToByteString(id);
             var original = new Mock<IHistoryContinuationPoint>();
             original.SetupGet(point => point.Id).Returns(id);
@@ -546,7 +546,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var harness = new HistoryHarness(maxHistory: 10);
             ExecutionContext independentContext = ExecutionContext.Capture() ??
                 throw new InvalidOperationException("The test requires execution context flow.");
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             ByteString token = ToByteString(id);
             var original = new Mock<IHistoryContinuationPoint>();
             original.SetupGet(point => point.Id).Returns(id);
@@ -721,7 +721,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var other = new TrackingPoint();
             ByteString firstToken = ToByteString(first.Id);
             byte[] otherBytes = other.Id.ToByteArray();
-            ByteString otherToken = ByteString.From(otherBytes.AsSpan());
+            var otherToken = ByteString.From(otherBytes.AsSpan());
             HistoryReadValueId[] requested =
             [
                 new() { NodeId = new NodeId(1, 1), ContinuationPoint = firstToken },
@@ -781,8 +781,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var context = new OperationContext(
                 new RequestHeader(), null!, RequestType.HistoryRead, RequestLifetime.None, session.Object);
             byte[] suppliedBytes = [1, 2, 3, 4, 5];
-            ByteString supplied = ByteString.From(suppliedBytes.AsSpan());
-            ByteString created = ByteString.From(new byte[] { 6, 7, 8 }.AsSpan());
+            var supplied = ByteString.From(suppliedBytes.AsSpan());
+            var created = ByteString.From(new byte[] { 6, 7, 8 }.AsSpan());
             HistoryReadValueId[] requested =
             [
                 new() { NodeId = new NodeId(1, 1) },
@@ -843,7 +843,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(harness.Points.ReleaseHistory(ToByteString(previous.Id)), Is.True);
             }
             var point = new Mock<IHistoryContinuationPoint>();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             point.SetupGet(value => value.Id).Returns(id);
             ByteString token = ToByteString(id);
             HistoryReadValueId[] requested =

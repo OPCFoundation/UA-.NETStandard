@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AssertLifecycleValue(originalManager);
                 TrackingLifecycleNodeManager? candidate = null;
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter1 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter1.PrepareAsync(
                     [LifecycleChange.Replace(
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using var beforeContext = new OperationContext(closingSession, DiagnosticsMasks.None);
                 TrackingLifecycleNodeManager? candidate = null;
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter2 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter2.PrepareAsync(
                     [LifecycleChange.Replace(
@@ -315,7 +315,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerRegistration liveRegistration = GetBranchRegistration(lifecycle, original.Id);
                     Assert.That(liveRegistration.NodeManager, Is.SameAs(rejectDecision ? originalManager : candidate));
                     await CommitChangeAsync(
-                        LifecycleInspection.Capture(
+                        Capture(
                         lifecycle, liveRegistration), LifecycleChange.Remove(liveRegistration.Slot), timeout.Token)
                         .ConfigureAwait(false);
                     await originalManager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -454,7 +454,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? failing = null;
             TrackingLifecycleNodeManager? succeeding = null;
             var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-            await using ILifecycleWriter exactWriter3 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter3 = await Capture(
                 m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter3.PrepareAsync([
                     LifecycleChange.Replace(original.Slot, CreateTrackingNodeManagementFactory(

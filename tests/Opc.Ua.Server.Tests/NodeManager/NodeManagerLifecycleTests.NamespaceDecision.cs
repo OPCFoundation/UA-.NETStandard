@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 committing = true;
                 LifecycleResult result = await prepared.CommitAsync(static _ => default, timeout.Token)
                     .ConfigureAwait(false);
-                added = LifecycleInspection.Registration(result.Registrations[0]);
+                added = Registration(result.Registrations[0]);
                 Assert.That(result.CleanupFailure, Is.Null);
                 Assert.That(checkedReentry, Is.True);
                 committing = false;
@@ -697,7 +697,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IMasterNodeManager master = m_server.CurrentInstance.NodeManager;
             const string AliasUri = kSecondModelNamespaceUri + ":StagedDecisionAlias";
-            var candidate = CreateLifecycleNodeManager(kSecondModelNamespaceUri);
+            Moq.Mock<IAsyncNodeManager> candidate = CreateLifecycleNodeManager(kSecondModelNamespaceUri);
             var factory = new CountingNodeManagerFactory(
                 [kSecondModelNamespaceUri],
                 (_, _, _) => new ValueTask<IAsyncNodeManager>(candidate.Object));
@@ -957,7 +957,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(decisionFails, Is.False);
                     Assert.That(decisionCancelled, Is.False);
                     Assert.That(result.CleanupFailure, Is.Null);
-                    published = LifecycleInspection.Registration(result.Registrations[0]);
+                    published = Registration(result.Registrations[0]);
                 }
                 catch (InvalidOperationException decisionError) when (ReferenceEquals(decisionError, decisionFailure))
                 {

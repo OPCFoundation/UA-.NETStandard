@@ -886,7 +886,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var store = new Mock<IContinuationPointStore>();
             var points = new SessionContinuationPoints(() => new NodeId(1, 1), 1, 2, store.Object);
             var point = new Mock<IHistoryContinuationPoint>();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             var token = new ByteString(id.ToByteArray());
             var failure = new InvalidOperationException("History disposal failed.");
             point.SetupGet(value => value.Id).Returns(id);
@@ -1437,7 +1437,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ? await points.RestoreHistoryAsync(token).ConfigureAwait(false)
                     : points.RestoreHistory(token);
             });
-            Task close = Task.Run(async () =>
+            var close = Task.Run(async () =>
             {
                 await start.Task.ConfigureAwait(false);
                 scope.Dispose();

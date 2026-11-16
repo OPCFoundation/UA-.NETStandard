@@ -231,7 +231,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             });
 
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 m_server.NodeManagerLifecycle, registration), LifecycleChange.Remove(
                 registration.Slot), CancellationToken.None).ConfigureAwait(false);
         }
@@ -257,7 +257,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration registration = LifecycleInspection.Registration(
+            NodeManagerRegistration registration = Registration(
                 publicationResult2.Registrations[0]);
 
             Assert.That(server.CurrentState, Is.EqualTo(ServerState.Running));
@@ -320,7 +320,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             LifecycleResult publicationResult3 = await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(options)), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration registration = LifecycleInspection.Registration(
+            NodeManagerRegistration registration = Registration(
                 publicationResult3.Registrations[0]);
             try
             {
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             finally
             {
                 await CommitChangeAsync(
-                    LifecycleInspection.Capture(
+                    Capture(
                     m_server.NodeManagerLifecycle, registration), LifecycleChange.Remove(
                     registration.Slot), CancellationToken.None).ConfigureAwait(false);
             }
@@ -383,7 +383,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             LifecycleResult publicationResult4 = await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(options)), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration registration = LifecycleInspection.Registration(
+            NodeManagerRegistration registration = Registration(
                 publicationResult4.Registrations[0]);
             try
             {
@@ -408,7 +408,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             finally
             {
                 await CommitChangeAsync(
-                    LifecycleInspection.Capture(
+                    Capture(
                     m_server.NodeManagerLifecycle, registration), LifecycleChange.Remove(
                     registration.Slot), CancellationToken.None).ConfigureAwait(false);
             }
@@ -425,7 +425,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 CreateOptions(generation: 1));
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(factory)]).ConfigureAwait(false);
-            IAsyncNodeManager nodeManager = LifecycleInspection.Registration(prepared.Registrations[0]).NodeManager;
+            IAsyncNodeManager nodeManager = Registration(prepared.Registrations[0]).NodeManager;
             NodeManagerRegistration? committed = null;
             try
             {
@@ -449,7 +449,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     Assert.That(await master.FindNodeInAddressSpaceAsync(rootNodeId, token).ConfigureAwait(false),
                         Is.Null);
                 }).ConfigureAwait(false);
-                committed = LifecycleInspection.Registration(result.Registrations[0]);
+                committed = Registration(result.Registrations[0]);
 
                 Assert.That(decisions, Is.EqualTo(1));
                 Assert.That(prepared.IsCommitted, Is.True);
@@ -469,7 +469,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 if (committed is not null)
                 {
                     await CommitChangeAsync(
-                        LifecycleInspection.Capture(
+                        Capture(
                         m_server.NodeManagerLifecycle, committed), LifecycleChange.Remove(
                         committed.Slot), CancellationToken.None).ConfigureAwait(false);
                 }
@@ -493,7 +493,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1))), CancellationToken.None).ConfigureAwait(false);
-            _ = LifecycleInspection.Registration(publicationResult5.Registrations[0]);
+            _ = Registration(publicationResult5.Registrations[0]);
 
             ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
             var rootNodeId = new NodeId(kRootNodeId, ns);
@@ -592,7 +592,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration registration = LifecycleInspection.Registration(
+            NodeManagerRegistration registration = Registration(
                 publicationResult6.Registrations[0]);
             var runtimeManager =
                 (RuntimeNodeSetNodeManager)registration.NodeManager;
@@ -651,7 +651,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration registration = LifecycleInspection.Registration(
+            NodeManagerRegistration registration = Registration(
                 publicationResult7.Registrations[0]);
             var originalManager =
                 (RuntimeNodeSetNodeManager)registration.NodeManager;
@@ -760,7 +760,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             LifecycleResult publicationResult8 = await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(options)), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration registration = LifecycleInspection.Registration(
+            NodeManagerRegistration registration = Registration(
                 publicationResult8.Registrations[0]);
 
             ushort ns = (ushort)server.NamespaceUris.GetIndex(RuntimeNodeSetTestServer.NamespaceUri);
@@ -791,7 +791,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             const uint DuplicateNodeId = 9100;
             if (existingGeneration)
             {
-                LifecycleInspection.Registration(
+                Registration(
                     (await CommitChangeAsync(
                     m_server.NodeManagerLifecycle, LifecycleChange.Add(
                     new RuntimeNodeSetNodeManagerFactory(
@@ -810,7 +810,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             InvalidOperationException exception =
                 await Assert.ThrowsAsync<InvalidOperationException>(
-                    async () => LifecycleInspection.Registration(
+                    async () => Registration(
                         (await CommitChangeAsync(
                         m_server.NodeManagerLifecycle, LifecycleChange.Add(
                         new RuntimeNodeSetNodeManagerFactory(CreateRawOptions(
@@ -849,7 +849,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             const uint ExternalNodeId = 9200;
             if (existingGeneration)
             {
-                LifecycleInspection.Registration(
+                Registration(
                     (await CommitChangeAsync(
                     m_server.NodeManagerLifecycle, LifecycleChange.Add(
                     new RuntimeNodeSetNodeManagerFactory(
@@ -869,7 +869,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             InvalidOperationException exception =
                 await Assert.ThrowsAsync<InvalidOperationException>(
-                    async () => LifecycleInspection.Registration(
+                    async () => Registration(
                         (await CommitChangeAsync(
                         m_server.NodeManagerLifecycle, LifecycleChange.Add(
                         new RuntimeNodeSetNodeManagerFactory(CreateRawOptions(
@@ -918,7 +918,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateComplexTypeOptions(
                 incompatibleDefinition: false))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration original = LifecycleInspection.Registration(publicationResult9.Registrations[0]);
+            NodeManagerRegistration original = Registration(publicationResult9.Registrations[0]);
             Guid originalId = original.Id;
             long originalGeneration = original.Generation;
             IAsyncNodeManager originalNodeManager = original.NodeManager;
@@ -1026,7 +1026,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateComplexTypeOptions(
                 incompatibleDefinition: false))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration original = LifecycleInspection.Registration(publicationResult10.Registrations[0]);
+            NodeManagerRegistration original = Registration(publicationResult10.Registrations[0]);
 
             if (incompatibleDefinition)
             {
@@ -1043,12 +1043,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             else
             {
                 LifecycleResult publicationResult11 = await CommitChangeAsync(
-                    LifecycleInspection.Capture(
+                    Capture(
                     m_server.NodeManagerLifecycle, original), LifecycleChange.Replace(
                     original.Slot, new RuntimeNodeSetNodeManagerFactory(
                     CreateComplexTypeOptions(
                     incompatibleDefinition: false))), CancellationToken.None).ConfigureAwait(false);
-                NodeManagerRegistration reloaded = LifecycleInspection.Registration(
+                NodeManagerRegistration reloaded = Registration(
                     publicationResult11.Registrations[0]);
                 Assert.That(reloaded.Id, Is.EqualTo(original.Id));
                 Assert.That(reloaded.Generation, Is.EqualTo(original.Generation + 1));
@@ -1069,7 +1069,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateComplexTypeOptions(
                 incompatibleDefinition: false))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration original = LifecycleInspection.Registration(publicationResult12.Registrations[0]);
+            NodeManagerRegistration original = Registration(publicationResult12.Registrations[0]);
 
             int namespaceIndex = server.NamespaceUris.GetIndex(
                 RuntimeNodeSetTestServer.NamespaceUri);
@@ -1108,12 +1108,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Is.True);
 
             LifecycleResult publicationResult13 = await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 m_server.NodeManagerLifecycle, original), LifecycleChange.Replace(
                 original.Slot, new RuntimeNodeSetNodeManagerFactory(
                 CreateComplexTypeOptions(
                 incompatibleDefinition: false))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration reloaded = LifecycleInspection.Registration(publicationResult13.Registrations[0]);
+            NodeManagerRegistration reloaded = Registration(publicationResult13.Registrations[0]);
 
             Assert.That(reloaded.Id, Is.EqualTo(original.Id));
             Assert.That(reloaded.Generation, Is.EqualTo(original.Generation + 1));
@@ -1173,7 +1173,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration original = LifecycleInspection.Registration(publicationResult14.Registrations[0]);
+            NodeManagerRegistration original = Registration(publicationResult14.Registrations[0]);
 
             int namespaceIndexBefore = server.NamespaceUris.GetIndex(kModelNamespaceUri);
             int namespaceCountBefore = server.NamespaceUris.Count;
@@ -1181,11 +1181,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             string[] namespaceArrayBefore = await ReadNamespaceArrayAsync().ConfigureAwait(false);
 
             LifecycleResult publicationResult15 = await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 m_server.NodeManagerLifecycle, original), LifecycleChange.Replace(
                 original.Slot, new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 2))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration reloaded = LifecycleInspection.Registration(publicationResult15.Registrations[0]);
+            NodeManagerRegistration reloaded = Registration(publicationResult15.Registrations[0]);
 
             Assert.That(reloaded.Id, Is.EqualTo(original.Id));
             Assert.That(reloaded.Generation, Is.EqualTo(original.Generation + 1));
@@ -1297,7 +1297,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1, semanticValue: 1))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration registration = LifecycleInspection.Registration(
+            NodeManagerRegistration registration = Registration(
                 publicationResult16.Registrations[0]);
             try
             {
@@ -1316,11 +1316,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     originalProperties[semanticOwner][semanticPropertyName].GetInt32(),
                     Is.EqualTo(1));
                 LifecycleResult publicationResult17 = await CommitChangeAsync(
-                    LifecycleInspection.Capture(
+                    Capture(
                     m_server.NodeManagerLifecycle, registration), LifecycleChange.Replace(
                     registration.Slot, new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(generation: 2, semanticValue: 2))), CancellationToken.None).ConfigureAwait(false);
-                registration = LifecycleInspection.Registration(publicationResult17.Registrations[0]);
+                registration = Registration(publicationResult17.Registrations[0]);
                 var replacementProperties =
                     ((RuntimeNodeSetNodeManager)registration.NodeManager).GetSemanticProperties();
                 Assert.That(
@@ -1347,7 +1347,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             finally
             {
                 await CommitChangeAsync(
-                    LifecycleInspection.Capture(
+                    Capture(
                     m_server.NodeManagerLifecycle, registration), LifecycleChange.Remove(
                     registration.Slot), CancellationToken.None).ConfigureAwait(false);
                 await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
@@ -1368,7 +1368,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration original = LifecycleInspection.Registration(publicationResult18.Registrations[0]);
+            NodeManagerRegistration original = Registration(publicationResult18.Registrations[0]);
 
             ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
             var rootNodeId = new NodeId(kRootNodeId, ns);
@@ -1393,11 +1393,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             try
             {
                 LifecycleResult publicationResult19 = await CommitChangeAsync(
-                    LifecycleInspection.Capture(
+                    Capture(
                     m_server.NodeManagerLifecycle, original), LifecycleChange.Replace(
                     original.Slot, new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(generation: 2))), CancellationToken.None).ConfigureAwait(false);
-                NodeManagerRegistration reloaded = LifecycleInspection.Registration(
+                NodeManagerRegistration reloaded = Registration(
                     publicationResult19.Registrations[0]);
 
                 Assert.That(reloaded.Id, Is.EqualTo(original.Id));
@@ -1487,7 +1487,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .Find(r => r.Id == original.Id);
             Assert.That(current, Is.Not.Null);
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 m_server.NodeManagerLifecycle, current), LifecycleChange.Remove(
                 current.Slot), CancellationToken.None).ConfigureAwait(false);
 
@@ -1518,7 +1518,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration registration = LifecycleInspection.Registration(
+            NodeManagerRegistration registration = Registration(
                 publicationResult20.Registrations[0]);
 
             int namespaceIndex = server.NamespaceUris.GetIndex(kModelNamespaceUri);
@@ -1531,7 +1531,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var valueNodeId = new NodeId(kValueNodeId, ns);
 
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 m_server.NodeManagerLifecycle, registration), LifecycleChange.Remove(
                 registration.Slot), CancellationToken.None).ConfigureAwait(false);
 
@@ -1898,7 +1898,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             if (!existingGeneration)
             {
-                LifecycleInspection.Registration(
+                Registration(
                     (await CommitChangeAsync(
                     m_server.NodeManagerLifecycle, LifecycleChange.Add(
                     new RuntimeNodeSetNodeManagerFactory(

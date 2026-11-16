@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleResult result;
             try
             {
-                await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter1 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges removal = await exactWriter1.PrepareAsync(
                     [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleResult removal;
             try
             {
-                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter2 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter2.PrepareAsync(
                     [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
@@ -231,7 +231,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
             try
             {
-                await using ILifecycleWriter exactWriter3 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter3 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter3.PrepareAsync(
                     [LifecycleChange.Replace(
@@ -303,7 +303,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     SessionTimeout = 60000
                 };
                 await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-                using Opc.Ua.Client.ISession session = await client.ConnectAsync(
+                using Client.ISession session = await client.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                     .ConfigureAwait(false);
                 TrackingLifecycleNodeManager? original = null;
@@ -341,7 +341,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ], timeout.Token).ConfigureAwait(false);
                 Assert.That(created.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 uint eventId = created.Results[0].MonitoredItemId;
-                await using ILifecycleWriter exactWriter4 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter4 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter4.PrepareAsync(
                     [LifecycleChange.Replace(registration.Slot, CreateTrackingNodeManagementFactory(
@@ -487,7 +487,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerRegistration registration = RequireRegistration(publicationResult6.Registrations[0]);
                 TrackingLifecycleNodeManager originalManager = original ??
                     throw new AssertionException("The original generation was not created.");
-                await using ILifecycleWriter exactWriter5 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter5 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter5.PrepareAsync(
                     [LifecycleChange.Replace(registration.Slot, CreateTrackingNodeManagementFactory(
@@ -520,9 +520,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }, timeout.Token).AsTask();
                 exactWriter5Disposal = exactWriter5.DisposeAsync().AsTask();
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Task<Opc.Ua.Client.ISession> activation = client.ConnectAsync(
+                Task<Client.ISession> activation = client.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None);
-                Opc.Ua.Client.ISession? session = null;
+                Client.ISession? session = null;
                 try
                 {
                     await queued.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -546,7 +546,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     LifecycleResult result = await commit.ConfigureAwait(false);
                     ISession initialSession = server.SessionManager.GetSession(m_requestHeader.AuthenticationToken) ??
                         throw new AssertionException("The original server session was not found.");
-                    Opc.Ua.Client.ISession activatedSession = session ??
+                    Client.ISession activatedSession = session ??
                         throw new AssertionException("The admitted client session was not activated.");
                     TrackingLifecycleNodeManager nestedManager = nested ??
                         throw new AssertionException("The nested lifecycle generation was not created.");
@@ -569,7 +569,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     release.TrySetResult(true);
                     originalManager.SessionActivatedCallback = _ => default;
-                    Opc.Ua.Client.ISession completedSession = RequireLifecycleValue(session);
+                    Client.ISession completedSession = RequireLifecycleValue(session);
                     await completedSession.CloseAsync(timeout.Token).ConfigureAwait(false);
                     completedSession.Dispose();
                 }
