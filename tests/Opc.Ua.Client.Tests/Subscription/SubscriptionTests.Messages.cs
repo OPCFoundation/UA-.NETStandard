@@ -330,6 +330,61 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A message buffered behind a gap must not reach the application once the
+        /// subscription shuts down, even when the message that closes the gap is still in
+        /// its handler.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DisposalDoesNotDeliverBufferedMessagesAsync(CancellationToken ct)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var deliveries = new ConcurrentQueue<uint>();
+            Mock<ISubscriptionNotificationMessageHandler> messages =
+                m_mockNotificationDataHandler.As<ISubscriptionNotificationMessageHandler>();
+            messages.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Returns((SubscriptionNotificationMessage message, CancellationToken token) =>
+                {
+                    deliveries.Enqueue(message.Acknowledgement.SequenceNumber);
+                    if (message.Acknowledgement.SequenceNumber != 2)
+                    {
+                        return default;
+                    }
+                    entered.TrySetResult(true);
+                    return new ValueTask(Task.Delay(Timeout.Infinite, token));
+                });
+            var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+            try
+            {
+                await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1], []).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+                // Message 3 waits in the reorder buffer for message 2. The duplicate is
+                // processed after it, so its acknowledgement proves that 3 is buffered.
+                await subscription.OnPublishReceivedAsync(BuildDataMessage(3), [1, 2, 3], [])
+                    .ConfigureAwait(false);
+                await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1, 2, 3], [])
+                    .ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(2).WaitAsync(ct).ConfigureAwait(false);
+
+                await subscription.OnPublishReceivedAsync(BuildDataMessage(2), [1, 2, 3], [])
+                    .ConfigureAwait(false);
+                await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await subscription.DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(deliveries, Is.EqualTo(new uint[] { 1, 2 }),
+                "A buffered message must not enter application callbacks after shutdown.");
+            Assert.That(m_completion.QueuedAcks.Select(acknowledgement => acknowledgement.SequenceNumber),
+                Has.No.Member(3u));
+        }
+
+        /// <summary>
         /// Manager shutdown must release a Publish worker blocked by a full ingress buffer
         /// before waiting for subscription shutdown to cancel the active message handler.
         /// </summary>

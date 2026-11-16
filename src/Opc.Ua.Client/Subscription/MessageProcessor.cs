@@ -474,6 +474,13 @@ namespace Opc.Ua.Client.Subscriptions
         protected virtual bool HandlesNotificationMessages => false;
 
         /// <summary>
+        /// Whether the owner has begun shutting down. A derived class that cancels its
+        /// callbacks before it disposes the processor reports that here, so no further
+        /// message reaches the application in between.
+        /// </summary>
+        protected virtual bool IsShuttingDown => false;
+
+        /// <summary>
         /// Delivers a complete message when <see cref="HandlesNotificationMessages"/> is true.
         /// </summary>
         protected virtual ValueTask OnNotificationMessageAsync(
@@ -2017,6 +2024,19 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<string> stringTable,
             CancellationToken ct)
         {
+            // Once the subscription or its manager shuts down, nothing more reaches the
+            // application. The drain of the reorder buffer and the recovery loops dispatch
+            // several messages in a row, and a cancelled handler only throws out of its own
+            // call, so each message checks here. Without a delivery there is nothing to
+            // acknowledge either: the server keeps the message for a transfer to pick up.
+            if (ct.IsCancellationRequested ||
+                AckQueue.ShutdownToken.IsCancellationRequested ||
+                IsShuttingDown)
+            {
+                ReleaseDeferredBodies(message);
+                return;
+            }
+
             bool shouldAcknowledge = message.NotificationData.Count != 0;
             try
             {
