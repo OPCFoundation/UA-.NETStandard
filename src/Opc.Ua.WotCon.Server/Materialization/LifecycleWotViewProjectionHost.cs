@@ -76,6 +76,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_retirementPolicy = retirementPolicy;
         }
 
+        /// <summary>
+        /// Gets the non-owning result of immediate View-owner initialization, or <c>null</c> before initialization.
+        /// Its cleanup failure preserves the original diagnostic; its issues describe current reconciliation.
+        /// Canonical publications remain owned by their coordinator.
+        /// </summary>
+        public LifecycleResult? InitializationResult => Volatile.Read(ref m_initializationResult);
+
         /// <inheritdoc/>
         /// <param name="request">The WoT view projection request.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -107,6 +114,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (m_initializationFailure is { } failure)
                 {
                     all.Add("The View owner is live, but reconciliation is pending: " + failure.Message);
+                }
+                if (m_initializationResult is { } initialization)
+                {
+                    foreach (NodeManagerReconciliationIssue issue in initialization.Issues)
+                    {
+                        all.Add(
+                            "The View owner is live, but reconciliation is " +
+                            (issue.IsRetryable ? "pending: " : "unresolved: ") +
+                            issue.CurrentFailure.Message);
+                    }
                 }
                 for (int i = 0; i < request.Plan.Omissions.Count; i++)
                 {
@@ -165,6 +182,29 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Retries unfinished immediate View-owner reconciliation without preparing, deciding, or publishing again.
+        /// Does nothing before initialization. Subsequent applies report current issues, not recovered warnings.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels this caller's wait, not admitted reconciliation work.</param>
+        public async ValueTask RetryReconciliationAsync(CancellationToken cancellationToken = default)
+        {
+            LifecycleResult? result;
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                result = m_initializationResult;
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+            if (result is not null)
+            {
+                await result.RetryReconciliationAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -187,10 +227,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 "The projection-view NodeManager factory did not create a NodeManager.");
             LifecycleResult result = await prepared
                 .CommitAsync(static _ => default, () => m_manager = candidate, cancellationToken).ConfigureAwait(false);
-            if (result.CleanupFailure is { } failure)
-            {
-                m_initializationFailure = failure;
-            }
+            m_initializationFailure = result.Issues.IsEmpty ? result.CleanupFailure : null;
+            Volatile.Write(ref m_initializationResult, result);
             return candidate;
         }
 
@@ -214,7 +252,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly Dictionary<NodeId, WotViewProjectionHandle> m_live = new();
         private WotProjectionViewNodeManager? m_manager;
 
-        /// <summary>The native owner's post-publication initialization diagnostic.</summary>
+        /// <summary>The native owner's non-owning initialization result and current reconciliation status.</summary>
+        private LifecycleResult? m_initializationResult;
+
+        /// <summary>An initialization failure without issue evidence; retry alone cannot prove its recovery.</summary>
         private Exception? m_initializationFailure;
 
         /// <summary>
