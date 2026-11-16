@@ -804,7 +804,7 @@ namespace Opc.Ua.Client.Tests
             item.NodeClass = NodeClass.Object;
 
             object value = item.GetFieldValue(
-                null!,
+                default,
                 ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.EventId))!;
 
@@ -904,9 +904,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void GetServiceResultWithIndexReturnsNullForNonEvent()
+        public void GetServiceResultWithIndexReturnsNullWithoutMessage()
         {
-            ServiceResult? result = MonitoredItem.GetServiceResult(new MonitoredItemNotification(), 0);
+            var eventFields = new EventFieldList { EventFields = [new Variant(new ExtensionObject(new StatusResult()))] };
+
+            ServiceResult? result = MonitoredItem.GetServiceResult(eventFields, null, 0);
 
             Assert.That(result, Is.Null);
         }
@@ -914,9 +916,9 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void GetServiceResultWithIndexReturnsNullWhenIndexOutOfRange()
         {
-            var eventFields = new EventFieldList { Message = new NotificationMessage() };
+            var eventFields = new EventFieldList();
 
-            ServiceResult? result = MonitoredItem.GetServiceResult(eventFields, 0);
+            ServiceResult? result = MonitoredItem.GetServiceResult(eventFields, new NotificationMessage(), 0);
 
             Assert.That(result, Is.Null);
         }
@@ -1017,7 +1019,7 @@ namespace Opc.Ua.Client.Tests
             item.SaveValueInCache(fields);
             Assert.Multiple(() =>
             {
-                Assert.That(item.LastValue, Is.SameAs(fields));
+                Assert.That(item.LastValue, Is.EqualTo(fields));
                 Assert.That(item.LastMessage, Is.Null);
             });
 
@@ -1123,9 +1125,8 @@ namespace Opc.Ua.Client.Tests
             dataItem.SaveValueInCache(new EventFieldList
             {
                 ClientHandle = dataItem.ClientHandle,
-                EventFields = [new Variant(1)],
-                Message = new NotificationMessage()
-            });
+                EventFields = [new Variant(1)]
+            }, new NotificationMessage());
 
             Assert.Multiple(() =>
             {
@@ -1146,9 +1147,8 @@ namespace Opc.Ua.Client.Tests
             {
                 item.SaveValueInCache(new EventFieldList
                 {
-                    EventFields = [new Variant(ii)],
-                    Message = new NotificationMessage()
-                });
+                    EventFields = [new Variant(ii)]
+                }, new NotificationMessage());
             }
 
             IList<EventFieldList> events = item.DequeueEvents();
@@ -1235,7 +1235,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(cache.LastEvent, Is.SameAs(last));
+                Assert.That(cache.LastEvent, Is.EqualTo(last));
                 Assert.That(cache.Publish(), Has.Count.EqualTo(2));
             });
         }

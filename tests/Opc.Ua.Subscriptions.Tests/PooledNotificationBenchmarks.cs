@@ -92,9 +92,6 @@ namespace Opc.Ua.Client.Subscriptions
                 var d = (DataChangeNotification)
                     DataChangeNotificationActivator.Instance.CreateInstance();
                 d.Reuse();
-                var e = (EventFieldList)
-                    EventFieldListActivator.Instance.CreateInstance();
-                e.Reuse();
                 var en = (EventNotificationList)
                     EventNotificationListActivator.Instance.CreateInstance();
                 en.Reuse();
@@ -167,22 +164,6 @@ namespace Opc.Ua.Client.Subscriptions
                     ClientHandle = (uint)i
                 };
                 sum += (int)item.ClientHandle;
-            }
-            Assert.That(sum, Is.GreaterThanOrEqualTo(0));
-        }
-
-        [Benchmark(Description = "EventFieldListActivator + Reuse")]
-        [Test]
-        public void PooledEventFieldList()
-        {
-            int sum = 0;
-            for (int i = 0; i < Iterations; i++)
-            {
-                var item = (EventFieldList)
-                    EventFieldListActivator.Instance.CreateInstance();
-                item.ClientHandle = (uint)i;
-                sum += (int)item.ClientHandle;
-                item.Reuse();
             }
             Assert.That(sum, Is.GreaterThanOrEqualTo(0));
         }

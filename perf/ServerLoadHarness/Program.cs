@@ -37,6 +37,10 @@
 //           [--subs S] [--pub ms] [--write-interval ms] [--write-nodes K]
 //           [--trace file] [--trace-profile p] [--out file]
 //           [--client managed|classic|shared] [--callback fast|item] [--trace-side server|client]
+//           [--security-policy name|uri] [--security-mode None|Sign|SignAndEncrypt]
+//           [--identity anonymous|username|issued] [--password-length B] [--token-length B]
+//           [--token-encryption auto|legacy|secret] [--wrong-credentials 0|1]
+//           [--connection-rate off|server|N]
 //           Spawns the server child, drives the load and prints a report of client latency
 //           and the CPU / GC / allocation deltas of both processes for the measurement window.
 
@@ -224,6 +228,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             return result;
         }
 
+        private static string IdentityLabel(string kind, int passwordLength, int tokenLength, string tokenEncryption)
+        {
+            return kind switch
+            {
+                "username" => FormattableString.Invariant($"username/{passwordLength}B/{tokenEncryption}"),
+                "issued" => FormattableString.Invariant($"issued/{tokenLength}B/{tokenEncryption}"),
+                _ => kind
+            };
+        }
+
         private static ITelemetryContext CreateTelemetry(LogLevel level)
         {
             return DefaultTelemetry.Create(b => b.SetMinimumLevel(level).AddSimpleConsole(o => o.SingleLine = true));
@@ -287,6 +301,17 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             config.ServerConfiguration.MinRequestThreadCount = Math.Min(50, config.ServerConfiguration.MaxRequestThreadCount);
             // sized for the largest pipeline (sessions x inflight), as the o6-automation benchmarks do
             config.ServerConfiguration.MaxQueuedRequestCount = ArgInt("queue", 2000);
+            HarnessAuthenticator? authenticator = null;
+            if (!contract)
+            {
+                // UserName and JWT tokens of the connect scenario, checked against the harness
+                // credentials of --password-length and --token-length (see HarnessIdentity)
+                foreach (UserTokenPolicy policy in HarnessIdentity.ServerPolicies())
+                {
+                    config.ServerConfiguration.UserTokenPolicies += policy;
+                }
+                authenticator = new HarnessAuthenticator(ArgInt("password-length", 16), ArgInt("token-length", 1024));
+            }
             int counters = ArgInt("counters", 0);
             int sampling = ArgInt("sampling", 10);
             if (counters > 0)
@@ -323,8 +348,25 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 server.ResourceIsolationOptions.Mode = Opc.Ua.Server.ServerResourceIsolationMode.SharedOnly;
             }
+            // The default connection rate limit (500 per second, burst 1000) caps the connect
+            // and channel scenarios: past it every accepted socket is answered with
+            // Bad_TcpNotEnoughResources, which the measurement would count as server work.
+            // --connection-rate N sets the rate (burst 2N); off (the default) disables it,
+            // server restores the server defaults.
+            string connectionRate = Arg("connection-rate", "off");
+            if (connectionRate == "off")
+            {
+                server.RateLimitOptions.ConnectionRateLimitEnabled = false;
+            }
+            else if (connectionRate != "server")
+            {
+                int rate = int.Parse(connectionRate, CultureInfo.InvariantCulture);
+                server.RateLimitOptions.ConnectionsPerSecond = rate;
+                server.RateLimitOptions.ConnectionBurst = 2 * rate;
+            }
             server.TransportBindings = TestTransportBindings.WithAllSchemes();
             await application.StartAsync(server).ConfigureAwait(false);
+            authenticator?.Register(server.CurrentInstance);
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
 
             ProcessStats mark = ProcessStats.Capture();
@@ -355,11 +397,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         mark = ProcessStats.Capture();
                         (server as CounterServer)?.Counters.Mark();
                         events.Mark();
+                        authenticator?.Mark();
                         Console.WriteLine("MARKED");
                         break;
                     case "report":
                         string counterReport = (server as CounterServer)?.Counters.Report(sampling) ?? string.Empty;
-                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport + " " + events.Report());
+                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport + " " + events.Report() +
+                            (authenticator == null ? string.Empty : " " + authenticator.Report()));
                         break;
                     case "quit":
                         events.Stop();
@@ -387,6 +431,18 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int warmupSeconds = ArgInt("warmup", 10);
             int port = ArgInt("port", 62555 + (Environment.ProcessId % 1000));
             string security = Arg("security", "none");
+            // identity of the connect scenario: anonymous, username (--password-length bytes)
+            // or issued (a fake JWT of --token-length bytes); --token-encryption picks the
+            // RSA format of the secret: auto (client default), legacy or secret
+            string identityKind = Arg("identity", "anonymous");
+            int passwordLength = ArgInt("password-length", 16);
+            int tokenLength = ArgInt("token-length", 1024);
+            string tokenEncryption = Arg("token-encryption", "auto");
+            if (tokenEncryption is not ("auto" or "legacy" or "secret"))
+            {
+                Console.WriteLine("--token-encryption must be auto, legacy or secret");
+                return 1;
+            }
             if (ArgInt("gc-events", 1) != 0)
             {
                 s_gcListener = new GcListener();
@@ -396,6 +452,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // processors it keeps (SERVER_DOTNET_PROCESSOR_COUNT still overrides)
             string? clientAffinity = Environment.GetEnvironmentVariable(kClientAffinityVariable);
             string? serverAffinity = Environment.GetEnvironmentVariable(kServerAffinityVariable);
+            // explicit masks win over --client-cores: on processors of different speed (for
+            // example Zen5 and Zen5c cores) the mask decides the CPU time per operation
+            if (TryGetArg("server-affinity", out string? serverMask))
+            {
+                serverAffinity = Convert.ToUInt64(serverMask, 16).ToString("X", CultureInfo.InvariantCulture);
+            }
+            if (TryGetArg("client-affinity", out string? clientMask))
+            {
+                clientAffinity = Convert.ToUInt64(clientMask, 16).ToString("X", CultureInfo.InvariantCulture);
+            }
             Dictionary<string, string>? serverEnvironment = serverAffinity == null
                 ? null
                 : new Dictionary<string, string>(StringComparer.Ordinal)
@@ -409,7 +475,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                     $"--counters {counterCount} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")} ") +
                 FormattableString.Invariant(
-                    $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} --counter-lock {Arg("counter-lock", "0")}"),
+                    $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} ") +
+                FormattableString.Invariant(
+                    $"--counter-lock {Arg("counter-lock", "0")} --connection-rate {Arg("connection-rate", "off")} --password-length {passwordLength} --token-length {tokenLength}"),
                 serverEnvironment);
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
@@ -424,7 +492,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 using Process self = Process.GetCurrentProcess();
                 self.ProcessorAffinity = (nint)Convert.ToInt64(clientAffinity, 16);
             }
-            if (Environment.GetEnvironmentVariable(kConstrainedVariable) != null)
+            if (Environment.GetEnvironmentVariable(kConstrainedVariable) != null ||
+                serverAffinity != null || clientAffinity != null)
             {
                 Console.WriteLine(FormattableString.Invariant(
                     $"constrained client: processors={Environment.ProcessorCount} mask=0x{clientAffinity ?? "all"} ") +
@@ -448,13 +517,30 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // The test fixture asks the server for diagnostics in every response;
             // an application does not by default.
             client.SessionFactory.ReturnDiagnostics = DiagnosticsMasks.None;
-            string policy = security == "none" ? SecurityPolicies.None : SecurityPolicies.Basic256Sha256;
-            MessageSecurityMode mode = security switch
+            // --security none|sign|encrypt is the short form of --security-policy Basic256Sha256
+            // --security-mode Sign|SignAndEncrypt; --security-policy takes a policy name or URI
+            MessageSecurityMode mode = Arg("security-mode", security switch
             {
-                "sign" => MessageSecurityMode.Sign,
-                "encrypt" => MessageSecurityMode.SignAndEncrypt,
-                _ => MessageSecurityMode.None
+                "sign" => "Sign",
+                "encrypt" => "SignAndEncrypt",
+                _ => TryGetArg("security-policy", out _) ? "SignAndEncrypt" : "None"
+            }) switch
+            {
+                "None" => MessageSecurityMode.None,
+                "Sign" => MessageSecurityMode.Sign,
+                "SignAndEncrypt" => MessageSecurityMode.SignAndEncrypt,
+                string other => throw new ArgumentException("--security-mode must be None, Sign or SignAndEncrypt: " + other)
             };
+            string policyName = Arg("security-policy", mode == MessageSecurityMode.None ? "None" : "Basic256Sha256");
+            string policy = policyName.Contains("://", StringComparison.Ordinal)
+                ? policyName
+                : SecurityPolicies.Default.GetUri(policyName) ??
+                    throw new ArgumentException("Unknown --security-policy: " + policyName);
+            security = mode == MessageSecurityMode.None
+                ? "none"
+                : FormattableString.Invariant($"{policyName}/{mode}");
+            IUserIdentity? identity = HarnessIdentity.CreateClientIdentity(
+                identityKind, passwordLength, tokenLength, tokenEncryption, ArgInt("wrong-credentials", 0) != 0);
             ArrayOf<EndpointDescription> endpoints = await client.GetEndpointsAsync(new Uri(url)).ConfigureAwait(false);
             var selected = new List<EndpointDescription>();
             foreach (EndpointDescription endpoint in endpoints)
@@ -463,6 +549,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 {
                     selected.Add(endpoint);
                 }
+            }
+            if (selected.Count == 0)
+            {
+                Console.WriteLine("no endpoint for " + security + "; the server offers:");
+                foreach (EndpointDescription endpoint in endpoints)
+                {
+                    Console.WriteLine(FormattableString.Invariant($"  {endpoint.SecurityPolicyUri} {endpoint.SecurityMode}"));
+                }
+                await server.StandardInput.WriteLineAsync("quit").ConfigureAwait(false);
+                return 1;
             }
 
             // managed (default): ManagedSession with the default V2 subscription engine.
@@ -527,7 +623,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
 
             Workload workload = connectScenario
-                ? new ConnectWorkload(scenario, client, endpointForBuilder!, ArgInt("workers", 8))
+                ? new ConnectWorkload(scenario, client, endpointForBuilder!, ArgInt("workers", 8), identity)
                 : counters
                 ? new CounterWorkload(sessions, counterSubs, ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
                 : scenario == "events"
@@ -617,7 +713,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
             string? clientGc = s_gcListener == null ? null : await s_gcListener.ReportAsync().ConfigureAwait(false);
             var result = new StringBuilder();
-            result.Append(CultureInfo.InvariantCulture, $"RESULT scenario={scenario} security={security} sessions={sessionCount} ")
+            string identityLabel = IdentityLabel(identityKind, passwordLength, tokenLength, tokenEncryption);
+            result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"RESULT scenario={scenario} security={security} identity={identityLabel} sessions={sessionCount} ")
                 .Append(string.Join(' ', args.Skip(1)))
                 .Append('\n')
                 .Append("  client: ").Append(clientReport).Append('\n')

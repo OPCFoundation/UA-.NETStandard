@@ -38,16 +38,22 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 {
     /// <summary>
     /// Closed-loop connection establishment from <c>--workers</c> concurrent workers.
-    /// <c>connect</c>: open a secure channel, CreateSession, ActivateSession (anonymous),
-    /// CloseSession and close the channel; one operation per cycle.
+    /// <c>connect</c>: open a secure channel, CreateSession, ActivateSession (anonymous, or
+    /// the <c>--identity</c> token), CloseSession and close the channel; one operation per cycle.
     /// <c>channel</c>: open a secure channel (OpenSecureChannel handshake) and close it;
     /// one operation per channel.
     /// </summary>
     internal sealed class ConnectWorkload : Workload
     {
-        public ConnectWorkload(string kind, ClientFixture client, ConfiguredEndpoint endpoint, int workers)
+        public ConnectWorkload(
+            string kind,
+            ClientFixture client,
+            ConfiguredEndpoint endpoint,
+            int workers,
+            IUserIdentity? identity = null)
         {
             m_kind = kind;
+            m_identity = identity;
             m_client = client;
             m_endpoint = endpoint;
             m_workers = workers;
@@ -59,8 +65,20 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         public override async Task SetupAsync()
         {
-            // one cycle up front, so a broken configuration fails before the warm-up
-            await CycleAsync(CancellationToken.None).ConfigureAwait(false);
+            // one cycle up front, so a broken configuration fails before the warm-up;
+            // a rejected identity (--wrong-credentials) is measured as errors instead
+            try
+            {
+                await CycleAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex) when (
+                m_identity != null &&
+                (ex.StatusCode == StatusCodes.BadUserAccessDenied ||
+                 ex.StatusCode == StatusCodes.BadIdentityTokenRejected ||
+                 ex.StatusCode == StatusCodes.BadIdentityTokenInvalid))
+            {
+                Console.WriteLine("identity rejected: " + ex.Message);
+            }
             Console.WriteLine(FormattableString.Invariant($"{m_kind}: {m_workers} workers"));
         }
 
@@ -115,7 +133,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     false,
                     "PerfConnect",
                     60000,
-                    null,
+                    m_identity,
                     default,
                     ct)
                 .ConfigureAwait(false);
@@ -164,6 +182,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         }
 
         private readonly string m_kind;
+        private readonly IUserIdentity? m_identity;
         private readonly ClientFixture m_client;
         private readonly ConfiguredEndpoint m_endpoint;
         private readonly int m_workers;

@@ -743,9 +743,8 @@ namespace Opc.Ua.Bindings
         public async Task SendBinaryAsync(HttpContext context)
         {
             context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
-            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
-            using IDisposable? retainedBody = bodyLease;
-            if (!admitted)
+            using HttpBodyAdmission? admission = TryAdmitHttpBody(context);
+            if (admission == null)
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -777,27 +776,15 @@ namespace Opc.Ua.Bindings
                 // it reads.
                 long? contentLength = context.Request.ContentLength;
                 int maxMessageSize = m_quotas.MessageContext.MaxMessageSize;
-                byte[]? buffer = null;
-                if (maxMessageSize <= 0 || !(contentLength > maxMessageSize))
+                byte[] buffer;
+                try
                 {
-                    try
-                    {
-                        buffer = await ReadBodyAsync(context.Request, maxMessageSize, ct)
-                            .ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadRequestTooLarge)
-                    {
-                        buffer = null;
-                    }
+                    buffer = await ReadAdmittedBodyAsync(context.Request, maxMessageSize, admission, ct)
+                        .ConfigureAwait(false);
                 }
-
-                if (buffer == null)
+                catch (ServiceResultException sre) when (GetBodyReadFailureStatus(sre) is HttpStatusCode status)
                 {
-                    message = "HTTPSLISTENER - Request body exceeds MaxMessageSize.";
-                    await WriteResponseAsync(
-                        context.Response,
-                        message,
-                        HttpStatusCode.RequestEntityTooLarge).ConfigureAwait(false);
+                    await WriteBodyReadFailureAsync(context, status).ConfigureAwait(false);
                     return;
                 }
 
@@ -830,6 +817,10 @@ namespace Opc.Ua.Bindings
                     await WriteServiceResponseAsync(context, decodeFault, ct).ConfigureAwait(false);
                     return;
                 }
+
+                // The body is decoded: its buffers no longer hold reassembly capacity
+                // while the request is processed.
+                admission.Release();
 
                 // extract the JWT token from the HTTP headers.
                 input.RequestHeader ??= new RequestHeader();
@@ -968,9 +959,8 @@ namespace Opc.Ua.Bindings
         public async Task SendJsonAsync(HttpContext context)
         {
             context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
-            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
-            using IDisposable? retainedBody = bodyLease;
-            if (!admitted)
+            using HttpBodyAdmission? admission = TryAdmitHttpBody(context);
+            if (admission == null)
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -1010,10 +1000,22 @@ namespace Opc.Ua.Bindings
                 byte[]? payload = null;
                 try
                 {
-                    payload = await JsonRequestMapper
-                        .ReadAllBoundedAsync(context.Request.Body, m_quotas.MessageContext.MaxMessageSize, ct)
-                        .ConfigureAwait(false);
+                    payload = await ReadAdmittedBodyAsync(
+                        context.Request,
+                        m_quotas.MessageContext.MaxMessageSize,
+                        admission,
+                        ct).ConfigureAwait(false);
                     input = JsonRequestMapper.DecodeRequest(payload, m_quotas.MessageContext);
+                }
+                catch (ServiceResultException sre) when (
+                    payload == null &&
+                    sre.StatusCode != StatusCodes.BadRequestTooLarge &&
+                    GetBodyReadFailureStatus(sre) is HttpStatusCode status)
+                {
+                    // An oversized body keeps its JSON fault; capacity and deadline
+                    // failures are transport failures.
+                    await WriteBodyReadFailureAsync(context, status).ConfigureAwait(false);
+                    return;
                 }
                 catch (ServiceResultException sre)
                 {
@@ -1021,6 +1023,10 @@ namespace Opc.Ua.Bindings
                     await WriteJsonResponseAsync(context, fault, ct).ConfigureAwait(false);
                     return;
                 }
+
+                // The body is decoded: its buffers no longer hold reassembly capacity
+                // while the request is processed.
+                admission.Release();
 
                 input.RequestHeader ??= new RequestHeader();
                 if (input.RequestHeader.AuthenticationToken.IsNull &&
@@ -2422,8 +2428,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool TryReclaimUnusedChannel()
         {
-            foreach (TcpListenerChannel channel in m_wssChannels.Values.OrderByDescending(
-                channel => channel.ElapsedSinceLastActiveTime))
+            foreach (TcpListenerChannel channel in m_wssChannels.Values
+                .OrderBy(channel => channel.HoldsPartialMessage)
+                .ThenByDescending(channel => channel.ElapsedSinceLastActiveTime))
             {
                 if (channel.TryIdleCleanupForAdmission())
                 {
@@ -2444,32 +2451,133 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Reserves the bounded reader and decoded-body footprint before allocation, rejecting unlimited bodies.
+        /// Creates the admission that charges a request body or WebSocket message to the
+        /// reassembly pool and the peer's ceiling as its bytes arrive, charging
+        /// <paramref name="initialCharge"/> straight away. Returns null when that charge is
+        /// refused, or when the pool is finite and the message size unlimited, since an
+        /// unlimited body cannot be charged safely.
         /// </summary>
-        private bool TryAdmitHttpBody(HttpContext context, out IDisposable? lease)
+        /// <param name="context">The request or upgrade.</param>
+        /// <param name="initialCharge">The bytes charged straight away.</param>
+        /// <param name="peerCeiling">
+        /// Whether the charge counts against the peer's ceiling. A WebSocket's receive
+        /// buffer does not: it is bounded by connection admission and reclaimed when the
+        /// pool refuses a charge, and peers behind one proxy address would otherwise be
+        /// limited to a few hundred sockets.
+        /// </param>
+        internal HttpBodyAdmission? TryAdmitHttpBody(
+            HttpContext context,
+            long initialCharge = 0,
+            bool peerCeiling = true)
         {
-            lease = null;
             IServerResourceIsolationProvider? provider = m_quotas?.ResourceIsolationProvider;
-            if (provider == null)
+            int maximum = m_quotas?.MessageContext.MaxMessageSize ?? 0;
+            if (provider != null && maximum <= 0)
             {
-                return true;
+                return null;
             }
-            int maximum = m_quotas!.MessageContext.MaxMessageSize;
+            IPAddress? peer = context.Connection.RemoteIpAddress;
+            ResourceIsolationOwner? owner = provider?.ClassifyConnection(
+                MakeEndpoint(peer, context.Connection.RemotePort));
+            var admission = new HttpBodyAdmission(
+                provider,
+                owner,
+                peerCeiling ? GetPeerBodyLedger() : null,
+                peer,
+                GetReclaimCallback());
+            if (!admission.TryCharge(initialCharge))
+            {
+                admission.Dispose();
+                return null;
+            }
+            return admission;
+        }
+
+        /// <summary>
+        /// Reads a request body, charging what it buffers to <paramref name="admission"/>
+        /// and ending the read after the message assembly lifetime, as opc.tcp ends an
+        /// unfinished message.
+        /// </summary>
+        internal ValueTask<byte[]> ReadAdmittedBodyAsync(
+            HttpRequest request,
+            int maxLength,
+            HttpBodyAdmission admission,
+            CancellationToken ct)
+        {
+            return HttpBodyAdmission.ReadBodyAsync(
+                request.Body,
+                request.ContentLength,
+                maxLength,
+                admission,
+                TimeSpan.FromMilliseconds(m_quotas.MessageAssemblyLifetime),
+                TimeProvider,
+                HttpBodyAdmission.CancelPendingBodyRead,
+                request.HttpContext,
+                ct);
+        }
+
+        /// <summary>
+        /// Maps a failed body read to the HTTP status it is answered with, or null when
+        /// the failure is not a body admission failure.
+        /// </summary>
+        internal static HttpStatusCode? GetBodyReadFailureStatus(ServiceResultException sre)
+        {
+            StatusCode code = sre.StatusCode;
+            if (code == StatusCodes.BadServerTooBusy)
+            {
+                return HttpStatusCode.ServiceUnavailable;
+            }
+            if (code == StatusCodes.BadRequestTooLarge)
+            {
+                return HttpStatusCode.RequestEntityTooLarge;
+            }
+            if (code == StatusCodes.BadTimeout)
+            {
+                return HttpStatusCode.RequestTimeout;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The per-peer body ceiling for the current message size: twice the largest
+        /// reservation a single body used to take before any byte arrived.
+        /// </summary>
+        private PeerBodyLedger? GetPeerBodyLedger()
+        {
+            int maximum = m_quotas?.MessageContext.MaxMessageSize ?? 0;
             if (maximum <= 0)
             {
-                // An unlimited decoder body cannot be charged safely to a finite runtime pool.
-                return false;
+                return null;
             }
-            ResourceIsolationOwner owner = provider.ClassifyConnection(
-                MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort));
-            // Readers retain their growth buffer and decoded payload concurrently. Reserve the
-            // upper bound before allocation; HTTP requests are not physical UASC connections.
-            return provider.TryAcquire(
-                ResourceIsolationStage.ReassemblyBytes,
-                owner,
-                (kRetainedBodyBufferMultiplicity * maximum) + m_quotas.MaxBufferSize,
-                out lease,
-                out _);
+            long ceiling = kPeerBodyCeilingMultiplicity *
+                ((kRetainedBodyBufferMultiplicity * maximum) + m_quotas!.MaxBufferSize);
+            PeerBodyLedger? ledger = Volatile.Read(ref m_peerBodyLedger);
+            if (ledger?.Ceiling == ceiling)
+            {
+                return ledger;
+            }
+            var created = new PeerBodyLedger(ceiling);
+            PeerBodyLedger? raced = Interlocked.CompareExchange(ref m_peerBodyLedger, created, ledger);
+            return ReferenceEquals(raced, ledger) ? created : raced;
+        }
+
+        /// <summary>
+        /// Answers a body that could not be admitted, was too large or did not arrive in time.
+        /// </summary>
+        private static Task WriteBodyReadFailureAsync(HttpContext context, HttpStatusCode status)
+        {
+            return status switch
+            {
+                HttpStatusCode.ServiceUnavailable => WriteAdmissionRejectedAsync(context),
+                HttpStatusCode.RequestEntityTooLarge => WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - Request body exceeds MaxMessageSize.",
+                    HttpStatusCode.RequestEntityTooLarge),
+                _ => WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - The request body did not arrive in time.",
+                    status)
+            };
         }
 
         /// <summary>
@@ -2637,9 +2745,10 @@ namespace Opc.Ua.Bindings
             HttpContext context,
             UaScConnectionAdmission.Lease lease)
         {
-            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
-            using IDisposable? retainedBody = bodyLease;
-            if (!admitted)
+            // The socket holds its receive buffer for its life; each message copy is
+            // charged separately until it is decoded.
+            using HttpBodyAdmission? admission = TryAdmitHttpBody(context, m_quotas.MaxBufferSize, peerCeiling: false);
+            if (admission == null)
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -2736,14 +2845,31 @@ namespace Opc.Ua.Bindings
                         return;
                     }
                     using var usage = requestActivity;
+                    using HttpBodyAdmission? messageAdmission = TryAdmitHttpBody(context, Math.Max(1, totalRead));
+                    if (messageAdmission == null)
+                    {
+                        await ws.CloseAsync(
+                            kWebSocketTryAgainLater,
+                            "Server request capacity is exhausted.",
+                            ct).ConfigureAwait(false);
+                        return;
+                    }
                     IServiceResponse responseToSend;
                     byte[] messageBytes = new byte[totalRead];
                     Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
                     try
                     {
-                        IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
-                            messageBytes,
-                            m_quotas.MessageContext);
+                        IServiceRequest request;
+                        try
+                        {
+                            request = JsonDecoder.DecodeMessage<IServiceRequest>(
+                                messageBytes,
+                                m_quotas.MessageContext);
+                        }
+                        finally
+                        {
+                            messageAdmission.Release();
+                        }
                         request.RequestHeader ??= new RequestHeader();
 
                         if (endpoint == null && !IsDiscoveryRequest(request.TypeId))
@@ -2856,9 +2982,10 @@ namespace Opc.Ua.Bindings
             UaScConnectionAdmission.Lease lease,
             string? accessToken)
         {
-            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
-            using IDisposable? retainedBody = bodyLease;
-            if (!admitted)
+            // The socket holds its receive buffer for its life; each message is charged
+            // to the request queue stages when it is admitted.
+            using HttpBodyAdmission? admission = TryAdmitHttpBody(context, m_quotas.MaxBufferSize, peerCeiling: false);
+            if (admission == null)
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -3660,19 +3787,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Reads the request body through the shared bounded reader before decoding.
-        /// </summary>
-        private static async Task<byte[]> ReadBodyAsync(
-            HttpRequest req,
-            int maxLength,
-            CancellationToken ct)
-        {
-            return await JsonRequestMapper
-                .ReadAllBoundedAsync(req.Body, maxLength, ct)
-                .ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Validate TLS client certificate at TLS handshake.
         /// </summary>
         /// <param name="clientCertificate">Client certificate</param>
@@ -3960,6 +4074,8 @@ namespace Opc.Ua.Bindings
         /// Budgets two body-size units for reader growth storage and one for the retained payload copy.
         /// </summary>
         private const long kRetainedBodyBufferMultiplicity = 3L;
+        private const long kPeerBodyCeilingMultiplicity = 2L;
+        private PeerBodyLedger? m_peerBodyLedger;
 
         private List<EndpointDescription> m_descriptions = null!;
         private ChannelQuotas m_quotas = null!;

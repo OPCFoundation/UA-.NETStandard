@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 IEventMonitoredItemQueue queue = factory.CreateEventQueue(false, 11);
                 queue.SetQueueSize(2, false);
-                queue.Enqueue(new EventFieldList { ClientHandle = 5, EventFields = [Variant.From(12)] });
+                queue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = 5, EventFields = [Variant.From(12)] }));
             }
             else
             {
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Assert.That(await factory.RestoreEventQueueAsync(12).ConfigureAwait(false), Is.Null);
                 IEventMonitoredItemQueue restored = (await factory.RestoreEventQueueAsync(11).ConfigureAwait(false))!;
                 Assert.That(restored, Is.Not.Null);
-                Assert.That(restored.Dequeue(out EventFieldList value), Is.True);
+                Assert.That(restored.Dequeue(out QueuedEvent value), Is.True);
                 Assert.That(value.ClientHandle, Is.EqualTo(5));
                 Assert.That(value.EventFields[0], Is.EqualTo(Variant.From(12)));
             }
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 queue.SetQueueSize(5, true);
                 for (uint i = 0; i < 3; i++)
                 {
-                    queue.Enqueue(new EventFieldList { ClientHandle = i, EventFields = [new Variant(i)] });
+                    queue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = i, EventFields = [new Variant(i)] }));
                 }
                 await factory.FlushAsync().ConfigureAwait(false);
             }
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(restored.ItemsInQueue, Is.EqualTo(3));
             for (uint i = 0; i < 3; i++)
             {
-                Assert.That(restored.Dequeue(out EventFieldList result), Is.True);
+                Assert.That(restored.Dequeue(out QueuedEvent result), Is.True);
                 Assert.That(result.ClientHandle, Is.EqualTo(i));
             }
         }
@@ -599,7 +599,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 IEventMonitoredItemQueue queue = factory.CreateEventQueue(false, 9);
                 queue.SetQueueSize(5, false);
-                queue.Enqueue(new EventFieldList { ClientHandle = 1 });
+                queue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = 1 }));
                 await factory.FlushAsync().ConfigureAwait(false);
                 return (IRestorableMonitoredItemQueue)(await factory.RestoreEventQueueAsync(9)
                     .ConfigureAwait(false))!;
@@ -617,7 +617,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             if (queue is IEventMonitoredItemQueue eventQueue)
             {
-                eventQueue.Enqueue(new EventFieldList { ClientHandle = (uint)value });
+                eventQueue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = (uint)value }));
                 return;
             }
             ((IDataChangeMonitoredItemQueue)queue).Enqueue(new DataValue(new Variant(value)), ServiceResult.Good);
